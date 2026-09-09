@@ -106,6 +106,20 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
     });
   }
 
-  return {move,count,getBalance,getLowStock,listLowStock,listBalances,listMovements,applySaleItems};
+  function applyReturnItems({eventId,returnId,items,direction='return',createdAt}){
+    const cancelled=direction==='cancel';
+    const type=cancelled?'sale':'sale-cancel';
+    const sign=cancelled?-1:1;
+    const totals=new Map();
+    for(const item of items||[]){totals.set(String(item.productId),roundQuantity((totals.get(String(item.productId))||0)+Number(item.quantity||0)));}
+    return withTransaction(db,()=>[...totals].map(([productId,quantity])=>performMove({
+      id:`${type}-return-${eventId}-${productId}`,
+      productId,type,quantityDelta:roundQuantity(sign*quantity),
+      reason:cancelled?'Cancelamento de devolucao':'Devolucao de venda',
+      sourceType:'return',sourceId:returnId,eventId,createdAt
+    })));
+  }
+
+  return {move,count,getBalance,getLowStock,listLowStock,listBalances,listMovements,applySaleItems,applyReturnItems};
 }
 module.exports={createInventoryService};
