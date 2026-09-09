@@ -22,6 +22,10 @@ test('shortcut resolver keeps global home navigation and contextual checkout act
 
 test('money, discount and margin helpers use integer cents', () => {
   assert.match(ui.formatCents(4820), /48,20/);
+  assert.equal(ui.parseCurrencyToCents('12,34'), 1234);
+  assert.equal(ui.parseCurrencyToCents('12.34'), 1234);
+  assert.equal(ui.parseCurrencyToCents('1.234,56'), 123456);
+  assert.equal(ui.parseCurrencyToCents('R$ 2,50'), 250);
   assert.equal(ui.percentageToDiscountCents(4820, 10), 482);
   assert.equal(ui.percentageToDiscountCents(4820, 150), 4820);
   assert.equal(ui.calculateMarginPercent(650, 400), 38.46);
