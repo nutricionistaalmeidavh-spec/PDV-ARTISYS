@@ -7,10 +7,8 @@ function requireMethod(driver, name, optional = false) {
 }
 
 function createStatus(driver, kind) {
-  const status = driver && typeof driver.status === 'function'
-    ? driver.status.bind(driver)
-    : async () => ({ available:false, kind, reason:'not-configured' });
-  return async () => ({ kind, ...(await status()) });
+  if (driver && typeof driver.status === 'function') return driver.status.bind(driver);
+  return async () => ({ available:false, kind, reason:'not-configured' });
 }
 
 function createHardwareAdapters({ scanner = null, scale = null, printer = null, drawer = null } = {}) {
