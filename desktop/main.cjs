@@ -5,11 +5,16 @@ const path = require('node:path');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { createLocalServer } = require('../server/local-server');
+const { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver, createSerialDrawerDriver } = require('./hardware-bridge.cjs');
+
+let SerialPortClass = null;
+try { ({ SerialPort: SerialPortClass } = require('serialport')); } catch { SerialPortClass = null; }
 
 let mainWindow = null;
 let runtime = null;
 let localServer = null;
 let apiBase = '';
+let hardwareController = null;
 const installToken = randomBytes(32).toString('hex');
 
 function rendererPath(...parts) {
@@ -46,6 +51,34 @@ function createMainWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
+function buildHardwareController() {
+  const scale = createSerialScaleDriver({
+    SerialPortClass,
+    path: process.env.PDV_SCALE_PORT || '',
+    baudRate: Number(process.env.PDV_SCALE_BAUD || 9600),
+    requestCommand: process.env.PDV_SCALE_COMMAND || ''
+  });
+  const drawer = createSerialDrawerDriver({
+    SerialPortClass,
+    path: process.env.PDV_DRAWER_PORT || '',
+    baudRate: Number(process.env.PDV_DRAWER_BAUD || 9600)
+  });
+  const print = createElectronPrintDriver({ BrowserWindow });
+  return createHardwareController({
+    async status() {
+      return {
+        barcodeScanner: { available:true, mode:'keyboard-wedge' },
+        scale: scale ? await scale.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' },
+        printer: { available:true, mode:'electron-print' },
+        cashDrawer: drawer ? await drawer.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' }
+      };
+    },
+    readWeight: scale ? () => scale.readWeight() : undefined,
+    openDrawer: drawer ? () => drawer.open() : undefined,
+    print
+  });
+}
+
 function registerIpc() {
   ipcMain.handle('artisys:config', () => ({
     apiBase,
@@ -76,6 +109,13 @@ function registerIpc() {
       catch { payload = { error: text }; }
     }
     return { ok: response.ok, status: response.status, payload };
+  });
+
+  hardwareController = buildHardwareController();
+  registerHardwareIpc({
+    ipcMain,
+    controller: hardwareController,
+    isTrustedSender: event => Boolean(mainWindow && event.sender === mainWindow.webContents)
   });
 
   ipcMain.on('artisys:window:minimize', () => mainWindow?.minimize());
