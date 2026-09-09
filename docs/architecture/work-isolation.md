@@ -1,1 +1,0 @@
-Feature work for E02–E06 is isolated from subsequent changes by commit history and dedicated implementation planning.
