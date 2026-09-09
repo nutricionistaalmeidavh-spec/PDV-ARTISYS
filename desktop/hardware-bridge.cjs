@@ -80,4 +80,25 @@ function createSerialScaleDriver({ SerialPortClass, path, baudRate = 9600, reque
   return { status:async()=>({available:true,path,baudRate:Number(baudRate),unit:'kg'}), readWeight };
 }
 
-module.exports = { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver };
+function createSerialDrawerDriver({ SerialPortClass, path, baudRate = 9600, pulse = Buffer.from([0x1b,0x70,0x00,0x19,0xfa]) } = {}) {
+  if (!SerialPortClass || !path) return null;
+  async function open() {
+    const port = new SerialPortClass({ path, baudRate:Number(baudRate), autoOpen:false });
+    return new Promise((resolve,reject) => {
+      port.open(error => {
+        if (error) return reject(error);
+        port.write(pulse, writeError => {
+          if (writeError) { try{port.close(()=>{});}catch{} return reject(writeError); }
+          port.drain(drainError => {
+            try{port.close(()=>{});}catch{}
+            if (drainError) return reject(drainError);
+            resolve(true);
+          });
+        });
+      });
+    });
+  }
+  return { status:async()=>({available:true,path,baudRate:Number(baudRate)}), open };
+}
+
+module.exports = { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver, createSerialDrawerDriver };
