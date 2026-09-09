@@ -1,0 +1,30 @@
+'use strict';
+const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
+
+function registerReturnEffects({ bus, inventoryService, cashService, effectStore } = {}) {
+  if (!bus || !inventoryService || !cashService || !effectStore) throw new TypeError('bus, inventoryService, cashService and effectStore are required.');
+  const inventoryCompleted = createIdempotentDomainEffect({
+    effectKey:'inventory.return-completed', effectStore,
+    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:event.payload.items || [], direction:'return', createdAt:event.occurredAt })
+  });
+  const cashCompleted = createIdempotentDomainEffect({
+    effectKey:'cash.return-completed', effectStore,
+    handler:async event => cashService.recordReturnRefunds({ terminalId:event.payload.terminalId, saleId:event.payload.saleId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'return' })
+  });
+  const inventoryCancelled = createIdempotentDomainEffect({
+    effectKey:'inventory.return-cancelled', effectStore,
+    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:event.payload.items || [], direction:'cancel', createdAt:event.occurredAt })
+  });
+  const cashCancelled = createIdempotentDomainEffect({
+    effectKey:'cash.return-cancelled', effectStore,
+    handler:async event => cashService.recordReturnRefunds({ terminalId:event.payload.terminalId, saleId:event.payload.saleId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'cancel' })
+  });
+  return [
+    bus.subscribe('return.completed', inventoryCompleted),
+    bus.subscribe('return.completed', cashCompleted),
+    bus.subscribe('return.cancelled', inventoryCancelled),
+    bus.subscribe('return.cancelled', cashCancelled)
+  ];
+}
+
+module.exports = { registerReturnEffects };
