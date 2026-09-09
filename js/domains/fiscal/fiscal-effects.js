@@ -41,4 +41,31 @@ function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolv
   return [bus.subscribe('fiscal.issue-requested',issueRequested)];
 }
 
-module.exports = { registerFiscalEffects };
+function registerFiscalAutoIssueEffect({ bus, effectStore, fiscalService, saleService, resolveConfiguration } = {}) {
+  if (!bus || !effectStore || !fiscalService || !saleService || typeof resolveConfiguration !== 'function') {
+    throw new TypeError('bus, effectStore, fiscalService, saleService and resolveConfiguration are required.');
+  }
+  const autoIssue = createIdempotentDomainEffect({
+    effectKey:'fiscal.sale-completed.auto-issue',
+    effectStore,
+    handler:async event => {
+      const sale = saleService.getSaleDetails(event.aggregateId);
+      if (!sale) throw new Error('Venda nao encontrada para emissao fiscal automatica.');
+      const config = await resolveConfiguration({ event, sale });
+      if (!config || config.configured === false || config.autoIssue === false) return { skipped:true, reason:'not-configured' };
+      return fiscalService.requestIssue({
+        saleId:sale.id,
+        provider:config.provider,
+        environment:config.environment,
+        documentType:config.documentType,
+        reference:config.reference || sale.saleNumber || sale.id,
+        payload:config.payload || {},
+        actor:event.actor || {},
+        mutationId:event.mutationId || null
+      });
+    }
+  });
+  return [bus.subscribe('sale.completed',autoIssue)];
+}
+
+module.exports = { registerFiscalEffects, registerFiscalAutoIssueEffect };
