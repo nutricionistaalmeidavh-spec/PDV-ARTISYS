@@ -104,7 +104,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
       const timestamp = now();
       db.prepare(`INSERT INTO return_transactions
         (id,sale_id,terminal_id,operator_id,status,total_cents,reason,authorized_by_id,created_at)
-        VALUES (?,?,?,?,'COMPLETED',?,?,?,?,?)`)
+        VALUES (?,?,?,?,'COMPLETED',?,?,?,?)`)
         .run(id, saleId, terminalId, operatorId, totalCents, reason, actor.userId || null, timestamp);
       const insertItem = db.prepare(`INSERT INTO return_items
         (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at)
