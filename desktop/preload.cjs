@@ -12,6 +12,12 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     openDrawer: () => ipcRenderer.invoke('artisys:hardware:drawer-open'),
     print: (job) => ipcRenderer.invoke('artisys:hardware:print', job)
   },
+  fiscal: {
+    status: () => ipcRenderer.invoke('artisys:fiscal:status'),
+    save: (connection) => ipcRenderer.invoke('artisys:fiscal:save', connection),
+    remove: () => ipcRenderer.invoke('artisys:fiscal:remove'),
+    test: () => ipcRenderer.invoke('artisys:fiscal:test')
+  },
   window: {
     minimize: () => ipcRenderer.send('artisys:window:minimize'),
     maximize: () => ipcRenderer.send('artisys:window:maximize'),
