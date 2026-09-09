@@ -37,7 +37,14 @@ function resolvePayment(input = {}) {
   }
 
   const remainingTotalCents = Math.max(totalCents - paidTotalCents, 0);
-  const changeDueCents = Math.max(Math.min(changeEligibleCents, paidTotalCents) - totalCents, 0);
+  const nonChangeEligibleCents = paidTotalCents - changeEligibleCents;
+  const amountCoveredByChangeEligibleCents = Math.max(totalCents - nonChangeEligibleCents, 0);
+  const changeDueCents = Math.max(changeEligibleCents - amountCoveredByChangeEligibleCents, 0);
+  const overpaymentCents = Math.max(paidTotalCents - totalCents, 0);
+
+  if (overpaymentCents > changeDueCents) {
+    throw new Error('Pagamento excedente so pode ocorrer em forma que permita troco.');
+  }
 
   return {
     status: remainingTotalCents > 0 ? 'insufficient' : 'paid',
