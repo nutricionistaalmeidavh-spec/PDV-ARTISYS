@@ -44,7 +44,7 @@ function createFinanceService({ db, now = () => new Date().toISOString(), idFact
     const id=String(input.id||idFactory('fin'));const timestamp=now();
     db.prepare(`INSERT INTO financial_entries
       (id,kind,description,category,account_id,amount_cents,due_at,status,source_type,source_id,notes,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,'OPEN',?,?,?,?,?,?)`)
+      VALUES (?,?,?,?,?,?,?,'OPEN',?,?,?,?,?)`)
       .run(id,kind,description,input.category||null,input.accountId||null,amountCents,dueAt,input.sourceType||null,input.sourceId||null,input.notes||null,timestamp,timestamp);
     writeAudit(db,{action:'finance.entry.create',entity:'financial-entry',entityId:id,actor,context:{kind,amountCents,dueAt}},now);
     return getEntry(id);
