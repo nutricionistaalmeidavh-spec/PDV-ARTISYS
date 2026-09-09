@@ -40,7 +40,8 @@ test('inventory operational queries list balances, filtered movements and low st
   const db = openDatabase(':memory:');
   runMigrations(db);
   seedBase(db);
-  const inventory = createInventoryService({ db, now: () => '2026-09-09T12:00:00Z', idFactory: p => `${p}-1` });
+  let n = 0;
+  const inventory = createInventoryService({ db, now: () => '2026-09-09T12:00:00Z', idFactory: p => `${p}-${++n}` });
   inventory.move({ productId:'p1', type:'opening', quantityDelta:4, reason:'saldo inicial' });
   inventory.move({ productId:'p2', type:'opening', quantityDelta:10, reason:'saldo inicial' });
 
