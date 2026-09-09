@@ -1,16 +1,22 @@
 {
   "name": "pdv-artisys",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "PDV desktop local-first da ArtiSys com servidor LAN central e EventBus duravel.",
+  "description": "PDV desktop local-first da ArtiSys com servidor LAN central, EventBus duravel e UI operacional.",
+  "main": "desktop/main.cjs",
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "start:server": "node server/start.js",
+    "start:desktop": "electron desktop/main.cjs",
     "test": "node --test test/*.test.js",
     "lint:eventbus": "node --check js/core/domain-event-bus.js && node --check js/core/domain-event-dispatcher.js && node --check js/core/idempotent-domain-effect.js && node --check js/core/pdv-event-types.js",
     "lint:core": "node --check js/core/audit-log.js && node --check js/core/pdv-runtime.js && node --check js/core/database/sqlite-database.js && node --check js/core/database/migrations.js && node --check js/core/database/outbox-store.js && node --check js/core/database/effect-store.js && node --check js/domains/shared/money.js && node --check js/domains/payments/payment-rules.js && node --check js/domains/catalog/catalog-service.js && node --check js/domains/inventory/inventory-rules.js && node --check js/domains/inventory/inventory-service.js && node --check js/domains/inventory/inventory-effects.js && node --check js/domains/sales/pricing.js && node --check js/domains/sales/sale-service.js && node --check js/domains/cash/cash-rules.js && node --check js/domains/cash/cash-service.js && node --check js/domains/cash/cash-effects.js && node --check server/router.js && node --check server/local-server.js && node --check server/start.js",
-    "verify": "npm test && npm run lint:eventbus && npm run lint:core"
+    "lint:desktop": "node --check desktop/main.cjs && node --check desktop/preload.cjs && node --check desktop/renderer/ui-model.js && node --check desktop/renderer/currency-input.js && node --check desktop/renderer/api-client.js && node --check desktop/renderer/app.js",
+    "verify": "npm test && npm run lint:eventbus && npm run lint:core && npm run lint:desktop"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10"
   }
 }

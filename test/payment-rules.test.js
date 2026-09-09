@@ -23,7 +23,7 @@ test('resolvePayment reports remaining amount', () => {
   assert.equal(summary.changeDueCents, 0);
 });
 
-test('resolvePayment returns change only from cash-like payments', () => {
+test('resolvePayment calculates change after non-cash methods have covered their share', () => {
   const summary = resolvePayment({
     totalCents: 9890,
     payments: [
@@ -35,7 +35,29 @@ test('resolvePayment returns change only from cash-like payments', () => {
   });
   assert.equal(summary.status, 'paid');
   assert.equal(summary.creditTotalCents, 2000);
-  assert.equal(summary.changeDueCents, 110);
+  assert.equal(summary.changeDueCents, 2110);
+});
+
+test('resolvePayment calculates mixed PIX plus cash change correctly', () => {
+  const summary = resolvePayment({
+    totalCents: 10000,
+    payments: [
+      { method: 'PIX', amountCents: 6000 },
+      { method: 'CASH', amountCents: 5000 }
+    ],
+    changeMethods: ['CASH']
+  });
+  assert.equal(summary.status, 'paid');
+  assert.equal(summary.paidTotalCents, 11000);
+  assert.equal(summary.changeDueCents, 1000);
+});
+
+test('resolvePayment rejects unexplained overpayment from methods that cannot return change', () => {
+  assert.throws(() => resolvePayment({
+    totalCents: 10000,
+    payments: [{ method: 'CREDIT_CARD', amountCents: 12000 }],
+    changeMethods: ['CASH']
+  }), /Pagamento excedente so pode ocorrer em forma que permita troco/);
 });
 
 test('resolvePayment rejects store credit above available limit', () => {
