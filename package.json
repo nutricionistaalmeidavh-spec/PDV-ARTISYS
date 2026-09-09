@@ -1,0 +1,9 @@
+{
+  "name": "pdv-artisys",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "lint:eventbus": "node --check js/core/domain-event-bus.js && node --check js/core/domain-event-dispatcher.js && node --check js/core/idempotent-domain-effect.js && node --check js/core/pdv-event-types.js"
+  }
+}
