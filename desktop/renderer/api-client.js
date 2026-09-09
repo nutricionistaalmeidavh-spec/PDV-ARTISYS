@@ -15,6 +15,8 @@
     }
 
     async request(path, { method = 'GET', body, mutationId } = {}) {
+      const persistedToken = root.sessionStorage?.getItem('artisys.sessionToken') || '';
+      if (persistedToken) this.sessionToken = persistedToken;
       const result = await root.artisysDesktop.apiRequest({ path, method, body, mutationId, sessionToken: this.sessionToken });
       if (!result.ok) {
         const error = new Error(result.payload?.error || `Erro HTTP ${result.status}`);
@@ -56,7 +58,15 @@
     inventoryBalances(filters = {}) { return this.request(`/api/v1/inventory${this.params(filters)}`); }
     inventoryLowStock() { return this.request('/api/v1/inventory/low-stock'); }
     inventoryMovements(filters = {}) { return this.request(`/api/v1/inventory/movements${this.params(filters)}`); }
-    saveInventoryMovement(body) { return this.request('/api/v1/inventory/movements', { method:'POST', body }); }
+    async saveInventoryMovement(body) {
+      let payload = { ...body };
+      if (payload.type === 'inventory-count' && payload.countedQuantity !== undefined) {
+        const current = await this.request(`/api/v1/inventory/${encodeURIComponent(payload.productId)}`);
+        payload.quantityDelta = Number((Number(payload.countedQuantity) - Number(current.quantity || 0)).toFixed(3));
+        delete payload.countedQuantity;
+      }
+      return this.request('/api/v1/inventory/movements', { method:'POST', body:payload });
+    }
 
     openCash(terminalId) { return this.request(`/api/v1/cash/open?terminalId=${encodeURIComponent(terminalId)}`); }
     createCash(body) { return this.request('/api/v1/cash/sessions', { method: 'POST', body, mutationId:this.mutationId() }); }
