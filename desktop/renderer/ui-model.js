@@ -40,6 +40,17 @@
     return (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  function parseCurrencyToCents(value) {
+    let text = String(value ?? '').trim().replace(/R\$/gi, '').replace(/\s+/g, '');
+    if (!text) return 0;
+    if (text.includes(',')) {
+      text = text.replace(/\./g, '').replace(',', '.');
+    }
+    const numeric = Number(text);
+    if (!Number.isFinite(numeric)) return 0;
+    return Math.round(numeric * 100);
+  }
+
   function percentageToDiscountCents(subtotalCents, percent) {
     const subtotal = Math.max(0, Math.round(Number(subtotalCents) || 0));
     const bounded = Math.min(Math.max(Number(percent) || 0, 0), 100);
@@ -82,6 +93,7 @@
     CHECKOUT_SHORTCUTS,
     resolveShortcut,
     formatCents,
+    parseCurrencyToCents,
     percentageToDiscountCents,
     calculateMarginPercent,
     normalizeSearch,
