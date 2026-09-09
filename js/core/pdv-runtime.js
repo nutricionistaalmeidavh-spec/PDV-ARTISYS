@@ -14,8 +14,21 @@ const { createCashService }=require('../domains/cash/cash-service');
 const { registerCashEffects }=require('../domains/cash/cash-effects');
 const { createReturnService }=require('../domains/returns/return-service');
 const { registerReturnEffects }=require('../domains/returns/return-effects');
+const { createFinanceService }=require('../domains/finance/finance-service');
+const { createReportingService }=require('../domains/reports/reporting-service');
+const { createPrintService }=require('../domains/printing/print-service');
+const { registerPrintEffects }=require('../domains/printing/print-effects');
+const { createFiscalService }=require('../domains/fiscal/fiscal-service');
+const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
 
-function createPdvRuntime({dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createPdvRuntime({
+  dbPath=':memory:',
+  now=()=>new Date().toISOString(),
+  idFactory=p=>`${p}-${randomUUID()}`,
+  fiscalProviderResolver=async()=>null,
+  fiscalAutoIssueResolver=null,
+  receiptOptions={}
+}={}){
   const db=openDatabase(dbPath);runMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const catalog=createCatalogService({db,now,idFactory});
@@ -23,10 +36,26 @@ function createPdvRuntime({dbPath=':memory:',now=()=>new Date().toISOString(),id
   const cash=createCashService({db,outbox,now,idFactory});
   const sales=createSaleService({db,outbox,now,idFactory});
   const returns=createReturnService({db,outbox,now,idFactory});
+  const finance=createFinanceService({db,now,idFactory});
+  const reports=createReportingService({db,now});
+  const printing=createPrintService({db,now,idFactory});
+  const fiscal=createFiscalService({db,outbox,now,idFactory});
+
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
   registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore});
+  registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,...receiptOptions});
+  registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});
+  if(typeof fiscalAutoIssueResolver==='function'){
+    registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
+  }
+
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,inventory,sales,cash,returns,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {
+    db,outbox,effectStore,bus,dispatcher,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,
+    dispatchPending:()=>dispatcher.dispatchPending(),
+    close(){db.close();}
+  };
 }
 module.exports={createPdvRuntime};
