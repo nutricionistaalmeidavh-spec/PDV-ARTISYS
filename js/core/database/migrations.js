@@ -219,6 +219,139 @@ const MIGRATIONS = [
         PRIMARY KEY (event_id,effect_key)
       );
     `
+  },
+  {
+    version: 2,
+    name: 'pdv_operational_e13_e20',
+    sql: `
+      CREATE TABLE IF NOT EXISTS return_transactions (
+        id TEXT PRIMARY KEY,
+        sale_id TEXT NOT NULL,
+        terminal_id TEXT NOT NULL,
+        operator_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('COMPLETED','CANCELLED')),
+        total_cents INTEGER NOT NULL DEFAULT 0 CHECK (total_cents >= 0),
+        reason TEXT,
+        authorized_by_id TEXT,
+        created_at TEXT NOT NULL,
+        cancelled_at TEXT,
+        FOREIGN KEY (sale_id) REFERENCES sales(id),
+        FOREIGN KEY (operator_id) REFERENCES users(id),
+        FOREIGN KEY (authorized_by_id) REFERENCES users(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_returns_sale_created ON return_transactions(sale_id,created_at);
+      CREATE INDEX IF NOT EXISTS idx_returns_status_created ON return_transactions(status,created_at);
+
+      CREATE TABLE IF NOT EXISTS return_items (
+        id TEXT PRIMARY KEY,
+        return_id TEXT NOT NULL,
+        sale_item_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity REAL NOT NULL CHECK (quantity > 0),
+        unit_price_cents INTEGER NOT NULL CHECK (unit_price_cents >= 0),
+        total_cents INTEGER NOT NULL CHECK (total_cents >= 0),
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (return_id) REFERENCES return_transactions(id) ON DELETE CASCADE,
+        FOREIGN KEY (sale_item_id) REFERENCES sale_items(id),
+        FOREIGN KEY (product_id) REFERENCES products(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_return_items_return ON return_items(return_id);
+      CREATE INDEX IF NOT EXISTS idx_return_items_sale_item ON return_items(sale_item_id);
+
+      CREATE TABLE IF NOT EXISTS financial_accounts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        type TEXT NOT NULL DEFAULT 'OTHER' CHECK (type IN ('CASH','BANK','CARD','OTHER')),
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS financial_entries (
+        id TEXT PRIMARY KEY,
+        kind TEXT NOT NULL CHECK (kind IN ('PAYABLE','RECEIVABLE')),
+        description TEXT NOT NULL,
+        category TEXT,
+        account_id TEXT,
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        due_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN','PARTIAL','SETTLED','CANCELLED')),
+        source_type TEXT,
+        source_id TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        cancelled_at TEXT,
+        FOREIGN KEY (account_id) REFERENCES financial_accounts(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_financial_entries_due_status ON financial_entries(status,due_at);
+      CREATE INDEX IF NOT EXISTS idx_financial_entries_kind_due ON financial_entries(kind,due_at);
+      CREATE INDEX IF NOT EXISTS idx_financial_entries_source ON financial_entries(source_type,source_id);
+
+      CREATE TABLE IF NOT EXISTS financial_settlements (
+        id TEXT PRIMARY KEY,
+        entry_id TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL CHECK (amount_cents > 0),
+        method TEXT,
+        note TEXT,
+        created_at TEXT NOT NULL,
+        reversed_at TEXT,
+        FOREIGN KEY (entry_id) REFERENCES financial_entries(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_financial_settlements_entry ON financial_settlements(entry_id,created_at);
+
+      CREATE TABLE IF NOT EXISTS print_jobs (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id TEXT,
+        payload_json TEXT NOT NULL,
+        width INTEGER NOT NULL DEFAULT 42 CHECK (width IN (32,42,48)),
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','PRINTED','FAILED','CANCELLED')),
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        last_error TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        printed_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_print_jobs_status_created ON print_jobs(status,created_at);
+      CREATE INDEX IF NOT EXISTS idx_print_jobs_entity ON print_jobs(entity_type,entity_id,created_at);
+
+      CREATE TABLE IF NOT EXISTS fiscal_documents (
+        id TEXT PRIMARY KEY,
+        sale_id TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        document_type TEXT NOT NULL CHECK (document_type IN ('nfce','nfe')),
+        environment TEXT NOT NULL CHECK (environment IN ('homologation','production')),
+        reference TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ISSUED','FAILED','CANCELLED')),
+        access_key TEXT,
+        number TEXT,
+        series TEXT,
+        issued_at TEXT,
+        cancelled_at TEXT,
+        last_error TEXT,
+        response_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (sale_id) REFERENCES sales(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_fiscal_sale_created ON fiscal_documents(sale_id,created_at);
+      CREATE INDEX IF NOT EXISTS idx_fiscal_status_created ON fiscal_documents(status,created_at);
+
+      CREATE TABLE IF NOT EXISTS device_settings (
+        id TEXT PRIMARY KEY,
+        terminal_id TEXT NOT NULL,
+        device_type TEXT NOT NULL,
+        config_json TEXT NOT NULL DEFAULT '{}',
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (terminal_id,device_type)
+      );
+      CREATE INDEX IF NOT EXISTS idx_device_settings_terminal ON device_settings(terminal_id,device_type);
+    `
   }
 ];
 

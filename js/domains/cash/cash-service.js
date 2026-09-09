@@ -8,10 +8,20 @@ const { calculateCashClosing }=require('./cash-rules');
 
 function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!outbox)throw new TypeError('Database and outbox are required.');
-  function mapMovement(row){return row&&{id:row.id,cashSessionId:row.cash_session_id,type:row.type,amountCents:row.amount_cents,paymentMethod:row.payment_method,saleId:row.sale_id,note:row.note,createdAt:row.created_at};}
-  function mapSession(row){if(!row)return null;return{id:row.id,terminalId:row.terminal_id,operatorId:row.operator_id,status:row.status,initialCashCents:row.initial_cash_cents,expectedCashCents:row.expected_cash_cents,countedCashCents:row.counted_cash_cents,divergenceCents:row.divergence_cents,openedAt:row.opened_at,closedAt:row.closed_at,movements:db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? ORDER BY created_at,id').all(row.id).map(mapMovement)};}
+  function mapMovement(row){if(!row)return null;const mapped={id:row.id,cashSessionId:row.cash_session_id,type:row.type,amountCents:row.amount_cents,paymentMethod:row.payment_method,saleId:row.sale_id,note:row.note,createdAt:row.created_at};const match=/^RETURN:([^:]+):/.exec(String(row.note||''));if(match)mapped.returnId=match[1];return mapped;}
+  function listSessionMovements(sessionId){return db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? ORDER BY created_at,id').all(String(sessionId)).map(mapMovement);}
+  function mapSession(row){if(!row)return null;return{id:row.id,terminalId:row.terminal_id,operatorId:row.operator_id,status:row.status,initialCashCents:row.initial_cash_cents,expectedCashCents:row.expected_cash_cents,countedCashCents:row.counted_cash_cents,divergenceCents:row.divergence_cents,openedAt:row.opened_at,closedAt:row.closed_at,movements:listSessionMovements(row.id)};}
   function getSession(id){return mapSession(db.prepare('SELECT * FROM cash_sessions WHERE id=?').get(String(id)));}
   function getOpenSession(terminalId){return mapSession(db.prepare("SELECT * FROM cash_sessions WHERE terminal_id=? AND status='OPEN'").get(String(terminalId)));}
+  function listSessions(filters={}){
+    const clauses=[];const params=[];
+    if(filters.terminalId){clauses.push('terminal_id=?');params.push(String(filters.terminalId));}
+    if(filters.status){clauses.push('status=?');params.push(String(filters.status).toUpperCase());}
+    if(filters.from){clauses.push('opened_at>=?');params.push(String(filters.from));}
+    if(filters.to){clauses.push('opened_at<=?');params.push(String(filters.to));}
+    const sql=`SELECT * FROM cash_sessions${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY opened_at DESC,id DESC`;
+    return db.prepare(sql).all(...params).map(mapSession);
+  }
   function requireOpen(id){const row=db.prepare("SELECT * FROM cash_sessions WHERE id=? AND status='OPEN'").get(String(id));if(!row)throw new Error('Caixa nao esta aberto.');return row;}
   function insertMovement({sessionId,type,amountCents,paymentMethod='CASH',saleId=null,note=null,createdAt}){
     assertCents(amountCents,'amountCents');if(amountCents<0)throw new Error('Valor do movimento nao pode ser negativo.');
@@ -25,7 +35,18 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
   function withdraw(id,{amountCents,note='',actor=null}={}){const session=requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Sangria deve ser maior que zero.');const movements=db.prepare('SELECT type,amount_cents AS amountCents,payment_method AS paymentMethod FROM cash_movements WHERE cash_session_id=?').all(id);const current=calculateCashClosing({initialCashCents:session.initial_cash_cents,movements:movements.filter(m=>m.type!=='OPENING'),countedByMethod:{CASH:0}}).expectedCashCents;if(amountCents>current)throw new Error('Saldo em dinheiro insuficiente para sangria.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'WITHDRAWAL',amountCents,paymentMethod:'CASH',note,createdAt:now()}));writeAudit(db,{action:'cash.withdraw',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
   function recordSalePayments({terminalId,saleId,payments=[]}={}){const session=getOpenSession(terminalId);if(!session)throw new Error('Nao existe caixa aberto neste terminal.');return withTransaction(db,()=>payments.map(payment=>insertMovement({sessionId:session.id,type:'SALE',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:now()})));}
   function reverseSalePayments({terminalId,saleId,payments=[]}={}){const session=getOpenSession(terminalId);if(!session)throw new Error('Nao existe caixa aberto neste terminal.');return withTransaction(db,()=>payments.map(payment=>insertMovement({sessionId:session.id,type:'REVERSAL',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:now()})));}
+  function recordReturnRefunds({terminalId,returnId,refunds=[],direction='return'}={}){
+    const session=getOpenSession(terminalId);if(!session)throw new Error('Nao existe caixa aberto neste terminal.');
+    const type=direction==='cancel'?'SALE':'REVERSAL';
+    const note=`RETURN:${String(returnId)}:${direction==='cancel'?'CANCELLED':'COMPLETED'}`;
+    return withTransaction(db,()=>refunds.map(refund=>{
+      const method=normalizeMethod(refund.method)||'CASH';
+      const existing=db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? AND type=? AND payment_method=? AND note=?').get(session.id,type,method,note);
+      if(existing)return mapMovement(existing);
+      return insertMovement({sessionId:session.id,type,amountCents:refund.amountCents,paymentMethod:method,saleId:null,note,createdAt:now()});
+    }));
+  }
   function closeSession(id,{countedByMethod={},actor={},mutationId=null}={}){const session=requireOpen(id);return withTransaction(db,()=>{const movements=db.prepare('SELECT type,amount_cents AS amountCents,payment_method AS paymentMethod FROM cash_movements WHERE cash_session_id=?').all(id).filter(m=>m.type!=='OPENING');const summary=calculateCashClosing({initialCashCents:session.initial_cash_cents,movements,countedByMethod});const timestamp=now();db.prepare("UPDATE cash_sessions SET status='CLOSED',expected_cash_cents=?,counted_cash_cents=?,divergence_cents=?,closed_at=? WHERE id=? AND status='OPEN'").run(summary.expectedCashCents,summary.countedCashCents,summary.divergenceCents,timestamp,id);const event={eventId:idFactory('evt'),type:'cash-session.closed',aggregate:'cash-session',aggregateId:id,occurredAt:timestamp,actor,source:'server',mutationId,payload:{terminalId:session.terminal_id,...summary}};outbox.insert(event);writeAudit(db,{action:'cash.close',entity:'cash-session',entityId:id,actor,context:{status:summary.status,divergenceCents:summary.divergenceCents,eventId:event.eventId}},now);return getSession(id);});}
-  return{openSession,addSupply,withdraw,recordSalePayments,reverseSalePayments,closeSession,getOpenSession,getSession};
+  return{openSession,addSupply,withdraw,recordSalePayments,reverseSalePayments,recordReturnRefunds,closeSession,getOpenSession,getSession,listSessionMovements,listSessions};
 }
 module.exports={createCashService};

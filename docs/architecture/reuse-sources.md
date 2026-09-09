@@ -1,32 +1,46 @@
-# Fontes de reuso E02–E06
+# Fontes de reuso do PDV ArtiSys
 
-Este arquivo registra as origens dos módulos reaproveitados no núcleo do PDV ArtiSys.
+Este arquivo registra as origens e os critérios de adaptação dos módulos reaproveitados no novo PDV. O objetivo é reutilizar contratos e padrões maduros sem carregar decisões legadas incompatíveis com a arquitetura local/LAN atual.
 
 ## PDVNexus
 
-Reutilizar/adaptar:
-- `windows-10/packages/database/src/pdv.ts`: regras puras de pagamento, estoque, inventário, caixa, autorização e cancelamento.
-- `windows-10/tests/pdv-payment.test.ts`: contratos de regressão das regras acima.
-- `windows-10/apps/nexus-desktop/main.cjs`: uso de `node:sqlite`, `DatabaseSync`, servidor `node:http`, backup local e token LAN.
+Reutilizado/adaptado:
+- regras puras de pagamento, estoque, inventário, caixa, autorização e cancelamento;
+- testes de regressão das regras de PDV;
+- uso de `node:sqlite`, servidor `node:http` e padrões de operação local;
+- agregadores de dashboard/relatórios e exportação CSV;
+- padrões de integração serial para balança e periféricos;
+- impressão Electron e formatação de comprovante.
 
-Não reutilizar literalmente:
-- persistência por snapshot JSON como fonte primária;
-- reset destrutivo do banco quando a versão do aplicativo muda;
+Não reutilizado literalmente:
+- snapshot JSON como fonte primária;
+- reset destrutivo do banco quando a versão muda;
 - senhas em texto simples;
-- baixa direta de estoque dentro de `completePdvSale`;
-- CORS wildcard do sync server.
+- baixa direta de estoque dentro da finalização da venda;
+- CORS wildcard;
+- acesso serial genérico exposto ao renderer.
 
 ## CLINICASMEDICAS
 
-Reutilizar/adaptar:
-- `js/core/migrations.js`: padrão de migrations versionadas e idempotentes.
-- `js/core/audit.js`: sanitização de payload e exclusão de segredos.
+Reutilizado/adaptado:
+- migrations versionadas e idempotentes;
+- sanitização de auditoria e exclusão de segredos;
+- desenho de EventBus/outbox persistente;
+- separação entre fiscal core, provider e bridge seguro;
+- padrões de cliente Focus e tratamento de timeout/resposta;
+- armazenamento de credenciais com fronteira Electron/`safeStorage`.
 
-## Mudanças de arquitetura no novo PDV
+A implementação fiscal foi adaptada para o domínio do PDV, com NFC-e/NF-e, documento vinculado à venda, retry persistente e eventos fiscais canônicos.
+
+## Mudanças obrigatórias no novo PDV
 
 - dinheiro em centavos inteiros;
-- SQLite acessado apenas pelo servidor central;
+- SQLite acessado apenas pelo servidor autoritativo;
 - outbox persistente + EventBus;
 - efeitos idempotentes por `eventId + effectKey`;
-- estoque via movimentos imutáveis e projeção de saldo;
-- API `/api/v1` em vez de sincronização de snapshot completo.
+- estoque e caixa por movimentos imutáveis;
+- devolução como transação própria, sem reescrever venda original;
+- impressão como fila persistente e efeito externo;
+- segredo fiscal fora do renderer e do banco operacional;
+- API `/api/v1` em vez de sincronização por snapshot completo;
+- UI substituível sem alterar domínio, persistência ou integrações.

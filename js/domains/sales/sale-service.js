@@ -15,6 +15,7 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
   function getPayments(id) { return db.prepare(`SELECT id,method,amount_cents AS amountCents,metadata_json AS metadataJson,created_at AS createdAt FROM payments WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(p => ({ ...p, metadata: p.metadataJson ? JSON.parse(p.metadataJson) : null })); }
   function mapSale(row) { if (!row) return null; return { id: row.id, saleNumber: row.sale_number, terminalId: row.terminal_id, operatorId: row.operator_id, customerId: row.customer_id, status: row.status, subtotalCents: row.subtotal_cents, discountCents: row.discount_cents, totalCents: row.total_cents, changeCents: row.change_cents, cancelReason: row.cancel_reason, openedAt: row.opened_at, completedAt: row.completed_at, cancelledAt: row.cancelled_at, updatedAt: row.updated_at, items: getItems(row.id), payments: getPayments(row.id) }; }
   function getSale(id) { return mapSale(getSaleRow(id)); }
+  function getSaleDetails(id) { return getSale(id); }
   function requireSale(id, states) { const row = getSaleRow(id); if (!row) throw new Error('Venda nao encontrada.'); if (states && !states.includes(row.status)) throw new Error(`Venda nao esta aberta para esta operacao (status ${row.status}).`); return row; }
 
   function listSales({ status = null, limit = 50 } = {}) {
@@ -25,6 +26,22 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
       ? db.prepare('SELECT * FROM sales WHERE status=? ORDER BY opened_at DESC,id DESC LIMIT ?').all(normalizedStatus, safeLimit)
       : db.prepare('SELECT * FROM sales ORDER BY opened_at DESC,id DESC LIMIT ?').all(safeLimit);
     return rows.map(mapSale);
+  }
+
+  function listHistory(filters = {}) {
+    const clauses=[]; const params=[];
+    const status=filters.status && String(filters.status).toUpperCase() !== 'ALL' ? String(filters.status).toUpperCase() : null;
+    if(status){if(!['OPEN','SUSPENDED','COMPLETED','CANCELLED'].includes(status))throw new Error('Status de venda invalido.');clauses.push('s.status=?');params.push(status);}
+    if(filters.customerId){clauses.push('s.customer_id=?');params.push(String(filters.customerId));}
+    if(filters.operatorId){clauses.push('s.operator_id=?');params.push(String(filters.operatorId));}
+    if(filters.from){clauses.push('COALESCE(s.completed_at,s.cancelled_at,s.opened_at)>=?');params.push(String(filters.from));}
+    if(filters.to){clauses.push('COALESCE(s.completed_at,s.cancelled_at,s.opened_at)<=?');params.push(String(filters.to));}
+    if(filters.paymentMethod){clauses.push('EXISTS (SELECT 1 FROM payments p WHERE p.sale_id=s.id AND p.method=?)');params.push(normalizeMethod(filters.paymentMethod));}
+    if(filters.query){const q=`%${String(filters.query).trim().toLowerCase()}%`;clauses.push('(LOWER(s.sale_number) LIKE ? OR LOWER(COALESCE(c.name,\'\')) LIKE ? OR LOWER(COALESCE(u.name,\'\')) LIKE ?)');params.push(q,q,q);}
+    const limit=Math.min(Math.max(Number(filters.limit)||100,1),500);
+    params.push(limit);
+    const sql=`SELECT s.* FROM sales s LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN users u ON u.id=s.operator_id${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY COALESCE(s.completed_at,s.cancelled_at,s.opened_at) DESC,s.id DESC LIMIT ?`;
+    return db.prepare(sql).all(...params).map(mapSale);
   }
 
   function recalculate(saleId, discountOverride) {
@@ -119,6 +136,6 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
     });
   }
 
-  return { openSale, setCustomer, addItem, updateItemQuantity, removeItem, applyDiscount, suspendSale, resumeSale, completeSale, cancelSale, getSale, listSales };
+  return { openSale, setCustomer, addItem, updateItemQuantity, removeItem, applyDiscount, suspendSale, resumeSale, completeSale, cancelSale, getSale, getSaleDetails, listSales, listHistory };
 }
 module.exports = { createSaleService };

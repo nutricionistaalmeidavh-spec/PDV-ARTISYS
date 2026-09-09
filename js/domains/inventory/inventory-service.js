@@ -3,9 +3,9 @@ const { randomUUID } = require('node:crypto');
 const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity, applyStockDelta } = require('./inventory-rules');
-const VALID_TYPES=new Set(['opening','purchase','sale','sale-cancel','adjustment-in','adjustment-out','inventory-count']);
+const VALID_TYPES = new Set(['opening','purchase','sale','sale-cancel','adjustment-in','adjustment-out','inventory-count']);
 
-function mapMovement(row){return row&&{id:row.id,productId:row.product_id,type:row.type,quantityDelta:row.quantity_delta,quantityBefore:row.quantity_before,quantityAfter:row.quantity_after,reason:row.reason,sourceType:row.source_type,sourceId:row.source_id,eventId:row.event_id,createdAt:row.created_at};}
+function mapMovement(row){return row&&{id:row.id,productId:row.product_id,type:row.type,quantityDelta:roundQuantity(row.quantity_delta),quantityBefore:roundQuantity(row.quantity_before),quantityAfter:roundQuantity(row.quantity_after),reason:row.reason,sourceType:row.source_type,sourceId:row.source_id,eventId:row.event_id,createdAt:row.created_at};}
 
 function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db) throw new TypeError('Database is required.');
@@ -50,14 +50,41 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
   }
 
   function getLowStock(){
-    return db.prepare(`SELECT p.id AS productId,p.name,b.quantity,p.minimum_stock AS minimumStock
-      FROM products p JOIN inventory_balances b ON b.product_id=p.id
-      WHERE p.active=1 AND p.track_stock=1 AND b.quantity<=p.minimum_stock ORDER BY p.name`).all()
+    return db.prepare(`SELECT p.id AS productId,p.name,COALESCE(b.quantity,0) AS quantity,p.minimum_stock AS minimumStock
+      FROM products p LEFT JOIN inventory_balances b ON b.product_id=p.id
+      WHERE p.active=1 AND p.track_stock=1 AND COALESCE(b.quantity,0)<=p.minimum_stock ORDER BY p.name,p.id`).all()
       .map(row=>({...row,quantity:roundQuantity(row.quantity),minimumStock:roundQuantity(row.minimumStock)}));
   }
 
-  function listMovements(productId){
-    return db.prepare('SELECT * FROM inventory_movements WHERE product_id=? ORDER BY created_at,id').all(String(productId)).map(mapMovement);
+  function listLowStock(){ return getLowStock(); }
+
+  function listBalances(filters={}){
+    const query=String(filters?.query||'').trim().toLowerCase();
+    const rows=db.prepare(`SELECT p.id AS productId,p.sku,p.barcode,p.name,p.unit,
+        COALESCE(b.quantity,0) AS quantity,p.minimum_stock AS minimumStock,
+        p.cost_cents AS costCents,p.sale_price_cents AS salePriceCents,p.track_stock AS trackStock
+      FROM products p LEFT JOIN inventory_balances b ON b.product_id=p.id
+      WHERE p.active=1 ORDER BY p.name,p.id`).all();
+    return rows
+      .filter(row=>!query||[row.name,row.sku,row.barcode].some(value=>String(value||'').toLowerCase().includes(query)))
+      .map(row=>({
+        productId:row.productId,sku:row.sku,barcode:row.barcode,name:row.name,unit:row.unit,
+        quantity:roundQuantity(row.quantity),minimumStock:roundQuantity(row.minimumStock),
+        costCents:row.costCents,salePriceCents:row.salePriceCents,
+        lowStock:Boolean(row.trackStock)&&roundQuantity(row.quantity)<=roundQuantity(row.minimumStock)
+      }))
+      .filter(row=>filters?.lowStock===true?row.lowStock:true);
+  }
+
+  function listMovements(filters){
+    const normalized=typeof filters==='string'?{productId:filters}:(filters||{});
+    const clauses=[]; const params=[];
+    if(normalized.productId){clauses.push('product_id=?');params.push(String(normalized.productId));}
+    if(normalized.type){clauses.push('type=?');params.push(String(normalized.type));}
+    if(normalized.from){clauses.push('created_at>=?');params.push(String(normalized.from));}
+    if(normalized.to){clauses.push('created_at<=?');params.push(String(normalized.to));}
+    const sql=`SELECT * FROM inventory_movements${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY created_at,id`;
+    return db.prepare(sql).all(...params).map(mapMovement);
   }
 
   function applySaleItems({eventId,saleId,items,direction,createdAt}){
@@ -79,6 +106,20 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
     });
   }
 
-  return {move,count,getBalance,getLowStock,listMovements,applySaleItems};
+  function applyReturnItems({eventId,returnId,items,direction='return',createdAt}){
+    const cancelled=direction==='cancel';
+    const type=cancelled?'sale':'sale-cancel';
+    const sign=cancelled?-1:1;
+    const totals=new Map();
+    for(const item of items||[]){totals.set(String(item.productId),roundQuantity((totals.get(String(item.productId))||0)+Number(item.quantity||0)));}
+    return withTransaction(db,()=>[...totals].map(([productId,quantity])=>performMove({
+      id:`${type}-return-${eventId}-${productId}`,
+      productId,type,quantityDelta:roundQuantity(sign*quantity),
+      reason:cancelled?'Cancelamento de devolucao':'Devolucao de venda',
+      sourceType:'return',sourceId:returnId,eventId,createdAt
+    })));
+  }
+
+  return {move,count,getBalance,getLowStock,listLowStock,listBalances,listMovements,applySaleItems,applyReturnItems};
 }
 module.exports={createInventoryService};

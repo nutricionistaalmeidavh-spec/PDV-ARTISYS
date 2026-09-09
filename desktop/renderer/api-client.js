@@ -5,7 +5,7 @@
 })(window, function factory(root) {
   class ApiClient {
     constructor() {
-      this.sessionToken = '';
+      this.sessionToken = root.sessionStorage?.getItem('artisys.sessionToken') || '';
       this.config = null;
     }
 
@@ -15,6 +15,8 @@
     }
 
     async request(path, { method = 'GET', body, mutationId } = {}) {
+      const persistedToken = root.sessionStorage?.getItem('artisys.sessionToken') || '';
+      if (persistedToken) this.sessionToken = persistedToken;
       const result = await root.artisysDesktop.apiRequest({ path, method, body, mutationId, sessionToken: this.sessionToken });
       if (!result.ok) {
         const error = new Error(result.payload?.error || `Erro HTTP ${result.status}`);
@@ -25,15 +27,24 @@
       return result.payload;
     }
 
+    params(values = {}) {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(values)) if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+      const text = query.toString();
+      return text ? `?${text}` : '';
+    }
+
+    mutationId() { return root.crypto?.randomUUID ? root.crypto.randomUUID() : `${Date.now()}-${Math.random()}`; }
     health() { return this.request('/api/v1/health'); }
     setupStatus() { return this.request('/api/v1/setup/status'); }
     setupAdmin(body) { return this.request('/api/v1/setup/admin', { method: 'POST', body }); }
     async login(body) {
       const result = await this.request('/api/v1/auth/login', { method: 'POST', body });
       this.sessionToken = result.sessionToken;
+      root.sessionStorage?.setItem('artisys.sessionToken', this.sessionToken);
       return result;
     }
-    logout() { this.sessionToken = ''; }
+    logout() { this.sessionToken = ''; root.sessionStorage?.removeItem('artisys.sessionToken'); }
 
     categories(includeInactive = false) { return this.request(`/api/v1/categories${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
@@ -44,17 +55,29 @@
     users(includeInactive = false) { return this.request(`/api/v1/users${includeInactive ? '?includeInactive=true' : ''}`); }
     saveUser(body) { return this.request('/api/v1/users', { method: 'POST', body }); }
 
-    openCash(terminalId) { return this.request(`/api/v1/cash/open?terminalId=${encodeURIComponent(terminalId)}`); }
-    createCash(body) { return this.request('/api/v1/cash/sessions', { method: 'POST', body }); }
-    cashAction(sessionId, action, body) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/${action}`, { method: 'POST', body }); }
-
-    sales(status = '', limit = 50) {
-      const params = new URLSearchParams();
-      if (status) params.set('status', status);
-      params.set('limit', String(limit));
-      return this.request(`/api/v1/sales?${params}`);
+    inventoryBalances(filters = {}) { return this.request(`/api/v1/inventory${this.params(filters)}`); }
+    inventoryLowStock() { return this.request('/api/v1/inventory/low-stock'); }
+    inventoryMovements(filters = {}) { return this.request(`/api/v1/inventory/movements${this.params(filters)}`); }
+    async saveInventoryMovement(body) {
+      let payload = { ...body };
+      if (payload.type === 'inventory-count' && payload.countedQuantity !== undefined) {
+        const current = await this.request(`/api/v1/inventory/${encodeURIComponent(payload.productId)}`);
+        payload.quantityDelta = Number((Number(payload.countedQuantity) - Number(current.quantity || 0)).toFixed(3));
+        delete payload.countedQuantity;
+      }
+      return this.request('/api/v1/inventory/movements', { method:'POST', body:payload });
     }
+
+    openCash(terminalId) { return this.request(`/api/v1/cash/open?terminalId=${encodeURIComponent(terminalId)}`); }
+    createCash(body) { return this.request('/api/v1/cash/sessions', { method: 'POST', body, mutationId:this.mutationId() }); }
+    cashAction(sessionId, action, body) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/${action}`, { method: 'POST', body, mutationId:action === 'close' ? this.mutationId() : undefined }); }
+    cashSessions(filters = {}) { return this.request(`/api/v1/cash/sessions${this.params(filters)}`); }
+    cashMovements(sessionId) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/movements`); }
+
+    sales(status = '', limit = 50) { return this.request(`/api/v1/sales${this.params({status,limit})}`); }
+    salesHistory(filters = {}) { return this.request(`/api/v1/sales/history${this.params(filters)}`); }
     sale(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}`); }
+    saleDetails(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/details`); }
     openSale(body) { return this.request('/api/v1/sales', { method: 'POST', body }); }
     setSaleCustomer(id, customerId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/customer`, { method: 'POST', body: { customerId } }); }
     addSaleItem(id, productId, quantity = 1) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items`, { method: 'POST', body: { productId, quantity } }); }
@@ -63,8 +86,37 @@
     discountSale(id, discountCents) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/discount`, { method: 'POST', body: { discountCents } }); }
     suspendSale(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/suspend`, { method: 'POST', body: {} }); }
     resumeSale(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/resume`, { method: 'POST', body: {} }); }
-    completeSale(id, payments) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/complete`, { method: 'POST', body: { payments }, mutationId: crypto.randomUUID() }); }
-    cancelSale(id, reason) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: { reason }, mutationId: crypto.randomUUID() }); }
+    completeSale(id, payments) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/complete`, { method: 'POST', body: { payments }, mutationId: this.mutationId() }); }
+    cancelSale(id, reason) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: { reason }, mutationId: this.mutationId() }); }
+
+    returns(filters = {}) { return this.request(`/api/v1/returns${this.params(filters)}`); }
+    returnDetails(id) { return this.request(`/api/v1/returns/${encodeURIComponent(id)}`); }
+    createReturn(body) { return this.request('/api/v1/returns', { method:'POST', body, mutationId:this.mutationId() }); }
+    cancelReturn(id, reason) { return this.request(`/api/v1/returns/${encodeURIComponent(id)}/cancel`, { method:'POST', body:{reason}, mutationId:this.mutationId() }); }
+
+    financeAccounts(includeInactive = false) { return this.request(`/api/v1/finance/accounts${includeInactive ? '?includeInactive=true' : ''}`); }
+    createFinanceAccount(body) { return this.request('/api/v1/finance/accounts', { method:'POST', body }); }
+    financeEntries(filters = {}) { return this.request(`/api/v1/finance/entries${this.params(filters)}`); }
+    createFinanceEntry(body) { return this.request('/api/v1/finance/entries', { method:'POST', body }); }
+    financeSummary(filters = {}) { return this.request(`/api/v1/finance/summary${this.params(filters)}`); }
+    settleFinanceEntry(id, body) { return this.request(`/api/v1/finance/entries/${encodeURIComponent(id)}/settle`, { method:'POST', body }); }
+    cancelFinanceEntry(id, reason) { return this.request(`/api/v1/finance/entries/${encodeURIComponent(id)}/cancel`, { method:'POST', body:{reason} }); }
+    reverseFinanceSettlement(id, reason) { return this.request(`/api/v1/finance/settlements/${encodeURIComponent(id)}/reverse`, { method:'POST', body:{reason} }); }
+
+    reportSales(filters = {}) { return this.request(`/api/v1/reports/sales${this.params(filters)}`); }
+    reportInventory() { return this.request('/api/v1/reports/inventory'); }
+    reportCash(filters = {}) { return this.request(`/api/v1/reports/cash${this.params(filters)}`); }
+    reportFinance(filters = {}) { return this.request(`/api/v1/reports/finance${this.params(filters)}`); }
+    exportSalesCsv(filters = {}) { return this.request(`/api/v1/reports/sales.csv${this.params(filters)}`); }
+
+    printJobs(filters = {}) { return this.request(`/api/v1/print/jobs${this.params(filters)}`); }
+    retryPrint(id) { return this.request(`/api/v1/print/jobs/${encodeURIComponent(id)}/retry`, { method:'POST', body:{} }); }
+    reprint(id) { return this.request(`/api/v1/print/jobs/${encodeURIComponent(id)}/reprint`, { method:'POST', body:{} }); }
+
+    fiscalDocuments(filters = {}) { return this.request(`/api/v1/fiscal/documents${this.params(filters)}`); }
+    fiscalDocument(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}`); }
+    requestFiscalIssue(body) { return this.request('/api/v1/fiscal/documents', { method:'POST', body, mutationId:this.mutationId() }); }
+    retryFiscalIssue(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}/retry`, { method:'POST', body:{}, mutationId:this.mutationId() }); }
   }
 
   return { ApiClient };

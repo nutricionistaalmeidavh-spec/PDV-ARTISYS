@@ -1,15 +1,24 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage } = require('electron');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { createLocalServer } = require('../server/local-server');
+const { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver, createSerialDrawerDriver } = require('./hardware-bridge.cjs');
+const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
+
+let SerialPortClass = null;
+try { ({ SerialPort: SerialPortClass } = require('serialport')); } catch { SerialPortClass = null; }
 
 let mainWindow = null;
 let runtime = null;
 let localServer = null;
 let apiBase = '';
+let hardwareController = null;
+let fiscalStore = null;
+let printWorker = null;
+let printWorkerBusy = false;
 const installToken = randomBytes(32).toString('hex');
 
 function rendererPath(...parts) {
@@ -18,7 +27,15 @@ function rendererPath(...parts) {
 
 async function startEmbeddedServer() {
   const dbPath = path.join(app.getPath('userData'), 'pdv-artisys.sqlite');
-  runtime = createPdvRuntime({ dbPath });
+  const fiscalProviderResolver = fiscalStore ? createFiscalProviderResolver({ store:fiscalStore }) : async () => null;
+  runtime = createPdvRuntime({
+    dbPath,
+    fiscalProviderResolver,
+    receiptOptions: {
+      storeName: process.env.PDV_STORE_NAME || 'Loja Matriz',
+      width: Number(process.env.PDV_RECEIPT_WIDTH || 42)
+    }
+  });
   localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken });
   const address = await localServer.start();
   apiBase = `http://127.0.0.1:${address.port}`;
@@ -44,6 +61,58 @@ function createMainWindow() {
   mainWindow.loadFile(rendererPath('index.html'));
   mainWindow.once('ready-to-show', () => mainWindow?.show());
   mainWindow.on('closed', () => { mainWindow = null; });
+}
+
+function buildHardwareController() {
+  const scale = createSerialScaleDriver({
+    SerialPortClass,
+    path: process.env.PDV_SCALE_PORT || '',
+    baudRate: Number(process.env.PDV_SCALE_BAUD || 9600),
+    requestCommand: process.env.PDV_SCALE_COMMAND || ''
+  });
+  const drawer = createSerialDrawerDriver({
+    SerialPortClass,
+    path: process.env.PDV_DRAWER_PORT || '',
+    baudRate: Number(process.env.PDV_DRAWER_BAUD || 9600)
+  });
+  const electronPrint = createElectronPrintDriver({ BrowserWindow });
+  const print = job => electronPrint({
+    ...job,
+    silent: job.silent ?? process.env.PDV_PRINT_SILENT === 'true',
+    printerName: job.printerName || process.env.PDV_PRINTER_NAME || undefined
+  });
+  return createHardwareController({
+    async status() {
+      return {
+        barcodeScanner: { available:true, mode:'keyboard-wedge' },
+        scale: scale ? await scale.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' },
+        printer: { available:true, mode:'electron-print', silent:process.env.PDV_PRINT_SILENT === 'true' },
+        cashDrawer: drawer ? await drawer.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' }
+      };
+    },
+    readWeight: scale ? () => scale.readWeight() : undefined,
+    openDrawer: drawer ? () => drawer.open() : undefined,
+    print
+  });
+}
+
+function startPrintWorker() {
+  if (printWorker || process.env.PDV_AUTO_PRINT === 'false') return;
+  const tick = async () => {
+    if (printWorkerBusy || !runtime || !hardwareController) return;
+    const job = runtime.printing.listJobs({ status:'PENDING' })[0];
+    if (!job) return;
+    printWorkerBusy = true;
+    try {
+      await runtime.printing.processJob(job.id, { print: input => hardwareController.print(input) });
+    } catch (error) {
+      console.error('Falha ao processar impressao:', error?.message || error);
+    } finally {
+      printWorkerBusy = false;
+    }
+  };
+  printWorker = setInterval(() => { void tick(); }, 1200);
+  void tick();
 }
 
 function registerIpc() {
@@ -78,6 +147,11 @@ function registerIpc() {
     return { ok: response.ok, status: response.status, payload };
   });
 
+  hardwareController = buildHardwareController();
+  const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
+  registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
+  registerFiscalIpc({ ipcMain, store: fiscalStore, isTrustedSender: trustedSender });
+
   ipcMain.on('artisys:window:minimize', () => mainWindow?.minimize());
   ipcMain.on('artisys:window:maximize', () => {
     if (!mainWindow) return;
@@ -88,6 +162,8 @@ function registerIpc() {
 }
 
 async function shutdown() {
+  if (printWorker) clearInterval(printWorker);
+  printWorker = null;
   try {
     if (localServer) await localServer.stop();
   } finally {
@@ -98,9 +174,11 @@ async function shutdown() {
 }
 
 app.whenReady().then(async () => {
+  fiscalStore = createFiscalConnectionStore({ app, safeStorage });
   registerIpc();
   await startEmbeddedServer();
   createMainWindow();
+  startPrintWorker();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });

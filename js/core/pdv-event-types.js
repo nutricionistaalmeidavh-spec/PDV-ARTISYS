@@ -10,6 +10,9 @@ const PDV_EVENT_TYPES = Object.freeze({
   SALE_COMPLETED: 'sale.completed',
   SALE_CANCELLED: 'sale.cancelled',
 
+  RETURN_COMPLETED: 'return.completed',
+  RETURN_CANCELLED: 'return.cancelled',
+
   PAYMENT_RECORDED: 'payment.recorded',
   PAYMENT_REVERSED: 'payment.reversed',
 
@@ -35,6 +38,4 @@ const PDV_EVENT_TYPES = Object.freeze({
   BACKUP_FAILED: 'backup.failed'
 });
 
-module.exports = {
-  PDV_EVENT_TYPES
-};
+module.exports = { PDV_EVENT_TYPES };
