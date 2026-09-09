@@ -12,6 +12,8 @@ const { registerInventoryEffects }=require('../domains/inventory/inventory-effec
 const { createSaleService }=require('../domains/sales/sale-service');
 const { createCashService }=require('../domains/cash/cash-service');
 const { registerCashEffects }=require('../domains/cash/cash-effects');
+const { createReturnService }=require('../domains/returns/return-service');
+const { registerReturnEffects }=require('../domains/returns/return-effects');
 
 function createPdvRuntime({dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   const db=openDatabase(dbPath);runMigrations(db,now);
@@ -20,9 +22,11 @@ function createPdvRuntime({dbPath=':memory:',now=()=>new Date().toISOString(),id
   const inventory=createInventoryService({db,now,idFactory});
   const cash=createCashService({db,outbox,now,idFactory});
   const sales=createSaleService({db,outbox,now,idFactory});
+  const returns=createReturnService({db,outbox,now,idFactory});
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
+  registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,inventory,sales,cash,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,inventory,sales,cash,returns,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
