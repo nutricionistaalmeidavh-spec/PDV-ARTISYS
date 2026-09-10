@@ -352,6 +352,48 @@ const MIGRATIONS = [
       );
       CREATE INDEX IF NOT EXISTS idx_device_settings_terminal ON device_settings(terminal_id,device_type);
     `
+  },
+  {
+    version: 3,
+    name: 'pdv_lan_e21',
+    sql: `
+      CREATE TABLE IF NOT EXISTS terminals (
+        terminal_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        fingerprint TEXT NOT NULL UNIQUE,
+        credential_hash TEXT NOT NULL,
+        credential_salt TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','BLOCKED')),
+        app_version TEXT NOT NULL,
+        last_seen_at TEXT,
+        paired_at TEXT NOT NULL,
+        paired_by TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_terminals_status_seen ON terminals(status,last_seen_at);
+
+      CREATE TABLE IF NOT EXISTS pairing_codes (
+        id TEXT PRIMARY KEY,
+        code_hash TEXT NOT NULL,
+        code_salt TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        used_by_terminal_id TEXT,
+        created_by TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_pairing_codes_expiry ON pairing_codes(used_at,expires_at);
+
+      CREATE TABLE IF NOT EXISTS processed_mutations (
+        mutation_id TEXT PRIMARY KEY,
+        method TEXT NOT NULL,
+        path TEXT NOT NULL,
+        status_code INTEGER NOT NULL,
+        response_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        completed_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_processed_mutations_completed ON processed_mutations(completed_at);
+    `
   }
 ];
 
