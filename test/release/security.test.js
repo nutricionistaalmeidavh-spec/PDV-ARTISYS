@@ -18,7 +18,10 @@ test('release gate: public support surfaces never expose secret-like values',()=
 
 test('release gate: terminal credentials are stored as derived hashes',()=>{
  const runtime=createPdvRuntime();try{
-   const pair=runtime.terminals.createPairingCode({createdBy:'admin'});const terminal=runtime.terminals.pairTerminal({code:pair.code,terminalId:'PDV-SEC',name:'Seguro',appVersion:'1.0.0'});assert.ok(terminal.terminalKey);
-   const row=runtime.db.prepare('SELECT credential_hash,credential_salt FROM terminals WHERE id=?').get('PDV-SEC');assert.ok(row.credential_hash);assert.ok(row.credential_salt);assert.equal(row.credential_hash.includes(terminal.terminalKey),false);assert.equal(runtime.terminals.authenticateTerminal('PDV-SEC',terminal.terminalKey).ok,true);
+   const pair=runtime.terminals.createPairingCode({createdBy:'admin'});
+   const terminal=runtime.terminals.pairTerminal({code:pair.code,terminalId:'PDV-SEC',name:'Seguro',fingerprint:'release-security-terminal',appVersion:'1.0.0'});
+   assert.ok(terminal.credential);
+   const row=runtime.db.prepare('SELECT credential_hash,credential_salt FROM terminals WHERE terminal_id=?').get('PDV-SEC');
+   assert.ok(row.credential_hash);assert.ok(row.credential_salt);assert.equal(row.credential_hash.includes(terminal.credential),false);assert.equal(runtime.terminals.authenticateTerminal('PDV-SEC',terminal.credential).ok,true);
  }finally{runtime.close();}
 });
