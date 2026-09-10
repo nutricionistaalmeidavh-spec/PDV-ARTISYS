@@ -28,7 +28,7 @@ test('E30-E39: migration, comanda, KDS, prebill, checkout and sale close form on
     const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,actor:{userId:user.id,role:'cashier'}});
     const order=runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:2,note:'sem cebola'}],source:'DESKTOP',actor:{userId:user.id,role:'cashier'}});
     assert.equal(order.totalCents,5180);
-    const dispatch=await runtime.dispatchPending();assert.equal(dispatch.failures.length,0);
+    const dispatch=await runtime.dispatchPending();assert.equal(dispatch.failures.length,0,JSON.stringify(dispatch.failures));
     const tickets=runtime.kitchen.listTickets();assert.equal(tickets.length,1);assert.equal(tickets[0].items[0].productName,'Prato executivo');
     assert.equal(runtime.printing.listJobs({type:'KITCHEN_TICKET'}).length,1);
     runtime.kitchen.updateTicketStatus(tickets[0].id,'PREPARING',{userId:user.id});
@@ -39,7 +39,7 @@ test('E30-E39: migration, comanda, KDS, prebill, checkout and sale close form on
     const checkout=runtime.restaurant.checkoutToSale(session.id,{terminalId:'PDV-01',operatorId:user.id,actor:{userId:user.id,role:'cashier',terminalId:'PDV-01'}},runtime.sales);
     assert.equal(checkout.sale.totalCents,5180);assert.equal(checkout.session.status,'CHECKOUT');
     runtime.sales.completeSale(checkout.sale.id,{payments:[{method:'CASH',amountCents:5180}],actor:{userId:user.id,role:'cashier',terminalId:'PDV-01'}});
-    const finalDispatch=await runtime.dispatchPending();assert.equal(finalDispatch.failures.length,0);
+    const finalDispatch=await runtime.dispatchPending();assert.equal(finalDispatch.failures.length,0,JSON.stringify(finalDispatch.failures));
     assert.equal(runtime.restaurant.getSession(session.id).status,'CLOSED');assert.equal(runtime.restaurant.listTables()[0].status,'FREE');
     const report=runtime.restaurantReports.summary();assert.equal(report.ordersCount,1);assert.equal(report.grossCents,5180);assert.equal(report.topProducts[0].quantity,2);
     assert.match(runtime.restaurantReports.exportOrdersCsv(),/Prato executivo|pedido/);
