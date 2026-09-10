@@ -1,29 +1,60 @@
-# QA visual remoto
+# QA visual remoto e Demo Flows
 
-O PDV é o primeiro consumidor real do módulo central `artisys-qa` 1.0.0 do repositório privado `utilidades`.
+O PDV é o primeiro consumidor real do módulo central `artisys-qa`. Além do QA visual, o módulo oferece **Demo Flows** separados para gravações de apresentação do produto.
 
-Para não depender de habilitar compartilhamento de Actions entre repositórios privados, o PDV mantém em `qa/runtime/` um **runtime vendorizado e fixado** da versão central. A origem exata fica registrada em `qa/artisys-qa.lock.json` com repositório, caminho, versão e commit. Assim o workflow funciona imediatamente, sem PAT ou configuração externa, e atualizações do módulo continuam sendo explícitas e rastreáveis.
+Para não depender de habilitar compartilhamento de Actions entre repositórios privados, o PDV mantém em `qa/runtime/` um runtime vendorizado e fixado da versão central. A origem exata fica registrada em `qa/artisys-qa.lock.json`.
 
 ## Executar pelo GitHub
 
-Abra **Actions > QA Capture > Run workflow** e escolha:
+Abra **Actions > QA Capture > Run workflow**.
 
+Para QA:
+
+- `mode`: `qa`;
 - `flow`: `smoke` ou `home`;
-- `environment`: `ci`;
 - `viewport`: `desktop`, `tablet` ou `mobile`.
 
-A execução instala as dependências do PDV e do runtime fixado, inicia o Electron no runner Ubuntu com Xvfb, abre a janela via Playwright e publica um artifact contendo screenshots, vídeo MP4, `trace.zip`, `telemetry.json` e `run-summary.json`.
+Para vídeo de demonstração:
 
-## Adicionar fluxo
+- `mode`: `demo`;
+- `demo`: `quick-30s` ou `overview-60s`;
+- `preset`: `reels-9x16`, `landscape-16x9` ou `square-1x1`.
 
-1. Crie `qa/flows/<nome>.json`.
-2. Registre-o em `qa/artisys-qa.config.json`.
-3. Adicione o nome às opções de `flow` em `.github/workflows/qa-capture.yml`.
-4. Use apenas seletores estáveis e dados sintéticos.
-5. Credenciais devem vir de GitHub Secrets via `valueFromEnv`.
+O preset padrão do `quick-30s` é **Reels 9:16, 1080×1920 MP4**. Em Electron, a interface permanece numa viewport desktop legível e o vídeo é escalado/proporcionado para o canvas vertical, sem deformar a UI.
+
+## Evidências
+
+QA produz screenshots, vídeo, `trace.zip`, `telemetry.json` e `run-summary.json`. Demo Flow acrescenta:
+
+- `demo-video.mp4` — arquivo final no formato social escolhido;
+- `demo-summary.json` — preset, dimensões, duração-alvo, duração real e desvio de tempo.
+
+## Criar um novo Demo Flow
+
+1. Crie `qa/demo/<nome>.json`.
+2. Registre em `demos` dentro de `qa/artisys-qa.config.json`.
+3. Defina `preset` e `durationTargetSec`.
+4. Use `holdMs` nas etapas para controlar o ritmo.
+5. Adicione o nome às opções do workflow quando desejar execução manual pelo GitHub.
+6. Use apenas dados sintéticos e ações não destrutivas para vídeos comerciais.
+
+Exemplo:
+
+```json
+{
+  "name": "quick-30s",
+  "durationTargetSec": 30,
+  "steps": [
+    {"action": "click", "selector": "button[data-route='products']", "holdMs": 3500},
+    {"action": "click", "selector": "button[data-route='inventory']", "holdMs": 3500}
+  ]
+}
+```
+
+A duração-alvo é orientativa e não reprova a execução. Isso evita falhas causadas por pequenas variações de inicialização do runner.
 
 ## Atualizar o módulo
 
-Quando `utilidades/modules/artisys-qa` receber uma nova versão estável, sincronize o runtime, atualize `qa/artisys-qa.lock.json` para o novo commit e execute `smoke` antes do merge. Não faça mudanças específicas do PDV dentro do runtime vendorizado; elas pertencem aos fluxos e ao manifesto do consumidor.
+Quando `utilidades/modules/artisys-qa` receber uma nova versão estável, sincronize `qa/runtime/`, atualize `qa/artisys-qa.lock.json` para o novo commit e execute o QA `smoke` e o Demo Flow `quick-30s` antes do merge.
 
-O QA visual complementa, mas não substitui, `npm run verify` e `npm run verify:release`.
+O QA visual complementa, mas não substitui, `npm run verify` e `npm run verify:release`. Demo Flows servem para apresentação e gravação, não para substituir testes funcionais.

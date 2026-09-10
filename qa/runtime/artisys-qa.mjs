@@ -4,10 +4,16 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium, _electron as electron } from 'playwright';
 
+const MODULE_VERSION = '1.1.0';
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   tablet: { width: 1024, height: 768 },
   mobile: { width: 390, height: 844 },
+};
+const DEMO_PRESETS = {
+  'landscape-16x9': { name: 'landscape-16x9', width: 1920, height: 1080, captureViewport: { width: 1920, height: 1080 } },
+  'square-1x1': { name: 'square-1x1', width: 1080, height: 1080, captureViewport: { width: 1080, height: 1080 } },
+  'reels-9x16': { name: 'reels-9x16', width: 1080, height: 1920, captureViewport: { width: 1080, height: 1920 } },
 };
 
 function args(argv) {
@@ -40,7 +46,7 @@ function locate(page, step) {
   if (step.selector) return page.locator(step.selector);
   throw new Error(`${step.action} requires a locator`);
 }
-async function step(page, item, index, screenshots, baseURL) {
+async function executeStep(page, item, index, screenshots, baseURL) {
   const label = `${String(index + 1).padStart(2, '0')}-${slug(item.name || item.action)}`;
   switch (item.action) {
     case 'goto': await page.goto(item.url || new URL(item.path, baseURL).toString(), { waitUntil: item.waitUntil || 'domcontentloaded' }); break;
@@ -69,6 +75,10 @@ async function step(page, item, index, screenshots, baseURL) {
     case 'screenshot': await page.screenshot({ path: path.join(screenshots, `${label}.png`), fullPage: item.fullPage ?? false }); break;
     default: throw new Error(`Unsupported action ${item.action}`);
   }
+  if (item.holdMs != null) {
+    if (!Number.isFinite(item.holdMs) || item.holdMs < 0) throw new TypeError(`${label}: holdMs must be non-negative`);
+    if (item.holdMs > 0) await page.waitForTimeout(item.holdMs);
+  }
   return label;
 }
 function telemetry(page, sink) {
@@ -87,7 +97,7 @@ function runProcess(command, argv) {
     child.once('close', code => code === 0 ? resolve() : reject(new Error(`${command} failed (${code}): ${error}`)));
   });
 }
-function recorder(page, dir, fps = 4) {
+function recorder(page, dir, fps = 8) {
   let stop = false, count = 0, loop;
   return {
     async start() {
@@ -114,6 +124,11 @@ function recorder(page, dir, fps = 4) {
     }
   };
 }
+async function normalizeDemoVideo(input, output, preset) {
+  const filter = `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black`;
+  await runProcess('ffmpeg', ['-y', '-i', input, '-vf', filter, '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', output]);
+  return output;
+}
 
 const cli = args(process.argv.slice(2));
 if (!cli.config) throw new Error('Use --config qa/artisys-qa.config.json');
@@ -123,18 +138,46 @@ const config = JSON.parse(await fs.readFile(configFile, 'utf8'));
 const envName = cli.environment || config.defaultEnvironment || Object.keys(config.environments)[0];
 const environment = config.environments[envName];
 if (!environment) throw new Error(`Unknown environment ${envName}`);
-const flowName = cli.flow || config.defaultFlow || Object.keys(config.flows)[0];
-const flowFile = path.resolve(root, config.flows[flowName]);
+
+const demoMode = Boolean(cli.demo);
+let flowName, flowFile, preset = null, durationTargetSec = null;
+if (demoMode) {
+  const demoName = cli.demo || config.defaultDemo || Object.keys(config.demos || {})[0];
+  const raw = config.demos?.[demoName];
+  if (!raw) throw new Error(`Unknown demo ${demoName}`);
+  const demo = typeof raw === 'string' ? { file: raw } : raw;
+  const presetName = cli.preset || demo.preset || 'landscape-16x9';
+  preset = DEMO_PRESETS[presetName];
+  if (!preset) throw new Error(`Unknown demo preset ${presetName}`);
+  flowName = `demo-${demoName}`;
+  flowFile = path.resolve(root, demo.file);
+  durationTargetSec = demo.durationTargetSec ?? null;
+} else {
+  flowName = cli.flow || config.defaultFlow || Object.keys(config.flows)[0];
+  const relative = config.flows?.[flowName];
+  if (!relative) throw new Error(`Unknown flow ${flowName}`);
+  flowFile = path.resolve(root, relative);
+}
 const flow = JSON.parse(await fs.readFile(flowFile, 'utf8'));
-const viewportName = cli.viewport || config.defaultViewport || 'desktop';
-const viewport = VIEWPORTS[viewportName];
-if (!viewport) throw new Error(`Unknown viewport ${viewportName}`);
-const id = `${slug(config.systemId)}-${slug(flowName)}-${viewportName}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+
+let viewportName, viewport;
+if (demoMode) {
+  viewportName = preset.name;
+  if (config.mode === 'electron') viewport = config.demoCaptureViewport || { width: 1440, height: 900 };
+  else viewport = preset.captureViewport;
+} else {
+  viewportName = cli.viewport || config.defaultViewport || 'desktop';
+  viewport = VIEWPORTS[viewportName];
+  if (!viewport) throw new Error(`Unknown viewport ${viewportName}`);
+}
+
+const id = `${slug(config.systemId)}-${slug(flowName)}-${slug(viewportName)}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 const output = path.resolve(cli.output || 'qa-artifacts', id);
 const shots = await mkdir(path.join(output, 'screenshots'));
 const events = [], executed = [];
 let browser, context, page, app, frames, nativeVideo, video = null, status = 'passed', failure = null;
 const startedAt = new Date().toISOString();
+const startedMs = Date.now();
 
 try {
   if (config.mode === 'electron') {
@@ -150,7 +193,7 @@ try {
     page = await app.firstWindow();
     await page.setViewportSize(viewport).catch(() => {});
     if (config.capture?.video !== false) {
-      frames = recorder(page, path.join(output, '.frames'), config.capture?.fps || 4);
+      frames = recorder(page, path.join(output, '.frames'), config.capture?.fps || 8);
       await frames.start();
     }
   } else {
@@ -165,11 +208,11 @@ try {
   for (let i = 0; i < flow.steps.length; i++) {
     const started = Date.now();
     try {
-      const label = await step(page, flow.steps[i], i, shots, environment.baseURL);
+      const label = await executeStep(page, flow.steps[i], i, shots, environment.baseURL);
       if (config.capture?.screenshotEachStep) await page.screenshot({ path: path.join(shots, `${label}-after.png`) });
-      executed.push({ index: i, action: flow.steps[i].action, status: 'passed', durationMs: Date.now() - started });
+      executed.push({ index: i, action: flow.steps[i].action, name: flow.steps[i].name || null, status: 'passed', durationMs: Date.now() - started });
     } catch (error) {
-      executed.push({ index: i, action: flow.steps[i].action, status: 'failed', durationMs: Date.now() - started, error: error.message });
+      executed.push({ index: i, action: flow.steps[i].action, name: flow.steps[i].name || null, status: 'failed', durationMs: Date.now() - started, error: error.message });
       throw error;
     }
   }
@@ -187,11 +230,21 @@ try {
   }
   if (browser) await browser.close().catch(() => {});
 }
+
+const actualDurationSec = Number(((Date.now() - startedMs) / 1000).toFixed(3));
+let demoVideo = null;
+if (demoMode && status === 'passed' && video) {
+  demoVideo = path.join(output, 'demo-video.mp4');
+  try { await normalizeDemoVideo(video, demoVideo, preset); }
+  catch (error) { status = 'failed'; failure = { message: error.message, stack: error.stack }; demoVideo = null; }
+}
+
 const summary = {
   schemaVersion: 1,
   module: '@artisys/qa',
-  moduleVersion: '1.0.0',
+  moduleVersion: MODULE_VERSION,
   systemId: config.systemId,
+  kind: demoMode ? 'demo' : 'qa',
   flow: flowName,
   environment: envName,
   viewport: viewportName,
@@ -206,6 +259,22 @@ const summary = {
 };
 await writeJson(path.join(output, 'telemetry.json'), events);
 await writeJson(path.join(output, 'run-summary.json'), summary);
-console.log(JSON.stringify(summary, null, 2));
+if (demoMode) {
+  const demoSummary = {
+    schemaVersion: 1,
+    systemId: config.systemId,
+    demo: flowName.replace(/^demo-/, ''),
+    preset: preset.name,
+    output: { width: preset.width, height: preset.height, video: demoVideo ? path.basename(demoVideo) : null },
+    durationTargetSec,
+    actualDurationSec,
+    timingDeviationSec: durationTargetSec == null ? null : Number((actualDurationSec - durationTargetSec).toFixed(3)),
+    status
+  };
+  await writeJson(path.join(output, 'demo-summary.json'), demoSummary);
+  console.log(JSON.stringify(demoSummary, null, 2));
+} else {
+  console.log(JSON.stringify(summary, null, 2));
+}
 console.log(`ARTISYS_QA_OUTPUT=${output}`);
 if (status !== 'passed') process.exitCode = 1;
