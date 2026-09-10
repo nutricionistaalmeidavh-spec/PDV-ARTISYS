@@ -29,6 +29,7 @@ const { createImportService }=require('./import/import-service');
 const { createSystemLogger }=require('./observability/system-logger');
 const { createSystemHealth }=require('./observability/system-health');
 const { createDiagnosticPackage }=require('./observability/diagnostic-package');
+const { createPilotService }=require('./pilot/pilot-service');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -64,6 +65,7 @@ function createPdvRuntime({
   const settings=createSettingsService({db,now});
   const imports=createImportService({db,catalog,inventory,now,idFactory});
   const logger=createSystemLogger({db,now,retention:logRetention});
+  const pilot=createPilotService({db,now});
   const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
   const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
   const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});
@@ -83,7 +85,7 @@ function createPdvRuntime({
   return {
     db,outbox,effectStore,bus,dispatcher,
     catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
-    backups,settings,imports,logger,health,diagnostics,
+    backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
