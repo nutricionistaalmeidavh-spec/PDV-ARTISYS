@@ -4,7 +4,7 @@
   "durationTargetSec": 30,
   "steps": [
     {"action": "waitFor", "selector": "#auth-overlay", "name": "bootstrap", "timeoutMs": 15000},
-    {"action": "fill", "label": "Senha", "name": "senha-demo", "value": "ArtiSysDemo123!"},
+    {"action": "fill", "label": "Senha", "name": "senha-demo", "valueFromEnv": "ARTISYS_QA_DEMO_PASSWORD"},
     {"action": "click", "text": "Criar administrador", "name": "criar-admin-demo", "exact": true},
     {"action": "waitFor", "selector": "#auth-overlay", "name": "autenticado", "state": "hidden", "timeoutMs": 15000, "holdMs": 1200},
     {"action": "screenshot", "name": "abertura", "holdMs": 600},
