@@ -31,10 +31,11 @@ function registerRestaurantEffects({bus,effectStore,restaurantService,kitchenSer
     handler:async event=>restaurantService.reopenCancelledCheckout(event.aggregateId,{actor:event.actor||{}})
   });
 
-  bus.on('restaurant.order-created',orderCreated);
-  bus.on('sale.completed',saleCompleted);
-  bus.on('sale.cancelled',saleCancelled);
-  return()=>{bus.off('restaurant.order-created',orderCreated);bus.off('sale.completed',saleCompleted);bus.off('sale.cancelled',saleCancelled);};
+  return [
+    bus.subscribe('restaurant.order-created',orderCreated),
+    bus.subscribe('sale.completed',saleCompleted),
+    bus.subscribe('sale.cancelled',saleCancelled)
+  ];
 }
 
 module.exports={registerRestaurantEffects};
