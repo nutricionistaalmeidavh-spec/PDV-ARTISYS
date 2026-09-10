@@ -28,10 +28,12 @@ test('approved settings screen actually loads the E22-E28 operations control cen
   assert.match(pkg.scripts['lint:desktop'], /admin-ops\.js/);
 });
 
-test('package keeps E29 Windows NSIS and XLSX support while advancing to restaurant 1.1', () => {
+test('package keeps E29 Windows NSIS and XLSX support while advancing hardware integration to 1.1.1', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '1.1.0');
+  assert.equal(pkg.version, '1.1.1');
   assert.equal(pkg.dependencies.xlsx, '^0.18.5');
+  assert.equal(pkg.dependencies['@artisys/serialport'], 'file:vendor/artisys-serialport');
+  assert.equal(pkg.dependencies['@artisys/printing'], 'file:vendor/artisys-printing');
   assert.ok(pkg.devDependencies['electron-builder']);
   assert.match(pkg.scripts['dist:win'], /electron-builder/);
   assert.match(pkg.scripts['release:manifest'], /generate-release-manifest/);
@@ -46,7 +48,7 @@ test('release manifest remains deterministic and hashes supplied v1.1 artifacts'
   const { buildReleaseManifest } = require(path.join(ROOT, rel));
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdv-release-manifest-'));
   try {
-    const artifact = path.join(dir, 'ArtiSys-PDV-1.1.0-x64-Setup.exe');
+    const artifact = path.join(dir, 'ArtiSys-PDV-1.1.1-x64-Setup.exe');
     fs.writeFileSync(artifact, 'fixture');
     const manifest = buildReleaseManifest({
       rootDir: ROOT,
@@ -55,7 +57,7 @@ test('release manifest remains deterministic and hashes supplied v1.1 artifacts'
       artifactPaths: [artifact],
       verification: { verify: 'pass', verifyRelease: 'pass', windowsBuild: 'pass' }
     });
-    assert.equal(manifest.version, '1.1.0');
+    assert.equal(manifest.version, '1.1.1');
     assert.equal(manifest.commit, 'abc123');
     assert.equal(manifest.schemaVersion, 5);
     assert.equal(manifest.builtAt, '2026-09-10T12:00:00.000Z');
@@ -70,20 +72,10 @@ test('release manifest remains deterministic and hashes supplied v1.1 artifacts'
 
 test('all operations manuals and release metadata exist without future-delivery placeholders', () => {
   const docs = [
-    'docs/operations/install-server.md',
-    'docs/operations/install-terminal.md',
-    'docs/operations/pairing.md',
-    'docs/operations/cash-sales-returns.md',
-    'docs/operations/backup-restore.md',
-    'docs/operations/hardware-printing.md',
-    'docs/operations/fiscal.md',
-    'docs/operations/import.md',
-    'docs/operations/diagnostics.md',
-    'docs/operations/update.md',
-    'docs/architecture/e30-e39-restaurant.md',
-    'release/capabilities.json',
-    'release/limitations.json',
-    'release/release-checklist.md'
+    'docs/operations/install-server.md', 'docs/operations/install-terminal.md', 'docs/operations/pairing.md',
+    'docs/operations/cash-sales-returns.md', 'docs/operations/backup-restore.md', 'docs/operations/hardware-printing.md',
+    'docs/operations/fiscal.md', 'docs/operations/import.md', 'docs/operations/diagnostics.md', 'docs/operations/update.md',
+    'docs/architecture/e30-e39-restaurant.md', 'release/capabilities.json', 'release/limitations.json', 'release/release-checklist.md'
   ];
   for (const rel of docs) assert.ok(exists(rel), `${rel} deve existir`);
   const readme = read('README.md');
@@ -94,6 +86,7 @@ test('all operations manuals and release metadata exist without future-delivery 
 test('CI gates normal/release verification and Windows artifact before main release', () => {
   const verify = read('.github/workflows/verify.yml');
   const windows = read('.github/workflows/release-windows.yml');
+  assert.match(verify, /npm install/);
   assert.match(verify, /npm run verify:release/);
   assert.match(windows, /windows-latest/);
   assert.match(windows, /npm run verify:release/);

@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - name: Verify unit integration and architecture gates
         run: npm run verify
       - name: Verify release concurrency recovery and security gates

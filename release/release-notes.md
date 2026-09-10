@@ -1,22 +1,17 @@
-# ArtiSys PDV 1.1.0 — Restaurante
+# ArtiSys PDV 1.1.1 — Hardware reutilizável
 
-Release local-first que amplia o PDV 1.0 com operação completa de restaurante sem transformar nuvem ou serviço pago em dependência do núcleo.
+Patch de integração da linha 1.1 que substitui implementações locais duplicadas de comunicação serial e impressão por módulos ArtiSys reutilizáveis, mantendo o PDV local-first e sem serviço pago obrigatório.
 
-## Entregas E30–E39
+## Entregas
 
-- **E30 — Impressão operacional não fiscal:** cupom de venda, pré-conta, pedido de cozinha e fechamento de caixa usando a fila durável já existente.
-- **E31 — Mesas e comandas:** mapa de mesas, abertura de sessão, pedidos, observações, transferência e fechamento convertido para a venda canônica do PDV.
-- **E32 — Cozinha/KDS:** setores de produção, vínculo produto→setor, tickets duráveis, estados novo/em preparo/pronto e roteamento opcional por impressora.
-- **E33 — Garçom na LAN:** dispositivo com credencial própria para visualizar mesas/chamados, abrir mesa, lançar pedido e atender solicitações.
-- **E34 — Tablet de mesa:** cardápio local, pedidos, conta atual, chamar garçom e solicitar fechamento, sempre vinculado a uma mesa.
-- **E35 — Workspace desktop:** operação de restaurante integrada à interface Electron, sem duplicar o motor de vendas, caixa ou estoque.
-- **E36 — Cliente móvel self-hosted:** interface HTML/CSS/JS servida diretamente pelo servidor local em `/mobile`, sem CDN, SaaS ou internet.
-- **E37 — Relatórios do restaurante:** pedidos, faturamento bruto, ticket médio, origem dos pedidos, produtos mais vendidos e exportação CSV.
-- **E38 — Hardening e QA:** credenciais móveis com hash, bloqueio/rotação, idempotência por mutation ID, testes de LAN e regressão junto da suíte existente.
-- **E39 — Release 1.1.0:** versão, documentação operacional, capability manifest e gates de release atualizados.
+- `@artisys/serialport` 0.1.0 fixado localmente para balança, gaveta e impressora serial;
+- `@artisys/printing` 0.1.0 fixado localmente para renderer de recibo, impressão Electron, térmica Epson/Star e transporte serial;
+- `PDV_PRINTER_MODE=electron|thermal|serial` com configuração explícita e sem fallback silencioso;
+- renderer de cupom de venda reaproveitando o módulo compartilhado;
+- provenance lock em `vendor/artisys-modules.lock.json` apontando para o commit central do repositório `utilidades`;
+- CI passa a instalar as dependências reais antes dos gates de verificação;
+- fila persistente, retry, reimpressão, EventBus, SQLite e operação de restaurante permanecem inalterados.
 
-## Arquitetura e dependências
+## Custo e operação
 
-O banco continua SQLite local com migrações incrementais. O servidor central continua autoritativo na LAN. O restaurante reaproveita `SaleService`, `CashService`, estoque, EventBus/outbox, impressão, auditoria, backup e observabilidade existentes.
-
-O core não exige serviço externo. Emissão fiscal permanece uma camada opcional e explicitamente configurável. A UI móvel é servida pelo próprio PDV e deve ser usada em rede local confiável; não é apresentada como transporte HTTPS.
+O núcleo continua R$ 0 para software de infraestrutura: execução self-hosted/local, bibliotecas open source e nenhuma dependência de SaaS. Hardware físico, drivers do fabricante e emissão fiscal externa continuam dependências opcionais do estabelecimento.
