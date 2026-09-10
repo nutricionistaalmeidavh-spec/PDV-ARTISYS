@@ -1,0 +1,22 @@
+{
+  "name": "overview-60s",
+  "title": "ArtiSys PDV — visão geral",
+  "durationTargetSec": 60,
+  "steps": [
+    {"action": "waitFor", "selector": "#app-topbar", "name": "pdv-pronto", "timeoutMs": 15000, "holdMs": 2500},
+    {"action": "screenshot", "name": "abertura", "holdMs": 1000},
+    {"action": "click", "selector": "button[data-route='products']", "name": "produtos", "holdMs": 5000},
+    {"action": "click", "selector": "button[data-route='customers']", "name": "clientes", "holdMs": 4500},
+    {"action": "click", "selector": "button[data-route='inventory']", "name": "estoque", "holdMs": 5000},
+    {"action": "click", "selector": "button[data-route='finance']", "name": "financeiro", "holdMs": 4500},
+    {"action": "click", "selector": "button[data-route='reports']", "name": "relatorios", "holdMs": 5000},
+    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-1", "holdMs": 1000},
+    {"action": "click", "selector": "[data-home-route='checkout']", "name": "balcao", "holdMs": 6500},
+    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-2", "holdMs": 1000},
+    {"action": "click", "selector": "[data-home-route='cash']", "name": "caixa", "holdMs": 5000},
+    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-3", "holdMs": 1000},
+    {"action": "click", "selector": "[data-home-route='sales']", "name": "vendas", "holdMs": 4500},
+    {"action": "click", "selector": "button[data-route='home']", "name": "encerramento-home", "holdMs": 3000},
+    {"action": "screenshot", "name": "encerramento", "holdMs": 1000}
+  ]
+}
