@@ -9,11 +9,9 @@ const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
 const { registerImportIpc } = require('./import-bridge.cjs');
-const { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver, createSerialDrawerDriver } = require('./hardware-bridge.cjs');
+const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
+const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
-
-let SerialPortClass = null;
-try { ({ SerialPort: SerialPortClass } = require('serialport')); } catch { SerialPortClass = null; }
 
 let mainWindow = null;
 let runtime = null;
@@ -86,36 +84,8 @@ function createMainWindow() {
 }
 
 function buildHardwareController() {
-  const scale = createSerialScaleDriver({
-    SerialPortClass,
-    path: process.env.PDV_SCALE_PORT || '',
-    baudRate: Number(process.env.PDV_SCALE_BAUD || 9600),
-    requestCommand: process.env.PDV_SCALE_COMMAND || ''
-  });
-  const drawer = createSerialDrawerDriver({
-    SerialPortClass,
-    path: process.env.PDV_DRAWER_PORT || '',
-    baudRate: Number(process.env.PDV_DRAWER_BAUD || 9600)
-  });
-  const electronPrint = createElectronPrintDriver({ BrowserWindow });
-  const print = job => electronPrint({
-    ...job,
-    silent: job.silent ?? process.env.PDV_PRINT_SILENT === 'true',
-    printerName: job.printerName || process.env.PDV_PRINTER_NAME || undefined
-  });
-  return createHardwareController({
-    async status() {
-      return {
-        barcodeScanner: { available:true, mode:'keyboard-wedge' },
-        scale: scale ? await scale.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' },
-        printer: { available:true, mode:'electron-print', silent:process.env.PDV_PRINT_SILENT === 'true' },
-        cashDrawer: drawer ? await drawer.status() : { available:false, reason:SerialPortClass?'not-configured':'serialport-unavailable' }
-      };
-    },
-    readWeight: scale ? () => scale.readWeight() : undefined,
-    openDrawer: drawer ? () => drawer.open() : undefined,
-    print
-  });
+  const hardwareRuntime = createPdvHardwareRuntime({ BrowserWindow, env:process.env });
+  return createHardwareController(hardwareRuntime);
 }
 
 function startPrintWorker() {
