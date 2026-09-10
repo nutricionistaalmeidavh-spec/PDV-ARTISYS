@@ -1,0 +1,11 @@
+{
+  "name": "home",
+  "steps": [
+    {"action": "waitFor", "selector": "#app-topbar", "name": "app-ready", "timeoutMs": 15000},
+    {"action": "click", "selector": "[data-route='home']", "name": "open-home"},
+    {"action": "waitFor", "selector": "#route-content", "name": "home-content"},
+    {"action": "expectVisible", "selector": "#network-status", "name": "network-status-visible"},
+    {"action": "expectText", "selector": "#store-name", "expected": "Loja", "name": "store-context"},
+    {"action": "screenshot", "name": "home-ready"}
+  ]
+}

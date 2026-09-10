@@ -1,0 +1,76 @@
+name: QA Capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: Fluxo visual do PDV
+        required: true
+        default: smoke
+        type: choice
+        options: [smoke, home]
+      environment:
+        description: Ambiente
+        required: true
+        default: ci
+        type: choice
+        options: [ci]
+      viewport:
+        description: Viewport
+        required: true
+        default: desktop
+        type: choice
+        options: [desktop, tablet, mobile]
+  pull_request:
+    paths:
+      - 'qa/**'
+      - '.github/workflows/qa-capture.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PDV
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install PDV dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install pinned ArtiSys QA runtime
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+
+      - name: Install visual capture dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg xvfb
+
+      - name: Capture PDV flow
+        env:
+          QA_FLOW: ${{ inputs.flow || 'smoke' }}
+          QA_ENVIRONMENT: ${{ inputs.environment || 'ci' }}
+          QA_VIEWPORT: ${{ inputs.viewport || 'desktop' }}
+        run: |
+          xvfb-run -a node qa/runtime/artisys-qa.mjs \
+            --config qa/artisys-qa.config.json \
+            --flow "$QA_FLOW" \
+            --environment "$QA_ENVIRONMENT" \
+            --viewport "$QA_VIEWPORT" \
+            --output qa-artifacts
+
+      - name: Upload screenshots videos traces and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv-qa-${{ inputs.flow || 'smoke' }}-${{ inputs.viewport || 'desktop' }}-${{ github.run_number }}
+          path: qa-artifacts
+          if-no-files-found: warn
+          retention-days: 7
