@@ -85,12 +85,13 @@ jobs:
           if [ "$MODE" = "demo" ]; then
             DEMO="${INPUT_DEMO:-quick-30s}"
             PRESET="${INPUT_PRESET:-reels-9x16}"
-            xvfb-run -a node qa/runtime/artisys-qa.mjs \
-              --config qa/artisys-qa.config.json \
-              --demo "$DEMO" \
-              --preset "$PRESET" \
-              --environment "$ENVIRONMENT" \
-              --output qa-artifacts
+            ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
+              xvfb-run -a node qa/runtime/artisys-qa.mjs \
+                --config qa/artisys-qa.config.json \
+                --demo "$DEMO" \
+                --preset "$PRESET" \
+                --environment "$ENVIRONMENT" \
+                --output qa-artifacts
           else
             FLOW="${INPUT_FLOW:-smoke}"
             VIEWPORT="${INPUT_VIEWPORT:-desktop}"
