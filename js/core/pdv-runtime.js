@@ -27,6 +27,7 @@ const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domai
 const { createRestaurantService }=require('../domains/restaurant/restaurant-service');
 const { createKitchenService }=require('../domains/restaurant/kitchen-service');
 const { createMobileDeviceService }=require('../domains/restaurant/mobile-device-service');
+const { createRestaurantReportingService }=require('../domains/restaurant/restaurant-reporting-service');
 const { registerRestaurantEffects }=require('../domains/restaurant/restaurant-effects');
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
@@ -69,6 +70,7 @@ function createPdvRuntime({
   const restaurant=createRestaurantService({db,outbox,now,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});
   const mobileDevices=createMobileDeviceService({db,now,idFactory});
+  const restaurantReports=createRestaurantReportingService({db});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
@@ -98,7 +100,7 @@ function createPdvRuntime({
   return {
     db,outbox,effectStore,bus,dispatcher,
     catalog,inventory,sales,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
-    restaurant,kitchen,mobileDevices,terminals,mutations,
+    restaurant,kitchen,mobileDevices,restaurantReports,terminals,mutations,
     backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
