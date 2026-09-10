@@ -7,6 +7,7 @@ const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
+const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
 const { registerImportIpc } = require('./import-bridge.cjs');
 const { createHardwareController, registerHardwareIpc, createElectronPrintDriver, createSerialScaleDriver, createSerialDrawerDriver } = require('./hardware-bridge.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
@@ -20,6 +21,7 @@ let localServer = null;
 let lanServer = null;
 let apiBase = '';
 let bootstrapConfig = null;
+let terminalCredentialStore = null;
 let hardwareController = null;
 let fiscalStore = null;
 let printWorker = null;
@@ -205,7 +207,16 @@ async function shutdown() {
 
 app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
-  bootstrapConfig = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
+  const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
+  terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  if (publicBootstrap.profile === 'terminal') {
+    const bootstrapSecret = String(process.env.PDV_TERMINAL_KEY || '').trim();
+    if (bootstrapSecret) terminalCredentialStore.save(bootstrapSecret);
+    const terminalKey = bootstrapSecret || terminalCredentialStore.load();
+    bootstrapConfig = { ...publicBootstrap, terminalKey };
+  } else {
+    bootstrapConfig = publicBootstrap;
+  }
   validateBootstrapConfig(bootstrapConfig);
   fiscalStore = createFiscalConnectionStore({ app, safeStorage });
   if (shouldStartEmbeddedServer(bootstrapConfig)) await startEmbeddedServer();
