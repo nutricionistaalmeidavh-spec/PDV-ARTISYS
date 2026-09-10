@@ -5,6 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('artisysDesktop', {
   getConfig: () => ipcRenderer.invoke('artisys:config'),
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
+  imports: {
+    pickFile: () => ipcRenderer.invoke('artisys:imports:pick')
+  },
   hardware: {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
