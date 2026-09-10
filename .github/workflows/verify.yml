@@ -4,15 +4,19 @@ on:
   push:
     branches:
       - main
-      - feat/ui-e07-e12
+      - "feat/**"
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm run verify
+      - name: Verify unit integration and architecture gates
+        run: npm run verify
+      - name: Verify release concurrency recovery and security gates
+        run: npm run verify:release

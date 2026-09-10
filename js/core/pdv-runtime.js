@@ -1,7 +1,9 @@
 'use strict';
+const path=require('node:path');
 const { randomUUID }=require('node:crypto');
 const { openDatabase }=require('./database/sqlite-database');
 const { runMigrations }=require('./database/migrations');
+const { runReleaseMigrations }=require('./database/release-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -20,6 +22,15 @@ const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
+const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
+const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
+const { createBackupService }=require('./backup/backup-service');
+const { createSettingsService }=require('./settings/settings-service');
+const { createImportService }=require('./import/import-service');
+const { createSystemLogger }=require('./observability/system-logger');
+const { createSystemHealth }=require('./observability/system-health');
+const { createDiagnosticPackage }=require('./observability/diagnostic-package');
+const { createPilotService }=require('./pilot/pilot-service');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -27,9 +38,17 @@ function createPdvRuntime({
   idFactory=p=>`${p}-${randomUUID()}`,
   fiscalProviderResolver=async()=>null,
   fiscalAutoIssueResolver=null,
-  receiptOptions={}
+  receiptOptions={},
+  serverVersion='1.0.0',
+  minimumTerminalVersion='1.0.0',
+  capabilities,
+  backupDir=null,
+  backupRetention=30,
+  diagnosticsDir=null,
+  logRetention=5000,
+  appVersion=serverVersion
 }={}){
-  const db=openDatabase(dbPath);runMigrations(db,now);
+  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const catalog=createCatalogService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});
@@ -40,6 +59,19 @@ function createPdvRuntime({
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});
+  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
+  if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
+  const terminals=createTerminalRegistry(terminalOptions);
+  const mutations=createMutationCoordinator({db,now});
+  const settings=createSettingsService({db,now});
+  const imports=createImportService({db,catalog,inventory,now,idFactory});
+  const logger=createSystemLogger({db,now,retention:logRetention});
+  const pilot=createPilotService({db,now});
+  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
+  const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
+  const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});
+  const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;
+  const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
 
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
@@ -53,7 +85,9 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
+    backups,settings,imports,logger,health,diagnostics,pilot,
+    backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
   };

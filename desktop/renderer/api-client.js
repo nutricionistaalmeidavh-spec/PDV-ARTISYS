@@ -117,6 +117,29 @@
     fiscalDocument(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}`); }
     requestFiscalIssue(body) { return this.request('/api/v1/fiscal/documents', { method:'POST', body, mutationId:this.mutationId() }); }
     retryFiscalIssue(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}/retry`, { method:'POST', body:{}, mutationId:this.mutationId() }); }
+
+    backupStatus() { return this.request('/api/v1/backups/status'); }
+    backups() { return this.request('/api/v1/backups'); }
+    createBackup(reason='manual') { return this.request('/api/v1/backups', { method:'POST', body:{reason} }); }
+    validateBackup(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/validate`, { method:'POST', body:{} }); }
+    prepareRestore(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/restore`, { method:'POST', body:{} }); }
+
+    settings(filters={}) { return this.request(`/api/v1/settings${this.params(filters)}`); }
+    saveSetting(key,value,scope='global') { return this.request(`/api/v1/settings/${encodeURIComponent(key)}`, { method:'PUT', body:{value,scope} }); }
+    removeSetting(key,scope='global') { return this.request(`/api/v1/settings/${encodeURIComponent(key)}${this.params({scope})}`, { method:'DELETE' }); }
+
+    importPreview(body) { return this.request('/api/v1/imports/preview', { method:'POST', body }); }
+    importBatch(id) { return this.request(`/api/v1/imports/${encodeURIComponent(id)}`); }
+    commitImport(id) { return this.request(`/api/v1/imports/${encodeURIComponent(id)}/commit`, { method:'POST', body:{} }); }
+
+    audit(filters={}) { return this.request(`/api/v1/audit${this.params(filters)}`); }
+    systemHealth() { return this.request('/api/v1/system/health'); }
+    systemLogs(filters={}) { return this.request(`/api/v1/system/logs${this.params(filters)}`); }
+    createDiagnostics() { return this.request('/api/v1/system/diagnostics', { method:'POST', body:{} }); }
+
+    pilotChecks() { return this.request('/api/v1/pilot'); }
+    pilotReadiness() { return this.request('/api/v1/pilot/readiness'); }
+    updatePilotCheck(key,body) { return this.request(`/api/v1/pilot/${encodeURIComponent(key)}`, { method:'PATCH', body }); }
   }
 
   return { ApiClient };

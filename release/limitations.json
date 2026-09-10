@@ -1,0 +1,7 @@
+[
+  "O alvo de empacotamento e suporte comercial da versão 1.0 é Windows x64.",
+  "Emissão fiscal exige configuração válida do cliente, credenciais do provedor fiscal e conectividade com os serviços fiscais; dependências externas indisponíveis permanecem bloqueadas explicitamente.",
+  "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver e conexão disponíveis no terminal onde serão usados.",
+  "Terminais no perfil terminal dependem da disponibilidade do servidor central na LAN; a versão 1.0 não usa sincronização em nuvem como substituto do servidor local.",
+  "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
+]

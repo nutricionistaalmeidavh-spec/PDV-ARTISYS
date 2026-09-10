@@ -7,10 +7,11 @@ const startPath = path.join(__dirname, '..', 'server', 'start.js');
 
 test('server start configuration uses safe standalone defaults', () => {
   const { resolveServerConfig } = require(startPath);
-  const config = resolveServerConfig({}, '/tmp/app');
+  const cwd = path.resolve(os.tmpdir(), 'pdv-artisys-config-test');
+  const config = resolveServerConfig({}, cwd);
   assert.equal(config.host, '127.0.0.1');
   assert.equal(config.port, 4174);
-  assert.equal(config.dbPath, path.join('/tmp/app', 'data', 'pdv-artisys.sqlite'));
+  assert.equal(config.dbPath, path.resolve(cwd, 'data', 'pdv-artisys.sqlite'));
   assert.equal(config.token, '');
 });
 
