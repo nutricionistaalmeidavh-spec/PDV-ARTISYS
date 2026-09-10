@@ -57,3 +57,13 @@ test('PDV quick demo defaults to a 30-second Reels deliverable', () => {
   assert.ok(flow.steps.some(step => step.name === 'caixa'));
   assert.ok(flow.steps.some(step => step.name === 'relatorios'));
 });
+
+test('vendored QA runtime is 1.1.1 and normalizes demo media duration', () => {
+  const lock = JSON.parse(fs.readFileSync(path.join(root, 'qa', 'artisys-qa.lock.json'), 'utf8'));
+  const runtime = fs.readFileSync(path.join(root, 'qa', 'runtime', 'artisys-qa.mjs'), 'utf8');
+  assert.equal(lock.version, '1.1.1');
+  assert.match(runtime, /MODULE_VERSION = '1\.1\.1'/);
+  assert.match(runtime, /ffprobe/);
+  assert.match(runtime, /setpts=/);
+  assert.match(runtime, /videoDurationSec/);
+});
