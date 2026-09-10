@@ -9,6 +9,7 @@ const PDV_EVENT_TYPES = Object.freeze({
   SALE_RESUMED: 'sale.resumed',
   SALE_COMPLETED: 'sale.completed',
   SALE_CANCELLED: 'sale.cancelled',
+  SALE_VOIDED: 'sale.voided',
 
   RETURN_COMPLETED: 'return.completed',
   RETURN_CANCELLED: 'return.cancelled',
