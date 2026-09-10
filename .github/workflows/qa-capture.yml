@@ -95,12 +95,13 @@ jobs:
           else
             FLOW="${INPUT_FLOW:-smoke}"
             VIEWPORT="${INPUT_VIEWPORT:-desktop}"
-            xvfb-run -a node qa/runtime/artisys-qa.mjs \
-              --config qa/artisys-qa.config.json \
-              --flow "$FLOW" \
-              --environment "$ENVIRONMENT" \
-              --viewport "$VIEWPORT" \
-              --output qa-artifacts
+            ARTISYS_QA_PASSWORD="$(openssl rand -hex 16)" \
+              xvfb-run -a node qa/runtime/artisys-qa.mjs \
+                --config qa/artisys-qa.config.json \
+                --flow "$FLOW" \
+                --environment "$ENVIRONMENT" \
+                --viewport "$VIEWPORT" \
+                --output qa-artifacts
           fi
 
       - name: Upload screenshots videos traces and logs
