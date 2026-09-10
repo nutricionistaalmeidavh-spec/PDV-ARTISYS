@@ -88,7 +88,7 @@ function createTerminalRegistry({
     try {
       db.prepare(`INSERT INTO terminals
         (terminal_id,name,fingerprint,credential_hash,credential_salt,status,app_version,last_seen_at,paired_at,paired_by)
-        VALUES (?,?,?,?,?,'ACTIVE',?,?,?,?,?)`)
+        VALUES (?,?,?,?,?,'ACTIVE',?,?,?,?)`)
         .run(id, String(name || id).trim(), fp, hashSecret(credential, salt), salt, String(appVersion || '0.0.0'), timestamp, timestamp, pair.created_by || null);
       db.prepare('UPDATE pairing_codes SET used_at=?,used_by_terminal_id=? WHERE id=? AND used_at IS NULL').run(timestamp, id, pair.id);
       db.exec('COMMIT');
