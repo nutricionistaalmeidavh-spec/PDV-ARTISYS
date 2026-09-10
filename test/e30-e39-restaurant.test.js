@@ -41,8 +41,25 @@ test('E30-E39: migration, comanda, KDS, prebill, checkout and sale close form on
     runtime.sales.completeSale(checkout.sale.id,{payments:[{method:'CASH',amountCents:5180}],actor:{userId:user.id,role:'cashier',terminalId:'PDV-01'}});
     const finalDispatch=await runtime.dispatchPending();assert.equal(finalDispatch.failures.length,0,JSON.stringify(finalDispatch.failures));
     assert.equal(runtime.restaurant.getSession(session.id).status,'CLOSED');assert.equal(runtime.restaurant.listTables()[0].status,'FREE');
+    assert.equal(runtime.inventory.listMovements({productId:'p1'}).length,0,'untracked restaurant products must not create phantom stock movements');
     const report=runtime.restaurantReports.summary();assert.equal(report.ordersCount,1);assert.equal(report.grossCents,5180);assert.equal(report.topProducts[0].quantity,2);
     assert.match(runtime.restaurantReports.exportOrdersCsv(),/Prato executivo|pedido/);
+  }finally{ctx.close();}
+});
+
+test('E31/E38: voiding an unpaid checkout sale reopens the same table session',async()=>{
+  const ctx=fixture();const {runtime,user,table}=ctx;
+  try{
+    const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,actor:{userId:user.id,role:'cashier'}});
+    runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:1}],source:'DESKTOP',actor:{userId:user.id,role:'cashier'}});
+    let dispatch=await runtime.dispatchPending();assert.equal(dispatch.failures.length,0,JSON.stringify(dispatch.failures));
+    const checkout=runtime.restaurant.checkoutToSale(session.id,{terminalId:'PDV-01',operatorId:user.id,actor:{userId:user.id,role:'cashier',terminalId:'PDV-01'}},runtime.sales);
+    assert.equal(checkout.session.status,'CHECKOUT');
+    runtime.sales.cancelSale(checkout.sale.id,{reason:'Voltar para a mesa',actor:{userId:user.id,role:'cashier',terminalId:'PDV-01'},mutationId:'void-checkout'});
+    dispatch=await runtime.dispatchPending();assert.equal(dispatch.failures.length,0,JSON.stringify(dispatch.failures));
+    const reopened=runtime.restaurant.getSession(session.id);assert.equal(reopened.status,'OPEN');assert.equal(reopened.checkoutSaleId,null);
+    assert.equal(runtime.restaurant.listTables()[0].status,'OCCUPIED');
+    assert.equal(runtime.inventory.listMovements({productId:'p1'}).length,0);
   }finally{ctx.close();}
 });
 
