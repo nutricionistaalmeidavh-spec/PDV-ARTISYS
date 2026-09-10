@@ -7,31 +7,65 @@ async function readJson(request, limit) { let total=0;const chunks=[];for await(
 function bearer(request){const value=String(request.headers.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
 function queryFilters(url, names){const result={};for(const name of names){const value=url.searchParams.get(name);if(value!==null&&value!=='')result[name]=value;}return result;}
 
-function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,allowedOrigins=[],sessionTtlMs=12*60*60*1000}={}){
+function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,allowedOrigins=[],sessionTtlMs=12*60*60*1000,requireTerminalAuth=false}={}){
   if(!runtime)throw new TypeError('runtime is required.');
   const sessions=new Map();
-  function authenticate(request){const token=bearer(request);const session=sessions.get(token);if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new HttpError(401,'Sessao invalida ou expirada.');}return session;}
+  function authenticate(request){
+    const token=bearer(request);const session=sessions.get(token);
+    if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new HttpError(401,'Sessao invalida ou expirada.');}
+    if(requireTerminalAuth){
+      const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);
+      if(!terminal||terminal.status!=='ACTIVE')throw new HttpError(401,'Terminal nao autorizado.');
+    }
+    return session;
+  }
   function requireRole(session,roles){if(!roles.includes(session.role))throw new HttpError(403,'Permissao insuficiente.');}
   function actor(session){return{userId:session.userId,role:session.role,terminalId:session.terminalId||null};}
   function checkInstallToken(request){if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new HttpError(401,'Token de instalacao invalido.');}
   async function dispatch(){return runtime.dispatchPending();}
+  async function mutation(request,pathname,statusCode,handler){
+    const mutationId=String(request.headers['x-mutation-id']||'').trim();
+    if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};
+    return runtime.mutations.execute({mutationId,method:request.method,path:pathname},async()=>({statusCode,payload:await handler(mutationId)}));
+  }
 
   return async function route(request,response){
     try{
       const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
       if(request.method==='OPTIONS'){sendJson(response,204,{},request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/health'){sendJson(response,200,{ok:true,status:'ready',schemaVersion:runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version},request,allowedOrigins);return;}
+      if(request.method==='GET'&&pathname==='/api/v1/lan/handshake'){
+        sendJson(response,200,runtime.terminals.handshake({terminalId:url.searchParams.get('terminalId'),appVersion:url.searchParams.get('appVersion')||'0.0.0'}),request,allowedOrigins);return;
+      }
+      if(request.method==='POST'&&pathname==='/api/v1/lan/pair'){
+        const body=await readJson(request,bodyLimitBytes);const paired=runtime.terminals.pairTerminal(body);sendJson(response,201,paired,request,allowedOrigins);return;
+      }
       if(request.method==='GET'&&pathname==='/api/v1/setup/status'){sendJson(response,200,{needsSetup:runtime.catalog.countUsers()===0},request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/setup/admin'){
         checkInstallToken(request);if(runtime.catalog.countUsers()!==0)throw new HttpError(409,'Configuracao inicial ja concluida.');
         const body=await readJson(request,bodyLimitBytes);const user=runtime.catalog.createUser({...body,role:'admin',active:true},{userId:'setup',role:'system',terminalId:null});sendJson(response,201,user,request,allowedOrigins);return;
       }
       if(request.method==='POST'&&pathname==='/api/v1/auth/login'){
-        checkInstallToken(request);const body=await readJson(request,bodyLimitBytes);const auth=runtime.catalog.verifyUserPassword(body.username,body.password);if(!auth.ok)throw new HttpError(401,'Usuario ou senha invalidos.');
-        const sessionToken=randomBytes(32).toString('hex');const session={userId:auth.user.id,role:auth.user.role,name:auth.user.name,terminalId:String(body.terminalId||'').trim()||null,expiresAt:Date.now()+sessionTtlMs};sessions.set(sessionToken,session);sendJson(response,200,{sessionToken,user:auth.user,expiresAt:new Date(session.expiresAt).toISOString()},request,allowedOrigins);return;
+        const body=await readJson(request,bodyLimitBytes);let terminalId=String(body.terminalId||'').trim()||null;
+        if(requireTerminalAuth){
+          const headerId=String(request.headers['x-terminal-id']||'').trim();const terminalKey=String(request.headers['x-terminal-key']||'');
+          const terminalAuth=runtime.terminals.authenticateTerminal(headerId,terminalKey);
+          if(!terminalAuth.ok)throw new HttpError(401,'Terminal nao autorizado.');
+          if(terminalId&&terminalId!==headerId)throw new HttpError(401,'Identidade do terminal divergente.');
+          const hs=runtime.terminals.handshake({terminalId:headerId,appVersion:terminalAuth.terminal.appVersion});
+          if(!hs.compatible)throw new HttpError(426,'Versao do terminal incompativel.');
+          terminalId=headerId;
+        }else checkInstallToken(request);
+        const auth=runtime.catalog.verifyUserPassword(body.username,body.password);if(!auth.ok)throw new HttpError(401,'Usuario ou senha invalidos.');
+        const sessionToken=randomBytes(32).toString('hex');const session={userId:auth.user.id,role:auth.user.role,name:auth.user.name,terminalId,expiresAt:Date.now()+sessionTtlMs};sessions.set(sessionToken,session);sendJson(response,200,{sessionToken,user:auth.user,terminalId,expiresAt:new Date(session.expiresAt).toISOString()},request,allowedOrigins);return;
       }
 
       const session=authenticate(request);const currentActor=actor(session);const mutationId=String(request.headers['x-mutation-id']||'').trim()||null;
+
+      if(request.method==='POST'&&pathname==='/api/v1/lan/pairing-codes'){requireRole(session,['admin']);const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.terminals.createPairingCode({createdBy:session.userId,ttlSeconds:body.ttlSeconds}),request,allowedOrigins);return;}
+      if(request.method==='GET'&&pathname==='/api/v1/terminals'){requireRole(session,['admin','manager']);sendJson(response,200,runtime.terminals.listTerminals(),request,allowedOrigins);return;}
+      const terminalMatch=pathname.match(/^\/api\/v1\/terminals\/([^/]+)$/);
+      if(request.method==='PATCH'&&terminalMatch){requireRole(session,['admin']);const body=await readJson(request,bodyLimitBytes);sendJson(response,200,runtime.terminals.setTerminalStatus(decodeURIComponent(terminalMatch[1]),body.status),request,allowedOrigins);return;}
 
       if(request.method==='GET'&&pathname==='/api/v1/categories'){sendJson(response,200,runtime.catalog.listCategories({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/categories'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.catalog.upsertCategory(body,currentActor),request,allowedOrigins);return;}
@@ -50,7 +84,11 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='GET'&&inventoryMatch){const productId=decodeURIComponent(inventoryMatch[1]);sendJson(response,200,{productId,quantity:runtime.inventory.getBalance(productId)},request,allowedOrigins);return;}
 
       if(request.method==='GET'&&pathname==='/api/v1/cash/sessions'){sendJson(response,200,runtime.cash.listSessions(queryFilters(url,['terminalId','operatorId','status','from','to'])),request,allowedOrigins);return;}
-      if(request.method==='POST'&&pathname==='/api/v1/cash/sessions'){const body=await readJson(request,bodyLimitBytes);const opened=runtime.cash.openSession({...body,operatorId:session.userId,terminalId:body.terminalId||session.terminalId,actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,201,{session:opened,dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&pathname==='/api/v1/cash/sessions'){
+        const body=await readJson(request,bodyLimitBytes);
+        const result=await mutation(request,pathname,201,async mid=>{const opened=runtime.cash.openSession({...body,operatorId:session.userId,terminalId:session.terminalId||body.terminalId,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{session:opened,dispatch:dispatchResult};});
+        sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;
+      }
       if(request.method==='GET'&&pathname==='/api/v1/cash/open'){const terminalId=url.searchParams.get('terminalId')||session.terminalId;if(!terminalId)throw new HttpError(400,'terminalId obrigatorio.');sendJson(response,200,runtime.cash.getOpenSession(terminalId),request,allowedOrigins);return;}
       const cashMovementsMatch=pathname.match(/^\/api\/v1\/cash\/sessions\/([^/]+)\/movements$/);
       if(request.method==='GET'&&cashMovementsMatch){sendJson(response,200,runtime.cash.listSessionMovements(decodeURIComponent(cashMovementsMatch[1])),request,allowedOrigins);return;}
@@ -59,7 +97,7 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
 
       if(request.method==='GET'&&pathname==='/api/v1/sales/history'){sendJson(response,200,runtime.sales.listHistory(queryFilters(url,['from','to','operatorId','customerId','status','query','limit'])),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/sales'){sendJson(response,200,runtime.sales.listSales({status:url.searchParams.get('status'),limit:url.searchParams.get('limit')}),request,allowedOrigins);return;}
-      if(request.method==='POST'&&pathname==='/api/v1/sales'){const body=await readJson(request,bodyLimitBytes);const sale=runtime.sales.openSale({...body,operatorId:session.userId,terminalId:body.terminalId||session.terminalId},currentActor);sendJson(response,201,sale,request,allowedOrigins);return;}
+      if(request.method==='POST'&&pathname==='/api/v1/sales'){const body=await readJson(request,bodyLimitBytes);const sale=runtime.sales.openSale({...body,operatorId:session.userId,terminalId:session.terminalId||body.terminalId},currentActor);sendJson(response,201,sale,request,allowedOrigins);return;}
       const saleDetailsMatch=pathname.match(/^\/api\/v1\/sales\/([^/]+)\/details$/);
       if(request.method==='GET'&&saleDetailsMatch){const sale=runtime.sales.getSaleDetails(decodeURIComponent(saleDetailsMatch[1]));if(!sale)throw new HttpError(404,'Venda nao encontrada.');sendJson(response,200,sale,request,allowedOrigins);return;}
       const customerMatch=pathname.match(/^\/api\/v1\/sales\/([^/]+)\/customer$/);
@@ -76,16 +114,18 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       const resumeMatch=pathname.match(/^\/api\/v1\/sales\/([^/]+)\/resume$/);
       if(request.method==='POST'&&resumeMatch){sendJson(response,200,runtime.sales.resumeSale(decodeURIComponent(resumeMatch[1])),request,allowedOrigins);return;}
       const completeMatch=pathname.match(/^\/api\/v1\/sales\/([^/]+)\/complete$/);
-      if(request.method==='POST'&&completeMatch){const body=await readJson(request,bodyLimitBytes);const sale=runtime.sales.completeSale(decodeURIComponent(completeMatch[1]),{payments:body.payments||[],actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,200,{sale,dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&completeMatch){
+        const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,200,async mid=>{const sale=runtime.sales.completeSale(decodeURIComponent(completeMatch[1]),{payments:body.payments||[],actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{sale,dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;
+      }
       const cancelMatch=pathname.match(/^\/api\/v1\/sales\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&cancelMatch){const body=await readJson(request,bodyLimitBytes);const sale=runtime.sales.cancelSale(decodeURIComponent(cancelMatch[1]),{reason:body.reason,actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,200,{sale,dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&cancelMatch){const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,200,async mid=>{const sale=runtime.sales.cancelSale(decodeURIComponent(cancelMatch[1]),{reason:body.reason,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{sale,dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       const saleGet=pathname.match(/^\/api\/v1\/sales\/([^/]+)$/);
       if(request.method==='GET'&&saleGet){const sale=runtime.sales.getSale(decodeURIComponent(saleGet[1]));if(!sale)throw new HttpError(404,'Venda nao encontrada.');sendJson(response,200,sale,request,allowedOrigins);return;}
 
       if(request.method==='GET'&&pathname==='/api/v1/returns'){sendJson(response,200,runtime.returns.listReturns(queryFilters(url,['saleId','status','from','to'])),request,allowedOrigins);return;}
-      if(request.method==='POST'&&pathname==='/api/v1/returns'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const ret=runtime.returns.createReturn({...body,terminalId:body.terminalId||session.terminalId,operatorId:session.userId,actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,201,{return:ret,dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&pathname==='/api/v1/returns'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,201,async mid=>{const ret=runtime.returns.createReturn({...body,terminalId:session.terminalId||body.terminalId,operatorId:session.userId,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{return:ret,dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       const returnCancel=pathname.match(/^\/api\/v1\/returns\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&returnCancel){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const ret=runtime.returns.cancelReturn(decodeURIComponent(returnCancel[1]),{reason:body.reason,actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,200,{return:ret,dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&returnCancel){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,200,async mid=>{const ret=runtime.returns.cancelReturn(decodeURIComponent(returnCancel[1]),{reason:body.reason,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{return:ret,dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       const returnGet=pathname.match(/^\/api\/v1\/returns\/([^/]+)$/);
       if(request.method==='GET'&&returnGet){const ret=runtime.returns.getReturn(decodeURIComponent(returnGet[1]));if(!ret)throw new HttpError(404,'Devolucao nao encontrada.');sendJson(response,200,ret,request,allowedOrigins);return;}
 
@@ -116,9 +156,9 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='POST'&&printReprint){sendJson(response,201,runtime.printing.reprint(decodeURIComponent(printReprint[1])),request,allowedOrigins);return;}
 
       if(request.method==='GET'&&pathname==='/api/v1/fiscal/documents'){requireRole(session,['admin','manager']);sendJson(response,200,runtime.fiscal.listDocuments(queryFilters(url,['saleId','status','documentType','environment'])),request,allowedOrigins);return;}
-      if(request.method==='POST'&&pathname==='/api/v1/fiscal/documents'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const doc=runtime.fiscal.requestIssue({...body,actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,201,{document:runtime.fiscal.getDocument(doc.id),dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&pathname==='/api/v1/fiscal/documents'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,201,async mid=>{const doc=runtime.fiscal.requestIssue({...body,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{document:runtime.fiscal.getDocument(doc.id),dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       const fiscalRetry=pathname.match(/^\/api\/v1\/fiscal\/documents\/([^/]+)\/retry$/);
-      if(request.method==='POST'&&fiscalRetry){requireRole(session,['admin','manager']);runtime.fiscal.retryIssue(decodeURIComponent(fiscalRetry[1]),{actor:currentActor,mutationId});const dispatchResult=await dispatch();sendJson(response,200,{document:runtime.fiscal.getDocument(decodeURIComponent(fiscalRetry[1])),dispatch:dispatchResult},request,allowedOrigins);return;}
+      if(request.method==='POST'&&fiscalRetry){requireRole(session,['admin','manager']);const result=await mutation(request,pathname,200,async mid=>{runtime.fiscal.retryIssue(decodeURIComponent(fiscalRetry[1]),{actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{document:runtime.fiscal.getDocument(decodeURIComponent(fiscalRetry[1])),dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       const fiscalGet=pathname.match(/^\/api\/v1\/fiscal\/documents\/([^/]+)$/);
       if(request.method==='GET'&&fiscalGet){requireRole(session,['admin','manager']);const doc=runtime.fiscal.getDocument(decodeURIComponent(fiscalGet[1]));if(!doc)throw new HttpError(404,'Documento fiscal nao encontrado.');sendJson(response,200,doc,request,allowedOrigins);return;}
 
