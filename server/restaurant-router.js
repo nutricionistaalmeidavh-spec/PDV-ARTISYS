@@ -58,6 +58,14 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
       }
       json(response,200,{device,tickets:runtime.kitchen.listTickets({limit:250})});return true;
     }
+    const waiterOpen=pathname.match(/^\/api\/v1\/mobile\/tables\/([^/]+)\/open$/);
+    if(request.method==='POST'&&waiterOpen){
+      const p=mobilePrincipal(request,['WAITER']);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(waiterOpen[1]),{operatorId:p.device.userId||null,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
+    }
+    const waiterTransfer=pathname.match(/^\/api\/v1\/mobile\/sessions\/([^/]+)\/transfer$/);
+    if(request.method==='POST'&&waiterTransfer){
+      const p=mobilePrincipal(request,['WAITER']);const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(waiterTransfer[1]),data.targetTableId,{actor:p.actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;
+    }
     if(request.method==='POST'&&pathname==='/api/v1/mobile/orders'){
       const p=mobilePrincipal(request,['TABLET','WAITER']);const data=await body(request);let sessionId=String(data.sessionId||'').trim();
       if(p.device.deviceType==='TABLET'){
