@@ -28,6 +28,13 @@ const PDV_EVENT_TYPES = Object.freeze({
   RECEIPT_PRINTED: 'receipt.printed',
   RECEIPT_FAILED: 'receipt.failed',
 
+  RESTAURANT_TABLE_OPENED: 'restaurant.table-opened',
+  RESTAURANT_TABLE_TRANSFERRED: 'restaurant.table-transferred',
+  RESTAURANT_TABLE_CLOSED: 'restaurant.table-closed',
+  RESTAURANT_ORDER_CREATED: 'restaurant.order-created',
+  RESTAURANT_WAITER_CALLED: 'restaurant.waiter-called',
+  RESTAURANT_BILL_REQUESTED: 'restaurant.bill-requested',
+
   FISCAL_ISSUE_REQUESTED: 'fiscal.issue-requested',
   FISCAL_ISSUED: 'fiscal.issued',
   FISCAL_FAILED: 'fiscal.failed',
