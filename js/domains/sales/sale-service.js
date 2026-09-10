@@ -120,7 +120,9 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
       return withTransaction(db, () => {
         const timestamp = now();
         db.prepare("UPDATE sales SET status='CANCELLED',cancel_reason=?,cancelled_at=?,updated_at=? WHERE id=? AND status IN ('OPEN','SUSPENDED')").run(text, timestamp, timestamp, saleId);
-        writeAudit(db, { action: 'sale.void', entity: 'sale', entityId: saleId, actor, context: { reason: text } }, now);
+        const event = { eventId:idFactory('evt'), type:'sale.voided', aggregate:'sale', aggregateId:saleId, occurredAt:timestamp, actor:actor && typeof actor === 'object' ? actor : {}, source:'server', mutationId, payload:{ saleNumber:current.sale_number, terminalId:current.terminal_id, reason:text } };
+        outbox.insert(event);
+        writeAudit(db, { action: 'sale.void', entity: 'sale', entityId: saleId, actor, context: { reason: text, eventId:event.eventId } }, now);
         return getSale(saleId);
       });
     }
