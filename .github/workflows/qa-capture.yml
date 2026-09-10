@@ -3,12 +3,30 @@ name: QA Capture
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: QA técnico visual ou vídeo de demonstração
+        required: true
+        default: demo
+        type: choice
+        options: [demo, qa]
       flow:
-        description: Fluxo visual do PDV
+        description: Fluxo QA
         required: true
         default: smoke
         type: choice
         options: [smoke, home]
+      demo:
+        description: Fluxo de demonstração
+        required: true
+        default: quick-30s
+        type: choice
+        options: [quick-30s, overview-60s]
+      preset:
+        description: Formato do vídeo de demonstração
+        required: true
+        default: reels-9x16
+        type: choice
+        options: [reels-9x16, landscape-16x9, square-1x1]
       environment:
         description: Ambiente
         required: true
@@ -16,7 +34,7 @@ on:
         type: choice
         options: [ci]
       viewport:
-        description: Viewport
+        description: Viewport do QA
         required: true
         default: desktop
         type: choice
@@ -55,22 +73,40 @@ jobs:
 
       - name: Capture PDV flow
         env:
-          QA_FLOW: ${{ inputs.flow || 'smoke' }}
-          QA_ENVIRONMENT: ${{ inputs.environment || 'ci' }}
-          QA_VIEWPORT: ${{ inputs.viewport || 'desktop' }}
+          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_FLOW: ${{ inputs.flow }}
+          INPUT_DEMO: ${{ inputs.demo }}
+          INPUT_PRESET: ${{ inputs.preset }}
+          INPUT_ENVIRONMENT: ${{ inputs.environment }}
+          INPUT_VIEWPORT: ${{ inputs.viewport }}
         run: |
-          xvfb-run -a node qa/runtime/artisys-qa.mjs \
-            --config qa/artisys-qa.config.json \
-            --flow "$QA_FLOW" \
-            --environment "$QA_ENVIRONMENT" \
-            --viewport "$QA_VIEWPORT" \
-            --output qa-artifacts
+          MODE="${INPUT_MODE:-demo}"
+          ENVIRONMENT="${INPUT_ENVIRONMENT:-ci}"
+          if [ "$MODE" = "demo" ]; then
+            DEMO="${INPUT_DEMO:-quick-30s}"
+            PRESET="${INPUT_PRESET:-reels-9x16}"
+            xvfb-run -a node qa/runtime/artisys-qa.mjs \
+              --config qa/artisys-qa.config.json \
+              --demo "$DEMO" \
+              --preset "$PRESET" \
+              --environment "$ENVIRONMENT" \
+              --output qa-artifacts
+          else
+            FLOW="${INPUT_FLOW:-smoke}"
+            VIEWPORT="${INPUT_VIEWPORT:-desktop}"
+            xvfb-run -a node qa/runtime/artisys-qa.mjs \
+              --config qa/artisys-qa.config.json \
+              --flow "$FLOW" \
+              --environment "$ENVIRONMENT" \
+              --viewport "$VIEWPORT" \
+              --output qa-artifacts
+          fi
 
       - name: Upload screenshots videos traces and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pdv-qa-${{ inputs.flow || 'smoke' }}-${{ inputs.viewport || 'desktop' }}-${{ github.run_number }}
+          name: pdv-${{ inputs.mode || 'demo' }}-${{ inputs.demo || inputs.flow || 'quick-30s' }}-${{ inputs.preset || inputs.viewport || 'reels-9x16' }}-${{ github.run_number }}
           path: qa-artifacts
           if-no-files-found: warn
           retention-days: 7
