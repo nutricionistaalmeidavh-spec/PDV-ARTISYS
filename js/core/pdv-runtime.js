@@ -25,6 +25,10 @@ const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 const { createBackupService }=require('./backup/backup-service');
 const { createSettingsService }=require('./settings/settings-service');
+const { createImportService }=require('./import/import-service');
+const { createSystemLogger }=require('./observability/system-logger');
+const { createSystemHealth }=require('./observability/system-health');
+const { createDiagnosticPackage }=require('./observability/diagnostic-package');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -38,6 +42,8 @@ function createPdvRuntime({
   capabilities,
   backupDir=null,
   backupRetention=30,
+  diagnosticsDir=null,
+  logRetention=5000,
   appVersion=serverVersion
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);
@@ -56,8 +62,13 @@ function createPdvRuntime({
   const terminals=createTerminalRegistry(terminalOptions);
   const mutations=createMutationCoordinator({db,now});
   const settings=createSettingsService({db,now});
+  const imports=createImportService({db,catalog,inventory,now,idFactory});
+  const logger=createSystemLogger({db,now,retention:logRetention});
   const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
   const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
+  const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});
+  const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;
+  const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
 
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
@@ -71,8 +82,9 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,backups,settings,
-    backupDir:resolvedBackupDir,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
+    backups,settings,imports,logger,health,diagnostics,
+    backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
   };
