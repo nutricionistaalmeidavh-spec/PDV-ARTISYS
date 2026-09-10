@@ -1,0 +1,22 @@
+[
+  "desktop-windows-local-first",
+  "central-lan-server",
+  "paired-multi-terminal",
+  "catalog-products-customers-sellers",
+  "inventory-ledger-and-low-stock",
+  "sales-checkout-mixed-payments",
+  "cash-open-supply-withdraw-close",
+  "sales-history-returns-and-reversals",
+  "finance-payables-receivables",
+  "operational-reports-and-csv-export",
+  "thermal-print-queue-and-retry",
+  "barcode-scale-drawer-adapters",
+  "nfce-nfe-provider-layer",
+  "encrypted-fiscal-credentials",
+  "versioned-backup-validate-restore",
+  "csv-xlsx-import-preview-commit",
+  "audit-health-sanitized-logs",
+  "diagnostic-zip",
+  "persistent-pilot-readiness-checklist",
+  "server-terminal-and-terminal-deployment-profiles"
+]
