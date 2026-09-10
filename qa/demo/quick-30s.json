@@ -1,0 +1,19 @@
+{
+  "name": "quick-30s",
+  "title": "ArtiSys PDV — demonstração rápida",
+  "durationTargetSec": 30,
+  "steps": [
+    {"action": "waitFor", "selector": "#app-topbar", "name": "pdv-pronto", "timeoutMs": 15000, "holdMs": 1800},
+    {"action": "screenshot", "name": "abertura", "holdMs": 700},
+    {"action": "click", "selector": "button[data-route='products']", "name": "produtos", "holdMs": 3300},
+    {"action": "click", "selector": "button[data-route='inventory']", "name": "estoque", "holdMs": 3300},
+    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-1", "holdMs": 700},
+    {"action": "click", "selector": "[data-home-route='checkout']", "name": "balcao", "holdMs": 4200},
+    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-2", "holdMs": 700},
+    {"action": "click", "selector": "[data-home-route='cash']", "name": "caixa", "holdMs": 3300},
+    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-3", "holdMs": 700},
+    {"action": "click", "selector": "button[data-route='reports']", "name": "relatorios", "holdMs": 3300},
+    {"action": "click", "selector": "button[data-route='home']", "name": "encerramento-home", "holdMs": 2500},
+    {"action": "screenshot", "name": "encerramento", "holdMs": 700}
+  ]
+}
