@@ -3,6 +3,7 @@ const path=require('node:path');
 const { randomUUID }=require('node:crypto');
 const { openDatabase }=require('./database/sqlite-database');
 const { runMigrations }=require('./database/migrations');
+const { runReleaseMigrations }=require('./database/release-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -47,7 +48,7 @@ function createPdvRuntime({
   logRetention=5000,
   appVersion=serverVersion
 }={}){
-  const db=openDatabase(dbPath);runMigrations(db,now);
+  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const catalog=createCatalogService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});
