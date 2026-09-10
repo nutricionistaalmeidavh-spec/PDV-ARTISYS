@@ -31,10 +31,17 @@ function registerRestaurantEffects({bus,effectStore,restaurantService,kitchenSer
     handler:async event=>restaurantService.reopenCancelledCheckout(event.aggregateId,{actor:event.actor||{}})
   });
 
+  const saleVoided=createIdempotentDomainEffect({
+    effectKey:'restaurant.reopen-table-after-sale-void',
+    effectStore,
+    handler:async event=>restaurantService.reopenCancelledCheckout(event.aggregateId,{actor:event.actor||{}})
+  });
+
   return [
     bus.subscribe('restaurant.order-created',orderCreated),
     bus.subscribe('sale.completed',saleCompleted),
-    bus.subscribe('sale.cancelled',saleCancelled)
+    bus.subscribe('sale.cancelled',saleCancelled),
+    bus.subscribe('sale.voided',saleVoided)
   ];
 }
 
