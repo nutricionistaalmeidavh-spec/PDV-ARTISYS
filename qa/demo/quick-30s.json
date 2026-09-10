@@ -13,13 +13,13 @@
     {"action": "screenshot", "name": "abertura", "holdMs": 600},
     {"action": "click", "selector": "button[data-route='products']", "name": "produtos", "holdMs": 3000},
     {"action": "click", "selector": "button[data-route='inventory']", "name": "estoque", "holdMs": 3000},
-    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-1", "holdMs": 500},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "voltar-inicio-1", "holdMs": 500},
     {"action": "click", "selector": "[data-home-route='checkout']", "name": "balcao", "holdMs": 3800},
-    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-2", "holdMs": 500},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "voltar-inicio-2", "holdMs": 500},
     {"action": "click", "selector": "[data-home-route='cash']", "name": "caixa", "holdMs": 3000},
-    {"action": "click", "selector": "button[data-route='home']", "name": "voltar-inicio-3", "holdMs": 500},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "voltar-inicio-3", "holdMs": 500},
     {"action": "click", "selector": "button[data-route='reports']", "name": "relatorios", "holdMs": 3000},
-    {"action": "click", "selector": "button[data-route='home']", "name": "encerramento-home", "holdMs": 2200},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "encerramento-home", "holdMs": 2200},
     {"action": "screenshot", "name": "encerramento", "holdMs": 500}
   ]
 }
