@@ -1,4 +1,5 @@
 'use strict';
+const path=require('node:path');
 const { randomUUID }=require('node:crypto');
 const { openDatabase }=require('./database/sqlite-database');
 const { runMigrations }=require('./database/migrations');
@@ -22,6 +23,7 @@ const { createFiscalService }=require('../domains/fiscal/fiscal-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
+const { createBackupService }=require('./backup/backup-service');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -32,7 +34,10 @@ function createPdvRuntime({
   receiptOptions={},
   serverVersion='1.0.0',
   minimumTerminalVersion='1.0.0',
-  capabilities
+  capabilities,
+  backupDir=null,
+  backupRetention=30,
+  appVersion=serverVersion
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
@@ -49,6 +54,8 @@ function createPdvRuntime({
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
   const mutations=createMutationCoordinator({db,now});
+  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
+  const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
 
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
@@ -62,7 +69,8 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,backups,
+    backupDir:resolvedBackupDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
   };
