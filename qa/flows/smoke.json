@@ -1,0 +1,9 @@
+{
+  "name": "smoke",
+  "steps": [
+    {"action": "waitFor", "selector": "#app-topbar", "name": "topbar-ready", "timeoutMs": 15000},
+    {"action": "expectVisible", "selector": ".topbar-brand", "name": "brand-visible"},
+    {"action": "expectText", "selector": ".topbar-brand", "expected": "ARTISYS", "name": "brand-text"},
+    {"action": "screenshot", "name": "pdv-initial-window"}
+  ]
+}
