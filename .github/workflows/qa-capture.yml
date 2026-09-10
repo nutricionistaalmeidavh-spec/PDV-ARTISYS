@@ -42,6 +42,7 @@ on:
   pull_request:
     paths:
       - 'qa/**'
+      - 'test/artisys-qa-integration.test.js'
       - '.github/workflows/qa-capture.yml'
 
 permissions:
@@ -54,23 +55,18 @@ jobs:
     steps:
       - name: Checkout PDV
         uses: actions/checkout@v4
-
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
       - name: Install PDV dependencies
         run: npm install --no-audit --no-fund
-
       - name: Install pinned ArtiSys QA runtime
         run: npm ci --prefix qa/runtime --no-audit --no-fund
-
       - name: Install visual capture dependencies
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ffmpeg xvfb
-
       - name: Capture PDV flow
         env:
           INPUT_MODE: ${{ inputs.mode }}
@@ -86,7 +82,7 @@ jobs:
             DEMO="${INPUT_DEMO:-quick-30s}"
             PRESET="${INPUT_PRESET:-reels-9x16}"
             ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
-              xvfb-run -a node qa/runtime/artisys-qa.mjs \
+              xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
                 --config qa/artisys-qa.config.json \
                 --demo "$DEMO" \
                 --preset "$PRESET" \
@@ -95,14 +91,13 @@ jobs:
           else
             FLOW="${INPUT_FLOW:-smoke}"
             VIEWPORT="${INPUT_VIEWPORT:-desktop}"
-            xvfb-run -a node qa/runtime/artisys-qa.mjs \
+            xvfb-run -a node qa/runtime/artisys-qa.mjs run \
               --config qa/artisys-qa.config.json \
               --flow "$FLOW" \
               --environment "$ENVIRONMENT" \
               --viewport "$VIEWPORT" \
               --output qa-artifacts
           fi
-
       - name: Upload screenshots videos traces and logs
         if: always()
         uses: actions/upload-artifact@v4
