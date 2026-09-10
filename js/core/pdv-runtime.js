@@ -24,6 +24,7 @@ const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domai
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 const { createBackupService }=require('./backup/backup-service');
+const { createSettingsService }=require('./settings/settings-service');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -54,6 +55,7 @@ function createPdvRuntime({
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
   const mutations=createMutationCoordinator({db,now});
+  const settings=createSettingsService({db,now});
   const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
   const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
 
@@ -69,7 +71,7 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,backups,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,backups,settings,
     backupDir:resolvedBackupDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
