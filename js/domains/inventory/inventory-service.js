@@ -87,12 +87,19 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
     return db.prepare(sql).all(...params).map(mapMovement);
   }
 
+  function isTrackedProduct(productId){
+    const row=db.prepare('SELECT track_stock AS trackStock FROM products WHERE id=?').get(String(productId));
+    if(!row) throw new Error(`Produto ${productId} nao encontrado no catalogo.`);
+    return Boolean(row.trackStock);
+  }
+
   function applySaleItems({eventId,saleId,items,direction,createdAt}){
     const type=direction==='cancel'?'sale-cancel':'sale';
     const sign=direction==='cancel'?1:-1;
     return withTransaction(db,()=>{
       const results=[];
       for(const item of items||[]){
+        if(!isTrackedProduct(item.productId)) continue;
         results.push(performMove({
           id:`${type}-${eventId}-${item.productId}`,
           productId:item.productId,
@@ -111,7 +118,10 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
     const type=cancelled?'sale':'sale-cancel';
     const sign=cancelled?-1:1;
     const totals=new Map();
-    for(const item of items||[]){totals.set(String(item.productId),roundQuantity((totals.get(String(item.productId))||0)+Number(item.quantity||0)));}
+    for(const item of items||[]){
+      if(!isTrackedProduct(item.productId)) continue;
+      totals.set(String(item.productId),roundQuantity((totals.get(String(item.productId))||0)+Number(item.quantity||0)));
+    }
     return withTransaction(db,()=>[...totals].map(([productId,quantity])=>performMove({
       id:`${type}-return-${eventId}-${productId}`,
       productId,type,quantityDelta:roundQuantity(sign*quantity),
