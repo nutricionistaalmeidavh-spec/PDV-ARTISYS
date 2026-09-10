@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { chromium, _electron as electron } from 'playwright';
 
-const MODULE_VERSION = '1.1.0';
+const MODULE_VERSION = '1.1.1';
 const VIEWPORTS = {
   desktop: { width: 1440, height: 900 },
   tablet: { width: 1024, height: 768 },
@@ -88,20 +88,29 @@ function telemetry(page, sink) {
   page.on('requestfailed', r => push('requestfailed', { method: r.method(), url: r.url(), failure: r.failure()?.errorText }));
   page.on('response', r => { if (r.status() >= 400) push('http-error', { status: r.status(), url: r.url() }); });
 }
-function runProcess(command, argv) {
+function runProcess(command, argv, { captureStdout = false } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
     let error = '';
+    child.stdout.on('data', x => { if (captureStdout) stdout += x; });
     child.stderr.on('data', x => { error += x; });
     child.once('error', reject);
-    child.once('close', code => code === 0 ? resolve() : reject(new Error(`${command} failed (${code}): ${error}`)));
+    child.once('close', code => code === 0 ? resolve(captureStdout ? stdout : undefined) : reject(new Error(`${command} failed (${code}): ${error}`)));
   });
 }
+async function probeMediaDuration(file) {
+  const stdout = await runProcess('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', file], { captureStdout: true });
+  const duration = Number(String(stdout).trim());
+  if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Could not determine media duration: ${file}`);
+  return duration;
+}
 function recorder(page, dir, fps = 8) {
-  let stop = false, count = 0, loop;
+  let stop = false, count = 0, loop, startedAt = 0;
   return {
     async start() {
       await mkdir(dir);
+      startedAt = Date.now();
       loop = (async () => {
         while (!stop) {
           try { await page.screenshot({ path: path.join(dir, `${String(count++).padStart(6, '0')}.png`) }); } catch {}
@@ -113,8 +122,10 @@ function recorder(page, dir, fps = 8) {
       stop = true;
       await loop;
       if (count < 2) return null;
+      const elapsedSec = Math.max((Date.now() - startedAt) / 1000, 0.001);
+      const effectiveFps = Math.max((count - 1) / elapsedSec, 0.01);
       try {
-        await runProcess('ffmpeg', ['-y', '-framerate', String(fps), '-i', path.join(dir, '%06d.png'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output]);
+        await runProcess('ffmpeg', ['-y', '-framerate', effectiveFps.toFixed(6), '-i', path.join(dir, '%06d.png'), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', output]);
         await fs.rm(dir, { recursive: true, force: true });
         return output;
       } catch (error) {
@@ -124,9 +135,16 @@ function recorder(page, dir, fps = 8) {
     }
   };
 }
-async function normalizeDemoVideo(input, output, preset) {
-  const filter = `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black`;
-  await runProcess('ffmpeg', ['-y', '-i', input, '-vf', filter, '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', output]);
+async function normalizeDemoVideo(input, output, preset, durationTargetSec) {
+  const sourceDurationSec = await probeMediaDuration(input);
+  const filters = [];
+  if (Number.isFinite(durationTargetSec) && durationTargetSec > 0) {
+    const factor = durationTargetSec / sourceDurationSec;
+    filters.push(`setpts=${Number(factor.toFixed(6))}*PTS`);
+  }
+  filters.push(`scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease`);
+  filters.push(`pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black`);
+  await runProcess('ffmpeg', ['-y', '-i', input, '-vf', filters.join(','), '-r', '30', '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', output]);
   return output;
 }
 
@@ -209,7 +227,7 @@ try {
     const started = Date.now();
     try {
       const label = await executeStep(page, flow.steps[i], i, shots, environment.baseURL);
-      if (config.capture?.screenshotEachStep) await page.screenshot({ path: path.join(shots, `${label}-after.png`) });
+      if (!demoMode && config.capture?.screenshotEachStep) await page.screenshot({ path: path.join(shots, `${label}-after.png`) });
       executed.push({ index: i, action: flow.steps[i].action, name: flow.steps[i].name || null, status: 'passed', durationMs: Date.now() - started });
     } catch (error) {
       executed.push({ index: i, action: flow.steps[i].action, name: flow.steps[i].name || null, status: 'failed', durationMs: Date.now() - started, error: error.message });
@@ -233,10 +251,17 @@ try {
 
 const actualDurationSec = Number(((Date.now() - startedMs) / 1000).toFixed(3));
 let demoVideo = null;
+let videoDurationSec = null;
 if (demoMode && status === 'passed' && video) {
   demoVideo = path.join(output, 'demo-video.mp4');
-  try { await normalizeDemoVideo(video, demoVideo, preset); }
-  catch (error) { status = 'failed'; failure = { message: error.message, stack: error.stack }; demoVideo = null; }
+  try {
+    await normalizeDemoVideo(video, demoVideo, preset, durationTargetSec);
+    videoDurationSec = Number((await probeMediaDuration(demoVideo)).toFixed(3));
+  } catch (error) {
+    status = 'failed';
+    failure = { message: error.message, stack: error.stack };
+    demoVideo = null;
+  }
 }
 
 const summary = {
@@ -268,6 +293,7 @@ if (demoMode) {
     output: { width: preset.width, height: preset.height, video: demoVideo ? path.basename(demoVideo) : null },
     durationTargetSec,
     actualDurationSec,
+    videoDurationSec,
     timingDeviationSec: durationTargetSec == null ? null : Number((actualDurationSec - durationTargetSec).toFixed(3)),
     status
   };
