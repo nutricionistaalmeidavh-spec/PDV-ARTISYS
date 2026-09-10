@@ -73,6 +73,9 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     printerProfile = printing.normalizePrinterProfile({ ...basePrinterProfile, mode:'electron' });
     printer = printing.createElectronPrinterDriver({ BrowserWindow });
   } else if (printerMode === 'thermal') {
+    if (!['epson','star'].includes(basePrinterProfile.printerType)) {
+      throw new Error('PDV_PRINTER_TYPE obrigatoria quando PDV_PRINTER_MODE=thermal. Use epson ou star.');
+    }
     printerProfile = printing.normalizePrinterProfile({
       ...basePrinterProfile,
       mode:'thermal',
