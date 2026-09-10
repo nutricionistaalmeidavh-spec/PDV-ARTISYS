@@ -1,10 +1,10 @@
 # ArtiSys PDV 1.1
 
-PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária do estabelecimento. A linha 1.1 acrescenta operação de restaurante mantendo venda, estoque, caixa e dados no mesmo núcleo transacional.
+PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária do estabelecimento. A linha 1.1 acrescenta operação de restaurante e hardware reutilizável mantendo venda, estoque, caixa e dados no mesmo núcleo transacional.
 
 ## Estado do produto
 
-As entregas **E01–E39 estão integradas** na linha de release 1.1: núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN e checklist de implantação.
+As entregas **E01–E39 estão integradas** na linha de release 1.1: núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN e checklist de implantação. O patch 1.1.1 centraliza comunicação serial e impressão nos módulos locais `@artisys/serialport` e `@artisys/printing`.
 
 Principais capacidades:
 
@@ -19,6 +19,8 @@ Principais capacidades:
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
 - financeiro, relatórios e exportação CSV;
 - fila de impressão com retry/reimpressão e documentos operacionais não fiscais;
+- impressão Electron, térmica Epson/Star e serial por drivers locais explícitos, sem fallback silencioso;
+- balança e gaveta serial usando o módulo compartilhado `@artisys/serialport`;
 - restaurante com mesas, comandas, pedidos, transferência de mesa, pré-conta e fechamento reutilizando o Balcão;
 - cozinha/KDS com setores de produção, produto→setor e roteamento opcional para impressora;
 - dispositivos LAN de garçom, tablet vinculado à mesa e KDS, com credenciais derivadas, bloqueio e rotação;
@@ -52,6 +54,8 @@ Em rede, existe um único servidor autoritativo. Terminais e dispositivos móvei
 
 O módulo de restaurante não mantém um segundo motor de venda: no fechamento, a comanda é convertida para a venda canônica e passa pelos mesmos efeitos de estoque, caixa, impressão e auditoria do PDV.
 
+Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reutilizáveis são vendorizados e fixados por commit em `vendor/artisys-modules.lock.json`, preservando build reproduzível sem depender de registry privado ou acesso entre repositórios durante a instalação.
+
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
@@ -76,13 +80,17 @@ O servidor desktop publica a LAN por padrão na porta 4174; `PDV_ENABLE_LAN=fals
 
 Dispositivos de restaurante usam a interface self-hosted `http://IP-DO-SERVIDOR:4174/mobile`. O transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet.
 
+## Hardware
+
+A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`. Consulte `docs/operations/hardware-printing.md` antes do piloto.
+
 ## Verificação e release
 
 ```bash
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.1.0-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.1.1-x64-Setup.exe
 ```
 
 `verify` cobre domínio/API/UI e architecture checks. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
@@ -103,6 +111,6 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 ## Limitações externas
 
-O funcionamento diário de venda, estoque, caixa, restaurante, KDS e LAN não depende de nuvem nem de serviço pago. Emissão fiscal real é uma integração opcional e depende das credenciais/configuração do estabelecimento e dos serviços fiscais externos. Periféricos opcionais dependem do hardware/driver presente no terminal. Esses casos são registrados como `BLOCKED_EXTERNAL` durante o piloto até validação real.
+O funcionamento diário de venda, estoque, caixa, restaurante, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. Emissão fiscal real é uma integração opcional e depende das credenciais/configuração do estabelecimento e dos serviços fiscais externos. Periféricos opcionais dependem do hardware/driver presente no terminal. Esses casos são registrados como `BLOCKED_EXTERNAL` durante o piloto até validação real.
 
 Metadados completos de capacidades e limitações ficam em `release/capabilities.json` e `release/limitations.json`.

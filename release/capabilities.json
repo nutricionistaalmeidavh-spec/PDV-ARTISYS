@@ -10,6 +10,8 @@
   "finance-payables-receivables",
   "operational-reports-and-csv-export",
   "thermal-print-queue-and-retry",
+  "shared-artisys-printing-renderer-and-drivers",
+  "shared-artisys-serialport-peripheral-runtime",
   "non-fiscal-sale-prebill-kitchen-and-cash-printing",
   "restaurant-tables-tabs-orders-and-table-transfer",
   "restaurant-checkout-reusing-sales-cash-and-inventory",

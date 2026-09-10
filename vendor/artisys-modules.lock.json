@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "sourceRepository": "nutricionistaalmeidavh-spec/utilidades",
+  "sourceCommit": "60b40d1221120532324e6590ef01fe24bb5a28ab",
+  "consumption": "pinned-vendored-runtime",
+  "modules": {
+    "@artisys/serialport": { "version": "0.1.0", "sourcePath": "modules/artisys-serialport" },
+    "@artisys/printing": { "version": "0.1.0", "sourcePath": "modules/artisys-printing" }
+  }
+}
