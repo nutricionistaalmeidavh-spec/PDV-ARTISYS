@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "systemId": "pdv-artisys",
+  "mode": "electron",
+  "defaultEnvironment": "ci",
+  "defaultFlow": "smoke",
+  "defaultViewport": "desktop",
+  "capture": {
+    "video": true,
+    "screenshotEachStep": true,
+    "fps": 4
+  },
+  "electron": {
+    "entry": "../desktop/main.cjs",
+    "executablePath": "../node_modules/electron/dist/electron"
+  },
+  "environments": {
+    "ci": {
+      "env": {
+        "NODE_ENV": "test",
+        "ARTISYS_QA": "1"
+      }
+    }
+  },
+  "flows": {
+    "smoke": "flows/smoke.json",
+    "home": "flows/home.json"
+  }
+}
