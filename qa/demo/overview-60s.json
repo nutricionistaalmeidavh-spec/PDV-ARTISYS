@@ -16,13 +16,13 @@
     {"action": "click", "selector": "button[data-route='inventory']", "name": "estoque", "holdMs": 4800},
     {"action": "click", "selector": "button[data-route='finance']", "name": "financeiro", "holdMs": 4200},
     {"action": "click", "selector": "button[data-route='reports']", "name": "relatorios", "holdMs": 4800},
-    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-1", "holdMs": 800},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "inicio-1", "holdMs": 800},
     {"action": "click", "selector": "[data-home-route='checkout']", "name": "balcao", "holdMs": 5800},
-    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-2", "holdMs": 800},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "inicio-2", "holdMs": 800},
     {"action": "click", "selector": "[data-home-route='cash']", "name": "caixa", "holdMs": 4600},
-    {"action": "click", "selector": "button[data-route='home']", "name": "inicio-3", "holdMs": 800},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "inicio-3", "holdMs": 800},
     {"action": "click", "selector": "[data-home-route='sales']", "name": "vendas", "holdMs": 4200},
-    {"action": "click", "selector": "button[data-route='home']", "name": "encerramento-home", "holdMs": 2600},
+    {"action": "click", "selector": "button[aria-label='Início']", "name": "encerramento-home", "holdMs": 2600},
     {"action": "screenshot", "name": "encerramento", "holdMs": 800}
   ]
 }
