@@ -20,8 +20,15 @@ const { createFinanceService }=require('../domains/finance/finance-service');
 const { createReportingService }=require('../domains/reports/reporting-service');
 const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
+const { createNonFiscalPrintService }=require('../domains/printing/non-fiscal-service');
+const { registerNonFiscalEffects }=require('../domains/printing/non-fiscal-effects');
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
+const { createRestaurantService }=require('../domains/restaurant/restaurant-service');
+const { createKitchenService }=require('../domains/restaurant/kitchen-service');
+const { createMobileDeviceService }=require('../domains/restaurant/mobile-device-service');
+const { createRestaurantReportingService }=require('../domains/restaurant/restaurant-reporting-service');
+const { registerRestaurantEffects }=require('../domains/restaurant/restaurant-effects');
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 const { createBackupService }=require('./backup/backup-service');
@@ -58,7 +65,12 @@ function createPdvRuntime({
   const finance=createFinanceService({db,now,idFactory});
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});
+  const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});
+  const restaurant=createRestaurantService({db,outbox,now,idFactory});
+  const kitchen=createKitchenService({db,now,idFactory});
+  const mobileDevices=createMobileDeviceService({db,now,idFactory});
+  const restaurantReports=createRestaurantReportingService({db});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
@@ -77,6 +89,8 @@ function createPdvRuntime({
   registerCashEffects({bus,cashService:cash,effectStore});
   registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore});
   registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,...receiptOptions});
+  registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});
+  registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});
   if(typeof fiscalAutoIssueResolver==='function'){
     registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
@@ -85,7 +99,8 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
+    restaurant,kitchen,mobileDevices,restaurantReports,terminals,mutations,
     backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),

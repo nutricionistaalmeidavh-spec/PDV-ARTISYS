@@ -158,7 +158,7 @@ function registerIpc() {
     if (bootstrapConfig?.profile === 'terminal') {
       headers['x-terminal-id'] = bootstrapConfig.terminalId;
       headers['x-terminal-key'] = bootstrapConfig.terminalKey;
-    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin') {
+    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/restaurant/')) {
       headers['x-pdv-token'] = installToken;
     }
     let body;

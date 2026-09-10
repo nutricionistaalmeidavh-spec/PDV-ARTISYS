@@ -154,7 +154,8 @@ test('checkout API supports customer assignment quantity discount suspend resume
     res = await fetch(`${ctx.base}/api/v1/sales/s1/cancel`, { method: 'POST', headers: headers(token), body: JSON.stringify({ reason: 'Cliente desistiu' }) });
     const cancelled = await json(res);
     assert.equal(cancelled.sale.status, 'CANCELLED');
-    assert.equal(cancelled.dispatch.attempted, 0);
+    assert.equal(cancelled.dispatch.attempted, 1);
+    assert.equal(cancelled.dispatch.failures.length, 0);
   } finally {
     await ctx.cleanup();
   }

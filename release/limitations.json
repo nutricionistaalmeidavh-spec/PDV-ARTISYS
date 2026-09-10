@@ -1,7 +1,9 @@
 [
-  "O alvo de empacotamento e suporte comercial da versão 1.0 é Windows x64.",
-  "Emissão fiscal exige configuração válida do cliente, credenciais do provedor fiscal e conectividade com os serviços fiscais; dependências externas indisponíveis permanecem bloqueadas explicitamente.",
+  "O alvo de empacotamento e suporte comercial da versão 1.1 é Windows x64.",
+  "Todo o núcleo do PDV e do restaurante funciona localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
+  "A interface móvel de garçom, tablet e KDS é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
+  "Emissão fiscal é opcional e exige configuração válida do cliente, credenciais do provedor fiscal e conectividade com os serviços fiscais; indisponibilidade externa não bloqueia cupom não fiscal, pré-conta, cozinha ou operação local.",
   "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver e conexão disponíveis no terminal onde serão usados.",
-  "Terminais no perfil terminal dependem da disponibilidade do servidor central na LAN; a versão 1.0 não usa sincronização em nuvem como substituto do servidor local.",
+  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.1 não usa sincronização em nuvem como substituto do servidor local.",
   "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
 ]
