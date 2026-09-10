@@ -4,11 +4,16 @@
   "mode": "electron",
   "defaultEnvironment": "ci",
   "defaultFlow": "smoke",
+  "defaultDemo": "quick-30s",
   "defaultViewport": "desktop",
+  "demoCaptureViewport": {
+    "width": 1440,
+    "height": 900
+  },
   "capture": {
     "video": true,
     "screenshotEachStep": true,
-    "fps": 4
+    "fps": 8
   },
   "electron": {
     "entry": "../desktop/main.cjs",
@@ -25,5 +30,17 @@
   "flows": {
     "smoke": "flows/smoke.json",
     "home": "flows/home.json"
+  },
+  "demos": {
+    "quick-30s": {
+      "file": "demo/quick-30s.json",
+      "preset": "reels-9x16",
+      "durationTargetSec": 30
+    },
+    "overview-60s": {
+      "file": "demo/overview-60s.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 60
+    }
   }
 }
