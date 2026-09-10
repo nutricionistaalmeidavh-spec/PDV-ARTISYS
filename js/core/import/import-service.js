@@ -2,6 +2,7 @@
 
 const { createHash }=require('node:crypto');
 const { writeAudit }=require('../audit-log');
+const { withTransaction }=require('../database/sqlite-database');
 
 function ensureImportTables(db){
  db.exec(`CREATE TABLE IF NOT EXISTS import_batches(
@@ -72,7 +73,14 @@ function createImportService({db,catalog,inventory,now=()=>new Date().toISOStrin
  function applyRow(batch,row,actor){if(row.action==='SKIP')return;if(batch.type==='products'){catalog.upsertProduct({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='categories'){catalog.upsertCategory({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='customers'){catalog.upsertCustomer({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='suppliers'){catalog.upsertSupplier({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='inventory'){const productId=row.existingId;const current=inventory.getBalance(productId);const delta=Number((row.data.quantity-current).toFixed(3));if(delta!==0)inventory.move({productId,type:current===0?'opening':(delta>0?'adjustment-in':'adjustment-out'),quantityDelta:delta,reason:'Importacao de estoque inicial',sourceType:'import',sourceId:batch.batchId},actor);}}
  function commit(batchId,{actor={}}={}){
   const batch=getBatch(batchId);if(!batch)throw new Error('Lote de importacao nao encontrado.');if(batch.status==='COMMITTED')return batch;if(batch.status!=='PREVIEWED')throw new Error('Lote nao esta em preview.');if(batch.errors.length)throw new Error('Lote de importacao possui erros e nao pode ser confirmado.');if(!['admin','manager'].includes(String(actor.role||'')))throw new Error('Permissao insuficiente para importar dados.');
-  try{for(const row of batch.rows)applyRow(batch,row,actor);const timestamp=now();db.prepare("UPDATE import_batches SET status='COMMITTED',committed_at=?,committed_by=? WHERE id=? AND status='PREVIEWED'").run(timestamp,actor.userId||null,batch.batchId);writeAudit(db,{action:'import.commit',entity:'import',entityId:batch.batchId,actor,context:{type:batch.type,summary:batch.summary}},now);return getBatch(batch.batchId);}catch(error){db.prepare("UPDATE import_batches SET status='FAILED' WHERE id=? AND status='PREVIEWED'").run(batch.batchId);throw error;}
+  try{
+   withTransaction(db,()=>{
+    for(const row of batch.rows)applyRow(batch,row,actor);
+    const timestamp=now();db.prepare("UPDATE import_batches SET status='COMMITTED',committed_at=?,committed_by=? WHERE id=? AND status='PREVIEWED'").run(timestamp,actor.userId||null,batch.batchId);
+    writeAudit(db,{action:'import.commit',entity:'import',entityId:batch.batchId,actor,context:{type:batch.type,summary:batch.summary}},now);
+   });
+   return getBatch(batch.batchId);
+  }catch(error){db.prepare("UPDATE import_batches SET status='FAILED' WHERE id=? AND status='PREVIEWED'").run(batch.batchId);throw error;}
  }
  return{preview,commit,getBatch};
 }
