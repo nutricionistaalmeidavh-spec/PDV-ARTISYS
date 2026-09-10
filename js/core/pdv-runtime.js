@@ -20,6 +20,8 @@ const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
+const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
+const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 
 function createPdvRuntime({
   dbPath=':memory:',
@@ -27,7 +29,10 @@ function createPdvRuntime({
   idFactory=p=>`${p}-${randomUUID()}`,
   fiscalProviderResolver=async()=>null,
   fiscalAutoIssueResolver=null,
-  receiptOptions={}
+  receiptOptions={},
+  serverVersion='1.0.0',
+  minimumTerminalVersion='1.0.0',
+  capabilities
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
@@ -40,6 +45,10 @@ function createPdvRuntime({
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});
+  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
+  if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
+  const terminals=createTerminalRegistry(terminalOptions);
+  const mutations=createMutationCoordinator({db,now});
 
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
@@ -53,7 +62,7 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,
+    catalog,inventory,sales,cash,returns,finance,reports,printing,fiscal,terminals,mutations,
     dispatchPending:()=>dispatcher.dispatchPending(),
     close(){db.close();}
   };
