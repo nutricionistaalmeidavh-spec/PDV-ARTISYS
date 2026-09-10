@@ -73,7 +73,7 @@ jobs:
 
       - name: Capture PDV flow
         env:
-          INPUT_MODE: ${{ inputs.mode }}
+          INPUT_MODE: ${{ github.event_name == 'pull_request' && 'qa' || inputs.mode }}
           INPUT_FLOW: ${{ inputs.flow }}
           INPUT_DEMO: ${{ inputs.demo }}
           INPUT_PRESET: ${{ inputs.preset }}
@@ -107,7 +107,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pdv-${{ inputs.mode || 'demo' }}-${{ inputs.demo || inputs.flow || 'quick-30s' }}-${{ inputs.preset || inputs.viewport || 'reels-9x16' }}-${{ github.run_number }}
+          name: pdv-${{ github.event_name == 'pull_request' && 'qa' || inputs.mode || 'demo' }}-${{ inputs.demo || inputs.flow || 'smoke' }}-${{ inputs.preset || inputs.viewport || 'desktop' }}-${{ github.run_number }}
           path: qa-artifacts
           if-no-files-found: warn
           retention-days: 7
