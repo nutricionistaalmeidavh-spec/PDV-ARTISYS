@@ -62,6 +62,10 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='GET'&&pathname==='/api/v1/system/logs'){requireRole(session,['admin','manager']);sendJson(response,200,runtime.logger.list(queryFilters(url,['level','subsystem','terminalId','correlationId','from','to','limit'])),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/system/diagnostics'){requireRole(session,['admin']);if(!runtime.diagnostics)throw new HttpError(409,'Diagnostico requer banco persistente.');sendJson(response,201,publicDiagnostic(runtime.diagnostics.createPackage({actor:currentActor})),request,allowedOrigins);return;}
 
+      if(request.method==='GET'&&pathname==='/api/v1/pilot/readiness'){requireRole(session,['admin','manager']);sendJson(response,200,runtime.pilot.readiness(),request,allowedOrigins);return;}
+      if(request.method==='GET'&&pathname==='/api/v1/pilot'){requireRole(session,['admin','manager']);sendJson(response,200,runtime.pilot.listChecks(),request,allowedOrigins);return;}
+      const pilotMatch=pathname.match(/^\/api\/v1\/pilot\/([^/]+)$/);if(request.method==='PATCH'&&pilotMatch){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);sendJson(response,200,runtime.pilot.updateCheck(decodeURIComponent(pilotMatch[1]),{...body,actor:currentActor}),request,allowedOrigins);return;}
+
       if(request.method==='GET'&&pathname==='/api/v1/categories'){sendJson(response,200,runtime.catalog.listCategories({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/categories'){requireRole(session,['admin','manager']);const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.catalog.upsertCategory(body,currentActor),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/products'){sendJson(response,200,runtime.catalog.listProducts({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
