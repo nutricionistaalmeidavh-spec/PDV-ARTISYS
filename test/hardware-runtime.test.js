@@ -76,6 +76,15 @@ test('thermal mode selects thermal driver without silent fallback', async () => 
   assert.equal(calls.includes('electron-print'),false);
 });
 
+test('thermal mode requires an explicit Epson or Star protocol', () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  assert.throws(() => createPdvHardwareRuntime({
+    BrowserWindow:function(){},
+    env:{ PDV_PRINTER_MODE:'thermal', PDV_PRINTER_INTERFACE:'tcp://127.0.0.1:9100' },
+    modules:fakeModules([])
+  }), /PDV_PRINTER_TYPE/);
+});
+
 test('serial printer mode selects transport driver and creates a serial transport', async () => {
   const { createPdvHardwareRuntime } = require(runtimePath);
   const calls=[];
