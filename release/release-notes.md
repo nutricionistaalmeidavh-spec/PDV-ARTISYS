@@ -30,4 +30,4 @@ Os fluxos comerciais usam **pagamentos manuais** e documentos explicitamente **N
 
 A interface mobile continua self-hosted em `http://IP-DO-SERVIDOR:4174/mobile`, destinada somente à LAN confiável; a versão 1.3.1 não declara HTTPS nem PWA instalável.
 
-O schema permanece **v8**; esta atualização de hardware/QA não exige migração destrutiva de dados.
+O schema avança de **v8 para v9** apenas para migrar a classificação de evidências de hardware. A migração é aditiva/preservadora: `VERIFIED` legado vira `FIELD_VERIFIED` e `BLOCKED_EXTERNAL` legado vira `UNTESTED_MODEL`, mantendo os demais dados e evidências.
