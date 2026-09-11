@@ -20,10 +20,11 @@ test('E40-E47 migrations remain preserved in the current 1.3.0 release',()=>{
     const current=db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v;
     assert.ok(current>=7);
     const rows=db.prepare('SELECT version,name FROM schema_migrations WHERE version IN (6,7) ORDER BY version').all();
-    assert.deepEqual(rows,[
-      {version:6,name:'pdv_modular_foundation_e40_e42'},
-      {version:7,name:'pdv_verticals_e43_e47'}
-    ]);
+    assert.equal(rows.length,2);
+    assert.equal(rows[0].version,6);
+    assert.equal(rows[0].name,'pdv_modular_foundation_e40_e42');
+    assert.equal(rows[1].version,7);
+    assert.equal(rows[1].name,'pdv_verticals_e43_e47');
   }finally{db.close();}
 });
 
