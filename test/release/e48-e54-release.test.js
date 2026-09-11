@@ -19,7 +19,9 @@ test('E48-E54 release is 1.3.0 with additive schema v8',()=>{
   try{
     runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);
     assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,8);
-    assert.deepEqual(db.prepare('SELECT version,name FROM schema_migrations WHERE version=8').get(),{version:8,name:'pdv_verticals_e48_e54'});
+    const migration=db.prepare('SELECT version,name FROM schema_migrations WHERE version=8').get();
+    assert.equal(migration.version,8);
+    assert.equal(migration.name,'pdv_verticals_e48_e54');
   }finally{db.close();}
 });
 
