@@ -17,9 +17,13 @@ function seed(rt){
   rt.inventory.move({productId:'bread',type:'opening',quantityDelta:50,reason:'seed'},actor());
 }
 
-test('E40-E47 migrations advance release schema to 7 without removing core data',()=>{
+test('E40-E47 migrations remain present while current schema advances beyond v7',()=>{
   const rt=runtime();
-  assert.equal(rt.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version,7);
+  const version=rt.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version;
+  assert.ok(version>=7);
+  const migrations=rt.db.prepare('SELECT version,name FROM schema_migrations ORDER BY version').all();
+  assert.ok(migrations.some(m=>m.version===6&&m.name==='pdv_modular_foundation_e40_e42'));
+  assert.ok(migrations.some(m=>m.version===7&&m.name==='pdv_verticals_e43_e47'));
   const tables=new Set(rt.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(r=>r.name));
   for(const name of ['catalog_option_groups','catalog_options','product_option_groups','product_variants','combo_groups','combo_group_items','product_recipes','recipe_components','pizza_profiles','pizza_sizes','pizza_flavors','pizza_crusts','delivery_orders','fast_food_orders','bakery_orders']) assert.equal(tables.has(name),true,name);
   rt.close();
