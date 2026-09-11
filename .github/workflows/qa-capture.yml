@@ -39,6 +39,11 @@ on:
         default: desktop
         type: choice
         options: [desktop, tablet, mobile]
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/qa-request.json'
   pull_request:
     paths:
       - 'qa/**'
@@ -48,10 +53,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: qa-capture-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Checkout PDV
         uses: actions/checkout@v4
@@ -63,11 +72,19 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Install pinned ArtiSys QA runtime
         run: npm ci --prefix qa/runtime --no-audit --no-fund
-      - name: Install visual capture dependencies
+      - name: Ensure capture tools are available
+        shell: bash
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ffmpeg xvfb
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
       - name: Capture PDV flow
+        id: capture
+        shell: bash
         env:
           INPUT_MODE: ${{ inputs.mode }}
           INPUT_FLOW: ${{ inputs.flow }}
@@ -77,10 +94,25 @@ jobs:
           INPUT_VIEWPORT: ${{ inputs.viewport }}
         run: |
           MODE="${INPUT_MODE:-demo}"
+          FLOW="${INPUT_FLOW:-smoke}"
+          DEMO="${INPUT_DEMO:-quick-30s}"
+          PRESET="${INPUT_PRESET:-reels-9x16}"
           ENVIRONMENT="${INPUT_ENVIRONMENT:-ci}"
+          VIEWPORT="${INPUT_VIEWPORT:-desktop}"
+
+          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -f .github/qa-request.json ]; then
+            MODE="$(node -p "require('./.github/qa-request.json').mode || 'demo'")"
+            FLOW="$(node -p "require('./.github/qa-request.json').flow || 'smoke'")"
+            DEMO="$(node -p "require('./.github/qa-request.json').demo || 'quick-30s'")"
+            PRESET="$(node -p "require('./.github/qa-request.json').preset || 'reels-9x16'")"
+            ENVIRONMENT="$(node -p "require('./.github/qa-request.json').environment || 'ci'")"
+            VIEWPORT="$(node -p "require('./.github/qa-request.json').viewport || 'desktop'")"
+          fi
+
+          rm -rf qa-artifacts
+
           if [ "$MODE" = "demo" ]; then
-            DEMO="${INPUT_DEMO:-quick-30s}"
-            PRESET="${INPUT_PRESET:-reels-9x16}"
+            echo "artifact_name=pdv-demo-${DEMO}-${PRESET}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
             ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
               xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
                 --config qa/artisys-qa.config.json \
@@ -89,8 +121,7 @@ jobs:
                 --environment "$ENVIRONMENT" \
                 --output qa-artifacts
           else
-            FLOW="${INPUT_FLOW:-smoke}"
-            VIEWPORT="${INPUT_VIEWPORT:-desktop}"
+            echo "artifact_name=pdv-qa-${FLOW}-${VIEWPORT}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
             xvfb-run -a node qa/runtime/artisys-qa.mjs run \
               --config qa/artisys-qa.config.json \
               --flow "$FLOW" \
@@ -102,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pdv-${{ inputs.mode || 'demo' }}-${{ inputs.demo || inputs.flow || 'quick-30s' }}-${{ inputs.preset || inputs.viewport || 'reels-9x16' }}-${{ github.run_number }}
+          name: ${{ steps.capture.outputs.artifact_name || format('pdv-qa-capture-{0}', github.run_number) }}
           path: qa-artifacts
           if-no-files-found: warn
           retention-days: 7
