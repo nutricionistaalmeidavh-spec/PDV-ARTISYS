@@ -33,6 +33,21 @@ test('E43 pizzeria supports size, multi-flavor policy and crust only when module
   rt.close();
 });
 
+test('E43 configured pizza survives restaurant order and canonical checkout snapshot',()=>{
+  const rt=runtime();seed(rt);rt.modules.setEnabled('PIZZERIA',true,admin);
+  rt.pizzeria.upsertProfile({productId:'pizza',pricingPolicy:'HIGHEST_FLAVOR'},admin);
+  rt.pizzeria.upsertSize({id:'g',productId:'pizza',name:'Grande',maxFlavors:2,priceDeltaCents:500},admin);
+  rt.pizzeria.upsertFlavor({id:'cal',productId:'pizza',name:'Calabresa',priceDeltaCents:400},admin);
+  rt.pizzeria.upsertFlavor({id:'mar',productId:'pizza',name:'Marguerita',priceDeltaCents:200},admin);
+  const priced=rt.pizzeria.pricePizza({productId:'pizza',sizeId:'g',flavorIds:['cal','mar']});
+  rt.restaurant.upsertTable({id:'pizza-table',label:'Pizza 1'},admin);const session=rt.restaurant.openTable('pizza-table',{operatorId:'admin-1',actor:admin});
+  const order=rt.restaurant.addOrder(session.id,{items:[{productId:'pizza',quantity:1,unitPriceCents:priced.unitPriceCents,configurationSnapshot:priced.configurationSnapshot}],actor:admin});
+  assert.equal(order.items[0].unitPriceCents,3900);assert.equal(order.items[0].configuration.pizza.flavors.length,2);
+  const checkout=rt.restaurant.checkoutToSale(session.id,{terminalId:'pdv-1',operatorId:'admin-1',actor:admin},rt.sales);
+  assert.equal(checkout.sale.totalCents,3900);assert.equal(checkout.sale.items[0].configuration.pizza.size.name,'Grande');
+  rt.close();
+});
+
 test('E44 advanced restaurant can split items and apply service charge into canonical sales',()=>{
   const rt=runtime();seed(rt);rt.modules.setEnabled('RESTAURANT',true,admin);
   rt.restaurant.upsertTable({id:'t1',label:'1'},admin);const session=rt.restaurant.openTable('t1',{operatorId:'admin-1',actor:admin});
@@ -43,6 +58,28 @@ test('E44 advanced restaurant can split items and apply service charge into cano
   assert.equal(rt.sales.getSale(result.sale.id).status,'OPEN');
   const balance=rt.restaurantSettlement.getRemainingBalance(session.id);
   assert.equal(balance.items.length,2);
+  rt.close();
+});
+
+test('E44 transfers selected items between open table sessions without moving the whole comanda',()=>{
+  const rt=runtime();seed(rt);rt.modules.setEnabled('RESTAURANT',true,admin);
+  rt.restaurant.upsertTable({id:'ta',label:'A'},admin);rt.restaurant.upsertTable({id:'tb',label:'B'},admin);
+  const source=rt.restaurant.openTable('ta',{operatorId:'admin-1',actor:admin});const target=rt.restaurant.openTable('tb',{operatorId:'admin-1',actor:admin});
+  const order=rt.restaurant.addOrder(source.id,{items:[{productId:'burger',quantity:2},{productId:'soda',quantity:1}],actor:admin});const burger=order.items.find(i=>i.productId==='burger');
+  const moved=rt.restaurantSettlement.transferItems(source.id,target.id,[{orderItemId:burger.id,quantity:1}],admin);
+  assert.equal(moved.moved.length,1);
+  assert.equal(rt.restaurant.getSession(source.id).totalCents,2700);
+  assert.equal(rt.restaurant.getSession(target.id).totalCents,2000);
+  assert.ok(rt.db.prepare("SELECT 1 FROM audit_log WHERE action='restaurant.items.transfer'").get());
+  rt.close();
+});
+
+test('E44 item cancellation requires manager or admin and a reason',()=>{
+  const rt=runtime();seed(rt);const table=rt.restaurant.upsertTable({id:'tc',label:'C'},admin);const session=rt.restaurant.openTable(table.id,{operatorId:'admin-1',actor:admin});
+  const order=rt.restaurant.addOrder(session.id,{items:[{productId:'burger',quantity:1}],actor:admin});
+  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'erro',{userId:'cash',role:'cashier'}),/gerente/i);
+  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'',admin),/motivo/i);
+  assert.equal(rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'Pedido duplicado',admin).cancelled,true);
   rt.close();
 });
 
