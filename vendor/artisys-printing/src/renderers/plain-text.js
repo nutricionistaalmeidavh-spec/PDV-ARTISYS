@@ -46,6 +46,7 @@ function renderPlainText(document) {
     if ((document.metadata || []).length) lines.push('-'.repeat(w));
     for (const item of document.items || []) {
       lines.push(fit(item.name || 'Item',w));
+      for (const detail of item.details || []) lines.push(fit(`  ${detail}`,w));
       lines.push(columns(`${Number(item.quantity || 0)} x ${money(item.unitPriceCents)}`,money(item.totalCents),w));
     }
     if ((document.items || []).length) lines.push('-'.repeat(w));
