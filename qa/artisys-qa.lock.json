@@ -1,10 +1,19 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "module": "@artisys/qa",
-  "version": "1.2.0",
+  "version": "2.4.1",
   "sourceRepository": "nutricionistaalmeidavh-spec/utilidades",
   "sourcePath": "modules/artisys-qa",
-  "sourceCommit": "2af6556937c7a4074f641069a2e1a6bb02bf942f",
-  "consumption": "pinned-vendored-runtime",
-  "reason": "Keeps GitHub Actions zero-setup when private cross-repository reusable workflow access is not enabled."
+  "sourceCommit": "850db8188bf49c8083441a3b5e814b3f61fc0fe8",
+  "sourceTree": "f2bd3bd048207d9bf5a442287f0ad779e436cd8a",
+  "consumption": "full-vendored-runtime",
+  "policy": {
+    "consumerConfig": "qa/artisys-qa.config.json",
+    "runtimeSelection": "qaProfiles",
+    "ciNeedsSourceRepositoryAccess": false,
+    "excludedTransientState": [
+      "bridge/projects.json",
+      "bridge/jobs/pending/*.json"
+    ]
+  }
 }

@@ -1,8 +1,71 @@
 {
-  "name": "@artisys/qa-runtime-snapshot",
-  "version": "1.2.0",
-  "private": true,
+  "name": "@artisys/qa",
+  "version": "2.4.1",
   "type": "module",
-  "engines": {"node": ">=22"},
-  "dependencies": {"playwright": "1.62.1"}
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./src/index.js",
+    "./config": "./src/config.js",
+    "./fixtures": "./src/fixtures.js",
+    "./manifest": "./src/manifest.js",
+    "./runner": "./src/runner.js",
+    "./profile-runner": "./src/profile-runner.js",
+    "./profiles": "./src/profiles.js",
+    "./business-packs": "./src/business-packs.js",
+    "./desktop": "./src/desktop.js",
+    "./network": "./src/network.js",
+    "./reporting": "./src/reporting.js",
+    "./release-gate": "./src/release-gate.js",
+    "./agent-state": "./src/agent-state.js",
+    "./agent-updater": "./src/agent-updater.js",
+    "./agent-supervisor": "./src/agent-supervisor.js",
+    "./agent-console": "./src/agent-console.js",
+    "./telemetry-store": "./src/telemetry-store.js",
+    "./cloud-observability": "./src/cloud-observability.js",
+    "./artifact-index": "./src/artifact-index.js",
+    "./progress-protocol": "./src/progress-protocol.js",
+    "./bridge-jobs": "./src/bridge-jobs.js",
+    "./bridge-worker": "./src/bridge-worker.js",
+    "./drive-uploader": "./src/drive-uploader.js",
+    "./project-bootstrap": "./src/project-bootstrap.js",
+    "./demo": "./src/demo.js",
+    "./video": "./src/video.js",
+    "./helpers": "./src/helpers.js",
+    "./demo-profile": "./src/demo-profile.js",
+    "./adapters": "./src/adapters.js",
+    "./fixture-registry": "./src/fixture-registry.js",
+    "./flow-library": "./src/flow-library.js",
+    "./redaction": "./src/redaction.js",
+    "./visual": "./src/visual.js",
+    "./remote-control": "./src/remote-control.js"
+  },
+  "bin": {
+    "artisys-qa": "./src/cli.mjs",
+    "artisys-qa-agent": "./src/agent-cli.mjs"
+  },
+  "files": [
+    "src",
+    "scripts",
+    "stable-channel.json",
+    "bridge",
+    "flows",
+    "templates",
+    "examples/pos-reference/*.js",
+    "README.md",
+    "module.json"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:example": "playwright test --config examples/pos-reference/playwright.config.js",
+    "check": "node ./src/cli.mjs validate --config ./templates/consumer/artisys-qa.config.json"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.51 <2"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  },
+  "license": "MIT"
 }
