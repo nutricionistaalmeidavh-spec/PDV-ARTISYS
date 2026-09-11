@@ -89,9 +89,9 @@ function createPdvRuntime({
   const mobileDevices=createMobileDeviceService({db,now,idFactory});
   const restaurantReports=createRestaurantReportingService({db});
   const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});
-  const delivery=createDeliveryService({db,modules,sales,now,idFactory});
-  const fastFood=createFastFoodService({db,modules,now,idFactory});
-  const marketBakery=createMarketBakeryService({db,modules,now,idFactory,readScale});
+  const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});
+  const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});
+  const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
