@@ -88,6 +88,7 @@ function createSerialTransport({ SerialPortClass, profile } = {}) {
         if (error) {
           const normalizedError = normalizeSerialError(error, 'SERIAL_WRITE_FAILED');
           lastError = normalizedError;
+          state = 'error';
           reject(normalizedError);
           return;
         }
@@ -104,6 +105,7 @@ function createSerialTransport({ SerialPortClass, profile } = {}) {
         if (error) {
           const normalizedError = normalizeSerialError(error, 'SERIAL_WRITE_FAILED');
           lastError = normalizedError;
+          state = 'error';
           reject(normalizedError);
           return;
         }
