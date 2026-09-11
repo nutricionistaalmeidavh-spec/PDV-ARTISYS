@@ -31,6 +31,29 @@
     "smoke": "flows/smoke.json",
     "home": "flows/home.json"
   },
+  "qaProfiles": {
+    "quick": {
+      "flows": ["smoke"],
+      "criticalFlows": ["smoke"],
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
+    },
+    "full": {
+      "flows": ["smoke", "home"],
+      "criticalFlows": ["smoke"],
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
+    },
+    "release": {
+      "flows": ["smoke", "home"],
+      "criticalFlows": ["smoke", "home"],
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
+    }
+  },
   "demos": {
     "quick-30s": {
       "file": "demo/quick-30s.json",
