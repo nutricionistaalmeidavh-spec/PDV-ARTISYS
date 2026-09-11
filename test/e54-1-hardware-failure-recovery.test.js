@@ -40,8 +40,8 @@ test('E54.1 drawer write failure closes the port and a later pulse succeeds', as
   assert.equal((await transport.status()).state, 'closed');
   assert.equal(await drawer.open(), true);
   assert.equal((await transport.status()).state, 'closed');
-  assert.equal(harness.state.writes.length, 2);
-  assert.deepEqual(Buffer.from(harness.state.writes[1], 'binary'), Buffer.from(DEFAULT_PULSE.toString('binary'), 'binary'));
+  assert.equal(harness.state.writeBuffers.length, 2);
+  assert.deepEqual(harness.state.writeBuffers[1], DEFAULT_PULSE);
 });
 
 test('E54.1 thermal protocols accept all supported receipt widths', async () => {
