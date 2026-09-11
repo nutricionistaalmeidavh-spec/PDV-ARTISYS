@@ -5,6 +5,7 @@ const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 
 const TICKET_STATUSES = new Set(['NEW','PREPARING','READY','CANCELLED']);
+const PRODUCTION_SOURCES = new Set(['DELIVERY','FAST_FOOD']);
 
 function parseConfiguration(value) {
   if (!value) return null;
@@ -29,7 +30,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     };
   }
 
-  function mapTicket(row) {
+  function mapRestaurantTicket(row) {
     if (!row) return null;
     const items = db.prepare(`SELECT kti.id,kti.order_item_id AS orderItemId,kti.product_name AS productName,kti.quantity,kti.note,
         roi.configuration_json AS configurationJson
@@ -41,6 +42,8 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
       });
     return {
       id: row.id,
+      sourceType: 'RESTAURANT',
+      sourceId: row.order_id,
       orderId: row.order_id,
       stationId: row.station_id,
       stationName: row.station_name,
@@ -55,17 +58,49 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     };
   }
 
+  function mapProductionTicket(row) {
+    if (!row) return null;
+    const items = db.prepare(`SELECT id,product_id AS productId,product_name AS productName,quantity,configuration_json AS configurationJson,note
+      FROM production_ticket_items WHERE ticket_id=? ORDER BY id`).all(row.id).map(item => {
+      const { configurationJson, ...safe } = item;
+      return { ...safe, configuration: parseConfiguration(configurationJson) };
+    });
+    return {
+      id: row.id,
+      sourceType: row.source_type,
+      sourceId: row.source_id,
+      orderId: null,
+      stationId: row.station_id,
+      stationName: row.station_name,
+      printerName: row.printer_name,
+      printEnabled: Boolean(row.print_enabled),
+      tableSessionId: null,
+      tableLabel: row.source_type === 'DELIVERY' ? 'Delivery' : 'Balcao',
+      status: row.status,
+      note: row.note,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      items
+    };
+  }
+
   function stationSelect(where = '') {
     return `SELECT * FROM kitchen_stations ${where}`;
   }
 
-  function ticketSelect(where = '') {
+  function restaurantTicketSelect(where = '') {
     return `SELECT kt.*,ks.name AS station_name,ks.printer_name,ks.print_enabled,o.table_session_id,t.label AS table_label
       FROM kitchen_tickets kt
       JOIN kitchen_stations ks ON ks.id=kt.station_id
       JOIN restaurant_orders o ON o.id=kt.order_id
       JOIN table_sessions ts ON ts.id=o.table_session_id
       JOIN restaurant_tables t ON t.id=ts.table_id ${where}`;
+  }
+
+  function productionTicketSelect(where = '') {
+    return `SELECT pt.*,ks.name AS station_name,ks.printer_name,ks.print_enabled
+      FROM production_tickets pt
+      JOIN kitchen_stations ks ON ks.id=pt.station_id ${where}`;
   }
 
   function getStation(id) {
@@ -118,8 +153,16 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
       ORDER BY p.name,p.id`).all().map(row => ({...row,printEnabled:Boolean(row.printEnabled)}));
   }
 
+  function getRestaurantTicket(id) {
+    return mapRestaurantTicket(db.prepare(restaurantTicketSelect('WHERE kt.id=?')).get(String(id)));
+  }
+
+  function getProductionTicket(id) {
+    return mapProductionTicket(db.prepare(productionTicketSelect('WHERE pt.id=?')).get(String(id)));
+  }
+
   function getTicket(id) {
-    return mapTicket(db.prepare(ticketSelect('WHERE kt.id=?')).get(String(id)));
+    return getRestaurantTicket(id) || getProductionTicket(id);
   }
 
   function routeOrder(orderId) {
@@ -148,23 +191,76 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
           }
           ticket = { id };
         }
-        tickets.push(getTicket(ticket.id));
+        tickets.push(getRestaurantTicket(ticket.id));
+      }
+      return tickets;
+    });
+  }
+
+  function routeProduction({ sourceType, sourceId, items = [], note = '' } = {}) {
+    const normalizedSource = String(sourceType || '').trim().toUpperCase();
+    const normalizedSourceId = String(sourceId || '').trim();
+    if (!PRODUCTION_SOURCES.has(normalizedSource)) throw new Error('Origem de producao invalida.');
+    if (!normalizedSourceId) throw new Error('Identificador da origem de producao obrigatorio.');
+    if (!Array.isArray(items) || !items.length) return [];
+
+    const routed = [];
+    for (const input of items) {
+      const productId = String(input.productId || '').trim();
+      if (!productId) continue;
+      const row = db.prepare(`SELECT p.id AS productId,p.name AS productName,ks.id AS stationId,ks.sort_order AS stationSort,ks.name AS stationName
+        FROM products p
+        JOIN product_kitchen_stations pks ON pks.product_id=p.id
+        JOIN kitchen_stations ks ON ks.id=pks.station_id AND ks.active=1
+        WHERE p.id=? AND p.active=1`).get(productId);
+      if (!row) continue;
+      const quantity = Number(input.quantity || 0);
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('Quantidade de producao invalida.');
+      routed.push({
+        ...row,
+        quantity,
+        configuration: input.configuration || input.configurationSnapshot || null,
+        note: String(input.note || '').trim() || null
+      });
+    }
+    if (!routed.length) return [];
+
+    return withTransaction(db, () => {
+      const stationIds = [...new Set(routed.sort((a,b)=>a.stationSort-b.stationSort||a.stationName.localeCompare(b.stationName)).map(item => item.stationId))];
+      const tickets = [];
+      for (const stationId of stationIds) {
+        let ticket = db.prepare('SELECT id FROM production_tickets WHERE source_type=? AND source_id=? AND station_id=?').get(normalizedSource,normalizedSourceId,stationId);
+        if (!ticket) {
+          const id = idFactory('production-ticket');
+          const timestamp = now();
+          db.prepare(`INSERT INTO production_tickets(id,source_type,source_id,station_id,status,note,created_at,updated_at)
+            VALUES(?,?,?,?, 'NEW',?,?,?)`).run(id,normalizedSource,normalizedSourceId,stationId,String(note||'').trim()||null,timestamp,timestamp);
+          const insert = db.prepare(`INSERT INTO production_ticket_items(id,ticket_id,product_id,product_name,quantity,configuration_json,note)
+            VALUES(?,?,?,?,?,?,?)`);
+          for (const item of routed.filter(entry => entry.stationId === stationId)) {
+            insert.run(idFactory('production-item'),id,item.productId,item.productName,item.quantity,item.configuration?JSON.stringify(item.configuration):null,item.note);
+          }
+          ticket = { id };
+        }
+        tickets.push(getProductionTicket(ticket.id));
       }
       return tickets;
     });
   }
 
   function listTickets({ status = null, stationId = null, limit = 200 } = {}) {
-    const clauses=[]; const params=[];
-    if (status) {
-      const normalized=String(status).toUpperCase();
-      if (!TICKET_STATUSES.has(normalized)) throw new Error('Status de cozinha invalido.');
-      clauses.push('kt.status=?'); params.push(normalized);
-    }
-    if (stationId) { clauses.push('kt.station_id=?'); params.push(String(stationId)); }
+    const normalizedStatus=status?String(status).toUpperCase():null;
+    if (normalizedStatus && !TICKET_STATUSES.has(normalizedStatus)) throw new Error('Status de cozinha invalido.');
     const safeLimit=Math.min(Math.max(Number(limit)||200,1),500);
-    params.push(safeLimit);
-    return db.prepare(`${ticketSelect(clauses.length ? `WHERE ${clauses.join(' AND ')}` : '')} ORDER BY kt.created_at,kt.id LIMIT ?`).all(...params).map(mapTicket);
+
+    const restaurantClauses=[];const restaurantParams=[];
+    const productionClauses=[];const productionParams=[];
+    if(normalizedStatus){restaurantClauses.push('kt.status=?');restaurantParams.push(normalizedStatus);productionClauses.push('pt.status=?');productionParams.push(normalizedStatus);}
+    if(stationId){restaurantClauses.push('kt.station_id=?');restaurantParams.push(String(stationId));productionClauses.push('pt.station_id=?');productionParams.push(String(stationId));}
+    restaurantParams.push(safeLimit);productionParams.push(safeLimit);
+    const restaurant=db.prepare(`${restaurantTicketSelect(restaurantClauses.length?`WHERE ${restaurantClauses.join(' AND ')}`:'')} ORDER BY kt.created_at,kt.id LIMIT ?`).all(...restaurantParams).map(mapRestaurantTicket);
+    const production=db.prepare(`${productionTicketSelect(productionClauses.length?`WHERE ${productionClauses.join(' AND ')}`:'')} ORDER BY pt.created_at,pt.id LIMIT ?`).all(...productionParams).map(mapProductionTicket);
+    return restaurant.concat(production).sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt))||String(a.id).localeCompare(String(b.id))).slice(0,safeLimit);
   }
 
   function syncOrderStatus(orderId) {
@@ -183,14 +279,18 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     return withTransaction(db,()=>{
       const current=getTicket(id);
       if (!current) throw new Error('Ticket de cozinha nao encontrado.');
-      db.prepare('UPDATE kitchen_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
-      syncOrderStatus(current.orderId);
-      writeAudit(db,{action:'restaurant.kitchen.ticket.status',entity:'kitchen_ticket',entityId:String(id),actor,context:{from:current.status,to:normalized,orderId:current.orderId}},now);
+      if(current.sourceType==='RESTAURANT'){
+        db.prepare('UPDATE kitchen_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
+        syncOrderStatus(current.orderId);
+      }else{
+        db.prepare('UPDATE production_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
+      }
+      writeAudit(db,{action:'restaurant.kitchen.ticket.status',entity:'kitchen_ticket',entityId:String(id),actor,context:{from:current.status,to:normalized,sourceType:current.sourceType,sourceId:current.sourceId}},now);
       return getTicket(id);
     });
   }
 
-  return { upsertStation,getStation,listStations,assignProduct,unassignProduct,listAssignments,routeOrder,getTicket,listTickets,updateTicketStatus,TICKET_STATUSES };
+  return { upsertStation,getStation,listStations,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,TICKET_STATUSES,PRODUCTION_SOURCES };
 }
 
 module.exports={createKitchenService};
