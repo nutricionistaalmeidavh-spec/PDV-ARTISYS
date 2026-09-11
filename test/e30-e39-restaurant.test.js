@@ -23,7 +23,7 @@ function fixture({persistent=false}={}){
 test('E30-E39: migration, comanda, KDS, prebill, checkout and sale close form one durable flow',async()=>{
   const ctx=fixture();const {runtime,user,table}=ctx;
   try{
-    assert.equal(runtime.db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,5);
+    assert.equal(runtime.db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,7);
     for(const name of ['restaurant_tables','table_sessions','restaurant_orders','kitchen_stations','kitchen_tickets','mobile_devices'])assert.equal(Boolean(runtime.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(name)),true,name);
     const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,actor:{userId:user.id,role:'cashier'}});
     const order=runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:2,note:'sem cebola'}],source:'DESKTOP',actor:{userId:user.id,role:'cashier'}});
