@@ -1,0 +1,71 @@
+version: 2.1
+
+executors:
+  node_linux:
+    docker:
+      - image: cimg/node:22.14.0
+    resource_class: small
+    working_directory: ~/project
+
+commands:
+  install_root_dependencies:
+    steps:
+      - run:
+          name: Install PDV dependencies
+          command: npm install --no-audit --no-fund
+
+  install_qa_dependencies:
+    steps:
+      - run:
+          name: Install pinned ArtiSys QA runtime
+          command: npm ci --prefix qa/runtime --no-audit --no-fund
+
+  install_visual_dependencies:
+    steps:
+      - run:
+          name: Install Chromium and Linux browser dependencies
+          command: npx --prefix qa/runtime playwright install --with-deps chromium
+      - run:
+          name: Install QA capture tooling
+          command: |
+            sudo apt-get update -y
+            sudo apt-get install -y ffmpeg xvfb
+
+jobs:
+  verify:
+    executor: node_linux
+    steps:
+      - checkout
+      - install_root_dependencies
+      - run:
+          name: Unit integration architecture release and security gates
+          command: npm run verify:release
+
+  qa_smoke:
+    executor: node_linux
+    steps:
+      - checkout
+      - install_root_dependencies
+      - install_qa_dependencies
+      - install_visual_dependencies
+      - run:
+          name: Run PDV QA smoke flow
+          command: |
+            rm -rf qa-artifacts
+            xvfb-run -a node qa/runtime/artisys-qa.mjs run \
+              --config qa/artisys-qa.config.json \
+              --flow smoke \
+              --environment ci \
+              --viewport desktop \
+              --output qa-artifacts
+      - store_artifacts:
+          path: qa-artifacts
+          destination: pdv-artisys/qa-smoke
+
+workflows:
+  pdv_ci:
+    jobs:
+      - verify
+      - qa_smoke:
+          requires:
+            - verify
