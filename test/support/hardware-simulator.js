@@ -41,7 +41,7 @@ function createSerialPortHarness(scenarios = []) {
       if (this.scenario.writeError) {
         const error = this.scenario.writeError;
         queueMicrotask(() => {
-          this.emit('error', error);
+          if (this.scenario.emitErrorEvent !== false) this.emit('error', error);
           callback(error);
         });
         return;
