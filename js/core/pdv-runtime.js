@@ -28,6 +28,7 @@ const { registerNonFiscalEffects }=require('../domains/printing/non-fiscal-effec
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
 const { createRestaurantService }=require('../domains/restaurant/restaurant-service');
+const { createConfiguredRestaurantService }=require('../domains/restaurant/restaurant-configured-service');
 const { createRestaurantSettlementService }=require('../domains/restaurant/restaurant-settlement-service');
 const { createKitchenService }=require('../domains/restaurant/kitchen-service');
 const { createMobileDeviceService }=require('../domains/restaurant/mobile-device-service');
@@ -81,7 +82,8 @@ function createPdvRuntime({
   const printing=createPrintService({db,now,idFactory});
   const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});
-  const restaurant=createRestaurantService({db,outbox,now,idFactory});
+  const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});
+  const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});
   const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});
   const mobileDevices=createMobileDeviceService({db,now,idFactory});
