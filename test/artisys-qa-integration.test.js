@@ -17,9 +17,11 @@ test('pins the synchronized ArtiSys QA 2.4.1 runtime to an exact central revisio
   assert.equal(lock.sourcePath, 'modules/artisys-qa');
   assert.equal(lock.sourceCommit, '850db8188bf49c8083441a3b5e814b3f61fc0fe8');
   assert.equal(lock.sourceTree, 'f2bd3bd048207d9bf5a442287f0ad779e436cd8a');
-  assert.equal(lock.consumption, 'full-vendored-runtime');
+  assert.equal(lock.consumption, 'vendored-runtime');
+  assert.equal(lock.policy.runtimeParity, 'src/** matches the pinned central module revision');
   assert.equal(lock.policy.runtimeSelection, 'qaProfiles');
   assert.equal(lock.policy.ciNeedsSourceRepositoryAccess, false);
+  assert.equal(lock.policy.updateCommand, 'npm run qa:update');
   assert.equal(runtime.name, '@artisys/qa');
   assert.equal(runtime.version, '2.4.1');
 });
