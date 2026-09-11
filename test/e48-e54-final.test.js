@@ -101,14 +101,16 @@ test('E50 workshop requires Services, records approval and closes ready work ord
 test('E51 self-service uses paired device and creates pickup order without electronic payment integration',()=>{
   const rt=setup();
   try{
+    rt.modules.setEnabled('FAST_FOOD',true,admin);
     rt.modules.setEnabled('SELF_SERVICE',true,admin);
     rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false},admin);
     const device=rt.mobileDevices.createDevice({id:'totem-1',name:'Totem 1',deviceType:'SELF_SERVICE'},admin);
-    rt.selfService.configureDevice(device.id,{mode:'PICKUP'},admin);
+    rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'admin'},admin);
     const context=rt.selfService.context(device.id);
     assert.equal(context.profile.mode,'PICKUP');
     assert.ok(context.products.some(p=>p.id==='snack'));
-    const order=rt.selfService.submitOrder(device.id,{terminalId:'SELF-SERVICE',operatorId:'admin',items:[{productId:'snack',quantity:2}],note:'Sem guardanapo'},admin,'mut-self-1');
+    assert.equal(context.paymentMode,'MANUAL_AT_COUNTER');
+    const order=rt.selfService.submitOrder(device.id,{items:[{productId:'snack',quantity:2}],note:'Sem guardanapo'},admin,'mut-self-1');
     assert.equal(order.dailyNumber,1);
     assert.ok(order.saleId);
     assert.equal(rt.sales.getSale(order.saleId).status,'OPEN');
