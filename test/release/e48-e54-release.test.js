@@ -7,22 +7,25 @@ const {openDatabase}=require('../../js/core/database/sqlite-database');
 const {runMigrations}=require('../../js/core/database/migrations');
 const {runReleaseMigrations}=require('../../js/core/database/release-migrations');
 const {VERTICAL_SCHEMA_VERSION,runVerticalMigrations}=require('../../js/core/database/vertical-migrations');
+const {HARDWARE_SCHEMA_VERSION,runHardwareMigrations}=require('../../js/core/database/hardware-migrations');
 const {STATUSES}=require('../../js/core/hardware/hardware-compatibility-service');
 
 const root=path.join(__dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('E48-E54 plus E54.1 release is 1.3.1 with additive schema v8',()=>{
+test('E48-E54 plus E54.1 release is 1.3.1 with additive schema v9',()=>{
   const pkg=JSON.parse(read('package.json'));
   assert.equal(pkg.version,'1.3.1');
   assert.equal(VERTICAL_SCHEMA_VERSION,8);
+  assert.equal(HARDWARE_SCHEMA_VERSION,9);
   const db=openDatabase(':memory:');
   try{
-    runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);
-    assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,8);
-    const migration=db.prepare('SELECT version,name FROM schema_migrations WHERE version=8').get();
-    assert.equal(migration.version,8);
-    assert.equal(migration.name,'pdv_verticals_e48_e54');
+    runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);runHardwareMigrations(db);
+    assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,9);
+    const vertical=db.prepare('SELECT version,name FROM schema_migrations WHERE version=8').get();
+    assert.equal(vertical.name,'pdv_verticals_e48_e54');
+    const hardware=db.prepare('SELECT version,name FROM schema_migrations WHERE version=9').get();
+    assert.equal(hardware.name,'pdv_hardware_confidence_e54_1');
   }finally{db.close();}
 });
 
