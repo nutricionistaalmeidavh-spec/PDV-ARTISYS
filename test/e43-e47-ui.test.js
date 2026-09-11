@@ -28,3 +28,10 @@ test('commercial desktop extension sanitizes legacy TEF wording to manual credit
   assert.match(source,/Cartão crédito/);
   assert.match(source,/NÃO FISCAL/);
 });
+
+test('desktop main authenticates local vertical API calls without exposing install token to renderer',()=>{
+  const main=read('desktop/main.cjs');
+  const preload=read('desktop/preload.cjs');
+  assert.match(main,/rawPath\.startsWith\('\/api\/v1\/vertical\/'\)/);
+  assert.doesNotMatch(preload,/installToken|x-pdv-token/);
+});
