@@ -1,10 +1,10 @@
-# ArtiSys PDV 1.3.0
+# ArtiSys PDV 1.3.1
 
 PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
 
 ## Estado do produto
 
-As entregas **E01–E54 estão integradas** na linha 1.3.0: núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
+As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. O produto inclui núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
 
 Principais capacidades:
 
@@ -23,6 +23,7 @@ Principais capacidades:
 - fila de impressão com retry/reimpressão e documentos operacionais **NÃO FISCAL**;
 - impressão Electron, térmica Epson/Star e serial por drivers locais explícitos;
 - balança e gaveta serial usando `@artisys/serialport`;
+- E54.1 com simulação obrigatória de impressora, balança, gaveta, leitor, COM, timeout, fragmentação, falha e recuperação;
 - restaurante com mesas, comandas, pedidos, transferência, pré-conta e fechamento pela venda canônica;
 - restaurante avançado com divisão de conta, taxa de serviço, pagamento parcial, transferência seletiva e cancelamento autorizado;
 - cozinha/KDS com setores de produção, produto→setor e roteamento compartilhado por Restaurante, Delivery e Fast-food;
@@ -36,7 +37,7 @@ Principais capacidades:
 - Autoatendimento opcional por dispositivo pareado, com pedido local para mesa/retirada e pagamento manual no caixa;
 - configuração inicial por segmento com recomendações editáveis de módulos;
 - QR de acesso à interface mobile local em `http://IP-DO-SERVIDOR:4174/mobile`;
-- matriz versionada de evidências de compatibilidade de periféricos;
+- matriz versionada de compatibilidade separando protocolo validado de modelo físico testado;
 - dispositivos LAN de garçom, tablet vinculado à mesa, KDS e autoatendimento, com credenciais derivadas, bloqueio e rotação;
 - interface móvel self-hosted em `/mobile`, sem CDN, SaaS ou internet obrigatória;
 - LAN com pareamento de terminais, handshake de versão e deduplicação de mutações;
@@ -86,7 +87,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reut
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.3.0.
+- Windows x64 é o alvo de empacotamento comercial 1.3.1.
 
 ```bash
 npm install
@@ -109,13 +110,21 @@ Dispositivos móveis usam a interface self-hosted `http://IP-DO-SERVIDOR:4174/mo
 
 ## Hardware
 
-A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`.
+A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`. Para respostas fragmentadas de balança, `PDV_SCALE_SETTLE_MS` controla a janela de silêncio antes do parse, com padrão de 30 ms.
 
-A E54 registra evidências de compatibilidade por fabricante/modelo/conexão/SO. Compatibilidade comercial com modelo físico específico exige teste real documentado; sem esse teste, o estado correto é `BLOCKED_EXTERNAL`.
+A E54.1 executa na CI cenários de desconexão/reconexão, COM ocupada/inexistente, timeout e retry de balança, resposta serial fragmentada, dados inválidos, spooler offline/recuperado, Epson/Star, corte, pulso de gaveta, larguras 32/42/48, leitor `keyboard-wedge` repetido e stress de ciclos seriais.
+
+A matriz usa três níveis centrais:
+
+- `PROTOCOL_VERIFIED`: caminho/protocolo validado automaticamente pelo software;
+- `FIELD_VERIFIED`: fabricante/modelo físico realmente testado com evidência;
+- `UNTESTED_MODEL`: modelo específico ainda não testado fisicamente.
+
+Isso permite oferecer compatibilidade por protocolo sem fingir homologação de um modelo que nunca esteve conectado ao PDV.
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.3.0 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais E40–E54. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.3.1 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -125,10 +134,10 @@ Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.0-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.1-x64-Setup.exe
 ```
 
-`verify` cobre domínio/API/UI e architecture checks. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
+`verify` cobre domínio/API/UI, architecture checks e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
 ## Operação
 
@@ -142,10 +151,12 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 - `docs/operations/diagnostics.md`
 - `docs/operations/update.md`
 - `docs/architecture/e30-e39-restaurant.md`
-- `docs/architecture/e43-e47-verticals.md`
+- `docs/architecture/e40-e47-verticals.md`
 
 ## Limitações externas
 
-O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. Periféricos opcionais e formatos específicos de balança dependem do hardware/driver presente no terminal e só devem ser declarados homologados após validação real. Esses casos ficam `BLOCKED_EXTERNAL` até haver evidência.
+O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. A E54.1 reduz o risco antes da instalação real validando os protocolos por simulação, mas hardware, firmware, cabo e driver específicos continuam sendo variáveis externas.
+
+Um modelo físico não testado fica `UNTESTED_MODEL`; quando a família de integração já passou na CI, ela pode estar `PROTOCOL_VERIFIED`. Somente o modelo realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 
 Metadados completos de capacidades, limitações e matriz de compatibilidade ficam em `release/capabilities.json`, `release/limitations.json` e `release/hardware-compatibility.json`.
