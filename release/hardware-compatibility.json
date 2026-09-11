@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-09-11T00:00:00.000Z",
+  "entries": [
+    {
+      "manufacturer": "Generic",
+      "model": "Physical validation pending",
+      "kind": "OTHER",
+      "connection": "N/A",
+      "os": "Windows x64",
+      "status": "BLOCKED_EXTERNAL",
+      "evidence": null,
+      "limitations": "No physical peripheral model is declared verified until a documented real-device test is recorded."
+    }
+  ]
+}
