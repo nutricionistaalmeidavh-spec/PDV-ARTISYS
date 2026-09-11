@@ -7,6 +7,8 @@ const { writeAudit }=require('../../core/audit-log');
 function bool(value,fallback=true){return(value==null?fallback:Boolean(value))?1:0;}
 function requiredText(value,label){const text=String(value||'').trim();if(!text)throw new Error(`${label} obrigatorio.`);return text;}
 function int(value,label,{min=0,max=Number.MAX_SAFE_INTEGER}={}){const n=Number(value);if(!Number.isInteger(n)||n<min||n>max)throw new Error(`${label} invalido.`);return n;}
+function cleanAttributes(value){if(value==null)return{};if(typeof value!=='object'||Array.isArray(value))throw new Error('Atributos da variacao invalidos.');const result={};for(const [key,entry] of Object.entries(value)){const name=String(key||'').trim();const text=String(entry??'').trim();if(name&&text)result[name]=text;}return result;}
+function parseAttributes(value){try{return value?JSON.parse(value):{};}catch{return{};}}
 
 function createCatalogCustomizationService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('Database is required.');
@@ -47,12 +49,12 @@ function createCatalogCustomizationService({db,now=()=>new Date().toISOString(),
   function upsertVariant(input={},actor=null){
     const product=requireProduct(input.productId);const id=String(input.id||idFactory('variant'));const name=requiredText(input.name,'Nome da variacao');
     const delta=assertCents(Number(input.priceDeltaCents??0),'priceDeltaCents');const cost=input.costCents==null?null:assertCents(Number(input.costCents),'costCents');const ts=now();
-    const sku=String(input.sku||'').trim()||null;const barcode=String(input.barcode||'').trim()||null;
-    db.prepare(`INSERT INTO product_variants(id,product_id,name,sku,barcode,price_delta_cents,cost_cents,active,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)
-      ON CONFLICT(id) DO UPDATE SET product_id=excluded.product_id,name=excluded.name,sku=excluded.sku,barcode=excluded.barcode,price_delta_cents=excluded.price_delta_cents,cost_cents=excluded.cost_cents,active=excluded.active,updated_at=excluded.updated_at`)
-      .run(id,product.id,name,sku,barcode,delta,cost,bool(input.active),ts,ts);
-    writeAudit(db,{action:'catalog.variant.upsert',entity:'product-variant',entityId:id,actor,context:{productId:product.id,name,sku,barcode,priceDeltaCents:delta}},now);
-    return{id,productId:product.id,name,sku,barcode,priceDeltaCents:delta,costCents:cost,active:Boolean(bool(input.active))};
+    const sku=String(input.sku||'').trim()||null;const barcode=String(input.barcode||'').trim()||null;const attributes=cleanAttributes(input.attributes);
+    db.prepare(`INSERT INTO product_variants(id,product_id,name,sku,barcode,price_delta_cents,cost_cents,active,created_at,updated_at,attributes_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(id) DO UPDATE SET product_id=excluded.product_id,name=excluded.name,sku=excluded.sku,barcode=excluded.barcode,price_delta_cents=excluded.price_delta_cents,cost_cents=excluded.cost_cents,active=excluded.active,updated_at=excluded.updated_at,attributes_json=excluded.attributes_json`)
+      .run(id,product.id,name,sku,barcode,delta,cost,bool(input.active),ts,ts,JSON.stringify(attributes));
+    writeAudit(db,{action:'catalog.variant.upsert',entity:'product-variant',entityId:id,actor,context:{productId:product.id,name,sku,barcode,priceDeltaCents:delta,attributes}},now);
+    return{id,productId:product.id,name,sku,barcode,attributes,priceDeltaCents:delta,costCents:cost,active:Boolean(bool(input.active))};
   }
 
   function upsertComboGroup(input={},actor=null){
@@ -82,7 +84,7 @@ function createCatalogCustomizationService({db,now=()=>new Date().toISOString(),
       id:g.id,name:g.name,selectionType:g.selection_type,minSelections:g.min_selections,maxSelections:g.max_selections,required:Boolean(g.required),sortOrder:g.sort_order,
       options:db.prepare('SELECT id,name,price_delta_cents AS priceDeltaCents FROM catalog_options WHERE group_id=? AND active=1 ORDER BY name,id').all(g.id)
     }));
-    const variants=db.prepare('SELECT id,name,sku,barcode,price_delta_cents AS priceDeltaCents,cost_cents AS costCents FROM product_variants WHERE product_id=? AND active=1 ORDER BY name,id').all(product.id);
+    const variants=db.prepare('SELECT id,name,sku,barcode,attributes_json AS attributesJson,price_delta_cents AS priceDeltaCents,cost_cents AS costCents FROM product_variants WHERE product_id=? AND active=1 ORDER BY name,id').all(product.id).map(({attributesJson,...variant})=>({...variant,attributes:parseAttributes(attributesJson)}));
     const combos=db.prepare('SELECT * FROM combo_groups WHERE product_id=? AND active=1 ORDER BY sort_order,name,id').all(product.id).map(g=>({
       id:g.id,name:g.name,minSelections:g.min_selections,maxSelections:g.max_selections,sortOrder:g.sort_order,
       items:db.prepare(`SELECT i.product_id AS productId,p.name AS productName,i.quantity,i.price_delta_cents AS priceDeltaCents FROM combo_group_items i JOIN products p ON p.id=i.product_id WHERE i.group_id=? AND p.active=1 ORDER BY p.name,p.id`).all(g.id)
@@ -92,7 +94,7 @@ function createCatalogCustomizationService({db,now=()=>new Date().toISOString(),
 
   function priceConfiguredItem(input={}){
     const product=requireProduct(input.productId);let price=product.sale_price_cents;let variant=null;
-    if(input.variantId){const row=db.prepare('SELECT * FROM product_variants WHERE id=? AND product_id=? AND active=1').get(String(input.variantId),product.id);if(!row)throw new Error('Variacao invalida para o produto.');variant={id:row.id,name:row.name,sku:row.sku,barcode:row.barcode,priceDeltaCents:row.price_delta_cents};price+=row.price_delta_cents;}
+    if(input.variantId){const row=db.prepare('SELECT * FROM product_variants WHERE id=? AND product_id=? AND active=1').get(String(input.variantId),product.id);if(!row)throw new Error('Variacao invalida para o produto.');variant={id:row.id,name:row.name,sku:row.sku,barcode:row.barcode,attributes:parseAttributes(row.attributes_json),priceDeltaCents:row.price_delta_cents};price+=row.price_delta_cents;}
     const config=getProductConfiguration(product.id);const selectedIds=(input.selections||[]).map(s=>String(s.optionId||s));const selected=[];
     for(const group of config.groups){const allowed=new Map(group.options.map(o=>[o.id,o]));const inGroup=selectedIds.filter(id=>allowed.has(id));const min=Math.max(group.minSelections,group.required?1:0);if(inGroup.length<min)throw new Error(`Selecione ao menos ${min} opcao(oes) em ${group.name}.`);if(inGroup.length>group.maxSelections)throw new Error(`Selecoes excedem o maximo em ${group.name}.`);if(group.selectionType==='SINGLE'&&inGroup.length>1)throw new Error(`Grupo ${group.name} aceita apenas uma opcao.`);for(const id of inGroup){const option=allowed.get(id);selected.push({id:option.id,groupId:group.id,groupName:group.name,name:option.name,priceDeltaCents:option.priceDeltaCents});price+=option.priceDeltaCents;}}
     const knownOptionIds=new Set(config.groups.flatMap(g=>g.options.map(o=>o.id)));for(const id of selectedIds)if(!knownOptionIds.has(id))throw new Error(`Opcao ${id} nao pertence ao produto.`);

@@ -19,6 +19,16 @@ function loadModules(modules) {
   };
 }
 
+function sanitizePort(port={}){
+  return {
+    path:String(port.path||''),
+    manufacturer:port.manufacturer?String(port.manufacturer):null,
+    vendorId:port.vendorId?String(port.vendorId):null,
+    productId:port.productId?String(port.productId):null,
+    pnpId:port.pnpId?String(port.pnpId):null
+  };
+}
+
 function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = null } = {}) {
   const shared = loadModules(modules);
   const serial = shared.serial;
@@ -30,6 +40,9 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   const receiptWidth = readPositiveInteger(env.PDV_RECEIPT_WIDTH, 42, 'PDV_RECEIPT_WIDTH');
   if (![32,42,48].includes(receiptWidth)) throw new Error('PDV_RECEIPT_WIDTH invalida.');
+
+  let serialManager=null;
+  try{if(typeof serial.createSerialPortManager==='function')serialManager=serial.createSerialPortManager();}catch{/* hardware opcional */}
 
   let scale = null;
   if (String(env.PDV_SCALE_PORT || '').trim()) {
@@ -105,6 +118,11 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     };
   }
 
+  async function listSerialPorts(){
+    if(!serialManager||typeof serialManager.list!=='function')return[];
+    try{return(await serialManager.list()).map(sanitizePort).filter(port=>port.path);}catch(error){return[{path:'',manufacturer:null,vendorId:null,productId:null,pnpId:null,error:String(error?.message||'Falha ao listar portas seriais.')}];}
+  }
+
   async function readWeight() {
     if (!scale) throw new Error('Balanca nao configurada.');
     const result = await scale.readWeight();
@@ -132,7 +150,23 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     return printer.print({ ...job, text, width }, profile);
   }
 
-  return Object.freeze({ status, readWeight, tare, openDrawer, print });
+  async function diagnostics(){
+    return{
+      status:await status(),
+      serialPorts:await listSerialPorts(),
+      configuration:{
+        printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
+        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null},
+        drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
+      },
+      note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
+    };
+  }
+  async function testPrinter(text='TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'){return print({text:String(text||'TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'),width:receiptWidth});}
+  async function testDrawer(){return openDrawer();}
+  async function testScale(){return readWeight();}
+
+  return Object.freeze({ status, listSerialPorts, diagnostics, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
-module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger };
+module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, sanitizePort };

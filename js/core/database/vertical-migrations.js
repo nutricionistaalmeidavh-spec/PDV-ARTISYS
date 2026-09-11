@@ -2,7 +2,7 @@
 
 const { withTransaction }=require('./sqlite-database');
 
-const VERTICAL_SCHEMA_VERSION=7;
+const VERTICAL_SCHEMA_VERSION=8;
 
 const V6_SQL=`
   ALTER TABLE sale_items ADD COLUMN configuration_json TEXT;
@@ -286,9 +286,171 @@ const V7_SQL=`
   );
 `;
 
+const V8_SQL=`
+  ALTER TABLE product_variants ADD COLUMN attributes_json TEXT;
+
+  CREATE TABLE retail_variant_balances (
+    variant_id TEXT PRIMARY KEY,
+    quantity REAL NOT NULL DEFAULT 0,
+    minimum_stock REAL NOT NULL DEFAULT 0 CHECK(minimum_stock>=0),
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(variant_id) REFERENCES product_variants(id) ON DELETE CASCADE
+  );
+  CREATE TABLE retail_variant_movements (
+    id TEXT PRIMARY KEY,
+    variant_id TEXT NOT NULL,
+    movement_type TEXT NOT NULL,
+    quantity_delta REAL NOT NULL,
+    reference_key TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(variant_id) REFERENCES product_variants(id) ON DELETE CASCADE
+  );
+  CREATE INDEX idx_retail_variant_movements_variant ON retail_variant_movements(variant_id,created_at);
+
+  CREATE TABLE service_catalog (
+    id TEXT PRIMARY KEY,
+    product_id TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    duration_minutes INTEGER NOT NULL CHECK(duration_minutes>0),
+    price_cents INTEGER NOT NULL CHECK(price_cents>=0),
+    active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(product_id) REFERENCES products(id)
+  );
+  CREATE TABLE service_professionals (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    default_commission_bps INTEGER NOT NULL DEFAULT 0 CHECK(default_commission_bps>=0 AND default_commission_bps<=10000),
+    active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE TABLE service_professional_links (
+    service_id TEXT NOT NULL,
+    professional_id TEXT NOT NULL,
+    commission_bps INTEGER NOT NULL CHECK(commission_bps>=0 AND commission_bps<=10000),
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY(service_id,professional_id),
+    FOREIGN KEY(service_id) REFERENCES service_catalog(id) ON DELETE CASCADE,
+    FOREIGN KEY(professional_id) REFERENCES service_professionals(id) ON DELETE CASCADE
+  );
+  CREATE TABLE service_appointments (
+    id TEXT PRIMARY KEY,
+    service_id TEXT NOT NULL,
+    professional_id TEXT NOT NULL,
+    customer_id TEXT,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN('SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW')),
+    note TEXT,
+    sale_id TEXT,
+    commission_bps INTEGER NOT NULL DEFAULT 0 CHECK(commission_bps>=0 AND commission_bps<=10000),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(service_id) REFERENCES service_catalog(id),
+    FOREIGN KEY(professional_id) REFERENCES service_professionals(id),
+    FOREIGN KEY(customer_id) REFERENCES customers(id),
+    FOREIGN KEY(sale_id) REFERENCES sales(id)
+  );
+  CREATE INDEX idx_service_appointments_professional ON service_appointments(professional_id,starts_at,ends_at,status);
+
+  CREATE TABLE workshop_assets (
+    id TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN('VEHICLE','EQUIPMENT')),
+    identifier TEXT NOT NULL,
+    make TEXT,
+    model TEXT,
+    year TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(customer_id) REFERENCES customers(id)
+  );
+  CREATE INDEX idx_workshop_assets_customer ON workshop_assets(customer_id,identifier);
+  CREATE TABLE work_orders (
+    id TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL,
+    asset_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN('OPEN','DIAGNOSIS','QUOTED','APPROVED','IN_PROGRESS','READY','CLOSED','CANCELLED')),
+    complaint TEXT,
+    diagnosis TEXT,
+    quoted_total_cents INTEGER NOT NULL DEFAULT 0 CHECK(quoted_total_cents>=0),
+    approval_note TEXT,
+    approved_at TEXT,
+    sale_id TEXT,
+    cancel_reason TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(customer_id) REFERENCES customers(id),
+    FOREIGN KEY(asset_id) REFERENCES workshop_assets(id),
+    FOREIGN KEY(sale_id) REFERENCES sales(id)
+  );
+  CREATE INDEX idx_work_orders_status ON work_orders(status,updated_at);
+  CREATE TABLE work_order_items (
+    id TEXT PRIMARY KEY,
+    work_order_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN('PART','LABOR')),
+    product_id TEXT NOT NULL,
+    service_id TEXT,
+    description TEXT NOT NULL,
+    quantity REAL NOT NULL CHECK(quantity>0),
+    unit_price_cents INTEGER NOT NULL CHECK(unit_price_cents>=0),
+    total_cents INTEGER NOT NULL CHECK(total_cents>=0),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(work_order_id) REFERENCES work_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY(product_id) REFERENCES products(id),
+    FOREIGN KEY(service_id) REFERENCES service_catalog(id)
+  );
+  CREATE INDEX idx_work_order_items_order ON work_order_items(work_order_id,created_at);
+
+  CREATE TABLE self_service_profiles (
+    device_id TEXT PRIMARY KEY,
+    mode TEXT NOT NULL CHECK(mode IN('TABLE','PICKUP')),
+    table_id TEXT,
+    operator_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(device_id) REFERENCES mobile_devices(id) ON DELETE CASCADE,
+    FOREIGN KEY(table_id) REFERENCES restaurant_tables(id),
+    FOREIGN KEY(operator_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE onboarding_state (
+    id TEXT PRIMARY KEY,
+    business_name TEXT,
+    segment TEXT,
+    module_ids_json TEXT NOT NULL DEFAULT '[]',
+    completed INTEGER NOT NULL DEFAULT 0 CHECK(completed IN(0,1)),
+    completed_at TEXT,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE hardware_compatibility_evidence (
+    id TEXT PRIMARY KEY,
+    manufacturer TEXT NOT NULL,
+    model TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN('PRINTER','SCALE','DRAWER','SCANNER','OTHER')),
+    connection TEXT NOT NULL,
+    driver TEXT,
+    configuration_json TEXT NOT NULL DEFAULT '{}',
+    os TEXT NOT NULL,
+    tested_at TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN('VERIFIED','PARTIAL','UNSUPPORTED','BLOCKED_EXTERNAL')),
+    result TEXT NOT NULL,
+    limitations TEXT,
+    evidence TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_hardware_evidence_model ON hardware_compatibility_evidence(manufacturer,model,kind,tested_at);
+`;
+
 const VERTICAL_MIGRATIONS=Object.freeze([
   {version:6,name:'pdv_modular_foundation_e40_e42',sql:V6_SQL},
-  {version:VERTICAL_SCHEMA_VERSION,name:'pdv_verticals_e43_e47',sql:V7_SQL}
+  {version:7,name:'pdv_verticals_e43_e47',sql:V7_SQL},
+  {version:VERTICAL_SCHEMA_VERSION,name:'pdv_verticals_e48_e54',sql:V8_SQL}
 ]);
 
 function runVerticalMigrations(db,now=()=>new Date().toISOString()){
@@ -306,4 +468,4 @@ function runVerticalMigrations(db,now=()=>new Date().toISOString()){
   return current;
 }
 
-module.exports={VERTICAL_SCHEMA_VERSION,V6_SQL,V7_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};
+module.exports={VERTICAL_SCHEMA_VERSION,V6_SQL,V7_SQL,V8_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};

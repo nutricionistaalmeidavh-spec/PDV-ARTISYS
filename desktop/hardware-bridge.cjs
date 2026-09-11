@@ -5,6 +5,12 @@ function createHardwareController(driver = {}) {
     async status() {
       return typeof driver.status === 'function' ? driver.status() : { available:false };
     },
+    async listSerialPorts(){
+      return typeof driver.listSerialPorts==='function'?driver.listSerialPorts():[];
+    },
+    async diagnostics(){
+      return typeof driver.diagnostics==='function'?driver.diagnostics():{status:await this.status(),serialPorts:[]};
+    },
     async readWeight() {
       if (typeof driver.readWeight !== 'function') throw new Error('Balanca nao configurada.');
       const raw = await driver.readWeight();
@@ -30,7 +36,10 @@ function createHardwareController(driver = {}) {
       if (!text) throw new Error('Conteudo de impressao vazio.');
       if (typeof driver.print !== 'function') throw new Error('Impressora nao configurada.');
       return driver.print({ ...job, text, width });
-    }
+    },
+    async testPrinter(text){if(typeof driver.testPrinter==='function')return driver.testPrinter(text);return this.print({text:String(text||'TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n')});},
+    async testDrawer(){if(typeof driver.testDrawer==='function')return driver.testDrawer();return this.openDrawer();},
+    async testScale(){if(typeof driver.testScale==='function')return driver.testScale();return this.readWeight();}
   });
 }
 
@@ -42,10 +51,15 @@ function registerHardwareIpc({ ipcMain, controller, isTrustedSender = null } = {
     return fn(input || {});
   });
   handle('artisys:hardware:status', () => controller.status());
+  handle('artisys:hardware:ports', () => controller.listSerialPorts());
+  handle('artisys:hardware:diagnostics', () => controller.diagnostics());
   handle('artisys:hardware:scale-read', () => controller.readWeight());
   handle('artisys:hardware:scale-tare', () => controller.tare());
   handle('artisys:hardware:drawer-open', () => controller.openDrawer());
   handle('artisys:hardware:print', input => controller.print(input));
+  handle('artisys:hardware:test-printer', input => controller.testPrinter(input?.text));
+  handle('artisys:hardware:test-drawer', () => controller.testDrawer());
+  handle('artisys:hardware:test-scale', () => controller.testScale());
 }
 
 module.exports = { createHardwareController, registerHardwareIpc };

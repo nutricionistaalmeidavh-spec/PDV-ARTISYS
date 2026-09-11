@@ -1,10 +1,10 @@
-# ArtiSys PDV 1.2.0
+# ArtiSys PDV 1.3.0
 
-PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.2 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando catálogo configurável e módulos opcionais por segmento.
+PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
 
 ## Estado do produto
 
-As entregas **E01–E47 estão integradas** na linha 1.2.0: núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food e Mercado/Padaria.
+As entregas **E01–E54 estão integradas** na linha 1.3.0: núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
 
 Principais capacidades:
 
@@ -30,7 +30,14 @@ Principais capacidades:
 - Delivery opcional com entrega/retirada, região, taxa, entregador, ETA e status operacional;
 - Fast-food/Lanchonete opcional com senha diária e fila de produção;
 - Mercado/Conveniência/Padaria opcional com itens por peso, formato de etiqueta configurável e encomendas;
-- dispositivos LAN de garçom, tablet vinculado à mesa e KDS, com credenciais derivadas, bloqueio e rotação;
+- Varejo opcional com variantes, SKU/código de barras, atributos e estoque por variante;
+- Serviços opcional com catálogo, profissionais, agenda local, bloqueio de conflitos e comissão;
+- Oficina opcional com veículos/equipamentos, OS, diagnóstico, orçamento, aprovação, peças e mão de obra;
+- Autoatendimento opcional por dispositivo pareado, com pedido local para mesa/retirada e pagamento manual no caixa;
+- configuração inicial por segmento com recomendações editáveis de módulos;
+- QR de acesso à interface mobile local em `http://IP-DO-SERVIDOR:4174/mobile`;
+- matriz versionada de evidências de compatibilidade de periféricos;
+- dispositivos LAN de garçom, tablet vinculado à mesa, KDS e autoatendimento, com credenciais derivadas, bloqueio e rotação;
 - interface móvel self-hosted em `/mobile`, sem CDN, SaaS ou internet obrigatória;
 - LAN com pareamento de terminais, handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
@@ -40,16 +47,19 @@ Principais capacidades:
 
 ## Módulos opcionais
 
-O núcleo básico do PDV não é desativável. Em `Configurações > Módulos`, o estabelecimento pode ativar somente o que utiliza, sem reinstalação e sem apagar histórico:
+O núcleo básico do PDV não é desativável. Em `Configurações > Módulos`, o estabelecimento ativa somente o que utiliza, sem reinstalação e sem apagar histórico:
 
 - Restaurante;
 - Pizzaria;
 - Delivery;
 - Fast-food / Lanchonete;
 - Mercado / Conveniência / Padaria;
-- demais módulos previstos no registro podem permanecer desativados até suas respectivas entregas.
+- Varejo;
+- Serviços;
+- Oficina;
+- Autoatendimento.
 
-O bloqueio existe tanto na UI quanto no backend. Pizzaria, por exemplo, não aparece para uma loja que não habilitou esse módulo.
+O bloqueio existe tanto na UI quanto no backend. Um módulo desativado não aparece como fluxo operacional e não aceita novas mutações específicas.
 
 ## Arquitetura
 
@@ -69,14 +79,14 @@ Desktop / mobile LAN / atalhos / código de barras
 
 Em rede, existe um único servidor autoritativo. Terminais e dispositivos móveis não recebem caminho do SQLite e não acessam o banco por SMB; usam somente a API local na LAN. O renderer Electron não possui acesso Node, SQL, filesystem ou serial genérico.
 
-Restaurante, Pizzaria, Delivery, Fast-food e Mercado/Padaria não mantêm motores próprios de venda: todos reutilizam o `SaleService` canônico. Estoque, caixa, impressão e auditoria continuam compartilhados.
+Todos os módulos verticais reutilizam o `SaleService` canônico. Estoque, caixa, impressão, auditoria e efeitos de domínio continuam compartilhados.
 
 Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reutilizáveis são vendorizados e fixados por commit em `vendor/artisys-modules.lock.json`, preservando build reproduzível sem depender de registry privado.
 
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.2.0.
+- Windows x64 é o alvo de empacotamento comercial 1.3.0.
 
 ```bash
 npm install
@@ -95,17 +105,19 @@ O padrão é `server-terminal`. Para um terminal cliente, configure `PDV_DEPLOYM
 
 O servidor desktop publica a LAN por padrão na porta 4174; `PDV_ENABLE_LAN=false` desabilita esse listener. `PDV_LAN_HOST` e `PDV_LAN_PORT` ajustam bind/porta.
 
-Dispositivos móveis usam a interface self-hosted `http://IP-DO-SERVIDOR:4174/mobile`. O transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet.
+Dispositivos móveis usam a interface self-hosted `http://IP-DO-SERVIDOR:4174/mobile`. O transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet. O QR da E53 apenas codifica esse endereço local; a interface atual **não é declarada PWA instalável**.
 
 ## Hardware
 
-A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`. Compatibilidade comercial com modelo físico específico exige validação real do equipamento.
+A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`.
+
+A E54 registra evidências de compatibilidade por fabricante/modelo/conexão/SO. Compatibilidade comercial com modelo físico específico exige teste real documentado; sem esse teste, o estado correto é `BLOCKED_EXTERNAL`.
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.2.0 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais E40–E47. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.3.0 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais E40–E54. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
-Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX.
+Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
 ## Verificação e release
 
@@ -113,7 +125,7 @@ Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.2.0-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.0-x64-Setup.exe
 ```
 
 `verify` cobre domínio/API/UI e architecture checks. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
@@ -134,6 +146,6 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 ## Limitações externas
 
-O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. Periféricos opcionais e formatos específicos de balança dependem do hardware/driver presente no terminal e só devem ser declarados homologados após validação real. Esses casos podem ser registrados como `BLOCKED_EXTERNAL` durante o piloto.
+O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. Periféricos opcionais e formatos específicos de balança dependem do hardware/driver presente no terminal e só devem ser declarados homologados após validação real. Esses casos ficam `BLOCKED_EXTERNAL` até haver evidência.
 
-Metadados completos de capacidades e limitações ficam em `release/capabilities.json` e `release/limitations.json`.
+Metadados completos de capacidades, limitações e matriz de compatibilidade ficam em `release/capabilities.json`, `release/limitations.json` e `release/hardware-compatibility.json`.

@@ -11,11 +11,21 @@ const {runVerticalMigrations}=require('../../js/core/database/vertical-migration
 const root=path.join(__dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('E40-E47 release uses a new 1.2.0 artifact and schema v7',()=>{
+test('E40-E47 migrations remain preserved in the current 1.3.0 release',()=>{
   const pkg=JSON.parse(read('package.json'));
-  assert.equal(pkg.version,'1.2.0');
+  assert.equal(pkg.version,'1.3.0');
   const db=openDatabase(':memory:');
-  try{runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v,7);}finally{db.close();}
+  try{
+    runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);
+    const current=db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v;
+    assert.ok(current>=7);
+    const rows=db.prepare('SELECT version,name FROM schema_migrations WHERE version IN (6,7) ORDER BY version').all();
+    assert.equal(rows.length,2);
+    assert.equal(rows[0].version,6);
+    assert.equal(rows[0].name,'pdv_modular_foundation_e40_e42');
+    assert.equal(rows[1].version,7);
+    assert.equal(rows[1].name,'pdv_verticals_e43_e47');
+  }finally{db.close();}
 });
 
 test('E40-E47 commercial vertical router remains local manual-payment and non-fiscal',()=>{

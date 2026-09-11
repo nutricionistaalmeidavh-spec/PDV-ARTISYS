@@ -1,12 +1,15 @@
 [
-  "O alvo de empacotamento e suporte comercial da versão 1.2.0 é Windows x64.",
-  "Todo o núcleo e os módulos E40-E47 funcionam localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
+  "O alvo de empacotamento e suporte comercial da versão 1.3.0 é Windows x64.",
+  "Todo o núcleo e os módulos E40-E54 funcionam localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
   "Os módulos opcionais são ativados localmente por configuração; desativá-los não apaga dados históricos.",
   "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
-  "A versão comercial 1.2.0 opera somente com documentos e impressão NÃO FISCAL; NFC-e, NF-e, SAT, MFE, SEFAZ e provedores fiscais não fazem parte dos fluxos comerciais E40-E47.",
+  "O QR de acesso mobile apenas codifica o endereço HTTP local; a versão 1.3.0 não declara a interface como PWA instalável.",
+  "A versão comercial 1.3.0 opera somente com documentos e impressão NÃO FISCAL; NFC-e, NF-e, SAT, MFE, SEFAZ e provedores fiscais não fazem parte dos fluxos comerciais E40-E54.",
   "Pagamentos são registrados manualmente; não há TEF, PinPad, adquirente, API bancária nem confirmação automática de PIX.",
+  "Autoatendimento cria pedidos/vendas locais, mas não processa pagamento eletrônico integrado; o pagamento permanece manual no caixa.",
   "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver e conexão disponíveis no terminal onde serão usados.",
+  "Nenhum modelo físico específico deve ser declarado homologado sem evidência real registrada; quando o equipamento não estiver disponível, o estado correto é BLOCKED_EXTERNAL.",
   "Formatos específicos de etiqueta de balança somente devem ser declarados compatíveis após validação documentada no equipamento real.",
-  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.2.0 não usa sincronização em nuvem como substituto do servidor local.",
+  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.3.0 não usa sincronização em nuvem como substituto do servidor local.",
   "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
 ]

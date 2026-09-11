@@ -38,11 +38,19 @@ const { createPizzeriaService }=require('../domains/pizzeria/pizzeria-service');
 const { createDeliveryService }=require('../domains/delivery/delivery-service');
 const { createFastFoodService }=require('../domains/fast-food/fast-food-service');
 const { createMarketBakeryService }=require('../domains/market-bakery/market-bakery-service');
+const { createRetailService }=require('../domains/retail/retail-service');
+const { registerRetailEffects }=require('../domains/retail/retail-effects');
+const { createServicesService }=require('../domains/services/services-service');
+const { createWorkshopService }=require('../domains/workshop/workshop-service');
+const { createSelfService }=require('../domains/self-service/self-service');
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 const { createBackupService }=require('./backup/backup-service');
 const { createSettingsService }=require('./settings/settings-service');
 const { createModuleService }=require('./modules/module-service');
+const { createOnboardingService }=require('./onboarding/onboarding-service');
+const { createMobileAccessService }=require('./mobile-access/mobile-access-service');
+const { createHardwareCompatibilityService }=require('./hardware/hardware-compatibility-service');
 const { createImportService }=require('./import/import-service');
 const { createSystemLogger }=require('./observability/system-logger');
 const { createSystemHealth }=require('./observability/system-health');
@@ -70,6 +78,9 @@ function createPdvRuntime({
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});
   const modules=createModuleService({db,settings,now});
+  const onboarding=createOnboardingService({db,modules,now});
+  const mobileAccess=createMobileAccessService();
+  const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   const catalog=createCatalogService({db,now,idFactory});
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});
@@ -92,6 +103,10 @@ function createPdvRuntime({
   const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});
   const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});
   const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});
+  const retail=createRetailService({db,modules,sales,now,idFactory});
+  const services=createServicesService({db,modules,catalog,sales,now,idFactory});
+  const workshop=createWorkshopService({db,modules,catalog,services,sales,now,idFactory});
+  const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
   if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
   const terminals=createTerminalRegistry(terminalOptions);
@@ -106,14 +121,14 @@ function createPdvRuntime({
   const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
 
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes});
+  registerRetailEffects({bus,retailService:retail,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
   registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});
   registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,...receiptOptions});
   registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});
   registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
 
-  // Fiscal permanece apenas como compatibilidade legada interna. Novos fluxos E40-E47
-  // nao chamam este servico e o produto comercial segue a regra somente NAO FISCAL.
+  // Compatibilidade legada interna apenas. A superfície comercial E40-E54 é exclusivamente NÃO FISCAL.
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});
   if(typeof fiscalAutoIssueResolver==='function'){
     registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
@@ -123,7 +138,7 @@ function createPdvRuntime({
   return {
     db,outbox,effectStore,bus,dispatcher,
     catalog,catalogCustomization,inventory,recipes,sales,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
-    modules,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,terminals,mutations,
+    modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,
     backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
     dispatchPending:()=>dispatcher.dispatchPending(),
