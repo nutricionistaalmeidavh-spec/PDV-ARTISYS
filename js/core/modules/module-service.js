@@ -9,7 +9,7 @@ function createModuleService({db,settings,now=()=>new Date().toISOString()}={}){
   if(!db||!settings)throw new TypeError('db and settings are required.');
   const key=id=>`modules.${id}.enabled`;
   function normalize(id){const value=String(id||'').trim().toUpperCase();if(!getModuleDefinition(value))throw new Error(`Modulo desconhecido: ${value||id}.`);return value;}
-  function isEnabled(id){const moduleId=normalize(id);return Boolean(settings.get(key(moduleId),{defaultValue:false}));}
+  function isEnabled(id){const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);return Boolean(settings.get(key(moduleId),{defaultValue:Boolean(definition.defaultEnabled)}));}
   function list(){return MODULES.map(def=>({...def,enabled:isEnabled(def.id)}));}
   function setEnabled(id,enabled,actor={}){
     const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);if(!['admin','system'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para alterar modulo.');
