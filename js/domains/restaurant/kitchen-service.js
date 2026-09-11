@@ -6,6 +6,12 @@ const { writeAudit } = require('../../core/audit-log');
 
 const TICKET_STATUSES = new Set(['NEW','PREPARING','READY','CANCELLED']);
 
+function parseConfiguration(value) {
+  if (!value) return null;
+  try { return JSON.parse(value); }
+  catch { return null; }
+}
+
 function createKitchenService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
 
@@ -25,8 +31,14 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
 
   function mapTicket(row) {
     if (!row) return null;
-    const items = db.prepare(`SELECT id,order_item_id AS orderItemId,product_name AS productName,quantity,note
-      FROM kitchen_ticket_items WHERE ticket_id=? ORDER BY id`).all(row.id);
+    const items = db.prepare(`SELECT kti.id,kti.order_item_id AS orderItemId,kti.product_name AS productName,kti.quantity,kti.note,
+        roi.configuration_json AS configurationJson
+      FROM kitchen_ticket_items kti
+      LEFT JOIN restaurant_order_items roi ON roi.id=kti.order_item_id
+      WHERE kti.ticket_id=? ORDER BY kti.id`).all(row.id).map(item => {
+        const { configurationJson, ...safe } = item;
+        return { ...safe, configuration: parseConfiguration(configurationJson) };
+      });
     return {
       id: row.id,
       orderId: row.order_id,
