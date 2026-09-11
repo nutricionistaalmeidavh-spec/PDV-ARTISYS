@@ -5,7 +5,15 @@ on:
     branches:
       - main
       - "feat/**"
+    paths-ignore:
+      - '.github/qa-request.json'
   pull_request:
+    paths-ignore:
+      - '.github/qa-request.json'
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -18,7 +26,5 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify unit integration and architecture gates
-        run: npm run verify
-      - name: Verify release concurrency recovery and security gates
+      - name: Verify unit integration architecture release and security gates
         run: npm run verify:release
