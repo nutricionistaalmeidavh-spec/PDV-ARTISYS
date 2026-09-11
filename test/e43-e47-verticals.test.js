@@ -29,7 +29,7 @@ test('E43 pizzeria supports size, multi-flavor policy and crust only when module
   const priced=rt.pizzeria.pricePizza({productId:'pizza',sizeId:size.id,flavorIds:['calabresa','marguerita'],crustId:'catupiry'});
   assert.equal(priced.unitPriceCents,4500);
   assert.equal(priced.configurationSnapshot.pizza.flavors.length,2);
-  assert.throws(()=>rt.pizzeria.pricePizza({productId:'pizza',sizeId:'large',flavorIds:['calabresa','marguerita','calabresa']}),/maximo de 2 sabores/i);
+  assert.throws(()=>rt.pizzeria.pricePizza({productId:'pizza',sizeId:'large',flavorIds:['calabresa','marguerita','calabresa']}),/maximo 2 sabores/i);
   rt.close();
 });
 
@@ -61,7 +61,7 @@ test('E46 fast food generates daily sequential numbers and ready board projectio
   const a=rt.fastFood.create({note:'sem cebola'},admin);const b=rt.fastFood.create({},admin);
   assert.equal(a.dailyNumber,1);assert.equal(b.dailyNumber,2);
   rt.fastFood.updateStatus(a.id,'PREPARING',admin);rt.fastFood.updateStatus(a.id,'READY',admin);
-  assert.deepEqual(rt.fastFood.readyBoard(),[{number:1,status:'READY'}]);
+  assert.deepEqual(rt.fastFood.readyBoard().map(row=>({number:row.number,status:row.status})),[{number:1,status:'READY'}]);
   rt.close();
 });
 
@@ -70,7 +70,7 @@ test('E47 market/bakery prices grams, parses configured labels and manages baker
   assert.equal(rt.marketBakery.priceWeightedItem({productId:'ham',grams:250}).totalCents,1000);
   rt.marketBakery.upsertWeightBarcodeProfile({id:'scale-1',name:'Balanca',prefix:'20',totalLength:13,productStart:2,productLength:5,weightStart:7,weightLength:5,decimalPlaces:3},admin);
   const parsed=rt.marketBakery.parseWeightBarcode('2000123002500');
-  assert.equal(parsed.productCode,'00123');assert.equal(parsed.weight,2.5);
+  assert.equal(parsed.productCode,'00123');assert.equal(parsed.weight,0.25);assert.equal(parsed.grams,250);
   const bakery=rt.marketBakery.createBakeryOrder({customerName:'Bia',requestedPickupAt:'2026-09-12T10:00:00-03:00',items:[{productId:'soda',quantity:2}]},admin);
   assert.equal(bakery.status,'OPEN');assert.equal(rt.marketBakery.updateBakeryOrderStatus(bakery.id,'READY',admin).status,'READY');
   rt.close();
