@@ -2,6 +2,7 @@
 
 const {randomUUID}=require('node:crypto');
 const {writeAudit}=require('../audit-log');
+const {runHardwareMigrations}=require('../database/hardware-migrations');
 
 const STATUSES=new Set(['PROTOCOL_VERIFIED','FIELD_VERIFIED','UNTESTED_MODEL','PARTIAL','UNSUPPORTED']);
 const LEGACY_STATUS_MAP=Object.freeze({VERIFIED:'FIELD_VERIFIED',BLOCKED_EXTERNAL:'UNTESTED_MODEL'});
@@ -17,6 +18,7 @@ function normalizeStatus(value){
 
 function createHardwareCompatibilityService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('db is required.');
+  runHardwareMigrations(db,now);
   function map(row){return row&&{id:row.id,manufacturer:row.manufacturer,model:row.model,kind:row.kind,connection:row.connection,driver:row.driver,configuration:parseConfiguration(row.configuration_json),os:row.os,testedAt:row.tested_at,status:normalizeStatus(row.status),result:row.result,limitations:row.limitations,evidence:row.evidence,createdAt:row.created_at,updatedAt:row.updated_at};}
   function recordEvidence(input={},actor={}){
     if(!['admin','system'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para registrar homologacao.');
