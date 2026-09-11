@@ -36,3 +36,13 @@ test('QA workflow invokes the 1.2 CLI with explicit run and demo commands', () =
   assert.match(workflow, /artisys-qa\.mjs demo/);
   assert.match(workflow, /artisys-qa\.mjs run/);
 });
+
+test('CircleCI runs release gates before the PDV QA smoke flow', () => {
+  const circle = fs.readFileSync(path.join(root, '.circleci/config.yml'), 'utf8');
+  assert.match(circle, /command: npm run verify:release/);
+  assert.match(circle, /qa_smoke:/);
+  assert.match(circle, /artisys-qa\.mjs run/);
+  assert.match(circle, /--flow smoke/);
+  assert.match(circle, /requires:\s*\n\s*- verify/);
+  assert.match(circle, /store_artifacts:/);
+});
