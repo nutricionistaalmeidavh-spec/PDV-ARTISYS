@@ -13,7 +13,11 @@ function toReceiptLineMarkup(document) {
       const label=safe(pair?.[0]); const value=safe(pair?.[1]); lines.push(label ? `${label}: ${value}` : value);
     }
     if ((document.metadata || []).length) lines.push('-');
-    for (const item of document.items || []) { lines.push(safe(item.name || 'Item')); lines.push(`${Number(item.quantity || 0)} x ${money(item.unitPriceCents)} | ${money(item.totalCents)}`); }
+    for (const item of document.items || []) {
+      lines.push(safe(item.name || 'Item'));
+      for (const detail of item.details || []) { const value=safe(detail); if(value) lines.push(`  ${value}`); }
+      lines.push(`${Number(item.quantity || 0)} x ${money(item.unitPriceCents)} | ${money(item.totalCents)}`);
+    }
     if ((document.items || []).length) lines.push('-');
     for (const pair of document.totals || []) lines.push(`${safe(pair?.[0])} | ${money(pair?.[1])}`);
     if ((document.totals || []).length) lines.push('-');

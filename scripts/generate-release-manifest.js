@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-const { RELEASE_SCHEMA_VERSION } = require('../js/core/database/release-migrations');
+const { VERTICAL_SCHEMA_VERSION } = require('../js/core/database/vertical-migrations');
 
 function sha256File(filePath) {
   const hash = createHash('sha256');
@@ -53,7 +53,7 @@ function buildReleaseManifest({
   return {
     version: pkg.version,
     commit,
-    schemaVersion: RELEASE_SCHEMA_VERSION,
+    schemaVersion: VERTICAL_SCHEMA_VERSION,
     builtAt,
     artifacts,
     checksums,

@@ -1,11 +1,12 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
 
-function registerReturnEffects({ bus, inventoryService, cashService, effectStore } = {}) {
+function registerReturnEffects({ bus, inventoryService, cashService, effectStore, recipeService=null } = {}) {
   if (!bus || !inventoryService || !cashService || !effectStore) throw new TypeError('bus, inventoryService, cashService and effectStore are required.');
+  const expand=items=>recipeService?recipeService.expandItems(items||[]):items||[];
   const inventoryCompleted = createIdempotentDomainEffect({
     effectKey:'inventory.return-completed', effectStore,
-    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:event.payload.items || [], direction:'return', createdAt:event.occurredAt })
+    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:expand(event.payload.items), direction:'return', createdAt:event.occurredAt })
   });
   const cashCompleted = createIdempotentDomainEffect({
     effectKey:'cash.return-completed', effectStore,
@@ -13,7 +14,7 @@ function registerReturnEffects({ bus, inventoryService, cashService, effectStore
   });
   const inventoryCancelled = createIdempotentDomainEffect({
     effectKey:'inventory.return-cancelled', effectStore,
-    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:event.payload.items || [], direction:'cancel', createdAt:event.occurredAt })
+    handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:expand(event.payload.items), direction:'cancel', createdAt:event.occurredAt })
   });
   const cashCancelled = createIdempotentDomainEffect({
     effectKey:'cash.return-cancelled', effectStore,

@@ -1,0 +1,41 @@
+'use strict';
+
+const { randomUUID }=require('node:crypto');
+const { withTransaction }=require('../../core/database/sqlite-database');
+const { writeAudit }=require('../../core/audit-log');
+const { assertCents }=require('../shared/money');
+
+const MANUAL_PAYMENT_METHODS=new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
+const DELIVERY_TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CANCELLED'],READY:['OUT_FOR_DELIVERY','CANCELLED'],OUT_FOR_DELIVERY:['DELIVERED','CANCELLED'],DELIVERED:[],CANCELLED:[]};
+const PICKUP_TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CANCELLED'],READY:['PICKED_UP','CANCELLED'],PICKED_UP:[],CANCELLED:[]};
+const DELIVERY_FEE_PRODUCT_ID='__artisys_delivery_fee__';
+
+function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+  if(!db||!modules||!sales)throw new TypeError('db, modules and sales are required.');
+  const gate=()=>modules.requireEnabled('DELIVERY');
+  function map(row){if(!row)return null;let address=null;try{address=row.address_json?JSON.parse(row.address_json):null;}catch{}return{id:row.id,saleId:row.sale_id,customerId:row.customer_id,customerName:row.customer_name,phone:row.phone,fulfillmentType:row.fulfillment_type,address,region:row.region,feeCents:row.fee_cents,courier:row.courier,manualEta:row.manual_eta,paymentMethod:row.payment_method,note:row.note,status:row.status,cancelReason:row.cancel_reason,createdAt:row.created_at,updatedAt:row.updated_at};}
+  function get(id){gate();const row=db.prepare('SELECT * FROM delivery_orders WHERE id=?').get(String(id));if(!row)throw new Error('Pedido de delivery nao encontrado.');return map(row);}
+  function create(input={},actor={}){gate();const id=String(input.id||idFactory('delivery'));const customerName=String(input.customerName||'').trim();if(!customerName)throw new Error('Nome do cliente obrigatorio.');const fulfillmentType=String(input.fulfillmentType||'DELIVERY').toUpperCase();if(!['DELIVERY','PICKUP'].includes(fulfillmentType))throw new Error('Tipo de atendimento invalido.');if(fulfillmentType==='DELIVERY'&&(!input.address||typeof input.address!=='object'))throw new Error('Endereco obrigatorio para delivery.');const fee=assertCents(Number(input.feeCents??0),'feeCents');if(fee<0)throw new Error('Taxa de entrega invalida.');const paymentMethod=input.paymentMethod?String(input.paymentMethod).toUpperCase():null;if(paymentMethod&&!MANUAL_PAYMENT_METHODS.has(paymentMethod))throw new Error('Forma de pagamento manual invalida.');const ts=now();db.prepare(`INSERT INTO delivery_orders(id,sale_id,customer_id,customer_name,phone,fulfillment_type,address_json,region,fee_cents,courier,manual_eta,payment_method,note,status,cancel_reason,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'NEW',NULL,?,?)`).run(id,null,input.customerId||null,customerName,String(input.phone||'').trim()||null,fulfillmentType,input.address?JSON.stringify(input.address):null,String(input.region||'').trim()||null,fee,String(input.courier||'').trim()||null,String(input.manualEta||'').trim()||null,paymentMethod,String(input.note||'').trim()||null,ts,ts);writeAudit(db,{action:'delivery.create',entity:'delivery_order',entityId:id,actor,context:{fulfillmentType,feeCents:fee,paymentMethod}},now);return get(id);}
+  function updateStatus(id,status,actor={}){gate();const order=get(id);const next=String(status||'').toUpperCase();const transitions=order.fulfillmentType==='PICKUP'?PICKUP_TRANSITIONS:DELIVERY_TRANSITIONS;if(!(transitions[order.status]||[]).includes(next))throw new Error(`Transicao de delivery invalida: ${order.status} -> ${next}.`);db.prepare('UPDATE delivery_orders SET status=?,updated_at=? WHERE id=?').run(next,now(),order.id);writeAudit(db,{action:'delivery.status',entity:'delivery_order',entityId:order.id,actor,context:{from:order.status,to:next}},now);return get(order.id);}
+  function cancel(id,reason,actor={}){gate();const order=get(id);if(['DELIVERED','PICKED_UP','CANCELLED'].includes(order.status))throw new Error('Pedido nao pode ser cancelado no status atual.');const text=String(reason||'').trim();if(!text)throw new Error('Informe o motivo do cancelamento.');db.prepare("UPDATE delivery_orders SET status='CANCELLED',cancel_reason=?,updated_at=? WHERE id=?").run(text,now(),order.id);writeAudit(db,{action:'delivery.cancel',entity:'delivery_order',entityId:order.id,actor,context:{reason:text}},now);return get(order.id);}
+  function assignCourier(id,courier,actor={}){gate();const text=String(courier||'').trim();if(!text)throw new Error('Entregador obrigatorio.');const order=get(id);if(order.fulfillmentType!=='DELIVERY')throw new Error('Retirada nao utiliza entregador.');db.prepare('UPDATE delivery_orders SET courier=?,updated_at=? WHERE id=?').run(text,now(),order.id);writeAudit(db,{action:'delivery.courier',entity:'delivery_order',entityId:order.id,actor,context:{courier:text}},now);return get(order.id);}
+  function ensureFeeProduct(){const ts=now();db.prepare(`INSERT INTO products(id,sku,barcode,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,active,created_at,updated_at) VALUES(?,NULL,NULL,'Taxa de entrega',NULL,'UN',0,0,0,0,1,?,?) ON CONFLICT(id) DO UPDATE SET active=1,updated_at=excluded.updated_at`).run(DELIVERY_FEE_PRODUCT_ID,ts,ts);db.prepare('INSERT OR IGNORE INTO inventory_balances(product_id,quantity,updated_at) VALUES(?,0,?)').run(DELIVERY_FEE_PRODUCT_ID,ts);}
+  function createSale(id,input={},actor={}){
+    gate();const order=get(id);if(order.saleId)return sales.getSale(order.saleId);
+    const terminalId=String(input.terminalId||'').trim();const operatorId=String(input.operatorId||'').trim();if(!terminalId||!operatorId)throw new Error('Terminal e operador sao obrigatorios.');
+    const items=Array.isArray(input.items)?input.items:[];if(!items.length)throw new Error('Adicione itens ao pedido.');
+    return withTransaction(db,()=>{
+      const sale=sales.openSale({terminalId,operatorId,customerId:order.customerId||null},actor);
+      for(const item of items)sales.addItem(sale.id,{productId:item.productId,quantity:item.quantity??1,unitPriceCents:item.unitPriceCents,configurationSnapshot:item.configurationSnapshot,forceSeparateLine:Boolean(item.configurationSnapshot)||item.unitPriceCents!==undefined});
+      if(order.feeCents>0){ensureFeeProduct();sales.addItem(sale.id,{productId:DELIVERY_FEE_PRODUCT_ID,quantity:1,unitPriceCents:order.feeCents,configurationSnapshot:{version:1,systemAdjustment:{type:'DELIVERY_FEE',label:'Taxa de entrega'}},forceSeparateLine:true});db.prepare('UPDATE products SET active=0,updated_at=? WHERE id=?').run(now(),DELIVERY_FEE_PRODUCT_ID);}
+      db.prepare('UPDATE delivery_orders SET sale_id=?,updated_at=? WHERE id=?').run(sale.id,now(),order.id);
+      const current=sales.getSale(sale.id);
+      if(kitchen?.routeProduction)kitchen.routeProduction({sourceType:'DELIVERY',sourceId:order.id,items:current.items.filter(item=>item.productId!==DELIVERY_FEE_PRODUCT_ID),note:order.note||''});
+      writeAudit(db,{action:'delivery.sale.create',entity:'delivery_order',entityId:order.id,actor,context:{saleId:sale.id}},now);
+      return current;
+    });
+  }
+  function list({status=null,fulfillmentType=null}={}){gate();const clauses=[];const params=[];if(status){clauses.push('status=?');params.push(String(status).toUpperCase());}if(fulfillmentType){clauses.push('fulfillment_type=?');params.push(String(fulfillmentType).toUpperCase());}return db.prepare(`SELECT * FROM delivery_orders${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY created_at DESC,id DESC`).all(...params).map(map);}
+  return{create,get,list,updateStatus,cancel,assignCourier,createSale};
+}
+module.exports={createDeliveryService,MANUAL_PAYMENT_METHODS,DELIVERY_TRANSITIONS,PICKUP_TRANSITIONS,DELIVERY_FEE_PRODUCT_ID};

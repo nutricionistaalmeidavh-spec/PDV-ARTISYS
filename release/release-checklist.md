@@ -1,36 +1,30 @@
-# ArtiSys PDV 1.1 — Release checklist
+# ArtiSys PDV 1.2.0 — Release checklist
 
-A versão 1.1 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no commit que será integrado.
+A versão 1.2.0 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no commit integrado.
 
-- [x] E01–E20 preservadas e integradas ao núcleo/UI operacional.
-- [x] E21 LAN com pareamento, compatibilidade e idempotência.
-- [x] E22 backup, validação e restore seguro.
-- [x] E23 configurações públicas tipadas com RBAC/auditoria.
-- [x] E24 importação CSV/XLSX com preview e commit idempotente.
-- [x] E25 health, logs, auditoria e diagnóstico sanitizado.
-- [x] E26 `verify:release` com concorrência, recovery e segurança.
-- [x] E27 perfis Servidor+Terminal e Terminal sem SQLite no cliente.
-- [x] E28 checklist persistente de implantação.
-- [x] E29 manifesto, manuais e pipeline de release.
-- [x] E30 impressão operacional não fiscal desacoplada do provedor fiscal.
-- [x] E31 mesas, comandas, pedidos, transferência e fechamento pela venda canônica.
-- [x] E32 setores de produção, KDS e roteamento produto→setor/impressora.
-- [x] E33 dispositivo de garçom autenticado na LAN.
-- [x] E34 tablet vinculado à mesa com pedido, conta e chamados.
-- [x] E35 workspace Restaurante integrado ao desktop Electron.
-- [x] E36 interface móvel self-hosted pelo servidor local, sem CDN/SaaS.
-- [x] E37 indicadores do restaurante e exportação CSV.
-- [x] E38 credenciais derivadas/revogáveis, mutation ID e regressões de LAN/concorrência.
-- [x] E39 versão 1.1.0, documentação, capability manifest e gates de release atualizados.
-- [ ] `npm run verify` verde no HEAD de release.
-- [ ] `npm run verify:release` verde no HEAD de release.
+- [x] E01–E39 preservadas e integradas ao núcleo local-first.
+- [x] E40 catálogo avançado com opções, variações, combos e snapshots imutáveis.
+- [x] E41 ficha técnica versionada e baixa idempotente de insumos.
+- [x] E42 módulos opcionais persistidos localmente, auditados e bloqueados também no backend.
+- [x] E43 Pizzaria isolada do catálogo genérico, com tamanho, sabores, borda e política de preço.
+- [x] E44 Restaurante avançado com divisão, taxa de serviço, transferências e cancelamento autorizado.
+- [x] E45 Delivery/retirada com venda canônica e roteamento compartilhado para KDS.
+- [x] E46 Fast-food com senha diária, venda canônica e KDS compartilhado.
+- [x] E47 Mercado/Padaria com itens por peso, etiqueta configurável e encomendas.
+- [x] `SaleService` permanece o único motor canônico de conclusão de vendas.
+- [x] SQLite permanece autoritativo somente no servidor local.
+- [x] Fluxos comerciais E40–E47 usam pagamentos manuais e documentos **NÃO FISCAL**.
+- [x] Módulos desativados não aceitam novas mutações específicas e não apagam histórico.
+- [ ] `npm run verify` verde no HEAD final de release.
+- [ ] `npm run verify:release` verde no HEAD final de release.
 - [ ] Windows x64 NSIS gerado no CI a partir do mesmo HEAD.
-- [ ] Artefato e manifesto SHA-256 publicados pelo CI.
+- [ ] Artefato e manifesto SHA-256 gerados pelo CI.
 - [ ] PR revisado/mergeado em `main` sem divergência do HEAD verificado.
 - [ ] Gates pós-merge em `main` verdes.
+- [ ] GitHub Release `v1.2.0` publicada a partir de `main`.
 
-## Piloto
+## Validação externa
 
-Cada implantação real usa o checklist interno. `BLOCKED` é bloqueio técnico; `BLOCKED_EXTERNAL` documenta dependência externa ausente e **não** equivale a READY. Fiscal de produção, impressora, gaveta e balança só recebem READY quando validados no ambiente real aplicável.
+Periféricos físicos e formatos específicos de balança permanecem dependentes do equipamento real. Quando o hardware não estiver disponível, o estado correto é `BLOCKED_EXTERNAL`, nunca uma alegação de homologação.
 
-A operação de restaurante, KDS e dispositivos LAN pertence ao núcleo local. Serviços pagos ou cloud não são pré-requisito para E30–E39. A interface móvel usa HTTP somente em LAN confiável; exposição direta à internet não faz parte do escopo aprovado.
+A interface móvel usa HTTP somente em LAN confiável; exposição direta à internet não faz parte do escopo. A versão comercial 1.2.0 é somente **NÃO FISCAL** e não depende de TEF, adquirente, banco, SaaS ou serviço cloud.

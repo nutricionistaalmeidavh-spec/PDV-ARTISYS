@@ -1,9 +1,12 @@
 [
-  "O alvo de empacotamento e suporte comercial da versão 1.1 é Windows x64.",
-  "Todo o núcleo do PDV e do restaurante funciona localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
-  "A interface móvel de garçom, tablet e KDS é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
-  "Emissão fiscal é opcional e exige configuração válida do cliente, credenciais do provedor fiscal e conectividade com os serviços fiscais; indisponibilidade externa não bloqueia cupom não fiscal, pré-conta, cozinha ou operação local.",
+  "O alvo de empacotamento e suporte comercial da versão 1.2.0 é Windows x64.",
+  "Todo o núcleo e os módulos E40-E47 funcionam localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
+  "Os módulos opcionais são ativados localmente por configuração; desativá-los não apaga dados históricos.",
+  "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
+  "A versão comercial 1.2.0 opera somente com documentos e impressão NÃO FISCAL; NFC-e, NF-e, SAT, MFE, SEFAZ e provedores fiscais não fazem parte dos fluxos comerciais E40-E47.",
+  "Pagamentos são registrados manualmente; não há TEF, PinPad, adquirente, API bancária nem confirmação automática de PIX.",
   "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver e conexão disponíveis no terminal onde serão usados.",
-  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.1 não usa sincronização em nuvem como substituto do servidor local.",
+  "Formatos específicos de etiqueta de balança somente devem ser declarados compatíveis após validação documentada no equipamento real.",
+  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.2.0 não usa sincronização em nuvem como substituto do servidor local.",
   "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
 ]
