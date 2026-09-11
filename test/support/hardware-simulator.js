@@ -1,7 +1,7 @@
 'use strict';
 
 function createSerialPortHarness(scenarios = []) {
-  const state = { instances: [], writes: [], opens: 0, closes: 0 };
+  const state = { instances: [], writes: [], writeBuffers: [], opens: 0, closes: 0 };
   let cursor = 0;
 
   class SimulatedSerialPort {
@@ -36,8 +36,9 @@ function createSerialPortHarness(scenarios = []) {
     }
 
     write(payload, callback) {
-      const text = Buffer.from(payload).toString('utf8');
-      state.writes.push(text);
+      const raw = Buffer.from(payload);
+      state.writeBuffers.push(raw);
+      state.writes.push(raw.toString('utf8'));
       if (this.scenario.writeError) {
         const error = this.scenario.writeError;
         queueMicrotask(() => {
