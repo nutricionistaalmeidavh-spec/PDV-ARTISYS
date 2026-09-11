@@ -74,7 +74,7 @@ test('future QA updates are explicit, local-first and preserve consumer configur
   assert.match(sync, /ARTISYS_QA_SOURCE/);
   assert.match(sync, /qa\/artisys-qa\.config\.json/);
   assert.match(sync, /bridge\/projects\.json/);
-  assert.match(sync, /bridge\\\/jobs\\\/pending/);
+  assert.equal(sync.includes('bridge/jobs/pending/*.json'), true);
 });
 
 test('CircleCI runs release verification before the configured quick QA profile', () => {
