@@ -8,6 +8,12 @@
   "scripts": {
     "start:server": "node server/start.js",
     "start:desktop": "electron desktop/main.cjs",
+    "qa:update": "node scripts/sync-artisys-qa.mjs",
+    "qa:validate": "node qa/runtime/artisys-qa.mjs validate --config qa/artisys-qa.config.json",
+    "qa:quick": "node qa/runtime/artisys-qa.mjs quick --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
+    "qa:full": "node qa/runtime/artisys-qa.mjs full --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
+    "qa:release": "node qa/runtime/artisys-qa.mjs release --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
+    "qa:remote": "node qa/runtime/artisys-qa.mjs remote --config qa/artisys-qa.config.json --profile quick --output qa-artifacts",
     "test": "node --test test/*.test.js",
     "test:restaurant": "node --test test/e30-e39-restaurant.test.js",
     "test:release": "node scripts/run-release-tests.js",
