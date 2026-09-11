@@ -1,0 +1,38 @@
+'use strict';
+
+(() => {
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  if(!ApiClient)return;
+  const e=encodeURIComponent;
+  Object.assign(ApiClient.prototype,{
+    modules(){return this.request('/api/v1/vertical/modules');},
+    setModule(id,enabled){return this.saveSetting(`modules.${String(id).toUpperCase()}.enabled`,Boolean(enabled),'global');},
+    productConfiguration(productId){return this.request(`/api/v1/vertical/catalog/products/${e(productId)}/configuration`);},
+    createOptionGroup(body){return this.request('/api/v1/vertical/catalog/option-groups',{method:'POST',body});},
+    createOption(body){return this.request('/api/v1/vertical/catalog/options',{method:'POST',body});},
+    createVariant(body){return this.request('/api/v1/vertical/catalog/variants',{method:'POST',body});},
+    priceConfiguredItem(body){return this.request('/api/v1/vertical/catalog/price',{method:'POST',body});},
+    saveRecipe(productId,body){return this.request(`/api/v1/vertical/recipes/${e(productId)}`,{method:'PUT',body});},
+    recipe(productId){return this.request(`/api/v1/vertical/recipes/${e(productId)}`);},
+    savePizzeriaProfile(body){return this.request('/api/v1/vertical/pizzeria/profile',{method:'POST',body});},
+    savePizzeriaCatalog(body){return this.request('/api/v1/vertical/pizzeria/catalog',{method:'POST',body});},
+    pizzeriaProfile(productId){return this.request(`/api/v1/vertical/pizzeria/products/${e(productId)}`);},
+    pricePizza(body){return this.request('/api/v1/vertical/pizzeria/price',{method:'POST',body});},
+    addConfiguredSaleItem(saleId,body){return this.request(`/api/v1/vertical/sales/${e(saleId)}/configured-item`,{method:'POST',body});},
+    restaurantRemaining(sessionId){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/remaining`);},
+    createRestaurantSettlement(sessionId,body){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/settlements`,{method:'POST',body});},
+    transferRestaurantItems(sessionId,body){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/transfer-items`,{method:'POST',body});},
+    delivery(filters={}){return this.request(`/api/v1/vertical/delivery${this.params(filters)}`);},
+    createDelivery(body){return this.request('/api/v1/vertical/delivery',{method:'POST',body,mutationId:this.mutationId()});},
+    updateDeliveryStatus(id,status){return this.request(`/api/v1/vertical/delivery/${e(id)}/status`,{method:'PATCH',body:{status}});},
+    fastFood(filters={}){return this.request(`/api/v1/vertical/fast-food${this.params(filters)}`);},
+    createFastFood(body={}){return this.request('/api/v1/vertical/fast-food',{method:'POST',body,mutationId:this.mutationId()});},
+    updateFastFoodStatus(id,status){return this.request(`/api/v1/vertical/fast-food/${e(id)}/status`,{method:'PATCH',body:{status}});},
+    fastFoodReady(){return this.request('/api/v1/vertical/fast-food/ready');},
+    priceWeighted(body){return this.request('/api/v1/vertical/market/price-weight',{method:'POST',body});},
+    saveWeightProfile(body){return this.request('/api/v1/vertical/market/weight-profile',{method:'POST',body});},
+    parseWeightBarcode(body){return this.request('/api/v1/vertical/market/parse-weight',{method:'POST',body});},
+    createBakeryOrder(body){return this.request('/api/v1/vertical/bakery/orders',{method:'POST',body});},
+    updateBakeryOrderStatus(id,status){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/status`,{method:'PATCH',body:{status}});}
+  });
+})();
