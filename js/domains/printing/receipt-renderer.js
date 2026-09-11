@@ -9,6 +9,33 @@ const {
   columns
 } = require('@artisys/printing');
 
+function fractionLabel(value) {
+  const fraction=Number(value);
+  if(!Number.isFinite(fraction)||fraction<=0||fraction>=1)return'';
+  for(let denominator=2;denominator<=8;denominator+=1){
+    const numerator=Math.round(fraction*denominator);
+    if(numerator>0&&Math.abs(fraction-(numerator/denominator))<0.0001)return`${numerator}/${denominator}`;
+  }
+  return`${Math.round(fraction*100)}%`;
+}
+
+function configurationDetails(configuration) {
+  if(!configuration||typeof configuration!=='object')return[];
+  const details=[];
+  const pizza=configuration.pizza;
+  if(pizza){
+    if(pizza.size?.name)details.push(`Tamanho: ${pizza.size.name}`);
+    for(const flavor of pizza.flavors||[]){const fraction=fractionLabel(flavor.fraction);details.push(`${fraction?`${fraction} `:''}${flavor.name||'Sabor'}`);}
+    if(pizza.crust?.name)details.push(`Borda: ${pizza.crust.name}`);
+    for(const addition of pizza.additions||[])if(addition?.name)details.push(`+ ${addition.name}`);
+  }
+  if(configuration.variant?.name)details.push(`Variacao: ${configuration.variant.name}`);
+  for(const option of configuration.options||[])if(option?.name)details.push(`+ ${option.name}`);
+  for(const combo of configuration.combos||[])if(combo?.name)details.push(`Combo: ${combo.name}`);
+  if(configuration.systemAdjustment?.label)details.push(configuration.systemAdjustment.label);
+  return details;
+}
+
 function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
   const w = Number(width);
   if (![32,42,48].includes(w)) throw new Error('Largura de cupom invalida.');
@@ -34,7 +61,8 @@ function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO F
       name:item.productName || item.sku || 'Item',
       quantity:Number(item.quantity || 0),
       unitPriceCents:Number(item.unitPriceCents || 0),
-      totalCents:Number(item.totalCents || 0)
+      totalCents:Number(item.totalCents || 0),
+      details:configurationDetails(item.configuration)
     })),
     totals,
     payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
@@ -44,4 +72,4 @@ function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO F
   return renderPlainText(document);
 }
 
-module.exports = { renderSaleReceipt, money, fit, center, columns };
+module.exports = { renderSaleReceipt, configurationDetails, money, fit, center, columns };
