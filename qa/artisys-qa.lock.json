@@ -6,11 +6,13 @@
   "sourcePath": "modules/artisys-qa",
   "sourceCommit": "850db8188bf49c8083441a3b5e814b3f61fc0fe8",
   "sourceTree": "f2bd3bd048207d9bf5a442287f0ad779e436cd8a",
-  "consumption": "full-vendored-runtime",
+  "consumption": "vendored-runtime",
   "policy": {
+    "runtimeParity": "src/** matches the pinned central module revision",
     "consumerConfig": "qa/artisys-qa.config.json",
     "runtimeSelection": "qaProfiles",
     "ciNeedsSourceRepositoryAccess": false,
+    "updateCommand": "npm run qa:update",
     "excludedTransientState": [
       "bridge/projects.json",
       "bridge/jobs/pending/*.json"
