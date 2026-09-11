@@ -30,7 +30,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       if(request.method==='POST'&&pathname==='/api/v1/vertical/services/professionals'){json(response,201,runtime.services.upsertProfessional(await body(request),actor));return true;}
       const link=pathname.match(/^\/api\/v1\/vertical\/services\/catalog\/([^/]+)\/professionals\/([^/]+)$/);
       if(request.method==='PUT'&&link){json(response,200,runtime.services.linkProfessional(decodeURIComponent(link[1]),decodeURIComponent(link[2]),await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/services/appointments'){const result=await mutate(request,pathname,201,()=>runtime.services.scheduleAppointment(await body(request),actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/services/appointments'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.services.scheduleAppointment(data,actor));json(response,result.statusCode,result.payload);return true;}
       const appointmentStatus=pathname.match(/^\/api\/v1\/vertical\/services\/appointments\/([^/]+)\/status$/);
       if(request.method==='PATCH'&&appointmentStatus){const data=await body(request);json(response,200,runtime.services.updateAppointmentStatus(decodeURIComponent(appointmentStatus[1]),data.status,actor));return true;}
       const appointmentSale=pathname.match(/^\/api\/v1\/vertical\/services\/appointments\/([^/]+)\/sale$/);
@@ -38,7 +38,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       if(request.method==='GET'&&pathname==='/api/v1/vertical/services/commissions'){json(response,200,runtime.services.commissionReport({from:url.searchParams.get('from')||null,to:url.searchParams.get('to')||null,professionalId:url.searchParams.get('professionalId')||null}));return true;}
 
       if(request.method==='POST'&&pathname==='/api/v1/vertical/workshop/assets'){json(response,201,runtime.workshop.upsertAsset(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/workshop/orders'){const result=await mutate(request,pathname,201,()=>runtime.workshop.openWorkOrder(await body(request),actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/workshop/orders'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.workshop.openWorkOrder(data,actor));json(response,result.statusCode,result.payload);return true;}
       const workOrder=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)$/);
       if(request.method==='GET'&&workOrder){json(response,200,runtime.workshop.getWorkOrder(decodeURIComponent(workOrder[1])));return true;}
       const workItems=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)\/items$/);
