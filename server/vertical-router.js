@@ -50,12 +50,14 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       const completeSettlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/settlements\/([^/]+)\/complete$/);
       if(request.method==='POST'&&completeSettlement){json(response,200,runtime.restaurantSettlement.completeSettlement(decodeURIComponent(completeSettlement[1]),await body(request),actor));return true;}
       const cancelOrderItem=pathname.match(/^\/api\/v1\/vertical\/restaurant\/order-items\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&cancelOrderItem){const data=await body(request);json(response,200,runtime.restaurantSettlement.cancelOrderItem(decodeURIComponent(cancelOrderItem[1]),data.reason,{...actor,role:data.authorizedRole||actor.role,userId:data.authorizedUserId||actor.userId}));return true;}
+      if(request.method==='POST'&&cancelOrderItem){const data=await body(request);json(response,200,runtime.restaurantSettlement.cancelOrderItem(decodeURIComponent(cancelOrderItem[1]),data.reason,actor));return true;}
       const mergeSessions=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/merge$/);
       if(request.method==='POST'&&mergeSessions){const data=await body(request);json(response,200,runtime.restaurantSettlement.mergeSessions(decodeURIComponent(mergeSessions[1]),data.targetSessionId,actor));return true;}
+      const transferItems=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/transfer-items$/);
+      if(request.method==='POST'&&transferItems){const data=await body(request);json(response,200,runtime.restaurantSettlement.transferItems(decodeURIComponent(transferItems[1]),data.targetSessionId,data.items||[],actor));return true;}
 
       if(request.method==='GET'&&pathname==='/api/v1/vertical/delivery'){json(response,200,runtime.delivery.list({status:url.searchParams.get('status')||null,fulfillmentType:url.searchParams.get('fulfillmentType')||null}));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/delivery'){const result=await mutate(request,pathname,201,()=>runtime.delivery.create(await body(request),actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/delivery'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.delivery.create(data,actor));json(response,result.statusCode,result.payload);return true;}
       const deliveryStatus=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/status$/);
       if(request.method==='PATCH'&&deliveryStatus){const data=await body(request);json(response,200,runtime.delivery.updateStatus(decodeURIComponent(deliveryStatus[1]),data.status,actor));return true;}
       const deliveryCancel=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/cancel$/);
@@ -67,7 +69,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
 
       if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food/ready'){json(response,200,runtime.fastFood.readyBoard());return true;}
       if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food'){json(response,200,runtime.fastFood.list({status:url.searchParams.get('status')||null}));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/fast-food'){const result=await mutate(request,pathname,201,()=>runtime.fastFood.create(await body(request),actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/fast-food'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.fastFood.create(data,actor));json(response,result.statusCode,result.payload);return true;}
       const fastStatus=pathname.match(/^\/api\/v1\/vertical\/fast-food\/([^/]+)\/status$/);
       if(request.method==='PATCH'&&fastStatus){const data=await body(request);json(response,200,runtime.fastFood.updateStatus(decodeURIComponent(fastStatus[1]),data.status,actor));return true;}
 
@@ -79,7 +81,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='PATCH'&&bakeryStatus){const data=await body(request);json(response,200,runtime.marketBakery.updateBakeryOrderStatus(decodeURIComponent(bakeryStatus[1]),data.status,actor));return true;}
 
       throw new VerticalHttpError(404,'Rota vertical nao encontrada.');
-    }catch(error){const status=error.statusCode||error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400;try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
+    }catch(error){const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
   };
 }
 module.exports={createVerticalRouter,VerticalHttpError};
