@@ -1,24 +1,25 @@
-# ArtiSys PDV 1.2.0 — Módulos opcionais
+# ArtiSys PDV 1.3.0 — Módulos opcionais finais
 
-Release local-first que amplia o mesmo núcleo do ArtiSys PDV com catálogo configurável e verticais opcionais, sem transformar nichos em produtos separados.
+Release local-first que conclui as entregas E48–E54 sobre o mesmo núcleo do ArtiSys PDV, mantendo um único motor canônico de vendas e módulos por segmento ativados somente quando o estabelecimento precisar.
 
-## Entregas E40–E47
+## Entregas E48–E54
 
-- **E40 — Catálogo avançado:** adicionais, opções, variações, combos e snapshot imutável das escolhas no item vendido;
-- **E41 — Ficha técnica:** receitas versionadas e baixa idempotente de ingredientes/insumos pelo ledger existente;
-- **E42 — Módulos opcionais:** ativação local, auditada e com dependências validadas;
-- **E43 — Pizzaria:** tamanho, múltiplos sabores/meio a meio, borda, adicionais e políticas configuráveis de preço;
-- **E44 — Restaurante avançado:** divisão de conta, pagamento parcial, taxa de serviço, transferência seletiva, junção de comandas e cancelamento autorizado;
-- **E45 — Delivery:** entrega/retirada, endereço, região, taxa, entregador, ETA e status operacional;
-- **E46 — Fast-food/Lanchonete:** senha diária e fila de preparação/pronto/entregue;
-- **E47 — Mercado/Padaria:** itens por peso, formato de etiqueta configurável e encomendas para retirada;
-- KDS, pré-conta e cupom preservam as configurações relevantes dos itens, incluindo tamanho, sabores, borda e adicionais;
-- interface desktop exibe somente os módulos opcionais habilitados para o estabelecimento.
+- **E48 — Varejo:** variantes por produto com SKU/código de barras, atributos e estoque por variante, mantendo a venda no `SaleService` canônico;
+- **E49 — Serviços:** catálogo de serviços, profissionais, agenda local, bloqueio de conflito de horários e comissão;
+- **E50 — Oficina:** veículos/equipamentos, ordem de serviço, peças, mão de obra, diagnóstico, orçamento, aprovação e fechamento em venda canônica;
+- **E51 — Autoatendimento:** dispositivo pareado para pedido local, com operação de mesa ou retirada e pagamento manual no caixa;
+- **E52 — Configuração inicial:** seleção de segmento, recomendação editável de módulos e persistência local;
+- **E53 — Acesso mobile:** geração local de material QR para `http://IP-DO-SERVIDOR:4174/mobile`, destinado somente a LAN confiável;
+- **E54 — Homologação de periféricos:** matriz/versionamento de evidências; modelo físico sem teste documentado permanece `BLOCKED_EXTERNAL`.
+
+As entregas anteriores E40–E47 continuam presentes: catálogo configurável, ficha técnica, registro de módulos opcionais, Pizzaria, Restaurante avançado, Delivery, Fast-food e Mercado/Padaria.
 
 ## Arquitetura e operação
 
 O sistema continua **local-first**: SQLite autoritativo no servidor local, terminais/dispositivos pela API LAN, EventBus/outbox para efeitos derivados e `SaleService` como único motor canônico de vendas.
 
-Os fluxos E40–E47 usam **pagamentos manuais** e documentos comerciais explicitamente **NÃO FISCAL**. Não há TEF, gateway bancário, confirmação automática de PIX, SaaS ou internet obrigatória para a operação diária.
+Os fluxos E40–E54 usam **pagamentos manuais** e documentos comerciais explicitamente **NÃO FISCAL**. Não há TEF, gateway bancário, confirmação automática de PIX, SaaS ou internet obrigatória para a operação diária.
 
-O schema desta release é v7 e as migrações são aditivas, preservando os dados existentes.
+A interface mobile continua self-hosted na LAN. O QR facilita o acesso ao endereço local, mas a versão 1.3.0 **não declara PWA instalável nem HTTPS**.
+
+O schema desta release é **v8** e as migrações são incrementais/aditivas, preservando dados existentes.
