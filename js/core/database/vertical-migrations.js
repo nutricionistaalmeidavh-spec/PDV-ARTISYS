@@ -2,6 +2,8 @@
 
 const { withTransaction }=require('./sqlite-database');
 
+const VERTICAL_SCHEMA_VERSION=7;
+
 const V6_SQL=`
   ALTER TABLE sale_items ADD COLUMN configuration_json TEXT;
   ALTER TABLE restaurant_order_items ADD COLUMN configuration_json TEXT;
@@ -217,6 +219,32 @@ const V7_SQL=`
   );
   CREATE INDEX idx_fast_food_status ON fast_food_orders(status,order_date,daily_number);
 
+  CREATE TABLE production_tickets (
+    id TEXT PRIMARY KEY,
+    source_type TEXT NOT NULL CHECK(source_type IN('DELIVERY','FAST_FOOD')),
+    source_id TEXT NOT NULL,
+    station_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK(status IN('NEW','PREPARING','READY','CANCELLED')),
+    note TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(source_type,source_id,station_id),
+    FOREIGN KEY(station_id) REFERENCES kitchen_stations(id)
+  );
+  CREATE INDEX idx_production_tickets_status ON production_tickets(status,station_id,created_at);
+  CREATE TABLE production_ticket_items (
+    id TEXT PRIMARY KEY,
+    ticket_id TEXT NOT NULL,
+    product_id TEXT NOT NULL,
+    product_name TEXT NOT NULL,
+    quantity REAL NOT NULL CHECK(quantity>0),
+    configuration_json TEXT,
+    note TEXT,
+    FOREIGN KEY(ticket_id) REFERENCES production_tickets(id) ON DELETE CASCADE,
+    FOREIGN KEY(product_id) REFERENCES products(id)
+  );
+  CREATE INDEX idx_production_ticket_items_ticket ON production_ticket_items(ticket_id);
+
   CREATE TABLE weight_barcode_profiles (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -260,7 +288,7 @@ const V7_SQL=`
 
 const VERTICAL_MIGRATIONS=Object.freeze([
   {version:6,name:'pdv_modular_foundation_e40_e42',sql:V6_SQL},
-  {version:7,name:'pdv_verticals_e43_e47',sql:V7_SQL}
+  {version:VERTICAL_SCHEMA_VERSION,name:'pdv_verticals_e43_e47',sql:V7_SQL}
 ]);
 
 function runVerticalMigrations(db,now=()=>new Date().toISOString()){
@@ -278,4 +306,4 @@ function runVerticalMigrations(db,now=()=>new Date().toISOString()){
   return current;
 }
 
-module.exports={V6_SQL,V7_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};
+module.exports={VERTICAL_SCHEMA_VERSION,V6_SQL,V7_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};
