@@ -15,15 +15,21 @@ const HOOK_NAMES = [
 export function validateDemoAdapter(adapter) {
   if (!adapter || typeof adapter !== 'object') throw new TypeError('Demo adapter must be an object');
   for (const name of HOOK_NAMES) {
-    if (adapter[name] != null && typeof adapter[name] !== 'function') throw new TypeError(`Demo adapter hook ${name} must be a function`);
+    if (adapter[name] != null && typeof adapter[name] !== 'function') {
+      throw new TypeError(`Demo adapter hook ${name} must be a function`);
+    }
   }
   if (adapter.capabilities != null) {
-    if (!adapter.capabilities || typeof adapter.capabilities !== 'object' || Array.isArray(adapter.capabilities)) throw new TypeError('Demo adapter capabilities must be an object');
+    if (!adapter.capabilities || typeof adapter.capabilities !== 'object' || Array.isArray(adapter.capabilities)) {
+      throw new TypeError('Demo adapter capabilities must be an object');
+    }
     for (const [name, capability] of Object.entries(adapter.capabilities)) {
       if (typeof capability !== 'function') throw new TypeError(`Demo adapter capability ${name} must be a function`);
     }
   }
-  if (adapter.fixturePacks != null && !Array.isArray(adapter.fixturePacks)) throw new TypeError('Demo adapter fixturePacks must be an array');
+  if (adapter.fixturePacks != null && !Array.isArray(adapter.fixturePacks)) {
+    throw new TypeError('Demo adapter fixturePacks must be an array');
+  }
   return adapter;
 }
 
