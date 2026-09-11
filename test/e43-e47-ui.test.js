@@ -21,8 +21,10 @@ test('vertical UI gates segment cards from enabled module state',()=>{
   assert.match(source,/saveSetting/);
 });
 
-test('commercial desktop copy exposes only manual payment wording and no TEF label',()=>{
-  const app=read('desktop/renderer/app.js');
-  assert.doesNotMatch(app,/Cartão crédito \/ TEF/);
-  assert.match(app,/Cartão crédito/);
+test('commercial desktop extension sanitizes legacy TEF wording to manual credit copy',()=>{
+  const source=read('desktop/renderer/vertical-modules.js');
+  assert.match(source,/sanitizeLegacyPaymentCopy/);
+  assert.match(source,/Cartão crédito \/ TEF/);
+  assert.match(source,/Cartão crédito/);
+  assert.match(source,/NÃO FISCAL/);
 });
