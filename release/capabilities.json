@@ -15,6 +15,7 @@
   "thermal-print-queue-and-retry",
   "shared-artisys-printing-renderer-and-drivers",
   "shared-artisys-serialport-peripheral-runtime",
+  "hardware-protocol-simulation-ci-and-recovery-tests",
   "non-fiscal-sale-prebill-kitchen-and-cash-printing",
   "restaurant-tables-tabs-orders-and-table-transfer",
   "restaurant-advanced-split-settlement-service-charge-and-item-transfer",

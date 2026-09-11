@@ -45,16 +45,19 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   try{if(typeof serial.createSerialPortManager==='function')serialManager=serial.createSerialPortManager();}catch{/* hardware opcional */}
 
   let scale = null;
+  let scaleSettleMs = null;
   if (String(env.PDV_SCALE_PORT || '').trim()) {
     const profile = {
       path:String(env.PDV_SCALE_PORT).trim(),
       baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, 9600, 'PDV_SCALE_BAUD')
     };
+    scaleSettleMs = readPositiveInteger(env.PDV_SCALE_SETTLE_MS, 30, 'PDV_SCALE_SETTLE_MS');
     const transport = serial.createSerialTransport({ profile });
     const session = serial.createRequestResponseSession({
       transport,
       request:env.PDV_SCALE_COMMAND || '',
       timeoutMs:readPositiveInteger(env.PDV_SCALE_TIMEOUT_MS, 1500, 'PDV_SCALE_TIMEOUT_MS'),
+      responseIdleMs:scaleSettleMs,
       parse:buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer)
     });
     scale = serial.createScaleAdapter({ session, profile });
@@ -156,7 +159,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null},
+        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs},
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'

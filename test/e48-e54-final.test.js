@@ -147,18 +147,24 @@ test('E53 mobile access generates local HTTP QR material without claiming HTTPS 
   }finally{rt.close();}
 });
 
-test('E54 hardware evidence is versioned and untested physical models stay BLOCKED_EXTERNAL',()=>{
+test('E54 hardware evidence separates protocol verification from untested physical models',()=>{
   const rt=setup();
   try{
-    const evidence=rt.hardwareCompatibility.recordEvidence({
+    const untested=rt.hardwareCompatibility.recordEvidence({
       manufacturer:'Epson',model:'TM-T20',kind:'PRINTER',connection:'USB',driver:'Windows',configuration:{mode:'electron'},
-      os:'Windows 11 x64',testedAt:'2026-09-11T12:00:00.000Z',status:'BLOCKED_EXTERNAL',result:'Equipamento físico não disponível neste ambiente.',limitations:'Necessita teste físico.'
+      os:'Windows 11 x64',testedAt:'2026-09-11T12:00:00.000Z',status:'UNTESTED_MODEL',result:'Equipamento físico não disponível neste ambiente.',limitations:'Necessita teste físico.'
     },admin);
-    assert.equal(evidence.status,'BLOCKED_EXTERNAL');
-    assert.throws(()=>rt.hardwareCompatibility.recordEvidence({manufacturer:'Teste',model:'X',kind:'PRINTER',connection:'USB',os:'Windows',testedAt:'2026-09-11T12:00:00.000Z',status:'VERIFIED'},admin),/resultado/i);
-    assert.equal(rt.hardwareCompatibility.listEvidence().length,1);
+    assert.equal(untested.status,'UNTESTED_MODEL');
+    assert.throws(()=>rt.hardwareCompatibility.recordEvidence({
+      manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.'
+    },admin),/evidencia/i);
+    const protocol=rt.hardwareCompatibility.recordEvidence({
+      manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.',evidence:'CI:test/e54-1-hardware-simulation.test.js'
+    },admin);
+    assert.equal(protocol.status,'PROTOCOL_VERIFIED');
+    assert.equal(rt.hardwareCompatibility.listEvidence({status:'PROTOCOL_VERIFIED'}).length,1);
     const matrix=JSON.parse(fs.readFileSync(path.join(__dirname,'..','release','hardware-compatibility.json'),'utf8'));
     assert.ok(Array.isArray(matrix.entries));
-    assert.ok(matrix.entries.every(item=>item.status!=='VERIFIED'||Boolean(item.evidence)));
+    assert.ok(matrix.entries.every(item=>item.status!=='FIELD_VERIFIED'||Boolean(item.evidence)));
   }finally{rt.close();}
 });

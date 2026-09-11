@@ -1,39 +1,38 @@
-# ArtiSys PDV 1.3.0 — Release checklist
+# ArtiSys PDV 1.3.1 — Release checklist
 
-A versão 1.3.0 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no commit integrado.
+A versão 1.3.1 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no mesmo HEAD.
 
-- [x] E01–E39 preservadas e integradas ao núcleo local-first.
-- [x] E40 catálogo avançado com opções, variações, combos e snapshots imutáveis.
-- [x] E41 ficha técnica versionada e baixa idempotente de insumos.
-- [x] E42 módulos opcionais persistidos localmente, auditados e bloqueados também no backend.
-- [x] E43 Pizzaria isolada do catálogo genérico, com tamanho, sabores, borda e política de preço.
-- [x] E44 Restaurante avançado com divisão, taxa de serviço, transferências e cancelamento autorizado.
-- [x] E45 Delivery/retirada com venda canônica e roteamento compartilhado para KDS.
-- [x] E46 Fast-food com senha diária, venda canônica e KDS compartilhado.
-- [x] E47 Mercado/Padaria com itens por peso, etiqueta configurável e encomendas.
-- [x] E48 Varejo com variantes, SKU/código de barras e estoque por variante.
-- [x] E49 Serviços com agenda local, profissionais, conflito de horário e comissão.
-- [x] E50 Oficina com ativos, OS, peças, mão de obra, aprovação e venda canônica.
-- [x] E51 Autoatendimento com dispositivo pareado e pagamento manual no caixa.
-- [x] E52 onboarding por segmento com recomendações editáveis de módulos.
-- [x] E53 QR de acesso à interface mobile local por HTTP em LAN confiável, sem alegação de HTTPS/PWA.
-- [x] E54 matriz de evidências de periféricos com `BLOCKED_EXTERNAL` para hardware não testado fisicamente.
+- [x] E01–E54 preservadas e integradas ao núcleo local-first.
 - [x] `SaleService` permanece o único motor canônico de conclusão de vendas.
 - [x] SQLite permanece autoritativo somente no servidor local.
-- [x] Fluxos comerciais E40–E54 usam pagamentos manuais e documentos **NÃO FISCAL**.
-- [x] Módulos desativados não aceitam novas mutações específicas e não apagam histórico.
+- [x] Pagamentos permanecem manuais e documentos comerciais permanecem **NÃO FISCAL**.
+- [x] E54.1 inclui harness de simulação reproduzível para periféricos.
+- [x] Falha de escrita serial força estado recuperável e nova abertura reconstrói a porta.
+- [x] COM ocupada/inexistente é tratada sem travar o processo e permite tentativa posterior.
+- [x] Balança cobre resposta fragmentada, ponto/vírgula, lixo, timeout e retry.
+- [x] Epson/Star cobrem acentos, corte, gaveta e larguras 32/42/48 em simulação.
+- [x] Spooler Electron/Windows cobre offline e recuperação posterior.
+- [x] Leitor `keyboard-wedge` cobre leituras repetidas e código inválido.
+- [x] Gaveta serial cobre falha, fechamento e pulso posterior bem-sucedido.
+- [x] Stress serial executa ciclos repetidos sem deixar porta aberta.
+- [x] Matriz usa `PROTOCOL_VERIFIED`, `FIELD_VERIFIED` e `UNTESTED_MODEL` sem confundir CI com teste físico.
+- [x] `FIELD_VERIFIED` exige evidência de modelo físico realmente testado.
 - [ ] `npm run verify` verde no HEAD final de release.
 - [ ] `npm run verify:release` verde no HEAD final de release.
 - [ ] Windows x64 NSIS gerado no CI a partir do mesmo HEAD.
 - [ ] Artefato e manifesto SHA-256 gerados pelo CI.
 - [ ] PR revisado/mergeado em `main` sem divergência do HEAD verificado.
 - [ ] Gates pós-merge em `main` verdes.
-- [ ] GitHub Release `v1.3.0` publicada a partir de `main`.
+- [ ] GitHub Release `v1.3.1` publicada a partir de `main`.
 
-## Validação externa
+## Validação física
 
-Periféricos físicos e formatos específicos de balança permanecem dependentes do equipamento real. Quando o hardware não estiver disponível, o estado correto é `BLOCKED_EXTERNAL`, nunca uma alegação de homologação.
+A CI pode validar protocolo, recuperação, framing, parser e contratos do driver, mas não substitui eletrônica, firmware, cabo e driver do equipamento real.
 
-A interface móvel usa HTTP somente em LAN confiável; exposição direta à internet não faz parte do escopo. O QR apenas facilita o acesso ao endereço local e não transforma a interface atual em PWA instalável.
+- protocolo coberto pela suíte: `PROTOCOL_VERIFIED`;
+- modelo específico ainda não testado fisicamente: `UNTESTED_MODEL`;
+- fabricante/modelo testado em campo com evidência: `FIELD_VERIFIED`.
 
-A versão comercial 1.3.0 é somente **NÃO FISCAL** e não depende de TEF, adquirente, banco, SaaS ou serviço cloud.
+Esse modelo permite comercializar compatibilidade por protocolo sem alegar homologação física inexistente.
+
+A interface móvel continua em HTTP somente em LAN confiável e não é apresentada como HTTPS/PWA. A versão comercial continua somente **NÃO FISCAL** e sem TEF, adquirente, banco, SaaS ou serviço cloud obrigatório.
