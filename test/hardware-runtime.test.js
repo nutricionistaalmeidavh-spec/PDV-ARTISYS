@@ -18,7 +18,7 @@ function fakeModules(calls) {
           async status(){ return { available:true, state:'closed', path:profile.path, baudRate:Number(profile.baudRate || 9600) }; }
         };
       },
-      createRequestResponseSession(){ return { run:async()=>1.23456 }; },
+      createRequestResponseSession(options){ calls.push(['request-session', options]); return { run:async()=>1.23456 }; },
       createScaleAdapter(){ return { status:async()=>({available:true,path:'COM3',baudRate:9600,unit:'kg'}), readWeight:async()=>({weight:1.235,unit:'kg'}) }; },
       createDrawerAdapter({ transport }) { return { status:()=>transport.status(), open:async()=>{ calls.push('drawer-open'); return true; } }; },
       parseNumericWeight(value){ return Number(value); }
@@ -46,12 +46,12 @@ test('defaults to Electron printing and reports unconfigured scale/drawer', asyn
   assert.equal(status.barcodeScanner.mode,'keyboard-wedge');
 });
 
-test('configured scale and drawer use the shared serial module', async () => {
+test('configured scale and drawer use the shared serial module with fragmented-response settling', async () => {
   const { createPdvHardwareRuntime } = require(runtimePath);
   const calls=[];
   const runtime=createPdvHardwareRuntime({
     BrowserWindow:function(){},
-    env:{ PDV_SCALE_PORT:'COM3', PDV_SCALE_BAUD:'9600', PDV_DRAWER_PORT:'COM4', PDV_DRAWER_BAUD:'9600' },
+    env:{ PDV_SCALE_PORT:'COM3', PDV_SCALE_BAUD:'9600', PDV_SCALE_SETTLE_MS:'30', PDV_DRAWER_PORT:'COM4', PDV_DRAWER_BAUD:'9600' },
     modules:fakeModules(calls)
   });
   assert.deepEqual(await runtime.readWeight(),{weight:1.235,unit:'kg'});
@@ -60,6 +60,9 @@ test('configured scale and drawer use the shared serial module', async () => {
   assert.equal(status.scale.available,true);
   assert.equal(status.cashDrawer.available,true);
   assert.equal('requestCommand' in status.scale,false);
+  const sessionCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='request-session');
+  assert.ok(sessionCall);
+  assert.equal(sessionCall[1].responseIdleMs,30);
 });
 
 test('thermal mode selects thermal driver without silent fallback', async () => {
