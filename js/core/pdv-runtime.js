@@ -129,7 +129,7 @@ function createPdvRuntime({
   registerRetailEffects({bus,retailService:retail,effectStore});
   registerCashEffects({bus,cashService:cash,effectStore});
   registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});
-  registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,...receiptOptions});
+  registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});
   registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});
   registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
 
