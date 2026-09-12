@@ -1,3 +1,4 @@
+.data-row:has(.variant-add-button){grid-template-columns:1.4fr 1fr 1fr auto auto}
 .variant-parent-badge{display:inline-flex;align-items:center;gap:5px;margin-left:8px;padding:2px 8px;border:1px solid rgba(86,130,255,.28);border-radius:999px;font-size:11px;font-weight:700;color:#7999ff;background:rgba(65,104,220,.08)}
 .variant-child-row{margin-left:28px;border-left:3px solid rgba(70,114,245,.25);background:rgba(64,101,197,.035)}
 .variant-child-row>div:first-child{padding-left:10px}.variant-child-row .variant-branch{color:#7284aa;margin-right:7px}.variant-parent-stock{display:block;margin-top:3px;color:#7e8ba6}
