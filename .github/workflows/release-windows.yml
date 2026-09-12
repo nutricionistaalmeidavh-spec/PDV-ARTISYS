@@ -5,6 +5,10 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+    paths:
+      - '.github/release-request.json'
 
 permissions:
   contents: write
