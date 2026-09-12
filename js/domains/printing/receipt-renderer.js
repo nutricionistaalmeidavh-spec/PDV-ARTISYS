@@ -49,8 +49,13 @@ function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO F
   if (sale.customerName || sale.customerId) metadata.push(['Cliente', sale.customerName || sale.customerId]);
 
   const totals = [['Subtotal', Number(sale.subtotalCents || 0)]];
-  if (Number(sale.discountCents || 0) > 0) totals.push(['Desconto', -Number(sale.discountCents)]);
+  const hasBreakdown=sale.manualDiscountCents!=null||sale.promotionDiscountCents!=null;
+  if(hasBreakdown){
+    if(Number(sale.promotionDiscountCents||0)>0)totals.push(['Combo/Promocao',-Number(sale.promotionDiscountCents)]);
+    if(Number(sale.manualDiscountCents||0)>0)totals.push(['Desconto manual',-Number(sale.manualDiscountCents)]);
+  }else if(Number(sale.discountCents||0)>0)totals.push(['Desconto',-Number(sale.discountCents)]);
   totals.push(['TOTAL', Number(sale.totalCents || 0)]);
+  const promotionNames=[...new Set((sale.promotions||[]).map(item=>String(item?.name||'').trim()).filter(Boolean))];
 
   const document = createReceiptDocument({
     width:w,
@@ -67,7 +72,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO F
     totals,
     payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
     changeCents:Number(sale.changeCents || 0),
-    footer:['Obrigado pela preferencia']
+    footer:[...promotionNames.map(name=>`Promocao: ${name}`),'Obrigado pela preferencia']
   });
   return renderPlainText(document);
 }
