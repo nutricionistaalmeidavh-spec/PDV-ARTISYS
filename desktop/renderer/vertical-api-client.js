@@ -4,6 +4,12 @@
   const ApiClient=window.PdvApiClient?.ApiClient;
   if(!ApiClient)return;
   const e=encodeURIComponent;
+  const rememberSale=sale=>{
+    if(!sale||typeof sale!=='object'||Array.isArray(sale)||sale.manualDiscountCents==null)return sale;
+    const normalized={...sale,totalDiscountCents:sale.totalDiscountCents??sale.discountCents,discountCents:sale.manualDiscountCents};
+    window.PdvPromotionState={lastSale:normalized,rawSale:sale};
+    return normalized;
+  };
   Object.assign(ApiClient.prototype,{
     modules(){return this.request('/api/v1/vertical/modules');},
     setModule(id,enabled){return this.saveSetting(`modules.${String(id).toUpperCase()}.enabled`,Boolean(enabled),'global');},
@@ -12,6 +18,10 @@
     createOption(body){return this.request('/api/v1/vertical/catalog/options',{method:'POST',body});},
     createVariant(body){return this.request('/api/v1/vertical/catalog/variants',{method:'POST',body});},
     priceConfiguredItem(body){return this.request('/api/v1/vertical/catalog/price',{method:'POST',body});},
+    kits(includeInactive=false){return this.request(`/api/v1/vertical/catalog/kits${includeInactive?'?includeInactive=true':''}`);},
+    saveKit(body){return this.request('/api/v1/vertical/catalog/kits',{method:'POST',body});},
+    promotionalCombos(includeInactive=false){return this.request(`/api/v1/vertical/catalog/promotional-combos${includeInactive?'?includeInactive=true':''}`);},
+    savePromotionalCombo(body){return this.request('/api/v1/vertical/catalog/promotional-combos',{method:'POST',body});},
     saveRecipe(productId,body){return this.request(`/api/v1/vertical/recipes/${e(productId)}`,{method:'PUT',body});},
     recipe(productId){return this.request(`/api/v1/vertical/recipes/${e(productId)}`);},
     savePizzeriaProfile(body){return this.request('/api/v1/vertical/pizzeria/profile',{method:'POST',body});},
@@ -35,4 +45,13 @@
     createBakeryOrder(body){return this.request('/api/v1/vertical/bakery/orders',{method:'POST',body});},
     updateBakeryOrderStatus(id,status){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/status`,{method:'PATCH',body:{status}});}
   });
+
+  for(const name of ['sale','saleDetails','openSale','setSaleCustomer','addSaleItem','updateSaleItem','removeSaleItem','discountSale','suspendSale','resumeSale','completeSale','cancelSale']){
+    const original=ApiClient.prototype[name];if(typeof original!=='function')continue;
+    ApiClient.prototype[name]=async function(...args){return rememberSale(await original.apply(this,args));};
+  }
+  for(const name of ['sales','salesHistory']){
+    const original=ApiClient.prototype[name];if(typeof original!=='function')continue;
+    ApiClient.prototype[name]=async function(...args){const rows=await original.apply(this,args);return Array.isArray(rows)?rows.map(rememberSale):rows;};
+  }
 })();
