@@ -13,6 +13,7 @@ test('parent product variants work without enabling the optional RETAIL module',
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
   try{
+    runtime.catalog.createUser({id:'admin',username:'admin-variant',name:'Admin',role:'admin',password:'senha-forte-123'});
     runtime.catalog.upsertProduct({id:'tang',name:'Tang',salePriceCents:399,costCents:150,trackStock:false});
     runtime.catalogCustomization.upsertVariant({id:'tang-uva',productId:'tang',name:'Uva',sku:'TANG-UVA',barcode:'789100000101',priceDeltaCents:0,costCents:150,attributes:{Sabor:'Uva'}});
     runtime.retail.setProductVariantStock('tang-uva',8);
@@ -28,8 +29,29 @@ test('parent product variants work without enabling the optional RETAIL module',
 
     runtime.retail.applySaleEvent({eventId:'variant-sale',occurredAt:'2026-09-12T15:00:00.000Z',payload:{items:updated.items}},'sale');
     assert.equal(runtime.retail.getProductVariantStock('tang-uva').quantity,6);
+    runtime.db.prepare("UPDATE product_variants SET active=0 WHERE id='tang-uva'").run();
+    runtime.retail.applyReturnEvent({eventId:'variant-return',occurredAt:'2026-09-12T15:00:30.000Z',payload:{items:[{...line,quantity:1}]}},'return');
+    assert.equal(runtime.retail.getProductVariantStock('tang-uva',{includeInactive:true}).quantity,7);
+    runtime.retail.applyReturnEvent({eventId:'variant-return-cancel',occurredAt:'2026-09-12T15:00:40.000Z',payload:{items:[{...line,quantity:1}]}},'cancel');
+    assert.equal(runtime.retail.getProductVariantStock('tang-uva',{includeInactive:true}).quantity,6);
     runtime.retail.applySaleEvent({eventId:'variant-cancel',occurredAt:'2026-09-12T15:01:00.000Z',payload:{items:updated.items}},'cancel');
-    assert.equal(runtime.retail.getProductVariantStock('tang-uva').quantity,8);
+    assert.equal(runtime.retail.getProductVariantStock('tang-uva',{includeInactive:true}).quantity,8);
+  }finally{runtime.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('sale completion rechecks variant stock after the item entered the cart',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-parent-variant-stock-gate-'));
+  let seq=0;
+  const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
+  try{
+    runtime.catalog.createUser({id:'admin',username:'admin-stock',name:'Admin',role:'admin',password:'senha-forte-123'});
+    runtime.catalog.upsertProduct({id:'drink',name:'Bebida',salePriceCents:500,costCents:200,trackStock:false});
+    runtime.catalogCustomization.upsertVariant({id:'drink-lemon',productId:'drink',name:'Limão',priceDeltaCents:0,costCents:200});
+    runtime.retail.setProductVariantStock('drink-lemon',2);
+    runtime.sales.openSale({id:'sale-stock',saleNumber:'PV2',terminalId:'PDV-01',operatorId:'admin'});
+    runtime.retail.addProductVariantToSale('sale-stock',{variantId:'drink-lemon',quantity:2});
+    runtime.retail.setProductVariantStock('drink-lemon',1);
+    assert.throws(()=>runtime.sales.completeSale('sale-stock',{payments:[{method:'CASH',amountCents:1000}]}),/Estoque insuficiente/);
   }finally{runtime.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
@@ -69,4 +91,5 @@ test('desktop loads parent/subitem extension without replacing the canonical ren
   assert.match(script,/Produto pai/);
   assert.match(script,/Nova varia[cç][aã]o/i);
   assert.match(script,/productVariant/);
+  assert.match(script,/product-search/);
 });
