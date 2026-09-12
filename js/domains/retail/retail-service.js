@@ -14,23 +14,23 @@ function createRetailService({db,modules,sales,now=()=>new Date().toISOString(),
   function variantRow(id,{includeInactive=false}={}){
     const row=db.prepare(`SELECT v.*,p.name AS product_name,p.sale_price_cents AS base_price_cents,p.active AS product_active,p.track_stock AS parent_track_stock
       FROM product_variants v JOIN products p ON p.id=v.product_id WHERE v.id=?`).get(String(id));
-    if(!row||!row.product_active||(!includeInactive&&!row.active))throw new Error('Variacao de produto nao encontrada ou inativa.');
+    if(!row||(!includeInactive&&(!row.active||!row.product_active)))throw new Error('Variacao de produto nao encontrada ou inativa.');
     return row;
   }
   function mapVariant(row){
     if(!row)return null;
     const balance=db.prepare('SELECT quantity,minimum_stock FROM retail_variant_balances WHERE variant_id=?').get(row.id)||{quantity:0,minimum_stock:0};
-    return{variantId:row.id,productId:row.product_id,productName:row.product_name,name:row.name,sku:row.sku,barcode:row.barcode,attributes:parseJson(row.attributes_json,{}),priceDeltaCents:row.price_delta_cents,costCents:row.cost_cents,unitPriceCents:Number(row.base_price_cents)+Number(row.price_delta_cents),quantity:Number(balance.quantity||0),minimumStock:Number(balance.minimum_stock||0),parentTracksStock:Boolean(row.parent_track_stock),active:Boolean(row.active)};
+    return{variantId:row.id,productId:row.product_id,productName:row.product_name,name:row.name,sku:row.sku,barcode:row.barcode,attributes:parseJson(row.attributes_json,{}),priceDeltaCents:row.price_delta_cents,costCents:row.cost_cents,unitPriceCents:Number(row.base_price_cents)+Number(row.price_delta_cents),quantity:Number(balance.quantity||0),minimumStock:Number(balance.minimum_stock||0),parentTracksStock:Boolean(row.parent_track_stock),active:Boolean(row.active&&row.product_active)};
   }
 
   function listProductVariants({productId=null,query='',includeInactive=false}={}){
-    const clauses=['p.active=1'];const params=[];
-    if(!includeInactive)clauses.push('v.active=1');
+    const clauses=[];const params=[];
+    if(!includeInactive){clauses.push('v.active=1','p.active=1');}
     if(productId){clauses.push('v.product_id=?');params.push(String(productId));}
     const text=String(query||'').trim().toLowerCase();
     if(text){const q=`%${text}%`;clauses.push("(LOWER(v.name) LIKE ? OR LOWER(COALESCE(v.sku,'')) LIKE ? OR LOWER(COALESCE(v.barcode,'')) LIKE ? OR LOWER(p.name) LIKE ?)");params.push(q,q,q,q);}
     return db.prepare(`SELECT v.*,p.name AS product_name,p.sale_price_cents AS base_price_cents,p.active AS product_active,p.track_stock AS parent_track_stock
-      FROM product_variants v JOIN products p ON p.id=v.product_id WHERE ${clauses.join(' AND ')} ORDER BY p.name,v.name,v.id LIMIT 500`).all(...params).map(mapVariant);
+      FROM product_variants v JOIN products p ON p.id=v.product_id${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY p.name,v.name,v.id LIMIT 500`).all(...params).map(mapVariant);
   }
 
   function prepareProductForVariants(productId,actor={}){
@@ -45,7 +45,7 @@ function createRetailService({db,modules,sales,now=()=>new Date().toISOString(),
     return{productId:row.id,trackStock:false,previousStockQuantity:quantity};
   }
 
-  function getProductVariantStock(variantId){return mapVariant(variantRow(variantId));}
+  function getProductVariantStock(variantId,{includeInactive=false}={}){return mapVariant(variantRow(variantId,{includeInactive}));}
   function setProductVariantStock(variantId,quantity,actor={}){
     const row=variantRow(variantId);if(row.parent_track_stock)throw new Error('Produto com estoque por variacao deve manter o estoque do item pai desativado.');const next=roundQuantity(Number(quantity));if(!Number.isFinite(next)||next<0)throw new Error('Saldo da variacao invalido.');
     return withTransaction(db,()=>{
@@ -82,26 +82,28 @@ function createRetailService({db,modules,sales,now=()=>new Date().toISOString(),
     return sale;
   }
 
-  function applySaleEvent(event,direction='sale'){
-    const factor=direction==='cancel'?1:-1;const items=Array.isArray(event?.payload?.items)?event.payload.items:[];
+  function applyVariantEvent(event,{factor,movementType,referenceSuffix}){
+    const items=Array.isArray(event?.payload?.items)?event.payload.items:[];
     return withTransaction(db,()=>{
       let applied=0;
       for(const item of items){
         const variantId=item?.configuration?.productVariant?.id||item?.configuration?.retailVariant?.id;if(!variantId)continue;
-        const row=variantRow(variantId);const quantity=roundQuantity(Number(item.quantity||0));if(quantity<=0)continue;
-        const referenceKey=`${event.eventId}:${String(item.itemId||item.id||item.productId||variantId)}:${direction}`;
+        const row=variantRow(variantId,{includeInactive:true});const quantity=roundQuantity(Number(item.quantity||0));if(quantity<=0)continue;
+        const referenceKey=`${event.eventId}:${String(item.itemId||item.saleItemId||item.id||item.productId||variantId)}:${referenceSuffix}`;
         if(db.prepare('SELECT 1 FROM retail_variant_movements WHERE reference_key=?').get(referenceKey))continue;
         const current=Number(db.prepare('SELECT quantity FROM retail_variant_balances WHERE variant_id=?').get(row.id)?.quantity||0);const next=roundQuantity(current+(factor*quantity));
         if(next<0)throw new Error(`Estoque insuficiente para variacao ${row.name}.`);
         const ts=event.occurredAt||now();
         db.prepare(`INSERT INTO retail_variant_balances(variant_id,quantity,minimum_stock,updated_at) VALUES(?,?,0,?) ON CONFLICT(variant_id) DO UPDATE SET quantity=excluded.quantity,updated_at=excluded.updated_at`).run(row.id,next,ts);
-        db.prepare(`INSERT INTO retail_variant_movements(id,variant_id,movement_type,quantity_delta,reference_key,created_at) VALUES(?,?,?,?,?,?)`).run(idFactory('retail-move'),row.id,direction==='cancel'?'SALE_REVERSAL':'SALE',factor*quantity,referenceKey,ts);applied+=1;
+        db.prepare(`INSERT INTO retail_variant_movements(id,variant_id,movement_type,quantity_delta,reference_key,created_at) VALUES(?,?,?,?,?,?)`).run(idFactory('retail-move'),row.id,movementType,factor*quantity,referenceKey,ts);applied+=1;
       }
       return{applied};
     });
   }
+  function applySaleEvent(event,direction='sale'){return applyVariantEvent(event,direction==='cancel'?{factor:1,movementType:'SALE_REVERSAL',referenceSuffix:'cancel'}:{factor:-1,movementType:'SALE',referenceSuffix:'sale'});}
+  function applyReturnEvent(event,direction='return'){return applyVariantEvent(event,direction==='cancel'?{factor:-1,movementType:'RETURN_REVERSAL',referenceSuffix:'return-cancel'}:{factor:1,movementType:'RETURN',referenceSuffix:'return'});}
 
-  return{setVariantStock,getVariantStock,searchVariants,addVariantToSale,applySaleEvent,prepareProductForVariants,listProductVariants,getProductVariantStock,setProductVariantStock,addProductVariantToSale};
+  return{setVariantStock,getVariantStock,searchVariants,addVariantToSale,applySaleEvent,applyReturnEvent,prepareProductForVariants,listProductVariants,getProductVariantStock,setProductVariantStock,addProductVariantToSale};
 }
 
 module.exports={createRetailService};
