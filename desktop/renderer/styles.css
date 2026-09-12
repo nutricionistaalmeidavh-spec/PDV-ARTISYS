@@ -111,7 +111,7 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
 .empty-state { padding: 50px 25px; text-align: center; color: var(--muted); }
 .checkout-layout { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(350px, .82fr); gap: 16px; min-height: 100%; }
 .checkout-main, .sale-panel { min-width: 0; }
-.checkout-hero { background: linear-gradient(125deg, #ff7a00, #ff5900); color: white; border-radius: 15px; padding: 20px 24px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 12px 28px rgba(255,108,0,.19); }
+.checkout-hero { background: linear-gradient(125deg, var(--artisys-blue), var(--artisys-blue-2)); color: white; border-radius: 15px; padding: 20px 24px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 12px 28px rgba(11,108,255,.19); }
 .checkout-hero h1 { margin: 0; font-size: 39px; line-height: 1; }
 .checkout-hero p { margin: 7px 0 0; font-size: 18px; }
 .checkout-hero em { font-size: 14px; max-width: 220px; text-align: right; }
