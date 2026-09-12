@@ -28,10 +28,13 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function reprice(saleId, manualOverride) {
     const sale=baseSales.getSale(saleId); if(!sale) throw new Error('Venda nao encontrada.');
     const previous=readState(sale);
-    const requested=manualOverride===undefined?previous.manualDiscountCents:assertCents(Number(manualOverride),'discountCents');
+    let requested=manualOverride===undefined?previous.manualDiscountCents:assertCents(Number(manualOverride),'discountCents');
     if(requested<0) throw new Error('Desconto nao pode ser negativo.');
     const promotion=promotionService.resolvePromotions(sale.items||[],now());
-    if(promotion.blocksManualDiscount&&requested>0) throw new Error('Este combo nao permite desconto manual acumulado.');
+    if(promotion.blocksManualDiscount&&requested>0){
+      if(manualOverride!==undefined)throw new Error('Este combo nao permite desconto manual acumulado.');
+      requested=0;
+    }
     const calculatedSubtotal=(sale.items||[]).reduce((sum,item)=>sum+Math.round(Number(item.unitPriceCents||0)*Number(item.quantity||0)),0);
     const promotionDiscountCents=Math.min(Number(promotion.discountCents||0),calculatedSubtotal);
     const manualDiscountCents=Math.min(requested,Math.max(calculatedSubtotal-promotionDiscountCents,0));
