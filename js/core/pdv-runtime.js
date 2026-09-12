@@ -5,16 +5,19 @@ const { openDatabase }=require('./database/sqlite-database');
 const { runMigrations }=require('./database/migrations');
 const { runReleaseMigrations }=require('./database/release-migrations');
 const { runVerticalMigrations }=require('./database/vertical-migrations');
+const { runKitComboMigrations }=require('./database/kit-combo-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
 const { DomainEventDispatcher }=require('./domain-event-dispatcher');
 const { createCatalogService }=require('../domains/catalog/catalog-service');
 const { createCatalogCustomizationService }=require('../domains/catalog/catalog-customization-service');
+const { createKitComboService }=require('../domains/catalog/kit-combo-service');
 const { createInventoryService }=require('../domains/inventory/inventory-service');
 const { createRecipeService }=require('../domains/inventory/recipe-service');
 const { registerInventoryEffects }=require('../domains/inventory/inventory-effects');
 const { createSaleService }=require('../domains/sales/sale-service');
+const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
 const { createCashService }=require('../domains/cash/cash-service');
 const { registerCashEffects }=require('../domains/cash/cash-effects');
 const { createReturnService }=require('../domains/returns/return-service');
@@ -74,7 +77,7 @@ function createPdvRuntime({
   appVersion=serverVersion,
   readScale=null
 }={}){
-  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);
+  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});
   const modules=createModuleService({db,settings,now});
@@ -85,8 +88,10 @@ function createPdvRuntime({
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});
   const recipes=createRecipeService({db,now,idFactory});
+  const kitsCombos=createKitComboService({db,catalog,recipes,now,idFactory});
   const cash=createCashService({db,outbox,now,idFactory});
-  const sales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items)});
+  const baseSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items)});
+  const sales=createPromotionSaleService({db,baseSales,promotionService:kitsCombos,now});
   const returns=createReturnService({db,outbox,now,idFactory});
   const finance=createFinanceService({db,now,idFactory});
   const reports=createReportingService({db,now});
@@ -137,7 +142,7 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,catalogCustomization,inventory,recipes,sales,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
+    catalog,catalogCustomization,kitsCombos,inventory,recipes,sales,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
     modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,
     backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
