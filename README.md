@@ -4,7 +4,7 @@ PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e
 
 ## Estado do produto
 
-As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. O produto inclui núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
+As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. O produto inclui núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica, **produto pai/subitens**, **kits**, **combos promocionais configuráveis** e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
 
 Principais capacidades:
 
@@ -13,10 +13,13 @@ Principais capacidades:
 - migrations incrementais e preservação de dados existentes;
 - autenticação, usuários, RBAC e auditoria sanitizada;
 - produtos, categorias, clientes, vendedores e fornecedores;
-- adicionais, opções, variações e combos com snapshot das escolhas no item vendido;
+- adicionais, opções e configurações com snapshot das escolhas no item vendido;
+- **produto pai e subitens/variações no catálogo comum**, com SKU, código de barras, preço, custo, atributos e estoque próprios por variação;
+- **kits** definidos pelo usuário, com composição e snapshot histórico dos componentes para baixa e reversão de estoque;
+- **combos promocionais configuráveis** pelo usuário, como `3 por R$ 10,00`, com produtos participantes, validade, limite e política de acúmulo de desconto;
 - ficha técnica versionada e baixa de ingredientes pelo ledger de estoque existente;
 - estoque por ledger imutável, inventário e alertas de mínimo;
-- Balcão com busca/código de barras, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
+- Balcão com busca/código de barras, seleção direta de variações, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
 - financeiro, relatórios e exportação CSV;
@@ -31,7 +34,7 @@ Principais capacidades:
 - Delivery opcional com entrega/retirada, região, taxa, entregador, ETA e status operacional;
 - Fast-food/Lanchonete opcional com senha diária e fila de produção;
 - Mercado/Conveniência/Padaria opcional com itens por peso, formato de etiqueta configurável e encomendas;
-- Varejo opcional com variantes, SKU/código de barras, atributos e estoque por variante;
+- Varejo opcional amplia o catálogo comum com fluxos específicos do segmento; produto pai/subitens e estoque por variação não dependem da ativação desse módulo;
 - Serviços opcional com catálogo, profissionais, agenda local, bloqueio de conflitos e comissão;
 - Oficina opcional com veículos/equipamentos, OS, diagnóstico, orçamento, aprovação, peças e mão de obra;
 - Autoatendimento opcional por dispositivo pareado, com pedido local para mesa/retirada e pagamento manual no caixa;
@@ -45,6 +48,26 @@ Principais capacidades:
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
 - health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto;
 - perfis de implantação **Servidor + Terminal** e **Terminal**.
+
+## Produto pai e subitens
+
+O catálogo comum suporta hierarquia de produto pai → variações, independentemente do módulo opcional Varejo.
+
+Exemplos:
+
+- Tang → Uva, Limão, Laranja;
+- Coca-Cola → 350 ml, 600 ml, 2 L;
+- Camiseta → P, M, G e combinações de cor/tamanho.
+
+Cada subitem pode ter SKU, código de barras, preço, custo, atributos e estoque próprios. Quando existem variações ativas, o item pai não é vendido diretamente: o caixa exige a seleção da variação correta. O estoque do pai deve estar zerado ou distribuído antes da criação da primeira variação; depois disso o controle ocorre nos subitens. Venda, cancelamento e devolução preservam o subitem pelo snapshot histórico.
+
+## Kits e combos promocionais
+
+**Kit** é um produto composto cujo nome, preço, custo e componentes são definidos pelo usuário. A venda baixa os componentes reais e salva a composição vigente como snapshot para que cancelamentos/devoluções posteriores não dependam de uma edição futura do cadastro.
+
+**Combo promocional** é uma regra de preço configurável aplicada aos produtos existentes. Exemplo: unidade por R$ 3,99 e `3 por R$ 10,00`. A regra pode definir participantes, quantidade, preço do grupo, validade, limite por venda e se pode acumular com desconto manual. O desconto promocional fica registrado separadamente do desconto manual.
+
+Detalhes arquiteturais: `docs/architecture/catalog-parent-variants-kits-combos.md`.
 
 ## Módulos opcionais
 
@@ -133,15 +156,16 @@ Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente
 ## Verificação e release
 
 ```bash
+npm run docs:check
 npm run verify
 npm run verify:release
 npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.1-x64-Setup.exe
 ```
 
-`verify` cobre domínio/API/UI, architecture checks e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
+`docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
-## Operação
+## Operação e arquitetura
 
 - `docs/operations/install-server.md`
 - `docs/operations/install-terminal.md`
@@ -154,6 +178,11 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 - `docs/operations/update.md`
 - `docs/architecture/e30-e39-restaurant.md`
 - `docs/architecture/e40-e47-verticals.md`
+- `docs/architecture/catalog-parent-variants-kits-combos.md`
+
+## Regra de manutenção documental
+
+`CONTRIBUTING.md` define como regra obrigatória que qualquer alteração de comportamento, arquitetura, operação, requisito, limitação ou release atualize a documentação correspondente **na mesma entrega**. Código atualizado com README/metadados/documentação desatualizados não é considerado uma entrega concluída.
 
 ## Limitações externas
 
