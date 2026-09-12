@@ -8,9 +8,7 @@ const { roundQuantity } = require('../inventory/inventory-rules');
 
 function boolInt(value, fallback = true) { return (value == null ? fallback : Boolean(value)) ? 1 : 0; }
 function text(value, label) { const result=String(value||'').trim(); if(!result) throw new Error(`${label} obrigatorio.`); return result; }
-function nullableText(value) { const result=String(value||'').trim(); return result || null; }
 function positiveInt(value, label, min = 1) { const n=Number(value); if(!Number.isInteger(n)||n<min) throw new Error(`${label} invalido.`); return n; }
-function parseJson(value, fallback = []) { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } }
 function normalizeIso(value, label) {
   if(value==null || String(value).trim()==='') return null;
   const date=new Date(value); if(Number.isNaN(date.getTime())) throw new Error(`${label} invalido.`);
@@ -34,7 +32,7 @@ function createKitComboService({ db, catalog, recipes, now = () => new Date().to
       if(!componentId) throw new Error('Produto do componente obrigatorio.');
       if(componentId===String(productId)) throw new Error('Kit nao pode conter ele mesmo.');
       const product=requireProduct(componentId);
-      if(db.prepare('SELECT 1 FROM product_kits WHERE product_id=? AND active=1').get(componentId)) throw new Error('Kit dentro de kit nao e suportado.');
+      if(db.prepare('SELECT 1 FROM product_kits WHERE product_id=?').get(componentId)) throw new Error('Kit dentro de kit nao e suportado.');
       const quantity=roundQuantity(Number(component.quantity));
       if(!Number.isFinite(quantity)||quantity<=0) throw new Error('Quantidade do componente invalida.');
       totals.set(product.id, roundQuantity((totals.get(product.id)||0)+quantity));
@@ -159,7 +157,7 @@ function createKitComboService({ db, catalog, recipes, now = () => new Date().to
         const normal=rule.requiredQuantity*item.unitPriceCents; const discount=normal-rule.bundlePriceCents;
         if(discount<=0) continue;
         const applications=Math.min(Math.floor(item.quantity/rule.requiredQuantity),cap);
-        for(let i=0;i<applications;i++) candidates.push({rule,discountCents:discount,allocation:{[item.productId]:rule.requiredQuantity},tie:item.productId});
+        for(let i=0;i<applications;i++) candidates.push({rule,discountCents:discount,allocation:{[item.productId]:rule.requiredQuantity},tie:`${item.productId}:${String(i).padStart(8,'0')}`});
       }
       return candidates;
     }
@@ -183,10 +181,14 @@ function createKitComboService({ db, catalog, recipes, now = () => new Date().to
     const cart=normalizeCart(items); const remaining=new Map([...cart].map(([id,item])=>[id,item.quantity]));
     const candidates=activeRules(at).flatMap(rule=>candidatesForRule(rule,cart));
     candidates.sort((a,b)=>b.discountCents-a.discountCents||a.rule.id.localeCompare(b.rule.id)||a.tie.localeCompare(b.tie));
-    const appliedMap=new Map(); let discountCents=0; let blocksManualDiscount=false;
+    const appliedMap=new Map();const acceptedByRule=new Map();let discountCents=0;let blocksManualDiscount=false;
     for(const candidate of candidates) {
+      const accepted=acceptedByRule.get(candidate.rule.id)||0;
+      const cap=candidate.rule.maxApplicationsPerSale??Number.MAX_SAFE_INTEGER;
+      if(accepted>=cap)continue;
       const fits=Object.entries(candidate.allocation).every(([productId,quantity])=>(remaining.get(productId)||0)>=quantity); if(!fits) continue;
       for(const [productId,quantity] of Object.entries(candidate.allocation)) remaining.set(productId,(remaining.get(productId)||0)-quantity);
+      acceptedByRule.set(candidate.rule.id,accepted+1);
       discountCents+=candidate.discountCents; blocksManualDiscount ||= !candidate.rule.allowManualDiscount;
       const current=appliedMap.get(candidate.rule.id)||{comboId:candidate.rule.id,name:candidate.rule.name,selectionMode:candidate.rule.selectionMode,applications:0,discountCents:0,allowManualDiscount:candidate.rule.allowManualDiscount};
       current.applications+=1; current.discountCents+=candidate.discountCents; appliedMap.set(candidate.rule.id,current);
