@@ -2,6 +2,8 @@
   "O alvo de empacotamento e suporte comercial da versão 1.3.1 é Windows x64.",
   "Todo o núcleo e os módulos E40-E54 funcionam localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
   "Os módulos opcionais são ativados localmente por configuração; desativá-los não apaga dados históricos.",
+  "Ao transformar um produto comum em produto pai com subitens/variações, qualquer saldo existente no produto pai deve ser zerado ou distribuído antes; depois disso o estoque passa a ser controlado nos subitens.",
+  "Um produto pai com variações ativas não é vendido diretamente: a venda deve identificar uma variação específica para preservar preço, código e estoque corretos.",
   "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
   "O QR de acesso mobile apenas codifica o endereço HTTP local; a versão 1.3.1 não declara a interface como PWA instalável.",
   "A versão comercial 1.3.1 opera somente com documentos e impressão NÃO FISCAL; NFC-e, NF-e, SAT, MFE, SEFAZ e provedores fiscais não fazem parte dos fluxos comerciais.",
