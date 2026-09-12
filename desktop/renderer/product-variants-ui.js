@@ -16,7 +16,7 @@
   let selectedVariantItemId=null;
 
   const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
-  const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const cents=value=>{const normalized=String(value??'').trim().replace(/\./g,'').replace(',','.');const number=Number(normalized);return Number.isFinite(number)?Math.round(number*100):0;};
   const qty=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
   const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -38,13 +38,15 @@
   async function loadCatalog(force=false){
     if(!force&&Date.now()-catalogLoadedAt<700&&products.length)return;
     const [nextProducts,nextVariants]=await Promise.all([api.products(true),api.request('/api/v1/product-variants?includeInactive=true')]);
-    products=Array.isArray(nextProducts)?nextProducts:[];variants=Array.isArray(nextVariants)?nextVariants:[];catalogLoadedAt=Date.now();
+    products=Array.isArray(nextProducts)?nextProducts:[];
+    variants=Array.isArray(nextVariants)?nextVariants:[];
+    catalogLoadedAt=Date.now();
   }
   function parent(id){return products.find(product=>product.id===String(id));}
   function children(productId,{activeOnly=false}={}){return variants.filter(variant=>variant.productId===String(productId)&&(!activeOnly||variant.active!==false));}
   function attrsText(attributes={}){return Object.entries(attributes||{}).map(([key,value])=>`${key}: ${value}`).join('; ');}
   function parseAttributes(text){const result={};for(const part of String(text||'').split(';')){const [rawKey,...rest]=part.split(':');const key=String(rawKey||'').trim();const value=rest.join(':').trim();if(key&&value)result[key]=value;}return result;}
-  function variantMatches(variant,query){const q=String(query||'').trim().toLowerCase();if(!q)return false;const product=parent(variant.productId);return [variant.name,variant.sku,variant.barcode,product?.name,attrsText(variant.attributes)].some(value=>String(value||'').toLowerCase().includes(q));}
+  function variantMatches(variant,query){const q=String(query||'').trim().toLowerCase();if(!q)return false;const product=parent(variant.productId);return[variant.name,variant.sku,variant.barcode,product?.name,attrsText(variant.attributes)].some(value=>String(value||'').toLowerCase().includes(q));}
   function exactVariant(query){const q=String(query||'').trim().toLowerCase();return variants.find(variant=>variant.active!==false&&[variant.sku,variant.barcode].some(value=>String(value||'').toLowerCase()===q));}
 
   function variantRowHtml(variant){
@@ -61,10 +63,11 @@
       const edit=row.querySelector('[data-edit-product]');if(!edit)continue;
       const productId=edit.dataset.editProduct;visibleParents.add(productId);
       row.querySelectorAll('.variant-parent-badge,.variant-add-button,.variant-parent-stock').forEach(node=>node.remove());
-      const list=children(productId);
+      const list=children(productId);const activeList=list.filter(item=>item.active!==false);
+      if(list.length)edit.dataset.parentHasVariants='true';else delete edit.dataset.parentHasVariants;
       const title=row.querySelector('div:first-child strong');
-      if(title&&list.length){const badge=document.createElement('span');badge.className='variant-parent-badge';badge.textContent=`Produto pai · ${list.length} variação${list.length===1?'':'ões'}`;title.insertAdjacentElement('afterend',badge);}
-      const stockCell=row.children[2];if(stockCell&&list.length){const label=document.createElement('small');label.className='variant-parent-stock';label.textContent=`Estoque controlado nos subitens · total ${qty(list.filter(v=>v.active!==false).reduce((sum,v)=>sum+Number(v.quantity||0),0))}`;stockCell.appendChild(label);}
+      if(title&&list.length){const badge=document.createElement('span');badge.className='variant-parent-badge';badge.textContent=`Produto pai · ${activeList.length} variação${activeList.length===1?'':'ões'} ativa${activeList.length===1?'':'s'}`;title.insertAdjacentElement('afterend',badge);}
+      const stockCell=row.children[2];if(stockCell&&list.length){const label=document.createElement('small');label.className='variant-parent-stock';label.textContent=`Estoque controlado nos subitens · total ${qty(activeList.reduce((sum,item)=>sum+Number(item.quantity||0),0))}`;stockCell.appendChild(label);}
       const add=document.createElement('button');add.type='button';add.className='secondary-button variant-add-button';add.dataset.newProductVariant=productId;add.textContent='＋ Variação';edit.insertAdjacentElement('beforebegin',add);
       let anchor=row;for(const variant of list){const wrapper=document.createElement('div');wrapper.innerHTML=variantRowHtml(variant);const child=wrapper.firstElementChild;anchor.insertAdjacentElement('afterend',child);anchor=child;}
     }
@@ -75,7 +78,7 @@
   async function openVariantForm(productId,variantId=null){
     await loadCatalog(true);const product=parent(productId);const variant=variants.find(item=>item.variantId===String(variantId));if(!product)return toast('Produto pai não encontrado.','error');
     const finalPrice=variant?.unitPriceCents??product.salePriceCents??0;
-    openModal(variant?'Editar variação':'Nova variação',`<form id="product-variant-form"><div class="variant-form-note"><strong>Produto pai:</strong> ${esc(product.name)}. Cada variação terá SKU/código de barras e estoque próprios. Ao criar a primeira variação, o estoque deixa de ser controlado no item pai; se o pai já tiver saldo, ajuste esse saldo antes.</div><div class="field-grid"><div class="field wide"><label>Nome da variação *</label><input name="name" required placeholder="Ex.: Uva, Limão, 2 L, Tamanho M" value="${esc(variant?.name||'')}"></div><div class="field"><label>SKU / código</label><input name="sku" value="${esc(variant?.sku||'')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${esc(variant?.barcode||'')}"></div><div class="field"><label>Preço de venda</label><input name="salePrice" inputmode="decimal" value="${(finalPrice/100).toFixed(2).replace('.',',')}"></div><div class="field"><label>Custo</label><input name="cost" inputmode="decimal" value="${(Number(variant?.costCents??product.costCents??0)/100).toFixed(2).replace('.',',')}"></div><div class="field"><label>Estoque</label><input name="stock" type="number" min="0" step="0.001" value="${Number(variant?.quantity||0)}"></div><div class="field wide"><label>Atributos</label><input name="attributes" placeholder="Ex.: Sabor: Uva; Volume: 25 g; Tamanho: M" value="${esc(attrsText(variant?.attributes))}"></div></div><div class="modal-actions"><button type="button" class="secondary-button" data-pv-close-form>Cancelar</button><button class="primary-button" type="submit">Salvar variação</button></div></form>`);
+    openModal(variant?'Editar variação':'Nova variação',`<form id="product-variant-form"><div class="variant-form-note"><strong>Produto pai:</strong> ${esc(product.name)}. Cada variação terá SKU/código de barras, preço, custo e estoque próprios. Ao criar a primeira variação, o estoque deixa de ser controlado no item pai; se o pai já tiver saldo, ajuste esse saldo antes.</div><div class="field-grid"><div class="field wide"><label>Nome da variação *</label><input name="name" required placeholder="Ex.: Uva, Limão, 2 L, Tamanho M" value="${esc(variant?.name||'')}"></div><div class="field"><label>SKU / código</label><input name="sku" value="${esc(variant?.sku||'')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${esc(variant?.barcode||'')}"></div><div class="field"><label>Preço de venda</label><input name="salePrice" inputmode="decimal" value="${(finalPrice/100).toFixed(2).replace('.',',')}"></div><div class="field"><label>Custo</label><input name="cost" inputmode="decimal" value="${(Number(variant?.costCents??product.costCents??0)/100).toFixed(2).replace('.',',')}"></div><div class="field"><label>Estoque</label><input name="stock" type="number" min="0" step="0.001" value="${Number(variant?.quantity||0)}"></div><div class="field wide"><label>Atributos</label><input name="attributes" placeholder="Ex.: Sabor: Uva; Volume: 25 g; Tamanho: M" value="${esc(attrsText(variant?.attributes))}"></div></div><div class="modal-actions"><button type="button" class="secondary-button" data-pv-close-form>Cancelar</button><button class="primary-button" type="submit">Salvar variação</button></div></form>`);
     modalRoot.querySelector('[data-pv-close-form]')?.addEventListener('click',closeModal);
     modalRoot.querySelector('#product-variant-form')?.addEventListener('submit',async event=>{
       event.preventDefault();const form=event.currentTarget;const value=name=>form.elements.namedItem(name)?.value??'';
@@ -94,7 +97,10 @@
   }
 
   async function currentOpenSale({create=false}={}){
-    await ensureConfig();const stored=sessionStorage.getItem('artisys.productVariantSaleId');
+    await ensureConfig();
+    const remembered=window.PdvPromotionState?.lastSale;
+    if(remembered?.status==='OPEN'&&remembered.terminalId===config.terminalId){try{const sale=await api.sale(remembered.id);if(sale?.status==='OPEN')return sale;}catch{}}
+    const stored=sessionStorage.getItem('artisys.productVariantSaleId');
     if(stored){try{const sale=await api.sale(stored);if(sale?.status==='OPEN')return sale;}catch{}sessionStorage.removeItem('artisys.productVariantSaleId');}
     const find=async()=>{const sales=await api.sales('OPEN',30);return sales.find(sale=>sale.terminalId===config.terminalId)||null;};
     let sale=await find();if(sale){sessionStorage.setItem('artisys.productVariantSaleId',sale.id);return sale;}
@@ -129,8 +135,10 @@
 
   async function enhanceCheckout(){
     await loadCatalog();
+    content.querySelectorAll('.variant-search-label,.variant-product-card').forEach(node=>node.remove());
     for(const card of content.querySelectorAll('.product-card[data-add-product]')){
-      const list=children(card.dataset.addProduct,{activeOnly:true});if(!list.length)continue;
+      const list=children(card.dataset.addProduct,{activeOnly:true});
+      if(!list.length){delete card.dataset.parentHasVariants;continue;}
       card.dataset.parentHasVariants='true';
       const small=card.querySelector('small');if(small)small.textContent=`${list.length} variação${list.length===1?'':'ões'} · escolher`;
       const add=card.querySelector('.add-cart');if(add)add.textContent='›';
@@ -150,7 +158,16 @@
   }
 
   async function removeSelectedVariant(){
-    if(!selectedVariantItemId)return false;const line=content.querySelector(`.cart-line[data-variant-item-id="${CSS.escape(selectedVariantItemId)}"]`);if(!line){selectedVariantItemId=null;return false;}await mutateVariantLine(line,'remove');return true;
+    if(!selectedVariantItemId)return false;
+    const line=[...content.querySelectorAll('.cart-line[data-variant-item-id]')].find(node=>node.dataset.variantItemId===selectedVariantItemId);
+    if(!line){selectedVariantItemId=null;return false;}
+    await mutateVariantLine(line,'remove');return true;
+  }
+
+  function lockParentStockForm(){
+    const checkbox=modalRoot?.querySelector('#product-form [name="trackStock"]');if(!checkbox)return;
+    checkbox.checked=false;checkbox.disabled=true;
+    const field=checkbox.closest('.field');if(field&&!field.querySelector('.variant-parent-stock')){const note=document.createElement('small');note.className='variant-parent-stock';note.textContent='Estoque controlado nas variações deste produto.';field.appendChild(note);}
   }
 
   async function enhance(){
@@ -160,6 +177,7 @@
   function scheduleEnhance(){if(scheduled)return;scheduled=true;setTimeout(()=>{scheduled=false;enhance();},25);}
 
   document.addEventListener('click',event=>{
+    const parentEdit=event.target.closest?.('[data-edit-product][data-parent-has-variants="true"]');if(parentEdit)setTimeout(lockParentStockForm,0);
     const newVariant=event.target.closest?.('[data-new-product-variant]');if(newVariant){event.preventDefault();event.stopImmediatePropagation();openVariantForm(newVariant.dataset.newProductVariant);return;}
     const editVariant=event.target.closest?.('[data-edit-product-variant]');if(editVariant){event.preventDefault();event.stopImmediatePropagation();const variant=variants.find(item=>item.variantId===editVariant.dataset.editProductVariant);if(variant)openVariantForm(variant.productId,variant.variantId);return;}
     const direct=event.target.closest?.('[data-direct-product-variant]');if(direct){event.preventDefault();event.stopImmediatePropagation();addVariantToSale(direct.dataset.directProductVariant);return;}
@@ -169,6 +187,7 @@
       if(plus||minus||remove){event.preventDefault();event.stopImmediatePropagation();mutateVariantLine(line,plus?'plus':minus?'minus':'remove');return;}
       event.preventDefault();event.stopImmediatePropagation();selectedVariantItemId=line.dataset.variantItemId;content.querySelectorAll('.variant-selected').forEach(node=>node.classList.remove('variant-selected'));line.classList.add('variant-selected');return;
     }
+    if(event.target.closest?.('.cart-line'))selectedVariantItemId=null;
     const removeButton=event.target.closest?.('#remove-item');if(removeButton&&selectedVariantItemId){event.preventDefault();event.stopImmediatePropagation();removeSelectedVariant();}
   },true);
 
@@ -179,6 +198,6 @@
     }
   },true);
 
-  new MutationObserver(scheduleEnhance).observe(content,{childList:true,subtree:true});
+  new MutationObserver(scheduleEnhance).observe(content,{childList:true});
   scheduleEnhance();
 })();
