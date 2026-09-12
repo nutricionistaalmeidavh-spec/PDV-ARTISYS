@@ -1,9 +1,10 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
+const { expandStockItems } = require('../inventory/item-stock-expander');
 
 function registerReturnEffects({ bus, inventoryService, cashService, effectStore, recipeService=null } = {}) {
   if (!bus || !inventoryService || !cashService || !effectStore) throw new TypeError('bus, inventoryService, cashService and effectStore are required.');
-  const expand=items=>recipeService?recipeService.expandItems(items||[]):items||[];
+  const expand=items=>expandStockItems(items||[],recipeService);
   const inventoryCompleted = createIdempotentDomainEffect({
     effectKey:'inventory.return-completed', effectStore,
     handler:async event => inventoryService.applyReturnItems({ eventId:event.eventId, returnId:event.aggregateId, items:expand(event.payload.items), direction:'return', createdAt:event.occurredAt })
