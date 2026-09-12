@@ -4,10 +4,13 @@
   const ApiClient=window.PdvApiClient?.ApiClient;
   if(!ApiClient)return;
   const e=encodeURIComponent;
-  const rememberSale=sale=>{
+  const normalizeSale=sale=>{
     if(!sale||typeof sale!=='object'||Array.isArray(sale)||sale.manualDiscountCents==null)return sale;
-    const normalized={...sale,totalDiscountCents:sale.totalDiscountCents??sale.discountCents,discountCents:sale.manualDiscountCents};
-    window.PdvPromotionState={lastSale:normalized,rawSale:sale};
+    return {...sale,totalDiscountCents:sale.totalDiscountCents??sale.discountCents,discountCents:sale.manualDiscountCents};
+  };
+  const rememberSale=sale=>{
+    const normalized=normalizeSale(sale);
+    if(normalized&&normalized.manualDiscountCents!=null)window.PdvPromotionState={lastSale:normalized,rawSale:sale};
     return normalized;
   };
   Object.assign(ApiClient.prototype,{
@@ -52,6 +55,6 @@
   }
   for(const name of ['sales','salesHistory']){
     const original=ApiClient.prototype[name];if(typeof original!=='function')continue;
-    ApiClient.prototype[name]=async function(...args){const rows=await original.apply(this,args);return Array.isArray(rows)?rows.map(rememberSale):rows;};
+    ApiClient.prototype[name]=async function(...args){const rows=await original.apply(this,args);return Array.isArray(rows)?rows.map(normalizeSale):rows;};
   }
 })();
