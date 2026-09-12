@@ -10,7 +10,6 @@ const { runKitComboMigrations } = require('../js/core/database/kit-combo-migrati
 const { createCatalogService } = require('../js/domains/catalog/catalog-service');
 const { createRecipeService } = require('../js/domains/inventory/recipe-service');
 const { createKitComboService } = require('../js/domains/catalog/kit-combo-service');
-const { createInventoryService } = require('../js/domains/inventory/inventory-service');
 const { SqliteOutboxStore } = require('../js/core/database/outbox-store');
 const { createSaleService } = require('../js/domains/sales/sale-service');
 const { createPromotionSaleService } = require('../js/domains/sales/promotion-sale-service');
@@ -141,7 +140,7 @@ test('combo may block manual discounts when configured by the user', () => {
   db.close();
 });
 
-test('selling and cancelling a kit decrements and restores component stock', async () => {
+test('kit stock snapshot survives later composition edits and cancellation', async () => {
   let seq=0; const rt=createPdvRuntime({ now:()=>NOW, idFactory:p=>`${p}-${++seq}` });
   rt.catalog.createUser({ id:'cashier', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
   rt.catalog.createUser({ id:'manager', username:'gerente', name:'Gerente', role:'manager', password:'senha-forte-456' });
@@ -152,8 +151,10 @@ test('selling and cancelling a kit decrements and restores component stock', asy
   rt.kitsCombos.upsertKit({ id:'kit', name:'Kit AB', salePriceCents:1000, components:[{productId:'a',quantity:2},{productId:'b',quantity:1}] });
   rt.cash.openSession({ id:'cash-1', terminalId:'T1', operatorId:'cashier', initialCashCents:0 });
   rt.sales.openSale({ id:'sale-kit', saleNumber:'1', terminalId:'T1', operatorId:'cashier' });
-  rt.sales.addItem('sale-kit',{productId:'kit',quantity:1});
+  let sale=rt.sales.addItem('sale-kit',{productId:'kit',quantity:1});
+  assert.deepEqual(sale.items[0].configuration.kit.components.map(item=>({productId:item.productId,quantity:item.quantity})),[{productId:'a',quantity:2},{productId:'b',quantity:1}]);
   rt.sales.completeSale('sale-kit',{payments:[{method:'CASH',amountCents:1000}],actor:{userId:'cashier',role:'cashier',terminalId:'T1'}});
+  rt.kitsCombos.upsertKit({ id:'kit', name:'Kit AB alterado', salePriceCents:1000, components:[{productId:'a',quantity:1},{productId:'b',quantity:3}] });
   await rt.dispatchPending();
   assert.equal(rt.inventory.getBalance('a'),8);
   assert.equal(rt.inventory.getBalance('b'),9);
