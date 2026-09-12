@@ -83,15 +83,18 @@ test('all operations manuals and release metadata exist without future-delivery 
   assert.doesNotMatch(readme, /E2[1-9].*(futuro|pendente|a fazer)/i);
 });
 
-test('CI gates normal/release verification and Windows artifact before main release', () => {
+test('CI verifies main while Windows packaging is explicit or version-tagged only', () => {
   const verify = read('.github/workflows/verify.yml');
   const windows = read('.github/workflows/release-windows.yml');
+  assert.match(verify, /branches:\s*\n\s*- main/);
   assert.match(verify, /npm install/);
   assert.match(verify, /npm run verify:release/);
+  assert.match(windows, /workflow_dispatch/);
+  assert.match(windows, /tags:\s*\n\s*- 'v\*'/);
   assert.match(windows, /windows-latest/);
   assert.match(windows, /npm run verify:release/);
   assert.match(windows, /npm run dist:win/);
   assert.match(windows, /actions\/upload-artifact/);
   assert.match(windows, /gh release create/);
-  assert.match(windows, /github\.ref == 'refs\/heads\/main'/);
+  assert.doesNotMatch(windows, /refs\/heads\/main/);
 });
