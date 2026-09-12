@@ -15,7 +15,8 @@ const capabilities = readJson('release/capabilities.json');
 const limitations = readJson('release/limitations.json');
 const catalogDoc = read('docs/architecture/catalog-parent-variants-kits-combos.md');
 
-if (!readme.startsWith(`# ArtiSys PDV ${pkg.version}\n`)) {
+const readmeHeading = readme.split(/\r?\n/, 1)[0].trim();
+if (readmeHeading !== `# ArtiSys PDV ${pkg.version}`) {
   fail(`README version must match package.json (${pkg.version}).`);
 }
 
