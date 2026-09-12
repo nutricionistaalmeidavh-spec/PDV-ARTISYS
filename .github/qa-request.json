@@ -1,10 +1,10 @@
 {
-  "mode": "qa",
-  "demo": "quick-30s",
-  "preset": "reels-9x16",
-  "flow": "home",
+  "mode": "demo",
+  "demo": "overview-60s",
+  "preset": "landscape-16x9",
+  "flow": "smoke",
   "environment": "ci",
   "viewport": "desktop",
   "requestedAt": "2026-09-12",
-  "reason": "user-requested-qa-screenshots-home"
+  "reason": "user-requested-qa-full-screen-screenshots"
 }
