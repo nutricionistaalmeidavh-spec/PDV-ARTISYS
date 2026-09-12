@@ -60,6 +60,21 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     };
   }
 
+  function assertVariantStock(sale){
+    const totals=new Map();
+    for(const item of sale?.items||[]){
+      const variant=item.configuration?.productVariant||item.configuration?.retailVariant;if(!variant?.id)continue;
+      const current=totals.get(String(variant.id))||{quantity:0,label:`${item.productName} - ${variant.name||'variação'}`};
+      current.quantity+=Number(item.quantity||0);totals.set(String(variant.id),current);
+    }
+    for(const [variantId,required] of totals){
+      const row=db.prepare(`SELECT v.active,p.active AS product_active,COALESCE(b.quantity,0) AS quantity
+        FROM product_variants v JOIN products p ON p.id=v.product_id LEFT JOIN retail_variant_balances b ON b.variant_id=v.id WHERE v.id=?`).get(variantId);
+      if(!row||!row.active||!row.product_active)throw new Error(`Variacao inativa ou inexistente: ${required.label}.`);
+      if(Number(required.quantity)>Number(row.quantity||0))throw new Error(`Estoque insuficiente para ${required.label}.`);
+    }
+  }
+
   function openSale(input={},actor=null) {
     const sale=baseSales.openSale(input,actor);
     writeState(sale.id,{manualDiscountCents:0,promotionDiscountCents:0,promotions:[],blocksManualDiscount:false});
@@ -87,7 +102,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function applyDiscount(id,{discountCents=0}={}){return reprice(id,discountCents);}
   function suspendSale(id){reprice(id);return enrich(baseSales.suspendSale(id));}
   function resumeSale(id){baseSales.resumeSale(id);return reprice(id);}
-  function completeSale(id,input={}){reprice(id);baseSales.completeSale(id,input);return enrich(baseSales.getSale(id));}
+  function completeSale(id,input={}){reprice(id);const sale=baseSales.getSale(id);assertVariantStock(sale);baseSales.completeSale(id,input);return enrich(baseSales.getSale(id));}
   function cancelSale(id,input={}){return enrich(baseSales.cancelSale(id,input));}
   function getSale(id){return enrich(baseSales.getSale(id));}
   function getSaleDetails(id){return enrich(baseSales.getSaleDetails(id));}
