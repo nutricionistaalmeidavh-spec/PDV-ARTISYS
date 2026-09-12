@@ -20,7 +20,7 @@ Principais capacidades:
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
 - financeiro, relatórios e exportação CSV;
-- fila de impressão com retry/reimpressão e documentos operacionais **NÃO FISCAL**;
+- fila de impressão com retry/reimpressão, documentos operacionais **NÃO FISCAL** e identidade configurável do cupom com nome, endereço, telefone e logo local;
 - impressão Electron, térmica Epson/Star e serial por drivers locais explícitos;
 - balança e gaveta serial usando `@artisys/serialport`;
 - E54.1 com simulação obrigatória de impressora, balança, gaveta, leitor, COM, timeout, fragmentação, falha e recuperação;
@@ -111,6 +111,8 @@ Dispositivos móveis usam a interface self-hosted `http://IP-DO-SERVIDOR:4174/mo
 ## Hardware
 
 A impressão padrão é `PDV_PRINTER_MODE=electron`. Para impressora térmica local, use `thermal` com tipo Epson/Star e interface explícita; para porta serial, use `serial` com porta e baud rate. Balança e gaveta permanecem opcionais e usam `PDV_SCALE_*` e `PDV_DRAWER_*`. Para respostas fragmentadas de balança, `PDV_SCALE_SETTLE_MS` controla a janela de silêncio antes do parse, com padrão de 30 ms.
+
+Em **Configurações > Dados da loja e cupom não fiscal**, nome, endereço, telefone e logo podem ser definidos localmente. Campos vazios são omitidos; a logo é convertida para PNG no próprio computador e o snapshot do branding é preservado na fila para que reimpressões mantenham a identidade do comprovante original.
 
 A E54.1 executa na CI cenários de desconexão/reconexão, COM ocupada/inexistente, timeout e retry de balança, resposta serial fragmentada, dados inválidos, spooler offline/recuperado, Epson/Star, corte, pulso de gaveta, larguras 32/42/48, leitor `keyboard-wedge` repetido e stress de ciclos seriais.
 

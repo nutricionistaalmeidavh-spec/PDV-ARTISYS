@@ -32,6 +32,16 @@ Opções comuns: `PDV_PRINTER_NAME`, `PDV_PRINT_SILENT`, `PDV_RECEIPT_WIDTH=32|4
 
 A impressão continua usando a fila persistente do PDV. Vendas geram jobs de comprovante; falhas ficam como `FAILED` e podem voltar à fila por **Tentar novamente**. Reimpressão cria uma nova tentativa auditável sem alterar a venda original.
 
+### Dados da loja no cupom não fiscal
+
+Em **Configurações > Dados da loja e cupom não fiscal**, o estabelecimento pode definir nome da empresa, endereço, telefone e logo. Os dados são persistidos localmente nas configurações globais do PDV; campos vazios são omitidos do comprovante.
+
+A logo aceita PNG, JPG/JPEG ou WebP na seleção da interface e é convertida localmente para PNG antes de ser salva. O arquivo é redimensionado para uso no comprovante e não depende de CDN, upload externo ou serviço pago.
+
+No momento em que a venda gera o job de impressão, o texto e a logo configurados são copiados para o payload persistente desse job. Por isso, uma reimpressão mantém a identidade visual registrada naquele comprovante, mesmo que a configuração da loja seja alterada depois.
+
+O caminho Electron renderiza a logo acima do texto do comprovante. O caminho térmico envia a imagem quando o driver da impressora oferece suporte; sem suporte a imagem, o conteúdo textual do cupom continua preservado.
+
 ## E54.1 — validação automatizada sem equipamento físico
 
 A suíte obrigatória de CI valida, por simulação:
