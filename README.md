@@ -165,6 +165,8 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 `docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
+Para solicitar uma build Windows sem duplicar o pipeline de verificação, atualize `.github/release-request.json` no `main`. Esse arquivo dispara somente `release-windows`; o workflow executa `verify:release`, gera o instalador NSIS x64 nativo, cria `release-manifest.json` com SHA-256 e publica ambos como artefato. O fluxo manual por `workflow_dispatch` e o fluxo por tag `v*` continuam disponíveis.
+
 ## Operação e arquitetura
 
 - `docs/operations/install-server.md`
