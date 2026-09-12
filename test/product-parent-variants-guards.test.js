@@ -28,7 +28,7 @@ test('existing parent stock must be resolved before enabling child-stock control
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
   try{
     runtime.catalog.upsertProduct({id:'coke',name:'Coca-Cola',salePriceCents:500,costCents:250,trackStock:true});
-    runtime.inventory.recordMovement({productId:'coke',type:'opening-balance',quantityDelta:4,reason:'fixture'});
+    runtime.inventory.move({productId:'coke',type:'opening',quantityDelta:4,reason:'fixture'});
     assert.throws(()=>runtime.retail.prepareProductForVariants('coke'),/possui estoque/i);
     assert.equal(runtime.catalog.getProduct('coke').trackStock,true);
   }finally{runtime.close();fs.rmSync(dir,{recursive:true,force:true});}
