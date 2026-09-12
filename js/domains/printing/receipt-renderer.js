@@ -8,6 +8,7 @@ const {
   center,
   columns
 } = require('@artisys/printing');
+const { normalizeReceiptBranding } = require('./receipt-branding');
 
 function fractionLabel(value) {
   const fraction=Number(value);
@@ -36,16 +37,20 @@ function configurationDetails(configuration) {
   return details;
 }
 
-function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
+function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhone = '', branding = null, documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
   const w = Number(width);
   if (![32,42,48].includes(w)) throw new Error('Largura de cupom invalida.');
   if (!sale || !sale.saleNumber) throw new Error('Venda invalida para impressao.');
+  const receiptBranding=normalizeReceiptBranding(branding||{name:storeName,address:storeAddress,phone:storePhone},{name:storeName,address:storeAddress,phone:storePhone});
 
-  const metadata = [
+  const metadata = [];
+  if(receiptBranding.address)metadata.push(['',receiptBranding.address]);
+  if(receiptBranding.phone)metadata.push(['',`Telefone: ${receiptBranding.phone}`]);
+  metadata.push(
     ['Venda', sale.saleNumber],
     ['Data', sale.completedAt || sale.updatedAt || ''],
     ['Operador', sale.operatorName || sale.operatorId || '']
-  ];
+  );
   if (sale.customerName || sale.customerId) metadata.push(['Cliente', sale.customerName || sale.customerId]);
 
   const totals = [['Subtotal', Number(sale.subtotalCents || 0)]];
@@ -59,7 +64,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', documentLabel = 'CUPOM NAO F
 
   const document = createReceiptDocument({
     width:w,
-    title:storeName,
+    title:receiptBranding.name,
     documentLabel,
     metadata,
     items:(sale.items || []).map(item => ({
