@@ -41,13 +41,42 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     return enrich(priced);
   }
 
+  function kitSnapshot(productId) {
+    const kit=promotionService.getKit?.(productId);
+    if(!kit||!kit.active)return null;
+    return {
+      version:1,
+      productId:kit.id,
+      name:kit.name,
+      components:(kit.components||[]).map(component=>({
+        productId:component.productId,
+        productName:component.productName||null,
+        quantity:Number(component.quantity),
+        unit:component.unit||'UN'
+      }))
+    };
+  }
+
   function openSale(input={},actor=null) {
     const sale=baseSales.openSale(input,actor);
     writeState(sale.id,{manualDiscountCents:0,promotionDiscountCents:0,promotions:[],blocksManualDiscount:false});
     return enrich(sale);
   }
   function setCustomer(id,customerId){return enrich(baseSales.setCustomer(id,customerId));}
-  function addItem(id,input){baseSales.addItem(id,input);return reprice(id);}
+  function addItem(id,input={}){
+    const kit=kitSnapshot(input.productId);
+    if(kit&&!input.configurationSnapshot&&input.forceSeparateLine!==true){
+      const current=baseSales.getSale(id);
+      const existing=(current?.items||[]).find(item=>item.productId===String(input.productId)&&item.configuration?.kit?.productId===kit.productId);
+      if(existing){
+        const quantity=Number(existing.quantity||0)+Number(input.quantity??1);
+        baseSales.updateItemQuantityById(id,existing.id,quantity);
+        return reprice(id);
+      }
+    }
+    const payload=kit?{...input,configurationSnapshot:{...(input.configurationSnapshot||{}),kit}}:input;
+    baseSales.addItem(id,payload);return reprice(id);
+  }
   function updateItemQuantity(id,productId,quantity){baseSales.updateItemQuantity(id,productId,quantity);return reprice(id);}
   function updateItemQuantityById(id,itemId,quantity){baseSales.updateItemQuantityById(id,itemId,quantity);return reprice(id);}
   function removeItem(id,productId){baseSales.removeItem(id,productId);return reprice(id);}
