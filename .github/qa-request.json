@@ -2,9 +2,9 @@
   "mode": "qa",
   "demo": "quick-30s",
   "preset": "reels-9x16",
-  "flow": "smoke",
+  "flow": "home",
   "environment": "ci",
   "viewport": "desktop",
   "requestedAt": "2026-09-12",
-  "reason": "user-requested-qa-screenshots-smoke"
+  "reason": "user-requested-qa-screenshots-home"
 }
