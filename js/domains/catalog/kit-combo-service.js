@@ -31,8 +31,8 @@ function createKitComboService({ db, catalog, recipes, now = () => new Date().to
       const componentId=String(component.productId||'').trim();
       if(!componentId) throw new Error('Produto do componente obrigatorio.');
       if(componentId===String(productId)) throw new Error('Kit nao pode conter ele mesmo.');
-      const product=requireProduct(componentId);
       if(db.prepare('SELECT 1 FROM product_kits WHERE product_id=?').get(componentId)) throw new Error('Kit dentro de kit nao e suportado.');
+      const product=requireProduct(componentId);
       const quantity=roundQuantity(Number(component.quantity));
       if(!Number.isFinite(quantity)||quantity<=0) throw new Error('Quantidade do componente invalida.');
       totals.set(product.id, roundQuantity((totals.get(product.id)||0)+quantity));
