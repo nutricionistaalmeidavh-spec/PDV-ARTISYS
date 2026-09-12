@@ -7,6 +7,7 @@ const { normalizeMethod } = require('../payments/payment-rules');
 const { roundQuantity } = require('../inventory/inventory-rules');
 
 const VALID_REFUND_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
+function parseConfiguration(value){try{return value?JSON.parse(value):null;}catch{return null;}}
 
 function createReturnService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}` } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
@@ -96,7 +97,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
           WHERE ri.sale_item_id=? AND rt.status='COMPLETED'`).get(saleItemId).quantity || 0);
         const available = roundQuantity(item.quantity - returned);
         if (quantity > available) throw new Error(`Quantidade devolvida excede a quantidade disponivel para devolucao (${available}).`);
-        normalizedItems.push({ saleItemId, productId:item.product_id, productName:item.product_name, quantity, unitPriceCents:item.unit_price_cents, totalCents:Math.round(item.unit_price_cents * quantity) });
+        normalizedItems.push({ saleItemId, productId:item.product_id, productName:item.product_name, quantity, unitPriceCents:item.unit_price_cents, totalCents:Math.round(item.unit_price_cents * quantity), configuration:parseConfiguration(item.configuration_json) });
       }
       const totalCents = normalizedItems.reduce((sum, item) => sum + item.totalCents, 0);
       const refunds = normalizeRefunds(input.refunds, totalCents);
@@ -110,12 +111,10 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
         (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at)
         VALUES (?,?,?,?,?,?,?,?,?)`);
       for (const item of normalizedItems) insertItem.run(idFactory('returnitem'), id, item.saleItemId, item.productId, item.productName, item.quantity, item.unitPriceCents, item.totalCents, timestamp);
-      const productTotals = new Map();
-      for (const item of normalizedItems) productTotals.set(item.productId, roundQuantity((productTotals.get(item.productId) || 0) + item.quantity));
       const event = {
         eventId:idFactory('evt'), type:'return.completed', aggregate:'return', aggregateId:id, occurredAt:timestamp,
         actor, source:'server', mutationId:input.mutationId || null,
-        payload:{ saleId, terminalId, totalCents, items:[...productTotals].map(([productId,quantity])=>({productId,quantity})), refunds }
+        payload:{ saleId, terminalId, totalCents, items:normalizedItems.map(item=>({productId:item.productId,quantity:item.quantity,configuration:item.configuration||null})), refunds }
       };
       outbox.insert(event);
       writeAudit(db,{action:'return.complete',entity:'return',entityId:id,actor,context:{saleId,totalCents,eventId:event.eventId}},now);
