@@ -7,9 +7,11 @@ on:
       - "feat/**"
     paths-ignore:
       - '.github/qa-request.json'
+      - '.github/release-request.json'
   pull_request:
     paths-ignore:
       - '.github/qa-request.json'
+      - '.github/release-request.json'
 
 concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
