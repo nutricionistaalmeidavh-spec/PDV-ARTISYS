@@ -1,5 +1,5 @@
 {
   "platform": "windows-x64",
-  "requestedAt": "2026-09-12T10:48:00-03:00",
-  "reason": "generate-current-client-installer"
+  "requestedAt": "2026-09-12T11:00:00-03:00",
+  "reason": "generate-current-client-installer-after-crlf-fix"
 }
