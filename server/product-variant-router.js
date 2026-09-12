@@ -24,14 +24,20 @@ function createProductVariantRouter({runtime,installationToken='',requireTermina
         runtime.retail.prepareProductForVariants(product.id,actor);
         const priceDeltaCents=data.salePriceCents==null?Number(data.priceDeltaCents||0):Number(data.salePriceCents)-Number(product.salePriceCents||0);
         const saved=runtime.catalogCustomization.upsertVariant({...data,priceDeltaCents},actor);
-        json(response,201,runtime.retail.getProductVariantStock(saved.id));return true;
+        json(response,201,runtime.retail.getProductVariantStock(saved.id,{includeInactive:true}));return true;
       }
       const stock=pathname.match(/^\/api\/v1\/product-variants\/([^/]+)\/stock$/);
       if(stock&&request.method==='PUT'){const data=await body(request);json(response,200,runtime.retail.setProductVariantStock(decodeURIComponent(stock[1]),data.quantity,actor));return true;}
       const saleItems=pathname.match(/^\/api\/v1\/product-variants\/sales\/([^/]+)\/items$/);
       if(saleItems&&request.method==='POST'){json(response,200,runtime.retail.addProductVariantToSale(decodeURIComponent(saleItems[1]),await body(request),actor));return true;}
       const saleItem=pathname.match(/^\/api\/v1\/product-variants\/sales\/([^/]+)\/items\/([^/]+)$/);
-      if(saleItem&&request.method==='PUT'){const data=await body(request);json(response,200,runtime.sales.updateItemQuantityById(decodeURIComponent(saleItem[1]),decodeURIComponent(saleItem[2]),data.quantity));return true;}
+      if(saleItem&&request.method==='PUT'){
+        const saleId=decodeURIComponent(saleItem[1]);const itemId=decodeURIComponent(saleItem[2]);const data=await body(request);const quantity=Number(data.quantity);
+        const sale=runtime.sales.getSale(saleId);const item=sale?.items?.find(entry=>entry.id===itemId);if(!item)throw new ProductVariantHttpError(404,'Item nao encontrado na venda.');
+        const variantId=item.configuration?.productVariant?.id||item.configuration?.retailVariant?.id;
+        if(variantId){const variant=runtime.retail.getProductVariantStock(variantId,{includeInactive:true});if(!variant.active)throw new ProductVariantHttpError(409,'Variacao inativa.');if(quantity>Number(variant.quantity||0))throw new ProductVariantHttpError(409,`Estoque insuficiente para ${variant.productName} - ${variant.name}.`);}
+        json(response,200,runtime.sales.updateItemQuantityById(saleId,itemId,quantity));return true;
+      }
       if(saleItem&&request.method==='DELETE'){json(response,200,runtime.sales.removeItemById(decodeURIComponent(saleItem[1]),decodeURIComponent(saleItem[2])));return true;}
       throw new ProductVariantHttpError(405,'Metodo ou rota nao permitido.');
     }catch(error){const status=error.statusCode||(/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:'warn',subsystem:'product-variant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
