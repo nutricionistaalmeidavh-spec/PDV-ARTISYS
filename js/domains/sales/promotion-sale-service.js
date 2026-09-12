@@ -75,6 +75,11 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     }
   }
 
+  function hasActiveVariants(productId){
+    if(productId==null)return false;
+    return Boolean(db.prepare('SELECT 1 FROM product_variants WHERE product_id=? AND active=1 LIMIT 1').get(String(productId)));
+  }
+
   function openSale(input={},actor=null) {
     const sale=baseSales.openSale(input,actor);
     writeState(sale.id,{manualDiscountCents:0,promotionDiscountCents:0,promotions:[],blocksManualDiscount:false});
@@ -83,6 +88,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function setCustomer(id,customerId){return enrich(baseSales.setCustomer(id,customerId));}
   function addItem(id,input={}){
     const kit=kitSnapshot(input.productId);
+    if(!kit&&!input.configurationSnapshot&&input.forceSeparateLine!==true&&hasActiveVariants(input.productId))throw new Error('Este produto possui variacoes. Selecione o subitem desejado.');
     if(kit&&!input.configurationSnapshot&&input.forceSeparateLine!==true){
       const current=baseSales.getSale(id);
       const existing=(current?.items||[]).find(item=>item.productId===String(input.productId)&&item.configuration?.kit?.productId===kit.productId);
