@@ -6,6 +6,7 @@ const { runMigrations }=require('./database/migrations');
 const { runReleaseMigrations }=require('./database/release-migrations');
 const { runVerticalMigrations }=require('./database/vertical-migrations');
 const { runKitComboMigrations }=require('./database/kit-combo-migrations');
+const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -84,6 +85,7 @@ function createPdvRuntime({
   const onboarding=createOnboardingService({db,modules,now});
   const mobileAccess=createMobileAccessService();
   const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
+  runSalesEnhancementMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});

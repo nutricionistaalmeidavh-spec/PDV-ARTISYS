@@ -53,6 +53,7 @@
     customers(includeInactive = false) { return this.request(`/api/v1/customers${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCustomer(body) { return this.request('/api/v1/customers', { method: 'POST', body }); }
     users(includeInactive = false) { return this.request(`/api/v1/users${includeInactive ? '?includeInactive=true' : ''}`); }
+    sellers() { return this.request('/api/v1/sellers'); }
     saveUser(body) { return this.request('/api/v1/users', { method: 'POST', body }); }
 
     inventoryBalances(filters = {}) { return this.request(`/api/v1/inventory${this.params(filters)}`); }
@@ -80,8 +81,10 @@
     saleDetails(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/details`); }
     openSale(body) { return this.request('/api/v1/sales', { method: 'POST', body }); }
     setSaleCustomer(id, customerId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/customer`, { method: 'POST', body: { customerId } }); }
+    setSaleSeller(id, sellerId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/seller`, { method: 'POST', body: { sellerId } }); }
     addSaleItem(id, productId, quantity = 1) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items`, { method: 'POST', body: { productId, quantity } }); }
     updateSaleItem(id, productId, quantity) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(productId)}`, { method: 'PUT', body: { quantity } }); }
+    overrideSaleItemPrice(id, itemId, body) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(itemId)}/price`, { method: 'PUT', body }); }
     removeSaleItem(id, productId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
     discountSale(id, discountCents) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/discount`, { method: 'POST', body: { discountCents } }); }
     suspendSale(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/suspend`, { method: 'POST', body: {} }); }

@@ -52,6 +52,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
     ['Data', sale.completedAt || sale.updatedAt || ''],
     ['Operador', sale.operatorName || sale.operatorId || '']
   );
+  if (sale.sellerName || sale.sellerId) metadata.push(['Vendedor', sale.sellerName || sale.sellerId]);
   if (sale.customerName || sale.customerId) metadata.push(['Cliente', sale.customerName || sale.customerId]);
 
   const totals = [['Subtotal', Number(sale.subtotalCents || 0)]];

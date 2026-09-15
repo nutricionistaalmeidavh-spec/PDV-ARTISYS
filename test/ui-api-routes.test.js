@@ -128,8 +128,13 @@ test('checkout API supports customer assignment quantity discount suspend resume
     assert.equal(res.status, 201);
     res = await fetch(`${ctx.base}/api/v1/products`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'p1', sku: '1', name: 'Produto', salePriceCents: 1000 }) });
     assert.equal(res.status, 201);
-    res = await fetch(`${ctx.base}/api/v1/sales`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 's1', saleNumber: '000001', terminalId: 'PDV-01' }) });
+    res = await fetch(`${ctx.base}/api/v1/users`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'seller1', username: 'vendedor', name: 'Vendedor 1', role: 'cashier', password: 'senha-vendedor-123' }) });
     assert.equal(res.status, 201);
+    res = await fetch(`${ctx.base}/api/v1/sellers`, { headers: headers(token) });
+    assert.ok((await json(res)).some((seller) => seller.id === 'seller1'));
+    res = await fetch(`${ctx.base}/api/v1/sales`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 's1', saleNumber: '000001', terminalId: 'PDV-01', sellerId: 'seller1' }) });
+    assert.equal(res.status, 201);
+    assert.equal((await json(res)).sellerName, 'Vendedor 1');
 
     res = await fetch(`${ctx.base}/api/v1/sales/s1/customer`, { method: 'POST', headers: headers(token), body: JSON.stringify({ customerId: 'c1' }) });
     assert.equal((await json(res)).customerId, 'c1');
@@ -137,10 +142,15 @@ test('checkout API supports customer assignment quantity discount suspend resume
     res = await fetch(`${ctx.base}/api/v1/sales/s1/items`, { method: 'POST', headers: headers(token), body: JSON.stringify({ productId: 'p1', quantity: 1 }) });
     assert.equal((await json(res)).items[0].quantity, 1);
     res = await fetch(`${ctx.base}/api/v1/sales/s1/items/p1`, { method: 'PUT', headers: headers(token), body: JSON.stringify({ quantity: 3 }) });
-    assert.equal((await json(res)).items[0].quantity, 3);
+    const changedQuantity = await json(res);
+    assert.equal(changedQuantity.items[0].quantity, 3);
+    res = await fetch(`${ctx.base}/api/v1/sales/s1/items/${changedQuantity.items[0].id}/price`, { method: 'PUT', headers: headers(token), body: JSON.stringify({ unitPriceCents: 800, reason: 'Oferta autorizada' }) });
+    const repriced = await json(res);
+    assert.equal(repriced.items[0].catalogUnitPriceCents, 1000);
+    assert.equal(repriced.items[0].unitPriceCents, 800);
 
     res = await fetch(`${ctx.base}/api/v1/sales/s1/discount`, { method: 'POST', headers: headers(token), body: JSON.stringify({ discountCents: 500 }) });
-    assert.equal((await json(res)).totalCents, 2500);
+    assert.equal((await json(res)).totalCents, 1900);
 
     res = await fetch(`${ctx.base}/api/v1/sales/s1/suspend`, { method: 'POST', headers: headers(token), body: '{}' });
     assert.equal((await json(res)).status, 'SUSPENDED');

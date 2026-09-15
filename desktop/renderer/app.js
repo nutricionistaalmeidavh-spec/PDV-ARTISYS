@@ -29,6 +29,7 @@
     categories: [],
     customers: [],
     users: [],
+    sellers: [],
     sale: null,
     cashSession: null,
     suspendedSales: [],
@@ -37,7 +38,8 @@
     categoryId: '',
     customerQuery: '',
     discountPercent: 0,
-    paymentDraft: []
+    paymentDraft: [],
+    selectedSellerId: ''
   };
 
   const content = document.getElementById('route-content');
@@ -146,8 +148,9 @@
   }
 
   async function loadCommonData() {
-    const [categories, products, customers] = await Promise.all([api.categories(), api.products(), api.customers()]);
-    state.categories = categories; state.products = products; state.customers = customers;
+    const [categories, products, customers, sellers] = await Promise.all([api.categories(), api.products(), api.customers(), api.sellers()]);
+    state.categories = categories; state.products = products; state.customers = customers; state.sellers = sellers;
+    if (!state.selectedSellerId || !sellers.some((seller) => seller.id === state.selectedSellerId)) state.selectedSellerId = sellers.find((seller) => seller.id === state.user?.id)?.id || sellers[0]?.id || '';
     if (['admin','manager'].includes(state.user?.role)) {
       try { state.users = await api.users(true); } catch { state.users = []; }
     }
@@ -158,6 +161,7 @@
     const [openSales, suspended] = await Promise.all([api.sales('OPEN', 20), api.sales('SUSPENDED', 30)]);
     state.suspendedSales = suspended;
     state.sale = openSales.find((sale) => sale.terminalId === state.config.terminalId && sale.operatorId === state.user.id) || null;
+    if (state.sale?.sellerId) state.selectedSellerId = state.sale.sellerId;
     state.discountPercent = state.sale?.subtotalCents ? Number(((state.sale.discountCents / state.sale.subtotalCents) * 100).toFixed(2)) : 0;
   }
 
@@ -198,6 +202,7 @@
     const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const customer = selectedCustomer(); const sale = state.sale;
     content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${products.map((product) => productCard(product)).join('') || '<div class="empty-state">Nenhum produto encontrado.</div>'}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente por nome, CPF ou código..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button><button class="pay-button tef" data-pay="tef">TEF</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
+    content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     bindCheckoutEvents();
   }
 
@@ -206,7 +211,10 @@
   }
 
   function cartLine(item) {
-    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong><small>${ui.formatCents(item.unitPriceCents)}</small></div><div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div><div class="line-total">${ui.formatCents(item.totalCents)} <button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button></div></div>`;
+    const changed = item.catalogUnitPriceCents != null && item.catalogUnitPriceCents !== item.unitPriceCents;
+    const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}</small>`;
+    const priceButton = ['admin','manager'].includes(state.user?.role) ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
+    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div><div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div><div class="line-total">${ui.formatCents(item.totalCents)} <button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button></div></div>`;
   }
 
   function bindCheckoutEvents() {
@@ -219,6 +227,8 @@
     content.querySelectorAll('[data-qty-minus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyMinus, -1)));
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
     content.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.remove)));
+    content.querySelectorAll('[data-price-item]').forEach((button) => button.addEventListener('click', () => openPriceOverride(button.dataset.priceItem)));
+    document.getElementById('seller-select')?.addEventListener('change', setSelectedSeller);
     document.getElementById('new-sale')?.addEventListener('click', newSale);
     document.getElementById('remove-item')?.addEventListener('click', () => state.selectedProductId ? removeProduct(state.selectedProductId) : showToast('Selecione um item.', 'error'));
     document.getElementById('cancel-sale')?.addEventListener('click', cancelCurrentSale);
@@ -234,7 +244,19 @@
   async function ensureSale() {
     if (state.sale?.status === 'OPEN') return state.sale;
     const saleNumber = `${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Date.now().toString().slice(-6)}`;
-    state.sale = await api.openSale({ saleNumber, terminalId: state.config.terminalId }); state.discountPercent = 0; return state.sale;
+    state.sale = await api.openSale({ saleNumber, terminalId: state.config.terminalId, sellerId: state.selectedSellerId || state.user.id }); state.discountPercent = 0; return state.sale;
+  }
+
+  async function setSelectedSeller(event) {
+    state.selectedSellerId = event.target.value;
+    if (!state.sale) return;
+    try { state.sale = await api.setSaleSeller(state.sale.id, state.selectedSellerId); renderCheckout(); }
+    catch (error) { showToast(error.message, 'error'); renderCheckout(); }
+  }
+
+  function openPriceOverride(itemId) {
+    const item = state.sale?.items.find((entry) => entry.id === itemId); if (!item) return;
+    openModal('Alterar preço do item', `<form id="price-override-form"><div class="field"><label>Novo preço *</label><input name="unitPrice" inputmode="decimal" required value="${(item.unitPriceCents / 100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Justificativa *</label><textarea name="reason" rows="3" required minlength="3" placeholder="Informe o motivo da alteração"></textarea></div><p>O preço original será preservado no histórico. Esta ação exige perfil de gerente ou administrador.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Aplicar preço</button></div></form>`, { onMount(root) { root.querySelector('[data-close-modal]').addEventListener('click', closeModal); root.querySelector('#price-override-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { state.sale = await api.overrideSaleItemPrice(state.sale.id, itemId, { unitPriceCents: centsFromInput(formValue(form, 'unitPrice')), reason: formValue(form, 'reason') }); closeModal(); renderCheckout(); showToast('Preço alterado e registrado na auditoria.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
   }
 
   async function newSale() {

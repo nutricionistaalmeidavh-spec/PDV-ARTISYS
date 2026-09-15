@@ -14,6 +14,9 @@ function csvCell(value) {
 
 function createReportingService({ db, now = () => new Date().toISOString() } = {}) {
   if (!db) throw new TypeError('Database is required.');
+  const saleColumns = new Set(db.prepare('PRAGMA table_info(sales)').all().map(row => row.name));
+  const hasSellerId = saleColumns.has('seller_id');
+  const hasSellerSnapshot = saleColumns.has('seller_name_snapshot');
 
   function period(filters = {}, dateColumn = 's.completed_at') {
     const from = parseDate(filters.from, '1970-01-01T00:00:00.000Z');
@@ -23,12 +26,18 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
   function completedSales(filters = {}) {
     const p = period(filters);
-    return db.prepare(`SELECT s.*,u.name AS operator_name,c.name AS customer_name
+    const sellerIdExpression = hasSellerId ? 'COALESCE(s.seller_id,s.operator_id)' : 's.operator_id';
+    const sellerNameExpression = hasSellerSnapshot ? 'COALESCE(s.seller_name_snapshot,su.name,u.name)' : 'u.name';
+    const sellerJoin = hasSellerId ? 'LEFT JOIN users su ON su.id=s.seller_id' : '';
+    const sellerClause = filters.sellerId ? ` AND ${sellerIdExpression}=?` : '';
+    const params = filters.sellerId ? [p.from,p.to,String(filters.sellerId)] : [p.from,p.to];
+    return db.prepare(`SELECT s.*,u.name AS operator_name,${sellerIdExpression} AS resolved_seller_id,${sellerNameExpression} AS seller_name,c.name AS customer_name
       FROM sales s
       LEFT JOIN users u ON u.id=s.operator_id
+      ${sellerJoin}
       LEFT JOIN customers c ON c.id=s.customer_id
-      WHERE s.status='COMPLETED' AND ${p.clause}
-      ORDER BY s.completed_at,s.id`).all(p.from, p.to);
+      WHERE s.status='COMPLETED' AND ${p.clause}${sellerClause}
+      ORDER BY s.completed_at,s.id`).all(...params);
   }
 
   function completedReturns(filters = {}) {
@@ -50,6 +59,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const paymentsByMethod = {};
     const products = new Map();
     const operators = new Map();
+    const sellers = new Map();
     let costCents = 0;
 
     for (const sale of sales) {
@@ -70,6 +80,11 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       operator.salesCount += 1;
       operator.salesCents += Number(sale.total_cents || 0);
       operators.set(sale.operator_id, operator);
+      const sellerId = sale.resolved_seller_id || sale.operator_id;
+      const seller = sellers.get(sellerId) || { sellerId, sellerName:sale.seller_name || sale.operator_name || 'Nao identificado', salesCount:0, salesCents:0 };
+      seller.salesCount += 1;
+      seller.salesCents += Number(sale.total_cents || 0);
+      sellers.set(sellerId, seller);
     }
 
     let returnedCostCents = 0;
@@ -92,6 +107,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       estimatedCostCents: costCents - returnedCostCents,
       estimatedMarginCents: netSalesCents - (costCents - returnedCostCents),
       operators: [...operators.values()].sort((a,b) => b.salesCents-a.salesCents || a.operatorName.localeCompare(b.operatorName)),
+      sellers: [...sellers.values()].sort((a,b) => b.salesCents-a.salesCents || a.sellerName.localeCompare(b.sellerName)),
       saleIds: [...saleIds]
     };
   }
@@ -155,11 +171,11 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
   function exportSalesCsv(filters = {}) {
     const rows = completedSales(filters);
-    const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente'];
+    const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente;vendedor_garcom'];
     for (const row of rows) {
       const methods = db.prepare('SELECT method FROM payments WHERE sale_id=? ORDER BY created_at,id').all(row.id).map(p=>p.method).join('+');
       lines.push([
-        row.sale_number,row.completed_at,row.operator_name||'',row.status,row.total_cents,methods,row.customer_name||''
+        row.sale_number,row.completed_at,row.operator_name||'',row.status,row.total_cents,methods,row.customer_name||'',row.seller_name||''
       ].map(csvCell).join(';'));
     }
     return `${lines.join('\n')}\n`;

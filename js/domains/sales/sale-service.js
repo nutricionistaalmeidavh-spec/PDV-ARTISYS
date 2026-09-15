@@ -6,20 +6,24 @@ const { resolvePayment, normalizeMethod } = require('../payments/payment-rules')
 const { calculateSaleTotals } = require('./pricing');
 const { roundQuantity } = require('../inventory/inventory-rules');
 const { assertCents } = require('../shared/money');
+const { runSalesEnhancementMigrations } = require('../../core/database/sales-enhancement-migrations');
 const VALID_PAYMENT_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
 
 function createSaleService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, stockRequirementsResolver = null } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
+  runSalesEnhancementMigrations(db, now);
 
   function getSaleRow(id) { return db.prepare('SELECT * FROM sales WHERE id=?').get(String(id)); }
   function getItems(id) {
-    return db.prepare(`SELECT id,product_id AS productId,product_name AS productName,sku,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents,configuration_json AS configurationJson FROM sale_items WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(item=>{
+    return db.prepare(`SELECT id,product_id AS productId,product_name AS productName,sku,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents,
+      catalog_unit_price_cents AS catalogUnitPriceCents,price_override_reason AS priceOverrideReason,price_changed_by_id AS priceChangedById,
+      price_authorized_by_id AS priceAuthorizedById,configuration_json AS configurationJson FROM sale_items WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(item=>{
       let configuration=null;try{configuration=item.configurationJson?JSON.parse(item.configurationJson):null;}catch{configuration=null;}
       const {configurationJson,...safe}=item;return{...safe,configuration};
     });
   }
   function getPayments(id) { return db.prepare(`SELECT id,method,amount_cents AS amountCents,metadata_json AS metadataJson,created_at AS createdAt FROM payments WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(p => ({ ...p, metadata: p.metadataJson ? JSON.parse(p.metadataJson) : null })); }
-  function mapSale(row) { if (!row) return null; return { id: row.id, saleNumber: row.sale_number, terminalId: row.terminal_id, operatorId: row.operator_id, customerId: row.customer_id, status: row.status, subtotalCents: row.subtotal_cents, discountCents: row.discount_cents, totalCents: row.total_cents, changeCents: row.change_cents, cancelReason: row.cancel_reason, openedAt: row.opened_at, completedAt: row.completed_at, cancelledAt: row.cancelled_at, updatedAt: row.updated_at, items: getItems(row.id), payments: getPayments(row.id) }; }
+  function mapSale(row) { if (!row) return null; return { id: row.id, saleNumber: row.sale_number, terminalId: row.terminal_id, operatorId: row.operator_id, sellerId: row.seller_id || row.operator_id, sellerName: row.seller_name_snapshot || null, customerId: row.customer_id, status: row.status, subtotalCents: row.subtotal_cents, discountCents: row.discount_cents, totalCents: row.total_cents, changeCents: row.change_cents, cancelReason: row.cancel_reason, openedAt: row.opened_at, completedAt: row.completed_at, cancelledAt: row.cancelled_at, updatedAt: row.updated_at, items: getItems(row.id), payments: getPayments(row.id) }; }
   function getSale(id) { return mapSale(getSaleRow(id)); }
   function getSaleDetails(id) { return getSale(id); }
   function requireSale(id, states) { const row = getSaleRow(id); if (!row) throw new Error('Venda nao encontrada.'); if (states && !states.includes(row.status)) throw new Error(`Venda nao esta aberta para esta operacao (status ${row.status}).`); return row; }
@@ -40,6 +44,7 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
     if(status){if(!['OPEN','SUSPENDED','COMPLETED','CANCELLED'].includes(status))throw new Error('Status de venda invalido.');clauses.push('s.status=?');params.push(status);}
     if(filters.customerId){clauses.push('s.customer_id=?');params.push(String(filters.customerId));}
     if(filters.operatorId){clauses.push('s.operator_id=?');params.push(String(filters.operatorId));}
+    if(filters.sellerId){clauses.push('COALESCE(s.seller_id,s.operator_id)=?');params.push(String(filters.sellerId));}
     if(filters.from){clauses.push('COALESCE(s.completed_at,s.cancelled_at,s.opened_at)>=?');params.push(String(filters.from));}
     if(filters.to){clauses.push('COALESCE(s.completed_at,s.cancelled_at,s.opened_at)<=?');params.push(String(filters.to));}
     if(filters.paymentMethod){clauses.push('EXISTS (SELECT 1 FROM payments p WHERE p.sale_id=s.id AND p.method=?)');params.push(normalizeMethod(filters.paymentMethod));}
@@ -61,10 +66,13 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
   function openSale(input = {}, actor = null) {
     const id = String(input.id || idFactory('sale')); const terminalId = String(input.terminalId || '').trim(); const operatorId = String(input.operatorId || '').trim();
     if (!terminalId || !operatorId) throw new Error('Terminal e operador sao obrigatorios.');
+    const sellerId = String(input.sellerId || operatorId).trim();
+    const seller = db.prepare('SELECT id,name FROM users WHERE id=? AND active=1').get(sellerId);
+    if (!seller) throw new Error('Vendedor ou garcom nao encontrado ou inativo.');
     const timestamp = now(); const saleNumber = String(input.saleNumber || id).trim();
-    db.prepare(`INSERT INTO sales (id,sale_number,terminal_id,operator_id,customer_id,status,opened_at,updated_at) VALUES (?,?,?,?,?,'OPEN',?,?)`)
-      .run(id, saleNumber, terminalId, operatorId, input.customerId || null, timestamp, timestamp);
-    writeAudit(db, { action: 'sale.open', entity: 'sale', entityId: id, actor: actor || { userId: operatorId, role: 'cashier', terminalId }, context: { saleNumber, terminalId } }, now);
+    db.prepare(`INSERT INTO sales (id,sale_number,terminal_id,operator_id,seller_id,seller_name_snapshot,customer_id,status,opened_at,updated_at) VALUES (?,?,?,?,?,?,?,'OPEN',?,?)`)
+      .run(id, saleNumber, terminalId, operatorId, seller.id, seller.name, input.customerId || null, timestamp, timestamp);
+    writeAudit(db, { action: 'sale.open', entity: 'sale', entityId: id, actor: actor || { userId: operatorId, role: 'cashier', terminalId }, context: { saleNumber, terminalId, sellerId:seller.id } }, now);
     return getSale(id);
   }
 
@@ -98,6 +106,33 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
 
   function updateItemQuantity(saleId, productId, quantity) { return withTransaction(db, () => { requireSale(saleId, ['OPEN']); const q = roundQuantity(quantity); if (q <= 0) throw new Error('Quantidade deve ser maior que zero.'); const row = db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND product_id=? ORDER BY created_at,id LIMIT 1').get(saleId, productId); if (!row) throw new Error('Item nao encontrado na venda.'); db.prepare('UPDATE sale_items SET quantity=?,total_cents=?,updated_at=? WHERE id=?').run(q, Math.round(row.unit_price_cents * q), now(), row.id); recalculate(saleId); return getSale(saleId); }); }
   function updateItemQuantityById(saleId,itemId,quantity){return withTransaction(db,()=>{requireSale(saleId,['OPEN']);const q=roundQuantity(quantity);if(q<=0)throw new Error('Quantidade deve ser maior que zero.');const row=db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND id=?').get(saleId,String(itemId));if(!row)throw new Error('Item nao encontrado na venda.');db.prepare('UPDATE sale_items SET quantity=?,total_cents=?,updated_at=? WHERE id=?').run(q,Math.round(row.unit_price_cents*q),now(),row.id);recalculate(saleId);return getSale(saleId);});}
+  function overrideItemPrice(saleId,itemId,{unitPriceCents,reason='',actor={}}={}){
+    return withTransaction(db,()=>{
+      requireSale(saleId,['OPEN']);
+      if(!['manager','admin'].includes(String(actor.role||'')))throw new Error('Autorizacao de gerente necessaria para alterar o preco.');
+      const price=assertCents(Number(unitPriceCents),'unitPriceCents');if(price<0)throw new Error('Preco do item nao pode ser negativo.');
+      const text=String(reason||'').trim();if(!text)throw new Error('Informe o motivo da alteracao de preco.');
+      const row=db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND id=?').get(saleId,String(itemId));if(!row)throw new Error('Item nao encontrado na venda.');
+      const timestamp=now();const actorId=String(actor.userId||'').trim()||null;
+      db.prepare(`UPDATE sale_items SET catalog_unit_price_cents=COALESCE(catalog_unit_price_cents,unit_price_cents),unit_price_cents=?,total_cents=?,
+        price_override_reason=?,price_changed_by_id=?,price_authorized_by_id=?,updated_at=? WHERE id=?`)
+        .run(price,Math.round(price*Number(row.quantity)),text,actorId,actorId,timestamp,row.id);
+      recalculate(saleId);
+      writeAudit(db,{action:'sale.item-price-override',entity:'sale-item',entityId:row.id,actor,context:{saleId,previousUnitPriceCents:row.unit_price_cents,newUnitPriceCents:price,reason:text}},now);
+      return getSale(saleId);
+    });
+  }
+
+  function setSeller(saleId, sellerId, actor = null) {
+    return withTransaction(db, () => {
+      requireSale(saleId, ['OPEN','SUSPENDED']);
+      const seller = db.prepare('SELECT id,name FROM users WHERE id=? AND active=1').get(String(sellerId || '').trim());
+      if (!seller) throw new Error('Vendedor ou garcom nao encontrado ou inativo.');
+      db.prepare('UPDATE sales SET seller_id=?,seller_name_snapshot=?,updated_at=? WHERE id=?').run(seller.id,seller.name,now(),saleId);
+      writeAudit(db,{action:'sale.seller-change',entity:'sale',entityId:saleId,actor,context:{sellerId:seller.id}},now);
+      return getSale(saleId);
+    });
+  }
   function removeItem(saleId, productId) { return withTransaction(db, () => { requireSale(saleId, ['OPEN']); db.prepare('DELETE FROM sale_items WHERE sale_id=? AND product_id=?').run(saleId, productId); recalculate(saleId); return getSale(saleId); }); }
   function removeItemById(saleId,itemId){return withTransaction(db,()=>{requireSale(saleId,['OPEN']);db.prepare('DELETE FROM sale_items WHERE sale_id=? AND id=?').run(saleId,String(itemId));recalculate(saleId);return getSale(saleId);});}
   function applyDiscount(saleId, { discountCents = 0 } = {}) { return withTransaction(db, () => { requireSale(saleId, ['OPEN']); recalculate(saleId, discountCents); return getSale(saleId); }); }
@@ -150,6 +185,6 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
     });
   }
 
-  return { openSale, setCustomer, addItem, updateItemQuantity, updateItemQuantityById, removeItem, removeItemById, applyDiscount, suspendSale, resumeSale, completeSale, cancelSale, getSale, getSaleDetails, listSales, listHistory };
+  return { openSale, setCustomer, setSeller, addItem, updateItemQuantity, updateItemQuantityById, overrideItemPrice, removeItem, removeItemById, applyDiscount, suspendSale, resumeSale, completeSale, cancelSale, getSale, getSaleDetails, listSales, listHistory };
 }
 module.exports = { createSaleService };

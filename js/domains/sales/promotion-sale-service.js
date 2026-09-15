@@ -112,6 +112,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     return enrich(sale);
   }
   function setCustomer(id,customerId){return enrich(baseSales.setCustomer(id,customerId));}
+  function setSeller(id,sellerId,actor=null){return enrich(baseSales.setSeller(id,sellerId,actor));}
   function addItem(id,input={}){
     const kit=kitSnapshot(input.productId);
     if(!kit&&!input.configurationSnapshot&&input.forceSeparateLine!==true&&hasActiveVariants(input.productId))throw new Error('Este produto possui variacoes. Selecione o subitem desejado.');
@@ -129,6 +130,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   }
   function updateItemQuantity(id,productId,quantity){baseSales.updateItemQuantity(id,productId,quantity);return reprice(id);}
   function updateItemQuantityById(id,itemId,quantity){baseSales.updateItemQuantityById(id,itemId,quantity);return reprice(id);}
+  function overrideItemPrice(id,itemId,input={}){baseSales.overrideItemPrice(id,itemId,input);return reprice(id);}
   function removeItem(id,productId){baseSales.removeItem(id,productId);return reprice(id);}
   function removeItemById(id,itemId){baseSales.removeItemById(id,itemId);return reprice(id);}
   function applyDiscount(id,{discountCents=0}={}){return reprice(id,discountCents);}
@@ -141,7 +143,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function listSales(filters={}){return baseSales.listSales(filters).map(enrich);}
   function listHistory(filters={}){return baseSales.listHistory(filters).map(enrich);}
 
-  return {openSale,setCustomer,addItem,updateItemQuantity,updateItemQuantityById,removeItem,removeItemById,applyDiscount,suspendSale,resumeSale,completeSale,cancelSale,getSale,getSaleDetails,listSales,listHistory};
+  return {openSale,setCustomer,setSeller,addItem,updateItemQuantity,updateItemQuantityById,overrideItemPrice,removeItem,removeItemById,applyDiscount,suspendSale,resumeSale,completeSale,cancelSale,getSale,getSaleDetails,listSales,listHistory};
 }
 
 module.exports = { createPromotionSaleService };
