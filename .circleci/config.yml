@@ -19,13 +19,7 @@ jobs:
             echo "CIRCLE_SHA1=${CIRCLE_SHA1}"
             echo "CHECKED_OUT_SHA=$(git rev-parse HEAD)"
             node --version
-            node - <<'NODE'
-            const { DatabaseSync } = require('node:sqlite');
-            const db = new DatabaseSync(':memory:');
-            console.log('DatabaseSync.isTransaction type:', typeof db.isTransaction);
-            console.log('DatabaseSync.isTransaction initial:', db.isTransaction);
-            db.close();
-            NODE
+            node -e "const {DatabaseSync}=require('node:sqlite'); const db=new DatabaseSync(':memory:'); console.log('DatabaseSync.isTransaction type:', typeof db.isTransaction); console.log('DatabaseSync.isTransaction initial:', db.isTransaction); db.close();"
             echo "sqlite-database.js transaction helper:"
             nl -ba js/core/database/sqlite-database.js | sed -n '20,48p'
 
