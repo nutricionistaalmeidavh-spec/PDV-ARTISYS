@@ -17,14 +17,14 @@
   },
   "electron": {
     "entry": "../desktop/main.cjs",
-    "executablePath": "../node_modules/electron/dist/electron"
+    "executablePath": "../node_modules/electron/dist/electron",
+    "args": ["--no-sandbox"]
   },
   "environments": {
     "ci": {
       "env": {
         "NODE_ENV": "test",
-        "ARTISYS_QA": "1",
-        "ELECTRON_DISABLE_SANDBOX": "1"
+        "ARTISYS_QA": "1"
       }
     }
   },
