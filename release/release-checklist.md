@@ -1,29 +1,27 @@
-# ArtiSys PDV 1.3.1 — Release checklist
+# ArtiSys PDV 1.3.2 — Release checklist
 
-A versão 1.3.1 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no mesmo HEAD.
+A versão 1.3.2 só é considerada publicável quando todos os gates técnicos abaixo estão comprovados no mesmo HEAD.
 
-- [x] E01–E54 preservadas e integradas ao núcleo local-first.
-- [x] `SaleService` permanece o único motor canônico de conclusão de vendas.
+- [x] E01–E54 e E54.1 preservadas e integradas ao núcleo local-first.
+- [x] `SaleService` permanece o motor canônico de conclusão de vendas.
 - [x] SQLite permanece autoritativo somente no servidor local.
 - [x] Pagamentos permanecem manuais e documentos comerciais permanecem **NÃO FISCAL**.
+- [x] Observação interna da venda limitada a 500 caracteres e persistida junto da venda.
+- [x] Impressão da observação permanece opcional e desmarcada por padrão.
+- [x] Observação impressa limitada a 120 caracteres e no máximo 4 linhas.
+- [x] Cupom mantém suporte às larguras 32/42/48 colunas.
+- [x] Reimpressão usa a observação persistida da venda.
+- [x] Pacote mantém `productName` = `ArtiSys PDV` e artefato `ArtiSys-PDV-1.3.2-x64-Setup.exe`.
 - [x] E54.1 inclui harness de simulação reproduzível para periféricos.
-- [x] Falha de escrita serial força estado recuperável e nova abertura reconstrói a porta.
-- [x] COM ocupada/inexistente é tratada sem travar o processo e permite tentativa posterior.
-- [x] Balança cobre resposta fragmentada, ponto/vírgula, lixo, timeout e retry.
-- [x] Epson/Star cobrem acentos, corte, gaveta e larguras 32/42/48 em simulação.
-- [x] Spooler Electron/Windows cobre offline e recuperação posterior.
-- [x] Leitor `keyboard-wedge` cobre leituras repetidas e código inválido.
-- [x] Gaveta serial cobre falha, fechamento e pulso posterior bem-sucedido.
-- [x] Stress serial executa ciclos repetidos sem deixar porta aberta.
 - [x] Matriz usa `PROTOCOL_VERIFIED`, `FIELD_VERIFIED` e `UNTESTED_MODEL` sem confundir CI com teste físico.
-- [x] `FIELD_VERIFIED` exige evidência de modelo físico realmente testado.
 - [ ] `npm run verify` verde no HEAD final de release.
 - [ ] `npm run verify:release` verde no HEAD final de release.
-- [ ] Windows x64 NSIS gerado no CI a partir do mesmo HEAD.
-- [ ] Artefato e manifesto SHA-256 gerados pelo CI.
-- [ ] PR revisado/mergeado em `main` sem divergência do HEAD verificado.
-- [ ] Gates pós-merge em `main` verdes.
-- [ ] GitHub Release `v1.3.1` publicada a partir de `main`.
+- [ ] Windows x64 NSIS gerado localmente ou no CI a partir do mesmo HEAD.
+- [ ] Instalador `ArtiSys-PDV-1.3.2-x64-Setup.exe` aberto e validado sem tela preta.
+- [ ] Artefato e manifesto SHA-256 gerados a partir do mesmo HEAD.
+- [ ] Branch revisada/mergeada em `main` sem divergência do HEAD verificado.
+- [ ] Gates pós-merge em `main` verdes quando executados.
+- [ ] GitHub Release `v1.3.2` publicada quando houver decisão de publicação formal.
 
 ## Validação física
 
