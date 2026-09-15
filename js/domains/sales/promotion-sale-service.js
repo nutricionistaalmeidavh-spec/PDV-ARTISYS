@@ -1,11 +1,16 @@
 'use strict';
 
 const { assertCents } = require('../shared/money');
+const { sanitizeSaleObservation } = require('./sale-observation');
 
 function parsePromotions(value) { try { return value ? JSON.parse(value) : []; } catch { return []; } }
 
 function createPromotionSaleService({ db, baseSales, promotionService, now = () => new Date().toISOString() } = {}) {
   if(!db || !baseSales || !promotionService) throw new TypeError('db, baseSales and promotionService are required.');
+
+  const saleColumns=new Set(db.prepare('PRAGMA table_info(sales)').all().map(column=>column.name));
+  if(!saleColumns.has('observation'))db.exec('ALTER TABLE sales ADD COLUMN observation TEXT');
+  if(!saleColumns.has('print_observation'))db.exec('ALTER TABLE sales ADD COLUMN print_observation INTEGER NOT NULL DEFAULT 0 CHECK (print_observation IN (0,1))');
 
   function readState(sale) {
     const row=db.prepare('SELECT * FROM sale_discount_states WHERE sale_id=?').get(String(sale.id));
@@ -13,16 +18,37 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     return {manualDiscountCents:Number(sale.discountCents||0),promotionDiscountCents:0,promotions:[],blocksManualDiscount:false};
   }
 
+  function readObservation(saleId){
+    return db.prepare('SELECT observation,print_observation FROM sales WHERE id=?').get(String(saleId))||{};
+  }
+
   function enrich(sale) {
     if(!sale) return sale;
     const state=readState(sale);
-    return {...sale,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount};
+    const observation=readObservation(sale.id);
+    return {...sale,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount,observation:observation.observation||'',printObservation:Boolean(observation.print_observation)};
   }
 
   function writeState(saleId,state) {
     db.prepare(`INSERT INTO sale_discount_states(sale_id,manual_discount_cents,promotion_discount_cents,promotions_json,blocks_manual_discount,updated_at)
       VALUES(?,?,?,?,?,?) ON CONFLICT(sale_id) DO UPDATE SET manual_discount_cents=excluded.manual_discount_cents,promotion_discount_cents=excluded.promotion_discount_cents,promotions_json=excluded.promotions_json,blocks_manual_discount=excluded.blocks_manual_discount,updated_at=excluded.updated_at`)
       .run(String(saleId),state.manualDiscountCents,state.promotionDiscountCents,JSON.stringify(state.promotions||[]),state.blocksManualDiscount?1:0,now());
+  }
+
+  function extractObservation(input={}){
+    const first=Array.isArray(input.payments)?input.payments[0]:null;
+    if(!first||(!Object.prototype.hasOwnProperty.call(first,'saleObservation')&&!Object.prototype.hasOwnProperty.call(first,'printObservation')))return null;
+    const observation=sanitizeSaleObservation(first.saleObservation);
+    return{observation,printObservation:Boolean(first.printObservation&&observation.trim())};
+  }
+
+  function stripObservationTransport(input={}){
+    return{...input,payments:(input.payments||[]).map(payment=>{const{saleObservation:_saleObservation,printObservation:_printObservation,...safe}=payment||{};return safe;})};
+  }
+
+  function persistObservation(saleId,input={}){
+    const data=extractObservation(input);if(!data)return;
+    db.prepare('UPDATE sales SET observation=?,print_observation=?,updated_at=? WHERE id=?').run(data.observation||null,data.printObservation?1:0,now(),String(saleId));
   }
 
   function reprice(saleId, manualOverride) {
@@ -108,7 +134,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function applyDiscount(id,{discountCents=0}={}){return reprice(id,discountCents);}
   function suspendSale(id){reprice(id);return enrich(baseSales.suspendSale(id));}
   function resumeSale(id){baseSales.resumeSale(id);return reprice(id);}
-  function completeSale(id,input={}){reprice(id);const sale=baseSales.getSale(id);assertVariantStock(sale);baseSales.completeSale(id,input);return enrich(baseSales.getSale(id));}
+  function completeSale(id,input={}){reprice(id);const sale=baseSales.getSale(id);assertVariantStock(sale);persistObservation(id,input);baseSales.completeSale(id,stripObservationTransport(input));return enrich(baseSales.getSale(id));}
   function cancelSale(id,input={}){return enrich(baseSales.cancelSale(id,input));}
   function getSale(id){return enrich(baseSales.getSale(id));}
   function getSaleDetails(id){return enrich(baseSales.getSaleDetails(id));}

@@ -1,3 +1,36 @@
+# ArtiSys PDV 1.3.2 — Observação de venda e cupom não fiscal
+
+Patch local-first sobre a 1.3.1 que adiciona observação vinculada à venda e ao cliente sem alterar o motor canônico de venda, estoque, caixa ou EventBus.
+
+## Observação da venda
+
+- o Balcão passa a aceitar uma observação por venda;
+- a observação interna aceita até **500 caracteres** e fica persistida junto da venda no SQLite;
+- quando a venda possui cliente, a observação permanece consultável no mesmo histórico vinculado à venda/cliente;
+- a impressão no cupom não fiscal é **opcional** e fica desmarcada por padrão;
+- ao habilitar a impressão, o texto é limitado a **120 caracteres** e no máximo **4 linhas**;
+- o renderer respeita as larguras térmicas de **32, 42 e 48 colunas**;
+- reimpressões usam a observação persistida da venda, sem depender de cache do renderer;
+- a falha de impressão continua não desfazendo a conclusão da venda.
+
+## Empacotamento
+
+O produto permanece `ArtiSys PDV`, Windows x64, com instalador NSIS. O artefato desta release é:
+
+`ArtiSys-PDV-1.3.2-x64-Setup.exe`
+
+A versão 1.3.1 permanece como release anterior e não deve ser sobrescrita no histórico de distribuição.
+
+## Regras comerciais preservadas
+
+O sistema continua **local-first**: SQLite autoritativo no servidor local, terminais/dispositivos pela API LAN, EventBus/outbox para efeitos derivados e `SaleService` como motor canônico de vendas.
+
+Os fluxos comerciais usam **pagamentos manuais** e documentos explicitamente **NÃO FISCAL**. Não há TEF, gateway bancário, confirmação automática de PIX, SaaS ou internet obrigatória para a operação diária.
+
+A interface mobile continua self-hosted em `http://IP-DO-SERVIDOR:4174/mobile`, destinada somente à LAN confiável; a versão 1.3.2 não declara HTTPS nem PWA instalável.
+
+---
+
 # ArtiSys PDV 1.3.1 — Hardware Simulation QA
 
 Patch local-first que reforça a E54 sem exigir compra prévia de periféricos. A versão 1.3.1 adiciona uma suíte automatizada de simulação para elevar a confiança em impressoras, balanças, gavetas e leitores antes do primeiro teste físico em cliente.

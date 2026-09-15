@@ -1,4 +1,4 @@
-# ArtiSys PDV 1.3.1
+# ArtiSys PDV 1.3.2
 
 PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
 
@@ -20,6 +20,7 @@ Principais capacidades:
 - ficha técnica versionada e baixa de ingredientes pelo ledger de estoque existente;
 - estoque por ledger imutável, inventário e alertas de mínimo;
 - Balcão com busca/código de barras, seleção direta de variações, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
+- observação vinculada à venda/cliente, com até 500 caracteres para registro interno e impressão opcional limitada a 120 caracteres e 4 linhas no cupom não fiscal;
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
 - financeiro, relatórios e exportação CSV;
@@ -110,7 +111,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reut
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.3.1.
+- Windows x64 é o alvo de empacotamento comercial 1.3.2.
 
 ```bash
 npm install
@@ -149,7 +150,7 @@ Isso permite oferecer compatibilidade por protocolo sem fingir homologação de 
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.3.1 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.3.2 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -160,7 +161,7 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.1-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.2-x64-Setup.exe
 ```
 
 `docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
