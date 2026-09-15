@@ -3,6 +3,7 @@
 const { DatabaseSync } = require('node:sqlite');
 
 let savepointSequence = 0;
+const managedTransactions = new WeakSet();
 
 function openDatabase(filename) {
   if (!filename) throw new TypeError('Database filename is required.');
@@ -20,10 +21,19 @@ function withTransaction(db, fn) {
   if (!db || typeof db.exec !== 'function') throw new TypeError('Database is required.');
   if (typeof fn !== 'function') throw new TypeError('Transaction callback is required.');
 
-  const nested = Boolean(db.isTransaction);
+  // DatabaseSync.isTransaction only exists from Node 22.16 onward. Track
+  // transactions started by this helper as a compatibility fallback so the
+  // project's declared Node >=22 support still handles nested service calls.
+  const nested = managedTransactions.has(db) || Boolean(db.isTransaction);
   const savepoint = nested ? `artisys_sp_${++savepointSequence}` : null;
-  if (nested) db.exec(`SAVEPOINT ${savepoint}`);
-  else db.exec('BEGIN IMMEDIATE');
+  const ownsTransaction = !nested;
+
+  if (nested) {
+    db.exec(`SAVEPOINT ${savepoint}`);
+  } else {
+    db.exec('BEGIN IMMEDIATE');
+    managedTransactions.add(db);
+  }
 
   try {
     const result = fn();
@@ -43,6 +53,8 @@ function withTransaction(db, fn) {
       }
     } catch { /* preserve original error */ }
     throw error;
+  } finally {
+    if (ownsTransaction) managedTransactions.delete(db);
   }
 }
 
