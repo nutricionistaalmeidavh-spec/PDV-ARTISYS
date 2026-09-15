@@ -27,10 +27,12 @@ test('decorador grava observacao vinculada a venda e preserva flag de impressao'
   const rows = new Map([['s1', { observation:null, print_observation:0 }]]);
   const db = {
     prepare(sql) {
+      if (sql === 'PRAGMA table_info(sales)') return { all() { return [{ name:'observation' }, { name:'print_observation' }]; } };
       if (sql.startsWith('UPDATE sales SET observation=')) return { run(note, print, _updatedAt, id) { rows.set(id, { observation:note, print_observation:print }); return { changes:1 }; } };
       if (sql.startsWith('SELECT observation,print_observation')) return { get(id) { return rows.get(id); } };
       throw new Error(`SQL inesperado: ${sql}`);
-    }
+    },
+    exec() {}
   };
   const baseSales = {
     completeSale(id) { return { id, saleNumber:'0001', customerId:'c1', status:'COMPLETED' }; },
