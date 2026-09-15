@@ -11,6 +11,7 @@
   "optional-local-module-registry",
   "inventory-ledger-and-low-stock",
   "sales-checkout-mixed-manual-payments",
+  "sales-observation-internal-and-optional-non-fiscal-printing",
   "cash-open-supply-withdraw-close",
   "sales-history-returns-and-reversals",
   "finance-payables-receivables",
