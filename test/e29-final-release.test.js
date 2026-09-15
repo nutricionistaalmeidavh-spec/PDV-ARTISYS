@@ -59,7 +59,7 @@ test('release manifest remains deterministic and hashes supplied v1.3.2 artifact
     });
     assert.equal(manifest.version, '1.3.2');
     assert.equal(manifest.commit, 'abc123');
-    assert.equal(manifest.schemaVersion, 9);
+    assert.equal(manifest.schemaVersion, 10);
     assert.equal(manifest.builtAt, '2026-09-15T14:00:00.000Z');
     assert.equal(manifest.artifacts.length, 1);
     assert.equal(manifest.artifacts[0].sha256, crypto.createHash('sha256').update('fixture').digest('hex'));
