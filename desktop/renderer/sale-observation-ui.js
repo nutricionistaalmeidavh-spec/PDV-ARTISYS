@@ -7,6 +7,7 @@
   const MAX_INTERNAL = 500;
   const MAX_PRINTED = 120;
   const draft = { note:'', print:false };
+  let lastSaleDetails = null;
 
   const originalCompleteSale = ApiClient.prototype.completeSale;
   ApiClient.prototype.completeSale = async function completeSaleWithObservation(id, payments) {
@@ -21,7 +22,38 @@
     return result;
   };
 
-  function mount() {
+  const originalSaleDetails = ApiClient.prototype.saleDetails;
+  ApiClient.prototype.saleDetails = async function saleDetailsWithObservation(id) {
+    const result = await originalSaleDetails.call(this, id);
+    lastSaleDetails = result;
+    queueMicrotask(mountHistoryObservation);
+    return result;
+  };
+
+  function mountHistoryObservation() {
+    const card = document.querySelector('#ops-sale-detail .ops-card');
+    if (!card || card.querySelector('[data-sale-observation-detail]')) return;
+    const note = String(lastSaleDetails?.observation || '').trim();
+    if (!note) return;
+
+    const block = document.createElement('div');
+    block.dataset.saleObservationDetail = 'true';
+    block.style.cssText = 'margin-top:14px;padding:12px 14px;border:1px solid #e3e8f0;border-radius:9px;background:#fbfcfe;color:#34445c';
+    const title = document.createElement('strong');
+    title.textContent = 'Observação da venda';
+    const text = document.createElement('p');
+    text.style.cssText = 'margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere';
+    text.textContent = note;
+    const status = document.createElement('small');
+    status.style.color = '#78869a';
+    status.textContent = lastSaleDetails?.printObservation
+      ? 'Registrada internamente e impressa no cupom não fiscal.'
+      : 'Registro interno — não impressa no cupom.';
+    block.append(title, text, status);
+    card.appendChild(block);
+  }
+
+  function mountCheckoutObservation() {
     const panel = document.querySelector('.sale-panel');
     const finalize = document.getElementById('finalize-sale');
     if (!panel || !finalize || panel.querySelector('[data-sale-observation]')) return;
@@ -62,14 +94,21 @@
     checkbox.addEventListener('change', () => {
       if (checkbox.checked && textarea.value.length > MAX_PRINTED) {
         checkbox.checked = false;
+        draft.print = false;
+        textarea.maxLength = MAX_INTERNAL;
+        counter.textContent = `${textarea.value.length}/${MAX_INTERNAL}`;
         hint.textContent = `Reduza a observação para ${MAX_PRINTED} caracteres antes de habilitar a impressão.`;
         textarea.focus();
-        refresh();
         return;
       }
       refresh();
     });
     refresh();
+  }
+
+  function mount() {
+    mountCheckoutObservation();
+    mountHistoryObservation();
   }
 
   const observer = new MutationObserver(mount);
