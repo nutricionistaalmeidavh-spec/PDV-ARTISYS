@@ -2,8 +2,16 @@
 
 const { sanitizeSaleObservation } = require('./sale-observation');
 
+function ensureSaleObservationSchema(db) {
+  if (!db) throw new TypeError('db is required.');
+  const columns = new Set(db.prepare('PRAGMA table_info(sales)').all().map(column => column.name));
+  if (!columns.has('observation')) db.exec('ALTER TABLE sales ADD COLUMN observation TEXT');
+  if (!columns.has('print_observation')) db.exec('ALTER TABLE sales ADD COLUMN print_observation INTEGER NOT NULL DEFAULT 0 CHECK (print_observation IN (0,1))');
+}
+
 function createSaleObservationService({ db, baseSales, now = () => new Date().toISOString() } = {}) {
   if (!db || !baseSales) throw new TypeError('db and baseSales are required.');
+  ensureSaleObservationSchema(db);
 
   function readObservation(saleId) {
     return db.prepare('SELECT observation,print_observation FROM sales WHERE id=?').get(String(saleId)) || null;
@@ -61,4 +69,4 @@ function createSaleObservationService({ db, baseSales, now = () => new Date().to
   return { ...baseSales, completeSale, getSale, getSaleDetails, listSales, listHistory };
 }
 
-module.exports = { createSaleObservationService };
+module.exports = { ensureSaleObservationSchema, createSaleObservationService };
