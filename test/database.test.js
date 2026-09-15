@@ -47,9 +47,13 @@ test('withTransaction rolls back all writes on failure', () => {
   db.close();
 });
 
-test('withTransaction supports nested service transactions and isolates inner rollback', () => {
-  const db = openDatabase(':memory:');
-  runMigrations(db);
+test('withTransaction supports nested service transactions without DatabaseSync.isTransaction', () => {
+  const rawDb = openDatabase(':memory:');
+  runMigrations(rawDb);
+  const db = {
+    exec: rawDb.exec.bind(rawDb),
+    prepare: rawDb.prepare.bind(rawDb)
+  };
 
   withTransaction(db, () => {
     db.prepare("INSERT INTO categories (id,name,active,created_at,updated_at) VALUES ('outer-1','Outer 1',1,'x','x')").run();
@@ -63,10 +67,10 @@ test('withTransaction supports nested service transactions and isolates inner ro
   });
 
   assert.deepEqual(
-    db.prepare('SELECT id FROM categories ORDER BY id').all().map(row => row.id),
+    rawDb.prepare('SELECT id FROM categories ORDER BY id').all().map(row => row.id),
     ['outer-1', 'outer-2']
   );
-  db.close();
+  rawDb.close();
 });
 
 test('outbox persists pending events, failures and dispatch completion', async () => {
