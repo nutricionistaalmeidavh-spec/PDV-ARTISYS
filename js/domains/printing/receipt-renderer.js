@@ -9,6 +9,7 @@ const {
   columns
 } = require('@artisys/printing');
 const { normalizeReceiptBranding } = require('./receipt-branding');
+const { formatReceiptObservation } = require('../sales/sale-observation');
 
 function fractionLabel(value) {
   const fraction=Number(value);
@@ -61,6 +62,8 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   }else if(Number(sale.discountCents||0)>0)totals.push(['Desconto',-Number(sale.discountCents)]);
   totals.push(['TOTAL', Number(sale.totalCents || 0)]);
   const promotionNames=[...new Set((sale.promotions||[]).map(item=>String(item?.name||'').trim()).filter(Boolean))];
+  const printedObservation=sale.printObservation?formatReceiptObservation(sale.observation,w):'';
+  const observationFooter=printedObservation?['OBSERVACOES DA VENDA',...printedObservation.split('\n')]:[];
 
   const document = createReceiptDocument({
     width:w,
@@ -77,7 +80,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
     totals,
     payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
     changeCents:Number(sale.changeCents || 0),
-    footer:[...promotionNames.map(name=>`Promocao: ${name}`),'Obrigado pela preferencia']
+    footer:[...promotionNames.map(name=>`Promocao: ${name}`),...observationFooter,'Obrigado pela preferencia']
   });
   return renderPlainText(document);
 }
