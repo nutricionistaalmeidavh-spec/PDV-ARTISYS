@@ -9,7 +9,7 @@ const { roundQuantity } = require('../inventory/inventory-rules');
 const VALID_REFUND_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
 function parseConfiguration(value){try{return value?JSON.parse(value):null;}catch{return null;}}
 
-function createReturnService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}` } = {}) {
+function createReturnService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, commissionService = null } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
 
   function getItems(returnId) {
@@ -111,6 +111,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
         (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at)
         VALUES (?,?,?,?,?,?,?,?,?)`);
       for (const item of normalizedItems) insertItem.run(idFactory('returnitem'), id, item.saleItemId, item.productId, item.productName, item.quantity, item.unitPriceCents, item.totalCents, timestamp);
+      commissionService?.reverseReturn(id,timestamp);
       const event = {
         eventId:idFactory('evt'), type:'return.completed', aggregate:'return', aggregateId:id, occurredAt:timestamp,
         actor, source:'server', mutationId:input.mutationId || null,
@@ -132,6 +133,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
       const payload = getCanonicalPayload(id) || { saleId:row.sale_id, terminalId:row.terminal_id, items:[], refunds:[] };
       const timestamp = now();
       db.prepare("UPDATE return_transactions SET status='CANCELLED',cancelled_at=? WHERE id=? AND status='COMPLETED'").run(timestamp,id);
+      commissionService?.restoreReturn(id,timestamp);
       const event={eventId:idFactory('evt'),type:'return.cancelled',aggregate:'return',aggregateId:String(id),occurredAt:timestamp,actor,source:'server',mutationId,payload:{...payload,reason:text}};
       outbox.insert(event);
       writeAudit(db,{action:'return.cancel',entity:'return',entityId:String(id),actor,context:{reason:text,eventId:event.eventId}},now);

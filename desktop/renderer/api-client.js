@@ -50,6 +50,11 @@
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
     products(includeInactive = false) { return this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`); }
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
+    syncProductPhotos(force = false) { return root.artisysDesktop.photos.sync({ force, sessionToken:this.sessionToken }); }
+    productPhotoSyncStatus() { return root.artisysDesktop.photos.status(); }
+    productPhotoDataUrl(productId, variant = 'thumbnail') { return root.artisysDesktop.photos.dataUrl({ productId, variant, sessionToken:this.sessionToken }); }
+    uploadProductPhoto(productId) { return root.artisysDesktop.photos.pickAndUpload({ productId, sessionToken:this.sessionToken }); }
+    removeProductPhoto(productId) { return root.artisysDesktop.photos.remove({ productId, sessionToken:this.sessionToken }); }
     customers(includeInactive = false) { return this.request(`/api/v1/customers${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCustomer(body) { return this.request('/api/v1/customers', { method: 'POST', body }); }
     users(includeInactive = false) { return this.request(`/api/v1/users${includeInactive ? '?includeInactive=true' : ''}`); }
@@ -111,6 +116,10 @@
     reportCash(filters = {}) { return this.request(`/api/v1/reports/cash${this.params(filters)}`); }
     reportFinance(filters = {}) { return this.request(`/api/v1/reports/finance${this.params(filters)}`); }
     exportSalesCsv(filters = {}) { return this.request(`/api/v1/reports/sales.csv${this.params(filters)}`); }
+    commissions(filters = {}) { return this.request(`/api/v1/commissions${this.params(filters)}`); }
+    commissionRules(filters = {}) { return this.request(`/api/v1/commission-rules${this.params(filters)}`); }
+    saveCommissionRule(body) { return this.request('/api/v1/commission-rules', { method:'POST', body }); }
+    payCommission(body) { return this.request('/api/v1/commission-payments', { method:'POST', body }); }
 
     printJobs(filters = {}) { return this.request(`/api/v1/print/jobs${this.params(filters)}`); }
     retryPrint(id) { return this.request(`/api/v1/print/jobs/${encodeURIComponent(id)}/retry`, { method:'POST', body:{} }); }

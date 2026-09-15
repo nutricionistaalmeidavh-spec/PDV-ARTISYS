@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { createLocalServer } = require('../server/local-server');
+const PNG_1PX = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 
 async function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdv-ui-api-'));
@@ -115,6 +116,16 @@ test('catalog endpoints support categories customers sellers and stock-aware pro
     const product = (await json(res))[0];
     assert.equal(product.stockQuantity, 10);
     assert.equal(product.categoryName, 'Bebidas');
+    res = await fetch(`${ctx.base}/api/v1/commission-rules`, { method:'POST',headers:headers(token),body:JSON.stringify({sellerId:'seller1',productId:'p1',commissionBps:500}) });
+    assert.equal(res.status,201);
+    assert.equal((await json(res)).commissionBps,500);
+    res = await fetch(`${ctx.base}/api/v1/product-photos/p1`, { method:'POST',headers:headers(token),body:JSON.stringify({mimeType:'image/png',originalBase64:PNG_1PX.toString('base64'),thumbnailBase64:PNG_1PX.toString('base64')}) });
+    assert.equal(res.status,201);
+    const photo=await json(res);assert.equal(photo.productId,'p1');
+    res = await fetch(`${ctx.base}/api/v1/product-photos/manifest`, {headers:headers(token)});
+    assert.equal((await json(res))[0].thumbnailSha256,photo.thumbnailSha256);
+    res = await fetch(`${ctx.base}/api/v1/product-photos/p1/thumbnail`, {headers:headers(token)});
+    assert.equal(res.status,200);assert.deepEqual(Buffer.from(await res.arrayBuffer()),PNG_1PX);
   } finally {
     await ctx.cleanup();
   }

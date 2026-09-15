@@ -38,6 +38,7 @@ function rowToProduct(row) {
     trackStock: Boolean(row.track_stock),
     minimumStock: row.minimum_stock,
     stockQuantity: Number(row.stock_quantity ?? 0),
+    photo: row.photo_thumbnail_sha256 ? { version:row.photo_version, thumbnailSha256:row.photo_thumbnail_sha256, originalSha256:row.photo_original_sha256, updatedAt:row.photo_updated_at } : null,
     active: Boolean(row.active),
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -65,6 +66,7 @@ function publicUser(row) {
 
 function createCatalogService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
+  const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
 
   function upsertCategory(input = {}, actor = null) {
     const id = String(input.id || idFactory('cat')).trim();
@@ -86,10 +88,12 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   }
 
   function productSelect(where = '') {
-    return `SELECT p.*, c.name AS category_name, COALESCE(b.quantity,0) AS stock_quantity
+    const photoColumns=hasProductPhotos?'ph.version AS photo_version,ph.original_sha256 AS photo_original_sha256,ph.thumbnail_sha256 AS photo_thumbnail_sha256,ph.updated_at AS photo_updated_at':'NULL AS photo_version,NULL AS photo_original_sha256,NULL AS photo_thumbnail_sha256,NULL AS photo_updated_at';
+    const photoJoin=hasProductPhotos?'LEFT JOIN product_photos ph ON ph.product_id=p.id AND ph.deleted_at IS NULL':'';
+    return `SELECT p.*, c.name AS category_name, COALESCE(b.quantity,0) AS stock_quantity,${photoColumns}
       FROM products p
       LEFT JOIN categories c ON c.id=p.category_id
-      LEFT JOIN inventory_balances b ON b.product_id=p.id ${where}`;
+      LEFT JOIN inventory_balances b ON b.product_id=p.id ${photoJoin} ${where}`;
   }
 
   function upsertProduct(input = {}, actor = null) {

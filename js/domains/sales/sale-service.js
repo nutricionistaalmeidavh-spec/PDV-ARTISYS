@@ -7,17 +7,20 @@ const { calculateSaleTotals } = require('./pricing');
 const { roundQuantity } = require('../inventory/inventory-rules');
 const { assertCents } = require('../shared/money');
 const { runSalesEnhancementMigrations } = require('../../core/database/sales-enhancement-migrations');
+const { runCommercialMediaMigrations } = require('../../core/database/commercial-media-migrations');
 const VALID_PAYMENT_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
 
-function createSaleService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, stockRequirementsResolver = null } = {}) {
+function createSaleService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, stockRequirementsResolver = null, commissionService = null } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
   runSalesEnhancementMigrations(db, now);
+  runCommercialMediaMigrations(db, now);
 
   function getSaleRow(id) { return db.prepare('SELECT * FROM sales WHERE id=?').get(String(id)); }
   function getItems(id) {
     return db.prepare(`SELECT id,product_id AS productId,product_name AS productName,sku,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents,
       catalog_unit_price_cents AS catalogUnitPriceCents,price_override_reason AS priceOverrideReason,price_changed_by_id AS priceChangedById,
-      price_authorized_by_id AS priceAuthorizedById,configuration_json AS configurationJson FROM sale_items WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(item=>{
+      price_authorized_by_id AS priceAuthorizedById,commission_bps_snapshot AS commissionBpsSnapshot,commission_base_cents AS commissionBaseCents,
+      commission_cents AS commissionCents,configuration_json AS configurationJson FROM sale_items WHERE sale_id=? ORDER BY created_at,id`).all(String(id)).map(item=>{
       let configuration=null;try{configuration=item.configurationJson?JSON.parse(item.configurationJson):null;}catch{configuration=null;}
       const {configurationJson,...safe}=item;return{...safe,configuration};
     });
@@ -154,6 +157,7 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
       const insert = db.prepare('INSERT INTO payments (id,sale_id,method,amount_cents,metadata_json,created_at) VALUES (?,?,?,?,?,?)');
       for (const payment of normalizedPayments) insert.run(idFactory('pay'), saleId, payment.method, payment.amountCents, payment.metadata ? JSON.stringify(payment.metadata) : null, timestamp);
       if (customer && paymentSummary.creditTotalCents) db.prepare('UPDATE customers SET credit_used_cents=credit_used_cents+?,updated_at=? WHERE id=?').run(paymentSummary.creditTotalCents, timestamp, customer.id);
+      commissionService?.recordSaleCompleted(saleId,{netTotalCents:totals.totalCents,createdAt:timestamp});
       db.prepare("UPDATE sales SET status='COMPLETED',subtotal_cents=?,discount_cents=?,total_cents=?,change_cents=?,completed_at=?,updated_at=? WHERE id=? AND status='OPEN'").run(totals.subtotalCents, totals.discountCents, totals.totalCents, paymentSummary.changeDueCents, timestamp, timestamp, saleId);
       const event = { eventId: idFactory('evt'), type: 'sale.completed', aggregate: 'sale', aggregateId: saleId, occurredAt: timestamp, actor: actor && typeof actor === 'object' ? actor : {}, source: 'server', mutationId, payload: { saleNumber: sale.sale_number, terminalId: sale.terminal_id, totalCents: totals.totalCents, changeCents: paymentSummary.changeDueCents, items: items.map(i => ({ itemId:i.id,productId: i.productId, quantity: i.quantity,configuration:i.configuration||null })), payments: normalizedPayments.map(p => ({ method: p.method, amountCents: p.amountCents })) } };
       outbox.insert(event); writeAudit(db, { action: 'sale.complete', entity: 'sale', entityId: saleId, actor, context: { totalCents: totals.totalCents, eventId: event.eventId } }, now); return getSale(saleId);
@@ -179,6 +183,7 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
       const sale = requireSale(saleId, ['COMPLETED']); const items = getItems(saleId); const payments = getPayments(saleId); const timestamp = now();
       const creditTotal = payments.filter(p => p.method === 'STORE_CREDIT').reduce((sum, p) => sum + p.amountCents, 0);
       if (sale.customer_id && creditTotal) db.prepare('UPDATE customers SET credit_used_cents=MAX(credit_used_cents-?,0),updated_at=? WHERE id=?').run(creditTotal, timestamp, sale.customer_id);
+      commissionService?.reverseSale(saleId,timestamp);
       db.prepare("UPDATE sales SET status='CANCELLED',cancel_reason=?,cancelled_at=?,updated_at=? WHERE id=? AND status='COMPLETED'").run(text, timestamp, timestamp, saleId);
       const event = { eventId: idFactory('evt'), type: 'sale.cancelled', aggregate: 'sale', aggregateId: saleId, occurredAt: timestamp, actor, source: 'server', mutationId, payload: { saleNumber: sale.sale_number, terminalId: sale.terminal_id, reason: text, items: items.map(i => ({ itemId:i.id,productId: i.productId, quantity: i.quantity,configuration:i.configuration||null })), payments: payments.map(p => ({ method: p.method, amountCents: p.amountCents })) } };
       outbox.insert(event); writeAudit(db, { action: 'sale.cancel', entity: 'sale', entityId: saleId, actor, context: { reason: text, eventId: event.eventId } }, now); return getSale(saleId);

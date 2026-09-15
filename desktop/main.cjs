@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, safeStorage, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
@@ -9,6 +9,7 @@ const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
 const { registerImportIpc } = require('./import-bridge.cjs');
+const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
@@ -39,6 +40,7 @@ async function startEmbeddedServer() {
     dbPath,
     backupDir,
     diagnosticsDir:path.join(app.getPath('userData'),'diagnostics'),
+    productPhotoDir:path.join(app.getPath('userData'),'product-photos'),
     appVersion:app.getVersion(),
     serverVersion:app.getVersion(),
     fiscalProviderResolver,
@@ -151,6 +153,8 @@ function registerIpc() {
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
   registerFiscalIpc({ ipcMain, store: fiscalStore, isTrustedSender: trustedSender });
   registerImportIpc({ ipcMain, dialog, getParentWindow:()=>mainWindow, isTrustedSender:trustedSender });
+  const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
+  registerProductPhotoIpc({ipcMain,dialog,nativeImage,client:photoClient,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
 
   ipcMain.on('artisys:window:minimize', () => mainWindow?.minimize());
   ipcMain.on('artisys:window:maximize', () => {

@@ -42,9 +42,19 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
   function completedReturns(filters = {}) {
     const p = period(filters, 'rt.created_at');
-    return db.prepare(`SELECT rt.* FROM return_transactions rt
-      WHERE rt.status='COMPLETED' AND ${p.clause}
-      ORDER BY rt.created_at,rt.id`).all(p.from, p.to);
+    const sellerIdExpression = hasSellerId ? 'COALESCE(s.seller_id,s.operator_id)' : 's.operator_id';
+    const sellerClause=filters.sellerId?` AND ${sellerIdExpression}=?`:'';
+    const params=filters.sellerId?[p.from,p.to,String(filters.sellerId)]:[p.from,p.to];
+    return db.prepare(`SELECT rt.*,${sellerIdExpression} AS resolved_seller_id FROM return_transactions rt JOIN sales s ON s.id=rt.sale_id
+      WHERE rt.status='COMPLETED' AND ${p.clause}${sellerClause}
+      ORDER BY rt.created_at,rt.id`).all(...params);
+  }
+
+  function cancelledSales(filters={}){
+    const p=period(filters,'s.cancelled_at');const sellerIdExpression=hasSellerId?'COALESCE(s.seller_id,s.operator_id)':'s.operator_id';const sellerNameExpression=hasSellerSnapshot?'COALESCE(s.seller_name_snapshot,u.name)':'u.name';const sellerClause=filters.sellerId?` AND ${sellerIdExpression}=?`:'';const params=filters.sellerId?[p.from,p.to,String(filters.sellerId)]:[p.from,p.to];
+    return db.prepare(`SELECT s.*,u.name AS operator_name,c.name AS customer_name,${sellerIdExpression} AS resolved_seller_id,${sellerNameExpression} AS seller_name
+      FROM sales s LEFT JOIN users u ON u.id=s.operator_id LEFT JOIN customers c ON c.id=s.customer_id WHERE s.status='CANCELLED' AND s.cancelled_at>=? AND s.cancelled_at<=?
+      AND EXISTS(SELECT 1 FROM domain_events de WHERE de.aggregate_id=s.id AND de.type='sale.cancelled')${sellerClause} ORDER BY s.cancelled_at,s.id`).all(...params);
   }
 
   function buildSalesSummary(filters = {}) {
@@ -52,6 +62,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const saleIds = new Set(sales.map(s => s.id));
     const grossSalesCents = sales.reduce((sum, sale) => sum + Number(sale.total_cents || 0), 0);
     const returns = completedReturns(filters);
+    const cancellations=cancelledSales(filters);
     const returnedCents = returns.reduce((sum, row) => sum + Number(row.total_cents || 0), 0);
     const netSalesCents = grossSalesCents - returnedCents;
     const averageTicketCents = sales.length ? Math.round(grossSalesCents / sales.length) : 0;
@@ -87,6 +98,9 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       sellers.set(sellerId, seller);
     }
 
+    for(const ret of returns){const seller=sellers.get(ret.resolved_seller_id);if(seller){seller.returnedCents=(seller.returnedCents||0)+Number(ret.total_cents||0);seller.salesCents-=Number(ret.total_cents||0);}}
+    for(const cancelled of cancellations){const sellerId=cancelled.resolved_seller_id;const seller=sellers.get(sellerId)||{sellerId,sellerName:cancelled.seller_name||'Nao identificado',salesCount:0,salesCents:0};seller.cancelledSalesCount=(seller.cancelledSalesCount||0)+1;seller.cancelledSalesCents=(seller.cancelledSalesCents||0)+Number(cancelled.total_cents||0);sellers.set(sellerId,seller);}
+
     let returnedCostCents = 0;
     for (const ret of returns) {
       const items = db.prepare(`SELECT ri.product_id AS productId,ri.quantity,p.cost_cents AS costCents
@@ -100,6 +114,8 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       salesCount: sales.length,
       grossSalesCents,
       returnedCents,
+      cancelledSalesCount:cancellations.length,
+      cancelledSalesCents:cancellations.reduce((sum,row)=>sum+Number(row.total_cents||0),0),
       netSalesCents,
       averageTicketCents,
       paymentsByMethod,
@@ -170,12 +186,12 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
   }
 
   function exportSalesCsv(filters = {}) {
-    const rows = completedSales(filters);
-    const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente;vendedor_garcom'];
+    const rows = [...completedSales(filters),...cancelledSales(filters)].sort((a,b)=>String(a.completed_at||a.cancelled_at).localeCompare(String(b.completed_at||b.cancelled_at))||a.id.localeCompare(b.id));
+    const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente;vendedor_garcom;motivo_cancelamento'];
     for (const row of rows) {
       const methods = db.prepare('SELECT method FROM payments WHERE sale_id=? ORDER BY created_at,id').all(row.id).map(p=>p.method).join('+');
       lines.push([
-        row.sale_number,row.completed_at,row.operator_name||'',row.status,row.total_cents,methods,row.customer_name||'',row.seller_name||''
+        row.sale_number,row.completed_at||row.cancelled_at,row.operator_name||'',row.status,row.total_cents,methods,row.customer_name||'',row.seller_name||'',row.cancel_reason||''
       ].map(csvCell).join(';'));
     }
     return `${lines.join('\n')}\n`;
