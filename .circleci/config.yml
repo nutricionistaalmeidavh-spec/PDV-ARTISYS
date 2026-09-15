@@ -8,7 +8,7 @@ executors:
     working_directory: ~/project
 
 jobs:
-  verify_and_qa:
+  verify:
     executor: node_linux
     steps:
       - checkout
@@ -30,6 +30,15 @@ jobs:
       - run:
           name: Verify unit integration architecture release and security gates
           command: npm run verify:release
+
+  qa_smoke:
+    executor: node_linux
+    steps:
+      - checkout
+
+      - run:
+          name: Install PDV dependencies
+          command: npm install --no-audit --no-fund
 
       - run:
           name: Install pinned ArtiSys QA runtime
@@ -65,4 +74,7 @@ jobs:
 workflows:
   pdv_ci:
     jobs:
-      - verify_and_qa
+      - verify
+      - qa_smoke:
+          requires:
+            - verify
