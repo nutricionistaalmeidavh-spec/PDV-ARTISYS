@@ -63,7 +63,9 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   totals.push(['TOTAL', Number(sale.totalCents || 0)]);
   const promotionNames=[...new Set((sale.promotions||[]).map(item=>String(item?.name||'').trim()).filter(Boolean))];
   const printedObservation=sale.printObservation?formatReceiptObservation(sale.observation,w):'';
-  const observationFooter=printedObservation?['OBSERVACOES DA VENDA',...printedObservation.split('\n')]:[];
+  const observationBlocks=printedObservation
+    ? [{type:'text',value:'OBSERVACOES DA VENDA'},...printedObservation.split('\n').map(value=>({type:'text',value}))]
+    : [];
 
   const document = createReceiptDocument({
     width:w,
@@ -80,7 +82,8 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
     totals,
     payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
     changeCents:Number(sale.changeCents || 0),
-    footer:[...promotionNames.map(name=>`Promocao: ${name}`),...observationFooter,'Obrigado pela preferencia']
+    blocks:observationBlocks,
+    footer:[...promotionNames.map(name=>`Promocao: ${name}`),'Obrigado pela preferencia']
   });
   return renderPlainText(document);
 }
