@@ -23,7 +23,8 @@
     "ci": {
       "env": {
         "NODE_ENV": "test",
-        "ARTISYS_QA": "1"
+        "ARTISYS_QA": "1",
+        "ELECTRON_DISABLE_SANDBOX": "1"
       }
     }
   },
