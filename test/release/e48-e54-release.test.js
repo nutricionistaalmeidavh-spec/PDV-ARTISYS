@@ -13,9 +13,9 @@ const {STATUSES}=require('../../js/core/hardware/hardware-compatibility-service'
 const root=path.join(__dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('E48-E54 plus E54.1 release is 1.3.1 with additive schema v9',()=>{
+test('E48-E54 plus E54.1 remain preserved in release 1.3.2 with additive schema v9',()=>{
   const pkg=JSON.parse(read('package.json'));
-  assert.equal(pkg.version,'1.3.1');
+  assert.equal(pkg.version,'1.3.2');
   assert.equal(VERTICAL_SCHEMA_VERSION,8);
   assert.equal(HARDWARE_SCHEMA_VERSION,9);
   const db=openDatabase(':memory:');
