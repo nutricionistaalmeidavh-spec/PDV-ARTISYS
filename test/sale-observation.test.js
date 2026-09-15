@@ -3,7 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { sanitizeSaleObservation, formatReceiptObservation } = require('../js/domains/sales/sale-observation');
-const { createSaleObservationService } = require('../js/domains/sales/sale-observation-service');
+const { renderSaleReceipt } = require('../js/domains/printing/receipt-renderer');
+const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 test('observacao interna preserva ate 500 caracteres', () => {
   const source = 'A'.repeat(550);
@@ -23,28 +24,48 @@ test('observacao impressa quebra palavras conforme a largura do cupom', () => {
   for (const line of formatted.split('\n')) assert.ok(line.length <= 32);
 });
 
-test('decorador grava observacao vinculada a venda e preserva flag de impressao', () => {
-  const rows = new Map([['s1', { observation:null, print_observation:0 }]]);
-  const db = {
-    prepare(sql) {
-      if (sql === 'PRAGMA table_info(sales)') return { all() { return [{ name:'observation' }, { name:'print_observation' }]; } };
-      if (sql.startsWith('UPDATE sales SET observation=')) return { run(note, print, _updatedAt, id) { rows.set(id, { observation:note, print_observation:print }); return { changes:1 }; } };
-      if (sql.startsWith('SELECT observation,print_observation')) return { get(id) { return rows.get(id); } };
-      throw new Error(`SQL inesperado: ${sql}`);
-    },
-    exec() {}
+test('runtime persiste observacao vinculada a venda e cliente', () => {
+  const runtime = createPdvRuntime({ dbPath:':memory:', now:()=> '2026-09-15T12:00:00.000Z' });
+  try {
+    runtime.catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+    runtime.catalog.upsertCustomer({ id:'c1', name:'Cliente Teste' });
+    runtime.catalog.upsertProduct({ id:'p1', sku:'P1', name:'Produto', salePriceCents:1000, minimumStock:0 });
+    runtime.inventory.move({ productId:'p1', type:'opening', quantityDelta:10 });
+    runtime.sales.openSale({ id:'s1', saleNumber:'000001', terminalId:'PDV-01', operatorId:'u1', customerId:'c1' });
+    runtime.sales.addItem('s1', { productId:'p1', quantity:1 });
+    const completed = runtime.sales.completeSale('s1', {
+      payments:[{ method:'CASH', amountCents:1000, saleObservation:'Retirar amanha', printObservation:true }]
+    });
+    assert.equal(completed.observation, 'Retirar amanha');
+    assert.equal(completed.printObservation, true);
+    assert.equal(completed.customerId, 'c1');
+    const row = runtime.db.prepare('SELECT observation,print_observation FROM sales WHERE id=?').get('s1');
+    assert.equal(row.observation, 'Retirar amanha');
+    assert.equal(row.print_observation, 1);
+    assert.equal(runtime.sales.getSaleDetails('s1').observation, 'Retirar amanha');
+  } finally {
+    runtime.close();
+  }
+});
+
+test('cupom imprime observacao somente quando marcada e respeita quatro linhas', () => {
+  const baseSale = {
+    saleNumber:'000001', completedAt:'2026-09-15T12:00:00.000Z', operatorId:'u1', customerName:'Cliente',
+    subtotalCents:1000, discountCents:0, totalCents:1000, changeCents:0,
+    items:[{ productName:'Produto', quantity:1, unitPriceCents:1000, totalCents:1000 }],
+    payments:[{ method:'CASH', amountCents:1000 }]
   };
-  const baseSales = {
-    completeSale(id) { return { id, saleNumber:'0001', customerId:'c1', status:'COMPLETED' }; },
-    getSale(id) { return { id, saleNumber:'0001', customerId:'c1', status:'COMPLETED' }; },
-    getSaleDetails(id) { return this.getSale(id); },
-    listSales() { return [this.getSale('s1')]; },
-    listHistory() { return [this.getSale('s1')]; }
-  };
-  const sales = createSaleObservationService({ db, baseSales, now:()=> '2026-09-15T12:00:00.000Z' });
-  const sale = sales.completeSale('s1', { payments:[{ method:'CASH', amountCents:1000, saleObservation:'Retirar amanha', printObservation:true }] });
-  assert.equal(sale.observation, 'Retirar amanha');
-  assert.equal(sale.printObservation, true);
-  assert.equal(sale.customerId, 'c1');
-  assert.equal(sales.getSale('s1').observation, 'Retirar amanha');
+  const hidden = renderSaleReceipt({ sale:{ ...baseSale, observation:'Nao imprimir', printObservation:false }, width:32 });
+  assert.doesNotMatch(hidden, /OBSERVACOES DA VENDA/);
+  assert.doesNotMatch(hidden, /Nao imprimir/);
+
+  const source = 'Cliente retira amanha as 10h. Separar duas caixas e deixar o pedido identificado para retirada no balcao principal. '.repeat(2);
+  const printed = renderSaleReceipt({ sale:{ ...baseSale, observation:source, printObservation:true }, width:32 });
+  assert.match(printed, /OBSERVACOES DA VENDA/);
+  const lines = printed.split('\n');
+  const start = lines.indexOf('OBSERVACOES DA VENDA');
+  assert.ok(start >= 0);
+  const observationLines = lines.slice(start + 1, start + 5);
+  assert.ok(observationLines.length <= 4);
+  assert.ok(observationLines.every(line => line.length <= 32));
 });
