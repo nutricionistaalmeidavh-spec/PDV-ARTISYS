@@ -58,8 +58,8 @@ test('vendors the 2.4.1 runtime capabilities used by CI and optional local QA', 
 test('PDV selects QA behavior through repository-owned profiles', () => {
   const config = readJson('qa/artisys-qa.config.json');
   assert.deepEqual(config.qaProfiles.quick.flows, ['smoke']);
-  assert.deepEqual(config.qaProfiles.full.flows, ['smoke', 'home']);
-  assert.deepEqual(config.qaProfiles.release.criticalFlows, ['smoke', 'home']);
+  assert.deepEqual(config.qaProfiles.full.flows, ['smoke', 'home', 'sales-enhancements']);
+  assert.deepEqual(config.qaProfiles.release.criticalFlows, ['smoke', 'home', 'sales-enhancements']);
   assert.equal(config.qaProfiles.quick.includeVisual, false);
   assert.equal(config.qaProfiles.quick.includeDesktop, false);
   assert.equal(config.qaProfiles.quick.includeNetwork, false);
