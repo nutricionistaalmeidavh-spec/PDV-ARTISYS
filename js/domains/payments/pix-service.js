@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const QRCode = require('qrcode');
 const { writeAudit } = require('../../core/audit-log');
 const { assertCents } = require('../shared/money');
 const { buildPixPayload } = require('./pix-brcode');
@@ -48,6 +49,12 @@ function createPixService({db,settings,now=()=>new Date().toISOString(),idFactor
     return getCharge(id);
   }
 
+  async function renderQr(id,{margin=2,width=320,errorCorrectionLevel='M'}={}){
+    const charge=getCharge(id);if(!charge)throw new Error('Cobranca Pix nao encontrada.');
+    const svg=await QRCode.toString(charge.payload,{type:'svg',margin,width,errorCorrectionLevel});
+    return{id:charge.id,saleId:charge.saleId,amountCents:charge.amountCents,status:charge.status,payload:charge.payload,svg};
+  }
+
   function confirmCharge(id,actor=null){
     const row=db.prepare('SELECT * FROM pix_charges WHERE id=?').get(String(id));if(!row)throw new Error('Cobranca Pix nao encontrada.');if(row.status==='CANCELLED')throw new Error('Cobranca Pix cancelada nao pode ser confirmada.');if(row.status==='CONFIRMED')return getCharge(id);
     const timestamp=now();db.prepare("UPDATE pix_charges SET status='CONFIRMED',confirmed_at=?,confirmed_by=? WHERE id=? AND status='PENDING'").run(timestamp,actor?.userId||null,String(id));
@@ -63,7 +70,7 @@ function createPixService({db,settings,now=()=>new Date().toISOString(),idFactor
     const charge=getCharge(chargeId);if(!charge)throw new Error('Cobranca Pix nao encontrada.');if(charge.status!=='CONFIRMED')throw new Error('Cobranca Pix ainda nao foi confirmada.');if(String(charge.saleId)!==String(saleId))throw new Error('Cobranca Pix pertence a outra venda; venda divergente.');if(Number(charge.amountCents)!==Number(amountCents))throw new Error('Valor da cobranca Pix diverge do pagamento.');return charge;
   }
 
-  return{getConfiguration,saveConfiguration,createCharge,getCharge,listCharges,confirmCharge,cancelCharge,assertConfirmedPayment};
+  return{getConfiguration,saveConfiguration,createCharge,getCharge,listCharges,renderQr,confirmCharge,cancelCharge,assertConfirmedPayment};
 }
 
 module.exports={createPixService,PIX_CONFIG_KEY};
