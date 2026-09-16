@@ -23,7 +23,7 @@ function resolvePayment(input = {}) {
     const method = normalizeMethod(payment.method);
     if (!method) throw new TypeError('Forma de pagamento obrigatoria.');
     paidTotalCents += amountCents;
-    if (creditMethods.has(method)) creditTotalCents += amountCents;
+    if (creditMethods.has(method) && payment?.metadata?.balanceValidatedExternally !== true) creditTotalCents += amountCents;
     if (changeMethods.has(method)) changeEligibleCents += amountCents;
   }
 
