@@ -25,7 +25,6 @@
       "env": {
         "NODE_ENV": "test",
         "ARTISYS_QA": "1",
-        "ARTISYS_QA_ADMIN_PASSWORD": "QaLocalOnly-12345!",
         "PDV_ENABLE_LAN": "false",
         "PDV_AUTO_PRINT": "false"
       }
