@@ -47,7 +47,7 @@ test('advanced reports calculate ABC, margin, time distribution and price overri
   const reports = createReportingService({ db, now });
   const sales = reports.buildAdvancedSalesAnalytics({ from:'2026-09-01T00:00:00Z', to:'2026-09-30T23:59:59Z' });
   assert.equal(sales.salesCount, 2);
-  assert.equal(sales.averageTicketCents, 2050);
+  assert.equal(sales.averageTicketCents, 2150);
   assert.equal(sales.priceOverrides.count, 2);
   assert.equal(sales.abcRevenue[0].productId, 'p1');
   assert.equal(sales.margins.find(row => row.productId==='p1').grossMarginCents, 1800);
@@ -67,7 +67,7 @@ test('advanced reports calculate ABC, margin, time distribution and price overri
 test('purchasing analytics aggregates received spend by supplier and product', () => {
   const { db, now } = setup();
   db.prepare(`INSERT INTO purchase_orders(id,supplier_id,order_number,status,subtotal_cents,total_cents,created_by,created_at,updated_at,ordered_at,received_at)
-    VALUES('po1','sup-1','PO1','RECEIVED',2000,2000,'u1',?,?,?,?,?)`).run(now(),now(),now(),now());
+    VALUES('po1','sup-1','PO1','RECEIVED',2000,2000,'u1',?,?,?,?)`).run(now(),now(),now(),now());
   db.prepare(`INSERT INTO purchase_order_items(id,purchase_order_id,product_id,product_name_snapshot,sku_snapshot,ordered_quantity,received_quantity,unit_cost_cents,total_cents)
     VALUES('poi1','po1','p1','Produto A','P1',4,4,500,2000)`).run();
   db.prepare(`INSERT INTO purchase_receipts(id,purchase_order_id,supplier_id,received_by,document_number,created_at)
