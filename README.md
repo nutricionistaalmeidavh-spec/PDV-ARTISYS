@@ -1,10 +1,10 @@
-# ArtiSys PDV 1.3.2
+# ArtiSys PDV 1.4.0
 
-PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
+PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.4 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando compras, Pix local, lotes/validade, crédito por ledger, relatórios avançados e reposição sugerida sem transformar o produto em um ERP dependente de nuvem.
 
 ## Estado do produto
 
-As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. O produto inclui núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica, **produto pai/subitens**, **kits**, **combos promocionais configuráveis** e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
+As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. A versão 1.4.0 incorpora também vendedor/garçom na venda, alteração auditada de preço por item, foto de produto, comissão, relatórios por período, compras/recebimento de fornecedor, lotes/validade FEFO, Pix BR Code local com confirmação manual, crédito/vale-presente por ledger, analytics avançados e sugestão local de reposição.
 
 Principais capacidades:
 
@@ -13,17 +13,24 @@ Principais capacidades:
 - migrations incrementais e preservação de dados existentes;
 - autenticação, usuários, RBAC e auditoria sanitizada;
 - produtos, categorias, clientes, vendedores e fornecedores;
+- vendedor/garçom por venda, comissão configurável, foto de produto e alteração auditada do preço unitário;
 - adicionais, opções e configurações com snapshot das escolhas no item vendido;
 - **produto pai e subitens/variações no catálogo comum**, com SKU, código de barras, preço, custo, atributos e estoque próprios por variação;
 - **kits** definidos pelo usuário, com composição e snapshot histórico dos componentes para baixa e reversão de estoque;
 - **combos promocionais configuráveis** pelo usuário, como `3 por R$ 10,00`, com produtos participantes, validade, limite e política de acúmulo de desconto;
 - ficha técnica versionada e baixa de ingredientes pelo ledger de estoque existente;
 - estoque por ledger imutável, inventário e alertas de mínimo;
+- pedidos de compra por fornecedor, recebimento parcial/total, atualização opcional de custo e geração de conta a pagar;
+- controle opcional de lotes e validade com saldo por lote, seleção FEFO, bloqueio de lote vencido e rastreio nas devoluções;
+- sugestão local de reposição por média diária, lead time, estoque de segurança, saldo atual e quantidade já em compra;
 - Balcão com busca/código de barras, seleção direta de variações, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
+- Pix local com BR Code/Copia e Cola e QR gerado no próprio computador; confirmação do recebimento permanece manual e auditada;
+- crédito do cliente e vale-presente por ledger imutável, com códigos de vale armazenados somente como hash;
 - observação vinculada à venda/cliente, com até 500 caracteres para registro interno e impressão opcional limitada a 120 caracteres e 4 linhas no cupom não fiscal;
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
 - financeiro, relatórios e exportação CSV;
+- relatórios avançados locais com curva ABC, margem, ticket médio, vendas por hora/dia, giro, estoque parado, ruptura, auditoria de preço e compras por fornecedor/produto;
 - fila de impressão com retry/reimpressão, documentos operacionais **NÃO FISCAL** e identidade configurável do cupom com nome, endereço, telefone e logo local;
 - impressão Electron, térmica Epson/Star e serial por drivers locais explícitos;
 - balança e gaveta serial usando `@artisys/serialport`;
@@ -70,6 +77,16 @@ Cada subitem pode ter SKU, código de barras, preço, custo, atributos e estoque
 
 Detalhes arquiteturais: `docs/architecture/catalog-parent-variants-kits-combos.md`.
 
+## Comercial avançado 1.4.0
+
+A área **Comercial avançado** do desktop Servidor + Terminal concentra Compras, Lotes e validade, Pix local, Crédito/vale-presente, Reposição e Relatórios avançados. Terminais LAN continuam focados na operação de caixa; mutações gerenciais dessas áreas exigem a credencial da instalação principal.
+
+O fluxo de compra usa `InventoryService` como autoridade do estoque e `FinanceService` para contas a pagar. Recebimentos podem ser parciais e são idempotentes por identificador. Produtos com controle de lote consomem estoque por FEFO e devoluções retornam ao lote original quando o vínculo está disponível.
+
+O Pix é estático/dinâmico local por venda: o sistema gera BR Code e QR SVG localmente e só conclui o pagamento Pix vinculado depois de confirmação manual. Não existe consulta bancária automática nesta release.
+
+A sugestão de reposição nunca cria pedido silenciosamente: o usuário revisa as quantidades e converte a sugestão em rascunho de pedido quando desejar.
+
 ## Módulos opcionais
 
 O núcleo básico do PDV não é desativável. Em `Configurações > Módulos`, o estabelecimento ativa somente o que utiliza, sem reinstalação e sem apagar histórico:
@@ -104,14 +121,14 @@ Desktop / mobile LAN / atalhos / código de barras
 
 Em rede, existe um único servidor autoritativo. Terminais e dispositivos móveis não recebem caminho do SQLite e não acessam o banco por SMB; usam somente a API local na LAN. O renderer Electron não possui acesso Node, SQL, filesystem ou serial genérico.
 
-Todos os módulos verticais reutilizam o `SaleService` canônico. Estoque, caixa, impressão, auditoria e efeitos de domínio continuam compartilhados.
+Todos os módulos verticais reutilizam o `SaleService` canônico. Estoque, caixa, impressão, auditoria e efeitos de domínio continuam compartilhados. A camada comercial 1.4.0 decora venda/devolução para lotes, Pix e crédito sem duplicar a regra transacional principal.
 
 Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reutilizáveis são vendorizados e fixados por commit em `vendor/artisys-modules.lock.json`, preservando build reproduzível sem depender de registry privado.
 
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.3.2.
+- Windows x64 é o alvo de empacotamento comercial 1.4.0.
 
 ```bash
 npm install
@@ -150,9 +167,9 @@ Isso permite oferecer compatibilidade por protocolo sem fingir homologação de 
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.3.2 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.4.0 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
-Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
+Dinheiro, cartões e outros meios continuam registrados manualmente. Pix ganhou BR Code/QR local com confirmação manual dentro do próprio PDV, mas **não há confirmação bancária automática**. Também não há TEF, PinPad, adquirente ou API bancária obrigatória. Autoatendimento não processa pagamento eletrônico integrado.
 
 ## Verificação e release
 
@@ -161,7 +178,7 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.2-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.0-x64-Setup.exe
 ```
 
 `docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
@@ -189,7 +206,7 @@ Para solicitar uma build Windows sem duplicar o pipeline de verificação, atual
 
 ## Limitações externas
 
-O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. A E54.1 reduz o risco antes da instalação real validando os protocolos por simulação, mas hardware, firmware, cabo e driver específicos continuam sendo variáveis externas.
+O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local, compras, lotes, Pix local, crédito por ledger, relatórios avançados e reposição sugerida não depende de nuvem nem de serviço pago. A E54.1 reduz o risco antes da instalação real validando os protocolos por simulação, mas hardware, firmware, cabo e driver específicos continuam sendo variáveis externas.
 
 Um modelo físico não testado fica `UNTESTED_MODEL`; quando a família de integração já passou na CI, ela pode estar `PROTOCOL_VERIFIED`. Somente o modelo realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 
