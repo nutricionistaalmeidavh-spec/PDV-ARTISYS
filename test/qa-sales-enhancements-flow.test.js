@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const configPath = path.join(root, 'qa', 'artisys-qa.config.json');
 const readJson = relative => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
 const readText = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
@@ -48,7 +47,11 @@ test('sales enhancements flow covers the new commercial features with screenshot
   assert.ok(flow.steps.some(step => step.selector === '#ops-report-filter'));
   assert.ok(flow.steps.some(step => step.selector === '#ops-commission-rule'));
   assert.ok(flow.steps.some(step => step.selector === '[data-product-photo-edit]'));
-  assert.ok(flow.steps.some(step => step.valueFromEnv === 'ARTISYS_QA_ADMIN_PASSWORD'));
+
+  const credentialSteps = flow.steps.filter(step => String(step.selector || '').includes("input[name='password']"));
+  assert.ok(credentialSteps.length >= 4);
+  assert.ok(credentialSteps.every(step => step.value === 'QaLocalOnly-12345!'));
+  assert.ok(credentialSteps.every(step => step.valueFromEnv == null));
 });
 
 test('QA Electron launcher isolates userData from the installed PDV database', () => {
