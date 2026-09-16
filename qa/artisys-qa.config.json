@@ -16,7 +16,7 @@
     "fps": 8
   },
   "electron": {
-    "entry": "../desktop/main.cjs",
+    "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
     "args": ["--no-sandbox"]
   },
@@ -24,13 +24,17 @@
     "ci": {
       "env": {
         "NODE_ENV": "test",
-        "ARTISYS_QA": "1"
+        "ARTISYS_QA": "1",
+        "ARTISYS_QA_ADMIN_PASSWORD": "QaLocalOnly-12345!",
+        "PDV_ENABLE_LAN": "false",
+        "PDV_AUTO_PRINT": "false"
       }
     }
   },
   "flows": {
     "smoke": "flows/smoke.json",
-    "home": "flows/home.json"
+    "home": "flows/home.json",
+    "sales-enhancements": "flows/sales-enhancements.json"
   },
   "qaProfiles": {
     "quick": {
@@ -41,15 +45,15 @@
       "includeNetwork": false
     },
     "full": {
-      "flows": ["smoke", "home"],
-      "criticalFlows": ["smoke"],
+      "flows": ["smoke", "home", "sales-enhancements"],
+      "criticalFlows": ["smoke", "sales-enhancements"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": ["smoke", "home"],
-      "criticalFlows": ["smoke", "home"],
+      "flows": ["smoke", "home", "sales-enhancements"],
+      "criticalFlows": ["smoke", "home", "sales-enhancements"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
