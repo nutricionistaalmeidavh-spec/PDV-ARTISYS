@@ -4,12 +4,12 @@
     {"action":"waitFor","selector":"#setup-form","name":"setup-ready","timeoutMs":15000},
     {"action":"fill","selector":"#setup-form input[name='name']","value":"QA Administrador","name":"setup-admin-name"},
     {"action":"fill","selector":"#setup-form input[name='username']","value":"qaadmin","name":"setup-admin-username"},
-    {"action":"fill","selector":"#setup-form input[name='password']","valueFromEnv":"ARTISYS_QA_ADMIN_PASSWORD","name":"setup-admin-password"},
+    {"action":"fill","selector":"#setup-form input[name='password']","value":"QaLocalOnly-12345!","name":"setup-admin-password"},
     {"action":"click","selector":"#setup-form button[type='submit']","name":"qa-admin-setup"},
 
     {"action":"waitFor","selector":"#login-form","name":"login-ready","timeoutMs":10000},
     {"action":"fill","selector":"#login-form input[name='username']","value":"qaadmin","name":"login-username"},
-    {"action":"fill","selector":"#login-form input[name='password']","valueFromEnv":"ARTISYS_QA_ADMIN_PASSWORD","name":"login-password"},
+    {"action":"fill","selector":"#login-form input[name='password']","value":"QaLocalOnly-12345!","name":"login-password"},
     {"action":"click","selector":"#login-form button[type='submit']","name":"qa-login"},
     {"action":"waitFor","selector":"#auth-overlay","state":"hidden","name":"authenticated","timeoutMs":10000},
 
@@ -18,14 +18,14 @@
     {"action":"click","selector":"#new-seller","name":"new-seller"},
     {"action":"fill","selector":"#seller-form input[name='name']","value":"QA Vendedor","name":"seller-name"},
     {"action":"fill","selector":"#seller-form input[name='username']","value":"qavendedor","name":"seller-username"},
-    {"action":"fill","selector":"#seller-form input[name='password']","valueFromEnv":"ARTISYS_QA_ADMIN_PASSWORD","name":"seller-password"},
+    {"action":"fill","selector":"#seller-form input[name='password']","value":"QaLocalOnly-12345!","name":"seller-password"},
     {"action":"click","selector":"#seller-form button[type='submit']","name":"save-seller"},
     {"action":"expectText","selector":".data-card","expected":"QA Vendedor","name":"seller-created"},
 
     {"action":"reload","name":"reload-after-seller"},
     {"action":"waitFor","selector":"#login-form","name":"relogin-ready","timeoutMs":10000},
     {"action":"fill","selector":"#login-form input[name='username']","value":"qaadmin","name":"relogin-username"},
-    {"action":"fill","selector":"#login-form input[name='password']","valueFromEnv":"ARTISYS_QA_ADMIN_PASSWORD","name":"relogin-password"},
+    {"action":"fill","selector":"#login-form input[name='password']","value":"QaLocalOnly-12345!","name":"relogin-password"},
     {"action":"click","selector":"#login-form button[type='submit']","name":"relogin"},
     {"action":"waitFor","selector":"#auth-overlay","state":"hidden","name":"reauthenticated","timeoutMs":10000},
 
