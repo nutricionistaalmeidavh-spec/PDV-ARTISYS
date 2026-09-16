@@ -1,5 +1,7 @@
 'use strict';
 
+const { createAdvancedReportingService } = require('./advanced-reporting-service');
+
 function parseDate(value, fallback) {
   if (value == null || value === '') return fallback;
   const time = Date.parse(String(value));
@@ -197,7 +199,8 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     return `${lines.join('\n')}\n`;
   }
 
-  return { buildSalesSummary, buildInventorySummary, buildCashSummary, buildFinanceSummary, exportSalesCsv };
+  const advanced = createAdvancedReportingService({ db, now });
+  return { buildSalesSummary, buildInventorySummary, buildCashSummary, buildFinanceSummary, exportSalesCsv, ...advanced };
 }
 
 module.exports = { createReportingService, csvCell };
