@@ -8,6 +8,8 @@ const { runVerticalMigrations }=require('./database/vertical-migrations');
 const { runKitComboMigrations }=require('./database/kit-combo-migrations');
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
+const { runCommercialCoreMigrations }=require('./database/commercial-core-migrations');
+const { createCommercialCoreServices }=require('./commercial-core-services');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -80,7 +82,8 @@ function createPdvRuntime({
   productPhotoDir=null,
   logRetention=5000,
   appVersion=serverVersion,
-  readScale=null
+  readScale=null,
+  replenishmentDefaults={leadTimeDays:7,safetyStock:0}
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
@@ -91,6 +94,7 @@ function createPdvRuntime({
   const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   runSalesEnhancementMigrations(db,now);
   runCommercialMediaMigrations(db,now);
+  runCommercialCoreMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
   const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});
@@ -102,9 +106,11 @@ function createPdvRuntime({
   const cash=createCashService({db,outbox,now,idFactory});
   const commissions=createCommissionService({db,now,idFactory});
   const baseSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items),commissionService:commissions});
-  const sales=createPromotionSaleService({db,baseSales,promotionService:kitsCombos,now});
-  const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});
+  const promotedSales=createPromotionSaleService({db,baseSales,promotionService:kitsCombos,now});
+  const baseReturns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});
   const finance=createFinanceService({db,now,idFactory});
+  const commercialCore=createCommercialCoreServices({db,settings,inventory,finance,sales:promotedSales,returns:baseReturns,now,idFactory,replenishmentDefaults});
+  const {sales,returns,lots,pix,credits,purchasing,replenishment}=commercialCore;
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});
   const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
@@ -153,7 +159,7 @@ function createPdvRuntime({
   const dispatcher=new DomainEventDispatcher({bus,outbox});
   return {
     db,outbox,effectStore,bus,dispatcher,
-    catalog,productPhotos,catalogCustomization,kitsCombos,inventory,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
+    catalog,productPhotos,catalogCustomization,kitsCombos,inventory,lots,recipes,sales,commissions,cash,returns,finance,pix,credits,purchasing,replenishment,reports,printing,nonFiscalPrinting,fiscal,
     modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,
     backups,settings,imports,logger,health,diagnostics,pilot,
     backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
