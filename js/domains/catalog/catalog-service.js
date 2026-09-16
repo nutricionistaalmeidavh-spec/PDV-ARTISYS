@@ -36,6 +36,7 @@ function rowToProduct(row) {
     salePriceCents: row.sale_price_cents,
     costCents: row.cost_cents,
     trackStock: Boolean(row.track_stock),
+    trackLots: Boolean(row.track_lots ?? 0),
     minimumStock: row.minimum_stock,
     stockQuantity: Number(row.stock_quantity ?? 0),
     photo: row.photo_thumbnail_sha256 ? { version:row.photo_version, thumbnailSha256:row.photo_thumbnail_sha256, originalSha256:row.photo_original_sha256, updatedAt:row.photo_updated_at } : null,
@@ -67,6 +68,8 @@ function publicUser(row) {
 function createCatalogService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
+  const productColumns=new Set(db.prepare('PRAGMA table_info(products)').all().map(row=>row.name));
+  const hasTrackLots=productColumns.has('track_lots');
 
   function upsertCategory(input = {}, actor = null) {
     const id = String(input.id || idFactory('cat')).trim();
@@ -114,8 +117,9 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
         minimum_stock=excluded.minimum_stock,active=excluded.active,updated_at=excluded.updated_at`)
       .run(id, normalizeOptional(input.sku), normalizeOptional(input.barcode), name, normalizeOptional(input.categoryId), String(input.unit || 'UN').trim().toUpperCase(),
         salePriceCents, costCents, booleanInt(input.trackStock), Number(minimumStock.toFixed(3)), booleanInt(input.active), timestamp, timestamp);
+    if(hasTrackLots && input.trackLots !== undefined) db.prepare('UPDATE products SET track_lots=?,updated_at=? WHERE id=?').run(booleanInt(input.trackLots,false),timestamp,id);
     db.prepare('INSERT OR IGNORE INTO inventory_balances (product_id,quantity,updated_at) VALUES (?,0,?)').run(id, timestamp);
-    writeAudit(db, { action: 'product.upsert', entity: 'product', entityId: id, actor, context: { sku: input.sku, barcode: input.barcode, name } }, now);
+    writeAudit(db, { action: 'product.upsert', entity: 'product', entityId: id, actor, context: { sku: input.sku, barcode: input.barcode, name, trackLots:hasTrackLots?Boolean(input.trackLots):false } }, now);
     return getProduct(id);
   }
 
