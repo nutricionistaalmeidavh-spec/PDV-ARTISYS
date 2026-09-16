@@ -22,6 +22,7 @@
     pixCharges(filters={}){return this.request(`/api/v1/pix/charges${this.params(filters)}`);},
     createPixCharge(body){return this.request('/api/v1/pix/charges',{method:'POST',body});},
     pixCharge(id){return this.request(`/api/v1/pix/charges/${e(id)}`);},
+    pixQr(id){return this.request(`/api/v1/pix/charges/${e(id)}/qr`);},
     confirmPixCharge(id){return this.request(`/api/v1/pix/charges/${e(id)}/confirm`,{method:'POST',body:{}});},
     cancelPixCharge(id,reason){return this.request(`/api/v1/pix/charges/${e(id)}/cancel`,{method:'POST',body:{reason}});},
 
@@ -42,4 +43,25 @@
     saveReplenishmentPolicy(productId,body){return this.request(`/api/v1/replenishment/policies/${e(productId)}`,{method:'PUT',body});},
     createReplenishmentDraft(body){return this.request('/api/v1/replenishment/draft-order',{method:'POST',body});}
   });
+
+  const originalComplete=ApiClient.prototype.completeSale;
+  if(typeof originalComplete==='function'){
+    ApiClient.prototype.completeSale=async function(id,payments){
+      const enriched=[];
+      for(const original of payments||[]){
+        const payment={...original,metadata:original?.metadata?{...original.metadata}:undefined};
+        if(String(payment.method||'').toUpperCase()==='PIX'&&!payment.metadata?.pixChargeId){
+          const charge=await this.createPixCharge({saleId:id,amountCents:Number(payment.amountCents)});
+          const qr=await this.pixQr(charge.id);
+          const confirmUi=window.PdvCommercialCore?.confirmPixChargeUi;
+          if(typeof confirmUi!=='function')throw new Error('Interface de confirmacao Pix indisponivel.');
+          const confirmed=await confirmUi(this,qr);
+          if(!confirmed)throw new Error('Pagamento Pix nao confirmado.');
+          payment.metadata={...(payment.metadata||{}),pixChargeId:charge.id,confirmation:'manual-local'};
+        }
+        enriched.push(payment);
+      }
+      return originalComplete.call(this,id,enriched);
+    };
+  }
 })();
