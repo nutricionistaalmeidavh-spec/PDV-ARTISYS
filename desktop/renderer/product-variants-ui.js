@@ -55,8 +55,10 @@
   }
 
   async function enhanceProducts(){
+    const initialCard=content?.querySelector('.page .data-card');if(!initialCard||initialCard.dataset.productVariantsEnhanced==='true')return;
     await loadCatalog();
-    const card=content?.querySelector('.page .data-card');if(!card)return;
+    const card=content?.querySelector('.page .data-card');if(!card||card!==initialCard||!card.isConnected||card.dataset.productVariantsEnhanced==='true')return;
+    card.dataset.productVariantsEnhanced='true';
     card.querySelectorAll('.variant-child-row,.variant-search-label').forEach(node=>node.remove());
     const visibleParents=new Set();
     for(const row of [...card.querySelectorAll('.data-row')]){
@@ -134,7 +136,10 @@
   }
 
   async function enhanceCheckout(){
+    const initialLayout=content?.querySelector('.checkout-layout');if(!initialLayout||initialLayout.dataset.productVariantsEnhanced==='true')return;
     await loadCatalog();
+    const layout=content?.querySelector('.checkout-layout');if(!layout||layout!==initialLayout||!layout.isConnected||layout.dataset.productVariantsEnhanced==='true')return;
+    layout.dataset.productVariantsEnhanced='true';
     content.querySelectorAll('.variant-search-label,.variant-product-card').forEach(node=>node.remove());
     for(const card of content.querySelectorAll('.product-card[data-add-product]')){
       const list=children(card.dataset.addProduct,{activeOnly:true});
