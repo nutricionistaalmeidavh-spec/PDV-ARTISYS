@@ -60,3 +60,9 @@ test('common flows use synthetic QA-only credentials and no customer secrets',()
     assert.doesNotMatch(source,/ARTISYS_QA_ADMIN_PASSWORD/);
   }
 });
+
+test('all final vertical module back buttons return to settings instead of removed M launcher',()=>{
+  const source=read('desktop/renderer/e48-e54-ui.js');
+  assert.doesNotMatch(source,/vertical-modules-launcher/);
+  assert.match(source,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
+});
