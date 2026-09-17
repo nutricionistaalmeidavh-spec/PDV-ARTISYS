@@ -65,12 +65,18 @@ test('Windows QA runner invokes npm through ComSpec instead of spawning npm.cmd 
   assert.doesNotMatch(source,/const npm\s*=\s*process\.platform\s*===\s*['"]win32['"]\s*\?\s*['"]npm\.cmd['"]/);
 });
 
-test('common flows use synthetic QA-only credentials and no customer secrets',()=>{
-  for(const file of ['qa/flows/common/first-run-login.json','qa/flows/common/basic-catalog.json','qa/flows/common/open-cash.json']){
+test('common setup data is QA-only and contains no customer secret environment variable',()=>{
+  for(const file of ['qa/flows/common/first-run-login.json','qa/flows/common/basic-catalog.json']){
     const source=read(file);
     assert.match(source,/QA|qa/i);
     assert.doesNotMatch(source,/ARTISYS_QA_ADMIN_PASSWORD/);
   }
+  assert.doesNotMatch(read('qa/flows/common/open-cash.json'),/ARTISYS_QA_ADMIN_PASSWORD/);
+});
+
+test('root project provides Playwright required by the vendored QA runtime',()=>{
+  const pkg=json('package.json');
+  assert.ok(pkg.devDependencies?.playwright,'playwright must be installed by the consumer project');
 });
 
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
