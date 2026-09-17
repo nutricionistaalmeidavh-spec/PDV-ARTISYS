@@ -13,6 +13,7 @@ const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const deliveryRoot = path.join(root, 'qa-delivery-artifacts', stamp);
 const qaOutput = path.join(deliveryRoot, 'qa-artifacts');
 const qaFrom = String(process.env.ARTISYS_QA_FROM || '').trim();
+const skipInstaller = /^(1|true|yes)$/i.test(String(process.env.ARTISYS_QA_SKIP_INSTALLER || '').trim());
 process.env.ARTISYS_QA_CASHIER_PASSWORD ||= `Qa-${randomBytes(12).toString('base64url')}-1aA!`;
 const report = {
   schemaVersion: 1,
@@ -107,6 +108,7 @@ function writeSummary() {
 console.log(`ArtiSys PDV - QA completo de fluxos do usuário`);
 console.log(`Artefatos: ${deliveryRoot}`);
 if (qaFrom) console.log(`Retomada solicitada a partir de: ${qaFrom}`);
+if (skipInstaller) console.log('Modo rápido: build e smoke do instalador serão ignorados.');
 
 const hasLockfile = fs.existsSync(path.join(root, 'package-lock.json')) || fs.existsSync(path.join(root, 'npm-shrinkwrap.json'));
 const dependencyArgs = hasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
@@ -117,17 +119,22 @@ const qaRuntimeHasLockfile = fs.existsSync(path.join(qaRuntimeRoot, 'package-loc
 const qaRuntimeDependencyArgs = qaRuntimeHasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
 run('Instalar runtime de QA', npmCommand, npmArgs(...qaRuntimeDependencyArgs), { required: true, cwd: qaRuntimeRoot });
 
-// A pedido do processo de entrega, o instalador é gerado ANTES do QA.
-const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
-const installer = latestInstaller();
-if (installer) {
-  const installerCopy = path.join(deliveryRoot, path.basename(installer));
-  fs.copyFileSync(installer, installerCopy);
-  report.artifacts.installer = installerCopy;
-  report.artifacts.installerSha256 = sha256(installerCopy);
-  fs.writeFileSync(path.join(deliveryRoot, 'installer.sha256.txt'), `${report.artifacts.installerSha256}  ${path.basename(installerCopy)}\n`, 'utf8');
-} else if (buildPassed) {
-  report.steps.push({ label: 'Localizar instalador', status: 'FAIL', exitCode: 1, durationMs: 0 });
+let installer = null;
+if (skipInstaller) {
+  report.steps.push({ label: 'Gerar instalador Windows', status: 'SKIPPED', exitCode: null, durationMs: 0, reason: 'ARTISYS_QA_SKIP_INSTALLER habilitado.' });
+} else {
+  // No release completo, o instalador continua sendo gerado antes do QA.
+  const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
+  installer = latestInstaller();
+  if (installer) {
+    const installerCopy = path.join(deliveryRoot, path.basename(installer));
+    fs.copyFileSync(installer, installerCopy);
+    report.artifacts.installer = installerCopy;
+    report.artifacts.installerSha256 = sha256(installerCopy);
+    fs.writeFileSync(path.join(deliveryRoot, 'installer.sha256.txt'), `${report.artifacts.installerSha256}  ${path.basename(installerCopy)}\n`, 'utf8');
+  } else if (buildPassed) {
+    report.steps.push({ label: 'Localizar instalador', status: 'FAIL', exitCode: 1, durationMs: 0 });
+  }
 }
 
 run('Verificação de código e testes existentes', npmCommand, npmArgs('run', 'verify'), { logFile:'verify.log' });
@@ -191,7 +198,9 @@ try {
 run('Backup e restore atômico', process.execPath, ['--test', 'test/e22-backup.test.js', 'test/release/recovery.test.js']);
 run('Rede LAN e multi-terminal', process.execPath, ['--test', 'test/e21-lan-api.test.js']);
 
-if (installer && process.platform === 'win32') {
+if (skipInstaller) {
+  report.steps.push({ label: 'Instalar e abrir o executável gerado', status: 'SKIPPED', exitCode: null, durationMs: 0, reason: 'ARTISYS_QA_SKIP_INSTALLER habilitado.' });
+} else if (installer && process.platform === 'win32') {
   run('Instalar e abrir o executável gerado', powershell, [
     '-NoProfile',
     '-ExecutionPolicy', 'Bypass',
