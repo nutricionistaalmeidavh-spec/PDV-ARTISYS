@@ -10,6 +10,8 @@ import { loadFlowFile, resolveFlowComposition } from './flow-library.js';
 import { prepareDemoProfile, finalizeDemoProfile } from './demo-profile.js';
 import { collectProfileSecretValues, redactSecrets } from './redaction.js';
 
+const DEFAULT_STEP_TIMEOUT_MS = 45000;
+
 function runId({ systemId, flowName, viewportName }) {
   return `${sanitizeName(systemId)}-${sanitizeName(flowName)}-${sanitizeName(viewportName || 'viewport')}-${new Date().toISOString().replace(/[:.]/g, '-')}`;
 }
@@ -26,6 +28,26 @@ function profileRuntimeContext({ manifest, rootDir, environmentName, environment
     workspace: preparedProfile?.workspace || null,
     fixtures: preparedProfile?.fixtures || [],
   };
+}
+
+function stepTimeoutMs(step, manifest) {
+  const configured = Number(step?.stepTimeoutMs ?? manifest?.stepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_STEP_TIMEOUT_MS;
+}
+
+async function executeStepWithTimeout(args, timeoutMs) {
+  let timer = null;
+  const name = args.step?.name || args.step?.action || `step-${Number(args.index || 0) + 1}`;
+  try {
+    return await Promise.race([
+      executeStep(args),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`QA step timed out after ${timeoutMs}ms: ${name}`)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function runQaFlow({
@@ -128,9 +150,10 @@ export async function runQaFlow({
       const step = flow.steps[index];
       const stepName = step.name || step.action;
       const stepStart = Date.now();
+      const timeoutMs = stepTimeoutMs(step, manifest);
       await notify({ type: 'step-start', flow: flowName, step: stepName, current: index + 1, total: flow.steps.length });
       try {
-        const label = await executeStep({
+        const label = await executeStepWithTimeout({
           page,
           step,
           index,
@@ -139,7 +162,7 @@ export async function runQaFlow({
           env: process.env,
           adapter: demoAdapter,
           runtimeContext,
-        });
+        }, timeoutMs);
         if (manifest.capture?.screenshotEachStep) {
           await page.screenshot({ path: path.join(screenshotsDir, `${label}-after.png`), fullPage: false });
         }
