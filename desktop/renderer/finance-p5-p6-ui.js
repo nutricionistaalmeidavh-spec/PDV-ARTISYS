@@ -22,9 +22,17 @@
   function toIsoStart(value){return value?new Date(`${value}T00:00:00`).toISOString():'';}
   function toIsoEnd(value){return value?new Date(`${value}T23:59:59.999`).toISOString():'';}
 
-  function navigateToSale(saleId){
+  async function navigateToSale(saleId){
     if(!saleId)return;
-    sessionStorage.setItem('artisys.finance.openSale',String(saleId));
+    const normalized=String(saleId);
+    lastSaleDetailId=normalized;
+    const root=window;
+    if(root.PdvOperationalUi?.showRoute){
+      await root.PdvOperationalUi.showRoute('sales');
+      const button=[...document.querySelectorAll('[data-sale-details]')].find(node=>node.dataset.saleDetails===normalized);
+      if(button){button.click();return;}
+    }
+    sessionStorage.setItem('artisys.finance.openSale',normalized);
     routeButton('sales')?.click();
   }
 
@@ -65,10 +73,10 @@
         <td>${esc(row.paymentMethod||'—')}${row.installmentCount?` <small>${row.installmentNumber}/${row.installmentCount}</small>`:''}</td>
         <td>${esc(row.sellerName||'—')}<small>${esc(row.customerName||'')}</small></td>
         <td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${esc(row.status)}</td>
-        <td><div class="ops-row-actions">${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-p5-finance-settle="${esc(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-p5-finance-cancel="${esc(row.id)}">Cancelar</button>`:''}</div></td>
+        <td><div class="ops-row-actions">${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${esc(row.id)}" data-p5-finance-settle="${esc(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-p5-finance-cancel="${esc(row.id)}">Cancelar</button>`:''}</div></td>
       </tr>`).join('')||'<tr><td colspan="9"><div class="ops-empty">Nenhum lançamento para os filtros selecionados.</div></td></tr>'}</tbody></table></div>`;
 
-    card.querySelectorAll('[data-finance-view-sale]').forEach(button=>button.addEventListener('click',()=>navigateToSale(button.dataset.financeViewSale)));
+    card.querySelectorAll('[data-finance-view-sale]').forEach(button=>button.addEventListener('click',()=>void navigateToSale(button.dataset.financeViewSale)));
     card.querySelectorAll('[data-p5-finance-settle]').forEach(button=>button.addEventListener('click',async()=>{
       const suggested=(Number(button.dataset.open||0)/100).toFixed(2).replace('.',',');
       const value=window.prompt('Valor da baixa (R$):',suggested);if(value===null)return;
