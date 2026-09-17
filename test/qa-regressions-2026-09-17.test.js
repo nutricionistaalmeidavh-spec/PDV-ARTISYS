@@ -31,3 +31,19 @@ test('expectText waits for a matching live locator instead of iterating transien
   assert.match(steps,/waitFor\(\{\s*state:\s*['"]visible['"]/);
   assert.doesNotMatch(steps,/target\.nth\(index\)\.textContent\(\)/);
 });
+
+test('return flow verifies persisted reason through the canonical returns API instead of UI columns that do not render reason',()=>{
+  const flow=json('qa/flows/user/08-pos-venda-devolucao.json');
+  const history=flow.steps.find(step=>step.name==='return-history');
+  assert.equal(history?.action,'apiRequest');
+  assert.equal(history?.path,'/api/v1/returns');
+  assert.equal(history?.method,'GET');
+  assert.equal(history?.expectStatus,200);
+  assert.equal(history?.expectedText,'QA devolução');
+});
+
+test('retail QA targets the implicit submit button actually rendered by the RETAIL workspace',()=>{
+  const flow=json('qa/flows/user/18-varejo.json');
+  const search=flow.steps.find(step=>step.name==='search');
+  assert.equal(search?.selector,'#retail-search button');
+});
