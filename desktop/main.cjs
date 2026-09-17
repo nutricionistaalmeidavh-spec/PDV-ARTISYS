@@ -1,84 +1,39 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
-const os = require('node:os');
-const { randomBytes } = require('node:crypto');
-const { createPdvRuntime } = require('../js/core/pdv-runtime');
-const { applyPendingRestore } = require('../js/core/backup/pending-restore');
-const { createLocalServer } = require('../server/local-server');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage, safeStorage } = require('electron');
+const { startServer } = require('../server/app');
+const { createAppRuntime } = require('../js/runtime/app-runtime');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
-const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
+const { createTerminalCredentialStore } = require('./terminal-credential-store.cjs');
+const { buildHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
+const { createFiscalConnectionStore, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { registerImportIpc } = require('./import-bridge.cjs');
 const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
-const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
-const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
-const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 
-if (process.env.ARTISYS_QA === '1') {
-  const explicitQaUserData = String(process.env.ARTISYS_QA_USER_DATA_DIR || '').trim();
-  const qaUserData = explicitQaUserData || path.join(os.tmpdir(), 'artisys-pdv-qa', `${process.pid}-${Date.now()}`);
-  app.setPath('userData', qaUserData);
-}
+if (process.env.ARTISYS_QA_USER_DATA_DIR) app.setPath('userData', path.resolve(process.env.ARTISYS_QA_USER_DATA_DIR));
 
 let mainWindow = null;
 let runtime = null;
 let localServer = null;
 let lanServer = null;
-let apiBase = '';
+let apiBase = null;
+let installToken = '';
 let bootstrapConfig = null;
 let terminalCredentialStore = null;
 let hardwareController = null;
 let fiscalStore = null;
 let printWorker = null;
-let printWorkerBusy = false;
-const installToken = randomBytes(32).toString('hex');
-
-function rendererPath(...parts) {
-  return path.join(__dirname, 'renderer', ...parts);
-}
-
-async function startEmbeddedServer() {
-  const dbPath = path.join(app.getPath('userData'), 'pdv-artisys.sqlite');
-  const backupDir = path.join(app.getPath('userData'), 'backups');
-  applyPendingRestore({ dbPath, backupDir });
-  const fiscalProviderResolver = fiscalStore ? createFiscalProviderResolver({ store:fiscalStore }) : async () => null;
-  runtime = createPdvRuntime({
-    dbPath,
-    backupDir,
-    diagnosticsDir:path.join(app.getPath('userData'),'diagnostics'),
-    productPhotoDir:path.join(app.getPath('userData'),'product-photos'),
-    appVersion:app.getVersion(),
-    serverVersion:app.getVersion(),
-    fiscalProviderResolver,
-    receiptOptions: {
-      storeName: bootstrapConfig?.storeName || process.env.PDV_STORE_NAME || 'Loja Matriz',
-      width: Number(process.env.PDV_RECEIPT_WIDTH || 42)
-    }
-  });
-
-  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false });
-  const localAddress = await localServer.start();
-  apiBase = `http://127.0.0.1:${localAddress.port}`;
-
-  if (process.env.PDV_ENABLE_LAN !== 'false') {
-    const lanHost = process.env.PDV_LAN_HOST || '0.0.0.0';
-    const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
-    if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
-    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true });
-    await lanServer.start();
-  }
-}
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
-    width: 1536,
-    height: 1024,
-    minWidth: 1180,
-    minHeight: 760,
+    width: 1440,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 720,
+    backgroundColor: '#09111f',
     show: false,
-    frame: false,
-    backgroundColor: '#f5f7fb',
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -87,33 +42,53 @@ function createMainWindow() {
     }
   });
 
-  mainWindow.loadFile(rendererPath('index.html'));
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  mainWindow.once('ready-to-show', () => mainWindow.show());
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-function buildHardwareController() {
-  const hardwareRuntime = createPdvHardwareRuntime({ BrowserWindow, env:process.env });
-  return createHardwareController(hardwareRuntime);
+async function startEmbeddedServer() {
+  const userData = app.getPath('userData');
+  runtime = createAppRuntime({
+    dataDir: userData,
+    terminalId: bootstrapConfig?.terminalId || 'PDV-01',
+    terminalName: bootstrapConfig?.terminalName || 'Terminal PDV-01',
+    storeName: bootstrapConfig?.storeName || 'Loja Matriz'
+  });
+  const started = await startServer({
+    runtime,
+    host: '127.0.0.1',
+    port: 0,
+    installToken: runtime.installation.getToken(),
+    requireTerminalAuth: false
+  });
+  localServer = started.server;
+  installToken = runtime.installation.getToken();
+  apiBase = `http://127.0.0.1:${started.port}`;
+
+  if (bootstrapConfig?.lanEnabled) {
+    const lan = await startServer({
+      runtime,
+      host: bootstrapConfig.lanHost || '0.0.0.0',
+      port: bootstrapConfig.lanPort || 4174,
+      installToken,
+      requireTerminalAuth: true
+    });
+    lanServer = lan.server;
+  }
 }
 
 function startPrintWorker() {
-  if (printWorker || process.env.PDV_AUTO_PRINT === 'false' || !runtime) return;
-  const tick = async () => {
-    if (printWorkerBusy || !runtime || !hardwareController) return;
-    const job = runtime.printing.listJobs({ status:'PENDING' })[0];
-    if (!job) return;
-    printWorkerBusy = true;
+  if (!runtime || printWorker) return;
+  const drain = async () => {
     try {
-      await runtime.printing.processJob(job.id, { print: input => hardwareController.print(input) });
+      await runtime.printing.processPending(async job => hardwareController?.print(job) || false);
     } catch (error) {
-      runtime.logger?.log({ level:'error', subsystem:'printing', message:error?.message || 'Falha ao processar impressao.' });
-    } finally {
-      printWorkerBusy = false;
+      console.error('Falha ao processar fila de impressão:', error);
     }
   };
-  printWorker = setInterval(() => { void tick(); }, 1200);
-  void tick();
+  printWorker = setInterval(() => { void drain(); }, 1500);
+  void drain();
 }
 
 function registerIpc() {
@@ -137,7 +112,7 @@ function registerIpc() {
     if (bootstrapConfig?.profile === 'terminal') {
       headers['x-terminal-id'] = bootstrapConfig.terminalId;
       headers['x-terminal-key'] = bootstrapConfig.terminalKey;
-    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/restaurant/') || rawPath.startsWith('/api/v1/vertical/')) {
+    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/restaurant/') || rawPath.startsWith('/api/v1/vertical/') || rawPath.startsWith('/api/v1/product-variants')) {
       headers['x-pdv-token'] = installToken;
     }
     let body;
