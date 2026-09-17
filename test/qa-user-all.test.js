@@ -125,6 +125,14 @@ test('cashier permissions verify restricted settings UI without depending on an 
   assert.ok(!flow.steps.some(step=>step.name==='forbidden-save'||step.name==='forbidden-name'));
 });
 
+test('user-all runner can resume from a named flow and prints live step progress',()=>{
+  const source=read('scripts/qa-user-all.mjs');
+  assert.match(source,/ARTISYS_QA_FROM/);
+  assert.match(source,/onProgress/);
+  assert.match(source,/step-start/);
+  assert.match(source,/\[\$\{event\.current\}\/\$\{event\.total\}\]/);
+});
+
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
   const html=read('desktop/renderer/index.html');
   const fix=read('desktop/renderer/e48-settings-back-fix.js');
