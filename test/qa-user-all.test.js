@@ -91,6 +91,30 @@ test('dialog-driven QA clicks have a finite timeout instead of hanging forever',
   assert.match(steps,/Timed out waiting for/);
 });
 
+test('shared user flows target unique UI elements after commercial extensions were added',()=>{
+  const catalog=read('qa/flows/common/basic-catalog.json');
+  const cash=read('qa/flows/common/open-cash.json');
+  assert.doesNotMatch(catalog,/"selector":"\.data-card"/);
+  assert.match(catalog,/\.page > \.data-card/);
+  assert.doesNotMatch(catalog,/"selector":"\[data-route='home'\]"/);
+  assert.doesNotMatch(cash,/"selector":"\[data-route='home'\]"/);
+  assert.match(cash,/aria-label='Início'/);
+});
+
+test('prompt-driven QA clicks use a deterministic renderer shim under Electron',()=>{
+  const steps=read('qa/runtime/src/steps.js');
+  assert.match(steps,/__ARTISYS_QA_PROMPT_SHIM__/);
+  assert.match(steps,/window\.prompt/);
+  assert.match(steps,/promptText/);
+});
+
+test('cashier permissions verify restricted settings UI without depending on an admin-only form',()=>{
+  const flow=read('qa/flows/user/21-permissoes.json');
+  assert.match(flow,/"action":"expectNotVisible","selector":"#ops-store-receipt-form"/);
+  assert.doesNotMatch(flow,/forbidden-save/);
+  assert.doesNotMatch(flow,/forbidden-name/);
+});
+
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
   const html=read('desktop/renderer/index.html');
   const fix=read('desktop/renderer/e48-settings-back-fix.js');
