@@ -1,6 +1,13 @@
 {
   "name":"common-basic-sale",
   "steps":[
+    {"action":"click","selector":"[data-route='inventory']","name":"sale-stock-open"},
+    {"action":"waitFor","selector":"#ops-inventory-form","name":"sale-stock-ready","timeoutMs":10000},
+    {"action":"fill","selector":"#ops-inventory-form input[name='quantity']","value":"10","name":"sale-stock-qty"},
+    {"action":"fill","selector":"#ops-inventory-form input[name='reason']","value":"QA estoque para venda","name":"sale-stock-reason"},
+    {"action":"click","selector":"#ops-inventory-form button[type='submit']","name":"sale-stock-save"},
+    {"action":"expectText","selector":".ops-page","expected":"QA estoque para venda","name":"sale-stock-saved"},
+    {"action":"click","selector":".sidebar-back[data-route=\"home\"]","name":"sale-stock-home"},
     {"action":"click","selector":"[data-home-route='checkout']","name":"open-checkout"},
     {"action":"waitFor","selector":"#seller-select","name":"checkout-ready","timeoutMs":10000},
     {"action":"fill","selector":"#product-search","value":"QA Produto","name":"search-product"},
@@ -19,7 +26,7 @@
     {"action":"click","selector":"#finalize-sale","name":"finalize-sale"},
     {"action":"waitFor","selector":"#confirm-payment","name":"payment-ready","timeoutMs":10000},
     {"action":"click","selector":"#confirm-payment","name":"confirm-payment"},
-    {"action":"waitFor","selector":".toast.success","name":"sale-success","timeoutMs":10000},
+    {"action":"waitFor","selector":"#confirm-payment","state":"hidden","name":"sale-success","timeoutMs":10000},
     {"action":"click","selector":".sidebar-back[data-route=\"home\"]","name":"sale-home"},
     {"action":"click","selector":"[data-home-route='sales']","name":"open-sales"},
     {"action":"waitFor","selector":"[data-sale-details]","name":"sales-history-ready","timeoutMs":10000},
