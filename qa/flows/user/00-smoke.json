@@ -1,0 +1,1 @@
+{"name":"00-smoke","steps":[{"uses":"../common/first-run-login.json"},{"action":"expectVisible","selector":".home-grid","name":"home-visible"},{"action":"expectCount","selector":"#vertical-modules-launcher","expected":0,"name":"legacy-m-removed"},{"action":"screenshot","name":"smoke-home","fullPage":true}]}
