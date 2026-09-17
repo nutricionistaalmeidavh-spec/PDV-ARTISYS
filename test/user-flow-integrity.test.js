@@ -119,6 +119,95 @@ test('return reverses stock, cash, reports and commission without duplicating si
   assert.equal(runtime.commissions.outstanding('seller'),100);
 });
 
+test('completed sale cancellation restores inventory and cash and reverses commission once',async t=>{
+  const fx=fixture(t);
+  await fx.completeSale();
+  const runtime=fx.runtime;
+
+  runtime.sales.cancelSale('sale1',{reason:'QA cancelamento pós-venda',actor:actor(),mutationId:'cancel-sale1'});
+  let dispatch=await runtime.dispatchPending();
+  assert.equal(dispatch.failed,0);
+
+  assert.equal(runtime.sales.getSaleDetails('sale1').status,'CANCELLED');
+  assert.equal(runtime.inventory.getBalance('p1'),10);
+  const reversals=runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='REVERSAL'&&row.saleId==='sale1');
+  assert.equal(reversals.length,1);
+  assert.equal(reversals[0].amountCents,2000);
+
+  const report=runtime.reports.buildSalesSummary();
+  assert.equal(report.salesCount,0);
+  assert.equal(report.netSalesCents,0);
+  assert.equal(report.cancelledSalesCount,1);
+  assert.equal(report.cancelledSalesCents,2000);
+  assert.equal(runtime.commissions.outstanding('seller'),0);
+  assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale1'}).length,1,'original receipt must remain auditable');
+
+  dispatch=await runtime.dispatchPending();
+  assert.equal(dispatch.failed,0);
+  assert.equal(runtime.inventory.getBalance('p1'),10);
+  assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='REVERSAL'&&row.saleId==='sale1').length,1);
+  assert.equal(runtime.commissions.outstanding('seller'),0);
+});
+
+test('suspend and resume preserve one canonical sale and apply side effects only on completion',async t=>{
+  const fx=fixture(t);
+  const runtime=fx.runtime;
+  await runtime.dispatchPending();
+
+  runtime.sales.openSale({id:'sale-suspended',saleNumber:'QA-SUSP',terminalId:'PDV-QA',operatorId:'admin',sellerId:'seller'},actor());
+  runtime.sales.addItem('sale-suspended',{productId:'p1',quantity:2});
+  runtime.sales.suspendSale('sale-suspended');
+  assert.equal(runtime.sales.getSale('sale-suspended').status,'SUSPENDED');
+  assert.equal(runtime.inventory.getBalance('p1'),10);
+  assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.saleId==='sale-suspended').length,0);
+  assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale-suspended'}).length,0);
+
+  runtime.sales.resumeSale('sale-suspended');
+  runtime.sales.completeSale('sale-suspended',{payments:[{method:'PIX',amountCents:2000}],actor:actor(),mutationId:'complete-suspended'});
+  const dispatch=await runtime.dispatchPending();
+  assert.equal(dispatch.failed,0);
+
+  assert.equal(runtime.sales.getSaleDetails('sale-suspended').status,'COMPLETED');
+  assert.equal(runtime.sales.listHistory({status:'COMPLETED'}).filter(row=>row.id==='sale-suspended').length,1);
+  assert.equal(runtime.inventory.getBalance('p1'),8);
+  assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='SALE'&&row.saleId==='sale-suspended').length,1);
+  assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale-suspended'}).length,1);
+  assert.equal(runtime.reports.buildSalesSummary().paymentsByMethod.PIX,2000);
+});
+
+test('price override plus discount stays consistent in history, report and commission base',async t=>{
+  const fx=fixture(t);
+  const runtime=fx.runtime;
+  await runtime.dispatchPending();
+
+  runtime.sales.openSale({id:'sale-price',saleNumber:'QA-PRICE',terminalId:'PDV-QA',operatorId:'admin',sellerId:'seller'},actor());
+  let sale=runtime.sales.addItem('sale-price',{productId:'p1',quantity:2});
+  const itemId=sale.items[0].id;
+  sale=runtime.sales.overrideItemPrice('sale-price',itemId,{unitPriceCents:1200,reason:'QA preço negociado',actor:actor()});
+  assert.equal(sale.items[0].catalogUnitPriceCents,1000);
+  assert.equal(sale.items[0].unitPriceCents,1200);
+  runtime.sales.applyDiscount('sale-price',{discountCents:400});
+  runtime.sales.completeSale('sale-price',{payments:[{method:'CASH',amountCents:2000}],actor:actor(),mutationId:'complete-price'});
+  const dispatch=await runtime.dispatchPending();
+  assert.equal(dispatch.failed,0);
+
+  sale=runtime.sales.getSaleDetails('sale-price');
+  assert.equal(sale.subtotalCents,2400);
+  assert.equal(sale.discountCents,400);
+  assert.equal(sale.totalCents,2000);
+  assert.equal(sale.items[0].catalogUnitPriceCents,1000);
+  assert.equal(sale.items[0].unitPriceCents,1200);
+  assert.equal(sale.items[0].priceOverrideReason,'QA preço negociado');
+  assert.equal(sale.items[0].commissionBaseCents,2000);
+  assert.equal(sale.items[0].commissionCents,200);
+
+  const report=runtime.reports.buildSalesSummary();
+  assert.equal(report.grossSalesCents,2000);
+  assert.equal(report.paymentsByMethod.CASH,2000);
+  assert.equal(report.sellers.find(row=>row.sellerId==='seller')?.salesCents,2000);
+  assert.equal(runtime.commissions.outstanding('seller'),200);
+});
+
 test('completed business effects survive a real runtime restart on the same database',async t=>{
   const fx=fixture(t);
   await fx.completeSale();
