@@ -9,6 +9,7 @@
   let loadedAt=0;
   let loading=null;
   let scheduled=false;
+  let selectedSellerId='';
 
   async function loadSellers(force=false){
     if(!force&&sellers.length&&Date.now()-loadedAt<1000)return sellers;
@@ -26,7 +27,8 @@
     if(!select||select.dataset.liveSellerSync==='done')return;
     select.dataset.liveSellerSync='loading';
     try{
-      const current=select.value;
+      const domSelection=String(select.value||'');
+      if(domSelection)selectedSellerId=domSelection;
       const rows=await loadSellers();
       if(!select.isConnected)return;
       select.replaceChildren(...rows.map(seller=>{
@@ -35,10 +37,15 @@
         option.textContent=String(seller.name||seller.username||seller.id);
         return option;
       }));
-      const next=rows.some(seller=>String(seller.id)===String(current))?String(current):String(rows[0]?.id||'');
-      select.value=next;
+      const desired=rows.some(seller=>String(seller.id)===selectedSellerId)
+        ? selectedSellerId
+        : String(rows[0]?.id||'');
+      select.value=desired;
       select.dataset.liveSellerSync='done';
-      if(next&&next!==current)select.dispatchEvent(new Event('change',{bubbles:true}));
+      if(desired&&desired!==selectedSellerId){
+        selectedSellerId=desired;
+        select.dispatchEvent(new Event('change',{bubbles:true}));
+      }
     }catch{
       if(select.isConnected)delete select.dataset.liveSellerSync;
     }
@@ -50,6 +57,9 @@
     setTimeout(()=>{scheduled=false;void syncCheckoutSeller();},20);
   }
 
+  document.addEventListener('change',event=>{
+    if(event.target?.id==='seller-select')selectedSellerId=String(event.target.value||'');
+  },true);
   document.addEventListener('submit',event=>{
     if(event.target?.id!=='seller-form')return;
     sellers=[];
