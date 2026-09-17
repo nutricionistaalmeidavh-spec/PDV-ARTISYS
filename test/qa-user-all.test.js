@@ -84,6 +84,13 @@ test('vendored QA runtime declares Playwright and runner installs its dependenci
   assert.match(runner,/Instalar runtime de QA/);
 });
 
+test('dialog-driven QA clicks have a finite timeout instead of hanging forever',()=>{
+  const steps=read('qa/runtime/src/steps.js');
+  assert.match(steps,/dialogTimeoutMs/);
+  assert.match(steps,/setTimeout/);
+  assert.match(steps,/Timed out waiting for/);
+});
+
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
   const html=read('desktop/renderer/index.html');
   const fix=read('desktop/renderer/e48-settings-back-fix.js');
