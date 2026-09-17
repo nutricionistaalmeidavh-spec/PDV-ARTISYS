@@ -12,11 +12,13 @@ const powershell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const deliveryRoot = path.join(root, 'qa-delivery-artifacts', stamp);
 const qaOutput = path.join(deliveryRoot, 'qa-artifacts');
+const qaFrom = String(process.env.ARTISYS_QA_FROM || '').trim();
 process.env.ARTISYS_QA_CASHIER_PASSWORD ||= `Qa-${randomBytes(12).toString('base64url')}-1aA!`;
 const report = {
   schemaVersion: 1,
   startedAt: new Date().toISOString(),
   system: 'pdv-artisys',
+  resumedFrom: qaFrom || null,
   steps: [],
   flows: [],
   artifacts: {},
@@ -80,6 +82,7 @@ function writeSummary() {
     `Status: ${report.status}`,
     `Início: ${report.startedAt}`,
     `Fim: ${report.finishedAt}`,
+    `Retomado de: ${report.resumedFrom || 'início'}`,
     `Etapas: ${report.counts.stepsPassed} PASS / ${report.counts.stepsFailed} FAIL`,
     `Fluxos: ${report.counts.flowsPassed} PASS / ${report.counts.flowsFailed} FAIL`,
     '',
@@ -91,6 +94,7 @@ function writeSummary() {
 
 console.log(`ArtiSys PDV - QA completo de fluxos do usuário`);
 console.log(`Artefatos: ${deliveryRoot}`);
+if (qaFrom) console.log(`Retomada solicitada a partir de: ${qaFrom}`);
 
 const hasLockfile = fs.existsSync(path.join(root, 'package-lock.json')) || fs.existsSync(path.join(root, 'npm-shrinkwrap.json'));
 const dependencyArgs = hasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
@@ -125,9 +129,17 @@ try {
   const { name: environmentName, environment } = manifestModule.resolveEnvironment(manifest, 'ci');
   const viewport = manifestModule.resolveViewport(manifest, 'desktop');
   const flowDir = path.join(root, 'qa/flows/user');
-  const flowFiles = fs.readdirSync(flowDir)
+  let flowFiles = fs.readdirSync(flowDir)
     .filter(name => /^\d\d-.*\.json$/i.test(name) && !name.startsWith('25-'))
     .sort();
+
+  if (qaFrom) {
+    const requested = qaFrom.toLowerCase().replace(/\.json$/i, '');
+    const startIndex = flowFiles.findIndex(file => path.basename(file, '.json').toLowerCase() === requested);
+    if (startIndex < 0) throw new Error(`Fluxo informado em ARTISYS_QA_FROM não encontrado: ${qaFrom}`);
+    flowFiles = flowFiles.slice(startIndex);
+    console.log(`Fluxos anteriores a ${qaFrom} serão ignorados nesta retomada.`);
+  }
 
   for (const file of flowFiles) {
     const flowName = path.basename(file, '.json');
@@ -143,6 +155,13 @@ try {
         flowFile: path.join(flowDir, file),
         viewport,
         outputRoot: qaOutput,
+        onProgress: event => {
+          if (event.type === 'step-start') {
+            console.log(`  [${event.current}/${event.total}] ${event.step}`);
+          } else if (event.type === 'step-end' && event.status === 'failed') {
+            console.error(`  FALHA em ${event.step}: ${event.error || 'erro não informado'}`);
+          }
+        },
       });
       report.flows.push({ flow: flowName, status: 'PASS', durationMs: Date.now() - started, outputDir: result.outputDir });
     } catch (error) {
