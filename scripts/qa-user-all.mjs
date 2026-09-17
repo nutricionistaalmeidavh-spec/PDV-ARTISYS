@@ -90,7 +90,10 @@ function writeSummary() {
 console.log(`ArtiSys PDV - QA completo de fluxos do usuário`);
 console.log(`Artefatos: ${deliveryRoot}`);
 
-run('Instalar dependências', npmCommand, npmArgs('ci'), { required: true });
+const hasLockfile = fs.existsSync(path.join(root, 'package-lock.json')) || fs.existsSync(path.join(root, 'npm-shrinkwrap.json'));
+const dependencyArgs = hasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
+console.log(`Dependências: ${hasLockfile ? 'npm ci (lockfile encontrado)' : 'npm install (repositório sem lockfile)'}`);
+run('Instalar dependências', npmCommand, npmArgs(...dependencyArgs), { required: true });
 
 // A pedido do processo de entrega, o instalador é gerado ANTES do QA.
 const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
