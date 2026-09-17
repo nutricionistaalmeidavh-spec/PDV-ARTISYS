@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCommand = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm';
 const powershell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const deliveryRoot = path.join(root, 'qa-delivery-artifacts', stamp);
@@ -22,6 +22,10 @@ const report = {
 
 fs.mkdirSync(deliveryRoot, { recursive: true });
 
+function npmArgs(...args) {
+  return process.platform === 'win32' ? ['/d', '/s', '/c', 'npm', ...args] : args;
+}
+
 function run(label, command, args, { required = false } = {}) {
   console.log(`\n=== ${label} ===`);
   const started = Date.now();
@@ -32,7 +36,9 @@ function run(label, command, args, { required = false } = {}) {
     shell: false,
   });
   const code = Number.isInteger(result.status) ? result.status : 1;
-  report.steps.push({ label, command: [command, ...args].join(' '), status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started });
+  const error = result.error?.message || null;
+  if (error) console.error(`Falha ao iniciar ${command}: ${error}`);
+  report.steps.push({ label, command: [command, ...args].join(' '), status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started, ...(error ? { error } : {}) });
   if (code !== 0 && required) {
     writeSummary();
     process.exit(code || 1);
@@ -75,7 +81,7 @@ function writeSummary() {
     `Etapas: ${report.counts.stepsPassed} PASS / ${report.counts.stepsFailed} FAIL`,
     `Fluxos: ${report.counts.flowsPassed} PASS / ${report.counts.flowsFailed} FAIL`,
     '',
-    ...report.steps.map(item => `${item.status} | ${item.label}`),
+    ...report.steps.map(item => `${item.status} | ${item.label}${item.error ? ` | ${item.error}` : ''}`),
     ...report.flows.map(item => `${item.status} | ${item.flow}${item.error ? ` | ${item.error}` : ''}`),
   ].join('\n');
   fs.writeFileSync(path.join(deliveryRoot, 'QA-SUMMARY.txt'), text, 'utf8');
@@ -84,10 +90,10 @@ function writeSummary() {
 console.log(`ArtiSys PDV - QA completo de fluxos do usuário`);
 console.log(`Artefatos: ${deliveryRoot}`);
 
-run('Instalar dependências', npm, ['ci'], { required: true });
+run('Instalar dependências', npmCommand, npmArgs('ci'), { required: true });
 
 // A pedido do processo de entrega, o instalador é gerado ANTES do QA.
-const buildPassed = run('Gerar instalador Windows', npm, ['run', 'dist:win']);
+const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
 const installer = latestInstaller();
 if (installer) {
   const installerCopy = path.join(deliveryRoot, path.basename(installer));
@@ -99,7 +105,7 @@ if (installer) {
   report.steps.push({ label: 'Localizar instalador', status: 'FAIL', exitCode: 1, durationMs: 0 });
 }
 
-run('Verificação de código e testes existentes', npm, ['run', 'verify']);
+run('Verificação de código e testes existentes', npmCommand, npmArgs('run', 'verify'));
 
 let runtimeAvailable = true;
 try {
