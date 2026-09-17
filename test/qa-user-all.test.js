@@ -191,3 +191,27 @@ test('final-module manager patch is idempotent before mutating child content',()
   assert.ok(guard<disabledWrite,'idempotency guard must run before changing disabled state');
   assert.ok(guard<textWrite,'idempotency guard must run before replacing span text and retriggering MutationObserver');
 });
+
+test('final-module flows target the actual implicit submit buttons',()=>{
+  const services=json('qa/flows/user/19-servicos-oficina.json');
+  const selfService=json('qa/flows/user/20-autoatendimento.json');
+  const byName=(flow,name)=>flow.steps.find(step=>step.name===name);
+  const expected={
+    'save-service':'#service-form button',
+    'save-professional':'#professional-form button',
+    'link':'#link-form button',
+    'save-asset':'#asset-form button',
+    'create-order':'#work-form button',
+    'get-order':'#work-get button'
+  };
+  for(const [name,selector] of Object.entries(expected))assert.equal(byName(services,name)?.selector,selector,`${name} must match the button rendered by e48-e54-ui.js`);
+  assert.equal(byName(selfService,'create-self-service')?.selector,'#self-create button');
+});
+
+test('persistence UI assertion uses the same product fixture created by basic catalog',()=>{
+  const catalog=json('qa/flows/common/basic-catalog.json');
+  const persistence=json('qa/flows/user/24-persistencia-restart.json');
+  const productName=catalog.steps.find(step=>step.name==='product-name')?.value;
+  const persisted=persistence.steps.find(step=>step.name==='catalog-persisted')?.expected;
+  assert.equal(persisted,productName);
+});
