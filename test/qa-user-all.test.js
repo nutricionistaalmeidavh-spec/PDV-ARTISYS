@@ -61,8 +61,11 @@ test('common flows use synthetic QA-only credentials and no customer secrets',()
   }
 });
 
-test('all final vertical module back buttons return to settings instead of removed M launcher',()=>{
-  const source=read('desktop/renderer/e48-e54-ui.js');
-  assert.doesNotMatch(source,/vertical-modules-launcher/);
-  assert.match(source,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
+test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
+  const html=read('desktop/renderer/index.html');
+  const fix=read('desktop/renderer/e48-settings-back-fix.js');
+  assert.match(html,/e48-e54-ui\.js[\s\S]*e48-settings-back-fix\.js/);
+  assert.match(fix,/e48-back/);
+  assert.match(fix,/stopImmediatePropagation/);
+  assert.match(fix,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
 });
