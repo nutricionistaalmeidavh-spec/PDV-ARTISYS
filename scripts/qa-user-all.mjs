@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -12,6 +12,7 @@ const powershell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 const deliveryRoot = path.join(root, 'qa-delivery-artifacts', stamp);
 const qaOutput = path.join(deliveryRoot, 'qa-artifacts');
+process.env.ARTISYS_QA_CASHIER_PASSWORD ||= `Qa-${randomBytes(12).toString('base64url')}-1aA!`;
 const report = {
   schemaVersion: 1,
   startedAt: new Date().toISOString(),
