@@ -177,3 +177,17 @@ test('final vertical module back action is redirected to settings after removal 
   assert.match(fix,/stopImmediatePropagation/);
   assert.match(fix,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
 });
+
+test('final-module manager patch is idempotent before mutating child content',()=>{
+  const source=read('desktop/renderer/e48-e54-ui.js');
+  const start=source.indexOf("root.querySelectorAll('[data-module-open]')");
+  const end=source.indexOf('const enabled=',start);
+  const patch=source.slice(start,end);
+  const guard=patch.indexOf('if(button.dataset.e48Bound)return');
+  const disabledWrite=patch.indexOf('button.disabled=false');
+  const textWrite=patch.indexOf("span.textContent='Abrir módulo'");
+  assert.ok(start>=0&&end>start,'final-module patch must exist');
+  assert.ok(guard>=0,'final-module patch must have an idempotency guard');
+  assert.ok(guard<disabledWrite,'idempotency guard must run before changing disabled state');
+  assert.ok(guard<textWrite,'idempotency guard must run before replacing span text and retriggering MutationObserver');
+});
