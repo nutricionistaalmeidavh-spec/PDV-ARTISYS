@@ -12,11 +12,12 @@ function fixture(t,{priceCents=10000,stamp='2026-09-17T12:00:00.000Z'}={}){
   runtime.catalog.createUser({id:'admin',username:'admin-fin',name:'Admin Finance',role:'manager',password:'QaLocalOnly-12345!'});
   runtime.catalog.upsertCategory({id:'cat-fin',name:'Finance'});
   runtime.catalog.upsertProduct({id:'prod-fin',categoryId:'cat-fin',sku:'FIN-1',barcode:'7891234567890',name:'Produto Finance',salePriceCents:priceCents,costCents:1000,trackStock:true,minimumStock:0});
+  runtime.catalog.upsertCustomer({id:'customer-fin',name:'Cliente Finance',document:'12345678901',creditLimitCents:50000,creditUsedCents:0,active:true});
   runtime.inventory.move({productId:'prod-fin',type:'opening',quantityDelta:50,reason:'Saldo'});
   runtime.cash.openSession({id:'cash-fin',terminalId:'PDV-FIN',operatorId:'admin',initialCashCents:10000,actor:actor()});
   async function sale(id,payments,total=priceCents){
     await runtime.dispatchPending();
-    runtime.sales.openSale({id,saleNumber:`FIN-${id}`,terminalId:'PDV-FIN',operatorId:'admin'},actor());
+    runtime.sales.openSale({id,saleNumber:`FIN-${id}`,terminalId:'PDV-FIN',operatorId:'admin',customerId:'customer-fin'},actor());
     runtime.sales.addItem(id,{productId:'prod-fin',quantity:1});
     if(total!==priceCents) throw new Error('fixture total mismatch');
     runtime.sales.completeSale(id,{payments,actor:actor(),mutationId:`mut-${id}`});
