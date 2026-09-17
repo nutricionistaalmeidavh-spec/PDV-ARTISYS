@@ -1,12 +1,12 @@
 {
   "name": "common-open-cash",
   "steps": [
-    {"action":"click","selector":"[data-route='home']","name":"cash-return-home"},
+    {"action":"click","selector":".sidebar-back[data-route=\"home\"]","name":"cash-return-home"},
     {"action":"click","selector":"[data-home-route='cash']","name":"open-cash-page"},
     {"action":"waitFor","selector":"#ops-open-cash","name":"cash-form-ready","timeoutMs":10000},
     {"action":"fill","selector":"#ops-open-cash input[name='amount']","value":"100,00","name":"cash-opening-amount"},
     {"action":"click","selector":"#ops-open-cash button[type='submit']","name":"open-cash"},
     {"action":"expectText","selector":".ops-page","expected":"Caixa aberto","name":"cash-opened"},
-    {"action":"click","selector":"[data-route='home']","name":"cash-back-home"}
+    {"action":"click","selector":".sidebar-back[data-route=\"home\"]","name":"cash-back-home"}
   ]
 }
