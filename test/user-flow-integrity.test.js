@@ -42,7 +42,7 @@ function fixture(t,{stamp='2026-09-17T12:00:00.000Z'}={}){
   };
 }
 
-test('completed sale feeds history, stock, cash, reports, commission and print queue consistently',async t=>{
+test('completed sale feeds history, stock, cash, finance, reports, commission and print queue consistently',async t=>{
   const fx=fixture(t);
   const sale=await fx.completeSale();
   const runtime=fx.runtime;
@@ -60,6 +60,15 @@ test('completed sale feeds history, stock, cash, reports, commission and print q
   const cashMoves=runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='SALE'&&row.saleId==='sale1');
   assert.equal(cashMoves.length,1);
   assert.equal(cashMoves[0].amountCents,2000);
+
+  const financeEntries=runtime.finance.listEntries({sourceType:'SALE',saleId:'sale1'});
+  assert.equal(financeEntries.length,1);
+  assert.equal(financeEntries[0].paymentMethod,'CASH');
+  assert.equal(financeEntries[0].status,'SETTLED');
+  assert.equal(financeEntries[0].settledCents,2000);
+  const financeReport=runtime.reports.buildFinanceSummary();
+  assert.equal(financeReport.netSettledCents,2000);
+  assert.equal(financeReport.sourceBreakdown.SALE.settledCents,2000);
 
   const report=runtime.reports.buildSalesSummary();
   assert.equal(report.salesCount,1);
@@ -82,7 +91,7 @@ test('completed sale feeds history, stock, cash, reports, commission and print q
   assert.equal((await runtime.outbox.listPending(100)).length,0);
 });
 
-test('return reverses stock, cash, reports and commission without duplicating side effects',async t=>{
+test('return reverses stock, cash, finance, reports and commission without duplicating side effects',async t=>{
   const fx=fixture(t);
   const sale=await fx.completeSale();
   const runtime=fx.runtime;
@@ -101,6 +110,13 @@ test('return reverses stock, cash, reports and commission without duplicating si
   assert.equal(reversals.length,1);
   assert.equal(reversals[0].amountCents,1000);
 
+  const financeReturns=runtime.finance.listEntries({sourceType:'RETURN',sourceId:'return1'});
+  assert.equal(financeReturns.length,1);
+  assert.equal(financeReturns[0].kind,'PAYABLE');
+  assert.equal(financeReturns[0].status,'SETTLED');
+  assert.equal(financeReturns[0].grossAmountCents,1000);
+  assert.equal(runtime.reports.buildFinanceSummary().netSettledCents,1000);
+
   const report=runtime.reports.buildSalesSummary();
   assert.equal(report.grossSalesCents,2000);
   assert.equal(report.returnedCents,1000);
@@ -116,10 +132,11 @@ test('return reverses stock, cash, reports and commission without duplicating si
   assert.equal(dispatch.failed,0);
   assert.equal(runtime.inventory.getBalance('p1'),9);
   assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='REVERSAL'&&row.returnId===returned.id).length,1);
+  assert.equal(runtime.finance.listEntries({sourceType:'RETURN',sourceId:'return1'}).length,1);
   assert.equal(runtime.commissions.outstanding('seller'),100);
 });
 
-test('completed sale cancellation restores inventory and cash and reverses commission once',async t=>{
+test('completed sale cancellation restores inventory, cash and finance and reverses commission once',async t=>{
   const fx=fixture(t);
   await fx.completeSale();
   const runtime=fx.runtime;
@@ -134,6 +151,11 @@ test('completed sale cancellation restores inventory and cash and reverses commi
   assert.equal(reversals.length,1);
   assert.equal(reversals[0].amountCents,2000);
 
+  const [financeEntry]=runtime.finance.listEntries({sourceType:'SALE',saleId:'sale1'});
+  assert.equal(financeEntry.status,'CANCELLED');
+  assert.equal(financeEntry.settledCents,0);
+  assert.equal(runtime.reports.buildFinanceSummary().netSettledCents,0);
+
   const report=runtime.reports.buildSalesSummary();
   assert.equal(report.salesCount,0);
   assert.equal(report.netSalesCents,0);
@@ -146,6 +168,7 @@ test('completed sale cancellation restores inventory and cash and reverses commi
   assert.equal(dispatch.failed,0);
   assert.equal(runtime.inventory.getBalance('p1'),10);
   assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='REVERSAL'&&row.saleId==='sale1').length,1);
+  assert.equal(runtime.finance.listBySource('SALE','sale1').length,1);
   assert.equal(runtime.commissions.outstanding('seller'),0);
 });
 
@@ -160,6 +183,7 @@ test('suspend and resume preserve one canonical sale and apply side effects only
   assert.equal(runtime.sales.getSale('sale-suspended').status,'SUSPENDED');
   assert.equal(runtime.inventory.getBalance('p1'),10);
   assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.saleId==='sale-suspended').length,0);
+  assert.equal(runtime.finance.listEntries({sourceType:'SALE',saleId:'sale-suspended'}).length,0);
   assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale-suspended'}).length,0);
 
   runtime.sales.resumeSale('sale-suspended');
@@ -171,11 +195,15 @@ test('suspend and resume preserve one canonical sale and apply side effects only
   assert.equal(runtime.sales.listHistory({status:'COMPLETED'}).filter(row=>row.id==='sale-suspended').length,1);
   assert.equal(runtime.inventory.getBalance('p1'),8);
   assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='SALE'&&row.saleId==='sale-suspended').length,1);
+  const [financeEntry]=runtime.finance.listEntries({sourceType:'SALE',saleId:'sale-suspended'});
+  assert.equal(financeEntry.paymentMethod,'PIX');
+  assert.equal(financeEntry.status,'SETTLED');
+  assert.equal(financeEntry.settledCents,2000);
   assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale-suspended'}).length,1);
   assert.equal(runtime.reports.buildSalesSummary().paymentsByMethod.PIX,2000);
 });
 
-test('price override plus discount stays consistent in history, report and commission base',async t=>{
+test('price override plus discount stays consistent in history, finance, report and commission base',async t=>{
   const fx=fixture(t);
   const runtime=fx.runtime;
   await runtime.dispatchPending();
@@ -201,6 +229,11 @@ test('price override plus discount stays consistent in history, report and commi
   assert.equal(sale.items[0].commissionBaseCents,2000);
   assert.equal(sale.items[0].commissionCents,200);
 
+  const [financeEntry]=runtime.finance.listEntries({sourceType:'SALE',saleId:'sale-price'});
+  assert.equal(financeEntry.grossAmountCents,2000);
+  assert.equal(financeEntry.netAmountCents,2000);
+  assert.equal(financeEntry.settledCents,2000);
+
   const report=runtime.reports.buildSalesSummary();
   assert.equal(report.grossSalesCents,2000);
   assert.equal(report.paymentsByMethod.CASH,2000);
@@ -208,11 +241,12 @@ test('price override plus discount stays consistent in history, report and commi
   assert.equal(runtime.commissions.outstanding('seller'),200);
 });
 
-test('completed business effects survive a real runtime restart on the same database',async t=>{
+test('completed business effects including finance survive a real runtime restart on the same database',async t=>{
   const fx=fixture(t);
   await fx.completeSale();
   const before=fx.runtime.reports.buildSalesSummary();
   assert.equal(before.netSalesCents,2000);
+  assert.equal(fx.runtime.reports.buildFinanceSummary().netSettledCents,2000);
 
   fx.runtime.close();
   fx.runtime=fx.open();
@@ -221,6 +255,10 @@ test('completed business effects survive a real runtime restart on the same data
   assert.equal(runtime.sales.getSaleDetails('sale1').status,'COMPLETED');
   assert.equal(runtime.inventory.getBalance('p1'),8);
   assert.equal(runtime.cash.listSessionMovements('cash1').filter(row=>row.type==='SALE'&&row.saleId==='sale1').length,1);
+  const [financeEntry]=runtime.finance.listEntries({sourceType:'SALE',saleId:'sale1'});
+  assert.equal(financeEntry.status,'SETTLED');
+  assert.equal(financeEntry.settledCents,2000);
+  assert.equal(runtime.reports.buildFinanceSummary().netSettledCents,2000);
   assert.equal(runtime.reports.buildSalesSummary().netSalesCents,2000);
   assert.equal(runtime.commissions.outstanding('seller'),200);
   assert.equal(runtime.printing.listJobs({entityType:'sale',entityId:'sale1'}).length,1);
