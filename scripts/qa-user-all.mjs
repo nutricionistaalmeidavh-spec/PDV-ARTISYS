@@ -119,6 +119,7 @@ if (installer) {
 }
 
 run('Verificação de código e testes existentes', npmCommand, npmArgs('run', 'verify'));
+run('Gate financeiro P0-P10', npmCommand, npmArgs('run', 'test:finance-release'));
 
 let runtimeAvailable = true;
 try {
