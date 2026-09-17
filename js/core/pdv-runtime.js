@@ -31,6 +31,7 @@ const { createFinanceService }=require('../domains/finance/finance-service');
 const { createFinanceReceivableService }=require('../domains/finance/finance-receivable-service');
 const { registerFinanceEffects }=require('../domains/finance/finance-effects');
 const { createReportingService }=require('../domains/reports/reporting-service');
+const { createP6ReportingService }=require('../domains/reports/reporting-finance-p6');
 const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createNonFiscalPrintService }=require('../domains/printing/non-fiscal-service');
@@ -110,7 +111,8 @@ function createPdvRuntime({
   const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});
   const baseFinance=createFinanceService({db,now,idFactory});
   const finance=createFinanceReceivableService({db,baseFinance,now});
-  const reports=createReportingService({db,now});
+  const baseReports=createReportingService({db,now});
+  const reports=createP6ReportingService({db,baseReports,now});
   const printing=createPrintService({db,now,idFactory});
   const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});
