@@ -94,6 +94,8 @@ test('dialog-driven QA clicks have a finite timeout instead of hanging forever',
 test('shared user flows target unique UI elements after commercial extensions were added',()=>{
   const catalog=json('qa/flows/common/basic-catalog.json');
   const cash=json('qa/flows/common/open-cash.json');
+  const sale=json('qa/flows/common/basic-sale.json');
+  const returns=json('qa/flows/user/08-pos-venda-devolucao.json');
   const byName=(flow,name)=>flow.steps.find(step=>step.name===name);
   assert.equal(byName(catalog,'seller-created').selector,'.data-row:has([data-edit-seller])');
   assert.equal(byName(catalog,'product-created').selector,'.data-row:has([data-edit-product])');
@@ -101,6 +103,9 @@ test('shared user flows target unique UI elements after commercial extensions we
   assert.equal(byName(catalog,'return-home').selector,'.sidebar-back[data-route="home"]');
   assert.equal(byName(cash,'cash-return-home').selector,'.sidebar-back[data-route="home"]');
   assert.equal(byName(cash,'cash-back-home').selector,'.sidebar-back[data-route="home"]');
+  assert.equal(byName(sale,'sale-home').selector,'.sidebar-back[data-route="home"]');
+  assert.equal(byName(returns,'home').selector,'.sidebar-back[data-route="home"]');
+  assert.equal(byName(returns,'home-returns').selector,'.sidebar-back[data-route="home"]');
 });
 
 test('cadastros flow scopes assertions to product and customer rows',()=>{
@@ -108,6 +113,37 @@ test('cadastros flow scopes assertions to product and customer rows',()=>{
   const byName=name=>flow.steps.find(step=>step.name===name);
   assert.equal(byName('barcode-found').selector,'.data-row:has([data-edit-product])');
   assert.equal(byName('customer-edit-persisted').selector,'.data-row:has([data-edit-customer])');
+});
+
+test('checkout refreshes seller options after seller creation instead of keeping stale state',()=>{
+  const html=read('desktop/renderer/index.html');
+  const sync=read('desktop/renderer/seller-checkout-sync.js');
+  assert.match(html,/app\.js[\s\S]*seller-checkout-sync\.js/);
+  assert.match(sync,/api\.sellers\(\)/);
+  assert.match(sync,/seller-form/);
+  assert.match(sync,/#seller-select/);
+  assert.match(sync,/dispatchEvent\(new Event\(['"]change['"]/);
+});
+
+test('restaurant and market QA use valid unambiguous fixtures',()=>{
+  const restaurant=json('qa/flows/user/13-restaurante.json');
+  const market=json('qa/flows/user/17-mercado-padaria.json');
+  const byName=(flow,name)=>flow.steps.find(step=>step.name===name);
+  assert.equal(byName(restaurant,'restaurant-launcher').selector,'.restaurant-home-tile[data-restaurant-route]');
+  assert.equal(byName(restaurant,'open-restaurant').selector,'.restaurant-home-tile[data-restaurant-route]');
+  assert.equal(byName(market,'weighted-unit').value,'KG');
+  assert.ok(market.steps.findIndex(step=>step.name==='weighted-unit')<market.steps.findIndex(step=>step.name==='calculate-weight'));
+});
+
+test('product variant UI enhancement is idempotent and retail flow preflights the API',()=>{
+  const source=read('desktop/renderer/product-variants-ui.js');
+  const retail=json('qa/flows/user/18-varejo.json');
+  const preflight=retail.steps.find(step=>step.name==='variant-api-ready');
+  assert.match(source,/productVariantsEnhanced/);
+  assert.match(source,/dataset\.productVariantsEnhanced=['"]true['"]/);
+  assert.equal(preflight?.action,'apiRequest');
+  assert.equal(preflight?.path,'/api/v1/product-variants?includeInactive=true');
+  assert.equal(preflight?.expectStatus,200);
 });
 
 test('prompt-driven QA clicks use a deterministic renderer shim under Electron',()=>{
