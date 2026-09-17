@@ -42,5 +42,5 @@ test('acquiring settings UI exposes the five global P2 keys and persists through
 test('cashier cannot get an editable acquiring form when settings endpoint denies access',()=>{
   const source=read('desktop/renderer/finance-p2-ui.js');
   assert.match(source,/catch\(\(\)\s*=>\s*null\)/);
-  assert.match(source,/if\(!settings\)return/);
+  assert.match(source,/if\(!settings\)\{settingsMounting=false;return;\}/);
 });
