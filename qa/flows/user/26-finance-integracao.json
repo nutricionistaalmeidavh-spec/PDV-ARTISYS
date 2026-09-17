@@ -1,0 +1,21 @@
+{
+  "name":"26-finance-integracao",
+  "steps":[
+    {"uses":"../common/first-run-login.json"},
+    {"uses":"../common/basic-catalog.json"},
+    {"uses":"../common/open-cash.json"},
+    {"uses":"../common/basic-sale.json"},
+    {"action":"waitFor","selector":"[data-sale-view-finance]","name":"sale-finance-link-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-sale-view-finance]","name":"open-sale-finance"},
+    {"action":"waitFor","selector":"#ops-finance-p5-filter","name":"finance-integration-ready","timeoutMs":10000},
+    {"action":"expectText","selector":".finance-layout .ops-card.grow","expected":"Venda","name":"finance-sale-origin"},
+    {"action":"expectText","selector":".finance-layout .ops-card.grow","expected":"CASH","name":"finance-payment-method"},
+    {"action":"expectText","selector":".finance-layout .ops-card.grow","expected":"QA Vendedor","name":"finance-seller-context"},
+    {"action":"expectText","selector":".finance-layout .ops-card.grow","expected":"QA Cliente","name":"finance-customer-context"},
+    {"action":"waitFor","selector":"[data-finance-view-sale]","name":"finance-sale-backlink-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-finance-view-sale]","name":"back-to-sale"},
+    {"action":"waitFor","selector":"#ops-sale-detail .ops-card","name":"sale-detail-restored","timeoutMs":10000},
+    {"action":"expectText","selector":"#ops-sale-detail","expected":"QA venda completa","name":"sale-context-restored"},
+    {"action":"screenshot","name":"finance-sale-integration","fullPage":true}
+  ]
+}
