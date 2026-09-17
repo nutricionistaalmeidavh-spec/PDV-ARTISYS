@@ -45,7 +45,7 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
 
   function project(event){
     const sale=saleService.getSaleDetails(event.aggregateId);
-    if(!sale||sale.status!=='COMPLETED')throw new Error('Venda concluida nao encontrada para projecao financeira.');
+    if(!sale||!sale.completedAt)throw new Error('Venda concluida nao encontrada para projecao financeira.');
     const completedAt=sale.completedAt||event.occurredAt;
     const settings=policySettings(settingsService);
     return withTransaction(db,()=>{
