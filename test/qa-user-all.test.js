@@ -37,13 +37,18 @@ test('QA data isolation is enforced for source and installed Electron runs',()=>
   assert.match(main,/app\.setPath\(['"]userData['"]/);
 });
 
-test('full QA runner builds installer before verification and user-flow QA',()=>{
+test('full QA runner installs dependencies, builds installer before verification and user-flow QA',()=>{
   const source=read('scripts/qa-user-all.mjs');
-  const install=source.indexOf("npmArgs('ci')");
+  const dependencySetup=source.indexOf('const dependencyArgs = hasLockfile');
+  const install=source.indexOf("run('Instalar dependências'");
   const build=source.indexOf("npmArgs('run', 'dist:win')");
   const verify=source.indexOf("npmArgs('run', 'verify')");
   const flowLoop=source.indexOf('for (const file of flowFiles)');
-  assert.ok(install>=0&&build>install&&verify>build&&flowLoop>verify,'expected npm ci -> dist:win -> verify -> user flows ordering');
+  assert.ok(dependencySetup>=0&&install>dependencySetup&&build>install&&verify>build&&flowLoop>verify,'expected dependency setup -> install -> dist:win -> verify -> user flows ordering');
+  assert.match(source,/package-lock\.json/);
+  assert.match(source,/npm-shrinkwrap\.json/);
+  assert.match(source,/\['ci'\]/);
+  assert.match(source,/\['install', '--no-audit', '--no-fund'\]/);
   assert.match(source,/sha256/i);
   assert.match(source,/qa-delivery-artifacts/);
   assert.match(source,/PASS|FAIL|SKIPPED/);
