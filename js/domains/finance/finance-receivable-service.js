@@ -79,6 +79,16 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
       .get(String(sourceType),String(sourceId),String(sourceLineKey));
     return row?getEntry(row.id):null;
   }
+  function listBySource(sourceType,sourceId){
+    return db.prepare('SELECT id FROM financial_entries WHERE source_type=? AND source_id=? ORDER BY due_at,id')
+      .all(String(sourceType),String(sourceId)).map(row=>getEntry(row.id));
+  }
+  function listLinkedEntries(originalEntryId,{includeCancelled=true}={}){
+    const rows=includeCancelled
+      ?db.prepare('SELECT id FROM financial_entries WHERE original_entry_id=? ORDER BY created_at,id').all(String(originalEntryId))
+      :db.prepare("SELECT id FROM financial_entries WHERE original_entry_id=? AND status<>'CANCELLED' ORDER BY created_at,id").all(String(originalEntryId));
+    return rows.map(row=>getEntry(row.id));
+  }
   function settleEntry(id,input={},actor=null){
     const result=baseFinance.settleEntry(id,input,actor);
     return {...result,entry:getEntry(id)};
@@ -89,7 +99,7 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
   }
   function cancelEntry(id,input={}){baseFinance.cancelEntry(id,input);return getEntry(id);}
 
-  return {...baseFinance,createEntry,getEntry,listEntries,findBySourceLine,settleEntry,reverseSettlement,cancelEntry};
+  return {...baseFinance,createEntry,getEntry,listEntries,findBySourceLine,listBySource,listLinkedEntries,settleEntry,reverseSettlement,cancelEntry};
 }
 
 module.exports={createFinanceReceivableService,PAYMENT_METHODS};
