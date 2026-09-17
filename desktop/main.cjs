@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const os = require('node:os');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
@@ -13,6 +14,12 @@ const { createProductPhotoClient, registerProductPhotoIpc } = require('./product
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
+
+if (process.env.ARTISYS_QA === '1') {
+  const explicitQaUserData = String(process.env.ARTISYS_QA_USER_DATA_DIR || '').trim();
+  const qaUserData = explicitQaUserData || path.join(os.tmpdir(), 'artisys-pdv-qa', `${process.pid}-${Date.now()}`);
+  app.setPath('userData', qaUserData);
+}
 
 let mainWindow = null;
 let runtime = null;
@@ -151,7 +158,7 @@ function registerIpc() {
   hardwareController = buildHardwareController();
   const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
-  registerFiscalIpc({ ipcMain, store: fiscalStore, isTrustedSender: trustedSender });
+  registerFiscalIpc({ ipcMain, store:fiscalStore, isTrustedSender:trustedSender });
   registerImportIpc({ ipcMain, dialog, getParentWindow:()=>mainWindow, isTrustedSender:trustedSender });
   const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
   registerProductPhotoIpc({ipcMain,dialog,nativeImage,client:photoClient,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
