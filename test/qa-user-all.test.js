@@ -39,9 +39,9 @@ test('QA data isolation is enforced for source and installed Electron runs',()=>
 
 test('full QA runner builds installer before verification and user-flow QA',()=>{
   const source=read('scripts/qa-user-all.mjs');
-  const install=source.indexOf("['ci']");
-  const build=source.indexOf("['run', 'dist:win']");
-  const verify=source.indexOf("['run', 'verify']");
+  const install=source.indexOf("npmArgs('ci')");
+  const build=source.indexOf("npmArgs('run', 'dist:win')");
+  const verify=source.indexOf("npmArgs('run', 'verify')");
   const flowLoop=source.indexOf('for (const file of flowFiles)');
   assert.ok(install>=0&&build>install&&verify>build&&flowLoop>verify,'expected npm ci -> dist:win -> verify -> user flows ordering');
   assert.match(source,/sha256/i);
@@ -50,6 +50,14 @@ test('full QA runner builds installer before verification and user-flow QA',()=>
   assert.match(source,/qa-installed-smoke\.ps1/);
   assert.match(source,/e22-backup\.test\.js/);
   assert.match(source,/e21-lan-api\.test\.js/);
+});
+
+test('Windows QA runner invokes npm through ComSpec instead of spawning npm.cmd directly',()=>{
+  const source=read('scripts/qa-user-all.mjs');
+  assert.match(source,/process\.env\.ComSpec/);
+  assert.match(source,/cmd\.exe/);
+  assert.match(source,/function npmArgs/);
+  assert.doesNotMatch(source,/const npm\s*=\s*process\.platform\s*===\s*['"]win32['"]\s*\?\s*['"]npm\.cmd['"]/);
 });
 
 test('common flows use synthetic QA-only credentials and no customer secrets',()=>{
