@@ -9,10 +9,14 @@ function columns(db,table){
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row=>row.name));
 }
 
+function latestVersion(db){
+  return Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version||0);
+}
+
 function runFinanceReceivableMigrations(db,now=()=>new Date().toISOString()){
   if(!db)throw new TypeError('Database is required.');
-  const current=Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version||0);
-  if(current>=FINANCE_RECEIVABLE_SCHEMA_VERSION)return current;
+  const applied=Boolean(db.prepare('SELECT 1 AS found FROM schema_migrations WHERE version=?').get(FINANCE_RECEIVABLE_SCHEMA_VERSION));
+  if(applied)return latestVersion(db);
 
   withTransaction(db,()=>{
     const names=columns(db,'financial_entries');
@@ -30,7 +34,7 @@ function runFinanceReceivableMigrations(db,now=()=>new Date().toISOString()){
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
       .run(FINANCE_RECEIVABLE_SCHEMA_VERSION,FINANCE_RECEIVABLE_MIGRATION_NAME,now());
   });
-  return FINANCE_RECEIVABLE_SCHEMA_VERSION;
+  return latestVersion(db);
 }
 
 module.exports={FINANCE_RECEIVABLE_SCHEMA_VERSION,FINANCE_RECEIVABLE_MIGRATION_NAME,runFinanceReceivableMigrations};
