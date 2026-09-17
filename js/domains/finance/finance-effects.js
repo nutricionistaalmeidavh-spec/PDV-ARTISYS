@@ -50,11 +50,21 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
     const settings=policySettings(settingsService);
     return withTransaction(db,()=>{
       const projected=[];
+      let changeRemaining=Math.max(Number(sale.changeCents||0),0);
       for(const payment of sale.payments||[]){
         if(!payment?.id)throw new Error('Pagamento persistido sem identidade estavel.');
-        if(payment.method==='CASH'||payment.method==='PIX'){
+        if(payment.method==='CASH'){
+          const changeForPayment=Math.min(changeRemaining,Number(payment.amountCents||0));
+          changeRemaining-=changeForPayment;
+          const recognized=Number(payment.amountCents||0)-changeForPayment;
+          if(recognized<=0)continue;
+          let entry=createLine({sale,payment,sourceLineKey:payment.id,gross:recognized,fee:0,net:recognized,dueAt:completedAt});
+          if(entry.status!=='SETTLED')entry=financeService.settleEntry(entry.id,{amountCents:entry.openCents,method:'CASH',note:`Liquidação automática da venda ${sale.saleNumber}`},{userId:'finance-projection',role:'system',terminalId:sale.terminalId}).entry;
+          projected.push(entry);continue;
+        }
+        if(payment.method==='PIX'){
           let entry=createLine({sale,payment,sourceLineKey:payment.id,gross:payment.amountCents,fee:0,net:payment.amountCents,dueAt:completedAt});
-          if(entry.status!=='SETTLED')entry=financeService.settleEntry(entry.id,{amountCents:entry.openCents,method:payment.method,note:`Liquidação automática da venda ${sale.saleNumber}`},{userId:'finance-projection',role:'system',terminalId:sale.terminalId}).entry;
+          if(entry.status!=='SETTLED')entry=financeService.settleEntry(entry.id,{amountCents:entry.openCents,method:'PIX',note:`Liquidação automática da venda ${sale.saleNumber}`},{userId:'finance-projection',role:'system',terminalId:sale.terminalId}).entry;
           projected.push(entry);continue;
         }
         if(payment.method==='DEBIT_CARD'||payment.method==='CREDIT_CARD'){
@@ -67,6 +77,7 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
         const dueAt=payment.method==='STORE_CREDIT'?validDueAt(payment.metadata?.dueAt,completedAt):completedAt;
         projected.push(createLine({sale,payment,sourceLineKey:payment.id,gross:payment.amountCents,fee:0,net:payment.amountCents,dueAt}));
       }
+      if(changeRemaining!==0)throw new Error('Troco da venda nao pôde ser reconciliado com pagamentos em dinheiro.');
       return projected;
     });
   }
