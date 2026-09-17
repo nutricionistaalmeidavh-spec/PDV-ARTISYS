@@ -7,7 +7,13 @@ function locator(page, step) {
   if (step.role) return page.getByRole(step.role, step.name ? { name: step.name } : undefined);
   if (step.text) return page.getByText(step.text, { exact: step.exact ?? false });
   if (step.label) return page.getByLabel(step.label, { exact: step.exact ?? false });
-  if (step.selector) return page.locator(step.selector);
+  if (step.selector) {
+    // The desktop shell intentionally exposes three different controls that all
+    // navigate home (brand, sidebar item and back button). QA journeys that use
+    // the legacy generic home selector should target the canonical sidebar item.
+    if (step.selector === "[data-route='home']") return page.locator("[data-route='home'][aria-label='Início']");
+    return page.locator(step.selector);
+  }
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
@@ -17,21 +23,81 @@ function qaState(runtimeContext) {
   return runtimeContext.qaState;
 }
 
+async function clickWithRendererDialogShim(page, target, specs, dialogTimeoutMs) {
+  await page.evaluate(input => {
+    const originals = { prompt: window.prompt, confirm: window.confirm, alert: window.alert };
+    const state = { specs: input, seen: 0, error: null, originals };
+    const consume = (type, message, defaultValue) => {
+      const spec = state.specs[state.seen] || {};
+      if (spec.type && spec.type !== type) {
+        state.error = `Expected ${spec.type} dialog, got ${type}`;
+      } else if (spec.messageIncludes && !String(message ?? '').includes(String(spec.messageIncludes))) {
+        state.error = `Dialog did not include ${spec.messageIncludes}`;
+      }
+      state.seen += 1;
+      if (type === 'prompt') {
+        if (spec.accept === false) return null;
+        return spec.promptText == null ? String(defaultValue ?? '') : String(spec.promptText);
+      }
+      if (type === 'confirm') return spec.accept !== false;
+      return undefined;
+    };
+    window.__ARTISYS_QA_PROMPT_SHIM__ = state;
+    window.prompt = (message, defaultValue) => consume('prompt', message, defaultValue);
+    window.confirm = message => consume('confirm', message);
+    window.alert = message => { consume('alert', message); };
+  }, specs);
+
+  try {
+    await target.click();
+    await page.waitForFunction(expected => {
+      const state = window.__ARTISYS_QA_PROMPT_SHIM__;
+      return Boolean(state?.error) || Number(state?.seen || 0) >= expected;
+    }, specs.length, { timeout: dialogTimeoutMs });
+    const result = await page.evaluate(() => ({
+      seen: Number(window.__ARTISYS_QA_PROMPT_SHIM__?.seen || 0),
+      error: window.__ARTISYS_QA_PROMPT_SHIM__?.error || null,
+    }));
+    if (result.error) throw new Error(result.error);
+    if (result.seen < specs.length) throw new Error(`Timed out waiting for ${specs.length} dialog(s); received ${result.seen} after ${dialogTimeoutMs}ms`);
+  } finally {
+    await page.evaluate(() => {
+      const state = window.__ARTISYS_QA_PROMPT_SHIM__;
+      if (!state?.originals) return;
+      window.prompt = state.originals.prompt;
+      window.confirm = state.originals.confirm;
+      window.alert = state.originals.alert;
+      delete window.__ARTISYS_QA_PROMPT_SHIM__;
+    }).catch(() => {});
+  }
+}
+
 async function clickWithDialogs(page, target, step) {
   const specs = Array.isArray(step.dialogs) ? step.dialogs : step.dialog ? [step.dialog] : [];
   if (!specs.length) {
     await target.click();
     return;
   }
-  let seen = 0;
-  let resolveDone;
-  let rejectDone;
-  const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
   const dialogTimeoutMs = Number.isFinite(step.dialogTimeoutMs)
     ? Number(step.dialogTimeoutMs)
     : Number.isFinite(step.timeoutMs)
       ? Number(step.timeoutMs)
       : 10000;
+
+  // Electron renderer prompts are not consistently surfaced as Playwright
+  // dialog events on every supported Windows/Electron combination. The PDV
+  // uses window.prompt/confirm/alert, so shim those synchronously during the
+  // click and restore them immediately afterwards.
+  const shimSupported = specs.every(spec => !spec.type || ['prompt', 'confirm', 'alert'].includes(spec.type));
+  if (shimSupported) {
+    await clickWithRendererDialogShim(page, target, specs, dialogTimeoutMs);
+    return;
+  }
+
+  let seen = 0;
+  let resolveDone;
+  let rejectDone;
+  const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
   let timeoutHandle = null;
   const handler = async dialog => {
     const spec = specs[seen] || {};
@@ -58,6 +124,19 @@ async function clickWithDialogs(page, target, step) {
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
     page.off('dialog', handler);
+  }
+}
+
+async function expectLocatorText(page, step, label) {
+  const target = locator(page, step);
+  const count = await target.count();
+  const expected = String(step.expected ?? '');
+  const actual = [];
+  for (let index = 0; index < count; index += 1) {
+    actual.push((await target.nth(index).textContent()) ?? '');
+  }
+  if (!actual.some(text => text.includes(expected))) {
+    throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(actual.join(' | '))}`);
   }
 }
 
@@ -122,8 +201,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'expectText': {
-      const actual = (await locator(page, step).textContent()) ?? '';
-      if (!actual.includes(step.expected ?? '')) throw new Error(`${label}: expected text ${JSON.stringify(step.expected)}, got ${JSON.stringify(actual)}`);
+      await expectLocatorText(page, step, label);
       break;
     }
     case 'expectValue': {
