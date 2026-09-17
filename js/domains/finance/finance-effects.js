@@ -39,10 +39,8 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
   function systemActor(terminalId=null){return{userId:'finance-projection',role:'system',terminalId:terminalId||null};}
 
   function createSaleLine({sale,payment,sourceLineKey,gross,fee,net,dueAt,installmentNumber=null,installmentCount=null}){
-    const existing=financeService.findBySourceLine('SALE',sale.id,sourceLineKey);
-    if(existing)return existing;
     const suffix=installmentCount&&installmentCount>1?` ${installmentNumber}/${installmentCount}`:'';
-    return financeService.createEntry({
+    return financeService.createSourceEntry({
       kind:'RECEIVABLE',description:`Venda ${sale.saleNumber}${suffix}`,category:'Vendas',amountCents:net,dueAt,
       sourceType:'SALE',sourceId:sale.id,sourceLineKey,paymentMethod:payment.method,
       grossAmountCents:gross,feeAmountCents:fee,netAmountCents:net,installmentNumber,installmentCount
@@ -91,9 +89,7 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
   function reverseSettlementsAndCancel(entry,reason,actor){
     let current=financeService.getEntry(entry.id);
     if(!current||current.status==='CANCELLED')return current;
-    for(const settlement of current.settlements||[]){
-      financeService.reverseSettlement(settlement.id,{reason,actor});
-    }
+    for(const settlement of current.settlements||[]){financeService.reverseSettlement(settlement.id,{reason,actor});}
     current=financeService.getEntry(entry.id);
     if(current.status!=='CANCELLED')current=financeService.cancelEntry(entry.id,{reason,actor});
     return current;
@@ -139,9 +135,7 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
     const remaining=remainingOriginal(original,returnId);
     const gross=Math.min(Number(requestedGross||0),remaining.gross);
     if(gross<=0)return null;
-    const fee=gross===remaining.gross
-      ?remaining.fee
-      :Math.min(remaining.fee,Math.round(gross*remaining.fee/remaining.gross));
+    const fee=gross===remaining.gross?remaining.fee:Math.min(remaining.fee,Math.round(gross*remaining.fee/remaining.gross));
     const net=gross-fee;
     if(net<=0)throw new Error('Estorno financeiro resultou em valor liquido invalido.');
     return{gross,fee,net};
@@ -149,15 +143,12 @@ function registerFinanceEffects({bus,financeService,saleService,settingsService,
 
   function createReturnLine({event,refund,refundIndex,original,amounts,terminalId}){
     const sourceLineKey=`refund:${refundIndex}:${original.id}`;
-    let entry=financeService.findBySourceLine('RETURN',event.aggregateId,sourceLineKey);
-    if(!entry){
-      entry=financeService.createEntry({
-        kind:'PAYABLE',description:`Devolucao ${event.aggregateId}`,category:'Devolucoes',amountCents:amounts.net,dueAt:event.occurredAt,
-        sourceType:'RETURN',sourceId:event.aggregateId,sourceLineKey,paymentMethod:refund.method,
-        grossAmountCents:amounts.gross,feeAmountCents:amounts.fee,netAmountCents:amounts.net,originalEntryId:original.id,
-        notes:`Estorno vinculado a venda ${event.payload?.saleId||original.sourceId}`
-      },systemActor(terminalId));
-    }
+    let entry=financeService.createSourceEntry({
+      kind:'PAYABLE',description:`Devolucao ${event.aggregateId}`,category:'Devolucoes',amountCents:amounts.net,dueAt:event.occurredAt,
+      sourceType:'RETURN',sourceId:event.aggregateId,sourceLineKey,paymentMethod:refund.method,
+      grossAmountCents:amounts.gross,feeAmountCents:amounts.fee,netAmountCents:amounts.net,originalEntryId:original.id,
+      notes:`Estorno vinculado a venda ${event.payload?.saleId||original.sourceId}`
+    },systemActor(terminalId));
     if(entry.status!=='SETTLED'&&entry.status!=='CANCELLED'&&entry.openCents>0){
       entry=financeService.settleEntry(entry.id,{amountCents:entry.openCents,method:refund.method,note:`Reembolso da devolucao ${event.aggregateId}`},systemActor(terminalId)).entry;
     }
