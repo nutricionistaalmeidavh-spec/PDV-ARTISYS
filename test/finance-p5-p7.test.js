@@ -4,6 +4,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
+const {DomainEventBus}=require('../js/core/domain-event-bus');
+const {registerFinanceEffects}=require('../js/domains/finance/finance-effects');
 
 function actor(userId='manager',role='manager'){return{userId,role,terminalId:'PDV-P57'};}
 
@@ -83,6 +85,25 @@ test('P7 createSourceEntry is idempotent for the same business origin',t=>{
   const second=fx.runtime.finance.createSourceEntry(input,actor());
   assert.equal(second.id,first.id);
   assert.equal(fx.runtime.finance.listBySource('SALE','sale-idem-p57').length,1);
+});
+
+test('P7 a duplicate business event with a different eventId does not duplicate finance origin or settlement',async t=>{
+  const fx=fixture(t);
+  const sale=await fx.completedSale('sale-replay-p57');
+  const before=fx.runtime.finance.listBySource('SALE',sale.id);
+  assert.equal(before.length,1);
+  assert.equal(before[0].settlements.length,1);
+
+  const isolatedBus=new DomainEventBus();
+  registerFinanceEffects({bus:isolatedBus,financeService:fx.runtime.finance,saleService:fx.runtime.sales,settingsService:fx.runtime.settings,effectStore:fx.runtime.effectStore,db:fx.runtime.db});
+  const replay=await isolatedBus.publishAsync({
+    eventId:'evt-replay-distinct-p57',type:'sale.completed',aggregate:'sale',aggregateId:sale.id,
+    occurredAt:'2026-09-17T21:00:00.000Z',actor:actor(),source:'qa',mutationId:'mut-replay-distinct-p57',payload:{terminalId:'PDV-P57',payments:sale.payments}
+  });
+  assert.equal(replay.failures.length,0,JSON.stringify(replay.failures.map(item=>item.message)));
+  const after=fx.runtime.finance.listBySource('SALE',sale.id);
+  assert.equal(after.length,1);
+  assert.equal(after[0].settlements.length,1);
 });
 
 test('P7 finance effects use source-idempotent creation in completed sale and return projections',()=>{
