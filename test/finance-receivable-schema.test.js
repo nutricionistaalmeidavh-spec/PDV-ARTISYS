@@ -51,6 +51,22 @@ test('finance receivable migration runs after existing v12 chain and preserves l
   db.close();
 });
 
+test('finance receivable migration is not skipped when a later unrelated schema version already exists',()=>{
+  const db=openDatabase(':memory:');
+  migrateBase(db);
+  db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+    .run(14,'future_unrelated_module','2026-09-17T12:30:00.000Z');
+
+  const version=runFinanceReceivableMigrations(db,()=> '2026-09-17T13:00:00.000Z');
+  assert.equal(version,14,'migration runner must preserve the highest global schema version');
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations WHERE version=?').get(FINANCE_RECEIVABLE_SCHEMA_VERSION).count,1);
+  const columns=new Set(db.prepare('PRAGMA table_info(financial_entries)').all().map(row=>row.name));
+  for(const name of ['source_line_key','payment_method','gross_amount_cents','fee_amount_cents','net_amount_cents','original_entry_id','installment_number','installment_count']) assert.equal(columns.has(name),true,name);
+  const indexes=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='financial_entries'").all().map(row=>row.name));
+  assert.equal(indexes.has('idx_financial_entries_source_line'),true);
+  db.close();
+});
+
 test('sale finance origin is unique per source line',()=>{
   const {db,finance}=service();
   finance.createEntry({kind:'RECEIVABLE',description:'Venda 1',amountCents:1000,dueAt:'2026-09-17T12:00:00.000Z',sourceType:'SALE',sourceId:'sale-1',sourceLineKey:'pay-1',paymentMethod:'PIX',grossAmountCents:1000,feeAmountCents:0,netAmountCents:1000});
