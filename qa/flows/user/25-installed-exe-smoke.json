@@ -1,0 +1,1 @@
+{"name":"25-installed-exe-smoke","steps":[{"uses":"../common/first-run-login.json"},{"action":"expectText","selector":"#route-content","expected":"Balcão","name":"home-loaded"},{"action":"screenshot","name":"installed-exe-home","fullPage":true}]}
