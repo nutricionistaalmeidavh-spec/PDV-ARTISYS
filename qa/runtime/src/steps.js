@@ -27,6 +27,12 @@ async function clickWithDialogs(page, target, step) {
   let resolveDone;
   let rejectDone;
   const done = new Promise((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
+  const dialogTimeoutMs = Number.isFinite(step.dialogTimeoutMs)
+    ? Number(step.dialogTimeoutMs)
+    : Number.isFinite(step.timeoutMs)
+      ? Number(step.timeoutMs)
+      : 10000;
+  let timeoutHandle = null;
   const handler = async dialog => {
     const spec = specs[seen] || {};
     try {
@@ -35,22 +41,23 @@ async function clickWithDialogs(page, target, step) {
       seen += 1;
       if (spec.accept === false) await dialog.dismiss();
       else await dialog.accept(spec.promptText == null ? undefined : String(spec.promptText));
-      if (seen >= specs.length) {
-        page.off('dialog', handler);
-        resolveDone();
-      }
+      if (seen >= specs.length) resolveDone();
     } catch (error) {
-      page.off('dialog', handler);
       rejectDone(error);
     }
   };
   page.on('dialog', handler);
+  const timeout = new Promise((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${specs.length} dialog(s); received ${seen} after ${dialogTimeoutMs}ms`));
+    }, dialogTimeoutMs);
+  });
   try {
     await target.click();
-    await done;
-  } catch (error) {
+    await Promise.race([done, timeout]);
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
     page.off('dialog', handler);
-    throw error;
   }
 }
 
