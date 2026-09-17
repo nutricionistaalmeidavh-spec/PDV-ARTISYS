@@ -129,13 +129,13 @@ async function clickWithDialogs(page, target, step) {
 
 async function expectLocatorText(page, step, label) {
   const target = locator(page, step);
-  const count = await target.count();
   const expected = String(step.expected ?? '');
-  const actual = [];
-  for (let index = 0; index < count; index += 1) {
-    actual.push((await target.nth(index).textContent()) ?? '');
-  }
-  if (!actual.some(text => text.includes(expected))) {
+  const timeout = Number.isFinite(step.timeoutMs) ? Number(step.timeoutMs) : 10000;
+  const matching = target.filter({ hasText: expected }).first();
+  try {
+    await matching.waitFor({ state: 'visible', timeout });
+  } catch {
+    const actual = await target.allTextContents().catch(() => []);
     throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(actual.join(' | '))}`);
   }
 }
