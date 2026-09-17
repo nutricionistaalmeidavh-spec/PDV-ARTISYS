@@ -23,15 +23,48 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
   if(!db)throw new TypeError('Database is required.');
   if(!baseFinance)throw new TypeError('Base finance service is required.');
 
+  const saleColumns=new Set(db.prepare('PRAGMA table_info(sales)').all().map(row=>row.name));
+  const sellerIdExpr=saleColumns.has('seller_id')?'COALESCE(s.seller_id,s.operator_id)':'s.operator_id';
+  const sellerNameExpr=saleColumns.has('seller_name_snapshot')?'COALESCE(s.seller_name_snapshot,su.name,u.name)':'u.name';
+  const sellerJoin=saleColumns.has('seller_id')?'LEFT JOIN users su ON su.id=s.seller_id':'';
+
   function extension(id){
     return db.prepare(`SELECT source_line_key,payment_method,gross_amount_cents,fee_amount_cents,net_amount_cents,
       original_entry_id,installment_number,installment_count FROM financial_entries WHERE id=?`).get(String(id));
   }
 
+  function contextFor(entry){
+    if(!entry)return{};
+    const sourceType=String(entry.sourceType||'').toUpperCase();
+    let row=null;
+    if(sourceType==='SALE'){
+      row=db.prepare(`SELECT s.id AS sale_id,s.sale_number,${sellerIdExpr} AS seller_id,${sellerNameExpr} AS seller_name,
+        s.customer_id,c.name AS customer_name
+        FROM sales s LEFT JOIN users u ON u.id=s.operator_id ${sellerJoin}
+        LEFT JOIN customers c ON c.id=s.customer_id WHERE s.id=?`).get(String(entry.sourceId));
+    }else if(sourceType==='RETURN'){
+      row=db.prepare(`SELECT s.id AS sale_id,s.sale_number,rt.id AS return_id,${sellerIdExpr} AS seller_id,${sellerNameExpr} AS seller_name,
+        s.customer_id,c.name AS customer_name
+        FROM return_transactions rt JOIN sales s ON s.id=rt.sale_id
+        LEFT JOIN users u ON u.id=s.operator_id ${sellerJoin}
+        LEFT JOIN customers c ON c.id=s.customer_id WHERE rt.id=?`).get(String(entry.sourceId));
+    }
+    if(!row)return{saleId:null,saleNumber:null,returnId:sourceType==='RETURN'?entry.sourceId:null,sellerId:null,sellerName:null,customerId:null,customerName:null};
+    return{
+      saleId:row.sale_id??null,
+      saleNumber:row.sale_number??null,
+      returnId:row.return_id??null,
+      sellerId:row.seller_id??null,
+      sellerName:row.seller_name??null,
+      customerId:row.customer_id??null,
+      customerName:row.customer_name??null
+    };
+  }
+
   function enhance(entry){
     if(!entry)return entry;
     const row=extension(entry.id)||{};
-    return {...entry,
+    const extended={...entry,
       sourceLineKey:row.source_line_key??null,
       paymentMethod:row.payment_method??null,
       grossAmountCents:row.gross_amount_cents??null,
@@ -39,8 +72,10 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
       netAmountCents:row.net_amount_cents??null,
       originalEntryId:row.original_entry_id??null,
       installmentNumber:row.installment_number??null,
-      installmentCount:row.installment_count??null
+      installmentCount:row.installment_count??null,
+      originType:entry.sourceType||'MANUAL'
     };
+    return{...extended,...contextFor(extended)};
   }
 
   function validateExtended(input){
@@ -73,12 +108,46 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
   }
 
   function getEntry(id,options){return enhance(baseFinance.getEntry(id,options));}
-  function listEntries(filters={}){return baseFinance.listEntries(filters).map(enhance);}
+
+  function listEntries(filters={}){
+    const baseFilters={};
+    for(const key of ['kind','status','from','to','accountId','query','asOf','overdue'])if(filters[key]!==undefined)baseFilters[key]=filters[key];
+    let rows=baseFinance.listEntries(baseFilters).map(enhance);
+    if(filters.sourceType){
+      const wanted=String(filters.sourceType).toUpperCase();
+      rows=rows.filter(row=>wanted==='MANUAL'?!row.sourceType:String(row.sourceType||'').toUpperCase()===wanted);
+    }
+    if(filters.sourceId)rows=rows.filter(row=>String(row.sourceId||'')===String(filters.sourceId));
+    if(filters.saleId)rows=rows.filter(row=>String(row.saleId||'')===String(filters.saleId));
+    if(filters.paymentMethod){const method=String(filters.paymentMethod).toUpperCase();rows=rows.filter(row=>String(row.paymentMethod||'').toUpperCase()===method);}
+    if(filters.sellerId)rows=rows.filter(row=>String(row.sellerId||'')===String(filters.sellerId));
+    if(filters.customerId)rows=rows.filter(row=>String(row.customerId||'')===String(filters.customerId));
+    return rows;
+  }
+
   function findBySourceLine(sourceType,sourceId,sourceLineKey){
     const row=db.prepare('SELECT id FROM financial_entries WHERE source_type=? AND source_id=? AND source_line_key=?')
       .get(String(sourceType),String(sourceId),String(sourceLineKey));
     return row?getEntry(row.id):null;
   }
+
+  function createSourceEntry(input={},actor=null){
+    const sourceType=String(input.sourceType||'').trim();
+    const sourceId=String(input.sourceId||'').trim();
+    const sourceLineKey=String(input.sourceLineKey||'').trim();
+    if(!sourceType||!sourceId||!sourceLineKey)throw new Error('Origem financeira idempotente exige sourceType, sourceId e sourceLineKey.');
+    const existing=findBySourceLine(sourceType,sourceId,sourceLineKey);
+    if(existing)return existing;
+    try{return createEntry({...input,sourceType,sourceId,sourceLineKey},actor);}
+    catch(error){
+      if(/UNIQUE constraint failed/.test(String(error?.message||''))){
+        const raced=findBySourceLine(sourceType,sourceId,sourceLineKey);
+        if(raced)return raced;
+      }
+      throw error;
+    }
+  }
+
   function listBySource(sourceType,sourceId){
     return db.prepare('SELECT id FROM financial_entries WHERE source_type=? AND source_id=? ORDER BY due_at,id')
       .all(String(sourceType),String(sourceId)).map(row=>getEntry(row.id));
@@ -99,7 +168,7 @@ function createFinanceReceivableService({db,baseFinance,now=()=>new Date().toISO
   }
   function cancelEntry(id,input={}){baseFinance.cancelEntry(id,input);return getEntry(id);}
 
-  return {...baseFinance,createEntry,getEntry,listEntries,findBySourceLine,listBySource,listLinkedEntries,settleEntry,reverseSettlement,cancelEntry};
+  return {...baseFinance,createEntry,createSourceEntry,getEntry,listEntries,findBySourceLine,listBySource,listLinkedEntries,settleEntry,reverseSettlement,cancelEntry};
 }
 
 module.exports={createFinanceReceivableService,PAYMENT_METHODS};
