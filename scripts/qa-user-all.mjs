@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
+const qaRuntimeRoot = path.join(root, 'qa/runtime');
 const npmCommand = process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm';
 const powershell = process.platform === 'win32' ? 'powershell.exe' : 'pwsh';
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -26,11 +27,11 @@ function npmArgs(...args) {
   return process.platform === 'win32' ? ['/d', '/s', '/c', 'npm', ...args] : args;
 }
 
-function run(label, command, args, { required = false } = {}) {
+function run(label, command, args, { required = false, cwd = root } = {}) {
   console.log(`\n=== ${label} ===`);
   const started = Date.now();
   const result = spawnSync(command, args, {
-    cwd: root,
+    cwd,
     env: process.env,
     stdio: 'inherit',
     shell: false,
@@ -38,7 +39,7 @@ function run(label, command, args, { required = false } = {}) {
   const code = Number.isInteger(result.status) ? result.status : 1;
   const error = result.error?.message || null;
   if (error) console.error(`Falha ao iniciar ${command}: ${error}`);
-  report.steps.push({ label, command: [command, ...args].join(' '), status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started, ...(error ? { error } : {}) });
+  report.steps.push({ label, command: [command, ...args].join(' '), cwd, status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started, ...(error ? { error } : {}) });
   if (code !== 0 && required) {
     writeSummary();
     process.exit(code || 1);
@@ -94,6 +95,10 @@ const hasLockfile = fs.existsSync(path.join(root, 'package-lock.json')) || fs.ex
 const dependencyArgs = hasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
 console.log(`Dependências: ${hasLockfile ? 'npm ci (lockfile encontrado)' : 'npm install (repositório sem lockfile)'}`);
 run('Instalar dependências', npmCommand, npmArgs(...dependencyArgs), { required: true });
+
+const qaRuntimeHasLockfile = fs.existsSync(path.join(qaRuntimeRoot, 'package-lock.json')) || fs.existsSync(path.join(qaRuntimeRoot, 'npm-shrinkwrap.json'));
+const qaRuntimeDependencyArgs = qaRuntimeHasLockfile ? ['ci'] : ['install', '--no-audit', '--no-fund'];
+run('Instalar runtime de QA', npmCommand, npmArgs(...qaRuntimeDependencyArgs), { required: true, cwd: qaRuntimeRoot });
 
 // A pedido do processo de entrega, o instalador é gerado ANTES do QA.
 const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
