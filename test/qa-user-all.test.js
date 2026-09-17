@@ -41,14 +41,16 @@ test('full QA runner installs dependencies, builds installer before verification
   const source=read('scripts/qa-user-all.mjs');
   const dependencySetup=source.indexOf('const dependencyArgs = hasLockfile');
   const install=source.indexOf("run('Instalar dependências'");
+  const runtimeInstall=source.indexOf("run('Instalar runtime de QA'");
   const build=source.indexOf("npmArgs('run', 'dist:win')");
   const verify=source.indexOf("npmArgs('run', 'verify')");
   const flowLoop=source.indexOf('for (const file of flowFiles)');
-  assert.ok(dependencySetup>=0&&install>dependencySetup&&build>install&&verify>build&&flowLoop>verify,'expected dependency setup -> install -> dist:win -> verify -> user flows ordering');
+  assert.ok(dependencySetup>=0&&install>dependencySetup&&runtimeInstall>install&&build>runtimeInstall&&verify>build&&flowLoop>verify,'expected root install -> QA runtime install -> dist:win -> verify -> user flows ordering');
   assert.match(source,/package-lock\.json/);
   assert.match(source,/npm-shrinkwrap\.json/);
   assert.match(source,/\['ci'\]/);
   assert.match(source,/\['install', '--no-audit', '--no-fund'\]/);
+  assert.match(source,/qa\/runtime/);
   assert.match(source,/sha256/i);
   assert.match(source,/qa-delivery-artifacts/);
   assert.match(source,/PASS|FAIL|SKIPPED/);
@@ -74,9 +76,12 @@ test('common setup data is QA-only and contains no customer secret environment v
   assert.doesNotMatch(read('qa/flows/common/open-cash.json'),/ARTISYS_QA_ADMIN_PASSWORD/);
 });
 
-test('root project provides Playwright required by the vendored QA runtime',()=>{
-  const pkg=json('package.json');
-  assert.ok(pkg.devDependencies?.playwright,'playwright must be installed by the consumer project');
+test('vendored QA runtime declares Playwright and runner installs its dependencies',()=>{
+  const runtimePkg=json('qa/runtime/package.json');
+  const runner=read('scripts/qa-user-all.mjs');
+  assert.ok(runtimePkg.devDependencies?.playwright || runtimePkg.peerDependencies?.playwright);
+  assert.match(runner,/qa[\\/]runtime/);
+  assert.match(runner,/Instalar runtime de QA/);
 });
 
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
