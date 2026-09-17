@@ -11,6 +11,12 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+function qaState(runtimeContext) {
+  if (!runtimeContext) throw new Error('QA state requires runtime context');
+  if (!runtimeContext.qaState || typeof runtimeContext.qaState !== 'object') runtimeContext.qaState = {};
+  return runtimeContext.qaState;
+}
+
 async function clickWithDialogs(page, target, step) {
   const specs = Array.isArray(step.dialogs) ? step.dialogs : step.dialog ? [step.dialog] : [];
   if (!specs.length) {
@@ -59,13 +65,36 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'click': await clickWithDialogs(page, locator(page, step), step); break;
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
+    case 'fillFromState': {
+      if (!step.key) throw new Error('fillFromState requires key');
+      const value = qaState(runtimeContext)[step.key];
+      if (value == null) throw new Error(`${label}: QA state ${step.key} is empty`);
+      await locator(page, step).fill(String(value));
+      break;
+    }
+    case 'rememberAttribute': {
+      if (!step.key || !step.attribute) throw new Error('rememberAttribute requires key and attribute');
+      const value = await locator(page, step).first().getAttribute(step.attribute);
+      if (value == null) throw new Error(`${label}: attribute ${step.attribute} is empty`);
+      qaState(runtimeContext)[step.key] = value;
+      break;
+    }
+    case 'rememberText': {
+      if (!step.key) throw new Error('rememberText requires key');
+      qaState(runtimeContext)[step.key] = (await locator(page, step).first().textContent()) ?? '';
+      break;
+    }
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
     case 'check': await locator(page, step).check(); break;
     case 'uncheck': await locator(page, step).uncheck(); break;
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': {
       if (step.labelValue != null) await locator(page, step).selectOption({ label: String(step.labelValue) });
-      else await locator(page, step).selectOption(resolveSecret(step, env));
+      else if (step.stateKey) {
+        const value = qaState(runtimeContext)[step.stateKey];
+        if (value == null) throw new Error(`${label}: QA state ${step.stateKey} is empty`);
+        await locator(page, step).selectOption(String(value));
+      } else await locator(page, step).selectOption(resolveSecret(step, env));
       break;
     }
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
@@ -118,6 +147,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         const actual = JSON.stringify(result?.payload ?? null);
         if (!actual.includes(String(step.expectedText))) throw new Error(`${label}: API payload did not include ${JSON.stringify(step.expectedText)}`);
       }
+      if (step.saveAs) qaState(runtimeContext)[step.saveAs] = result?.payload;
       break;
     }
     case 'screenshot': {
