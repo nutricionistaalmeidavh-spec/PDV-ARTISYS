@@ -35,3 +35,15 @@ test('desktop main authenticates local vertical API calls without exposing insta
   assert.match(main,/rawPath\.startsWith\('\/api\/v1\/vertical\/'\)/);
   assert.doesNotMatch(preload,/installToken|x-pdv-token/);
 });
+
+test('modules management lives inside settings and cannot block the PDV indefinitely',()=>{
+  const source=read('desktop/renderer/vertical-modules.js');
+  assert.doesNotMatch(source,/vertical-modules-launcher/);
+  assert.doesNotMatch(source,/textContent='M'/);
+  assert.match(source,/ops-establishment-modules-card/);
+  assert.match(source,/mountSettingsModules/);
+  assert.match(source,/MODULE_REQUEST_TIMEOUT_MS/);
+  assert.match(source,/withTimeout/);
+  assert.match(source,/Tentar novamente/);
+  assert.match(source,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
+});
