@@ -92,13 +92,22 @@ test('dialog-driven QA clicks have a finite timeout instead of hanging forever',
 });
 
 test('shared user flows target unique UI elements after commercial extensions were added',()=>{
-  const catalog=read('qa/flows/common/basic-catalog.json');
-  const cash=read('qa/flows/common/open-cash.json');
-  assert.doesNotMatch(catalog,/"selector":"\.data-card"/);
-  assert.match(catalog,/\.page > \.data-card/);
-  assert.doesNotMatch(catalog,/"selector":"\[data-route='home'\]"/);
-  assert.doesNotMatch(cash,/"selector":"\[data-route='home'\]"/);
-  assert.match(cash,/aria-label='Início'/);
+  const catalog=json('qa/flows/common/basic-catalog.json');
+  const cash=json('qa/flows/common/open-cash.json');
+  const byName=(flow,name)=>flow.steps.find(step=>step.name===name);
+  assert.equal(byName(catalog,'seller-created').selector,'.data-row:has([data-edit-seller])');
+  assert.equal(byName(catalog,'product-created').selector,'.data-row:has([data-edit-product])');
+  assert.equal(byName(catalog,'customer-created').selector,'.data-row:has([data-edit-customer])');
+  assert.equal(byName(catalog,'return-home').selector,'.sidebar-back[data-route="home"]');
+  assert.equal(byName(cash,'cash-return-home').selector,'.sidebar-back[data-route="home"]');
+  assert.equal(byName(cash,'cash-back-home').selector,'.sidebar-back[data-route="home"]');
+});
+
+test('cadastros flow scopes assertions to product and customer rows',()=>{
+  const flow=json('qa/flows/user/02-cadastros.json');
+  const byName=name=>flow.steps.find(step=>step.name===name);
+  assert.equal(byName('barcode-found').selector,'.data-row:has([data-edit-product])');
+  assert.equal(byName('customer-edit-persisted').selector,'.data-row:has([data-edit-customer])');
 });
 
 test('prompt-driven QA clicks use a deterministic renderer shim under Electron',()=>{
@@ -109,10 +118,11 @@ test('prompt-driven QA clicks use a deterministic renderer shim under Electron',
 });
 
 test('cashier permissions verify restricted settings UI without depending on an admin-only form',()=>{
-  const flow=read('qa/flows/user/21-permissoes.json');
-  assert.match(flow,/"action":"expectNotVisible","selector":"#ops-store-receipt-form"/);
-  assert.doesNotMatch(flow,/forbidden-save/);
-  assert.doesNotMatch(flow,/forbidden-name/);
+  const flow=json('qa/flows/user/21-permissoes.json');
+  const restricted=flow.steps.find(step=>step.name==='settings-form-restricted');
+  assert.equal(restricted?.action,'expectNotVisible');
+  assert.equal(restricted?.selector,'#ops-store-receipt-form');
+  assert.ok(!flow.steps.some(step=>step.name==='forbidden-save'||step.name==='forbidden-name'));
 });
 
 test('final vertical module back action is redirected to settings after removal of M launcher',()=>{
