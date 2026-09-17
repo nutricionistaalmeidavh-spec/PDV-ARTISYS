@@ -46,6 +46,18 @@ test('cash sale creates settled finance entry with stable payment origin',async 
   assert.equal(entries[0].settlements[0].method,'CASH');
 });
 
+test('cash change is excluded from financial revenue',async t=>{
+  const fx=fixture(t);
+  const sale=await fx.sale('change',[{method:'CASH',amountCents:12000}]);
+  assert.equal(sale.totalCents,10000);
+  assert.equal(sale.changeCents,2000);
+  const [entry]=saleEntries(fx.runtime,'change');
+  assert.equal(entry.grossAmountCents,10000);
+  assert.equal(entry.netAmountCents,10000);
+  assert.equal(entry.amountCents,10000);
+  assert.equal(entry.settledCents,10000);
+});
+
 test('pix sale creates settled finance entry',async t=>{
   const fx=fixture(t);
   await fx.sale('pix',[{method:'PIX',amountCents:10000}]);
