@@ -58,16 +58,17 @@ function resolveAcquiringPolicy({method,amountCents,completedAt,metadata=null,se
   const totalNet=amount-totalFee;
   if(totalNet<=0)throw new Error('Taxa da adquirente consome todo o recebivel.');
   const grossParts=splitCents(amount,rawInstallments);
-  const feeParts=splitCents(totalFee,rawInstallments);
+  const netParts=splitCents(totalNet,rawInstallments);
   const firstDays=days(settings.creditFirstSettlementDays,0);
   const intervalDays=days(settings.creditIntervalDays,30);
   return grossParts.map((gross,index)=>{
-    const fee=feeParts[index];
+    const net=netParts[index];
+    const fee=gross-net;
     return {
       sourceSuffix:String(index+1),
       grossAmountCents:gross,
       feeAmountCents:fee,
-      netAmountCents:gross-fee,
+      netAmountCents:net,
       dueAt:addDays(completedAt,firstDays+index*intervalDays),
       installmentNumber:index+1,
       installmentCount:rawInstallments
