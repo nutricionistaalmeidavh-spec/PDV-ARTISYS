@@ -17,6 +17,7 @@
     "qa:user:all": "node scripts/qa-user-all.mjs",
     "docs:check": "node scripts/check-docs-consistency.js",
     "test": "node --test test/*.test.js",
+    "test:finance-release": "node --test test/finance-receivable-schema.test.js test/sale-finance-projection.test.js test/sale-finance-reversals.test.js test/finance-p5-p7.test.js test/finance-p8-p10-release-gate.test.js test/user-flow-integrity.test.js",
     "test:restaurant": "node --test test/e30-e39-restaurant.test.js",
     "test:release": "node scripts/run-release-tests.js",
     "lint:eventbus": "node --check js/core/domain-event-bus.js && node --check js/core/domain-event-dispatcher.js && node --check js/core/idempotent-domain-effect.js && node --check js/core/pdv-event-types.js",
