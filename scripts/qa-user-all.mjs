@@ -30,19 +30,31 @@ function npmArgs(...args) {
   return process.platform === 'win32' ? ['/d', '/s', '/c', 'npm', ...args] : args;
 }
 
-function run(label, command, args, { required = false, cwd = root } = {}) {
+function run(label, command, args, { required = false, cwd = root, logFile = null } = {}) {
   console.log(`\n=== ${label} ===`);
   const started = Date.now();
+  const capture = Boolean(logFile);
   const result = spawnSync(command, args, {
     cwd,
     env: process.env,
-    stdio: 'inherit',
+    stdio: capture ? ['inherit', 'pipe', 'pipe'] : 'inherit',
     shell: false,
+    ...(capture ? { encoding: 'utf8' } : {}),
   });
+  const stdout = capture ? String(result.stdout || '') : '';
+  const stderr = capture ? String(result.stderr || '') : '';
+  if (capture) {
+    if (stdout) process.stdout.write(stdout);
+    if (stderr) process.stderr.write(stderr);
+    fs.writeFileSync(path.join(deliveryRoot, logFile), `${stdout}${stderr}`, 'utf8');
+  }
   const code = Number.isInteger(result.status) ? result.status : 1;
-  const error = result.error?.message || null;
-  if (error) console.error(`Falha ao iniciar ${command}: ${error}`);
-  report.steps.push({ label, command: [command, ...args].join(' '), cwd, status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started, ...(error ? { error } : {}) });
+  const tail = capture && code !== 0
+    ? `${stdout}\n${stderr}`.split(/\r?\n/).filter(Boolean).slice(-35).join('\n')
+    : '';
+  const error = result.error?.message || tail || null;
+  if (result.error) console.error(`Falha ao iniciar ${command}: ${result.error.message}`);
+  report.steps.push({ label, command: [command, ...args].join(' '), cwd, status: code === 0 ? 'PASS' : 'FAIL', exitCode: code, durationMs: Date.now() - started, ...(logFile ? { logFile:path.join(deliveryRoot,logFile) } : {}), ...(error ? { error } : {}) });
   if (code !== 0 && required) {
     writeSummary();
     process.exit(code || 1);
@@ -118,8 +130,8 @@ if (installer) {
   report.steps.push({ label: 'Localizar instalador', status: 'FAIL', exitCode: 1, durationMs: 0 });
 }
 
-run('Verificação de código e testes existentes', npmCommand, npmArgs('run', 'verify'));
-run('Gate financeiro P0-P10', npmCommand, npmArgs('run', 'test:finance-release'));
+run('Verificação de código e testes existentes', npmCommand, npmArgs('run', 'verify'), { logFile:'verify.log' });
+run('Gate financeiro P0-P10', npmCommand, npmArgs('run', 'test:finance-release'), { logFile:'finance-release.log' });
 
 let runtimeAvailable = true;
 try {
