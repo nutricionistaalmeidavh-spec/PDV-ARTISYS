@@ -1,5 +1,10 @@
 version: 2.1
 
+parameters:
+  run_ci:
+    type: boolean
+    default: false
+
 executors:
   node_linux:
     docker:
@@ -73,6 +78,7 @@ jobs:
 
 workflows:
   pdv_ci:
+    when: << pipeline.parameters.run_ci >>
     jobs:
       - verify
       - qa_smoke:
