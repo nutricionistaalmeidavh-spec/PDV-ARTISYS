@@ -147,24 +147,27 @@ export async function publishGitHubFailure({
   let prNumber = null;
   const headBranch = cleanText(sourceBranch) || cleanText(branch);
   if (headBranch) {
-    const query = new URLSearchParams({ state: 'open', head: `${owner}:${headBranch}`, per_page: '10' });
-    const pulls = await githubRequest(`${apiBase}/repos/${repo}/pulls?${query}`, {
-      token,
-      fetchImpl,
-    });
-    if (Array.isArray(pulls) && pulls.length) {
-      prNumber = pulls[0].number;
-      try {
-        await githubRequest(`${apiBase}/repos/${repo}/issues/${prNumber}/comments`, {
-          token,
-          method: 'POST',
-          body: { body: markdown },
-          fetchImpl,
-        });
-      } catch (error) {
-        // Commit status + commit comment are the durable fallback. PR comments are best-effort.
-        console.warn(`[Woodpecker Reporter] Comentario no PR #${prNumber} nao publicado: ${error.message}`);
+    try {
+      const query = new URLSearchParams({ state: 'open', head: `${owner}:${headBranch}`, per_page: '10' });
+      const pulls = await githubRequest(`${apiBase}/repos/${repo}/pulls?${query}`, {
+        token,
+        fetchImpl,
+      });
+      if (Array.isArray(pulls) && pulls.length) {
+        prNumber = pulls[0].number;
+        try {
+          await githubRequest(`${apiBase}/repos/${repo}/issues/${prNumber}/comments`, {
+            token,
+            method: 'POST',
+            body: { body: markdown },
+            fetchImpl,
+          });
+        } catch (error) {
+          console.warn(`[Woodpecker Reporter] Comentario no PR #${prNumber} nao publicado: ${error.message}`);
+        }
       }
+    } catch (error) {
+      console.warn(`[Woodpecker Reporter] Consulta de PR ignorada: ${error.message}`);
     }
   }
 
