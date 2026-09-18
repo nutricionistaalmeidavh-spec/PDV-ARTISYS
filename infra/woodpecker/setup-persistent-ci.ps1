@@ -40,28 +40,61 @@ function Set-DotEnvValue {
   Set-Content -Path $Path -Value $out -Encoding UTF8
 }
 
-Write-Host '[1/8] Preparando cloudflared...'
-$cfCmd = Get-Command cloudflared -ErrorAction SilentlyContinue
-if (-not $cfCmd) {
-  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw 'winget nao encontrado.' }
-  & winget install -e --id Cloudflare.cloudflared --accept-package-agreements --accept-source-agreements
-  $env:Path += ";$env:LOCALAPPDATA\Microsoft\WinGet\Links"
-  $cfCmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+function Find-Cloudflared {
+  $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  $env:Path = "$machinePath;$userPath;$env:Path"
+
+  $cmd = Get-Command cloudflared -ErrorAction SilentlyContinue
+  if ($cmd -and $cmd.Source -and (Test-Path $cmd.Source)) { return $cmd.Source }
+
+  $candidates = @(
+    'C:\Program Files (x86)\cloudflared\cloudflared.exe',
+    'C:\Program Files\cloudflared\cloudflared.exe',
+    'C:\Program Files (x86)\cloudflared\cloudflared-windows-amd64.exe',
+    'C:\Program Files\cloudflared\cloudflared-windows-amd64.exe',
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\cloudflared.exe')
+  )
+  foreach ($candidate in $candidates) {
+    if ($candidate -and (Test-Path $candidate)) { return $candidate }
+  }
+
+  $roots = @(
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Packages'),
+    'C:\Program Files (x86)\cloudflared',
+    'C:\Program Files\cloudflared'
+  )
+  foreach ($root in $roots) {
+    if (-not (Test-Path $root)) { continue }
+    $found = Get-ChildItem $root -File -Recurse -ErrorAction SilentlyContinue |
+      Where-Object { $_.Name -in @('cloudflared.exe', 'cloudflared-windows-amd64.exe') } |
+      Sort-Object LastWriteTime -Descending |
+      Select-Object -First 1
+    if ($found) { return $found.FullName }
+  }
+
+  return $null
 }
 
-$cfSource = if ($cfCmd) { $cfCmd.Source } else { $null }
+Write-Host '[1/8] Preparando cloudflared...'
+$cfSource = Find-Cloudflared
 if (-not $cfSource) {
-  $found = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter cloudflared.exe -Recurse -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending | Select-Object -First 1
-  if ($found) { $cfSource = $found.FullName }
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { throw 'winget nao encontrado.' }
+  & winget install -e --id Cloudflare.cloudflared --accept-package-agreements --accept-source-agreements
+  if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar cloudflared pelo winget.' }
+  Start-Sleep -Seconds 2
+  $cfSource = Find-Cloudflared
 }
-if (-not $cfSource) { throw 'cloudflared foi instalado, mas o executavel nao foi localizado.' }
+if (-not $cfSource) {
+  throw 'cloudflared foi instalado, mas o executavel nao foi localizado nos caminhos padrao do MSI/WinGet.'
+}
+Write-Host "[Woodpecker] cloudflared localizado em: $cfSource"
 
 $stateRoot = 'C:\ProgramData\ArtiSys'
 $cfState = Join-Path $stateRoot 'cloudflared'
 New-Item -ItemType Directory -Force -Path $cfState | Out-Null
 $cfExe = Join-Path $cfState 'cloudflared.exe'
-Copy-Item $cfSource $cfExe -Force
+if ((Resolve-Path $cfSource).Path -ne $cfExe) { Copy-Item $cfSource $cfExe -Force }
 
 Write-Host '[2/8] Autenticando Cloudflare...'
 $userCfDir = Join-Path $env:USERPROFILE '.cloudflared'
