@@ -9,6 +9,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $agentExe = Join-Path $InstallDir 'woodpecker-agent.exe'
 $pluginGit = Join-Path $InstallDir 'plugin-git.exe'
+$agentConfig = Join-Path $InstallDir 'agent.conf'
 $engine = Join-Path $UtilidadesPath 'modules\artisys-release\bin\artisys-release.mjs'
 
 if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
@@ -30,11 +31,13 @@ if (-not (Test-Path $engine)) { throw "artisys-release nao encontrado em $engine
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git nao encontrado no PATH.' }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js nao encontrado no PATH.' }
 
+New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $WorkDir | Out-Null
 
 $env:PATH = "$InstallDir;$env:PATH"
 $env:WOODPECKER_SERVER = $Server
 $env:WOODPECKER_AGENT_SECRET = $AgentSecret
+$env:WOODPECKER_AGENT_CONFIG_FILE = $agentConfig
 $env:WOODPECKER_BACKEND = 'local'
 $env:WOODPECKER_BACKEND_LOCAL_TEMP_DIR = $WorkDir
 $env:WOODPECKER_MAX_WORKFLOWS = '1'
@@ -46,6 +49,7 @@ Write-Host '[Woodpecker Agent] Iniciando Agent Windows local...'
 Write-Host "[Woodpecker Agent] Server: $Server"
 Write-Host '[Woodpecker Agent] Backend: local'
 Write-Host "[Woodpecker Agent] Workspace: $WorkDir"
+Write-Host "[Woodpecker Agent] Config: $agentConfig"
 Write-Host "[Woodpecker Agent] utilidades: $UtilidadesPath"
 Write-Host '[Woodpecker Agent] Max workflows: 1'
 Write-Host '[Woodpecker Agent] ATENCAO: backend local executa comandos diretamente neste Windows; use apenas repositorios confiaveis.'
