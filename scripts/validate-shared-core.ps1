@@ -47,6 +47,12 @@ Invoke-NativeChecked 'check artisys-release' { npm --prefix "$UtilidadesPath\mod
 Invoke-NativeChecked 'testes artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" test }
 Invoke-NativeChecked 'check artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" run check }
 
+$qaPackagePath = Join-Path $UtilidadesPath 'modules\artisys-qa\package.json'
+$qaPackage = Get-Content $qaPackagePath -Raw | ConvertFrom-Json
+$qaVersionLine = "[Core] artisys-qa version: $($qaPackage.version)"
+Write-Host $qaVersionLine
+Add-Content -Path $LogPath -Value $qaVersionLine -Encoding utf8
+
 $previousQaTimeout = $env:ARTISYS_QA_TEST_TIMEOUT_MS
 try {
   $env:ARTISYS_QA_TEST_TIMEOUT_MS = [string]$QaModuleTestTimeoutMs
