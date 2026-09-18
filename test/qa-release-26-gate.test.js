@@ -28,3 +28,15 @@ test('release QA gates all 26 user journeys plus installed EXE smoke', () => {
   assert.match(gate, /qa-installed-smoke\.ps1/);
   assert.match(gate, /ArtiSys-PDV-\*-Setup\.exe/);
 });
+
+test('release QA always exports its structured summary before failing the wrapper', () => {
+  const gate = read('scripts/qa-release-full.ps1');
+  assert.match(gate, /qa-summary\.json/i);
+  assert.match(gate, /Copy-Item/i);
+
+  const copyIndex = gate.indexOf('Copy-Item');
+  const wrapperFailureIndex = gate.indexOf('qa:user:all falhou');
+  assert.ok(copyIndex >= 0, 'o resumo do QA deve ser copiado para artifacts/');
+  assert.ok(wrapperFailureIndex >= 0, 'o wrapper deve manter erro explícito de qa:user:all');
+  assert.ok(copyIndex < wrapperFailureIndex, 'o resumo estruturado precisa ser exportado antes do throw');
+});
