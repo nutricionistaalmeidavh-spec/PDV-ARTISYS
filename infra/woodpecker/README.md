@@ -97,9 +97,11 @@ Confirmado no Windows do piloto:
 - `woodpecker-agent.exe` ativo;
 - tarefa `ArtiSys Woodpecker Agent` permanece em execucao (`LastTaskResult 267009`).
 
-## Proximas fases
+## Estado ao fim da fase 4
 
-Ainda fora da fase 4:
+Configuracao do pipeline commitada e pronta para execucao pelo Agent Windows. O primeiro run completo ainda precisa ser observado no Woodpecker para validar clone, comandos do produto, instalador e QA no ambiente real.
+
+## Proximas fases
 
 - primeiro run completo do pipeline e coleta das evidencias reais;
 - testes controlados de falha;
