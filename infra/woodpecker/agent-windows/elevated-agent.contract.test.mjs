@@ -10,7 +10,8 @@ test('elevated launcher uses isolated local backend identity', () => {
   assert.match(script, /agent-elevated\.conf/i);
   assert.doesNotMatch(script, /Join-Path\s+\$InstallDir\s+['"]agent\.conf['"]/i);
   assert.match(script, /WOODPECKER_BACKEND\s*=\s*'local'/);
-  assert.match(script, /privilege=elevated/);
+  assert.match(script, /repo=nutricionistaalmeidavh-spec\/OBRANAMAOCOMERCIAL/i);
+  assert.match(script, /!privilege=elevated/i);
   assert.match(script, /owner=artisys/);
   assert.match(script, /ARTISYS_AGENT_PRIVILEGE\s*=\s*'elevated'/);
   assert.match(script, /ARTISYS_AGENT_OWNER\s*=\s*'artisys'/);
