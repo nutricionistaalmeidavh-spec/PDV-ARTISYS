@@ -3,7 +3,8 @@ param(
   [string]$AgentSecret = $(if ($env:WOODPECKER_AGENT_SECRET) { $env:WOODPECKER_AGENT_SECRET } else { $env:ARTISYS_WOODPECKER_AGENT_SECRET }),
   [string]$InstallDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-agent'),
   [string]$UtilidadesPath = $(if ($env:ARTISYS_UTILIDADES_PATH) { $env:ARTISYS_UTILIDADES_PATH } else { Join-Path $env:USERPROFILE 'utilidades' }),
-  [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work')
+  [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work'),
+  [string]$GitHubReportTokenFile = 'C:\ProgramData\ArtiSys\github-report-token.txt'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,12 +46,20 @@ $env:WOODPECKER_AGENT_LABELS = 'pilot=pdv-artisys'
 $env:WOODPECKER_HOSTNAME = "$env:COMPUTERNAME-pdv-artisys"
 $env:ARTISYS_UTILIDADES_PATH = $UtilidadesPath
 
+if (Test-Path $GitHubReportTokenFile) {
+  $reportToken = (Get-Content $GitHubReportTokenFile -Raw).Trim()
+  if (-not [string]::IsNullOrWhiteSpace($reportToken)) {
+    $env:GITHUB_REPORT_TOKEN = $reportToken
+  }
+}
+
 Write-Host '[Woodpecker Agent] Iniciando Agent Windows local...'
 Write-Host "[Woodpecker Agent] Server: $Server"
 Write-Host '[Woodpecker Agent] Backend: local'
 Write-Host "[Woodpecker Agent] Workspace: $WorkDir"
 Write-Host "[Woodpecker Agent] Config: $agentConfig"
 Write-Host "[Woodpecker Agent] utilidades: $UtilidadesPath"
+Write-Host "[Woodpecker Agent] Reporter GitHub: $(if ($env:GITHUB_REPORT_TOKEN) { 'configurado' } else { 'nao configurado' })"
 Write-Host '[Woodpecker Agent] Max workflows: 1'
 Write-Host '[Woodpecker Agent] ATENCAO: backend local executa comandos diretamente neste Windows; use apenas repositorios confiaveis.'
 
