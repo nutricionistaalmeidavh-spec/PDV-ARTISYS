@@ -34,8 +34,8 @@ steps:
       - '$ErrorActionPreference = "Stop"'
       - '$logPath = ".\artifacts\woodpecker-release.log"'
       - '"=== release-full ===" | Add-Content -Path $logPath -Encoding utf8'
-      - 'Write-Host "[PDV Woodpecker] deps -> lint -> test -> build -> installer -> qa"'
-      - '& .\scripts\artisys-release.ps1 -Profile full *>&1 | Tee-Object -FilePath $logPath -Append'
+      - 'Write-Host "[PDV Woodpecker] atualizando utilidades -> deps -> lint -> test -> build -> installer -> qa"'
+      - '& .\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades *>&1 | Tee-Object -FilePath $logPath -Append'
 
   - name: verificar-evidencias
     image: powershell.exe
