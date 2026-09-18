@@ -32,18 +32,7 @@ steps:
       ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
-      - 'git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Falha ao atualizar utilidades." }'
-      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-release" test'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-release falharam." }'
-      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-release" run check'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Check artisys-release falhou." }'
-      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-ci-reporter" test'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-ci-reporter falharam." }'
-      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-ci-reporter" run check'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Check artisys-ci-reporter falhou." }'
-      - 'py -3 -m unittest discover -s "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-security\tests" -v'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-security falharam." }'
+      - '& .\scripts\validate-shared-core.ps1 -UtilidadesPath $env:ARTISYS_UTILIDADES_PATH -LogPath ".\artifacts\woodpecker-release.log"'
 
   - name: health-ci
     image: powershell.exe
