@@ -1,6 +1,7 @@
 param(
   [string]$Server = $(if ($env:WOODPECKER_SERVER) { $env:WOODPECKER_SERVER } else { 'localhost:9000' }),
   [string]$AgentSecret = $(if ($env:WOODPECKER_AGENT_SECRET) { $env:WOODPECKER_AGENT_SECRET } else { $env:ARTISYS_WOODPECKER_AGENT_SECRET }),
+  [string]$ServerEnvPath = '',
   [string]$InstallDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-agent'),
   [string]$UtilidadesPath = 'C:\ProgramData\ArtiSys\utilidades-elevated',
   [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work-elevated'),
@@ -14,11 +15,15 @@ $agentConfig = Join-Path $InstallDir 'agent.conf'
 $policyCli = Join-Path $UtilidadesPath 'modules\artisys-windows-ci\bin\artisys-windows-ci.mjs'
 
 if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
-  $woodpeckerRoot = Split-Path -Parent $PSScriptRoot
-  $serverEnv = Join-Path $woodpeckerRoot 'server\.env'
-  if (Test-Path $serverEnv) {
-    $secretLine = Get-Content $serverEnv | Where-Object { $_ -match '^WOODPECKER_AGENT_SECRET=' } | Select-Object -Last 1
+  if ([string]::IsNullOrWhiteSpace($ServerEnvPath)) {
+    $woodpeckerRoot = Split-Path -Parent $PSScriptRoot
+    $ServerEnvPath = Join-Path $woodpeckerRoot 'server\.env'
+  }
+  if (Test-Path $ServerEnvPath) {
+    $secretLine = Get-Content $ServerEnvPath | Where-Object { $_ -match '^WOODPECKER_AGENT_SECRET=' } | Select-Object -Last 1
     if ($secretLine) { $AgentSecret = ($secretLine -split '=', 2)[1].Trim() }
+    $serverLine = Get-Content $ServerEnvPath | Where-Object { $_ -match '^WOODPECKER_GRPC_ADDR=' } | Select-Object -Last 1
+    if ($serverLine -and -not $env:WOODPECKER_SERVER) { $Server = ($serverLine -split '=', 2)[1].Trim() }
   }
 }
 
