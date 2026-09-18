@@ -86,6 +86,30 @@ Fluxo:
 
 A ordem `installer -> qa` e intencional: mesmo se o QA bloquear a entrega, o build do instalador ja foi produzido para diagnostico/homologacao.
 
+### Reporter automatico de falhas para GitHub
+
+O workflow grava `artifacts/woodpecker-release.log` durante ambiente/release. Se qualquer step falhar, `reportar-falha-github` executa mesmo com o workflow em estado `failure` e usa `scripts/report-woodpecker-github.mjs`.
+
+O reporter:
+
+- le `artifacts/artisys-release-report.json` quando existir;
+- identifica `failedStep`, exit code, comando e trecho final de stderr/stdout;
+- detecta se `dist/ArtiSys-PDV-*-Setup.exe` chegou a ser gerado;
+- converte links locais `http://localhost:8000/...` para `https://ci.artisys.dev/...`;
+- publica um status detalhado `ci/woodpecker/pdv-release-detail` no commit;
+- publica o diagnostico completo como comentario no commit;
+- quando encontra PR aberto da branch, tenta repetir o mesmo diagnostico como comentario no PR.
+
+O segredo nunca fica no repositorio. O step recebe `GITHUB_REPORT_TOKEN` a partir do secret Woodpecker `github_report_token`.
+
+Permissoes recomendadas para um Fine-grained GitHub PAT restrito ao repositorio `PDV-ARTISYS`:
+
+- Contents: Read;
+- Commit statuses: Read and write;
+- Pull requests: Read and write (opcional, apenas para duplicar o relatorio no PR).
+
+Sem `github_report_token`, o reporter nao consegue publicar no GitHub, mas o erro original do workflow continua sendo o status principal; o step de reporter esta com `failure: ignore` para nao mascarar a falha real.
+
 ## Homologacao fisica realizada em 18/09/2026
 
 Confirmado no Windows do piloto:
@@ -99,11 +123,11 @@ Confirmado no Windows do piloto:
 
 ## Estado ao fim da fase 4
 
-Configuracao do pipeline commitada e pronta para execucao pelo Agent Windows. O primeiro run completo ainda precisa ser observado no Woodpecker para validar clone, comandos do produto, instalador e QA no ambiente real.
+Configuracao do pipeline e reporter de diagnostico commitados. Ainda falta cadastrar uma vez o secret `github_report_token` no Woodpecker e observar um run real com publicacao automatica no GitHub.
 
 ## Proximas fases
 
 - primeiro run completo do pipeline e coleta das evidencias reais;
-- testes controlados de falha;
+- testes controlados de falha com reporter GitHub ativo;
 - publicacao automatica em GitHub Release;
 - auto-update do cliente via `electron-updater`.
