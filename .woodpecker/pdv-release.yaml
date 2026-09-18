@@ -52,9 +52,6 @@ steps:
 
   - name: reportar-falha-github
     image: powershell.exe
-    environment:
-      GITHUB_REPORT_TOKEN:
-        from_secret: github_report_token
     commands:
       - '$ErrorActionPreference = "Continue"'
       - 'node .\scripts\report-woodpecker-github.mjs'
