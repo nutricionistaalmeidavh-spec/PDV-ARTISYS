@@ -2,7 +2,7 @@ param(
   [string]$Server = 'localhost:9000',
   [string]$AgentSecret = $env:ARTISYS_WOODPECKER_AGENT_SECRET,
   [string]$InstallDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-agent'),
-  [string]$UtilidadesPath = (Join-Path $env:USERPROFILE 'ArtiSys\utilidades'),
+  [string]$UtilidadesPath = (Join-Path $env:USERPROFILE 'utilidades'),
   [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work')
 )
 
@@ -44,7 +44,7 @@ $env:ARTISYS_UTILIDADES_PATH = $UtilidadesPath
 
 Write-Host '[Woodpecker Agent] Iniciando Agent Windows local...'
 Write-Host "[Woodpecker Agent] Server: $Server"
-Write-Host "[Woodpecker Agent] Backend: local"
+Write-Host '[Woodpecker Agent] Backend: local'
 Write-Host "[Woodpecker Agent] Workspace: $WorkDir"
 Write-Host "[Woodpecker Agent] utilidades: $UtilidadesPath"
 Write-Host '[Woodpecker Agent] Max workflows: 1'
