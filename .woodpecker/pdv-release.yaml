@@ -59,5 +59,6 @@ steps:
       - '$ErrorActionPreference = "Continue"'
       - 'node .\scripts\report-woodpecker-github.mjs'
     when:
-      - status: [failure]
+      - event: [push, manual]
+        status: [failure]
     failure: ignore
