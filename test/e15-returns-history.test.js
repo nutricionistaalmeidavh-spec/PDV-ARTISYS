@@ -25,7 +25,8 @@ async function completeSale(runtime) {
 
 test('sales history filters completed sales and exposes immutable detailed original', async () => {
   let seq = 0;
-  const runtime = createPdvRuntime({ now:()=>`2026-09-09T12:00:${String(seq++).padStart(2,'0')}Z`, idFactory:p=>`${p}-${seq++}` });
+  const baseTime = Date.parse('2026-09-09T12:00:00Z');
+  const runtime = createPdvRuntime({ now:()=>new Date(baseTime+(seq++*1000)).toISOString(), idFactory:p=>`${p}-${seq++}` });
   seed(runtime);
   await completeSale(runtime);
 
@@ -42,7 +43,8 @@ test('sales history filters completed sales and exposes immutable detailed origi
 
 test('partial returns preserve original sale and restore stock/cash once per return', async () => {
   let seq = 0;
-  const runtime = createPdvRuntime({ now:()=>`2026-09-09T13:00:${String(seq++).padStart(2,'0')}Z`, idFactory:p=>`${p}-${seq++}` });
+  const baseTime = Date.parse('2026-09-09T13:00:00Z');
+  const runtime = createPdvRuntime({ now:()=>new Date(baseTime+(seq++*1000)).toISOString(), idFactory:p=>`${p}-${seq++}` });
   seed(runtime);
   const sale = await completeSale(runtime);
   const saleItemId = sale.items[0].id;
