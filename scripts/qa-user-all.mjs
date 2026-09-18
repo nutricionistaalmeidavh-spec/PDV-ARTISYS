@@ -100,7 +100,7 @@ function writeSummary() {
     `Fluxos: ${report.counts.flowsPassed} PASS / ${report.counts.flowsFailed} FAIL`,
     '',
     ...report.steps.map(item => `${item.status} | ${item.label}${item.error ? ` | ${item.error}` : ''}`),
-    ...report.flows.map(item => `${item.status} | ${item.flow}${item.error ? ` | ${item.error}` : ''}`),
+    ...report.flows.map(item => `${item.status} | ${item.flow}${item.failedStep?.name ? ` | etapa: ${item.failedStep.name}` : ''}${item.error ? ` | ${item.error}` : ''}`),
   ].join('\n');
   fs.writeFileSync(path.join(deliveryRoot, 'QA-SUMMARY.txt'), text, 'utf8');
 }
@@ -123,7 +123,6 @@ let installer = null;
 if (skipInstaller) {
   report.steps.push({ label: 'Gerar instalador Windows', status: 'SKIPPED', exitCode: null, durationMs: 0, reason: 'ARTISYS_QA_SKIP_INSTALLER habilitado.' });
 } else {
-  // No release completo, o instalador continua sendo gerado antes do QA.
   const buildPassed = run('Gerar instalador Windows', npmCommand, npmArgs('run', 'dist:win'));
   installer = latestInstaller();
   if (installer) {
@@ -185,7 +184,34 @@ try {
       });
       report.flows.push({ flow: flowName, status: 'PASS', durationMs: Date.now() - started, outputDir: result.outputDir });
     } catch (error) {
-      report.flows.push({ flow: flowName, status: 'FAIL', durationMs: Date.now() - started, error: error?.message || String(error), summary: error?.summary || null });
+      const summary = error?.summary && typeof error.summary === 'object' ? error.summary : null;
+      const failedStep = Array.isArray(summary?.steps)
+        ? summary.steps.find(step => step?.status === 'failed') || null
+        : null;
+      const outputDir = summary?.runId ? path.join(qaOutput, summary.runId) : null;
+      const failureMessage = failedStep?.error || summary?.failure?.message || error?.message || String(error);
+      report.flows.push({
+        flow: flowName,
+        status: 'FAIL',
+        durationMs: Date.now() - started,
+        error: failureMessage,
+        failedStep: failedStep ? {
+          index: Number.isInteger(failedStep.index) ? failedStep.index : null,
+          action: failedStep.action || null,
+          name: failedStep.name || null,
+          error: failedStep.error || failureMessage,
+        } : null,
+        summary,
+        ...(outputDir ? {
+          outputDir,
+          evidence: {
+            outputDir,
+            screenshot: path.join(outputDir, 'screenshots', 'failure.png'),
+            trace: path.join(outputDir, 'trace.zip'),
+            runSummary: path.join(outputDir, 'run-summary.json'),
+          },
+        } : {}),
+      });
       console.error(error?.stack || error);
     }
   }
