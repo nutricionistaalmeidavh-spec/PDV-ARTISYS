@@ -1,0 +1,39 @@
+{
+  "product": "PDV-ARTISYS",
+  "version": "1.3.4",
+  "profile": "full",
+  "requiredSteps": ["deps", "lint", "test", "build", "installer", "qa"],
+  "requiredStepsByProfile": {
+    "release": ["security", "evidence", "publish"]
+  },
+  "steps": {
+    "deps": "npm install --no-audit --no-fund && npm ci --prefix qa/runtime --no-audit --no-fund && cd qa/runtime && npx playwright install chromium && cd ../..",
+    "lint": "npm run docs:check && npm run lint:eventbus && npm run lint:core && npm run lint:desktop && npm run lint:commercial-media",
+    "test": "npm test",
+    "build": "npm run release:manifest",
+    "installer": "npm run dist:win",
+    "qa": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/qa-release-full.ps1",
+    "security": {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security-gate.ps1",
+      "profiles": ["release"]
+    },
+    "evidence": {
+      "command": "node scripts/release-evidence.cjs",
+      "profiles": ["release"]
+    },
+    "publish": {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-github-release.ps1",
+      "profiles": ["release"]
+    }
+  },
+  "reportPath": "artifacts/artisys-release-report.json",
+  "metadata": {
+    "runtime": "windows/amd64",
+    "releaseEngine": "utilidades/modules/artisys-release",
+    "installer": "Electron Builder + NSIS",
+    "qa": "26 user journeys + finance gate + backup/LAN + installed EXE smoke",
+    "security": "artisys-security release gate",
+    "publisher": "GitHub Releases via artisys-release",
+    "pilot": "woodpecker"
+  }
+}
