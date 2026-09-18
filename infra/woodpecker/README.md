@@ -1,6 +1,6 @@
 # Piloto Woodpecker — PDV ArtiSys
 
-Escopo desta entrega: fases 0 a 3. A pipeline `.woodpecker` do produto fica para a fase 4; portanto este branch nao dispara build automaticamente ainda.
+Escopo atual: fases 0 a 4, com Server, Tunnel publico, Agent Windows persistente e pipeline real do PDV.
 
 ## Fase 0 — baseline confirmado
 
@@ -8,7 +8,7 @@ Escopo desta entrega: fases 0 a 3. A pipeline `.woodpecker` do produto fica para
 - Runtime: Node >=22 + Electron.
 - Instalador: Electron Builder / NSIS x64, saida em `dist/`.
 - QA: runtime local em `qa/runtime`, com Playwright/Chromium.
-- O repositorio raiz nao possui `package-lock.json`; por isso o bootstrap do produto usa `npm install`. O runtime de QA possui lockfile e usa `npm ci --prefix qa/runtime`.
+- A raiz nao possui `package-lock.json`; por isso o bootstrap usa `npm install`. O runtime de QA possui lockfile e usa `npm ci --prefix qa/runtime`.
 
 ## Fase 1 — ArtiSys Release
 
@@ -18,12 +18,12 @@ Fluxo `full`:
 
 `deps -> lint -> test -> build/manifest -> installer -> qa`
 
-O wrapper `scripts/artisys-release.ps1` localiza o motor compartilhado em `utilidades/modules/artisys-release` e, por padrao, reaproveita o clone existente em `%USERPROFILE%\utilidades`.
+O wrapper `scripts/artisys-release.ps1` localiza o motor compartilhado `utilidades/modules/artisys-release`. No Agent homologado, `ARTISYS_UTILIDADES_PATH` aponta para `C:\VICTOR\Artisys\AgroFrota\utilidades`.
 
-Teste manual do motor, sem Woodpecker:
+Teste manual do motor:
 
 ```powershell
-.\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades
+.\scripts\artisys-release.ps1 -Profile full
 ```
 
 ## Fase 2 — Woodpecker Server
@@ -36,90 +36,72 @@ Arquivos:
 - `server/.env.example`
 - `server/start-server.ps1`
 
-### 1. Criar uma GitHub OAuth App
-
-No GitHub, crie uma **OAuth App** (nao GitHub App):
-
-- Homepage URL: o mesmo valor de `WOODPECKER_HOST`.
-- Authorization callback URL: `<WOODPECKER_HOST>/authorize`.
-
-O host precisa ser alcancavel pelo GitHub para receber webhooks. Um Cloudflare Tunnel pode ser usado como camada gratuita, mas credenciais e DNS nao sao armazenados neste repositorio.
-
-### 2. Preencher o `.env`
-
-```powershell
-Copy-Item .\infra\woodpecker\server\.env.example .\infra\woodpecker\server\.env
-notepad .\infra\woodpecker\server\.env
-```
-
-Preencha:
-
-- `WOODPECKER_HOST`
-- `WOODPECKER_GITHUB_CLIENT`
-- `WOODPECKER_GITHUB_SECRET`
-
-O `WOODPECKER_AGENT_SECRET` pode ficar vazio: `start-server.ps1` gera 32 bytes aleatorios e grava apenas no `.env` local. O `.env` esta ignorado pelo Git.
-
-### 3. Subir o server
-
-```powershell
-.\infra\woodpecker\server\start-server.ps1
-```
-
-Portas do piloto:
+Portas:
 
 - `8000`: interface HTTP do Woodpecker.
 - `9000`: gRPC para o Agent Windows.
 
+O `.env` local guarda OAuth GitHub e `WOODPECKER_AGENT_SECRET` e permanece ignorado pelo Git.
+
+O webhook publico usa `WOODPECKER_EXPERT_WEBHOOK_HOST=https://ci.artisys.dev`, entregue ao server local por Cloudflare Tunnel.
+
 ## Fase 3 — Agent Windows
 
-O Agent usa o backend `local`, portanto build Electron, NSIS e Playwright executam diretamente no Windows. Esse backend deve ser usado apenas com repositorios confiaveis.
+O Agent usa backend `local`, portanto Electron, NSIS e Playwright executam diretamente no Windows. Esse backend deve ser usado apenas com repositorios confiaveis.
 
-### 1. Instalar o Agent
+Componentes:
 
-```powershell
-.\infra\woodpecker\agent-windows\install-agent.ps1
-```
+- Woodpecker Agent 3.18.1.
+- plugin-git 2.10.1 no PATH do Agent.
+- `WOODPECKER_BACKEND=local`.
+- `WOODPECKER_MAX_WORKFLOWS=1`.
+- label `pilot=pdv-artisys`.
+- config local Windows em `%USERPROFILE%\ArtiSys\woodpecker-agent\agent.conf`.
 
-O script:
+O Agent e o Cloudflare Tunnel sao mantidos em segundo plano por tarefas agendadas do Windows.
 
-- valida Git, Node e npm;
-- baixa `woodpecker-agent` 3.18.1 para `%USERPROFILE%\ArtiSys\woodpecker-agent`;
-- baixa `plugin-git` 2.10.1 para permitir clone no backend local;
-- reutiliza/atualiza `%USERPROFILE%\utilidades` em vez de criar outro clone;
-- valida a existencia do `artisys-release` compartilhado.
+## Fase 4 — Pipeline real do PDV
 
-### 2. Iniciar o Agent
+Workflow: `.woodpecker/pdv-release.yaml`.
 
-Com server e agent na mesma maquina:
+Selecao do Agent:
 
-```powershell
-.\infra\woodpecker\agent-windows\start-agent.ps1
-```
+- `platform=windows/amd64`
+- `backend=local`
+- `pilot=pdv-artisys`
 
-O launcher le automaticamente `WOODPECKER_AGENT_SECRET` de `server/.env`, usa `localhost:9000`, backend `local`, um workflow por vez e label `pilot=pdv-artisys`.
+Disparos:
 
-Se o server estiver em outra maquina:
+- manual em qualquer branch;
+- push em `main`;
+- push no branch de homologacao `chore/woodpecker-pilot-phases-0-3`.
 
-```powershell
-.\infra\woodpecker\agent-windows\start-agent.ps1 -Server 'HOST:9000' -AgentSecret 'SEGREDO_DO_SERVER'
-```
+Fluxo:
 
-## Estado ao fim da fase 3
+1. valida Node, npm, Git e `ARTISYS_UTILIDADES_PATH`;
+2. chama `scripts/artisys-release.ps1 -Profile full`;
+3. o motor executa `deps -> lint -> test -> build -> installer -> qa`;
+4. valida o relatorio `artifacts/artisys-release-report.json`;
+5. confirma a existencia de `dist/ArtiSys-PDV-*-Setup.exe`.
 
-Preparado:
+A ordem `installer -> qa` e intencional: mesmo se o QA bloquear a entrega, o build do instalador ja foi produzido para diagnostico/homologacao.
 
-- PDV conectado ao motor `artisys-release`.
-- dependencias do PDV + runtime Playwright provisionaveis pelo release engine.
-- Woodpecker Server reproduzivel por Docker Compose.
-- SQLite persistente em volume Docker.
-- OAuth GitHub externalizada para `.env` local.
-- Agent Windows instalavel/reproduzivel.
-- `plugin-git` preparado para clone no backend local.
-- clone compartilhado de `utilidades` reutilizado.
+## Homologacao fisica realizada em 18/09/2026
 
-Ainda deliberadamente fora do escopo:
+Confirmado no Windows do piloto:
 
-- `.woodpecker/*.yaml` do PDV (fase 4).
-- publicacao automatica de GitHub Release.
-- auto-update do cliente.
+- container `artisys-woodpecker-server` healthy;
+- `http://localhost:8000/healthz` retorna `204`;
+- `https://ci.artisys.dev/healthz` retorna `204`;
+- Cloudflare Tunnel ativo;
+- `woodpecker-agent.exe` ativo;
+- tarefa `ArtiSys Woodpecker Agent` permanece em execucao (`LastTaskResult 267009`).
+
+## Proximas fases
+
+Ainda fora da fase 4:
+
+- primeiro run completo do pipeline e coleta das evidencias reais;
+- testes controlados de falha;
+- publicacao automatica em GitHub Release;
+- auto-update do cliente via `electron-updater`.
