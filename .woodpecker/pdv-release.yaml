@@ -8,7 +8,7 @@ when:
   - event: push
     branch:
       - main
-      - chore/woodpecker-pilot-phases-0-3
+      - feat/woodpecker-phases-5-8
 
 steps:
   - name: ambiente
@@ -50,18 +50,31 @@ steps:
       - 'Write-Host "[PDV Woodpecker] Installer: $($installer.FullName)"'
       - 'Write-Host "[PDV Woodpecker] Report: $reportPath"'
 
+  - name: reportar-sucesso-github
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+      ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
+      ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
+      ARTISYS_CI_RESULT: 'success'
+    commands:
+      - '$ErrorActionPreference = "Continue"'
+      - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
+      - 'if (Test-Path $reporter) { node $reporter } else { Write-Warning "Reporter compartilhado ausente." }'
+    failure: ignore
+
   - name: reportar-falha-github
     image: powershell.exe
     environment:
       ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
       ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
       ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
+      ARTISYS_CI_RESULT: 'failure'
     commands:
       - '$ErrorActionPreference = "Continue"'
       - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
       - 'if (-not (Test-Path $reporter)) { Write-Host "[PDV Woodpecker] Atualizando utilidades para obter artisys-ci-reporter..."; git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
-      - 'if (-not (Test-Path $reporter)) { throw "artisys-ci-reporter nao encontrado em $reporter" }'
-      - 'node $reporter'
+      - 'if (Test-Path $reporter) { node $reporter } else { Write-Warning "Reporter compartilhado ausente." }'
     when:
       - event: [push, manual]
         status: [failure]
