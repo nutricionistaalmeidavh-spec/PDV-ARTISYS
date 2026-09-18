@@ -107,3 +107,36 @@ test('publishGitHubFailure posts detailed status, commit comment and PR comment'
   assert.ok(calls.some((call) => call.url.endsWith('/commits/abcdef1234567890/comments')));
   assert.ok(calls.some((call) => call.url.endsWith('/issues/16/comments')));
 });
+
+test('publishGitHubFailure keeps commit reporting when PR lookup is not authorized', async () => {
+  const { publishGitHubFailure } = await loadModule();
+  const calls = [];
+  const fakeFetch = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    if (String(url).includes('/pulls?')) {
+      return { ok: false, status: 403, json: async () => ({}), text: async () => 'forbidden' };
+    }
+    return { ok: true, status: 201, json: async () => ({}), text: async () => '' };
+  };
+
+  const result = await publishGitHubFailure({
+    token: 'secret',
+    repo: 'nutricionistaalmeidavh-spec/PDV-ARTISYS',
+    sha: 'abcdef1234567890',
+    branch: 'main',
+    pipelineUrl: 'http://localhost:8000/repos/1/pipeline/12/1',
+    summary: {
+      failedStep: 'test',
+      exitCode: 1,
+      installerFound: false,
+      installerPath: null,
+      command: 'npm test',
+      errorExcerpt: '1 test failed',
+    },
+    fetchImpl: fakeFetch,
+  });
+
+  assert.equal(result.prNumber, null);
+  assert.ok(calls.some((call) => call.url.endsWith('/statuses/abcdef1234567890')));
+  assert.ok(calls.some((call) => call.url.endsWith('/commits/abcdef1234567890/comments')));
+});
