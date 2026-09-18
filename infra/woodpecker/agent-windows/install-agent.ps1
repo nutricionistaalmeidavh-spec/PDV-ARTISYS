@@ -2,7 +2,7 @@ param(
   [string]$Version = '3.18.1',
   [string]$PluginGitVersion = '2.10.1',
   [string]$InstallDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-agent'),
-  [string]$UtilidadesPath = (Join-Path $env:USERPROFILE 'ArtiSys\utilidades')
+  [string]$UtilidadesPath = (Join-Path $env:USERPROFILE 'utilidades')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,14 +41,14 @@ $utilidadesParent = Split-Path -Parent $UtilidadesPath
 New-Item -ItemType Directory -Force -Path $utilidadesParent | Out-Null
 
 if (Test-Path (Join-Path $UtilidadesPath '.git')) {
-  Write-Host '[Woodpecker Agent] Atualizando utilidades por fast-forward...'
+  Write-Host '[Woodpecker Agent] Reutilizando e atualizando o clone existente de utilidades...'
   & git -C $UtilidadesPath pull --ff-only
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao atualizar o repositorio utilidades.' }
 } else {
   if (Test-Path $UtilidadesPath) {
     $items = @(Get-ChildItem -Force $UtilidadesPath -ErrorAction SilentlyContinue)
     if ($items.Count -gt 0) {
-      throw "O caminho $UtilidadesPath existe e nao e um clone Git vazio/valido."
+      throw "O caminho $UtilidadesPath existe e nao e um clone Git vazio/valido. Informe -UtilidadesPath com o clone correto para evitar duplicacao."
     }
   }
   Write-Host '[Woodpecker Agent] Clonando utilidades (usa a autenticacao Git ja configurada neste PC)...'
