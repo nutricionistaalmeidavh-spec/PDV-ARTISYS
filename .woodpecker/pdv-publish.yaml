@@ -1,0 +1,62 @@
+labels:
+  platform: windows/amd64
+  backend: local
+  pilot: pdv-artisys
+
+when:
+  - event: tag
+    ref: refs/tags/v*
+
+steps:
+  - name: ambiente-release
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'New-Item -ItemType Directory -Force -Path ".\artifacts" | Out-Null'
+      - 'Write-Host "[PDV Release] tag=$env:CI_COMMIT_TAG sha=$env:CI_COMMIT_SHA"'
+      - 'node --version'
+      - 'docker --version'
+      - 'if (-not $env:GITHUB_RELEASE_TOKEN -and -not $env:GITHUB_REPORT_TOKEN) { throw "Token GitHub de release ausente no Agent." }'
+
+  - name: release-publicavel
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - '$logPath = ".\artifacts\woodpecker-release.log"'
+      - '"=== release tag $env:CI_COMMIT_TAG ===" | Set-Content -Path $logPath -Encoding utf8'
+      - '& .\scripts\artisys-release.ps1 -Profile release -UpdateUtilidades *>&1 | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+
+  - name: reportar-sucesso-github
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+      ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
+      ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
+      ARTISYS_CI_RESULT: 'success'
+      ARTISYS_COMMENT_SUCCESS: 'true'
+    commands:
+      - '$ErrorActionPreference = "Continue"'
+      - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
+      - 'node $reporter'
+    failure: ignore
+
+  - name: reportar-falha-github
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+      ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
+      ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
+      ARTISYS_CI_RESULT: 'failure'
+    commands:
+      - '$ErrorActionPreference = "Continue"'
+      - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
+      - 'if (-not (Test-Path $reporter)) { git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
+      - 'if (Test-Path $reporter) { node $reporter } else { Write-Warning "Reporter compartilhado ausente." }'
+    when:
+      - event: tag
+        status: [failure]
+    failure: ignore
