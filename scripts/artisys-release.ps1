@@ -79,4 +79,8 @@ try {
   Pop-Location
 }
 
+if (-not (Test-Path $reportPath)) {
+  throw "ArtiSys Release retornou sucesso sem gerar o relatorio esperado: $reportPath"
+}
+
 Write-Host "[ArtiSys Release] Concluido. Relatorio: $reportPath"
