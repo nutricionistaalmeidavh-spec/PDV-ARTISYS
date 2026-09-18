@@ -1,8 +1,8 @@
 param(
-  [string]$Server = 'localhost:9000',
-  [string]$AgentSecret = $env:ARTISYS_WOODPECKER_AGENT_SECRET,
+  [string]$Server = $(if ($env:WOODPECKER_SERVER) { $env:WOODPECKER_SERVER } else { 'localhost:9000' }),
+  [string]$AgentSecret = $(if ($env:WOODPECKER_AGENT_SECRET) { $env:WOODPECKER_AGENT_SECRET } else { $env:ARTISYS_WOODPECKER_AGENT_SECRET }),
   [string]$InstallDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-agent'),
-  [string]$UtilidadesPath = (Join-Path $env:USERPROFILE 'utilidades'),
+  [string]$UtilidadesPath = $(if ($env:ARTISYS_UTILIDADES_PATH) { $env:ARTISYS_UTILIDADES_PATH } else { Join-Path $env:USERPROFILE 'ArtiSys\utilidades' }),
   [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work')
 )
 
