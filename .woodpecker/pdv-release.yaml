@@ -42,12 +42,6 @@ steps:
       - '$ErrorActionPreference = "Stop"'
       - '& .\infra\woodpecker\health-check.ps1 -UtilidadesPath $env:ARTISYS_UTILIDADES_PATH -PipelineLogPath ".\artifacts\woodpecker-release.log"'
 
-  - name: validar-permissao-release
-    image: powershell.exe
-    commands:
-      - '$ErrorActionPreference = "Stop"'
-      - 'if ($env:CI_COMMIT_BRANCH -eq "feat/woodpecker-phases-5-8") { & .\scripts\test-github-release-permission.ps1 -LogPath ".\artifacts\woodpecker-release.log" } else { Write-Host "[PDV Release] smoke de permissao reservado ao branch de homologacao." }'
-
   - name: release-full
     image: powershell.exe
     environment:
@@ -71,6 +65,12 @@ steps:
       - 'if (-not $installer) { throw "Instalador ArtiSys-PDV não encontrado em dist/." }'
       - 'Write-Host "[PDV Woodpecker] Installer: $($installer.FullName)"'
       - 'Write-Host "[PDV Woodpecker] Report: $reportPath"'
+
+  - name: validar-permissao-release
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'if ($env:CI_COMMIT_BRANCH -eq "feat/woodpecker-phases-5-8") { & .\scripts\test-github-release-permission.ps1 -LogPath ".\artifacts\woodpecker-release.log" } else { Write-Host "[PDV Release] smoke de permissao reservado ao branch de homologacao." }'
 
   - name: reportar-sucesso-github
     image: powershell.exe
