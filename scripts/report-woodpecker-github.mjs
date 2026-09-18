@@ -43,6 +43,11 @@ async function findInstallers() {
 }
 
 async function main() {
+  if (!process.env.GITHUB_REPORT_TOKEN?.trim()) {
+    console.warn('[Woodpecker Reporter] GITHUB_REPORT_TOKEN nao configurado; publicacao no GitHub ignorada.');
+    return;
+  }
+
   const reportPath = path.join(repoRoot, 'artifacts', 'artisys-release-report.json');
   const logPath = path.join(repoRoot, 'artifacts', 'woodpecker-release.log');
   const [report, logText, installerPaths] = await Promise.all([
