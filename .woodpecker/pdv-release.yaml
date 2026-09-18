@@ -1,0 +1,68 @@
+labels:
+  platform: windows/amd64
+  backend: local
+  pilot: pdv-artisys
+
+when:
+  - event: manual
+  - event: push
+    branch:
+      - main
+      - chore/woodpecker-pilot-phases-0-3
+
+steps:
+  - name: ambiente
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'New-Item -ItemType Directory -Force -Path ".\artifacts" | Out-Null'
+      - '$logPath = ".\artifacts\woodpecker-release.log"'
+      - '"=== ambiente ===" | Set-Content -Path $logPath -Encoding utf8'
+      - '$out = @(node --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+      - '$out = @(npm --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+      - '$out = @(git --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+      - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
+      - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
+
+  - name: release-full
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - '$logPath = ".\artifacts\woodpecker-release.log"'
+      - '"=== release-full ===" | Add-Content -Path $logPath -Encoding utf8'
+      - 'Write-Host "[PDV Woodpecker] atualizando utilidades -> deps -> lint -> test -> build -> installer -> qa"'
+      - '& .\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades *>&1 | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+
+  - name: verificar-evidencias
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - '$reportPath = ".\artifacts\artisys-release-report.json"'
+      - 'if (-not (Test-Path $reportPath)) { throw "Relatorio artisys-release nao foi gerado." }'
+      - '$report = Get-Content $reportPath -Raw | ConvertFrom-Json'
+      - 'if ($report.status -ne "pass") { throw "artisys-release terminou com status $($report.status)." }'
+      - '$installer = Get-ChildItem ".\dist" -Filter "ArtiSys-PDV-*-Setup.exe" -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1'
+      - 'if (-not $installer) { throw "Instalador ArtiSys-PDV não encontrado em dist/." }'
+      - 'Write-Host "[PDV Woodpecker] Installer: $($installer.FullName)"'
+      - 'Write-Host "[PDV Woodpecker] Report: $reportPath"'
+
+  - name: reportar-falha-github
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+      ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
+      ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
+    commands:
+      - '$ErrorActionPreference = "Continue"'
+      - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
+      - 'if (-not (Test-Path $reporter)) { Write-Host "[PDV Woodpecker] Atualizando utilidades para obter artisys-ci-reporter..."; git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
+      - 'if (-not (Test-Path $reporter)) { throw "artisys-ci-reporter nao encontrado em $reporter" }'
+      - 'node $reporter'
+    when:
+      - event: [push, manual]
+        status: [failure]
+    failure: ignore

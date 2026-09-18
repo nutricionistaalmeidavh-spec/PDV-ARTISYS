@@ -1,0 +1,22 @@
+{
+  "product": "PDV-ARTISYS",
+  "version": "1.3.2",
+  "profile": "full",
+  "requiredSteps": ["deps", "lint", "test", "build", "installer", "qa"],
+  "steps": {
+    "deps": "npm install --no-audit --no-fund && npm ci --prefix qa/runtime --no-audit --no-fund && cd qa/runtime && npx playwright install chromium && cd ../..",
+    "lint": "npm run docs:check && npm run lint:eventbus && npm run lint:core && npm run lint:desktop && npm run lint:commercial-media",
+    "test": "npm test",
+    "build": "npm run release:manifest",
+    "installer": "npm run dist:win",
+    "qa": "npm run qa:full"
+  },
+  "reportPath": "artifacts/artisys-release-report.json",
+  "metadata": {
+    "runtime": "windows/amd64",
+    "releaseEngine": "utilidades/modules/artisys-release",
+    "installer": "Electron Builder + NSIS",
+    "qa": "artisys-qa 2.4.1 + Playwright 1.62.1/Chromium",
+    "pilot": "woodpecker"
+  }
+}
