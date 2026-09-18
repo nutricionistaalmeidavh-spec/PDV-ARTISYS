@@ -40,3 +40,14 @@ test('release QA always exports its structured summary before failing the wrappe
   assert.ok(wrapperFailureIndex >= 0, 'o wrapper deve manter erro explícito de qa:user:all');
   assert.ok(copyIndex < wrapperFailureIndex, 'o resumo estruturado precisa ser exportado antes do throw');
 });
+
+test('release QA preserves raw log and synthesizes reporter summary when runtime summary is missing', () => {
+  const gate = read('scripts/qa-release-full.ps1');
+  assert.match(gate, /qa-user-all\.log/);
+  assert.match(gate, /Write-FallbackQaSummary/);
+  assert.match(gate, /lastFlow/);
+  assert.match(gate, /lastFailure/);
+  assert.match(gate, /qa-summary-missing/);
+  assert.match(gate, /qa-exit-without-failed-flow/);
+  assert.doesNotMatch(gate, /throw \"QA-SUMMARY\.json nao encontrado apos qa:user:all/);
+});
