@@ -36,8 +36,18 @@ $engine = Join-Path $resolvedUtilidades 'modules\artisys-release\bin\artisys-rel
 
 if ($UpdateUtilidades) {
   Write-Host '[ArtiSys Release] Atualizando utilidades por fast-forward...'
-  & git -C $resolvedUtilidades pull --ff-only
-  if ($LASTEXITCODE -ne 0) { throw 'Falha ao atualizar utilidades.' }
+  $previousErrorActionPreference = $ErrorActionPreference
+  $gitExitCode = $null
+  try {
+    # Git escreve progresso normal em stderr. No Windows PowerShell 5 isso vira
+    # NativeCommandError quando ErrorActionPreference=Stop; use o exit code real.
+    $ErrorActionPreference = 'Continue'
+    & git -C $resolvedUtilidades pull --ff-only
+    $gitExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($gitExitCode -ne 0) { throw "Falha ao atualizar utilidades (git exit $gitExitCode)." }
 }
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
@@ -53,9 +63,17 @@ Write-Host "[ArtiSys Release] Config: $configPath"
 
 Push-Location $repoRoot
 try {
-  & node $engine $configPath --profile $Profile --report $reportPath
-  if ($LASTEXITCODE -ne 0) {
-    throw "ArtiSys Release falhou com codigo $LASTEXITCODE."
+  $previousErrorActionPreference = $ErrorActionPreference
+  $nodeExitCode = $null
+  try {
+    $ErrorActionPreference = 'Continue'
+    & node $engine $configPath --profile $Profile --report $reportPath
+    $nodeExitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+  if ($nodeExitCode -ne 0) {
+    throw "ArtiSys Release falhou com codigo $nodeExitCode."
   }
 } finally {
   Pop-Location
