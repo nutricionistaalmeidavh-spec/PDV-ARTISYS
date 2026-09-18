@@ -13,6 +13,8 @@ when:
 steps:
   - name: ambiente
     image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
       - 'node --version'
@@ -23,6 +25,8 @@ steps:
 
   - name: release-full
     image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
       - 'Write-Host "[PDV Woodpecker] deps -> lint -> test -> build -> installer -> qa"'
