@@ -2,7 +2,10 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $server=Join-Path $root 'infra\woodpecker\server'
 $agent=Join-Path $root 'infra\woodpecker\agent-windows'
-$util=Join-Path $env:USERPROFILE 'utilidades'
+$workspace='C:\VICTOR'
+$util=Join-Path $workspace 'Artisys\AgroFrota\utilidades'
+
+if(-not (Test-Path (Join-Path $util '.git'))){throw "utilidades nao encontrado no workspace esperado: $util"}
 
 $hostUrl=Read-Host 'Host [http://localhost:8000]'
 if([string]::IsNullOrWhiteSpace($hostUrl)){$hostUrl='http://localhost:8000'}
