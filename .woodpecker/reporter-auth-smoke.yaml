@@ -1,0 +1,27 @@
+skip_clone: true
+
+labels:
+  platform: windows/amd64
+  backend: local
+  pilot: pdv-artisys
+
+when:
+  - event: push
+    branch:
+      - chore/woodpecker-pilot-phases-0-3
+
+steps:
+  - name: reporter-auth
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'if ([string]::IsNullOrWhiteSpace($env:GITHUB_REPORT_TOKEN)) { throw "GITHUB_REPORT_TOKEN ausente no processo do Agent." }'
+      - '$headers = @{ Accept = "application/vnd.github+json"; Authorization = "Bearer $env:GITHUB_REPORT_TOKEN"; "X-GitHub-Api-Version" = "2022-11-28"; "User-Agent" = "artisys-reporter-smoke" }'
+      - '$repo = $env:CI_REPO'
+      - '$sha = $env:CI_COMMIT_SHA'
+      - 'Invoke-RestMethod -Method Get -Uri "https://api.github.com/repos/$repo" -Headers $headers | Out-Null'
+      - '$statusBody = @{ state = "success"; context = "ci/woodpecker/reporter-auth-smoke"; description = "Reporter token and permissions validated"; target_url = "https://ci.artisys.dev" } | ConvertTo-Json'
+      - 'Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/statuses/$sha" -Headers $headers -ContentType "application/json" -Body $statusBody | Out-Null'
+      - '$commentBody = @{ body = "<!-- artisys-reporter-auth-smoke -->`nArtiSys Woodpecker reporter smoke: token, repository access and commit status/comment permissions validated for ``$($sha.Substring(0,12))``." } | ConvertTo-Json'
+      - 'Invoke-RestMethod -Method Post -Uri "https://api.github.com/repos/$repo/commits/$sha/comments" -Headers $headers -ContentType "application/json" -Body $commentBody | Out-Null'
+      - 'Write-Host "[Reporter Smoke] OK"'
