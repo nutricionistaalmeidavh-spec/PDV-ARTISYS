@@ -52,9 +52,16 @@ steps:
 
   - name: reportar-falha-github
     image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+      ARTISYS_INSTALLER_PATTERN: '^ArtiSys-PDV-.*-Setup\.exe$'
+      ARTISYS_STATUS_CONTEXT: 'ci/woodpecker/pdv-release-detail'
     commands:
       - '$ErrorActionPreference = "Continue"'
-      - 'node .\scripts\report-woodpecker-github.mjs'
+      - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
+      - 'if (-not (Test-Path $reporter)) { Write-Host "[PDV Woodpecker] Atualizando utilidades para obter artisys-ci-reporter..."; git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
+      - 'if (-not (Test-Path $reporter)) { throw "artisys-ci-reporter nao encontrado em $reporter" }'
+      - 'node $reporter'
     when:
       - event: [push, manual]
         status: [failure]
