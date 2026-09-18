@@ -2,7 +2,8 @@ param(
   [switch]$Repair,
   [string]$UtilidadesPath = 'C:\VICTOR\Artisys\AgroFrota\utilidades',
   [string]$WorkDir = (Join-Path $env:USERPROFILE 'ArtiSys\woodpecker-work'),
-  [string]$PublicHealth = 'https://ci.artisys.dev/healthz'
+  [string]$PublicHealth = 'https://ci.artisys.dev/healthz',
+  [string]$PipelineLogPath = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -94,6 +95,14 @@ $state = [ordered]@{
 $line = ($state | ConvertTo-Json -Compress)
 Add-Content -Path $healthLog -Value $line -Encoding UTF8
 Write-Host $line
+if ($PipelineLogPath) {
+  '=== health-ci ===' | Add-Content -Path $PipelineLogPath -Encoding UTF8
+  $line | Add-Content -Path $PipelineLogPath -Encoding UTF8
+}
 
-if (-not ($docker -and $server -and $public -and $agent -and $tunnel -and $releaseEngine -and $reporter)) { exit 1 }
-exit 0
+$healthy = ($docker -and $server -and $public -and $agent -and $tunnel -and $releaseEngine -and $reporter)
+if (-not $healthy) {
+  $message = "Health check falhou: docker=$docker server=$server public=$public agent=$agent tunnel=$tunnel releaseEngine=$releaseEngine reporter=$reporter"
+  if ($PipelineLogPath) { $message | Add-Content -Path $PipelineLogPath -Encoding UTF8 }
+  throw $message
+}
