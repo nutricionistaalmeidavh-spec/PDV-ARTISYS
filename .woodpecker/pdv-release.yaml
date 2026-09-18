@@ -26,6 +26,40 @@ steps:
       - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
       - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
 
+  - name: validar-core-compartilhado
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Falha ao atualizar utilidades." }'
+      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-release" test'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-release falharam." }'
+      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-release" run check'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Check artisys-release falhou." }'
+      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-ci-reporter" test'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-ci-reporter falharam." }'
+      - 'npm --prefix "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-ci-reporter" run check'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Check artisys-ci-reporter falhou." }'
+      - 'py -3 -m unittest discover -s "$env:ARTISYS_UTILIDADES_PATH\modules\artisys-security\tests" -v'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Testes artisys-security falharam." }'
+
+  - name: health-ci
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - '& .\infra\woodpecker\health-check.ps1 -UtilidadesPath $env:ARTISYS_UTILIDADES_PATH'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Health check do host Woodpecker falhou." }'
+
+  - name: validar-permissao-release
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'if ($env:CI_COMMIT_BRANCH -eq "feat/woodpecker-phases-5-8") { & .\scripts\test-github-release-permission.ps1 } else { Write-Host "[PDV Release] smoke de permissao reservado ao branch de homologacao." }'
+
   - name: release-full
     image: powershell.exe
     environment:
@@ -34,7 +68,7 @@ steps:
       - '$ErrorActionPreference = "Stop"'
       - '$logPath = ".\artifacts\woodpecker-release.log"'
       - '"=== release-full ===" | Add-Content -Path $logPath -Encoding utf8'
-      - 'Write-Host "[PDV Woodpecker] atualizando utilidades -> deps -> lint -> test -> build -> installer -> qa"'
+      - 'Write-Host "[PDV Woodpecker] deps -> lint -> test -> build -> installer -> qa"'
       - '& .\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades *>&1 | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
 
   - name: verificar-evidencias
@@ -73,7 +107,7 @@ steps:
     commands:
       - '$ErrorActionPreference = "Continue"'
       - '$reporter = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs"'
-      - 'if (-not (Test-Path $reporter)) { Write-Host "[PDV Woodpecker] Atualizando utilidades para obter artisys-ci-reporter..."; git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
+      - 'if (-not (Test-Path $reporter)) { git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
       - 'if (Test-Path $reporter) { node $reporter } else { Write-Warning "Reporter compartilhado ausente." }'
     when:
       - event: [push, manual]
