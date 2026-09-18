@@ -43,7 +43,7 @@ $env:WOODPECKER_AGENT_CONFIG_FILE = $agentConfig
 $env:WOODPECKER_BACKEND = 'local'
 $env:WOODPECKER_BACKEND_LOCAL_TEMP_DIR = $WorkDir
 $env:WOODPECKER_MAX_WORKFLOWS = '1'
-$env:WOODPECKER_AGENT_LABELS = 'privilege=elevated,owner=artisys'
+$env:WOODPECKER_AGENT_LABELS = 'repo=nutricionistaalmeidavh-spec/OBRANAMAOCOMERCIAL,!privilege=elevated,owner=artisys'
 $env:WOODPECKER_HOSTNAME = "$env:COMPUTERNAME-artisys-elevated"
 $env:ARTISYS_UTILIDADES_PATH = $UtilidadesPath
 $env:ARTISYS_AGENT_PRIVILEGE = 'elevated'
@@ -60,7 +60,8 @@ Write-Host "[Woodpecker Elevated] Server: $Server"
 Write-Host "[Woodpecker Elevated] Config: $agentConfig"
 Write-Host "[Woodpecker Elevated] Workspace: $WorkDir"
 Write-Host "[Woodpecker Elevated] utilidades: $UtilidadesPath"
-Write-Host '[Woodpecker Elevated] Labels: privilege=elevated, owner=artisys'
+Write-Host '[Woodpecker Elevated] Repo: nutricionistaalmeidavh-spec/OBRANAMAOCOMERCIAL'
+Write-Host '[Woodpecker Elevated] Labels: !privilege=elevated, owner=artisys'
 Write-Host '[Woodpecker Elevated] Max workflows: 1'
 
 $previousErrorActionPreference = $ErrorActionPreference
