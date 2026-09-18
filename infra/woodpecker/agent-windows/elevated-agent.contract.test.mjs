@@ -7,6 +7,8 @@ const read = (name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8
 test('elevated launcher uses isolated local backend identity', () => {
   const script = read('start-elevated-agent.ps1');
   assert.match(script, /ServerEnvPath/);
+  assert.match(script, /agent-elevated\.conf/i);
+  assert.doesNotMatch(script, /Join-Path\s+\$InstallDir\s+['"]agent\.conf['"]/i);
   assert.match(script, /WOODPECKER_BACKEND\s*=\s*'local'/);
   assert.match(script, /privilege=elevated/);
   assert.match(script, /owner=artisys/);
