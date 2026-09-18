@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $agentExe = Join-Path $InstallDir 'woodpecker-agent.exe'
 $pluginGit = Join-Path $InstallDir 'plugin-git.exe'
-$agentConfig = Join-Path $InstallDir 'agent.conf'
+$agentConfig = Join-Path $InstallDir 'agent-elevated.conf'
 $policyCli = Join-Path $UtilidadesPath 'modules\artisys-windows-ci\bin\artisys-windows-ci.mjs'
 
 if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
@@ -57,6 +57,7 @@ if (Test-Path $GitHubReportTokenFile) {
 
 Write-Host '[Woodpecker Elevated] Iniciando Agent administrativo ArtiSys...'
 Write-Host "[Woodpecker Elevated] Server: $Server"
+Write-Host "[Woodpecker Elevated] Config: $agentConfig"
 Write-Host "[Woodpecker Elevated] Workspace: $WorkDir"
 Write-Host "[Woodpecker Elevated] utilidades: $UtilidadesPath"
 Write-Host '[Woodpecker Elevated] Labels: privilege=elevated, owner=artisys'
