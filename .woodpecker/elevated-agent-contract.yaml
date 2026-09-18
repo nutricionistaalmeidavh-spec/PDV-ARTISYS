@@ -1,0 +1,19 @@
+labels:
+  platform: windows/amd64
+  backend: local
+  pilot: pdv-artisys
+
+when:
+  - event: manual
+  - event: push
+    branch:
+      - main
+      - feat/woodpecker-elevated-agent
+
+steps:
+  - name: elevated-agent-contract
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'node --test .\infra\woodpecker\agent-windows\elevated-agent.contract.test.mjs'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Contrato do Agent elevado falhou." }'
