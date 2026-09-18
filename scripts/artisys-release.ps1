@@ -12,6 +12,7 @@ $reportPath = Join-Path $repoRoot 'artifacts\artisys-release-report.json'
 
 $candidates = @()
 if ($UtilidadesPath) { $candidates += $UtilidadesPath }
+$candidates += (Join-Path $env:USERPROFILE 'ArtiSys\utilidades')
 $candidates += 'C:\ArtiSys\utilidades'
 $candidates += (Join-Path (Split-Path -Parent $repoRoot) 'utilidades')
 $candidates += (Join-Path (Split-Path -Parent $repoRoot) 'RepoUteis')
@@ -27,7 +28,7 @@ foreach ($candidate in $candidates | Select-Object -Unique) {
 }
 
 if (-not $resolvedUtilidades) {
-  throw 'Repo utilidades nao encontrado. Defina ARTISYS_UTILIDADES_PATH ou mantenha-o em C:\ArtiSys\utilidades.'
+  throw 'Repo utilidades nao encontrado. Defina ARTISYS_UTILIDADES_PATH ou instale-o em %USERPROFILE%\ArtiSys\utilidades.'
 }
 
 $engine = Join-Path $resolvedUtilidades 'modules\artisys-release\bin\artisys-release.mjs'
