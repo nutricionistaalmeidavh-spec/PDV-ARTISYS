@@ -1,6 +1,6 @@
 {
   "product": "PDV-ARTISYS",
-  "version": "1.3.2",
+  "version": "1.3.5",
   "profile": "full",
   "requiredSteps": ["deps", "lint", "test", "build", "installer", "qa"],
   "requiredStepsByProfile": {
