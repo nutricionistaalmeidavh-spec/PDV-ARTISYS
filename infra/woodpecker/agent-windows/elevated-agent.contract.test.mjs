@@ -9,6 +9,7 @@ test('elevated launcher uses isolated local backend identity', () => {
   assert.match(script, /ServerEnvPath/);
   assert.match(script, /agent-elevated\.conf/i);
   assert.doesNotMatch(script, /Join-Path\s+\$InstallDir\s+['"]agent\.conf['"]/i);
+  assert.doesNotMatch(script, /WOODPECKER_GRPC_ADDR/i, 'server listen address must not replace the agent client address');
   assert.match(script, /WOODPECKER_BACKEND\s*=\s*'local'/);
   assert.match(script, /repo=nutricionistaalmeidavh-spec\/OBRANAMAOCOMERCIAL/i);
   assert.match(script, /!privilege=elevated/i);
