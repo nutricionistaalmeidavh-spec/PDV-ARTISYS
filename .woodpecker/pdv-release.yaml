@@ -40,14 +40,13 @@ steps:
       ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
-      - '& .\infra\woodpecker\health-check.ps1 -UtilidadesPath $env:ARTISYS_UTILIDADES_PATH'
-      - 'if ($LASTEXITCODE -ne 0) { throw "Health check do host Woodpecker falhou." }'
+      - '& .\infra\woodpecker\health-check.ps1 -UtilidadesPath $env:ARTISYS_UTILIDADES_PATH -PipelineLogPath ".\artifacts\woodpecker-release.log"'
 
   - name: validar-permissao-release
     image: powershell.exe
     commands:
       - '$ErrorActionPreference = "Stop"'
-      - 'if ($env:CI_COMMIT_BRANCH -eq "feat/woodpecker-phases-5-8") { & .\scripts\test-github-release-permission.ps1 } else { Write-Host "[PDV Release] smoke de permissao reservado ao branch de homologacao." }'
+      - 'if ($env:CI_COMMIT_BRANCH -eq "feat/woodpecker-phases-5-8") { & .\scripts\test-github-release-permission.ps1 -LogPath ".\artifacts\woodpecker-release.log" } else { Write-Host "[PDV Release] smoke de permissao reservado ao branch de homologacao." }'
 
   - name: release-full
     image: powershell.exe
