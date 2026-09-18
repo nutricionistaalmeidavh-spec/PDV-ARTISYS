@@ -12,6 +12,7 @@ $agentExe = Join-Path $InstallDir 'woodpecker-agent.exe'
 $pluginGit = Join-Path $InstallDir 'plugin-git.exe'
 $agentConfig = Join-Path $InstallDir 'agent.conf'
 $engine = Join-Path $UtilidadesPath 'modules\artisys-release\bin\artisys-release.mjs'
+$reporter = Join-Path $UtilidadesPath 'modules\artisys-ci-reporter\bin\artisys-ci-reporter.mjs'
 
 if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
   $woodpeckerRoot = Split-Path -Parent $PSScriptRoot
@@ -22,13 +23,11 @@ if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
   }
 }
 
-if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
-  throw 'WOODPECKER_AGENT_SECRET ausente. Execute o server primeiro ou informe -AgentSecret.'
-}
-
+if ([string]::IsNullOrWhiteSpace($AgentSecret)) { throw 'WOODPECKER_AGENT_SECRET ausente. Execute o server primeiro ou informe -AgentSecret.' }
 if (-not (Test-Path $agentExe)) { throw "Agent nao instalado em $agentExe. Rode install-agent.ps1 primeiro." }
 if (-not (Test-Path $pluginGit)) { throw "plugin-git nao instalado em $pluginGit. Rode install-agent.ps1 primeiro." }
 if (-not (Test-Path $engine)) { throw "artisys-release nao encontrado em $engine." }
+if (-not (Test-Path $reporter)) { Write-Warning "artisys-ci-reporter ainda nao existe no clone local: $reporter" }
 if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git nao encontrado no PATH.' }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js nao encontrado no PATH.' }
 
@@ -50,6 +49,7 @@ if (Test-Path $GitHubReportTokenFile) {
   $reportToken = (Get-Content $GitHubReportTokenFile -Raw).Trim()
   if (-not [string]::IsNullOrWhiteSpace($reportToken)) {
     $env:GITHUB_REPORT_TOKEN = $reportToken
+    if ([string]::IsNullOrWhiteSpace($env:GITHUB_RELEASE_TOKEN)) { $env:GITHUB_RELEASE_TOKEN = $reportToken }
   }
 }
 
@@ -60,22 +60,16 @@ Write-Host "[Woodpecker Agent] Workspace: $WorkDir"
 Write-Host "[Woodpecker Agent] Config: $agentConfig"
 Write-Host "[Woodpecker Agent] utilidades: $UtilidadesPath"
 Write-Host "[Woodpecker Agent] Reporter GitHub: $(if ($env:GITHUB_REPORT_TOKEN) { 'configurado' } else { 'nao configurado' })"
+Write-Host "[Woodpecker Agent] Release GitHub: $(if ($env:GITHUB_RELEASE_TOKEN) { 'configurado' } else { 'nao configurado' })"
 Write-Host '[Woodpecker Agent] Max workflows: 1'
 Write-Host '[Woodpecker Agent] ATENCAO: backend local executa comandos diretamente neste Windows; use apenas repositorios confiaveis.'
 
-# O Woodpecker escreve logs informativos no stderr. No Windows PowerShell 5,
-# ErrorActionPreference=Stop converte esse stderr em NativeCommandError e encerra o launcher.
-# Para executaveis nativos, use o codigo de saida como fonte de verdade.
 $previousErrorActionPreference = $ErrorActionPreference
 $nativeExitCode = $null
 try {
   $ErrorActionPreference = 'Continue'
   & $agentExe
   $nativeExitCode = $LASTEXITCODE
-} finally {
-  $ErrorActionPreference = $previousErrorActionPreference
-}
+} finally { $ErrorActionPreference = $previousErrorActionPreference }
 
-if ($nativeExitCode -ne 0) {
-  throw "Woodpecker Agent encerrou com codigo $nativeExitCode."
-}
+if ($nativeExitCode -ne 0) { throw "Woodpecker Agent encerrou com codigo $nativeExitCode." }
