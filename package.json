@@ -1,6 +1,6 @@
 {
   "name": "pdv-artisys",
-  "version": "1.3.2",
+  "version": "1.3.5",
   "private": true,
   "description": "PDV desktop local-first da ArtiSys com servidor LAN central, EventBus duravel, módulos opcionais e UI operacional.",
   "main": "desktop/updater-main.cjs",
