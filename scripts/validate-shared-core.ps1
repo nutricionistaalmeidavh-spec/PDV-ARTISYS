@@ -38,6 +38,8 @@ Invoke-NativeChecked 'testes artisys-release' { npm --prefix "$UtilidadesPath\mo
 Invoke-NativeChecked 'check artisys-release' { npm --prefix "$UtilidadesPath\modules\artisys-release" run check }
 Invoke-NativeChecked 'testes artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" test }
 Invoke-NativeChecked 'check artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" run check }
+Invoke-NativeChecked 'testes artisys-qa' { npm --prefix "$UtilidadesPath\modules\artisys-qa" test }
+Invoke-NativeChecked 'check artisys-qa' { npm --prefix "$UtilidadesPath\modules\artisys-qa" run check }
 Invoke-NativeChecked 'testes artisys-security' { py -3 -m unittest discover -s "$UtilidadesPath\modules\artisys-security\tests" -v }
 
 Write-Host '[Core] Modulos compartilhados aprovados.'
