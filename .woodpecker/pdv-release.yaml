@@ -17,9 +17,12 @@ steps:
       ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
-      - 'node --version'
-      - 'npm --version'
-      - 'git --version'
+      - 'New-Item -ItemType Directory -Force -Path ".\artifacts" | Out-Null'
+      - '$logPath = ".\artifacts\woodpecker-release.log"'
+      - '"=== ambiente ===" | Set-Content -Path $logPath -Encoding utf8'
+      - 'node --version 2>&1 | Tee-Object -FilePath $logPath -Append'
+      - 'npm --version 2>&1 | Tee-Object -FilePath $logPath -Append'
+      - 'git --version 2>&1 | Tee-Object -FilePath $logPath -Append'
       - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
       - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
 
@@ -29,8 +32,10 @@ steps:
       ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
     commands:
       - '$ErrorActionPreference = "Stop"'
+      - '$logPath = ".\artifacts\woodpecker-release.log"'
+      - '"=== release-full ===" | Add-Content -Path $logPath -Encoding utf8'
       - 'Write-Host "[PDV Woodpecker] deps -> lint -> test -> build -> installer -> qa"'
-      - '& .\scripts\artisys-release.ps1 -Profile full'
+      - '& .\scripts\artisys-release.ps1 -Profile full *>&1 | Tee-Object -FilePath $logPath -Append'
 
   - name: verificar-evidencias
     image: powershell.exe
@@ -44,3 +49,15 @@ steps:
       - 'if (-not $installer) { throw "Instalador ArtiSys-PDV não encontrado em dist/." }'
       - 'Write-Host "[PDV Woodpecker] Installer: $($installer.FullName)"'
       - 'Write-Host "[PDV Woodpecker] Report: $reportPath"'
+
+  - name: reportar-falha-github
+    image: powershell.exe
+    environment:
+      GITHUB_REPORT_TOKEN:
+        from_secret: github_report_token
+    commands:
+      - '$ErrorActionPreference = "Continue"'
+      - 'node .\scripts\report-woodpecker-github.mjs'
+    when:
+      - status: [failure]
+    failure: ignore
