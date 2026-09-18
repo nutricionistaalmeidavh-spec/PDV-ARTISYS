@@ -22,8 +22,6 @@ if ([string]::IsNullOrWhiteSpace($AgentSecret)) {
   if (Test-Path $ServerEnvPath) {
     $secretLine = Get-Content $ServerEnvPath | Where-Object { $_ -match '^WOODPECKER_AGENT_SECRET=' } | Select-Object -Last 1
     if ($secretLine) { $AgentSecret = ($secretLine -split '=', 2)[1].Trim() }
-    $serverLine = Get-Content $ServerEnvPath | Where-Object { $_ -match '^WOODPECKER_GRPC_ADDR=' } | Select-Object -Last 1
-    if ($serverLine -and -not $env:WOODPECKER_SERVER) { $Server = ($serverLine -split '=', 2)[1].Trim() }
   }
 }
 
