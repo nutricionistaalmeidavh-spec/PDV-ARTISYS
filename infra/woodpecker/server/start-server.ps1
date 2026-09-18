@@ -66,7 +66,7 @@ if ([string]::IsNullOrWhiteSpace($client)) { $missing += 'WOODPECKER_GITHUB_CLIE
 if ([string]::IsNullOrWhiteSpace($clientSecret)) { $missing += 'WOODPECKER_GITHUB_SECRET' }
 
 if ($missing.Count -gt 0) {
-  throw "Preencha no arquivo $envPath: $($missing -join ', '). O GitHub exige uma OAuth App com callback <WOODPECKER_HOST>/authorize."
+  throw "Preencha no arquivo ${envPath}: $($missing -join ', '). O GitHub exige uma OAuth App com callback <WOODPECKER_HOST>/authorize."
 }
 
 Push-Location $scriptRoot
