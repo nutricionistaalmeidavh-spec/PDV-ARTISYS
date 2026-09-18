@@ -20,9 +20,9 @@ steps:
       - 'New-Item -ItemType Directory -Force -Path ".\artifacts" | Out-Null'
       - '$logPath = ".\artifacts\woodpecker-release.log"'
       - '"=== ambiente ===" | Set-Content -Path $logPath -Encoding utf8'
-      - 'node --version 2>&1 | Tee-Object -FilePath $logPath -Append'
-      - 'npm --version 2>&1 | Tee-Object -FilePath $logPath -Append'
-      - 'git --version 2>&1 | Tee-Object -FilePath $logPath -Append'
+      - '$out = @(node --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+      - '$out = @(npm --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
+      - '$out = @(git --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
       - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
       - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
 
@@ -35,7 +35,7 @@ steps:
       - '$logPath = ".\artifacts\woodpecker-release.log"'
       - '"=== release-full ===" | Add-Content -Path $logPath -Encoding utf8'
       - 'Write-Host "[PDV Woodpecker] atualizando utilidades -> deps -> lint -> test -> build -> installer -> qa"'
-      - '& .\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades *>&1 | Tee-Object -FilePath $logPath -Append'
+      - '& .\scripts\artisys-release.ps1 -Profile full -UpdateUtilidades *>&1 | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
 
   - name: verificar-evidencias
     image: powershell.exe
