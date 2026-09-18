@@ -1,4 +1,4 @@
-# ArtiSys PDV 1.3.2
+# ArtiSys PDV 1.3.4
 
 PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
 
@@ -111,7 +111,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reut
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.3.2.
+- Windows x64 é o alvo de empacotamento comercial 1.3.4.
 
 ```bash
 npm install
@@ -150,7 +150,7 @@ Isso permite oferecer compatibilidade por protocolo sem fingir homologação de 
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.3.2 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.3.4 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -161,7 +161,7 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.2-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.4-x64-Setup.exe
 ```
 
 `docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
