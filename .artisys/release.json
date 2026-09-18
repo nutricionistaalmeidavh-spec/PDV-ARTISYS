@@ -1,0 +1,22 @@
+{
+  "product": "PDV-ARTISYS",
+  "version": "1.3.2",
+  "profile": "full",
+  "requiredSteps": ["deps", "lint", "test", "build", "installer", "qa"],
+  "steps": {
+    "deps": "npm ci",
+    "lint": "npm run docs:check && npm run lint:eventbus && npm run lint:core && npm run lint:desktop && npm run lint:commercial-media",
+    "test": "npm test",
+    "build": "npm run release:manifest",
+    "installer": "npm run dist:win",
+    "qa": "npm run qa:full"
+  },
+  "reportPath": "artifacts/artisys-release-report.json",
+  "metadata": {
+    "runtime": "windows/amd64",
+    "releaseEngine": "utilidades/modules/artisys-release",
+    "installer": "Electron Builder + NSIS",
+    "qa": "artisys-qa + Playwright",
+    "pilot": "woodpecker"
+  }
+}
