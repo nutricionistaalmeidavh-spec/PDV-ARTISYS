@@ -54,7 +54,19 @@ Write-Host "[Woodpecker Agent] utilidades: $UtilidadesPath"
 Write-Host '[Woodpecker Agent] Max workflows: 1'
 Write-Host '[Woodpecker Agent] ATENCAO: backend local executa comandos diretamente neste Windows; use apenas repositorios confiaveis.'
 
-& $agentExe
-if ($LASTEXITCODE -ne 0) {
-  throw "Woodpecker Agent encerrou com codigo $LASTEXITCODE."
+# O Woodpecker escreve logs informativos no stderr. No Windows PowerShell 5,
+# ErrorActionPreference=Stop converte esse stderr em NativeCommandError e encerra o launcher.
+# Para executaveis nativos, use o codigo de saida como fonte de verdade.
+$previousErrorActionPreference = $ErrorActionPreference
+$nativeExitCode = $null
+try {
+  $ErrorActionPreference = 'Continue'
+  & $agentExe
+  $nativeExitCode = $LASTEXITCODE
+} finally {
+  $ErrorActionPreference = $previousErrorActionPreference
+}
+
+if ($nativeExitCode -ne 0) {
+  throw "Woodpecker Agent encerrou com codigo $nativeExitCode."
 }
