@@ -1,0 +1,22 @@
+.updater-status {
+  border: 1px solid rgba(15, 23, 42, .14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .88);
+  color: #0f172a;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.updater-status:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(15, 23, 42, .10);
+}
+
+.updater-status.hidden {
+  display: none;
+}
