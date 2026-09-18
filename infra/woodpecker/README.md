@@ -100,15 +100,23 @@ O reporter:
 - publica o diagnostico completo como comentario no commit;
 - quando encontra PR aberto da branch, tenta repetir o mesmo diagnostico como comentario no PR.
 
-O segredo nunca fica no repositorio. O step recebe `GITHUB_REPORT_TOKEN` a partir do secret Woodpecker `github_report_token`.
+O token nunca fica no repositorio nem no YAML. O Agent le `C:\ProgramData\ArtiSys\github-report-token.txt` durante a inicializacao e expoe `GITHUB_REPORT_TOKEN` apenas ao processo local. O backend `local` herda esse ambiente.
 
-Permissoes recomendadas para um Fine-grained GitHub PAT restrito ao repositorio `PDV-ARTISYS`:
+Configuracao local segura:
 
-- Contents: Read;
+```powershell
+.\infra\woodpecker\configure-github-reporter.ps1
+```
+
+O script pede o token em entrada oculta, grava o arquivo com ACL restrita e reinicia a tarefa `ArtiSys Woodpecker Agent`.
+
+Permissoes minimas recomendadas para um Fine-grained GitHub PAT restrito ao repositorio `PDV-ARTISYS`:
+
+- Contents: Read (necessario para comentario no commit);
 - Commit statuses: Read and write;
-- Pull requests: Read and write (opcional, apenas para duplicar o relatorio no PR).
+- Pull requests: Read and write (opcional, apenas para duplicar o diagnostico no PR).
 
-Sem `github_report_token`, o reporter nao consegue publicar no GitHub, mas o erro original do workflow continua sendo o status principal; o step de reporter esta com `failure: ignore` para nao mascarar a falha real.
+Sem `GITHUB_REPORT_TOKEN`, o reporter apenas registra que a publicacao foi ignorada e o pipeline continua compilando normalmente. O step usa `failure: ignore` para nunca mascarar a falha original.
 
 ## Homologacao fisica realizada em 18/09/2026
 
@@ -123,7 +131,7 @@ Confirmado no Windows do piloto:
 
 ## Estado ao fim da fase 4
 
-Configuracao do pipeline e reporter de diagnostico commitados. Ainda falta cadastrar uma vez o secret `github_report_token` no Woodpecker e observar um run real com publicacao automatica no GitHub.
+Pipeline, captura de log e reporter automatico para GitHub estao implementados. O fluxo volta a compilar mesmo sem token. Falta apenas configurar uma vez o Fine-grained PAT local e observar um run real publicando o diagnostico automaticamente no GitHub.
 
 ## Proximas fases
 
