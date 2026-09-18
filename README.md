@@ -48,6 +48,7 @@ Principais capacidades:
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
 - health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto;
+- atualização desktop integrada via `electron-updater`, com download manual e instalação ao sair; o canal final de distribuição para clientes ainda precisa ser homologado sem expor segredo de repositório privado;
 - perfis de implantação **Servidor + Terminal** e **Terminal**.
 
 ## Produto pai e subitens
