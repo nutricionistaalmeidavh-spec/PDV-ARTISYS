@@ -9,6 +9,7 @@ when:
     branch:
       - main
       - chore/woodpecker-pilot-phases-0-3
+      - feat/woodpecker-phases-5-8-recovered
 
 steps:
   - name: ambiente
