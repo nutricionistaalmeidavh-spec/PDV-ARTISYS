@@ -7,26 +7,26 @@ const root = path.resolve('.');
 const readJson = relative => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
 const readText = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('pins the synchronized ArtiSys QA 2.4.1 runtime to an exact central revision', () => {
+test('pins the synchronized ArtiSys QA 2.6.0 runtime to an exact central revision', () => {
   const lock = readJson('qa/artisys-qa.lock.json');
   const runtime = readJson('qa/runtime/package.json');
   assert.equal(lock.schemaVersion, 2);
   assert.equal(lock.module, '@artisys/qa');
-  assert.equal(lock.version, '2.4.1');
+  assert.equal(lock.version, '2.6.0');
   assert.equal(lock.sourceRepository, 'nutricionistaalmeidavh-spec/utilidades');
   assert.equal(lock.sourcePath, 'modules/artisys-qa');
-  assert.equal(lock.sourceCommit, '850db8188bf49c8083441a3b5e814b3f61fc0fe8');
-  assert.equal(lock.sourceTree, 'f2bd3bd048207d9bf5a442287f0ad779e436cd8a');
+  assert.equal(lock.sourceCommit, '4a138a9d77775f5be1e43244b9d45ca8586742c5');
+  assert.equal(lock.sourceTree, '7da9ffa2a950c94072d29c5d3a89fc74696bcdd3');
   assert.equal(lock.consumption, 'vendored-runtime');
   assert.equal(lock.policy.runtimeParity, 'src/** matches the pinned central module revision');
   assert.equal(lock.policy.runtimeSelection, 'qaProfiles');
   assert.equal(lock.policy.ciNeedsSourceRepositoryAccess, false);
   assert.equal(lock.policy.updateCommand, 'npm run qa:update');
   assert.equal(runtime.name, '@artisys/qa');
-  assert.equal(runtime.version, '2.4.1');
+  assert.equal(runtime.version, '2.6.0');
 });
 
-test('vendors the 2.4.1 runtime capabilities used by CI and optional local QA', () => {
+test('vendors the 2.6.0 runtime capabilities used by CI and optional local QA', () => {
   for (const relative of [
     'qa/runtime/src/cli.mjs',
     'qa/runtime/src/profile-runner.js',
@@ -49,10 +49,21 @@ test('vendors the 2.4.1 runtime capabilities used by CI and optional local QA', 
     'qa/runtime/src/release-gate.js',
     'qa/runtime/src/desktop.js',
     'qa/runtime/src/network.js',
+    'qa/runtime/src/matrix.js',
+    'qa/runtime/src/api-sweep.js',
+    'qa/runtime/src/ui-sweep.js',
+    'qa/runtime/src/ci-summary.js',
+    'qa/runtime/src/bounded-test-runner.js',
+    'qa/runtime/src/product-report.js',
   ]) assert.equal(fs.existsSync(path.join(root, relative)), true, relative);
 
   const wrapper = readText('qa/runtime/artisys-qa.mjs');
+  const telemetry = readText('qa/runtime/src/telemetry-store.js');
+  const profileRunner = readText('qa/runtime/src/profile-runner.js');
   assert.match(wrapper, /import ['"]\.\/src\/cli\.mjs['"]/);
+  assert.match(telemetry, /serializeMutation/);
+  assert.match(telemetry, /persistJob\(attachToJob\(persistedJob\)\)/);
+  assert.match(profileRunner, /writeCiQaSummary/);
 });
 
 test('PDV selects QA behavior through repository-owned profiles', () => {

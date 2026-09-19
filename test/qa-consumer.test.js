@@ -58,15 +58,16 @@ test('PDV quick demo defaults to a 30-second Reels deliverable', () => {
   assert.ok(flow.steps.some(step => step.name === 'relatorios'));
 });
 
-test('vendored QA runtime is pinned to 2.4.1 and normalizes demo media duration', () => {
+test('vendored QA runtime is pinned to 2.6.0 and normalizes demo media duration', () => {
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'qa', 'artisys-qa.lock.json'), 'utf8'));
   const runtimePackage = JSON.parse(fs.readFileSync(path.join(root, 'qa', 'runtime', 'package.json'), 'utf8'));
   const videoRuntime = fs.readFileSync(path.join(root, 'qa', 'runtime', 'src', 'video.js'), 'utf8');
   const demoRuntime = fs.readFileSync(path.join(root, 'qa', 'runtime', 'src', 'demo.js'), 'utf8');
   assert.equal(lock.schemaVersion, 2);
-  assert.equal(lock.version, '2.4.1');
-  assert.equal(lock.sourceCommit, '850db8188bf49c8083441a3b5e814b3f61fc0fe8');
-  assert.equal(runtimePackage.version, '2.4.1');
+  assert.equal(lock.version, '2.6.0');
+  assert.equal(lock.sourceCommit, '4a138a9d77775f5be1e43244b9d45ca8586742c5');
+  assert.equal(lock.sourceTree, '7da9ffa2a950c94072d29c5d3a89fc74696bcdd3');
+  assert.equal(runtimePackage.version, '2.6.0');
   assert.match(videoRuntime, /ffprobe/);
   assert.match(videoRuntime, /setpts=/);
   assert.match(demoRuntime, /videoDurationSec/);
