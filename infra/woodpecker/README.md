@@ -1,6 +1,6 @@
 # Woodpecker CI — PDV ArtiSys
 
-Estado do fluxo de CI/release do `PDV-ARTISYS`.
+Fluxo self-hosted de CI/release do `PDV-ARTISYS` 1.3.4, sem serviço pago obrigatório.
 
 ## Arquitetura
 
@@ -11,59 +11,63 @@ Git push/tag
   -> Woodpecker Server local
   -> Windows Agent (backend local)
   -> utilidades/modules/artisys-release
-  -> installer -> QA -> security/evidence -> publish
+  -> deps -> lint -> test -> build -> installer -> ArtiSys QA 2.6.0
+  -> [tag] security -> evidence -> publish
   -> GitHub Release
-  -> electron-updater
+  -> electron-updater / feed seguro configurado
 ```
 
 O host homologado usa Node 22+, Electron Builder/NSIS, Playwright/Chromium e o repositório compartilhado `utilidades` em `C:\VICTOR\Artisys\AgroFrota\utilidades`.
 
-## Fases 0–4 — homologadas
+## Fases 0–4 — CI do produto
 
-- baseline do produto e instalador;
+Estão integrados:
+
 - `artisys-release` compartilhado;
 - Woodpecker Server em Docker;
 - Agent Windows persistente com backend local;
 - Cloudflare Tunnel em `https://ci.artisys.dev`;
-- pipeline real `deps -> lint -> test -> build -> installer -> qa`;
-- instalador sempre antes do QA;
-- reporter automático de falhas para GitHub.
+- pipeline `deps -> lint -> test -> build -> installer -> qa`;
+- validação explícita do ArtiSys QA 2.6.0 vendorizado;
+- instalador antes do QA;
+- reporter automático de falhas no GitHub.
 
-A Fase 4 foi validada com pipeline verde e integrada em `main` em 18/09/2026.
+O workflow normal é `.woodpecker/pdv-release.yaml`. Push em `main` executa o gate completo e não publica release.
 
-## Fases 5–8 — branch de homologação
+## Fase 5 — publicação por tag
 
-Branch: `feat/woodpecker-phases-5-8`.
+`.woodpecker/pdv-publish.yaml` aceita somente tags `v*` e chama o perfil `release` do motor compartilhado.
 
-### Fase 5 — GitHub Release
+O perfil de release mantém todos os gates do produto e acrescenta:
 
-O perfil `release` adiciona os gates de publicação depois do instalador/QA. O fluxo de tag `v*` deve publicar somente após todos os gates obrigatórios aprovarem.
+1. `security` — `artisys-security`;
+2. `evidence` — hashes SHA-256 dos artefatos;
+3. `publish` — GitHub Release.
 
-Assets esperados:
+Assets obrigatórios:
 
 - `ArtiSys-PDV-<versao>-x64-Setup.exe`;
 - `latest.yml`;
-- `.blockmap`;
-- manifesto/checksums SHA-256;
-- evidências permitidas pela política de release.
+- `.blockmap`.
 
-Push comum não publica release.
+A publicação é bloqueada se os assets exigidos estiverem ausentes ou se o evento não for uma tag.
 
-### Fase 6 — atualização automática
+## Fase 6 — atualização desktop
 
 O desktop usa `electron-updater` com:
 
+- checagem automática após a inicialização;
 - `autoDownload = false`;
+- download iniciado pelo usuário;
+- progresso na UI;
 - `autoInstallOnAppQuit = true`;
-- consulta de nova versão;
-- download sob ação do usuário;
-- progresso;
-- instalação após download;
-- estado/erros expostos à UI via IPC seguro.
+- instalação/reinício após o download;
+- estados e erros expostos por IPC seguro;
+- suporte a `ARTISYS_UPDATE_URL` para feed genérico.
 
-Como o repositório do PDV é privado, a distribuição para clientes não deve embutir PAT GitHub no aplicativo. A homologação final do updater exige um canal público/proxy seguro para os assets de atualização.
+O repositório `PDV-ARTISYS` é privado. O aplicativo **não deve** receber PAT/token GitHub. Portanto, o mecanismo do updater e os artefatos de atualização estão integrados, mas a distribuição direta a clientes precisa usar um feed público/proxy seguro ou outro canal sem segredo embutido no executável.
 
-### Fase 7 — hardening do host
+## Fase 7 — hardening do host
 
 `infra/woodpecker/health-check.ps1` verifica:
 
@@ -76,23 +80,18 @@ Como o repositório do PDV é privado, a distribuição para clientes não deve 
 - `artisys-ci-reporter`;
 - limpeza de workspaces antigos e rotação de logs.
 
-O teste real de 18/09/2026 confirmou todos esses componentes saudáveis.
+## Fase 8 — reporter compartilhado
 
-### Fase 8 — reporter compartilhado
+O reporter fica em `utilidades/modules/artisys-ci-reporter` e publica, quando aplicável:
 
-O reporter fica em `utilidades/modules/artisys-ci-reporter` e não contém lógica específica do PDV. Ele publica:
-
-- status de sucesso/falha no commit;
-- step, exit code e comando quando disponíveis;
+- status no commit;
+- step, exit code e comando;
 - resumo dos gates;
-- presença/caminho do instalador;
-- link público do pipeline;
-- comentário de diagnóstico em falhas;
-- comentário opcional em PR.
+- presença do instalador;
+- link do pipeline;
+- diagnóstico no commit e no PR.
 
-## Token GitHub do Agent
-
-O token não fica no repositório. O Agent lê:
+O token fica apenas no Agent Windows, em:
 
 ```text
 C:\ProgramData\ArtiSys\github-report-token.txt
@@ -104,33 +103,10 @@ Configuração local:
 .\infra\woodpecker\configure-github-reporter.ps1
 ```
 
-Para o fluxo completo (reporter + GitHub Release), o Fine-grained PAT precisa de:
+Para reporter + publicação de release, o Fine-grained PAT do Agent precisa das permissões necessárias de Contents, Commit statuses e, quando usado para comentários, Pull requests. Nenhum token é versionado nem distribuído com o PDV.
 
-- **Contents: Read and write** — necessário para criar/editar GitHub Releases e tags de release;
-- **Commit statuses: Read and write** — necessário para os status detalhados do CI;
-- **Pull requests: Read and write** — opcional, usado para repetir o diagnóstico no PR.
+## Evidência de recuperação das Fases 5–8
 
-O token pode ter acesso a todos os repositórios ArtiSys se o mesmo Agent/reporter for reutilizado entre produtos.
+A branch antiga `feat/woodpecker-phases-5-8` falhava antes de concluir a homologação por regressões do runtime compartilhado de QA. A recuperação foi refeita sobre a `main` já com ArtiSys QA 2.6.0, sem mergear a branch antiga em bloco.
 
-## Homologação física conhecida
-
-Confirmado no Windows do piloto:
-
-- Woodpecker Server healthy;
-- `http://localhost:8000/healthz` -> 204;
-- `https://ci.artisys.dev/healthz` -> 204;
-- Cloudflare Tunnel ativo;
-- `woodpecker-agent.exe` ativo;
-- Docker ativo;
-- módulos compartilhados `artisys-release`, `artisys-ci-reporter` e `artisys-security` com testes aprovados durante a homologação.
-
-## Gates antes de mergear Fases 5–8
-
-1. pipeline normal da branch verde;
-2. instalador gerado;
-3. QA verde;
-4. health do host verde;
-5. smoke de permissão de GitHub Release verde;
-6. PR revisado e mergeado em `main`;
-7. teste de release por tag;
-8. homologação do canal seguro usado pelo `electron-updater`.
+O pipeline de homologação da recuperação aprovou o fluxo normal completo com instalador e QA. A publicação efetiva por tag permanece uma ação deliberada de release, separada do push comum.
