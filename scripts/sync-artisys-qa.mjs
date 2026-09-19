@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const runtimeDir = path.join(repoRoot, 'qa', 'runtime');
 const lockFile = path.join(repoRoot, 'qa', 'artisys-qa.lock.json');
+const runtimeEntries = ['src', 'flows', 'package.json', 'package-lock.json'];
 
 function arg(name) {
   const index = process.argv.indexOf(name);
@@ -30,26 +31,26 @@ function git(cwd, ...args) {
   return execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8' }).trim();
 }
 
-function shouldSkip(relative) {
-  const normalized = relative.split(path.sep).join('/');
-  if (!normalized) return false;
-  if (normalized === 'node_modules' || normalized.startsWith('node_modules/')) return true;
-  if (normalized === 'test-results' || normalized.startsWith('test-results/')) return true;
-  if (normalized === 'playwright-report' || normalized.startsWith('playwright-report/')) return true;
-  if (normalized === 'bridge/projects.json') return true;
-  if (/^bridge\/jobs\/pending\/.*\.json$/i.test(normalized)) return true;
-  return false;
-}
-
-function copyTree(source, destination, relative = '') {
+function copyTree(source, destination) {
   fs.mkdirSync(destination, { recursive: true });
   for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-    const nextRelative = relative ? path.join(relative, entry.name) : entry.name;
-    if (shouldSkip(nextRelative)) continue;
+    if (entry.name === 'node_modules' || entry.name === 'test-results' || entry.name === 'playwright-report') continue;
     const from = path.join(source, entry.name);
     const to = path.join(destination, entry.name);
-    if (entry.isDirectory()) copyTree(from, to, nextRelative);
+    if (entry.isDirectory()) copyTree(from, to);
     else if (entry.isFile()) fs.copyFileSync(from, to);
+  }
+}
+
+function copyRuntimeEntry(source, entry) {
+  const from = path.join(source, entry);
+  if (!fs.existsSync(from)) throw new Error(`Required ArtiSys QA runtime entry not found: ${entry}`);
+  const to = path.join(runtimeDir, entry);
+  const stat = fs.statSync(from);
+  if (stat.isDirectory()) copyTree(from, to);
+  else {
+    fs.mkdirSync(path.dirname(to), { recursive: true });
+    fs.copyFileSync(from, to);
   }
 }
 
@@ -63,7 +64,8 @@ const sourcePath = path.relative(sourceRepoRoot, source).split(path.sep).join('/
 const sourceTree = git(sourceRepoRoot, 'rev-parse', `HEAD:${sourcePath}`);
 
 fs.rmSync(runtimeDir, { recursive: true, force: true });
-copyTree(source, runtimeDir);
+fs.mkdirSync(runtimeDir, { recursive: true });
+for (const entry of runtimeEntries) copyRuntimeEntry(source, entry);
 fs.writeFileSync(
   path.join(runtimeDir, 'artisys-qa.mjs'),
   "#!/usr/bin/env node\nimport './src/cli.mjs';\n",
@@ -79,11 +81,13 @@ const lock = {
   sourcePath,
   sourceCommit,
   sourceTree,
-  consumption: 'full-vendored-runtime',
+  consumption: 'vendored-runtime',
   policy: {
+    runtimeParity: 'src/** matches the pinned central module revision',
     consumerConfig: 'qa/artisys-qa.config.json',
     runtimeSelection: 'qaProfiles',
     ciNeedsSourceRepositoryAccess: false,
+    updateCommand: 'npm run qa:update',
     excludedTransientState: [
       'bridge/projects.json',
       'bridge/jobs/pending/*.json'

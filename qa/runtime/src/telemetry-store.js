@@ -76,6 +76,13 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
   const eventsFile = path.join(telemetryRoot, 'events.ndjson');
   const jobsRoot = path.join(telemetryRoot, 'jobs');
   const artifactRoot = path.join(root, 'artifacts');
+  let mutationQueue = Promise.resolve();
+
+  function serializeMutation(operation) {
+    const run = mutationQueue.then(operation, operation);
+    mutationQueue = run.catch(() => {});
+    return run;
+  }
 
   const baseSnapshot = () => ({
     schemaVersion: 1,
@@ -125,7 +132,7 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     await atomicJson(path.join(jobsRoot, `${safeId(job.jobId, 'jobId')}.json`), redact(job));
   }
 
-  async function transition(input = {}) {
+  async function transitionUnlocked(input = {}) {
     const jobId = safeId(input.jobId, 'jobId');
     const projectId = safeId(input.projectId, 'projectId');
     const stage = String(input.stage || '');
@@ -147,6 +154,7 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
       flow: input.flow == null ? previous?.flow || null : String(input.flow),
       test: input.test == null ? previous?.test || null : String(input.test),
       error: input.error == null ? null : String(input.error),
+      artifacts: Array.isArray(previous?.artifacts) ? previous.artifacts : [],
       startedAt: previous?.startedAt || at,
       updatedAt: at,
       finishedAt: TERMINAL_JOB_STAGES.has(stage) ? at : null,
@@ -165,7 +173,11 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     return redact(next);
   }
 
-  async function heartbeat(detail = null) {
+  function transition(input = {}) {
+    return serializeMutation(() => transitionUnlocked(input));
+  }
+
+  async function heartbeatUnlocked(detail = null) {
     const snapshot = await getSnapshot();
     const at = iso(now);
     const payload = detail && typeof detail === 'object' && !Array.isArray(detail) ? detail : { detail };
@@ -180,7 +192,11 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     return writeSnapshot(snapshot);
   }
 
-  async function recordArtifact(input = {}) {
+  function heartbeat(detail = null) {
+    return serializeMutation(() => heartbeatUnlocked(detail));
+  }
+
+  async function recordArtifactUnlocked(input = {}) {
     const jobId = safeId(input.jobId, 'jobId');
     const localPath = path.resolve(String(input.localPath || ''));
     if (!inside(artifactRoot, localPath)) throw new Error('artifact path is outside the QA artifact root');
@@ -198,10 +214,35 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     });
     const snapshot = await getSnapshot();
     const existing = Array.isArray(snapshot.artifacts) ? snapshot.artifacts : [];
-    snapshot.artifacts = [...existing.filter(item => !(item.jobId === jobId && item.localPath === localPath)), record].slice(-200);
+    const artifacts = [...existing.filter(item => !(item.jobId === jobId && item.localPath === localPath)), record].slice(-200);
+    snapshot.artifacts = artifacts;
+
+    const attachToJob = job => {
+      if (!job || job.jobId !== jobId) return job;
+      const jobArtifacts = Array.isArray(job.artifacts) ? job.artifacts : [];
+      return {
+        ...job,
+        artifacts: [...jobArtifacts.filter(item => item.localPath !== localPath), record].slice(-200),
+        updatedAt: iso(now),
+      };
+    };
+
+    snapshot.currentJob = attachToJob(snapshot.currentJob);
+    snapshot.lastJob = attachToJob(snapshot.lastJob);
+
     await appendEvent({ schemaVersion: 1, machineId, at: iso(now), jobId, projectId: record.projectId, stage: 'CAPTURING_ARTIFACTS', detail: `Artifact ${record.name}`, artifact: record });
+
+    const persistedJob = snapshot.currentJob?.jobId === jobId
+      ? snapshot.currentJob
+      : (snapshot.lastJob?.jobId === jobId ? snapshot.lastJob : await readJson(path.join(jobsRoot, `${jobId}.json`), null));
+    if (persistedJob) await persistJob(attachToJob(persistedJob));
+
     await writeSnapshot(snapshot);
     return record;
+  }
+
+  function recordArtifact(input = {}) {
+    return serializeMutation(() => recordArtifactUnlocked(input));
   }
 
   async function readEvents({ jobId = null, limit = 100 } = {}) {
@@ -230,7 +271,7 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     }
   }
 
-  async function recoverInterruptedJob() {
+  async function recoverInterruptedJobUnlocked() {
     const snapshot = await getSnapshot();
     if (!snapshot.currentJob || !ACTIVE_JOB_STAGES.has(snapshot.currentJob.stage)) return null;
     const previous = snapshot.currentJob;
@@ -240,6 +281,10 @@ export function createTelemetryStore({ root, machineId, redact = value => value,
     await persistJob(recovered);
     await writeSnapshot({ ...snapshot, currentJob: null, lastJob: recovered });
     return recovered;
+  }
+
+  function recoverInterruptedJob() {
+    return serializeMutation(() => recoverInterruptedJobUnlocked());
   }
 
   return { root: telemetryRoot, getSnapshot, transition, heartbeat, recordArtifact, readEvents, readJob, listHistory, recoverInterruptedJob };

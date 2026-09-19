@@ -49,6 +49,7 @@ export { BUSINESS_PACKS, listBusinessPacks, resolveBusinessPack } from './busine
 export { runDesktopSmoke } from './desktop.js';
 export { retryTransient, runConcurrent } from './network.js';
 export { aggregateQaReport, renderQaReportHtml, writeQaReport, readQaHistory } from './reporting.js';
+export { buildCiQaSummary, writeCiQaSummary } from './ci-summary.js';
 export { evaluateReleaseGate } from './release-gate.js';
 export { DEFAULT_AGENT_PORT, DEFAULT_UPDATE_INTERVAL_MINUTES, DEFAULT_CONSOLE_PORT, defaultAgentRoot, agentStateFile, createDefaultAgentState, loadAgentState, saveAgentState, ensureAgentConsoleConfiguration, setAgentConsoleLan, configureAgentCloud, normalizeProjectRegistration, registerAgentProject, unregisterAgentProject, setAgentAutoUpdate } from './agent-state.js';
 export { compareVersions, isNewerVersion, inactiveSlotName, normalizeWindowsCommand, readStableChannel, readInstalledVersion, validateCandidate, prepareInactiveSlot, checkForStableUpdate, rollbackAgentSlot, AGENT_RESTART_EXIT_CODE } from './agent-updater.js';
@@ -69,3 +70,7 @@ export { QA_PROGRESS_PREFIX, formatQaProgressEvent, createQaProgressParser } fro
 export { sanitizeName, resolveSecret, stepLabel } from './helpers.js';
 export { isVisualValidationRequested, shouldUpdateVisualBaselines, sanitizeVisualName, validateVisualSnapshot, VisualValidationError } from './visual.js';
 export { createQaRemoteControl } from './remote-control.js';
+export { buildQaMatrix, runQaMatrix } from './matrix.js';
+export { runApiSweep } from './api-sweep.js';
+export { runUiSweep } from './ui-sweep.js';
+export { evaluateProductGate, buildProductQaSummary, renderProductQaText, renderProductQaHtml, writeProductQaBundle } from './product-report.js';

@@ -4,6 +4,7 @@ import { runQaFlow } from './runner.js';
 import { resolveQaProfile } from './profiles.js';
 import { runDesktopSmoke } from './desktop.js';
 import { aggregateQaReport, writeQaReport } from './reporting.js';
+import { writeCiQaSummary } from './ci-summary.js';
 import { evaluateReleaseGate } from './release-gate.js';
 
 function durationFromSummary(summary) {
@@ -19,6 +20,7 @@ export async function runQaProfile({
   environment: requestedEnvironment,
   viewport: requestedViewport,
   outputRoot = 'qa-artifacts',
+  ciSummaryPath = null,
   demoProfile = null,
   demoAdapter = null,
   releaseOverride = false,
@@ -27,20 +29,23 @@ export async function runQaProfile({
   flowRunner = runQaFlow,
   desktopRunner = runDesktopSmoke,
 } = {}) {
+  let lastProgress = null;
   const notify = async event => {
+    lastProgress = event;
     try { await onProgress?.(event); } catch {}
   };
   const profile = resolveQaProfile(manifest, profileName);
   const { name: environmentName, environment } = resolveEnvironment(manifest, requestedEnvironment);
   const viewport = resolveViewport(manifest, requestedViewport);
   const results = [];
+  const resolvedCiSummaryPath = ciSummaryPath || path.resolve(rootDir, 'artifacts', 'qa-summary.json');
   await notify({ type: 'profile-start', profile: profile.name, total: profile.flows.length });
 
   for (let index = 0; index < profile.flows.length; index++) {
     const flow = profile.flows[index];
-    const { file: flowFile } = resolveFlow(manifest, flow, rootDir);
     await notify({ type: 'flow-start', profile: profile.name, flow, current: index + 1, total: profile.flows.length });
     try {
+      const { file: flowFile } = resolveFlow(manifest, flow, rootDir);
       const result = await flowRunner({
         manifest,
         rootDir,
@@ -52,7 +57,7 @@ export async function runQaProfile({
         outputRoot,
         demoProfile,
         demoAdapter,
-        onProgress,
+        onProgress: notify,
       });
       results.push({ flow, status: 'passed', critical: profile.criticalFlows.includes(flow), durationMs: durationFromSummary(result.summary), outputDir: result.outputDir, summary: result.summary });
       await notify({ type: 'flow-end', profile: profile.name, flow, status: 'passed', current: index + 1, total: profile.flows.length });
@@ -80,7 +85,9 @@ export async function runQaProfile({
   const report = aggregateQaReport({ systemId: manifest.systemId, profile: profile.name, runs: results, gate });
   await notify({ type: 'report-start', profile: profile.name, gateAllowed: gate.allowed });
   const files = await writeQaReport({ report, outputRoot });
-  await notify({ type: 'profile-end', profile: profile.name, gateAllowed: gate.allowed, counts: report.counts, report: files.jsonFile });
+  const ciSummary = await writeCiQaSummary({ targetPath: resolvedCiSummaryPath, report, lastProgress });
+  files.ciSummaryFile = ciSummary.file;
+  await notify({ type: 'profile-end', profile: profile.name, gateAllowed: gate.allowed, counts: report.counts, report: files.jsonFile, ciSummary: files.ciSummaryFile });
   if (profile.name === 'release' && !gate.allowed) {
     const error = new Error(`QA release gate failed for ${manifest.systemId}`);
     error.report = report;

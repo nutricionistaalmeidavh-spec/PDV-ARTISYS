@@ -36,7 +36,11 @@ export function createQaConfig({
     workers,
     timeout: 45000,
     expect: { timeout: 7000 },
-    reporter: [['list'], ['html', { open: 'never', outputFolder: 'qa-report' }]],
+    reporter: [
+      ['list'],
+      ['html', { open: 'never', outputFolder: 'qa-report' }],
+      ['junit', { outputFile: 'qa-results/junit.xml' }],
+    ],
     outputDir: 'qa-results',
     projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: selectedViewport } }],
     webServer,

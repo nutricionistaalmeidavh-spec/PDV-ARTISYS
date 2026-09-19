@@ -1,11 +1,11 @@
 {
   "schemaVersion": 2,
   "module": "@artisys/qa",
-  "version": "2.4.1",
+  "version": "2.6.0",
   "sourceRepository": "nutricionistaalmeidavh-spec/utilidades",
   "sourcePath": "modules/artisys-qa",
-  "sourceCommit": "850db8188bf49c8083441a3b5e814b3f61fc0fe8",
-  "sourceTree": "f2bd3bd048207d9bf5a442287f0ad779e436cd8a",
+  "sourceCommit": "4a138a9d77775f5be1e43244b9d45ca8586742c5",
+  "sourceTree": "7da9ffa2a950c94072d29c5d3a89fc74696bcdd3",
   "consumption": "vendored-runtime",
   "policy": {
     "runtimeParity": "src/** matches the pinned central module revision",

@@ -26,6 +26,20 @@ steps:
       - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
       - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
 
+  - name: validar-artisys-qa
+    image: powershell.exe
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - '$runtime = Get-Content ".\qa\runtime\package.json" -Raw | ConvertFrom-Json'
+      - '$lock = Get-Content ".\qa\artisys-qa.lock.json" -Raw | ConvertFrom-Json'
+      - 'if ($runtime.name -ne "@artisys/qa") { throw "Runtime QA inesperado: $($runtime.name)." }'
+      - 'if ($runtime.version -ne "2.6.0") { throw "ArtiSys QA runtime esperado 2.6.0, recebido $($runtime.version)." }'
+      - 'if ($lock.version -ne "2.6.0") { throw "ArtiSys QA lock esperado 2.6.0, recebido $($lock.version)." }'
+      - 'if ($lock.sourceCommit -ne "4a138a9d77775f5be1e43244b9d45ca8586742c5") { throw "ArtiSys QA sourceCommit inesperado: $($lock.sourceCommit)." }'
+      - 'if ($lock.sourceTree -ne "7da9ffa2a950c94072d29c5d3a89fc74696bcdd3") { throw "ArtiSys QA sourceTree inesperado: $($lock.sourceTree)." }'
+      - 'if ($lock.policy.ciNeedsSourceRepositoryAccess -ne $false) { throw "QA vendorizado nao deve depender do clone de utilidades durante o CI." }'
+      - 'Write-Host "[PDV Woodpecker] ArtiSys QA 2.6.0 vendorizado e provenance validada."'
+
   - name: release-full
     image: powershell.exe
     environment:
