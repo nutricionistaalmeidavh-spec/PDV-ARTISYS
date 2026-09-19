@@ -10,6 +10,7 @@ const crypto = require('node:crypto');
 const ROOT = path.join(__dirname, '..');
 const exists = rel => fs.existsSync(path.join(ROOT, rel));
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const currentVersion = () => JSON.parse(read('package.json')).version;
 
 test('E22-E29 migration remains preserved while current schema advances beyond restaurant v5', () => {
   const rel = 'js/core/database/release-migrations.js';
@@ -28,9 +29,9 @@ test('approved settings screen actually loads the E22-E28 operations control cen
   assert.match(pkg.scripts['lint:desktop'], /admin-ops\.js/);
 });
 
-test('package keeps Windows NSIS and XLSX support in release 1.3.2', () => {
+test('package keeps Windows NSIS and XLSX support in the current release', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.version, '1.3.2');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.dependencies.xlsx, '^0.18.5');
   assert.equal(pkg.dependencies['@artisys/serialport'], 'file:vendor/artisys-serialport');
   assert.equal(pkg.dependencies['@artisys/printing'], 'file:vendor/artisys-printing');
@@ -42,13 +43,14 @@ test('package keeps Windows NSIS and XLSX support in release 1.3.2', () => {
   assert.equal(pkg.build.nsis.deleteAppDataOnUninstall, false);
 });
 
-test('release manifest remains deterministic and hashes supplied v1.3.2 artifacts', () => {
+test('release manifest remains deterministic and hashes supplied current-version artifacts', () => {
   const rel = 'scripts/generate-release-manifest.js';
   assert.ok(exists(rel), `${rel} deve existir`);
   const { buildReleaseManifest } = require(path.join(ROOT, rel));
+  const version = currentVersion();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdv-release-manifest-'));
   try {
-    const artifact = path.join(dir, 'ArtiSys-PDV-1.3.2-x64-Setup.exe');
+    const artifact = path.join(dir, `ArtiSys-PDV-${version}-x64-Setup.exe`);
     fs.writeFileSync(artifact, 'fixture');
     const manifest = buildReleaseManifest({
       rootDir: ROOT,
@@ -57,7 +59,7 @@ test('release manifest remains deterministic and hashes supplied v1.3.2 artifact
       artifactPaths: [artifact],
       verification: { verify: 'pass', verifyRelease: 'pass', windowsBuild: 'pass' }
     });
-    assert.equal(manifest.version, '1.3.2');
+    assert.equal(manifest.version, version);
     assert.equal(manifest.commit, 'abc123');
     assert.equal(manifest.schemaVersion, 10);
     assert.equal(manifest.builtAt, '2026-09-15T14:00:00.000Z');
@@ -79,7 +81,8 @@ test('all operations manuals and release metadata exist without future-delivery 
   ];
   for (const rel of docs) assert.ok(exists(rel), `${rel} deve existir`);
   const readme = read('README.md');
-  assert.match(readme, /ArtiSys PDV 1\.3\.2/);
+  const version = currentVersion().replaceAll('.', '\\.');
+  assert.match(readme, new RegExp(`ArtiSys PDV ${version}`));
   assert.doesNotMatch(readme, /E2[1-9].*(futuro|pendente|a fazer)/i);
 });
 

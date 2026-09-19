@@ -1,141 +1,112 @@
-# Piloto Woodpecker — PDV ArtiSys
+# Woodpecker CI — PDV ArtiSys
 
-Escopo atual: fases 0 a 4, com Server, Tunnel publico, Agent Windows persistente e pipeline real do PDV.
+Fluxo self-hosted de CI/release do `PDV-ARTISYS` 1.3.4, sem serviço pago obrigatório.
 
-## Fase 0 — baseline confirmado
+## Arquitetura
 
-- Produto: `PDV-ARTISYS` v1.3.2.
-- Runtime: Node >=22 + Electron.
-- Instalador: Electron Builder / NSIS x64, saida em `dist/`.
-- QA: runtime local em `qa/runtime`, com Playwright/Chromium.
-- A raiz nao possui `package-lock.json`; por isso o bootstrap usa `npm install`. O runtime de QA possui lockfile e usa `npm ci --prefix qa/runtime`.
-
-## Fase 1 — ArtiSys Release
-
-Configuracao do produto: `.artisys/release.json`.
-
-Fluxo `full`:
-
-`deps -> lint -> test -> build/manifest -> installer -> qa`
-
-O wrapper `scripts/artisys-release.ps1` localiza o motor compartilhado `utilidades/modules/artisys-release`. No Agent homologado, `ARTISYS_UTILIDADES_PATH` aponta para `C:\VICTOR\Artisys\AgroFrota\utilidades`.
-
-Teste manual do motor:
-
-```powershell
-.\scripts\artisys-release.ps1 -Profile full
+```text
+Git push/tag
+  -> GitHub webhook
+  -> https://ci.artisys.dev (Cloudflare Tunnel)
+  -> Woodpecker Server local
+  -> Windows Agent (backend local)
+  -> utilidades/modules/artisys-release
+  -> deps -> lint -> test -> build -> installer -> ArtiSys QA 2.6.0
+  -> [tag] security -> evidence -> publish
+  -> GitHub Release
+  -> electron-updater / feed seguro configurado
 ```
 
-## Fase 2 — Woodpecker Server
+O host homologado usa Node 22+, Electron Builder/NSIS, Playwright/Chromium e o repositório compartilhado `utilidades` em `C:\VICTOR\Artisys\AgroFrota\utilidades`.
 
-O server usa Docker Compose + SQLite local. Nao ha servico pago obrigatorio.
+## Fases 0–4 — CI do produto
 
-Arquivos:
+Estão integrados:
 
-- `server/docker-compose.yml`
-- `server/.env.example`
-- `server/start-server.ps1`
+- `artisys-release` compartilhado;
+- Woodpecker Server em Docker;
+- Agent Windows persistente com backend local;
+- Cloudflare Tunnel em `https://ci.artisys.dev`;
+- pipeline `deps -> lint -> test -> build -> installer -> qa`;
+- validação explícita do ArtiSys QA 2.6.0 vendorizado;
+- instalador antes do QA;
+- reporter automático de falhas no GitHub.
 
-Portas:
+O workflow normal é `.woodpecker/pdv-release.yaml`. Push em `main` executa o gate completo e não publica release.
 
-- `8000`: interface HTTP do Woodpecker.
-- `9000`: gRPC para o Agent Windows.
+## Fase 5 — publicação por tag
 
-O `.env` local guarda OAuth GitHub e `WOODPECKER_AGENT_SECRET` e permanece ignorado pelo Git.
+`.woodpecker/pdv-publish.yaml` aceita somente tags `v*` e chama o perfil `release` do motor compartilhado.
 
-O webhook publico usa `WOODPECKER_EXPERT_WEBHOOK_HOST=https://ci.artisys.dev`, entregue ao server local por Cloudflare Tunnel.
+O perfil de release mantém todos os gates do produto e acrescenta:
 
-## Fase 3 — Agent Windows
+1. `security` — `artisys-security`;
+2. `evidence` — hashes SHA-256 dos artefatos;
+3. `publish` — GitHub Release.
 
-O Agent usa backend `local`, portanto Electron, NSIS e Playwright executam diretamente no Windows. Esse backend deve ser usado apenas com repositorios confiaveis.
+Assets obrigatórios:
 
-Componentes:
+- `ArtiSys-PDV-<versao>-x64-Setup.exe`;
+- `latest.yml`;
+- `.blockmap`.
 
-- Woodpecker Agent 3.18.1.
-- plugin-git 2.10.1 no PATH do Agent.
-- `WOODPECKER_BACKEND=local`.
-- `WOODPECKER_MAX_WORKFLOWS=1`.
-- label `pilot=pdv-artisys`.
-- config local Windows em `%USERPROFILE%\ArtiSys\woodpecker-agent\agent.conf`.
+A publicação é bloqueada se os assets exigidos estiverem ausentes ou se o evento não for uma tag.
 
-O Agent e o Cloudflare Tunnel sao mantidos em segundo plano por tarefas agendadas do Windows.
+## Fase 6 — atualização desktop
 
-## Fase 4 — Pipeline real do PDV
+O desktop usa `electron-updater` com:
 
-Workflow: `.woodpecker/pdv-release.yaml`.
+- checagem automática após a inicialização;
+- `autoDownload = false`;
+- download iniciado pelo usuário;
+- progresso na UI;
+- `autoInstallOnAppQuit = true`;
+- instalação/reinício após o download;
+- estados e erros expostos por IPC seguro;
+- suporte a `ARTISYS_UPDATE_URL` para feed genérico.
 
-Selecao do Agent:
+O repositório `PDV-ARTISYS` é privado. O aplicativo **não deve** receber PAT/token GitHub. Portanto, o mecanismo do updater e os artefatos de atualização estão integrados, mas a distribuição direta a clientes precisa usar um feed público/proxy seguro ou outro canal sem segredo embutido no executável.
 
-- `platform=windows/amd64`
-- `backend=local`
-- `pilot=pdv-artisys`
+## Fase 7 — hardening do host
 
-Disparos:
+`infra/woodpecker/health-check.ps1` verifica:
 
-- manual em qualquer branch;
-- push em `main`;
-- push no branch de homologacao `chore/woodpecker-pilot-phases-0-3`.
+- Docker;
+- Woodpecker Server local;
+- `https://ci.artisys.dev/healthz`;
+- Agent Windows;
+- Cloudflare Tunnel;
+- `artisys-release`;
+- `artisys-ci-reporter`;
+- limpeza de workspaces antigos e rotação de logs.
 
-Fluxo:
+## Fase 8 — reporter compartilhado
 
-1. valida Node, npm, Git e `ARTISYS_UTILIDADES_PATH`;
-2. chama `scripts/artisys-release.ps1 -Profile full`;
-3. o motor executa `deps -> lint -> test -> build -> installer -> qa`;
-4. valida o relatorio `artifacts/artisys-release-report.json`;
-5. confirma a existencia de `dist/ArtiSys-PDV-*-Setup.exe`.
+O reporter fica em `utilidades/modules/artisys-ci-reporter` e publica, quando aplicável:
 
-A ordem `installer -> qa` e intencional: mesmo se o QA bloquear a entrega, o build do instalador ja foi produzido para diagnostico/homologacao.
+- status no commit;
+- step, exit code e comando;
+- resumo dos gates;
+- presença do instalador;
+- link do pipeline;
+- diagnóstico no commit e no PR.
 
-### Reporter automatico de falhas para GitHub
+O token fica apenas no Agent Windows, em:
 
-O workflow grava `artifacts/woodpecker-release.log` durante ambiente/release. Se qualquer step falhar, `reportar-falha-github` executa mesmo com o workflow em estado `failure` e usa `scripts/report-woodpecker-github.mjs`.
+```text
+C:\ProgramData\ArtiSys\github-report-token.txt
+```
 
-O reporter:
-
-- le `artifacts/artisys-release-report.json` quando existir;
-- identifica `failedStep`, exit code, comando e trecho final de stderr/stdout;
-- detecta se `dist/ArtiSys-PDV-*-Setup.exe` chegou a ser gerado;
-- converte links locais `http://localhost:8000/...` para `https://ci.artisys.dev/...`;
-- publica um status detalhado `ci/woodpecker/pdv-release-detail` no commit;
-- publica o diagnostico completo como comentario no commit;
-- quando encontra PR aberto da branch, tenta repetir o mesmo diagnostico como comentario no PR.
-
-O token nunca fica no repositorio nem no YAML. O Agent le `C:\ProgramData\ArtiSys\github-report-token.txt` durante a inicializacao e expoe `GITHUB_REPORT_TOKEN` apenas ao processo local. O backend `local` herda esse ambiente.
-
-Configuracao local segura:
+Configuração local:
 
 ```powershell
 .\infra\woodpecker\configure-github-reporter.ps1
 ```
 
-O script pede o token em entrada oculta, grava o arquivo com ACL restrita e reinicia a tarefa `ArtiSys Woodpecker Agent`.
+Para reporter + publicação de release, o Fine-grained PAT do Agent precisa das permissões necessárias de Contents, Commit statuses e, quando usado para comentários, Pull requests. Nenhum token é versionado nem distribuído com o PDV.
 
-Permissoes minimas recomendadas para um Fine-grained GitHub PAT restrito ao repositorio `PDV-ARTISYS`:
+## Evidência de recuperação das Fases 5–8
 
-- Contents: Read (necessario para comentario no commit);
-- Commit statuses: Read and write;
-- Pull requests: Read and write (opcional, apenas para duplicar o diagnostico no PR).
+A branch antiga `feat/woodpecker-phases-5-8` falhava antes de concluir a homologação por regressões do runtime compartilhado de QA. A recuperação foi refeita sobre a `main` já com ArtiSys QA 2.6.0, sem mergear a branch antiga em bloco.
 
-Sem `GITHUB_REPORT_TOKEN`, o reporter apenas registra que a publicacao foi ignorada e o pipeline continua compilando normalmente. O step usa `failure: ignore` para nunca mascarar a falha original.
-
-## Homologacao fisica realizada em 18/09/2026
-
-Confirmado no Windows do piloto:
-
-- container `artisys-woodpecker-server` healthy;
-- `http://localhost:8000/healthz` retorna `204`;
-- `https://ci.artisys.dev/healthz` retorna `204`;
-- Cloudflare Tunnel ativo;
-- `woodpecker-agent.exe` ativo;
-- tarefa `ArtiSys Woodpecker Agent` permanece em execucao (`LastTaskResult 267009`).
-
-## Estado ao fim da fase 4
-
-Pipeline, captura de log e reporter automatico para GitHub estao implementados. O fluxo volta a compilar mesmo sem token. Falta apenas configurar uma vez o Fine-grained PAT local e observar um run real publicando o diagnostico automaticamente no GitHub.
-
-## Proximas fases
-
-- primeiro run completo do pipeline e coleta das evidencias reais;
-- testes controlados de falha com reporter GitHub ativo;
-- publicacao automatica em GitHub Release;
-- auto-update do cliente via `electron-updater`.
+O pipeline de homologação da recuperação aprovou o fluxo normal completo com instalador e QA. A publicação efetiva por tag permanece uma ação deliberada de release, separada do push comum.

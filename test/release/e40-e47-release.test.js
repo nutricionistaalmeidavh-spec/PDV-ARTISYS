@@ -11,9 +11,9 @@ const {runVerticalMigrations}=require('../../js/core/database/vertical-migration
 const root=path.join(__dirname,'../..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('E40-E47 migrations remain preserved in the current 1.3.2 release',()=>{
+test('E40-E47 migrations remain preserved in the current release',()=>{
   const pkg=JSON.parse(read('package.json'));
-  assert.equal(pkg.version,'1.3.2');
+  assert.match(pkg.version,/^\d+\.\d+\.\d+$/);
   const db=openDatabase(':memory:');
   try{
     runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);

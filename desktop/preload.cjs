@@ -33,6 +33,17 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     remove: () => ipcRenderer.invoke('artisys:fiscal:remove'),
     test: () => ipcRenderer.invoke('artisys:fiscal:test')
   },
+  updater: {
+    state: () => ipcRenderer.invoke('updater:state'),
+    check: () => ipcRenderer.invoke('updater:check'),
+    download: () => ipcRenderer.invoke('updater:download'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    onState: (handler) => {
+      const listener = (_event, state) => handler(state);
+      ipcRenderer.on('updater:state', listener);
+      return () => ipcRenderer.removeListener('updater:state', listener);
+    }
+  },
   window: {
     minimize: () => ipcRenderer.send('artisys:window:minimize'),
     maximize: () => ipcRenderer.send('artisys:window:maximize'),
