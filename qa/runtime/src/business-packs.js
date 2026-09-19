@@ -3,6 +3,9 @@ export const BUSINESS_PACKS = Object.freeze({
   commerce: ['sale', 'cancel-sale', 'cash-open', 'cash-close', 'customer', 'inventory'],
   finance: ['income', 'expense', 'reconciliation', 'dre'],
   workforce: ['employee', 'attendance', 'payment', 'receipt'],
+  saas: ['smoke', 'auth', 'multitenancy'],
+  licensing: ['licenciamento'],
+  multitenancy: ['multitenancy'],
 });
 
 export function listBusinessPacks() {

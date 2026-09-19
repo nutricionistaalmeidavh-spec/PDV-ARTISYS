@@ -98,6 +98,18 @@ async function ensureRepository(project, destination) {
   return sha;
 }
 
+async function syncRepositorySubmodules(project, destination) {
+  try {
+    await fs.access(path.join(destination, '.gitmodules'));
+  } catch (error) {
+    if (error?.code === 'ENOENT') return false;
+    throw error;
+  }
+  await git(destination, ['submodule', 'sync', '--recursive']);
+  await git(destination, ['submodule', 'update', '--init', '--recursive']);
+  return true;
+}
+
 async function runSetup(project, destination) {
   if (project.setup === 'none') return;
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
@@ -146,6 +158,7 @@ export async function syncManagedProjects({ root = defaultAgentRoot(), controlRe
     try {
       await heartbeat(telemetry, { stage: 'SYNCING_PROJECT', detail: `Sincronizando ${definition.name}`, projectId: definition.id });
       const sha = await ensureRepository(definition, destination);
+      await syncRepositorySubmodules(definition, destination);
       const config = path.join(destination, ...definition.configPath.split('/'));
       await fs.access(config);
       if (!existing || existing.managedCommit !== sha || existing.managedSetup !== definition.setup) {
