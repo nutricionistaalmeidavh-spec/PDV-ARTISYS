@@ -9,7 +9,6 @@ when:
     branch:
       - main
       - chore/woodpecker-pilot-phases-0-3
-      - chore/artisys-qa-2.6.0
 
 steps:
   - name: ambiente
