@@ -46,6 +46,7 @@ Invoke-NativeChecked 'testes artisys-release' { npm --prefix "$UtilidadesPath\mo
 Invoke-NativeChecked 'check artisys-release' { npm --prefix "$UtilidadesPath\modules\artisys-release" run check }
 Invoke-NativeChecked 'testes artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" test }
 Invoke-NativeChecked 'check artisys-ci-reporter' { npm --prefix "$UtilidadesPath\modules\artisys-ci-reporter" run check }
+Invoke-NativeChecked 'deps artisys-qa' { npm --prefix "$UtilidadesPath\modules\artisys-qa" ci --no-audit --no-fund }
 
 $qaPackagePath = Join-Path $UtilidadesPath 'modules\artisys-qa\package.json'
 $qaPackage = Get-Content $qaPackagePath -Raw | ConvertFrom-Json
