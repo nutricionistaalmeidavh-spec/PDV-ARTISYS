@@ -9,6 +9,7 @@ when:
     branch:
       - main
       - chore/woodpecker-pilot-phases-0-3
+      - chore/artisys-qa-2.6.0
 
 steps:
   - name: ambiente
@@ -25,6 +26,22 @@ steps:
       - '$out = @(git --version 2>&1); $out | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
       - 'if (-not $env:ARTISYS_UTILIDADES_PATH) { throw "ARTISYS_UTILIDADES_PATH ausente no Agent Windows." }'
       - 'Write-Host "[PDV Woodpecker] utilidades: $env:ARTISYS_UTILIDADES_PATH"'
+
+  - name: sincronizar-artisys-qa
+    image: powershell.exe
+    environment:
+      ARTISYS_UTILIDADES_PATH: 'C:\VICTOR\Artisys\AgroFrota\utilidades'
+    commands:
+      - '$ErrorActionPreference = "Stop"'
+      - 'git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Falha ao atualizar utilidades." }'
+      - '$source = Join-Path $env:ARTISYS_UTILIDADES_PATH "modules\artisys-qa"'
+      - 'node .\scripts\sync-artisys-qa.mjs --source $source'
+      - 'if ($LASTEXITCODE -ne 0) { throw "Falha ao sincronizar ArtiSys QA." }'
+      - '$version = (Get-Content ".\qa\runtime\package.json" -Raw | ConvertFrom-Json).version'
+      - 'if ($version -ne "2.6.0") { throw "ArtiSys QA esperado 2.6.0, recebido $version." }'
+      - 'git diff --exit-code --quiet -- qa/runtime qa/artisys-qa.lock.json; $dirty = ($LASTEXITCODE -ne 0)'
+      - 'if ($dirty) { git config user.name "ArtiSys CI"; git config user.email "ci@artisys.dev"; git add qa/runtime qa/artisys-qa.lock.json; git commit -m "chore(qa): sync ArtiSys QA 2.6.0"; if ($LASTEXITCODE -ne 0) { throw "Falha ao criar commit de sincronizacao." }; git push origin HEAD:chore/artisys-qa-2.6.0; if ($LASTEXITCODE -ne 0) { Write-Warning "Runtime 2.6.0 validado no workspace, mas o push automatico nao foi autorizado pelo checkout." } } else { Write-Host "[PDV Woodpecker] ArtiSys QA 2.6.0 ja sincronizado." }'
 
   - name: release-full
     image: powershell.exe
