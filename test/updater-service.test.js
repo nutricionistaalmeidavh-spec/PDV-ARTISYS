@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { createUpdaterService } = require('../desktop/updater-service.cjs');
 
@@ -65,4 +67,23 @@ test('updater is unsupported outside packaged Windows', async () => {
   const service = createUpdaterService({ app:{getVersion:()=> '1.3.4',isPackaged:false}, autoUpdater, platform:'win32' });
   assert.equal(service.state().supported,false);
   assert.equal((await service.check()).status,'unsupported');
+});
+
+test('desktop package publishes update metadata for GitHub Releases', () => {
+  const root = path.resolve(__dirname, '..');
+  const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const html = fs.readFileSync(path.join(root, 'desktop/renderer/index.html'), 'utf8');
+  const preload = fs.readFileSync(path.join(root, 'desktop/preload.cjs'), 'utf8');
+  assert.equal(pkg.version, '1.3.4');
+  assert.equal(pkg.main, 'desktop/updater-main.cjs');
+  assert.equal(pkg.dependencies['electron-updater'], '^6.6.2');
+  assert.deepEqual(pkg.build.publish, [{ provider:'github', owner:'nutricionistaalmeidavh-spec', repo:'PDV-ARTISYS', releaseType:'release' }]);
+  assert.match(pkg.scripts['lint:desktop'], /updater-main\.cjs/);
+  assert.match(pkg.scripts['lint:desktop'], /updater-service\.cjs/);
+  assert.match(pkg.scripts['lint:desktop'], /updater-ui\.js/);
+  assert.match(html, /updater-ui\.css/);
+  assert.match(html, /updater-ui\.js/);
+  assert.match(preload, /updater:check/);
+  assert.match(preload, /updater:download/);
+  assert.match(preload, /updater:install/);
 });
