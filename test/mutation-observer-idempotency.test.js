@@ -79,6 +79,13 @@ test('promotion observer does not remove and recreate watched rows on every call
   assert.ok(lockedRemove<0||lockedRemove>stateGuard,'kits-combos-ui: promo lock cannot be removed before state is known');
 });
 
+test('final module navigation uses the canonical settings route and no removed launcher',()=>{
+  const e48=read('e48-e54-ui.js');
+  assert.doesNotMatch(e48,/vertical-modules-launcher/);
+  assert.match(e48,/id="vertical-back"/);
+  assert.match(e48,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
+});
+
 test('remaining renderer observers have a pre-mutation guard, lock, marker, or scheduler',()=>{
   const seller=read('seller-select-sync.js');
   assert.match(seller,/if \(select === observedSelect \|\| activeRequest\) return;[\s\S]*observedSelect = select;[\s\S]*select\.replaceChildren\(fragment\)/);
