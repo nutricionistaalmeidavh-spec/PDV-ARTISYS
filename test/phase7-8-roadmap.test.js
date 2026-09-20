@@ -22,9 +22,9 @@ test('phase 7 has durable release evidence for admin infrastructure',()=>{
   assert.equal(fs.existsSync(path.join(root,'test/release/phase7-admin-infra.test.js')),true);
 });
 
-test('phase 8 blocks release unless every supported customer/admin capability has complete surface and e2e evidence',()=>{
+test('release blocks unless every supported customer/admin capability through phase 9 has complete surface and e2e evidence',()=>{
   const pkg=readJson('package.json');
-  assert.equal(pkg.scripts['capability:check:release'],'node scripts/check-customer-capability-parity.js --require-e2e --max-phase 8 --require-100');
+  assert.equal(pkg.scripts['capability:check:release'],'node scripts/check-customer-capability-parity.js --require-e2e --max-phase 9 --require-100');
   assert.match(pkg.scripts['verify:release'],/capability:check:release/);
 
   const checker=readText('scripts/check-customer-capability-parity.js');
