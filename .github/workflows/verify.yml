@@ -41,10 +41,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install PDV dependencies
+      - name: Install PDV and QA peer dependencies
         run: npm install --no-audit --no-fund
-      - name: Install pinned ArtiSys QA runtime
-        run: npm ci --prefix qa/runtime --no-audit --no-fund
       - name: Ensure Xvfb is available
         shell: bash
         run: |
