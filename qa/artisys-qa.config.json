@@ -34,7 +34,8 @@
     "smoke": "flows/smoke.json",
     "home": "flows/home.json",
     "sales-enhancements": "flows/sales-enhancements.json",
-    "reports-complete": "flows/reports-complete.json"
+    "reports-complete": "flows/reports-complete.json",
+    "core-business-e2e": "flows/core-business-e2e.json"
   },
   "qaProfiles": {
     "quick": {
@@ -45,15 +46,15 @@
       "includeNetwork": false
     },
     "full": {
-      "flows": ["smoke", "home", "sales-enhancements", "reports-complete"],
-      "criticalFlows": ["smoke", "sales-enhancements", "reports-complete"],
+      "flows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
+      "criticalFlows": ["smoke", "sales-enhancements", "reports-complete", "core-business-e2e"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": ["smoke", "home", "sales-enhancements", "reports-complete"],
-      "criticalFlows": ["smoke", "home", "sales-enhancements", "reports-complete"],
+      "flows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
+      "criticalFlows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
