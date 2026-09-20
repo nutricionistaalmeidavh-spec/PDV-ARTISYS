@@ -4,6 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {Readable}=require('node:stream');
 const {createVerticalRouter}=require('../server/vertical-router');
+const {createE48E54Router}=require('../server/e48-e54-router');
 
 function request({method='GET',path='/',token='',body=null}={}){
   const req=Readable.from(body==null?[]:[Buffer.from(JSON.stringify(body))]);
@@ -31,6 +32,12 @@ function runtime(calls){
     marketBakery:{
       getBakeryOrder(id){calls.push({op:'bakery-get',id});return{id,status:'OPEN'};},
       cancelBakeryOrder(id,reason,actor){calls.push({op:'bakery-cancel',id,reason,actor});return{id,status:'CANCELLED'};}
+    },
+    services:{
+      updateAppointmentStatus(id,status,actor){calls.push({op:'service-status',id,status,actor});return{id,status};}
+    },
+    workshop:{
+      addItem(id,data,actor){calls.push({op:'workshop-item',id,data,actor});return{id,status:'OPEN',items:[]};}
     }
   };
 }
@@ -69,4 +76,23 @@ test('bakery order lookup and cancellation are exposed through the vertical HTTP
   const cancelled=await call(handler,{method:'POST',path:'/api/v1/vertical/bakery/orders/b1/cancel',token:'token-manager',body:{reason:'cliente desistiu'}});
   assert.equal(cancelled.statusCode,200);assert.equal(cancelled.payload.status,'CANCELLED');
   assert.deepEqual(calls.map(item=>item.op),['bakery-get','bakery-cancel']);
+});
+
+test('services and workshop final vertical routes reject requests without an authenticated desktop session',async()=>{
+  const calls=[];const handler=createE48E54Router({runtime:runtime(calls),sessionStore:sessions()});
+  const res=await call(handler,{method:'PATCH',path:'/api/v1/vertical/services/appointments/a1/status',body:{status:'IN_PROGRESS'}});
+  assert.equal(res.statusCode,401);
+  assert.match(res.payload.error,/Sessao invalida/i);
+  assert.equal(calls.length,0);
+});
+
+test('services and workshop final vertical routes receive the logged-in manager actor',async()=>{
+  const calls=[];const handler=createE48E54Router({runtime:runtime(calls),sessionStore:sessions()});
+  let res=await call(handler,{method:'PATCH',path:'/api/v1/vertical/services/appointments/a1/status',token:'token-manager',body:{status:'IN_PROGRESS'}});
+  assert.equal(res.statusCode,200);
+  res=await call(handler,{method:'POST',path:'/api/v1/vertical/workshop/orders/os1/items',token:'token-manager',body:{kind:'LABOR',serviceId:'srv1',quantity:1}});
+  assert.equal(res.statusCode,201);
+  assert.equal(calls[0].actor.role,'manager');
+  assert.equal(calls[1].actor.userId,'manager-1');
+  assert.equal(calls[1].actor.terminalId,'PDV-01');
 });
