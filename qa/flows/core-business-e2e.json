@@ -28,7 +28,7 @@
 
     {"action":"click","selector":"[data-route='checkout']","name":"core-open-checkout"},
     {"action":"waitFor","selector":".checkout-layout","name":"core-checkout-ready","timeoutMs":10000},
-    {"action":"click","selector":".product-card:has-text('QA Core Stock') [data-add-product]","name":"core-add-product"},
+    {"action":"click","selector":".product-card:has-text('QA Core Stock')","name":"core-add-product"},
     {"action":"waitFor","selector":".cart-line","name":"core-cart-ready","timeoutMs":10000},
     {"action":"expectText","selector":".cart-line","expected":"QA Core Stock","name":"core-cart-product"},
     {"action":"click","selector":"#finalize-sale","name":"core-finalize-sale"},
