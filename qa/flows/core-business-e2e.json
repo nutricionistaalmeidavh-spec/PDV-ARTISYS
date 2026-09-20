@@ -9,7 +9,7 @@
     {"action":"fill","selector":"#product-form input[name='sku']","value":"QA-CORE-STOCK","name":"core-product-sku"},
     {"action":"fill","selector":"#product-form input[name='salePrice']","value":"20,00","name":"core-product-price"},
     {"action":"fill","selector":"#product-form input[name='cost']","value":"8,00","name":"core-product-cost"},
-    {"action":"fill","selector":"#product-form input[name='minimumStock']","value":"2","name":"core-product-minimum"},
+    {"action":"fill","selector":"#product-form input[name='minimumStock']","value":"5","name":"core-product-minimum"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"core-save-product"},
     {"action":"expectText","selector":".data-card:not([data-kit-combo-admin])","expected":"QA Core Stock","name":"core-product-created"},
     {"action":"click","selector":"[data-route='inventory']","name":"core-open-inventory"},
