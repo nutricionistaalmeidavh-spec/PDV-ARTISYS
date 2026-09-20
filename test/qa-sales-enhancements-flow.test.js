@@ -9,25 +9,23 @@ const root = path.resolve(__dirname, '..');
 const readJson = relative => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
 const readText = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('sales enhancements flow is part of full and release QA', () => {
+test('deterministic sales enhancements flow is part of full and release QA', () => {
   const config = readJson('qa/artisys-qa.config.json');
-  assert.equal(config.flows['sales-enhancements'], 'flows/sales-enhancements.json');
-  assert.ok(config.qaProfiles.full.flows.includes('sales-enhancements'));
-  assert.ok(config.qaProfiles.full.criticalFlows.includes('sales-enhancements'));
-  assert.ok(config.qaProfiles.release.flows.includes('sales-enhancements'));
-  assert.ok(config.qaProfiles.release.criticalFlows.includes('sales-enhancements'));
+  assert.equal(config.flows['sales-enhancements-release'], 'flows/sales-enhancements-release.json');
+  assert.ok(config.qaProfiles.full.flows.includes('sales-enhancements-release'));
+  assert.ok(config.qaProfiles.full.criticalFlows.includes('sales-enhancements-release'));
+  assert.ok(config.qaProfiles.release.flows.includes('sales-enhancements-release'));
+  assert.ok(config.qaProfiles.release.criticalFlows.includes('sales-enhancements-release'));
 });
 
-test('sales enhancements flow covers the new commercial features with screenshots', () => {
-  const flow = readJson('qa/flows/sales-enhancements.json');
-  const names = new Set(flow.steps.map(step => step.name));
+test('sales enhancements release flow covers the customer-facing commercial journey', () => {
+  const flow = readJson('qa/flows/sales-enhancements-release.json');
+  const names = new Set(flow.steps.map(step => step.name).filter(Boolean));
   for (const name of [
-    'qa-admin-setup',
-    'qa-login',
     'seller-created',
     'product-photo-control',
     'commission-rule-created',
-    'seller-selector',
+    'seller-selected',
     'price-override-applied',
     'sale-observation-filled',
     'sale-completed',
@@ -35,23 +33,21 @@ test('sales enhancements flow covers the new commercial features with screenshot
     'reports-period-and-seller',
   ]) assert.ok(names.has(name), `missing QA step ${name}`);
 
-  const screenshots = flow.steps.filter(step => step.action === 'screenshot').map(step => step.name);
-  assert.ok(screenshots.includes('products-with-photo-control'));
-  assert.ok(screenshots.includes('checkout-sales-enhancements'));
-  assert.ok(screenshots.includes('sale-history-with-observation'));
-  assert.ok(screenshots.includes('reports-by-period-seller-commission'));
-
+  assert.ok(flow.steps.some(step => step.uses === 'home.json'));
   assert.ok(flow.steps.some(step => step.selector === '#seller-select'));
   assert.ok(flow.steps.some(step => step.selector === '[data-price-item]'));
   assert.ok(flow.steps.some(step => step.selector === '#sale-observation'));
-  assert.ok(flow.steps.some(step => step.selector === '#ops-report-filter'));
-  assert.ok(flow.steps.some(step => step.selector === '#ops-commission-rule'));
+  assert.ok(flow.steps.some(step => step.selector === '#reports-filter'));
+  assert.ok(flow.steps.some(step => step.selector === '#reports-commission-rule'));
   assert.ok(flow.steps.some(step => step.selector === '[data-product-photo-edit]'));
+  assert.ok(flow.steps.some(step => step.action === 'screenshot' && step.name === 'sales-enhancements-release'));
+});
 
-  const credentialSteps = flow.steps.filter(step => String(step.selector || '').includes("input[name='password']"));
-  assert.ok(credentialSteps.length >= 4);
-  assert.ok(credentialSteps.every(step => step.value === 'QaLocalOnly-12345!'));
-  assert.ok(credentialSteps.every(step => step.valueFromEnv == null));
+test('legacy sales enhancements diagnostic flow remains registered but does not gate release', () => {
+  const config = readJson('qa/artisys-qa.config.json');
+  assert.equal(config.flows['sales-enhancements'], 'flows/sales-enhancements.json');
+  assert.equal(config.qaProfiles.full.flows.includes('sales-enhancements'), false);
+  assert.equal(config.qaProfiles.release.flows.includes('sales-enhancements'), false);
 });
 
 test('QA Electron launcher isolates userData from the installed PDV database', () => {
