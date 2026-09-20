@@ -3,6 +3,7 @@
 const { randomBytes, randomUUID, scryptSync, timingSafeEqual } = require('node:crypto');
 const { assertCents } = require('../shared/money');
 const { writeAudit } = require('../../core/audit-log');
+const { runCustomerAddressMigrations } = require('../../core/database/customer-address-migrations');
 
 function normalizeDocument(value) {
   const digits = String(value || '').replace(/\D+/g, '');
@@ -12,6 +13,34 @@ function normalizeDocument(value) {
 function normalizeOptional(value) {
   const text = String(value || '').trim();
   return text || null;
+}
+
+function normalizeCustomerAddress(value = {}) {
+  const input = value && typeof value === 'object' ? value : {};
+  const postalCode = String(input.postalCode || '').replace(/\D+/g,'') || null;
+  if (postalCode && postalCode.length !== 8) throw new Error('CEP deve possuir 8 digitos.');
+  const state = normalizeOptional(input.state)?.toUpperCase() || null;
+  if (state && !/^[A-Z]{2}$/.test(state)) throw new Error('UF deve possuir 2 letras.');
+  const address = {
+    postalCode,
+    street: normalizeOptional(input.street),
+    number: normalizeOptional(input.number),
+    complement: normalizeOptional(input.complement),
+    district: normalizeOptional(input.district),
+    city: normalizeOptional(input.city),
+    state,
+    reference: normalizeOptional(input.reference)
+  };
+  return Object.values(address).some(Boolean) ? address : null;
+}
+
+function addressFromRow(row) {
+  if (!row) return null;
+  return normalizeCustomerAddress({
+    postalCode:row.address_postal_code,street:row.address_street,number:row.address_number,
+    complement:row.address_complement,district:row.address_district,city:row.address_city,
+    state:row.address_state,reference:row.address_reference
+  });
 }
 
 function booleanInt(value, fallback = true) {
@@ -49,6 +78,7 @@ function rowToCustomer(row) {
   if (!row) return null;
   return {
     id: row.id, name: row.name, document: row.document, phone: row.phone, email: row.email, notes: row.notes,
+    address: addressFromRow(row),
     creditLimitCents: row.credit_limit_cents, creditUsedCents: row.credit_used_cents, active: Boolean(row.active),
     createdAt: row.created_at, updatedAt: row.updated_at
   };
@@ -66,6 +96,7 @@ function publicUser(row) {
 
 function createCatalogService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
+  runCustomerAddressMigrations(db);
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
 
   function upsertCategory(input = {}, actor = null) {
@@ -137,15 +168,22 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const creditLimitCents = assertCents(input.creditLimitCents ?? 0, 'creditLimitCents');
     const creditUsedCents = assertCents(input.creditUsedCents ?? 0, 'creditUsedCents');
     if (creditLimitCents < 0 || creditUsedCents < 0) throw new Error('Credito nao pode ser negativo.');
+    const existing = db.prepare('SELECT * FROM customers WHERE id=?').get(id);
+    const address = input.address === undefined ? addressFromRow(existing) : normalizeCustomerAddress(input.address);
     const timestamp = now();
     db.prepare(`INSERT INTO customers
-      (id,name,document,phone,email,notes,credit_limit_cents,credit_used_cents,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      (id,name,document,phone,email,notes,credit_limit_cents,credit_used_cents,active,created_at,updated_at,
+       address_postal_code,address_street,address_number,address_complement,address_district,address_city,address_state,address_reference)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET name=excluded.name,document=excluded.document,phone=excluded.phone,email=excluded.email,notes=excluded.notes,
-        credit_limit_cents=excluded.credit_limit_cents,credit_used_cents=excluded.credit_used_cents,active=excluded.active,updated_at=excluded.updated_at`)
+        credit_limit_cents=excluded.credit_limit_cents,credit_used_cents=excluded.credit_used_cents,active=excluded.active,updated_at=excluded.updated_at,
+        address_postal_code=excluded.address_postal_code,address_street=excluded.address_street,address_number=excluded.address_number,
+        address_complement=excluded.address_complement,address_district=excluded.address_district,address_city=excluded.address_city,
+        address_state=excluded.address_state,address_reference=excluded.address_reference`)
       .run(id, name, normalizeDocument(input.document), normalizeOptional(input.phone), normalizeOptional(input.email), normalizeOptional(input.notes),
-        creditLimitCents, creditUsedCents, booleanInt(input.active), timestamp, timestamp);
-    writeAudit(db, { action: 'customer.upsert', entity: 'customer', entityId: id, actor, context: { name, document: normalizeDocument(input.document) } }, now);
+        creditLimitCents, creditUsedCents, booleanInt(input.active), existing?.created_at || timestamp, timestamp,
+        address?.postalCode||null,address?.street||null,address?.number||null,address?.complement||null,address?.district||null,address?.city||null,address?.state||null,address?.reference||null);
+    writeAudit(db, { action: 'customer.upsert', entity: 'customer', entityId: id, actor, context: { name, document: normalizeDocument(input.document), hasAddress:Boolean(address) } }, now);
     return getCustomer(id);
   }
 
@@ -256,4 +294,4 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   };
 }
 
-module.exports = { normalizeDocument, createCatalogService };
+module.exports = { normalizeDocument, normalizeCustomerAddress, createCatalogService };
