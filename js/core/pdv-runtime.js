@@ -30,6 +30,7 @@ const { registerCashEffects }=require('../domains/cash/cash-effects');
 const { createReturnService }=require('../domains/returns/return-service');
 const { registerReturnEffects }=require('../domains/returns/return-effects');
 const { createFinanceService }=require('../domains/finance/finance-service');
+const { createProcurementService }=require('../domains/procurement/procurement-service');
 const { createReportingService }=require('../domains/reports/historical-reporting-service');
 const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
@@ -87,7 +88,10 @@ function createPdvRuntime({
   const coreSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items),commissionService:commissions});
   const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:items=>recipes.expandItems(items)});
   const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,now});
-  const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});const finance=createFinanceService({db,now,idFactory});const reports=createReportingService({db,now});
+  const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});
+  const finance=createFinanceService({db,now,idFactory});
+  const procurement=createProcurementService({db,inventory,finance,now,idFactory});
+  const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const fiscal=createFiscalService({db,outbox,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});const mobileDevices=createMobileDeviceService({db,now,idFactory});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const services=createServicesService({db,modules,catalog,sales,now,idFactory});const workshop=createWorkshopService({db,modules,catalog,services,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
@@ -96,6 +100,6 @@ function createPdvRuntime({
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
