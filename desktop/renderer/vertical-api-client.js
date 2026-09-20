@@ -34,10 +34,17 @@
     addConfiguredSaleItem(saleId,body){return this.request(`/api/v1/vertical/sales/${e(saleId)}/configured-item`,{method:'POST',body});},
     restaurantRemaining(sessionId){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/remaining`);},
     createRestaurantSettlement(sessionId,body){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/settlements`,{method:'POST',body});},
+    createRestaurantEqualSettlement(sessionId,body){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/settlements/equal`,{method:'POST',body});},
+    completeRestaurantSettlement(id,body){return this.request(`/api/v1/vertical/restaurant/settlements/${e(id)}/complete`,{method:'POST',body});},
+    cancelRestaurantOrderItem(id,reason){return this.request(`/api/v1/vertical/restaurant/order-items/${e(id)}/cancel`,{method:'POST',body:{reason}});},
+    mergeRestaurantSessions(sourceSessionId,targetSessionId){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sourceSessionId)}/merge`,{method:'POST',body:{targetSessionId}});},
     transferRestaurantItems(sessionId,body){return this.request(`/api/v1/vertical/restaurant/sessions/${e(sessionId)}/transfer-items`,{method:'POST',body});},
     delivery(filters={}){return this.request(`/api/v1/vertical/delivery${this.params(filters)}`);},
     createDelivery(body){return this.request('/api/v1/vertical/delivery',{method:'POST',body,mutationId:this.mutationId()});},
     updateDeliveryStatus(id,status){return this.request(`/api/v1/vertical/delivery/${e(id)}/status`,{method:'PATCH',body:{status}});},
+    cancelDelivery(id,reason){return this.request(`/api/v1/vertical/delivery/${e(id)}/cancel`,{method:'POST',body:{reason}});},
+    assignDeliveryCourier(id,courier){return this.request(`/api/v1/vertical/delivery/${e(id)}/courier`,{method:'PATCH',body:{courier}});},
+    createDeliverySale(id,body){return this.request(`/api/v1/vertical/delivery/${e(id)}/sale`,{method:'POST',body});},
     fastFood(filters={}){return this.request(`/api/v1/vertical/fast-food${this.params(filters)}`);},
     createFastFood(body={}){return this.request('/api/v1/vertical/fast-food',{method:'POST',body,mutationId:this.mutationId()});},
     updateFastFoodStatus(id,status){return this.request(`/api/v1/vertical/fast-food/${e(id)}/status`,{method:'PATCH',body:{status}});},
@@ -46,7 +53,9 @@
     saveWeightProfile(body){return this.request('/api/v1/vertical/market/weight-profile',{method:'POST',body});},
     parseWeightBarcode(body){return this.request('/api/v1/vertical/market/parse-weight',{method:'POST',body});},
     createBakeryOrder(body){return this.request('/api/v1/vertical/bakery/orders',{method:'POST',body});},
-    updateBakeryOrderStatus(id,status){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/status`,{method:'PATCH',body:{status}});}
+    bakeryOrder(id){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}`);},
+    updateBakeryOrderStatus(id,status){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/status`,{method:'PATCH',body:{status}});},
+    cancelBakeryOrder(id,reason){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/cancel`,{method:'POST',body:{reason}});}
   });
 
   for(const name of ['sale','saleDetails','openSale','setSaleCustomer','addSaleItem','updateSaleItem','removeSaleItem','discountSale','suspendSale','resumeSale','completeSale','cancelSale']){

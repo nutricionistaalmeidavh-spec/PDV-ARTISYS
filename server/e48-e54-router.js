@@ -3,10 +3,18 @@
 class FinalVerticalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
 async function body(request,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of request){size+=chunk.length;if(size>limit)throw new FinalVerticalHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new FinalVerticalHttpError(400,'JSON invalido.');}}
+function bearer(request){const value=String(request.headers.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
 
-function createE48E54Router({runtime,installationToken='',requireTerminalAuth=false}={}){
+function createE48E54Router({runtime,installationToken='',requireTerminalAuth=false,sessionStore=null}={}){
   if(!runtime)throw new TypeError('runtime is required.');
+  const sessions=sessionStore||null;
   function principal(request){
+    if(sessions){
+      const token=bearer(request);const session=sessions.get(token);
+      if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new FinalVerticalHttpError(401,'Sessao invalida ou expirada.');}
+      if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new FinalVerticalHttpError(401,'Terminal nao autorizado.');}
+      return{actor:{userId:session.userId,role:session.role,terminalId:session.terminalId||null},terminalId:session.terminalId||null};
+    }
     if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new FinalVerticalHttpError(401,'Terminal nao autorizado.');return{actor:{userId:null,role:'terminal',terminalId:id},terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new FinalVerticalHttpError(401,'Token local invalido.');
     return{actor:{userId:null,role:'system',terminalId:null},terminalId:null};

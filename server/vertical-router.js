@@ -3,10 +3,18 @@
 class VerticalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
 async function body(request,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of request){size+=chunk.length;if(size>limit)throw new VerticalHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new VerticalHttpError(400,'JSON invalido.');}}
+function bearer(request){const value=String(request.headers.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
 
-function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=false}={}){
+function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=false,sessionStore=null}={}){
   if(!runtime)throw new TypeError('runtime is required.');
+  const sessions=sessionStore||null;
   function principal(request){
+    if(sessions){
+      const token=bearer(request);const session=sessions.get(token);
+      if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new VerticalHttpError(401,'Sessao invalida ou expirada.');}
+      if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new VerticalHttpError(401,'Terminal nao autorizado.');}
+      return{actor:{userId:session.userId,role:session.role,terminalId:session.terminalId||null},terminalId:session.terminalId||null};
+    }
     if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new VerticalHttpError(401,'Terminal nao autorizado.');return{actor:{userId:null,role:'terminal',terminalId:id},terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new VerticalHttpError(401,'Token local invalido.');
     return{actor:{userId:null,role:'system',terminalId:null},terminalId:null};
@@ -45,6 +53,8 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
 
       const settlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements$/);
       if(request.method==='POST'&&settlement){const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createItemSettlement(decodeURIComponent(settlement[1]),{...data,terminalId},actor));return true;}
+      const equalSettlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements\/equal$/);
+      if(request.method==='POST'&&equalSettlement){const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createEqualSettlement(decodeURIComponent(equalSettlement[1]),{...data,terminalId},actor));return true;}
       const remaining=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/remaining$/);
       if(request.method==='GET'&&remaining){json(response,200,runtime.restaurantSettlement.getRemainingBalance(decodeURIComponent(remaining[1])));return true;}
       const completeSettlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/settlements\/([^/]+)\/complete$/);
@@ -77,8 +87,12 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='POST'&&pathname==='/api/v1/vertical/market/weight-profile'){json(response,201,runtime.marketBakery.upsertWeightBarcodeProfile(await body(request),actor));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/market/parse-weight'){const data=await body(request);json(response,200,runtime.marketBakery.parseWeightBarcode(data.barcode,{profileId:data.profileId||null}));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/bakery/orders'){json(response,201,runtime.marketBakery.createBakeryOrder(await body(request),actor));return true;}
+      const bakeryOrder=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)$/);
+      if(request.method==='GET'&&bakeryOrder){json(response,200,runtime.marketBakery.getBakeryOrder(decodeURIComponent(bakeryOrder[1])));return true;}
       const bakeryStatus=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)\/status$/);
       if(request.method==='PATCH'&&bakeryStatus){const data=await body(request);json(response,200,runtime.marketBakery.updateBakeryOrderStatus(decodeURIComponent(bakeryStatus[1]),data.status,actor));return true;}
+      const bakeryCancel=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)\/cancel$/);
+      if(request.method==='POST'&&bakeryCancel){const data=await body(request);json(response,200,runtime.marketBakery.cancelBakeryOrder(decodeURIComponent(bakeryCancel[1]),data.reason,actor));return true;}
 
       throw new VerticalHttpError(404,'Rota vertical nao encontrada.');
     }catch(error){const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}

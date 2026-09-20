@@ -7,8 +7,8 @@
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   function content(){return document.getElementById('route-content');}
   function notify(message,error=false){const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3200);}
-  function back(){return '<button type="button" class="secondary-button" id="e48-back">← Módulos</button>';}
-  function bindBack(){document.getElementById('e48-back')?.addEventListener('click',()=>document.getElementById('vertical-modules-launcher')?.click());}
+  function back(){return '<button type="button" class="secondary-button" id="vertical-back">← Configurações</button>';}
+  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>window.PdvOperationalUi?.showRoute?.('settings'));}
   function field(name,label,type='text',extra=''){return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" ${extra}></label>`;}
   async function req(path,options){return api.request(path,options);}
 
@@ -50,7 +50,7 @@
 
   function renderFinalModule(id){if(id==='RETAIL')return renderRetail();if(id==='SERVICES')return renderServices();if(id==='WORKSHOP')return renderWorkshop();if(id==='SELF_SERVICE')return renderSelfService();}
   function patchModuleManager(root=document){
-    root.querySelectorAll('[data-module-open]').forEach(button=>{const id=button.dataset.moduleOpen;if(!FINAL_MODULES.has(id))return;button.disabled=false;const span=button.querySelector('span');if(span)span.textContent='Abrir módulo';if(button.dataset.e48Bound)return;button.dataset.e48Bound='1';button.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();renderFinalModule(id);},true);});
+    root.querySelectorAll('[data-module-open]').forEach(button=>{const id=button.dataset.moduleOpen;if(!FINAL_MODULES.has(id))return;if(button.dataset.e48Bound)return;button.dataset.e48Bound='1';button.disabled=false;const span=button.querySelector('span');if(span)span.textContent='Abrir módulo';button.addEventListener('click',event=>{event.preventDefault();event.stopImmediatePropagation();renderFinalModule(id);},true);});
     const enabled=root.querySelector('.vertical-enabled');if(enabled&&!enabled.querySelector('#e53-access-card')){const box=document.createElement('div');box.className='vertical-card-grid';box.innerHTML='<button id="e53-access-card" type="button" class="vertical-card"><strong>Acesso mobile / QR</strong><span>HTTP local em LAN confiável</span></button><button id="e54-hardware-card" type="button" class="vertical-card"><strong>Periféricos</strong><span>Diagnóstico e homologação</span></button>';enabled.appendChild(box);box.querySelector('#e53-access-card').addEventListener('click',renderMobileAccess);box.querySelector('#e54-hardware-card').addEventListener('click',renderHardware);}
   }
   const observer=new MutationObserver(()=>patchModuleManager(document));observer.observe(document.body,{subtree:true,childList:true});patchModuleManager(document);
