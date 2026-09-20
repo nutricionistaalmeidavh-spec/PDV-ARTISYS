@@ -34,6 +34,7 @@
     "smoke": "flows/smoke.json",
     "home": "flows/home.json",
     "sales-enhancements": "flows/sales-enhancements.json",
+    "sales-enhancements-release": "flows/sales-enhancements-release.json",
     "reports-complete": "flows/reports-complete.json",
     "core-business-e2e": "flows/core-business-e2e.json"
   },
@@ -46,15 +47,15 @@
       "includeNetwork": false
     },
     "full": {
-      "flows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
-      "criticalFlows": ["smoke", "sales-enhancements", "reports-complete", "core-business-e2e"],
+      "flows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
+      "criticalFlows": ["smoke", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
-      "criticalFlows": ["smoke", "home", "sales-enhancements", "reports-complete", "core-business-e2e"],
+      "flows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
+      "criticalFlows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
