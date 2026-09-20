@@ -12,10 +12,21 @@ function roundQty(value) {
   return Math.round(Number(value || 0) * 1000) / 1000;
 }
 
+function variantIdSql(column = 'configuration_json') {
+  return `COALESCE(
+    json_extract(${column},'$.productVariant.id'),
+    json_extract(${column},'$.retailVariant.id'),
+    json_extract(${column},'$.variant.id'),
+    json_extract(${column},'$.variantId')
+  )`;
+}
+
 function createReportingService({ db, now = () => new Date().toISOString() } = {}) {
   if (!db) throw new TypeError('Database is required.');
 
-  db.exec(`CREATE TRIGGER IF NOT EXISTS trg_sale_cost_snapshot
+  const triggerVariantId = variantIdSql('sale_items.configuration_json');
+  db.exec(`DROP TRIGGER IF EXISTS trg_sale_cost_snapshot;
+    CREATE TRIGGER trg_sale_cost_snapshot
     AFTER UPDATE OF status ON sales
     WHEN NEW.status='COMPLETED' AND OLD.status<>'COMPLETED'
     BEGIN
@@ -23,7 +34,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       SET cost_cents_snapshot=COALESCE(
             CASE WHEN configuration_json IS NOT NULL THEN
               (SELECT pv.cost_cents FROM product_variants pv
-               WHERE pv.id=json_extract(sale_items.configuration_json,'$.variantId'))
+               WHERE pv.id=${triggerVariantId})
             END,
             (SELECT p.cost_cents FROM products p WHERE p.id=sale_items.product_id),
             0
@@ -31,7 +42,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
           cost_snapshot_source=CASE
             WHEN configuration_json IS NOT NULL AND EXISTS(
               SELECT 1 FROM product_variants pv
-              WHERE pv.id=json_extract(sale_items.configuration_json,'$.variantId')
+              WHERE pv.id=${triggerVariantId}
             ) THEN 'VARIANT'
             ELSE 'PRODUCT'
           END
@@ -39,6 +50,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     END`);
 
   const base = createBaseReportingService({ db, now });
+  const saleItemVariantId = variantIdSql('si.configuration_json');
 
   function markCostBasis(map, productId, snapshotCost) {
     const key = String(productId);
@@ -65,8 +77,10 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     if (Array.isArray(result.saleIds) && result.saleIds.length) {
       const placeholders = result.saleIds.map(() => '?').join(',');
       const rows = db.prepare(`SELECT si.product_id AS productId,si.quantity,
-          si.cost_cents_snapshot AS snapshotCost,p.cost_cents AS currentCost
-        FROM sale_items si LEFT JOIN products p ON p.id=si.product_id
+          si.cost_cents_snapshot AS snapshotCost,COALESCE(pv.cost_cents,p.cost_cents,0) AS currentCost
+        FROM sale_items si
+        LEFT JOIN products p ON p.id=si.product_id
+        LEFT JOIN product_variants pv ON pv.id=${saleItemVariantId}
         WHERE si.sale_id IN (${placeholders})`).all(...result.saleIds);
       for (const row of rows) {
         const productId = String(row.productId);
@@ -83,12 +97,13 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       returnParams.push(String(filters.sellerId));
     }
     const returnRows = db.prepare(`SELECT ri.product_id AS productId,ri.quantity,
-        si.cost_cents_snapshot AS snapshotCost,p.cost_cents AS currentCost
+        si.cost_cents_snapshot AS snapshotCost,COALESCE(pv.cost_cents,p.cost_cents,0) AS currentCost
       FROM return_items ri
       JOIN return_transactions rt ON rt.id=ri.return_id
       JOIN sales s ON s.id=rt.sale_id
       LEFT JOIN sale_items si ON si.id=ri.sale_item_id
       LEFT JOIN products p ON p.id=ri.product_id
+      LEFT JOIN product_variants pv ON pv.id=${saleItemVariantId}
       WHERE rt.status='COMPLETED' AND rt.created_at>=? AND rt.created_at<=?${sellerClause}`)
       .all(...returnParams);
     for (const row of returnRows) {
