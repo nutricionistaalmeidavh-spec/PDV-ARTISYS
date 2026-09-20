@@ -2,12 +2,26 @@
 
 const { createFiscalSidecar } = require('./index');
 const { createControlledFiscalAdapter } = require('./controlled-adapter');
+const { createAcbrMonitorTcpTransport } = require('./acbr-monitor-protocol');
+const { createAcbrMonitorAdapter } = require('./acbr-monitor-adapter');
 
 const host = String(process.env.ARTISYS_FISCAL_SIDECAR_HOST || '127.0.0.1');
 const port = Number(process.env.ARTISYS_FISCAL_SIDECAR_PORT || 0);
-const adapter = createControlledFiscalAdapter({
-  mode:process.env.ARTISYS_FISCAL_SIDECAR_MODE || 'unconfigured'
-});
+const mode = String(process.env.ARTISYS_FISCAL_SIDECAR_MODE || 'unconfigured').trim().toLowerCase();
+
+function createAdapter() {
+  if (mode === 'acbr-monitor') {
+    const transport = createAcbrMonitorTcpTransport({
+      host:String(process.env.ARTISYS_ACBR_HOST || '127.0.0.1'),
+      port:Number(process.env.ARTISYS_ACBR_PORT || 3434),
+      timeoutMs:Number(process.env.ARTISYS_ACBR_TIMEOUT_MS || 30000)
+    });
+    return createAcbrMonitorAdapter({ transport });
+  }
+  return createControlledFiscalAdapter({ mode });
+}
+
+const adapter = createAdapter();
 const sidecar = createFiscalSidecar({ adapter, host, port });
 
 let closing = false;
@@ -27,7 +41,8 @@ sidecar.start().then(address => {
     type:'artisys:fiscal-sidecar:ready',
     host:address.address,
     port:address.port,
-    pid:process.pid
+    pid:process.pid,
+    adapterMode:mode
   };
   if (typeof process.send === 'function') process.send(ready);
   else process.stdout.write(`${JSON.stringify(ready)}\n`);
