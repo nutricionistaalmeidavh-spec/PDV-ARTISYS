@@ -15,12 +15,13 @@
     "home":"flows/home.json",
     "reports-v2-complete":"flows/reports-v2-complete.json",
     "core-business-e2e":"flows/core-business-e2e.json",
-    "enterprise-depth-p0":"flows/enterprise-depth-p0.json"
+    "enterprise-depth-p0":"flows/enterprise-depth-p0.json",
+    "backend-parity-p0":"flows/backend-parity-p0.json"
   },
   "qaProfiles": {
     "quick":{"flows":["smoke"],"criticalFlows":["smoke"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
-    "full":{"flows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0"],"criticalFlows":["smoke","reports-v2-complete","core-business-e2e","enterprise-depth-p0"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
-    "release":{"flows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0"],"criticalFlows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false}
+    "full":{"flows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0"],"criticalFlows":["smoke","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
+    "release":{"flows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0"],"criticalFlows":["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false}
   },
   "demos": {
     "quick-30s":{"file":"demo/quick-30s.json","preset":"reels-9x16","durationTargetSec":30},

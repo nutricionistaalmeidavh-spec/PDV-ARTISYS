@@ -1,4 +1,5 @@
 'use strict';
+const { createTerminalStockLocationService }=require('../js/domains/inventory/terminal-stock-location-service');
 class EnterpriseDepthHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(res,status,payload){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(payload));}
 async function body(req,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>limit)throw new EnterpriseDepthHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new EnterpriseDepthHttpError(400,'JSON invalido.');}}
@@ -8,6 +9,7 @@ function bearer(req){const value=String(req.headers.authorization||'');return va
 function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionStore=null}={}){
   if(!runtime?.logistics||!runtime?.procurement||!runtime?.orders)throw new TypeError('enterprise depth runtime services are required.');
   const sessions=sessionStore||new Map();
+  const terminalStockLocations=createTerminalStockLocationService({db:runtime.db});
   function principal(req){
     const token=bearer(req);const session=sessions.get(token);
     if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new EnterpriseDepthHttpError(401,'Sessao invalida ou expirada.');}
@@ -17,7 +19,7 @@ function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionS
   function requireRole(actor,roles){if(!roles.includes(String(actor?.role||'')))throw new EnterpriseDepthHttpError(403,'Permissao insuficiente.');}
   return async function enterpriseDepthRouter(req,res){
     const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);const pathname=url.pathname;
-    if(pathname!=='/api/v1/suppliers'&&!pathname.startsWith('/api/v1/stock-')&&!pathname.startsWith('/api/v1/purchase-')&&!pathname.startsWith('/api/v1/sales-orders'))return false;
+    if(pathname!=='/api/v1/suppliers'&&!pathname.startsWith('/api/v1/stock-')&&!pathname.startsWith('/api/v1/purchase-')&&!pathname.startsWith('/api/v1/sales-orders')&&!pathname.startsWith('/api/v1/terminal-stock-locations'))return false;
     try{
       const actor=principal(req);let match;
       if(pathname==='/api/v1/suppliers'){
@@ -29,6 +31,13 @@ function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionS
         if(req.method==='GET'){json(res,200,runtime.logistics.listLocations({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
         if(req.method==='POST'){requireRole(actor,['admin','manager']);json(res,201,runtime.logistics.createLocation(await body(req),actor));return true;}
       }
+      if(pathname==='/api/v1/stock-balances'&&req.method==='GET'){
+        const aggregate=url.searchParams.get('aggregate')==='true';const locationId=url.searchParams.get('locationId')||'MAIN';
+        json(res,200,runtime.inventory.listBalances({query:url.searchParams.get('query')||'',locationId,aggregate}));return true;
+      }
+      if(pathname==='/api/v1/stock-movements'&&req.method==='GET'){
+        json(res,200,runtime.inventory.listMovements({productId:url.searchParams.get('productId')||null,locationId:url.searchParams.get('locationId')||null,type:url.searchParams.get('type')||null,from:url.searchParams.get('from')||null,to:url.searchParams.get('to')||null}));return true;
+      }
       if(pathname==='/api/v1/stock-availability'&&req.method==='GET'){const productId=url.searchParams.get('productId');if(!productId)throw new EnterpriseDepthHttpError(400,'productId obrigatorio.');json(res,200,runtime.logistics.getAvailability(productId,url.searchParams.get('locationId')||'MAIN'));return true;}
       if(pathname==='/api/v1/stock-reservations'&&req.method==='GET'){const names=new Map(runtime.catalog.listProducts({includeInactive:true}).map(product=>[product.id,product.name]));const rows=runtime.logistics.listReservations({status:url.searchParams.get('status')||null,sourceType:url.searchParams.get('sourceType')||null,sourceId:url.searchParams.get('sourceId')||null,locationId:url.searchParams.get('locationId')||null}).map(row=>({...row,productName:names.get(row.productId)||null}));json(res,200,rows);return true;}
       if(pathname==='/api/v1/stock-transfers'){
@@ -38,6 +47,18 @@ function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionS
       if((match=pathMatch(pathname,'/api/v1/stock-transfers/:id/dispatch'))&&req.method==='POST'){requireRole(actor,['admin','manager']);json(res,200,runtime.logistics.dispatchTransfer(match.id,await body(req),actor));return true;}
       if((match=pathMatch(pathname,'/api/v1/stock-transfers/:id/receive'))&&req.method==='POST'){requireRole(actor,['admin','manager']);json(res,200,runtime.logistics.receiveTransfer(match.id,await body(req),actor));return true;}
       if((match=pathMatch(pathname,'/api/v1/stock-transfers/:id/cancel'))&&req.method==='POST'){requireRole(actor,['admin','manager']);json(res,200,runtime.logistics.cancelTransfer(match.id,await body(req),actor));return true;}
+      if(pathname==='/api/v1/terminal-stock-locations'&&req.method==='GET'){
+        requireRole(actor,['admin','manager']);
+        const bindingRows=terminalStockLocations.listTerminalBindings();const bindings=new Map(bindingRows.map(item=>[item.terminalId,item]));
+        const terminals=new Map(runtime.terminals.listTerminals().map(item=>[item.terminalId,item]));
+        if(actor.terminalId&&!terminals.has(actor.terminalId))terminals.set(actor.terminalId,{terminalId:actor.terminalId,name:`Terminal ${actor.terminalId}`,status:'ACTIVE',local:true});
+        for(const binding of bindingRows)if(!terminals.has(binding.terminalId))terminals.set(binding.terminalId,{terminalId:binding.terminalId,name:`Terminal ${binding.terminalId}`,status:'ACTIVE',local:true});
+        const rows=[...terminals.values()].map(terminal=>{const binding=bindings.get(terminal.terminalId);const resolved=terminalStockLocations.resolveTerminalLocation(terminal.terminalId);return{...terminal,locationId:resolved.locationId,locationName:resolved.locationName,locationType:resolved.locationType,fallback:Boolean(resolved.fallback),explicitBinding:Boolean(binding)};});
+        json(res,200,rows);return true;
+      }
+      if((match=pathMatch(pathname,'/api/v1/terminal-stock-locations/:terminalId'))&&req.method==='PUT'){
+        requireRole(actor,['admin','manager']);const data=await body(req);json(res,200,terminalStockLocations.bindTerminal(match.terminalId,data.locationId,actor));return true;
+      }
       if(pathname==='/api/v1/purchase-orders'){
         requireRole(actor,['admin','manager']);
         if(req.method==='GET'){json(res,200,runtime.procurement.listPurchaseOrders({status:url.searchParams.get('status')||null,supplierId:url.searchParams.get('supplierId')||null,locationId:url.searchParams.get('locationId')||null}));return true;}

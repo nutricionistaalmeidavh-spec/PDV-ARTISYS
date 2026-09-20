@@ -6,6 +6,8 @@
   p.saveSupplier=function(body){return this.request('/api/v1/suppliers',{method:'POST',body});};
   p.stockLocations=function(includeInactive=false){return this.request(`/api/v1/stock-locations${includeInactive?'?includeInactive=true':''}`);};
   p.createStockLocation=function(body){return this.request('/api/v1/stock-locations',{method:'POST',body});};
+  p.stockBalances=function(filters={}){return this.request(`/api/v1/stock-balances${this.params(filters)}`);};
+  p.stockMovementsByLocation=function(filters={}){return this.request(`/api/v1/stock-movements${this.params(filters)}`);};
   p.stockAvailability=function(productId,locationId='MAIN'){return this.request(`/api/v1/stock-availability${this.params({productId,locationId})}`);};
   p.stockReservations=function(filters={}){return this.request(`/api/v1/stock-reservations${this.params(filters)}`);};
   p.stockTransfers=function(filters={}){return this.request(`/api/v1/stock-transfers${this.params(filters)}`);};
@@ -13,6 +15,8 @@
   p.dispatchStockTransfer=function(id,idempotencyKey=this.mutationId()){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/dispatch`,{method:'POST',body:{idempotencyKey}});};
   p.receiveStockTransfer=function(id,idempotencyKey=this.mutationId()){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/receive`,{method:'POST',body:{idempotencyKey}});};
   p.cancelStockTransfer=function(id,reason){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/cancel`,{method:'POST',body:{reason}});};
+  p.terminalStockLocations=function(){return this.request('/api/v1/terminal-stock-locations');};
+  p.bindTerminalStockLocation=function(terminalId,locationId){return this.request(`/api/v1/terminal-stock-locations/${encodeURIComponent(terminalId)}`,{method:'PUT',body:{locationId}});};
   p.purchaseOrders=function(filters={}){return this.request(`/api/v1/purchase-orders${this.params(filters)}`);};
   p.createPurchaseOrder=function(body){return this.request('/api/v1/purchase-orders',{method:'POST',body});};
   p.submitPurchaseOrder=function(id){return this.request(`/api/v1/purchase-orders/${encodeURIComponent(id)}/submit`,{method:'POST',body:{}});};
