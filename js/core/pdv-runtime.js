@@ -6,6 +6,7 @@ const { runMigrations }=require('./database/migrations');
 const { runReleaseMigrations }=require('./database/release-migrations');
 const { runVerticalMigrations }=require('./database/vertical-migrations');
 const { runKitComboMigrations }=require('./database/kit-combo-migrations');
+const { runEnterpriseDepthMigrations }=require('./database/enterprise-depth-migrations');
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
@@ -82,7 +83,7 @@ function createPdvRuntime({
   appVersion=serverVersion,
   readScale=null
 }={}){
-  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);
+  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});
   const modules=createModuleService({db,settings,now});
