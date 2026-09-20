@@ -16,8 +16,8 @@
     {"action":"expectText","selector":"#backend-finance-parity","expected":"Estornar baixas","name":"parity-finance-reversal"},
 
     {"action":"click","selector":"#sidebar-nav [data-route='home']","name":"parity-home-before-returns"},
-    {"action":"waitFor","selector":"#route-content [data-route='returns']","name":"parity-return-tile-ready","timeoutMs":10000},
-    {"action":"click","selector":"#route-content [data-route='returns']","name":"parity-open-returns"},
+    {"action":"waitFor","selector":"#route-content [data-home-route='returns']","name":"parity-return-tile-ready","timeoutMs":10000},
+    {"action":"click","selector":"#route-content [data-home-route='returns']","name":"parity-open-returns"},
     {"action":"waitFor","selector":"#backend-return-cancel","name":"parity-return-ui","timeoutMs":10000},
     {"action":"expectText","selector":"#backend-return-cancel","expected":"Gerenciar devoluções","name":"parity-return-cancel-title"},
 
