@@ -5,7 +5,7 @@
 @media print{
   @page{size:auto;margin:10mm}
   body{background:#fff!important;color:#000!important;overflow:visible!important}
-  .desktop-frame{display:block!important}.sidebar,.topbar,.app-footer,.toast-root,.report-v2-actions,.report-v2-filter-card,.report-v2-tabs,.report-v2-inline-filter{display:none!important}
+  .desktop-frame{display:block!important}.sidebar,.topbar,.app-footer,.toast-root,.report-v2-actions,.report-v2-filter-card,.report-v2-tabs,.report-v2-inline-filter,.report-v2-no-print{display:none!important}
   .app-column,.route-content,.ops-page,.report-v2-page{display:block!important;width:100%!important;max-width:none!important;height:auto!important;overflow:visible!important;margin:0!important;padding:0!important;background:#fff!important;color:#000!important}
   .ops-head{margin:0 0 8mm!important}.ops-head h1{color:#000!important}.ops-head p{color:#333!important}
   .report-print-meta{display:flex!important;justify-content:space-between;gap:12px;border-bottom:1px solid #777;padding:0 0 5mm;margin:0 0 5mm;font-size:10pt}
