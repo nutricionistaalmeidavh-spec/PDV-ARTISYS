@@ -2,6 +2,8 @@
 
 const test=require('node:test');
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
 const {Readable}=require('node:stream');
 const {createVerticalRouter}=require('../server/vertical-router');
 const {createE48E54Router}=require('../server/e48-e54-router');
@@ -95,4 +97,18 @@ test('services and workshop final vertical routes receive the logged-in manager 
   assert.equal(calls[0].actor.role,'manager');
   assert.equal(calls[1].actor.userId,'manager-1');
   assert.equal(calls[1].actor.terminalId,'PDV-01');
+});
+
+test('extra workspace observer becomes idempotent before mutating an already-bound button',()=>{
+  const source=fs.readFileSync(path.join(__dirname,'../desktop/renderer/vertical-parity-p1.js'),'utf8');
+  const start=source.indexOf('function mountExtraWorkspaceEntries()');
+  const end=source.indexOf('async function mountPizzeria()',start);
+  assert.ok(start>=0&&end>start,'mountExtraWorkspaceEntries must exist');
+  const block=source.slice(start,end);
+  const guard=block.indexOf("if(button.dataset.parityWorkspaceBound==='1')return;");
+  const disableMutation=block.indexOf('button.disabled=false;');
+  const labelMutation=block.indexOf("replaceChildren(document.createTextNode('Abrir módulo'))");
+  assert.ok(guard>=0,'bound guard must exist');
+  assert.ok(disableMutation>=0&&labelMutation>=0,'workspace button mutations must exist');
+  assert.ok(guard<disableMutation&&guard<labelMutation,'bound guard must run before DOM mutations to avoid MutationObserver feedback loops');
 });
