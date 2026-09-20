@@ -1,5 +1,6 @@
 'use strict';
 
+const { createHash } = require('node:crypto');
 const { validateReference } = require('./fiscal-core');
 
 const DOCUMENT_MODELS = Object.freeze({ nfce:'65', nfe:'55' });
@@ -18,6 +19,19 @@ function requiredText(value, label) {
 
 function digits(value) {
   return String(value ?? '').replace(/\D/g, '');
+}
+
+function deriveNumericCode({ issuerCnpj, model, series, number, reference }) {
+  const seed = [issuerCnpj, model, series, number, reference].map(value => String(value ?? '').trim()).join('|');
+  const digest = createHash('sha256').update(seed, 'utf8').digest();
+  let value = digest.readUInt32BE(0) % 100000000;
+  const invoiceDigits = digits(number).slice(-8).padStart(8, '0');
+  let code = String(value).padStart(8, '0');
+  if (code === '00000000' || code === invoiceDigits) {
+    value = (value + 1) % 100000000 || 1;
+    code = String(value).padStart(8, '0');
+  }
+  return code;
 }
 
 function allocateDiscountCents(items = [], discountCents = 0) {
@@ -49,7 +63,8 @@ function validateFiscalTax(tax, productId, crt) {
     csosn:tax.csosn ? String(tax.csosn).trim() : null,
     icmsCst:tax.icmsCst ? String(tax.icmsCst).trim() : null,
     pisCst:requiredText(tax.pisCst, `CST PIS do produto ${productId}`),
-    cofinsCst:requiredText(tax.cofinsCst, `CST COFINS do produto ${productId}`)
+    cofinsCst:requiredText(tax.cofinsCst, `CST COFINS do produto ${productId}`),
+    rtc:tax.rtc && typeof tax.rtc === 'object' ? structuredClone(tax.rtc) : null
   };
   if (String(crt) === '1' && !normalized.csosn) throw new Error(`CSOSN obrigatorio para produto ${productId}.`);
   if (String(crt) !== '1' && !normalized.icmsCst && !normalized.csosn) throw new Error(`CST/CSOSN ICMS obrigatorio para produto ${productId}.`);
@@ -130,6 +145,9 @@ function buildFiscalDocument({ sale, fiscalContext, documentType = 'nfce', envir
   if (paymentCents - changeCents !== totalCents) throw new Error('Pagamentos da venda nao reconciliam com o total canonico.');
 
   const fiscalReference = validateReference(reference || sale.saleNumber || sale.id);
+  const series = requiredText(context.series, 'Serie fiscal');
+  const number = requiredText(context.number, 'Numero fiscal');
+  const model = DOCUMENT_MODELS[type];
   return {
     schemaVersion:1,
     documentType:type,
@@ -139,9 +157,10 @@ function buildFiscalDocument({ sale, fiscalContext, documentType = 'nfce', envir
     issuer,
     recipient:context.recipient && typeof context.recipient === 'object' ? structuredClone(context.recipient) : null,
     identification:{
-      model:DOCUMENT_MODELS[type],
-      series:requiredText(context.series, 'Serie fiscal'),
-      number:requiredText(context.number, 'Numero fiscal'),
+      model,
+      series,
+      number,
+      numericCode:deriveNumericCode({ issuerCnpj:issuer.cnpj, model, series, number, reference:fiscalReference }),
       operationNature:requiredText(context.operationNature || 'VENDA', 'Natureza da operacao'),
       issuedAt:requiredText(sale.completedAt, 'Data de conclusao da venda')
     },
@@ -153,6 +172,7 @@ function buildFiscalDocument({ sale, fiscalContext, documentType = 'nfce', envir
 
 module.exports = {
   DOCUMENT_MODELS,
+  deriveNumericCode,
   allocateDiscountCents,
   buildFiscalDocument
 };
