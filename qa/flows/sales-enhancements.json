@@ -38,7 +38,7 @@
     {"action":"fill","selector":"#product-form input[name='cost']","value":"5,00","name":"product-cost"},
     {"action":"uncheck","selector":"#product-form input[name='trackStock']","name":"product-no-stock-control"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"save-product"},
-    {"action":"expectText","selector":".data-card","expected":"QA Produto","name":"product-created"},
+    {"action":"expectText","selector":".data-card:not([data-kit-combo-admin])","expected":"QA Produto","name":"product-created"},
     {"action":"expectVisible","selector":"[data-product-photo-edit]","name":"product-photo-control"},
     {"action":"screenshot","name":"products-with-photo-control","fullPage":true},
 
@@ -74,7 +74,7 @@
     {"action":"click","selector":"#confirm-payment","name":"confirm-payment"},
     {"action":"waitForTimeout","timeoutMs":800,"name":"sale-completed"},
 
-    {"action":"click","selector":"[data-route='home']","name":"back-home"},
+    {"action":"click","selector":"#sidebar-nav [data-route='home']","name":"back-home"},
     {"action":"click","selector":"[data-home-route='sales']","name":"open-sales-history"},
     {"action":"waitFor","selector":"[data-sale-details]","name":"sale-history-ready","timeoutMs":10000},
     {"action":"click","selector":"[data-sale-details]","name":"open-sale-details"},
