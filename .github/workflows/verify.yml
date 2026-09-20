@@ -4,23 +4,24 @@ on:
   push:
     branches:
       - main
-      - "feat/**"
-    paths-ignore:
-      - '.github/qa-request.json'
-      - '.github/release-request.json'
+      - feature/**
+      - feat/**
+      - fix/**
   pull_request:
-    paths-ignore:
-      - '.github/qa-request.json'
-      - '.github/release-request.json'
+    branches:
+      - main
+
+permissions:
+  contents: read
 
 concurrency:
-  group: verify-${{ github.workflow }}-${{ github.ref }}
+  group: verify-pdv-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,5 +29,39 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Verify unit integration architecture release and security gates
+      - name: Verify unit integration architecture release and capability gates
         run: npm run verify:release
+
+  e2e:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PDV and QA peer dependencies
+        run: npm install --no-audit --no-fund
+      - name: Ensure Xvfb is available
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y xvfb
+          fi
+      - name: Validate QA configuration
+        run: npm run qa:validate
+      - name: Run release E2E flows
+        run: xvfb-run -a npm run qa:release
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv-e2e-${{ github.run_number }}
+          path: |
+            qa-artifacts
+            qa-report
+            qa-results
+          if-no-files-found: warn
+          retention-days: 7

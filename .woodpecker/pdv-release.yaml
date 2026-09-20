@@ -3,12 +3,10 @@ labels:
   backend: local
   pilot: pdv-artisys
 
+# GitHub Actions is the authoritative automatic CI while this repository is public.
+# Keep Woodpecker only as an explicit local/manual fallback.
 when:
   - event: manual
-  - event: push
-    branch:
-      - main
-      - chore/woodpecker-pilot-phases-0-3
 
 steps:
   - name: ambiente
@@ -77,6 +75,6 @@ steps:
       - 'if (-not (Test-Path $reporter)) { throw "artisys-ci-reporter nao encontrado em $reporter" }'
       - 'node $reporter'
     when:
-      - event: [push, manual]
+      - event: manual
         status: [failure]
     failure: ignore
