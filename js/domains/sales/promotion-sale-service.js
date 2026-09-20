@@ -5,6 +5,15 @@ const { sanitizeSaleObservation } = require('./sale-observation');
 
 function parsePromotions(value) { try { return value ? JSON.parse(value) : []; } catch { return []; } }
 
+function variantIdSql(column = 'configuration_json') {
+  return `COALESCE(
+    json_extract(${column},'$.productVariant.id'),
+    json_extract(${column},'$.retailVariant.id'),
+    json_extract(${column},'$.variant.id'),
+    json_extract(${column},'$.variantId')
+  )`;
+}
+
 function createPromotionSaleService({ db, baseSales, promotionService, now = () => new Date().toISOString() } = {}) {
   if(!db || !baseSales || !promotionService) throw new TypeError('db, baseSales and promotionService are required.');
 
@@ -32,11 +41,12 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function enrichCostDetails(sale) {
     const enriched=enrich(sale);
     if(!enriched||!Array.isArray(enriched.items)||!enriched.items.length)return enriched;
+    const itemVariantId=variantIdSql('si.configuration_json');
     const rows=db.prepare(`SELECT si.id,si.cost_cents_snapshot AS costCentsSnapshot,si.cost_snapshot_source AS costSnapshotSource,
       COALESCE(pv.cost_cents,p.cost_cents,0) AS currentCostCents
       FROM sale_items si
       LEFT JOIN products p ON p.id=si.product_id
-      LEFT JOIN product_variants pv ON pv.id=json_extract(si.configuration_json,'$.variantId')
+      LEFT JOIN product_variants pv ON pv.id=${itemVariantId}
       WHERE si.sale_id=?`).all(String(enriched.id));
     const costs=new Map(rows.map(row=>[String(row.id),row]));
     return {...enriched,items:enriched.items.map(item=>{
