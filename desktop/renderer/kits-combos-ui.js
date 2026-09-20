@@ -90,10 +90,17 @@
 
   function mountPromotionRow(){
     if(!content)return;const totals=content.querySelector('.sale-panel .totals');if(!totals)return;
-    totals.querySelector('[data-promotion-row]')?.remove();totals.querySelector('[data-promo-locked]')?.remove();
-    const sale=window.PdvPromotionState?.lastSale;const promo=Number(sale?.promotionDiscountCents||0);if(!sale||!['OPEN','SUSPENDED'].includes(sale.status)||promo<=0)return;
-    const row=document.createElement('div');row.className='total-row promotion-total';row.dataset.promotionRow='1';const names=(sale.promotions||[]).map(item=>item.name).join(', ');row.innerHTML=`<span>Combo/Promoção${names?`<small>${esc(names)}</small>`:''}</span><strong>− ${money(promo)}</strong>`;totals.querySelector('.grand-total')?.before(row);
-    const discount=document.getElementById('discount-percent');if(sale.blocksManualDiscount&&discount){discount.disabled=true;const hint=document.createElement('div');hint.dataset.promoLocked='1';hint.className='promo-locked-hint';hint.textContent='Este combo não permite desconto manual acumulado.';discount.closest('.total-row')?.appendChild(hint);}
+    const sale=window.PdvPromotionState?.lastSale;const promo=Number(sale?.promotionDiscountCents||0);
+    const existingRow=totals.querySelector('[data-promotion-row]');
+    const existingHint=totals.querySelector('[data-promo-locked]');
+    const discount=document.getElementById('discount-percent');
+    if(!sale||!['OPEN','SUSPENDED'].includes(sale.status)||promo<=0){existingRow?.remove();existingHint?.remove();if(discount)discount.disabled=false;return;}
+    const names=(sale.promotions||[]).map(item=>item.name).join(', ');const signature=`${promo}|${names}`;
+    let row=existingRow;
+    if(!row){row=document.createElement('div');row.className='total-row promotion-total';row.dataset.promotionRow='1';totals.querySelector('.grand-total')?.before(row);}
+    if(row.dataset.promotionSignature!==signature){row.dataset.promotionSignature=signature;row.innerHTML=`<span>Combo/Promoção${names?`<small>${esc(names)}</small>`:''}</span><strong>− ${money(promo)}</strong>`;}
+    if(sale.blocksManualDiscount&&discount){discount.disabled=true;if(!existingHint){const hint=document.createElement('div');hint.dataset.promoLocked='1';hint.className='promo-locked-hint';hint.textContent='Este combo não permite desconto manual acumulado.';discount.closest('.total-row')?.appendChild(hint);}}
+    else{if(discount)discount.disabled=false;existingHint?.remove();}
   }
 
   const observer=new MutationObserver(()=>{void mountProducts();mountPromotionRow();});if(content)observer.observe(content,{childList:true,subtree:true});
