@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "phases": {
+    "4": {
+      "name": "Núcleo operacional",
+      "gate": "qa:release",
+      "evidence": ["qa/flows/core-business-e2e.json"],
+      "covers": ["catalog", "sales", "inventory", "cash", "finance", "reports"]
+    },
+    "5": {
+      "name": "Restaurante, KDS e mobile LAN",
+      "gate": "test:release",
+      "evidence": ["test/release/phase5-restaurant-kds-mobile.test.js", "test/e30-e39-restaurant.test.js"],
+      "covers": ["tables", "orders", "kds", "prebill", "checkout", "mobile-lan", "device-auth", "idempotency"]
+    },
+    "6": {
+      "name": "Módulos verticais",
+      "gate": "test:release",
+      "evidence": ["test/release/phase6-vertical-modules.test.js", "test/e43-e47-verticals.test.js", "test/e48-e54-final.test.js"],
+      "covers": ["pizzeria", "delivery", "fast-food", "market-bakery", "retail", "services", "workshop", "self-service"]
+    }
+  }
+}
