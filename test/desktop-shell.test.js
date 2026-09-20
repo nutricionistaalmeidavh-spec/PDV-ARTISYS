@@ -24,6 +24,17 @@ test('renderer contains definitive home and checkout flows through named rendere
   assert.match(app, /Balcão/);
 });
 
+test('report route guard preserves external reports after async mutations', () => {
+  const html = read('desktop/renderer/index.html');
+  const guard = read('desktop/renderer/route-guard.js');
+  assert.ok(html.indexOf('./route-guard.js') > html.indexOf('./app.js'));
+  assert.ok(html.indexOf('./route-guard.js') < html.indexOf('./reports-ui.js'));
+  assert.doesNotThrow(() => new Function(guard));
+  assert.match(guard, /visibleRoute !== 'reports'/);
+  assert.match(guard, /PdvReportsUi\?\.renderReports/);
+  assert.match(guard, /MutationObserver/);
+});
+
 test('styles define visual tokens and checkout split layout from approved references', () => {
   const css = read('desktop/renderer/styles.css');
   assert.match(css, /--artisys-blue:/);
