@@ -12,6 +12,10 @@ function csvCell(value) {
   return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
+function roundQty(value) {
+  return Math.round(Number(value || 0) * 1000) / 1000;
+}
+
 function createReportingService({ db, now = () => new Date().toISOString() } = {}) {
   if (!db) throw new TypeError('Database is required.');
   const saleColumns = new Set(db.prepare('PRAGMA table_info(sales)').all().map(row => row.name));
@@ -61,6 +65,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const sales = completedSales(filters);
     const saleIds = new Set(sales.map(s => s.id));
     const grossSalesCents = sales.reduce((sum, sale) => sum + Number(sale.total_cents || 0), 0);
+    const discountCents = sales.reduce((sum, sale) => sum + Number(sale.discount_cents || 0), 0);
     const returns = completedReturns(filters);
     const cancellations=cancelledSales(filters);
     const returnedCents = returns.reduce((sum, row) => sum + Number(row.total_cents || 0), 0);
@@ -69,23 +74,43 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
     const paymentsByMethod = {};
     const products = new Map();
+    const categories = new Map();
+    const customers = new Map();
     const operators = new Map();
     const sellers = new Map();
+    const transactions = [];
     let costCents = 0;
 
     for (const sale of sales) {
-      const payments = db.prepare('SELECT method,amount_cents FROM payments WHERE sale_id=?').all(sale.id);
+      const payments = db.prepare('SELECT method,amount_cents FROM payments WHERE sale_id=? ORDER BY created_at,id').all(sale.id);
       for (const payment of payments) paymentsByMethod[payment.method] = (paymentsByMethod[payment.method] || 0) + Number(payment.amount_cents || 0);
 
-      const items = db.prepare(`SELECT si.product_id AS productId,si.product_name AS productName,si.quantity,si.total_cents AS totalCents,p.cost_cents AS costCents
-        FROM sale_items si LEFT JOIN products p ON p.id=si.product_id WHERE si.sale_id=?`).all(sale.id);
+      const items = db.prepare(`SELECT si.product_id AS productId,si.product_name AS productName,si.quantity,si.total_cents AS totalCents,
+        p.cost_cents AS costCents,p.category_id AS categoryId,c.name AS categoryName
+        FROM sale_items si
+        LEFT JOIN products p ON p.id=si.product_id
+        LEFT JOIN categories c ON c.id=p.category_id
+        WHERE si.sale_id=?`).all(sale.id);
       for (const item of items) {
         const current = products.get(item.productId) || { productId:item.productId, productName:item.productName, quantity:0, grossCents:0 };
-        current.quantity = Math.round((current.quantity + Number(item.quantity || 0)) * 1000) / 1000;
+        current.quantity = roundQty(current.quantity + Number(item.quantity || 0));
         current.grossCents += Number(item.totalCents || 0);
         products.set(item.productId, current);
+
+        const categoryKey = item.categoryId || '__none__';
+        const category = categories.get(categoryKey) || { categoryId:item.categoryId || null, categoryName:item.categoryName || 'Sem categoria', quantity:0, grossCents:0 };
+        category.quantity = roundQty(category.quantity + Number(item.quantity || 0));
+        category.grossCents += Number(item.totalCents || 0);
+        categories.set(categoryKey, category);
+
         costCents += Math.round(Number(item.costCents || 0) * Number(item.quantity || 0));
       }
+
+      const customerKey=sale.customer_id||'__anonymous__';
+      const customer=customers.get(customerKey)||{customerId:sale.customer_id||null,customerName:sale.customer_name||'Consumidor não identificado',salesCount:0,salesCents:0};
+      customer.salesCount+=1;
+      customer.salesCents+=Number(sale.total_cents||0);
+      customers.set(customerKey,customer);
 
       const operator = operators.get(sale.operator_id) || { operatorId:sale.operator_id, operatorName:sale.operator_name || 'Nao identificado', salesCount:0, salesCents:0 };
       operator.salesCount += 1;
@@ -96,6 +121,23 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       seller.salesCount += 1;
       seller.salesCents += Number(sale.total_cents || 0);
       sellers.set(sellerId, seller);
+
+      transactions.push({
+        saleId:sale.id,
+        saleNumber:sale.sale_number,
+        completedAt:sale.completed_at,
+        customerId:sale.customer_id||null,
+        customerName:sale.customer_name||'Consumidor não identificado',
+        sellerId,
+        sellerName:sale.seller_name||sale.operator_name||'Nao identificado',
+        operatorId:sale.operator_id,
+        operatorName:sale.operator_name||'Nao identificado',
+        subtotalCents:Number(sale.subtotal_cents||0),
+        discountCents:Number(sale.discount_cents||0),
+        totalCents:Number(sale.total_cents||0),
+        paymentMethods:[...new Set(payments.map(row=>row.method))],
+        payments:payments.map(row=>({method:row.method,amountCents:Number(row.amount_cents||0)}))
+      });
     }
 
     for(const ret of returns){const seller=sellers.get(ret.resolved_seller_id);if(seller){seller.returnedCents=(seller.returnedCents||0)+Number(ret.total_cents||0);seller.salesCents-=Number(ret.total_cents||0);}}
@@ -113,6 +155,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       to: filters.to || null,
       salesCount: sales.length,
       grossSalesCents,
+      discountCents,
       returnedCents,
       cancelledSalesCount:cancellations.length,
       cancelledSalesCents:cancellations.reduce((sum,row)=>sum+Number(row.total_cents||0),0),
@@ -120,10 +163,13 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       averageTicketCents,
       paymentsByMethod,
       topProducts: [...products.values()].sort((a,b) => b.quantity-a.quantity || b.grossCents-a.grossCents || a.productName.localeCompare(b.productName)),
+      categories:[...categories.values()].sort((a,b)=>b.grossCents-a.grossCents||a.categoryName.localeCompare(b.categoryName)),
+      customers:[...customers.values()].sort((a,b)=>b.salesCents-a.salesCents||a.customerName.localeCompare(b.customerName)),
       estimatedCostCents: costCents - returnedCostCents,
       estimatedMarginCents: netSalesCents - (costCents - returnedCostCents),
       operators: [...operators.values()].sort((a,b) => b.salesCents-a.salesCents || a.operatorName.localeCompare(b.operatorName)),
       sellers: [...sellers.values()].sort((a,b) => b.salesCents-a.salesCents || a.sellerName.localeCompare(b.sellerName)),
+      sales:transactions,
       saleIds: [...saleIds]
     };
   }
@@ -132,18 +178,25 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const items = db.prepare(`SELECT p.id AS productId,p.sku,p.name,p.unit,p.cost_cents AS costCents,p.sale_price_cents AS salePriceCents,
       p.minimum_stock AS minimumStock,COALESCE(b.quantity,0) AS quantity
       FROM products p LEFT JOIN inventory_balances b ON b.product_id=p.id
-      WHERE p.active=1 AND p.track_stock=1 ORDER BY p.name,p.id`).all().map(row => ({
-        ...row,
-        quantity: Math.round(Number(row.quantity || 0) * 1000) / 1000,
-        minimumStock: Math.round(Number(row.minimumStock || 0) * 1000) / 1000,
-        lowStock: Number(row.quantity || 0) <= Number(row.minimumStock || 0),
-        costValueCents: Math.round(Number(row.costCents || 0) * Number(row.quantity || 0)),
-        saleValueCents: Math.round(Number(row.salePriceCents || 0) * Number(row.quantity || 0))
-      }));
+      WHERE p.active=1 AND p.track_stock=1 ORDER BY p.name,p.id`).all().map(row => {
+        const quantity=roundQty(row.quantity);
+        const minimumStock=roundQty(row.minimumStock);
+        const suggestedPurchaseQuantity=roundQty(Math.max(minimumStock-quantity,0));
+        return {
+          ...row,
+          quantity,
+          minimumStock,
+          lowStock: quantity <= minimumStock,
+          suggestedPurchaseQuantity,
+          costValueCents: Math.round(Number(row.costCents || 0) * quantity),
+          saleValueCents: Math.round(Number(row.salePriceCents || 0) * quantity)
+        };
+      });
     return {
       skuCount: items.length,
       lowStockCount: items.filter(item => item.lowStock).length,
-      quantityTotal: Math.round(items.reduce((sum,item)=>sum+item.quantity,0)*1000)/1000,
+      purchaseSuggestionCount:items.filter(item=>item.suggestedPurchaseQuantity>0).length,
+      quantityTotal: roundQty(items.reduce((sum,item)=>sum+item.quantity,0)),
       costValueCents: items.reduce((sum,item)=>sum+item.costValueCents,0),
       saleValueCents: items.reduce((sum,item)=>sum+item.saleValueCents,0),
       items
