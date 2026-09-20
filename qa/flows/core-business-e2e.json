@@ -16,6 +16,7 @@
 
     {"action":"click","selector":"[data-route='inventory']","name":"core-open-inventory"},
     {"action":"waitFor","selector":"#ops-inventory-form","name":"core-inventory-ready","timeoutMs":10000},
+    {"action":"selectOption","selector":"#ops-inventory-form select[name='productId']","value":{"label":"QA Core Stock"},"name":"core-stock-product"},
     {"action":"fill","selector":"#ops-inventory-form input[name='quantity']","value":"5","name":"core-stock-quantity"},
     {"action":"fill","selector":"#ops-inventory-form input[name='reason']","value":"Entrada E2E núcleo","name":"core-stock-reason"},
     {"action":"click","selector":"#ops-inventory-form button[type='submit']","name":"core-stock-entry"},
