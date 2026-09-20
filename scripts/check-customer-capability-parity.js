@@ -24,14 +24,14 @@ function validateReference({root,capability,layer,reference,errors}){
   return true;
 }
 
-function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e=false,maxPhase=Number.POSITIVE_INFINITY}={}){
+function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e=false,maxPhase=Number.POSITIVE_INFINITY,require100=false}={}){
   const errors=[];
   const capabilities=Array.isArray(registry?.capabilities)?registry.capabilities:[];
   if(registry?.schemaVersion!==1)errors.push('registry: schemaVersion must be 1');
   if(!capabilities.length)errors.push('registry: capabilities must not be empty');
   const ids=new Set();
   const referencedBackend=new Set();
-  let customerAdmin=0;let surfaceComplete=0;let e2eComplete=0;
+  let customerAdmin=0;let surfaceComplete=0;let e2eComplete=0;let completeCapabilities=0;
 
   for(const capability of capabilities){
     if(!capability?.id){errors.push('registry: capability without id');continue;}
@@ -49,17 +49,20 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
     const surface=exposure==='customer'||exposure==='admin';
     if(surface){
       customerAdmin+=1;
-      let ok=true;
+      let surfaceOk=true;
       for(const layer of ['backend','api','client','ui']){
-        if(!(capability[layer]||[]).length){errors.push(`${capability.id}: supported ${exposure} capability missing ${layer}`);ok=false;continue;}
-        for(const reference of capability[layer])if(!validateReference({root,capability,layer,reference,errors}))ok=false;
+        if(!(capability[layer]||[]).length){errors.push(`${capability.id}: supported ${exposure} capability missing ${layer}`);surfaceOk=false;continue;}
+        for(const reference of capability[layer])if(!validateReference({root,capability,layer,reference,errors}))surfaceOk=false;
       }
-      if(ok)surfaceComplete+=1;
+      if(surfaceOk)surfaceComplete+=1;
+
       const e2eRequired=requireE2e&&phase<=maxPhase;
+      const hasE2e=(capability.e2e||[]).length>0;
       let e2eOk=true;
-      if(e2eRequired&&!(capability.e2e||[]).length){errors.push(`${capability.id}: phase ${phase} capability missing e2e`);e2eOk=false;}
+      if(e2eRequired&&!hasE2e){errors.push(`${capability.id}: phase ${phase} capability missing e2e`);e2eOk=false;}
       for(const reference of capability.e2e||[])if(!validateReference({root,capability,layer:'e2e',reference,errors}))e2eOk=false;
-      if(e2eOk&&(capability.e2e||[]).length)e2eComplete+=1;
+      if(hasE2e&&e2eOk)e2eComplete+=1;
+      if(surfaceOk&&hasE2e&&e2eOk)completeCapabilities+=1;
     }else{
       for(const reference of capability.backend||[])validateReference({root,capability,layer:'backend',reference,errors});
     }
@@ -81,14 +84,18 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
     for(const id of declared)if(!mapped.has(id))errors.push(`declared capability not mapped: ${id}`);
   }
 
-  return {ok:errors.length===0,errors,counts:{total:capabilities.length,customerAdmin,surfaceComplete,e2eComplete,backendServices:discovered.length}};
+  const coveragePercent=customerAdmin===0?100:Number(((completeCapabilities/customerAdmin)*100).toFixed(2));
+  if(require100&&coveragePercent!==100)errors.push(`capability coverage: ${coveragePercent}% < 100% (${completeCapabilities}/${customerAdmin} supported customer/admin capabilities complete)`);
+
+  return {ok:errors.length===0,errors,counts:{total:capabilities.length,customerAdmin,surfaceComplete,e2eComplete,completeCapabilities,coveragePercent,backendServices:discovered.length}};
 }
 
 function parseArgs(argv){
   const requireE2e=argv.includes('--require-e2e');
+  const require100=argv.includes('--require-100');
   const phaseIndex=argv.indexOf('--max-phase');
   const maxPhase=phaseIndex>=0?Number(argv[phaseIndex+1]):Number.POSITIVE_INFINITY;
-  return {requireE2e,maxPhase:Number.isFinite(maxPhase)?maxPhase:Number.POSITIVE_INFINITY};
+  return {requireE2e,require100,maxPhase:Number.isFinite(maxPhase)?maxPhase:Number.POSITIVE_INFINITY};
 }
 
 function main(){
@@ -99,7 +106,7 @@ function main(){
   const options=parseArgs(process.argv.slice(2));
   const result=validateRegistry({root,registry,...options});
   const c=result.counts;
-  console.log(`CAPABILITY PARITY\nregistry=${c.total} customer/admin=${c.customerAdmin} surface=${c.surfaceComplete}/${c.customerAdmin} e2e=${c.e2eComplete} backend-services=${c.backendServices}`);
+  console.log(`CAPABILITY PARITY\nregistry=${c.total} customer/admin=${c.customerAdmin} surface=${c.surfaceComplete}/${c.customerAdmin} e2e=${c.e2eComplete}/${c.customerAdmin} complete=${c.completeCapabilities}/${c.customerAdmin} coverage=${c.coveragePercent}% backend-services=${c.backendServices}`);
   if(!result.ok){for(const error of result.errors)console.error(`- ${error}`);process.exitCode=1;return;}
   console.log('PASS');
 }

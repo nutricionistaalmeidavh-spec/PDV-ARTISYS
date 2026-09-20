@@ -18,6 +18,27 @@
       "gate": "test:release",
       "evidence": ["test/release/phase6-vertical-modules.test.js", "test/e43-e47-verticals.test.js", "test/e48-e54-final.test.js"],
       "covers": ["pizzeria", "delivery", "fast-food", "market-bakery", "retail", "services", "workshop", "self-service"]
+    },
+    "7": {
+      "name": "Infraestrutura administrativa e recuperação",
+      "gate": "test:release",
+      "evidence": [
+        "test/release/phase7-admin-infra.test.js",
+        "test/e22-backup.test.js",
+        "test/e24-import.test.js",
+        "test/e25-diagnostics.test.js",
+        "test/e19-printing.test.js",
+        "test/updater-service.test.js",
+        "test/e54-1-hardware-simulation.test.js"
+      ],
+      "covers": ["backup", "restore", "import-csv-xlsx", "updater", "hardware-simulation", "printing", "diagnostics"]
+    },
+    "8": {
+      "name": "Capability Coverage de release",
+      "gate": "capability:check:release",
+      "targetCoveragePercent": 100,
+      "evidence": ["release/customer-capabilities.json", "scripts/check-customer-capability-parity.js"],
+      "covers": ["backend-api-client-ui-e2e-parity", "customer-admin-supported-capabilities"]
     }
   }
 }
