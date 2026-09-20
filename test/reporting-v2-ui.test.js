@@ -7,20 +7,24 @@ const {execFileSync}=require('node:child_process');
 
 const root=path.join(__dirname,'..','desktop','renderer');
 const reportScript=path.join(root,'reporting-v2.js');
+const legacyExportScript=path.join(root,'reporting-v2-legacy-export.js');
 
 function escapeRegex(value){return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
-test('commercial reporting workspace is loaded before the legacy operational reports handler',()=>{
+test('commercial reporting workspace and detailed export bridge load before the legacy operational reports handler',()=>{
   const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const reports=index.indexOf('reporting-v2.js');
+  const bridge=index.indexOf('reporting-v2-legacy-export.js');
   const operational=index.indexOf('operational-pages.js');
   assert.ok(reports>0);
-  assert.ok(operational>reports);
+  assert.ok(bridge>reports);
+  assert.ok(operational>bridge);
   assert.match(index,/reporting-v2\.css/);
 });
 
-test('commercial reporting workspace has valid JavaScript syntax',()=>{
+test('commercial reporting scripts have valid JavaScript syntax',()=>{
   execFileSync(process.execPath,['--check',reportScript],{stdio:'pipe'});
+  execFileSync(process.execPath,['--check',legacyExportScript],{stdio:'pipe'});
 });
 
 test('commercial reporting workspace covers requested report dimensions and output actions',()=>{
@@ -33,6 +37,15 @@ test('commercial reporting workspace covers requested report dimensions and outp
   assert.match(source,/customerId/);
   assert.match(source,/productId/);
   assert.match(source,/sellerId/);
+});
+
+test('overview keeps the legacy detailed sales CSV contract while other tabs export their own report',()=>{
+  const bridge=fs.readFileSync(legacyExportScript,'utf8');
+  assert.match(bridge,/activeView !== 'overview'/);
+  assert.match(bridge,/api\.exportSalesCsv/);
+  assert.match(bridge,/sellerId/);
+  assert.match(bridge,/vendas-detalhadas-/);
+  assert.match(bridge,/stopImmediatePropagation/);
 });
 
 test('reporting v2 preserves commission rules and payment workflows from the legacy report page',()=>{
