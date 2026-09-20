@@ -16,6 +16,7 @@ O Bloco 3 acrescenta:
 - `FiscalDocumentBuilder` canônico, independente de provider;
 - preservação dos totais da venda em centavos, sem recálculo fiscal paralelo;
 - rateio determinístico do desconto da venda entre itens;
+- `cNF` determinístico por documento para retry estável;
 - resolução explícita dos dados tributários de cada produto a partir de `fiscalContext`;
 - geração de INI NFC-e modelo 65 para ACBrMonitorPLUS;
 - transporte TCP local para ACBrMonitor com terminador de comando `CRLF . CRLF`;
@@ -49,7 +50,8 @@ O builder exige que:
 - o rateio dos descontos preserve exatamente `totalCents`;
 - `pagamentos - troco === totalCents`;
 - todo item possua dados fiscais resolvidos;
-- venda diferente de `COMPLETED` seja recusada sem mutar a venda.
+- venda diferente de `COMPLETED` seja recusada sem mutar a venda;
+- a mesma venda/série/número gere o mesmo `cNF` de 8 dígitos em retries.
 
 O domínio de vendas não conhece ACBr, XML, CSC, certificado ou SEFAZ.
 
@@ -67,7 +69,9 @@ O Bloco 2 ainda é necessário para persistir e operar de forma segura:
 - CSC/ID CSC;
 - emitente e endereço fiscal;
 - série e sequência fiscal transacional;
-- perfis tributários/NCM/CFOP/CST/CSOSN/PIS/COFINS.
+- perfis tributários/NCM/CFOP/CST/CSOSN/PIS/COFINS;
+- campos tributários vigentes da RTC, incluindo IBS/CBS quando aplicáveis ao cenário e ao cronograma fiscal em vigor;
+- compatibilidade com os schemas vigentes, inclusive evolução de CNPJ alfanumérico.
 
 Até essa etapa existir, o adapter ACBrMonitor pode ser exercitado por configuração técnica explícita em homologação, mas não constitui release fiscal pronto para cliente.
 
@@ -97,7 +101,7 @@ POST /v1/documents/:type/:reference/cancel
 
 Essas rotas são contrato local interno e não são API LAN do PDV.
 
-## ACBrMonitor — modo de homologação do Bloco 3
+## ACBrMonitor — caminho de integração do Bloco 3
 
 O modo real é deliberadamente opt-in. O default permanece `unconfigured`.
 
@@ -159,6 +163,7 @@ Os testes protegem explicitamente:
 - persistência após reinício;
 - instalação sem autoemissão continua operando normalmente;
 - `total fiscal === total canônico da venda`;
+- `cNF` estável em retry;
 - rejeição ACBr não vira autorização;
 - provider e ACBrMonitor restritos a loopback;
 - Focus opcional continua compatível.
@@ -173,7 +178,8 @@ A implementação do protocolo ACBrMonitor e o harness externo estão prontos, m
 - certificado A1 válido de homologação;
 - CSC/credenciamento quando aplicável;
 - série/numeração de homologação;
-- dados tributários válidos para os itens;
+- dados tributários válidos para os itens, incluindo os grupos vigentes da RTC quando aplicáveis;
+- schema fiscal vigente compatível;
 - acesso ao serviço SEFAZ correspondente.
 
-Portanto, o Bloco 3 é **homologation-ready**, mas não deve ser anunciado como NFC-e real homologada até o `EXTERNAL_E2E` retornar autorização real e essa evidência ser registrada.
+Portanto, o Bloco 3 está **pronto no nível de integração e protocolo ACBr**, mas não deve ser anunciado como NFC-e homologada nem como emissão fiscal pronta para cliente até o Bloco 2 fornecer o contexto fiscal vigente e o `EXTERNAL_E2E` retornar autorização real com evidência registrada.
