@@ -24,15 +24,16 @@ test('vendors runtime capabilities used by CI',()=>{
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile gates reporting v2 and core business E2E',()=>{
+test('PDV release profile gates reporting v2, core business and enterprise depth E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e'];
+  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e','enterprise-depth-p0'];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
   assert.equal(config.flows['reports-v2-complete'],'flows/reports-v2-complete.json');
   assert.equal(config.flows['core-business-e2e'],'flows/core-business-e2e.json');
+  assert.equal(config.flows['enterprise-depth-p0'],'flows/enterprise-depth-p0.json');
 });
 
 test('future QA updates remain explicit and local-first',()=>{
