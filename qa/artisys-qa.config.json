@@ -33,7 +33,8 @@
   "flows": {
     "smoke": "flows/smoke.json",
     "home": "flows/home.json",
-    "sales-enhancements": "flows/sales-enhancements.json"
+    "sales-enhancements": "flows/sales-enhancements.json",
+    "reports-complete": "flows/reports-complete.json"
   },
   "qaProfiles": {
     "quick": {
@@ -44,15 +45,15 @@
       "includeNetwork": false
     },
     "full": {
-      "flows": ["smoke", "home", "sales-enhancements"],
-      "criticalFlows": ["smoke", "sales-enhancements"],
+      "flows": ["smoke", "home", "sales-enhancements", "reports-complete"],
+      "criticalFlows": ["smoke", "sales-enhancements", "reports-complete"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": ["smoke", "home", "sales-enhancements"],
-      "criticalFlows": ["smoke", "home", "sales-enhancements"],
+      "flows": ["smoke", "home", "sales-enhancements", "reports-complete"],
+      "criticalFlows": ["smoke", "home", "sales-enhancements", "reports-complete"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
