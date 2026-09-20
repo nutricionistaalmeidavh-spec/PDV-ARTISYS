@@ -5,6 +5,15 @@ const { sanitizeSaleObservation } = require('./sale-observation');
 
 function parsePromotions(value) { try { return value ? JSON.parse(value) : []; } catch { return []; } }
 
+function variantIdSql(column = 'configuration_json') {
+  return `COALESCE(
+    json_extract(${column},'$.productVariant.id'),
+    json_extract(${column},'$.retailVariant.id'),
+    json_extract(${column},'$.variant.id'),
+    json_extract(${column},'$.variantId')
+  )`;
+}
+
 function createPromotionSaleService({ db, baseSales, promotionService, now = () => new Date().toISOString() } = {}) {
   if(!db || !baseSales || !promotionService) throw new TypeError('db, baseSales and promotionService are required.');
 
@@ -27,6 +36,26 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     const state=readState(sale);
     const observation=readObservation(sale.id);
     return {...sale,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount,observation:observation.observation||'',printObservation:Boolean(observation.print_observation)};
+  }
+
+  function enrichCostDetails(sale) {
+    const enriched=enrich(sale);
+    if(!enriched||!Array.isArray(enriched.items)||!enriched.items.length)return enriched;
+    const itemVariantId=variantIdSql('si.configuration_json');
+    const rows=db.prepare(`SELECT si.id,si.cost_cents_snapshot AS costCentsSnapshot,si.cost_snapshot_source AS costSnapshotSource,
+      COALESCE(pv.cost_cents,p.cost_cents,0) AS currentCostCents
+      FROM sale_items si
+      LEFT JOIN products p ON p.id=si.product_id
+      LEFT JOIN product_variants pv ON pv.id=${itemVariantId}
+      WHERE si.sale_id=?`).all(String(enriched.id));
+    const costs=new Map(rows.map(row=>[String(row.id),row]));
+    return {...enriched,items:enriched.items.map(item=>{
+      const cost=costs.get(String(item.id));
+      if(!cost)return item;
+      const historical=cost.costCentsSnapshot!=null;
+      const effectiveCostCents=historical?Number(cost.costCentsSnapshot):Number(cost.currentCostCents||0);
+      return {...item,costCentsSnapshot:historical?Number(cost.costCentsSnapshot):null,costSnapshotSource:historical?(cost.costSnapshotSource||'PRODUCT'):null,effectiveCostCents,costBasis:historical?'HISTORICAL_SNAPSHOT':'ESTIMATED_CURRENT'};
+    })};
   }
 
   function writeState(saleId,state) {
@@ -139,7 +168,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function completeSale(id,input={}){reprice(id);const sale=baseSales.getSale(id);assertVariantStock(sale);persistObservation(id,input);baseSales.completeSale(id,stripObservationTransport(input));return enrich(baseSales.getSale(id));}
   function cancelSale(id,input={}){return enrich(baseSales.cancelSale(id,input));}
   function getSale(id){return enrich(baseSales.getSale(id));}
-  function getSaleDetails(id){return enrich(baseSales.getSaleDetails(id));}
+  function getSaleDetails(id){return enrichCostDetails(baseSales.getSaleDetails(id));}
   function listSales(filters={}){return baseSales.listSales(filters).map(enrich);}
   function listHistory(filters={}){return baseSales.listHistory(filters).map(enrich);}
 
