@@ -49,8 +49,11 @@ function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionS
       if((match=pathMatch(pathname,'/api/v1/stock-transfers/:id/cancel'))&&req.method==='POST'){requireRole(actor,['admin','manager']);json(res,200,runtime.logistics.cancelTransfer(match.id,await body(req),actor));return true;}
       if(pathname==='/api/v1/terminal-stock-locations'&&req.method==='GET'){
         requireRole(actor,['admin','manager']);
-        const bindings=new Map(terminalStockLocations.listTerminalBindings().map(item=>[item.terminalId,item]));
-        const rows=runtime.terminals.listTerminals().map(terminal=>{const binding=bindings.get(terminal.terminalId);const resolved=terminalStockLocations.resolveTerminalLocation(terminal.terminalId);return{...terminal,locationId:resolved.locationId,locationName:resolved.locationName,locationType:resolved.locationType,fallback:Boolean(resolved.fallback),explicitBinding:Boolean(binding)};});
+        const bindingRows=terminalStockLocations.listTerminalBindings();const bindings=new Map(bindingRows.map(item=>[item.terminalId,item]));
+        const terminals=new Map(runtime.terminals.listTerminals().map(item=>[item.terminalId,item]));
+        if(actor.terminalId&&!terminals.has(actor.terminalId))terminals.set(actor.terminalId,{terminalId:actor.terminalId,name:`Terminal ${actor.terminalId}`,status:'ACTIVE',local:true});
+        for(const binding of bindingRows)if(!terminals.has(binding.terminalId))terminals.set(binding.terminalId,{terminalId:binding.terminalId,name:`Terminal ${binding.terminalId}`,status:'ACTIVE',local:true});
+        const rows=[...terminals.values()].map(terminal=>{const binding=bindings.get(terminal.terminalId);const resolved=terminalStockLocations.resolveTerminalLocation(terminal.terminalId);return{...terminal,locationId:resolved.locationId,locationName:resolved.locationName,locationType:resolved.locationType,fallback:Boolean(resolved.fallback),explicitBinding:Boolean(binding)};});
         json(res,200,rows);return true;
       }
       if((match=pathMatch(pathname,'/api/v1/terminal-stock-locations/:terminalId'))&&req.method==='PUT'){
