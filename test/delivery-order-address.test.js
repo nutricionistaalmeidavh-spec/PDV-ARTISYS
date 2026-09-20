@@ -58,8 +58,9 @@ test('delivery requires a complete address while pickup does not',()=>{
 
 test('desktop exposes structured customer address and delivery instructions',()=>{
   const root=path.resolve(__dirname,'..');
-  const app=fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
-  const orders=fs.readFileSync(path.join(root,'desktop/renderer/enterprise-depth-ui.js'),'utf8');
-  for(const label of ['CEP','Logradouro','Número','Bairro','Cidade','UF','Referência'])assert.match(app,new RegExp(label));
-  for(const marker of ['deliveryAddress','deliveryInstructions','Endereço de entrega','Instruções de entrega'])assert.match(orders,new RegExp(marker));
+  const deliveryUi=fs.readFileSync(path.join(root,'desktop/renderer/delivery-address-ui.js'),'utf8');
+  const index=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
+  for(const label of ['CEP','Logradouro','Número','Bairro','Cidade','UF','Referência'])assert.match(deliveryUi,new RegExp(label));
+  for(const marker of ['deliveryAddress','deliveryInstructions','Endereço de entrega','Instruções de entrega'])assert.match(deliveryUi,new RegExp(marker));
+  assert.match(index,/delivery-address-ui\.js/);
 });
