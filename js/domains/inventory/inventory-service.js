@@ -1,6 +1,7 @@
 'use strict';
 const { randomUUID } = require('node:crypto');
 const { withTransaction } = require('../../core/database/sqlite-database');
+const { runEnterpriseDepthMigrations } = require('../../core/database/enterprise-depth-migrations');
 const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity, applyStockDelta } = require('./inventory-rules');
 const VALID_TYPES = new Set(['opening','purchase','sale','sale-cancel','adjustment-in','adjustment-out','inventory-count']);
@@ -9,6 +10,7 @@ function mapMovement(row){return row&&{id:row.id,productId:row.product_id,locati
 
 function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db) throw new TypeError('Database is required.');
+  runEnterpriseDepthMigrations(db,now);
 
   function normalizeLocation(locationId){return String(locationId||'MAIN').trim()||'MAIN';}
   function requireLocation(locationId){const id=normalizeLocation(locationId);const row=db.prepare('SELECT id FROM stock_locations WHERE id=? AND active=1').get(id);if(!row)throw new Error(`Local de estoque ${id} nao encontrado ou inativo.`);return id;}
