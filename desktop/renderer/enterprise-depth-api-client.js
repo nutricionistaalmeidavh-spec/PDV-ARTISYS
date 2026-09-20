@@ -2,6 +2,8 @@
 (() => {
   const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
   const p=ApiClient.prototype;
+  p.suppliers=function(includeInactive=false){return this.request(`/api/v1/suppliers${includeInactive?'?includeInactive=true':''}`);};
+  p.saveSupplier=function(body){return this.request('/api/v1/suppliers',{method:'POST',body});};
   p.stockLocations=function(includeInactive=false){return this.request(`/api/v1/stock-locations${includeInactive?'?includeInactive=true':''}`);};
   p.createStockLocation=function(body){return this.request('/api/v1/stock-locations',{method:'POST',body});};
   p.stockAvailability=function(productId,locationId='MAIN'){return this.request(`/api/v1/stock-availability${this.params({productId,locationId})}`);};

@@ -9,9 +9,9 @@ function bearer(request){const value=String(request.headers.authorization||'');r
 function queryFilters(url, names){const result={};for(const name of names){const value=url.searchParams.get(name);if(value!==null&&value!=='')result[name]=value;}return result;}
 function publicDiagnostic(result){if(!result)return result;const {filePath,...safe}=result;return safe;}
 
-function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,allowedOrigins=[],sessionTtlMs=12*60*60*1000,requireTerminalAuth=false}={}){
+function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,allowedOrigins=[],sessionTtlMs=12*60*60*1000,requireTerminalAuth=false,sessionStore=null}={}){
   if(!runtime)throw new TypeError('runtime is required.');
-  const sessions=new Map();
+  const sessions=sessionStore||new Map();
   function authenticate(request){
     const token=bearer(request);const session=sessions.get(token);
     if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new HttpError(401,'Sessao invalida ou expirada.');}
