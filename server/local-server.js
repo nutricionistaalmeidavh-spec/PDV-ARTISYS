@@ -15,7 +15,7 @@ function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimi
   const finalVerticalHandler=createE48E54Router({runtime,installationToken:token,requireTerminalAuth});
   const kitComboHandler=createKitComboRouter({runtime,installationToken:token,requireTerminalAuth});
   const productVariantHandler=createProductVariantRouter({runtime,installationToken:token,requireTerminalAuth});
-  const verticalHandler=createVerticalRouter({runtime,installationToken:token,requireTerminalAuth});
+  const verticalHandler=createVerticalRouter({runtime,installationToken:token,requireTerminalAuth,sessionStore});
   const enterpriseDepthHandler=createEnterpriseDepthRouter({runtime,installationToken:token,requireTerminalAuth,sessionStore});
   const handler=createRouter({runtime,installationToken:token,bodyLimitBytes,allowedOrigins,requireTerminalAuth,sessionStore});let server=null;
   async function route(req,res){let handled=await selfServiceHandler(req,res);if(!handled)handled=await restaurantHandler(req,res);if(!handled)handled=await finalVerticalHandler(req,res);if(!handled)handled=await kitComboHandler(req,res);if(!handled)handled=await productVariantHandler(req,res);if(!handled)handled=await verticalHandler(req,res);if(!handled)handled=await enterpriseDepthHandler(req,res);if(!handled)await handler(req,res);}
