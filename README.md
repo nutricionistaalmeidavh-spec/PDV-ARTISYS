@@ -1,10 +1,10 @@
-# ArtiSys PDV 1.3.4
+# ArtiSys PDV 1.4.0
 
-PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.3 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando módulos opcionais por segmento sem transformar cada nicho em um produto separado.
+PDV desktop da ArtiSys para operação **local-first** e em rede LAN, sem SaaS e sem dependência de internet para a operação diária. A linha 1.4 mantém um único núcleo transacional de venda, estoque, caixa, impressão e dados, acrescentando profundidade operacional e módulos opcionais por segmento sem transformar cada nicho em um produto separado.
 
 ## Estado do produto
 
-As entregas **E01–E54 estão integradas** e a **E54.1** reforça a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação. O produto inclui núcleo transacional, UI operacional, rede local multi-terminal, backup/restore, importação, observabilidade, QA de release, empacotamento Windows, restaurante, dispositivos móveis LAN, catálogo avançado, ficha técnica, **produto pai/subitens**, **kits**, **combos promocionais configuráveis** e módulos opcionais de Pizzaria, Restaurante avançado, Delivery, Fast-food, Mercado/Padaria, Varejo, Serviços, Oficina e Autoatendimento.
+As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas. A Fase 9 adiciona custo histórico por venda, estoque por local, reservas, transferências com estado em trânsito, compras com recebimento parcial/custo médio/conta a pagar e orçamento/pedido com retirada ou entrega convertido para a venda canônica. A E54.1 mantém a compatibilidade de periféricos com simulação automatizada de protocolos, falhas e recuperação.
 
 Principais capacidades:
 
@@ -19,11 +19,15 @@ Principais capacidades:
 - **combos promocionais configuráveis** pelo usuário, como `3 por R$ 10,00`, com produtos participantes, validade, limite e política de acúmulo de desconto;
 - ficha técnica versionada e baixa de ingredientes pelo ledger de estoque existente;
 - estoque por ledger imutável, inventário e alertas de mínimo;
+- **estoque por local**, com `MAIN` compatível com instalações existentes, reservas, físico/reservado/disponível e transferências sem teletransporte de saldo;
+- **compras e recebimentos**, incluindo pedido de compra, recebimento parcial, custo médio móvel e conta a pagar vinculada ao recebimento;
+- **orçamentos e pedidos** com retirada/entrega, reserva de estoque, atendimento parcial/total e conversão para a mesma venda canônica do Balcão;
+- **snapshot histórico de custo** no item vendido para preservar margem histórica mesmo após alterações de custo; vendas legadas sem snapshot são explicitamente tratadas como estimativa pelo custo atual;
 - Balcão com busca/código de barras, seleção direta de variações, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
 - observação vinculada à venda/cliente, com até 500 caracteres para registro interno e impressão opcional limitada a 120 caracteres e 4 linhas no cupom não fiscal;
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas, cancelamentos e devoluções parciais/totais;
-- financeiro, relatórios e exportação CSV;
+- financeiro operacional, relatórios e exportação CSV;
 - fila de impressão com retry/reimpressão, documentos operacionais **NÃO FISCAL** e identidade configurável do cupom com nome, endereço, telefone e logo local;
 - impressão Electron, térmica Epson/Star e serial por drivers locais explícitos;
 - balança e gaveta serial usando `@artisys/serialport`;
@@ -50,6 +54,12 @@ Principais capacidades:
 - health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto;
 - atualização desktop integrada via `electron-updater`, com download manual e instalação ao sair; o canal final de distribuição para clientes ainda precisa ser homologado sem expor segredo de repositório privado;
 - perfis de implantação **Servidor + Terminal** e **Terminal**.
+
+## Profundidade operacional 1.4.0
+
+Em **Estoque > Operação avançada**, o desktop expõe Compras, Logística e Pedidos. O fluxo de compras usa fornecedor já cadastrado, recebe itens no local selecionado, atualiza custo médio e gera contas a pagar. Transferências baixam a origem no despacho e somente creditam o destino no recebimento; cancelamentos em trânsito devolvem o saldo à origem. Pedidos confirmados reservam estoque e o atendimento gera uma venda normal, preservando caixa, comissão, impressão, estoque e devoluções do núcleo existente.
+
+O saldo legado é migrado para `MAIN — Estoque principal`. `inventory_balances` permanece como projeção agregada de compatibilidade, enquanto as novas operações usam saldos por local.
 
 ## Produto pai e subitens
 
@@ -105,14 +115,14 @@ Desktop / mobile LAN / atalhos / código de barras
 
 Em rede, existe um único servidor autoritativo. Terminais e dispositivos móveis não recebem caminho do SQLite e não acessam o banco por SMB; usam somente a API local na LAN. O renderer Electron não possui acesso Node, SQL, filesystem ou serial genérico.
 
-Todos os módulos verticais reutilizam o `SaleService` canônico. Estoque, caixa, impressão, auditoria e efeitos de domínio continuam compartilhados.
+Todos os módulos verticais e a Fase 9 reutilizam o `SaleService` canônico. Estoque, caixa, impressão, auditoria e efeitos de domínio continuam compartilhados.
 
 Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Os módulos reutilizáveis são vendorizados e fixados por commit em `vendor/artisys-modules.lock.json`, preservando build reproduzível sem depender de registry privado.
 
 ## Requisitos e execução de desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.3.4.
+- Windows x64 é o alvo de empacotamento comercial 1.4.0.
 
 ```bash
 npm install
@@ -151,7 +161,7 @@ Isso permite oferecer compatibilidade por protocolo sem fingir homologação de 
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.3.4 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
+A versão comercial 1.4.0 opera somente com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais. Código fiscal legado pode permanecer internamente por compatibilidade, mas não é requisito nem recurso comercial desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -162,10 +172,10 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.3.4-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.0-x64-Setup.exe
 ```
 
-`docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery e segurança. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
+`docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery, segurança e Fase 9. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
 Para solicitar uma build Windows sem duplicar o pipeline de verificação, atualize `.github/release-request.json` no `main`. Esse arquivo dispara somente `release-windows`; o workflow executa `verify:release`, gera o instalador NSIS x64 nativo, cria `release-manifest.json` com SHA-256 e publica ambos como artefato. O fluxo manual por `workflow_dispatch` e o fluxo por tag `v*` continuam disponíveis.
 
@@ -183,6 +193,7 @@ Para solicitar uma build Windows sem duplicar o pipeline de verificação, atual
 - `docs/architecture/e30-e39-restaurant.md`
 - `docs/architecture/e40-e47-verticals.md`
 - `docs/architecture/catalog-parent-variants-kits-combos.md`
+- `docs/superpowers/specs/2026-09-20-enterprise-depth-p0-design.md`
 
 ## Regra de manutenção documental
 
@@ -190,7 +201,7 @@ Para solicitar uma build Windows sem duplicar o pipeline de verificação, atual
 
 ## Limitações externas
 
-O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. A E54.1 reduz o risco antes da instalação real validando os protocolos por simulação, mas hardware, firmware, cabo e driver específicos continuam sendo variáveis externas.
+O funcionamento diário de venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não depende de nuvem nem de serviço pago. A Fase 9 também é totalmente local. A E54.1 reduz o risco antes da instalação real validando os protocolos por simulação, mas hardware, firmware, cabo e driver específicos continuam sendo variáveis externas.
 
 Um modelo físico não testado fica `UNTESTED_MODEL`; quando a família de integração já passou na CI, ela pode estar `PROTOCOL_VERIFIED`. Somente o modelo realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 
