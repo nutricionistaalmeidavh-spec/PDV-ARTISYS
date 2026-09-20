@@ -1,0 +1,25 @@
+'use strict';
+(() => {
+  const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
+  const p=ApiClient.prototype;
+  p.stockLocations=function(includeInactive=false){return this.request(`/api/v1/stock-locations${includeInactive?'?includeInactive=true':''}`);};
+  p.createStockLocation=function(body){return this.request('/api/v1/stock-locations',{method:'POST',body});};
+  p.stockAvailability=function(productId,locationId='MAIN'){return this.request(`/api/v1/stock-availability${this.params({productId,locationId})}`);};
+  p.stockReservations=function(filters={}){return this.request(`/api/v1/stock-reservations${this.params(filters)}`);};
+  p.stockTransfers=function(filters={}){return this.request(`/api/v1/stock-transfers${this.params(filters)}`);};
+  p.createStockTransfer=function(body){return this.request('/api/v1/stock-transfers',{method:'POST',body});};
+  p.dispatchStockTransfer=function(id,idempotencyKey=this.mutationId()){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/dispatch`,{method:'POST',body:{idempotencyKey}});};
+  p.receiveStockTransfer=function(id,idempotencyKey=this.mutationId()){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/receive`,{method:'POST',body:{idempotencyKey}});};
+  p.cancelStockTransfer=function(id,reason){return this.request(`/api/v1/stock-transfers/${encodeURIComponent(id)}/cancel`,{method:'POST',body:{reason}});};
+  p.purchaseOrders=function(filters={}){return this.request(`/api/v1/purchase-orders${this.params(filters)}`);};
+  p.createPurchaseOrder=function(body){return this.request('/api/v1/purchase-orders',{method:'POST',body});};
+  p.submitPurchaseOrder=function(id){return this.request(`/api/v1/purchase-orders/${encodeURIComponent(id)}/submit`,{method:'POST',body:{}});};
+  p.receivePurchaseOrder=function(id,body){return this.request(`/api/v1/purchase-orders/${encodeURIComponent(id)}/receive`,{method:'POST',body:{...body,idempotencyKey:body.idempotencyKey||this.mutationId()}});};
+  p.purchaseReceipts=function(filters={}){return this.request(`/api/v1/purchase-receipts${this.params(filters)}`);};
+  p.salesOrders=function(filters={}){return this.request(`/api/v1/sales-orders${this.params(filters)}`);};
+  p.salesOrder=function(id){return this.request(`/api/v1/sales-orders/${encodeURIComponent(id)}`);};
+  p.createSalesQuote=function(body){return this.request('/api/v1/sales-orders',{method:'POST',body});};
+  p.confirmSalesOrder=function(id){return this.request(`/api/v1/sales-orders/${encodeURIComponent(id)}/confirm`,{method:'POST',body:{}});};
+  p.cancelSalesOrder=function(id,reason){return this.request(`/api/v1/sales-orders/${encodeURIComponent(id)}/cancel`,{method:'POST',body:{reason}});};
+  p.fulfillSalesOrder=function(id,body){return this.request(`/api/v1/sales-orders/${encodeURIComponent(id)}/fulfill`,{method:'POST',body:{...body,idempotencyKey:body.idempotencyKey||this.mutationId()}});};
+})();

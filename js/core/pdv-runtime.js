@@ -6,6 +6,7 @@ const { runMigrations }=require('./database/migrations');
 const { runReleaseMigrations }=require('./database/release-migrations');
 const { runVerticalMigrations }=require('./database/vertical-migrations');
 const { runKitComboMigrations }=require('./database/kit-combo-migrations');
+const { runEnterpriseDepthMigrations }=require('./database/enterprise-depth-migrations');
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
@@ -17,17 +18,21 @@ const { createProductPhotoService }=require('../domains/catalog/product-photo-se
 const { createCatalogCustomizationService }=require('../domains/catalog/catalog-customization-service');
 const { createKitComboService }=require('../domains/catalog/kit-combo-service');
 const { createInventoryService }=require('../domains/inventory/inventory-service');
+const { createInventoryLogisticsService }=require('../domains/inventory-logistics/inventory-logistics-service');
 const { createRecipeService }=require('../domains/inventory/recipe-service');
 const { registerInventoryEffects }=require('../domains/inventory/inventory-effects');
 const { createSaleService }=require('../domains/sales/sale-service');
+const { createAvailabilitySaleService }=require('../domains/sales/availability-sale-service');
 const { createCommissionService }=require('../domains/sales/commission-service');
 const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
+const { createSalesOrderService }=require('../domains/orders/sales-order-service');
 const { createCashService }=require('../domains/cash/cash-service');
 const { registerCashEffects }=require('../domains/cash/cash-effects');
 const { createReturnService }=require('../domains/returns/return-service');
 const { registerReturnEffects }=require('../domains/returns/return-effects');
 const { createFinanceService }=require('../domains/finance/finance-service');
-const { createReportingService }=require('../domains/reports/reporting-service');
+const { createProcurementService }=require('../domains/procurement/procurement-service');
+const { createReportingService }=require('../domains/reports/historical-reporting-service');
 const { createPrintService }=require('../domains/printing/print-service');
 const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createNonFiscalPrintService }=require('../domains/printing/non-fiscal-service');
@@ -65,100 +70,38 @@ const { createDiagnosticPackage }=require('./observability/diagnostic-package');
 const { createPilotService }=require('./pilot/pilot-service');
 
 function createPdvRuntime({
-  dbPath=':memory:',
-  now=()=>new Date().toISOString(),
-  idFactory=p=>`${p}-${randomUUID()}`,
-  fiscalProviderResolver=async()=>null,
-  fiscalAutoIssueResolver=null,
-  receiptOptions={},
-  serverVersion='1.0.0',
-  minimumTerminalVersion='1.0.0',
-  capabilities,
-  backupDir=null,
-  backupRetention=30,
-  diagnosticsDir=null,
-  productPhotoDir=null,
-  logRetention=5000,
-  appVersion=serverVersion,
-  readScale=null
+  dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
+  fiscalProviderResolver=async()=>null,fiscalAutoIssueResolver=null,receiptOptions={},serverVersion='1.0.0',minimumTerminalVersion='1.0.0',capabilities,
+  backupDir=null,backupRetention=30,diagnosticsDir=null,productPhotoDir=null,logRetention=5000,appVersion=serverVersion,readScale=null
 }={}){
-  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);
+  const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  const settings=createSettingsService({db,now});
-  const modules=createModuleService({db,settings,now});
-  const onboarding=createOnboardingService({db,modules,now});
-  const mobileAccess=createMobileAccessService();
-  const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
-  runSalesEnhancementMigrations(db,now);
-  runCommercialMediaMigrations(db,now);
+  const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
-  const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});
-  productPhotos.cleanupExpired();
+  const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});productPhotos.cleanupExpired();
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
   const inventory=createInventoryService({db,now,idFactory});
-  const recipes=createRecipeService({db,now,idFactory});
-  const kitsCombos=createKitComboService({db,catalog,recipes,now,idFactory});
-  const cash=createCashService({db,outbox,now,idFactory});
-  const commissions=createCommissionService({db,now,idFactory});
-  const baseSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items),commissionService:commissions});
-  const sales=createPromotionSaleService({db,baseSales,promotionService:kitsCombos,now});
+  const logistics=createInventoryLogisticsService({db,inventory,now,idFactory});
+  const recipes=createRecipeService({db,now,idFactory});const kitsCombos=createKitComboService({db,catalog,recipes,now,idFactory});
+  const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,now,idFactory});
+  const coreSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:items=>recipes.expandItems(items),commissionService:commissions});
+  const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:items=>recipes.expandItems(items)});
+  const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,now});
+  const orders=createSalesOrderService({db,sales,logistics,now,idFactory});
   const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions});
   const finance=createFinanceService({db,now,idFactory});
+  const procurement=createProcurementService({db,inventory,finance,now,idFactory});
   const reports=createReportingService({db,now});
-  const printing=createPrintService({db,now,idFactory});
-  const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
-  const fiscal=createFiscalService({db,outbox,now,idFactory});
-  const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});
-  const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});
-  const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
-  const kitchen=createKitchenService({db,now,idFactory});
-  const mobileDevices=createMobileDeviceService({db,now,idFactory});
-  const restaurantReports=createRestaurantReportingService({db});
-  const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});
-  const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});
-  const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});
-  const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});
-  const retail=createRetailService({db,modules,sales,now,idFactory});
-  const services=createServicesService({db,modules,catalog,sales,now,idFactory});
-  const workshop=createWorkshopService({db,modules,catalog,services,sales,now,idFactory});
-  const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
-  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};
-  if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;
-  const terminals=createTerminalRegistry(terminalOptions);
-  const mutations=createMutationCoordinator({db,now});
-  const imports=createImportService({db,catalog,inventory,now,idFactory});
-  const logger=createSystemLogger({db,now,retention:logRetention});
-  const pilot=createPilotService({db,now});
-  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;
-  const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
-  const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});
-  const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;
-  const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
-
-  registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes});
-  registerRetailEffects({bus,retailService:retail,effectStore});
-  registerCashEffects({bus,cashService:cash,effectStore});
-  registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});
-  registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});
-  registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});
-  registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
-
-  // Compatibilidade legada interna apenas. A superfície comercial E40-E54 é exclusivamente NÃO FISCAL.
-  registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});
-  if(typeof fiscalAutoIssueResolver==='function'){
-    registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
-  }
-
+  const printing=createPrintService({db,now,idFactory});const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
+  const fiscal=createFiscalService({db,outbox,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
+  const kitchen=createKitchenService({db,now,idFactory});const mobileDevices=createMobileDeviceService({db,now,idFactory});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const services=createServicesService({db,modules,catalog,sales,now,idFactory});const workshop=createWorkshopService({db,modules,catalog,services,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
+  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;const terminals=createTerminalRegistry(terminalOptions);const mutations=createMutationCoordinator({db,now});const imports=createImportService({db,catalog,inventory,now,idFactory});const logger=createSystemLogger({db,now,retention:logRetention});const pilot=createPilotService({db,now});
+  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
+  registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
+  registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {
-    db,outbox,effectStore,bus,dispatcher,
-    catalog,productPhotos,catalogCustomization,kitsCombos,inventory,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,
-    modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,
-    backups,settings,imports,logger,health,diagnostics,pilot,
-    backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,
-    dispatchPending:()=>dispatcher.dispatchPending(),
-    close(){db.close();}
-  };
+  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
