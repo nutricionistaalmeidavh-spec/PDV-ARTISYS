@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "description": "Rastreabilidade por operação para superfícies P1. Cada operação customer/admin precisa de backend, rota, cliente, ação de UI e evidência E2E explícita.",
+  "operations": [
+    {
+      "id":"pizzeria.size.upsert","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/pizzeria/pizzeria-service.js","marker":"function upsertSize"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.pizzeria.upsertSize"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"savePizzeriaCatalog"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"pizza-size-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-pizza-size"}]
+    },
+    {
+      "id":"pizzeria.flavor.upsert","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/pizzeria/pizzeria-service.js","marker":"function upsertFlavor"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.pizzeria.upsertFlavor"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"savePizzeriaCatalog"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"pizza-flavor-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-pizza-flavor"}]
+    },
+    {
+      "id":"pizzeria.crust.upsert","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/pizzeria/pizzeria-service.js","marker":"function upsertCrust"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.pizzeria.upsertCrust"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"savePizzeriaCatalog"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"pizza-crust-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-pizza-crust"}]
+    },
+    {
+      "id":"delivery.status.update","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/delivery/delivery-service.js","marker":"function updateStatus"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.delivery.updateStatus"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"updateDeliveryStatus"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"data-delivery-next"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-delivery-status-action"}]
+    },
+    {
+      "id":"delivery.cancel","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/delivery/delivery-service.js","marker":"function cancel(id,reason"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.delivery.cancel"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"cancelDelivery"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"data-delivery-cancel"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-delivery-cancel-action"}]
+    },
+    {
+      "id":"delivery.courier.assign","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/delivery/delivery-service.js","marker":"function assignCourier"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.delivery.assignCourier"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"assignDeliveryCourier"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"data-delivery-courier"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-delivery-courier-action"}]
+    },
+    {
+      "id":"delivery.sale.create","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/delivery/delivery-service.js","marker":"function createSale"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.delivery.createSale"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"createDeliverySale"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"delivery-sale-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-delivery-sale-form"}]
+    },
+    {
+      "id":"market.weight-profile.upsert","capabilityId":"verticals.operations","exposure":"admin",
+      "backend":[{"path":"js/domains/market-bakery/market-bakery-service.js","marker":"function upsertWeightBarcodeProfile"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.marketBakery.upsertWeightBarcodeProfile"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"saveWeightProfile"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"weight-profile-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-weight-profile"}]
+    },
+    {
+      "id":"bakery.order.create","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/market-bakery/market-bakery-service.js","marker":"function createBakeryOrder"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.marketBakery.createBakeryOrder"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"createBakeryOrder"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"bakery-order-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-bakery-create"}]
+    },
+    {
+      "id":"bakery.order.get","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/market-bakery/market-bakery-service.js","marker":"function getBakeryOrder"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.marketBakery.getBakeryOrder"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"bakeryOrder(id)"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"bakery-control-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-bakery-control"}]
+    },
+    {
+      "id":"bakery.order.status.update","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/market-bakery/market-bakery-service.js","marker":"function updateBakeryOrderStatus"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.marketBakery.updateBakeryOrderStatus"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"updateBakeryOrderStatus"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"bakery-control-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-bakery-control"}]
+    },
+    {
+      "id":"bakery.order.cancel","capabilityId":"verticals.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/market-bakery/market-bakery-service.js","marker":"function cancelBakeryOrder"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.marketBakery.cancelBakeryOrder"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"cancelBakeryOrder"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"bakery-control-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-bakery-control"}]
+    },
+    {
+      "id":"restaurant.settlement.item.create","capabilityId":"restaurant.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function createItemSettlement"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.createItemSettlement"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"createRestaurantSettlement"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-settlement-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-split-item"}]
+    },
+    {
+      "id":"restaurant.settlement.equal.create","capabilityId":"restaurant.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function createEqualSettlement"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.createEqualSettlement"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"createRestaurantEqualSettlement"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-equal-settlement-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-split-equal"}]
+    },
+    {
+      "id":"restaurant.settlement.complete","capabilityId":"restaurant.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function completeSettlement"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.completeSettlement"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"completeRestaurantSettlement"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-complete-settlement-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-complete"}]
+    },
+    {
+      "id":"restaurant.order-item.cancel","capabilityId":"restaurant.operations","exposure":"admin",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function cancelOrderItem"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.cancelOrderItem"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"cancelRestaurantOrderItem"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-cancel-item-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-cancel-item"}]
+    },
+    {
+      "id":"restaurant.sessions.merge","capabilityId":"restaurant.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function mergeSessions"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.mergeSessions"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"mergeRestaurantSessions"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-merge-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-merge"}]
+    },
+    {
+      "id":"restaurant.items.transfer","capabilityId":"restaurant.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/restaurant/restaurant-settlement-service.js","marker":"function transferItems"}],
+      "api":[{"path":"server/vertical-router.js","marker":"runtime.restaurantSettlement.transferItems"}],
+      "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"transferRestaurantItems"}],
+      "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-transfer-form"}],
+      "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-transfer"}]
+    }
+  ]
+}
