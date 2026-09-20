@@ -31,13 +31,18 @@ test('every renderer MutationObserver is explicitly covered by the idempotency a
     .filter(file=>file.endsWith('.js')&&read(file).includes('MutationObserver'))
     .sort();
   const expected=[
+    'admin-ops.js',
     'backend-parity-ui.js',
     'delivery-address-ui.js',
     'e48-e54-ui.js',
+    'enterprise-depth-ui.js',
+    'kits-combos-ui.js',
     'product-variants-ui.js',
+    'restaurant-ui.js',
     'sale-observation-ui.js',
     'seller-select-sync.js',
     'store-branding-ui.js',
+    'vertical-modules.js',
     'vertical-parity-p1.js'
   ].sort();
   assert.deepEqual(actual,expected,'new or removed MutationObserver requires an explicit idempotency review');
@@ -63,7 +68,18 @@ test('module-manager observers guard already-bound buttons before changing watch
   );
 });
 
-test('remaining renderer observers have a pre-mutation guard, lock, or scheduler',()=>{
+test('promotion observer does not remove and recreate watched rows on every callback',()=>{
+  const kits=read('kits-combos-ui.js');
+  const block=between(kits,'function mountPromotionRow(){','const observer=new MutationObserver');
+  const stateGuard=block.indexOf("if(!sale||!['OPEN','SUSPENDED'].includes(sale.status)||promo<=0)");
+  const promotionRemove=block.indexOf("querySelector('[data-promotion-row]')?.remove()");
+  const lockedRemove=block.indexOf("querySelector('[data-promo-locked]')?.remove()");
+  assert.ok(stateGuard>=0,'kits-combos-ui: promotion state guard must exist');
+  assert.ok(promotionRemove<0||promotionRemove>stateGuard,'kits-combos-ui: promotion row cannot be removed before state is known');
+  assert.ok(lockedRemove<0||lockedRemove>stateGuard,'kits-combos-ui: promo lock cannot be removed before state is known');
+});
+
+test('remaining renderer observers have a pre-mutation guard, lock, marker, or scheduler',()=>{
   const seller=read('seller-select-sync.js');
   assert.match(seller,/if \(select === observedSelect \|\| activeRequest\) return;[\s\S]*observedSelect = select;[\s\S]*select\.replaceChildren\(fragment\)/);
   assert.match(seller,/if \(select !== observedSelect\) void synchronizeSellerSelect\(\)/);
@@ -89,4 +105,20 @@ test('remaining renderer observers have a pre-mutation guard, lock, or scheduler
   for(const marker of ['#backend-parity-stock','#backend-terminal-stock','#backend-return-cancel','#backend-finance-parity','#backend-services-lifecycle','#backend-workshop-lifecycle']){
     assert.ok(backend.includes(marker),`backend-parity-ui missing idempotency marker ${marker}`);
   }
+
+  const admin=read('admin-ops.js');
+  assert.match(admin,/if\(rendering\|\|!content\|\|!content\.querySelector\('\.ops-page'\)\)return;[\s\S]*content\.querySelector\('#ops-admin-control-center'\)\)return;[\s\S]*rendering=true;[\s\S]*appendChild\(panel\)/);
+  assert.match(admin,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
+
+  const enterprise=read('enterprise-depth-ui.js');
+  assert.match(enterprise,/if\(!page\|\|h\?\.textContent\?\.trim\(\)!=='Estoque'\|\|page\.querySelector\('#enterprise-depth-entry'\)\)return;[\s\S]*page\.appendChild\(card\)/);
+
+  const restaurant=read('restaurant-ui.js');
+  assert.match(restaurant,/if\(nav&&!nav\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*nav\.appendChild\(button\)/);
+  assert.match(restaurant,/if\(grid&&!grid\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*grid\.appendChild\(button\)/);
+
+  const modules=read('vertical-modules.js');
+  assert.match(modules,/if\(!page\|\|page\.querySelector\('#ops-establishment-modules-card'\)\)return;[\s\S]*(?:page\.insertBefore\(card,firstGrid\)|page\.appendChild\(card\))/);
+  assert.match(modules,/if\(sanitizeScheduled\)return;[\s\S]*sanitizeScheduled=true;[\s\S]*sanitizeScheduled=false;sanitizeLegacyPaymentCopy\(document\.body\)/);
+  assert.match(modules,/observe\(content,\{subtree:true,childList:true\}\)/);
 });
