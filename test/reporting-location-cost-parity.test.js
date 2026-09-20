@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 const NOW = '2026-09-20T15:00:00.000Z';
@@ -76,6 +77,7 @@ test('desktop reports expose cost basis and stock-location controls', () => {
   const root = path.join(__dirname,'..','desktop','renderer');
   const reporting = fs.readFileSync(path.join(root,'reporting-v2.js'),'utf8');
   const index = fs.readFileSync(path.join(root,'index.html'),'utf8');
+  const detailExtension = path.join(root,'historical-cost-ui.js');
 
   assert.match(reporting,/report-location-filter/);
   assert.match(reporting,/Margem histórica/);
@@ -83,4 +85,5 @@ test('desktop reports expose cost basis and stock-location controls', () => {
   assert.match(reporting,/Base do custo/);
   assert.match(reporting,/Custo médio unitário/);
   assert.match(index,/historical-cost-ui\.js/);
+  execFileSync(process.execPath,['--check',detailExtension],{stdio:'pipe'});
 });
