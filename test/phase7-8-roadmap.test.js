@@ -3,7 +3,9 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const os=require('node:os');
 const path=require('node:path');
+const {validateRegistry}=require('../scripts/check-customer-capability-parity');
 
 const root=path.resolve(__dirname,'..');
 const readJson=relative=>JSON.parse(fs.readFileSync(path.join(root,relative),'utf8'));
@@ -44,4 +46,24 @@ test('phase 8 blocks release unless every supported customer/admin capability ha
   const phase=readJson('release/e2e-coverage.json').phases?.['8'];
   assert.equal(phase?.gate,'capability:check:release');
   assert.equal(phase?.targetCoveragePercent,100);
+});
+
+test('require100 measures complete customer/admin capabilities and rejects missing e2e evidence',()=>{
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-capability-100-'));
+  try{
+    for(const relative of ['backend.js','api.js','client.js','ui.js','e2e.js']) fs.writeFileSync(path.join(tmp,relative),'ok');
+    const capability={
+      id:'demo.surface',exposure:'customer',status:'supported',targetPhase:8,declaredCapabilities:[],
+      backend:[{path:'backend.js'}],api:[{path:'api.js'}],client:[{path:'client.js'}],ui:[{path:'ui.js'}],e2e:[]
+    };
+    const missing=validateRegistry({root:tmp,registry:{schemaVersion:1,backendIgnore:[],capabilities:[capability]},requireE2e:true,maxPhase:8,require100:true});
+    assert.equal(missing.ok,false);
+    assert.equal(missing.counts.coveragePercent,0);
+    assert.match(missing.errors.join('\n'),/100%|coverage/i);
+
+    capability.e2e=[{path:'e2e.js'}];
+    const complete=validateRegistry({root:tmp,registry:{schemaVersion:1,backendIgnore:[],capabilities:[capability]},requireE2e:true,maxPhase:8,require100:true});
+    assert.equal(complete.ok,true,complete.errors.join('\n'));
+    assert.equal(complete.counts.coveragePercent,100);
+  }finally{fs.rmSync(tmp,{recursive:true,force:true});}
 });
