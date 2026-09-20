@@ -20,13 +20,21 @@ test('release profile gates publication after build, installer and QA', () => {
   assert.match(config.steps.publish.command, /publish-github-release\.ps1/);
 });
 
-test('Woodpecker publication is tag-only and uses the release profile', () => {
-  const pipeline = read('.woodpecker/pdv-publish.yaml');
-  assert.match(pipeline, /event: tag/);
-  assert.match(pipeline, /refs\/tags\/v\*/);
-  assert.match(pipeline, /-Profile release/);
-  assert.doesNotMatch(pipeline, /event: push/);
-  assert.match(pipeline, /GITHUB_RELEASE_TOKEN|GITHUB_REPORT_TOKEN/);
+test('Woodpecker publication is manual-only while GitHub Actions owns automatic CI', () => {
+  const publish = read('.woodpecker/pdv-publish.yaml');
+  const release = read('.woodpecker/pdv-release.yaml');
+  for (const pipeline of [publish, release]) {
+    assert.match(pipeline, /event: manual/);
+    assert.doesNotMatch(pipeline, /event: push/);
+    assert.doesNotMatch(pipeline, /event: tag/);
+  }
+  assert.match(publish, /-Profile release/);
+  assert.match(publish, /GITHUB_RELEASE_TOKEN|GITHUB_REPORT_TOKEN/);
+  const github = read('.github/workflows/verify.yml');
+  assert.match(github, /push:/);
+  assert.match(github, /pull_request:/);
+  assert.match(github, /npm run verify:release/);
+  assert.match(github, /npm run qa:release/);
 });
 
 test('publisher requires updater assets and blocks publication outside tag events', () => {
