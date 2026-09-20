@@ -3,12 +3,12 @@
 (()=>{
   const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;const api=new ApiClient();const e=encodeURIComponent;
   const FINAL_MODULES=new Set(['RETAIL','SERVICES','WORKSHOP','SELF_SERVICE']);
-  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   function content(){return document.getElementById('route-content');}
   function notify(message,error=false){const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3200);}
-  function back(){return '<button type="button" class="secondary-button" id="e48-back">← Módulos</button>';}
-  function bindBack(){document.getElementById('e48-back')?.addEventListener('click',()=>document.getElementById('vertical-modules-launcher')?.click());}
+  function back(){return '<button type="button" class="secondary-button" id="vertical-back">← Configurações</button>';}
+  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>window.PdvOperationalUi?.showRoute?.('settings'));}
   function field(name,label,type='text',extra=''){return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" ${extra}></label>`;}
   async function req(path,options){return api.request(path,options);}
 
