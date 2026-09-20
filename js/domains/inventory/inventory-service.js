@@ -74,11 +74,12 @@ function createInventoryService({db,now=()=>new Date().toISOString(),idFactory=p
   function listBalances(filters={}){
     const query=String(filters?.query||'').trim().toLowerCase();
     const aggregate=filters?.aggregate===true;
+    const explicitLocation=Object.prototype.hasOwnProperty.call(filters||{},'locationId');
     const locationId=normalizeLocation(filters?.locationId);
     const rows=aggregate
       ? db.prepare(`SELECT p.id AS productId,p.sku,p.barcode,p.name,p.unit,COALESCE(b.quantity,0) AS quantity,p.minimum_stock AS minimumStock,p.cost_cents AS costCents,p.sale_price_cents AS salePriceCents,p.track_stock AS trackStock FROM products p LEFT JOIN inventory_balances b ON b.product_id=p.id WHERE p.active=1 ORDER BY p.name,p.id`).all()
       : db.prepare(`SELECT p.id AS productId,p.sku,p.barcode,p.name,p.unit,COALESCE(b.quantity,0) AS quantity,p.minimum_stock AS minimumStock,p.cost_cents AS costCents,p.sale_price_cents AS salePriceCents,p.track_stock AS trackStock FROM products p LEFT JOIN inventory_location_balances b ON b.product_id=p.id AND b.location_id=? WHERE p.active=1 ORDER BY p.name,p.id`).all(locationId);
-    return rows.filter(row=>!query||[row.name,row.sku,row.barcode].some(value=>String(value||'').toLowerCase().includes(query))).map(row=>({productId:row.productId,locationId:aggregate?null:locationId,sku:row.sku,barcode:row.barcode,name:row.name,unit:row.unit,quantity:roundQuantity(row.quantity),minimumStock:roundQuantity(row.minimumStock),costCents:row.costCents,salePriceCents:row.salePriceCents,lowStock:Boolean(row.trackStock)&&roundQuantity(row.quantity)<=roundQuantity(row.minimumStock)})).filter(row=>filters?.lowStock===true?row.lowStock:true);
+    return rows.filter(row=>!query||[row.name,row.sku,row.barcode].some(value=>String(value||'').toLowerCase().includes(query))).map(row=>({productId:row.productId,...(explicitLocation&&!aggregate?{locationId}:{}),sku:row.sku,barcode:row.barcode,name:row.name,unit:row.unit,quantity:roundQuantity(row.quantity),minimumStock:roundQuantity(row.minimumStock),costCents:row.costCents,salePriceCents:row.salePriceCents,lowStock:Boolean(row.trackStock)&&roundQuantity(row.quantity)<=roundQuantity(row.minimumStock)})).filter(row=>filters?.lowStock===true?row.lowStock:true);
   }
 
   function listMovements(filters){
