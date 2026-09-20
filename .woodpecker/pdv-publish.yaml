@@ -3,9 +3,9 @@ labels:
   backend: local
   pilot: pdv-artisys
 
+# Manual fallback only. GitHub Actions owns automatic CI/release while the repo is public.
 when:
-  - event: tag
-    ref: refs/tags/v*
+  - event: manual
 
 steps:
   - name: ambiente-release
@@ -15,7 +15,7 @@ steps:
     commands:
       - '$ErrorActionPreference = "Stop"'
       - 'New-Item -ItemType Directory -Force -Path ".\artifacts" | Out-Null'
-      - 'Write-Host "[PDV Release] tag=$env:CI_COMMIT_TAG sha=$env:CI_COMMIT_SHA"'
+      - 'Write-Host "[PDV Release manual] sha=$env:CI_COMMIT_SHA"'
       - 'node --version'
       - 'docker --version'
       - 'if (-not $env:GITHUB_RELEASE_TOKEN -and -not $env:GITHUB_REPORT_TOKEN) { throw "Token GitHub de release ausente no Agent." }'
@@ -27,7 +27,7 @@ steps:
     commands:
       - '$ErrorActionPreference = "Stop"'
       - '$logPath = ".\artifacts\woodpecker-release.log"'
-      - '"=== release tag $env:CI_COMMIT_TAG ===" | Set-Content -Path $logPath -Encoding utf8'
+      - '"=== release manual $env:CI_COMMIT_SHA ===" | Set-Content -Path $logPath -Encoding utf8'
       - '& .\scripts\artisys-release.ps1 -Profile release -UpdateUtilidades *>&1 | ForEach-Object { Write-Host $_; Add-Content -Path $logPath -Value ([string]$_) -Encoding utf8 }'
 
   - name: reportar-sucesso-github
@@ -57,6 +57,6 @@ steps:
       - 'if (-not (Test-Path $reporter)) { git -C $env:ARTISYS_UTILIDADES_PATH pull --ff-only }'
       - 'if (Test-Path $reporter) { node $reporter } else { Write-Warning "Reporter compartilhado ausente." }'
     when:
-      - event: tag
+      - event: manual
         status: [failure]
     failure: ignore
