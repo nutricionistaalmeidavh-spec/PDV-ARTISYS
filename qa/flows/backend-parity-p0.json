@@ -1,0 +1,43 @@
+{
+  "name":"backend-parity-p0",
+  "steps":[
+    {"uses":"home.json"},
+    {"action":"click","selector":"[data-route='inventory']","name":"parity-open-inventory"},
+    {"action":"waitFor","selector":"#backend-parity-stock","name":"parity-stock-local-ui","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-parity-stock","expected":"Estoque por local","name":"parity-stock-local-title"},
+    {"action":"waitFor","selector":"#enterprise-depth-entry","name":"parity-enterprise-entry","timeoutMs":10000},
+    {"action":"click","selector":"#enterprise-depth-entry [data-open='logistics']","name":"parity-open-logistics"},
+    {"action":"waitFor","selector":"#backend-terminal-stock","name":"parity-terminal-stock-ui","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-terminal-stock","expected":"Estoque por terminal","name":"parity-terminal-stock-title"},
+
+    {"action":"click","selector":"[data-route='finance']","name":"parity-open-finance"},
+    {"action":"waitFor","selector":"#backend-finance-parity","name":"parity-finance-ui","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-finance-parity","expected":"Contas financeiras","name":"parity-finance-accounts"},
+    {"action":"expectText","selector":"#backend-finance-parity","expected":"Estornar baixas","name":"parity-finance-reversal"},
+
+    {"action":"click","selector":"[data-route='returns']","name":"parity-open-returns"},
+    {"action":"waitFor","selector":"#backend-return-cancel","name":"parity-return-ui","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-return-cancel","expected":"Gerenciar devoluções","name":"parity-return-cancel-title"},
+
+    {"action":"click","selector":"[data-route='settings']","name":"parity-open-settings-services"},
+    {"action":"waitFor","selector":"#ops-load-establishment-modules","name":"parity-modules-loader","timeoutMs":10000},
+    {"action":"click","selector":"#ops-load-establishment-modules","name":"parity-load-modules"},
+    {"action":"waitFor","selector":"[data-module-toggle='SERVICES']","name":"parity-services-toggle","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-toggle='SERVICES']","name":"parity-enable-services"},
+    {"action":"waitFor","selector":"[data-module-open='SERVICES']","name":"parity-services-open-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-open='SERVICES']","name":"parity-open-services"},
+    {"action":"waitFor","selector":"#backend-services-lifecycle","name":"parity-services-lifecycle","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-services-lifecycle","expected":"Ciclo do atendimento","name":"parity-services-title"},
+
+    {"action":"click","selector":"[data-route='settings']","name":"parity-open-settings-workshop"},
+    {"action":"waitFor","selector":"#ops-load-establishment-modules","name":"parity-modules-loader-2","timeoutMs":10000},
+    {"action":"click","selector":"#ops-load-establishment-modules","name":"parity-load-modules-2"},
+    {"action":"waitFor","selector":"[data-module-toggle='WORKSHOP']","name":"parity-workshop-toggle","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-toggle='WORKSHOP']","name":"parity-enable-workshop"},
+    {"action":"waitFor","selector":"[data-module-open='WORKSHOP']","name":"parity-workshop-open-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-open='WORKSHOP']","name":"parity-open-workshop"},
+    {"action":"waitFor","selector":"#backend-workshop-lifecycle","name":"parity-workshop-lifecycle","timeoutMs":10000},
+    {"action":"expectText","selector":"#backend-workshop-lifecycle","expected":"Operação completa da OS","name":"parity-workshop-title"},
+    {"action":"screenshot","name":"backend-parity-p0","fullPage":true}
+  ]
+}
