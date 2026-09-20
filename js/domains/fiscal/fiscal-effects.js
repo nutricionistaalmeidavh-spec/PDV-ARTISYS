@@ -1,5 +1,6 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
+const { buildFiscalDocument } = require('./fiscal-document-builder');
 
 function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolver } = {}) {
   if (!bus || !effectStore || !fiscalService || typeof providerResolver !== 'function') {
@@ -53,13 +54,24 @@ function registerFiscalAutoIssueEffect({ bus, effectStore, fiscalService, saleSe
       if (!sale) throw new Error('Venda nao encontrada para emissao fiscal automatica.');
       const config = await resolveConfiguration({ event, sale });
       if (!config || config.configured === false || config.autoIssue === false) return { skipped:true, reason:'not-configured' };
+      const reference = config.reference || sale.saleNumber || sale.id;
+      const useCanonicalBuilder = config.provider === 'acbr-local' && config.fiscalContext;
+      const payload = useCanonicalBuilder
+        ? buildFiscalDocument({
+            sale,
+            fiscalContext:config.fiscalContext,
+            documentType:config.documentType,
+            environment:config.environment,
+            reference
+          })
+        : (config.payload || {});
       return fiscalService.requestIssue({
         saleId:sale.id,
         provider:config.provider,
         environment:config.environment,
         documentType:config.documentType,
-        reference:config.reference || sale.saleNumber || sale.id,
-        payload:config.payload || {},
+        reference,
+        payload,
         actor:event.actor || {},
         mutationId:event.mutationId || null
       });
