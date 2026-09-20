@@ -2,9 +2,14 @@ name: verify
 
 on:
   push:
-    branches: [main, feature/**, feat/**, fix/**]
+    branches:
+      - main
+      - feature/**
+      - feat/**
+      - fix/**
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 permissions:
   contents: read
