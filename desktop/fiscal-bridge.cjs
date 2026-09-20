@@ -1,8 +1,9 @@
 'use strict';
+
 const fs = require('node:fs');
 const path = require('node:path');
 const { validateSecretConnection, publicConnection } = require('../js/domains/fiscal/fiscal-core');
-const { createFocusFiscalProvider } = require('../js/domains/fiscal/focus-fiscal-provider');
+const { createDefaultFiscalProviderRegistry } = require('../js/domains/fiscal/provider-registry');
 
 function createFiscalConnectionStore({ app, safeStorage, fileName = 'pdv-fiscal-connection.enc' } = {}) {
   if (!app || typeof app.getPath !== 'function' || !safeStorage) throw new TypeError('app and safeStorage are required.');
@@ -42,33 +43,84 @@ function createFiscalConnectionStore({ app, safeStorage, fileName = 'pdv-fiscal-
   return Object.freeze({ filePath, saveSecret, readSecret, publicStatus, removeSecret });
 }
 
-function createFiscalProviderResolver({ store, fetchImpl = globalThis.fetch } = {}) {
+function createFiscalProviderResolver({
+  store,
+  fetchImpl = globalThis.fetch,
+  registry = null,
+  sidecarBaseUrlResolver = () => null
+} = {}) {
   if (!store) throw new TypeError('Fiscal connection store is required.');
+  if (typeof sidecarBaseUrlResolver !== 'function') throw new TypeError('sidecarBaseUrlResolver must be a function.');
+
+  const providerRegistry = registry || createDefaultFiscalProviderRegistry({
+    fetchImpl,
+    resolveSidecarBaseUrl:sidecarBaseUrlResolver
+  });
+
   return async document => {
     const secret = store.readSecret();
     if (!secret) throw new Error('Conexao fiscal nao configurada.');
     if (document?.provider && document.provider !== secret.provider) throw new Error('Provedor fiscal do documento difere da configuracao ativa.');
     if (document?.environment && document.environment !== secret.environment) throw new Error('Ambiente fiscal do documento difere da configuracao ativa.');
-    return createFocusFiscalProvider({ connection:{...secret,documentType:document?.documentType || secret.documentType}, fetchImpl });
+
+    const connection = {
+      ...secret,
+      documentType:document?.documentType || secret.documentType
+    };
+    return providerRegistry.create(connection, { sidecarBaseUrl:sidecarBaseUrlResolver() });
   };
 }
 
-function registerFiscalIpc({ ipcMain, store, isTrustedSender = null, fetchImpl = globalThis.fetch } = {}) {
+function registerFiscalIpc({
+  ipcMain,
+  store,
+  isTrustedSender = null,
+  fetchImpl = globalThis.fetch,
+  providerResolver = null,
+  sidecarBaseUrlResolver = () => null
+} = {}) {
   if (!ipcMain || !store) throw new TypeError('ipcMain and fiscal store are required.');
   const trusted = event => typeof isTrustedSender !== 'function' || Boolean(isTrustedSender(event));
+  const resolveProvider = providerResolver || createFiscalProviderResolver({
+    store,
+    fetchImpl,
+    sidecarBaseUrlResolver
+  });
+
   const handle = (channel, fn) => ipcMain.handle(channel, async (event, input) => {
     if (!trusted(event)) throw new Error('Origem IPC nao autorizada.');
     return fn(input || {});
   });
+
   handle('artisys:fiscal:status', () => store.publicStatus());
   handle('artisys:fiscal:save', input => store.saveSecret(input));
   handle('artisys:fiscal:remove', () => store.removeSecret());
   handle('artisys:fiscal:test', async () => {
     const secret = store.readSecret();
     if (!secret) return { configured:false, reachable:false, error:'Conexao fiscal nao configurada.' };
-    const provider = createFocusFiscalProvider({ connection:secret, fetchImpl });
-    return provider.testConnection();
+    try {
+      const provider = await resolveProvider({
+        provider:secret.provider,
+        environment:secret.environment,
+        documentType:secret.documentType
+      });
+      const result = await provider.testConnection();
+      return { ...publicConnection(secret), ...result };
+    } catch (error) {
+      return {
+        ...publicConnection(secret),
+        reachable:false,
+        status:0,
+        error:error?.message || String(error)
+      };
+    }
   });
+
+  return Object.freeze({ providerResolver:resolveProvider });
 }
 
-module.exports = { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc };
+module.exports = {
+  createFiscalConnectionStore,
+  createFiscalProviderResolver,
+  registerFiscalIpc
+};
