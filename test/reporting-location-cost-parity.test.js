@@ -50,6 +50,34 @@ test('sales summary distinguishes historical, estimated and mixed cost basis', (
   runtime.close();
 });
 
+test('variant sales snapshot variant cost and legacy fallback uses current variant cost', () => {
+  const runtime = fixture();
+  runtime.catalog.upsertProduct({ id:'p2', name:'Produto com variação', categoryId:'c1', unit:'UN', salePriceCents:1000, costCents:500, trackStock:true, minimumStock:0, active:true }, actor);
+  runtime.catalogCustomization.upsertVariant({ id:'p2-v1', productId:'p2', name:'Variação A', priceDeltaCents:0, costCents:250 });
+  runtime.retail.setProductVariantStock('p2-v1', 5);
+
+  const sale = runtime.sales.openSale({ id:'s-variant', saleNumber:'s-variant', terminalId:'T1', operatorId:'u1', sellerId:'u1' }, actor);
+  runtime.retail.addProductVariantToSale(sale.id, { variantId:'p2-v1', quantity:1 });
+  runtime.sales.completeSale(sale.id, { payments:[{ method:'CASH', amountCents:1000 }], actor });
+
+  let detail = runtime.sales.getSaleDetails(sale.id);
+  assert.equal(detail.items[0].costCentsSnapshot, 250);
+  assert.equal(detail.items[0].costSnapshotSource, 'VARIANT');
+
+  runtime.db.prepare('UPDATE sale_items SET cost_cents_snapshot=NULL,cost_snapshot_source=NULL WHERE sale_id=?').run(sale.id);
+  runtime.db.prepare("UPDATE product_variants SET cost_cents=300 WHERE id='p2-v1'").run();
+
+  detail = runtime.sales.getSaleDetails(sale.id);
+  assert.equal(detail.items[0].effectiveCostCents, 300);
+  assert.equal(detail.items[0].costBasis, 'ESTIMATED_CURRENT');
+
+  const report = runtime.reports.buildSalesSummary({ from:'2026-09-01T00:00:00.000Z', to:'2026-09-30T23:59:59.999Z' });
+  const product = report.productSales.find(row => row.productId === 'p2');
+  assert.equal(product.estimatedCostCents, 300);
+  assert.equal(product.costBasis, 'ESTIMATED_CURRENT');
+  runtime.close();
+});
+
 test('inventory report separates shortages by stock location instead of aggregate balance', () => {
   const runtime = fixture();
   runtime.logistics.createLocation({ id:'WH', name:'Depósito', type:'WAREHOUSE' }, actor);
