@@ -1,8 +1,7 @@
 {
-  "name": "core-business-e2e",
-  "steps": [
-    {"uses":"reports-complete.json"},
-
+  "name":"core-business-e2e",
+  "steps":[
+    {"uses":"reports-v2-complete.json"},
     {"action":"click","selector":"[data-route='products']","name":"core-open-products"},
     {"action":"waitFor","selector":"#new-product","name":"core-products-ready","timeoutMs":10000},
     {"action":"click","selector":"#new-product","name":"core-new-product"},
@@ -13,7 +12,6 @@
     {"action":"fill","selector":"#product-form input[name='minimumStock']","value":"2","name":"core-product-minimum"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"core-save-product"},
     {"action":"expectText","selector":".data-card:not([data-kit-combo-admin])","expected":"QA Core Stock","name":"core-product-created"},
-
     {"action":"click","selector":"[data-route='inventory']","name":"core-open-inventory"},
     {"action":"waitFor","selector":"#ops-inventory-form","name":"core-inventory-ready","timeoutMs":10000},
     {"action":"selectOption","selector":"#ops-inventory-form select[name='productId']","value":{"label":"QA Core Stock"},"name":"core-stock-product"},
@@ -25,7 +23,6 @@
     {"action":"waitFor","selector":"#ops-inventory-body","name":"core-inventory-restored","timeoutMs":10000},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"QA Core Stock","name":"core-stock-product-visible"},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"5 UN","name":"core-stock-before-sale"},
-
     {"action":"click","selector":"[data-route='checkout']","name":"core-open-checkout"},
     {"action":"waitFor","selector":".checkout-layout","name":"core-checkout-ready","timeoutMs":10000},
     {"action":"click","selector":".product-card:has-text('QA Core Stock')","name":"core-add-product"},
@@ -35,12 +32,10 @@
     {"action":"waitFor","selector":"#confirm-payment","name":"core-payment-ready","timeoutMs":10000},
     {"action":"click","selector":"#confirm-payment","name":"core-confirm-payment"},
     {"action":"waitForTimeout","timeoutMs":800,"name":"core-sale-completed"},
-
     {"action":"click","selector":"[data-route='inventory']","name":"core-open-inventory-after-sale"},
     {"action":"waitFor","selector":"#ops-inventory-body","name":"core-inventory-after-sale-ready","timeoutMs":10000},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"QA Core Stock","name":"core-stock-product-after-sale"},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"4 UN","name":"core-stock-decremented"},
-
     {"action":"click","selector":"[data-route='finance']","name":"core-open-finance"},
     {"action":"waitFor","selector":"#ops-finance-form","name":"core-finance-ready","timeoutMs":10000},
     {"action":"selectOption","selector":"#ops-finance-form select[name='kind']","value":"RECEIVABLE","name":"core-finance-kind"},
@@ -53,17 +48,15 @@
     {"action":"click","selector":"[data-route='finance']","name":"core-reopen-finance"},
     {"action":"waitFor","selector":".ops-page","name":"core-finance-restored","timeoutMs":10000},
     {"action":"expectText","selector":".ops-page","expected":"QA Core Finance","name":"core-finance-entry-visible"},
-
     {"action":"click","selector":"[data-route='reports']","name":"core-open-reports"},
-    {"action":"waitFor","selector":"#ops-report-filter","name":"core-reports-ready","timeoutMs":10000},
-    {"action":"fill","selector":"#ops-report-filter input[name='fromDate']","value":"2020-01-01","name":"core-report-from"},
-    {"action":"fill","selector":"#ops-report-filter input[name='toDate']","value":"2099-12-31","name":"core-report-to"},
-    {"action":"click","selector":"#ops-report-filter button[type='submit']","name":"core-apply-report-filter"},
-    {"action":"waitForTimeout","timeoutMs":500,"name":"core-report-refresh"},
-    {"action":"expectText","selector":".reports-page","expected":"QA Core Stock","name":"core-report-product"},
-    {"action":"expectText","selector":".reports-page","expected":"Estoque e reposição","name":"core-report-inventory"},
-    {"action":"expectText","selector":".reports-page","expected":"Financeiro","name":"core-report-finance"},
-    {"action":"expectText","selector":".reports-page","expected":"Dinheiro","name":"core-report-cash-payment"},
+    {"action":"waitFor","selector":".report-v2-page","name":"core-reports-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-report-view='products']","name":"core-reports-products"},
+    {"action":"expectText","selector":".report-v2-page","expected":"QA Core Stock","name":"core-report-product"},
+    {"action":"click","selector":"[data-report-view='inventory']","name":"core-reports-inventory"},
+    {"action":"expectText","selector":".report-v2-page","expected":"Produtos no estoque mínimo para compra","name":"core-report-inventory-heading"},
+    {"action":"expectText","selector":".report-v2-page","expected":"QA Core Stock","name":"core-report-inventory-product"},
+    {"action":"click","selector":"[data-report-view='payments']","name":"core-reports-payments"},
+    {"action":"expectText","selector":".report-v2-page","expected":"Dinheiro","name":"core-report-cash-payment"},
     {"action":"screenshot","name":"phase4-core-business-e2e","fullPage":true}
   ]
 }

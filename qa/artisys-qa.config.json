@@ -6,71 +6,23 @@
   "defaultFlow": "smoke",
   "defaultDemo": "quick-30s",
   "defaultViewport": "desktop",
-  "demoCaptureViewport": {
-    "width": 1440,
-    "height": 900
-  },
-  "capture": {
-    "video": true,
-    "screenshotEachStep": false,
-    "fps": 8
-  },
-  "electron": {
-    "entry": "desktop/main.cjs",
-    "executablePath": "../node_modules/electron/dist/electron",
-    "args": ["--no-sandbox"]
-  },
-  "environments": {
-    "ci": {
-      "env": {
-        "NODE_ENV": "test",
-        "ARTISYS_QA": "1",
-        "PDV_ENABLE_LAN": "false",
-        "PDV_AUTO_PRINT": "false"
-      }
-    }
-  },
+  "demoCaptureViewport": {"width":1440,"height":900},
+  "capture": {"video":true,"screenshotEachStep":false,"fps":8},
+  "electron": {"entry":"desktop/main.cjs","executablePath":"../node_modules/electron/dist/electron","args":["--no-sandbox"]},
+  "environments": {"ci":{"env":{"NODE_ENV":"test","ARTISYS_QA":"1","PDV_ENABLE_LAN":"false","PDV_AUTO_PRINT":"false"}}},
   "flows": {
-    "smoke": "flows/smoke.json",
-    "home": "flows/home.json",
-    "sales-enhancements": "flows/sales-enhancements.json",
-    "sales-enhancements-release": "flows/sales-enhancements-release.json",
-    "reports-complete": "flows/reports-complete.json",
-    "core-business-e2e": "flows/core-business-e2e.json"
+    "smoke":"flows/smoke.json",
+    "home":"flows/home.json",
+    "reports-v2-complete":"flows/reports-v2-complete.json",
+    "core-business-e2e":"flows/core-business-e2e.json"
   },
   "qaProfiles": {
-    "quick": {
-      "flows": ["smoke"],
-      "criticalFlows": ["smoke"],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    },
-    "full": {
-      "flows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
-      "criticalFlows": ["smoke", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    },
-    "release": {
-      "flows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
-      "criticalFlows": ["smoke", "home", "sales-enhancements-release", "reports-complete", "core-business-e2e"],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    }
+    "quick":{"flows":["smoke"],"criticalFlows":["smoke"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
+    "full":{"flows":["smoke","home","reports-v2-complete","core-business-e2e"],"criticalFlows":["smoke","reports-v2-complete","core-business-e2e"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
+    "release":{"flows":["smoke","home","reports-v2-complete","core-business-e2e"],"criticalFlows":["smoke","home","reports-v2-complete","core-business-e2e"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false}
   },
   "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
-    }
+    "quick-30s":{"file":"demo/quick-30s.json","preset":"reels-9x16","durationTargetSec":30},
+    "overview-60s":{"file":"demo/overview-60s.json","preset":"landscape-16x9","durationTargetSec":60}
   }
 }

@@ -7,7 +7,7 @@
   <title>ArtiSys PDV</title>
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./operational-pages.css" />
-  <link rel="stylesheet" href="./reports-ui.css" />
+  <link rel="stylesheet" href="./reporting-v2.css" />
   <link rel="stylesheet" href="./restaurant-ui.css" />
   <link rel="stylesheet" href="./vertical-modules.css" />
   <link rel="stylesheet" href="./kits-combos.css" />
@@ -23,7 +23,6 @@
       <button class="nav-button" data-route="settings" title="Configurações" aria-label="Configurações"><span data-icon="settings"></span></button>
       <button class="nav-button sidebar-back" data-route="home" title="Voltar ao início" aria-label="Voltar ao início">‹</button>
     </aside>
-
     <section class="app-column">
       <header id="app-topbar" class="topbar">
         <div class="topbar-brand"><strong>ARTISYS</strong><span>PDV</span></div>
@@ -40,20 +39,16 @@
           <button type="button" data-window="close" aria-label="Fechar">×</button>
         </div>
       </header>
-
       <main id="route-content" class="route-content" tabindex="-1"></main>
-
       <footer class="app-footer">
         <div><strong>ARTISYS</strong><span>Tecnologia para o seu negócio.</span></div>
         <div><span id="footer-status" class="footer-status"><i></i>Sistema local</span><span id="app-version">Versão 0.0.0</span><span>Suporte ArtiSys</span></div>
       </footer>
     </section>
   </div>
-
   <div id="auth-overlay" class="overlay hidden" aria-live="polite"></div>
   <div id="modal-root" class="overlay hidden" aria-live="polite"></div>
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
-
   <script src="./ui-model.js"></script>
   <script src="./currency-input.js"></script>
   <script src="./api-client.js"></script>
@@ -61,9 +56,8 @@
   <script src="./sale-observation-ui.js"></script>
   <script src="./app.js"></script>
   <script src="./seller-select-sync.js"></script>
-  <script src="./route-guard.js"></script>
-  <script src="./reports-ui.js"></script>
-  <script src="./reports-legacy-contract.js"></script>
+  <script src="./reporting-v2.js"></script>
+  <script src="./reporting-v2-legacy-export.js"></script>
   <script src="./operational-pages.js"></script>
   <script src="./store-branding-ui.js"></script>
   <script src="./admin-ops.js"></script>
