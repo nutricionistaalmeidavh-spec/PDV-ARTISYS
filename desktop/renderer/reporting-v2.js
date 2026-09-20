@@ -10,7 +10,7 @@
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
   let config = null;
-  let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'' };
+  let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'',locationId:'' };
 
   const PAYMENT_LABELS = Object.freeze({
     CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',STORE_CREDIT:'Crediário / crédito da loja',OTHER:'Outros'
@@ -73,6 +73,21 @@
     document.body.classList.remove('theme-home');
     document.querySelectorAll('[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route === 'reports'));
   }
+  function costBasisLabel(value) {
+    if (value === 'HISTORICAL_SNAPSHOT') return 'Histórico (snapshot)';
+    if (value === 'ESTIMATED_CURRENT') return 'Estimado pelo custo atual';
+    if (value === 'MIXED') return 'Misto: histórico + estimativa';
+    return 'Não informado';
+  }
+  function marginPresentation(sales) {
+    if (sales.costBasis === 'ESTIMATED_CURRENT') return { label:'Margem estimada',hint:'Vendas legadas sem snapshot usam o custo atual cadastrado' };
+    if (sales.costBasis === 'MIXED') return { label:'Margem parcialmente estimada',hint:'Combina custos históricos congelados e estimativas de vendas legadas' };
+    return { label:'Margem histórica',hint:'Custos congelados no momento da venda' };
+  }
+  function selectedInventory(inventory) {
+    if (state.locationId) return inventory.locationSummaries?.[state.locationId] || inventory;
+    return inventory.allLocationsSummary || inventory;
+  }
 
   function selectedCustomerRows(sales) {
     const rows = sales.customerSales || [];
@@ -88,6 +103,7 @@
   }
 
   function overviewView(sales) {
+    const margin = marginPresentation(sales);
     return `<div class="ops-metrics report-v2-metrics">
       ${metric('Subtotal antes de descontos',money(sales.subtotalSalesCents || sales.grossSalesCents || 0))}
       ${metric('Descontos',money(sales.salesDiscountCents || 0))}
@@ -95,7 +111,7 @@
       ${metric('Devoluções',money(sales.returnedCents || 0))}
       ${metric('Vendas líquidas',money(sales.netSalesCents || 0))}
       ${metric('Ticket médio',money(sales.averageTicketCents || 0))}
-      ${metric('Margem estimada',money(sales.estimatedMarginCents || 0),'Com custo atual cadastrado')}
+      ${metric(margin.label,money(sales.estimatedMarginCents || 0),margin.hint)}
       ${metric('Cancelamentos',money(sales.cancelledSalesCents || 0),`${sales.cancelledSalesCount || 0} canceladas`)}
     </div>
     <div class="ops-grid two">
@@ -116,7 +132,7 @@
   function productsView(sales) {
     const rows = selectedProductRows(sales);
     const options = (sales.productSales || []).map(row => `<option value="${escapeHtml(row.productId)}" ${state.productId === row.productId ? 'selected' : ''}>${escapeHtml(row.productName)}</option>`).join('');
-    return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por produto</h2><p class="ops-muted">Descontos gerais da venda são rateados entre os produtos para o faturamento fechar com o total das vendas.</p></div><label class="report-v2-inline-filter">Produto<select id="report-product-filter" class="ops-input"><option value="">Todos os produtos</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Qtd. vendida</th><th>Qtd. devolvida</th><th>Qtd. líquida</th><th>Linhas antes desc.</th><th>Desconto rateado</th><th>Receita após desc.</th><th>Devolvido</th><th>Líquido</th><th>Margem estimada</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)}</td><td>${qty(row.returnedQuantity)}</td><td><strong>${qty(row.netQuantity)}</strong></td><td>${money(row.lineGrossCents || row.grossCents)}</td><td>${money(row.discountCents || 0)}</td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.estimatedMarginCents)}</td></tr>`).join('') || empty('Nenhum produto vendido no período.',11)}</tbody></table></div></section>`;
+    return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por produto</h2><p class="ops-muted">Descontos gerais são rateados. O custo usa o snapshot congelado na venda; registros legados sem snapshot são explicitamente estimados pelo custo atual.</p></div><label class="report-v2-inline-filter">Produto<select id="report-product-filter" class="ops-input"><option value="">Todos os produtos</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Qtd. vendida</th><th>Qtd. devolvida</th><th>Qtd. líquida</th><th>Linhas antes desc.</th><th>Desconto rateado</th><th>Receita após desc.</th><th>Devolvido</th><th>Líquido</th><th>Custo líquido</th><th>Custo médio unitário</th><th>Margem</th><th>Base do custo</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)}</td><td>${qty(row.returnedQuantity)}</td><td><strong>${qty(row.netQuantity)}</strong></td><td>${money(row.lineGrossCents || row.grossCents)}</td><td>${money(row.discountCents || 0)}</td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.estimatedCostCents)}</td><td>${money(row.averageUnitCostCents)}</td><td><strong>${money(row.estimatedMarginCents)}</strong></td><td>${escapeHtml(costBasisLabel(row.costBasis))}</td></tr>`).join('') || empty('Nenhum produto vendido no período.',14)}</tbody></table></div></section>`;
   }
 
   function paymentsView(sales) {
@@ -128,8 +144,9 @@
   }
 
   function inventoryView(inventory) {
-    const rows = inventory.purchaseList || [];
-    return `<div class="ops-metrics report-v2-metrics">${metric('Itens no mínimo/abaixo',String(inventory.lowStockCount || 0))}${metric('Abaixo do mínimo',String(inventory.belowMinimumCount || 0))}${metric('Sem estoque',String(inventory.zeroStockCount || 0))}${metric('Custo para recompor mínimo',money(inventory.suggestedPurchaseCostCents || 0),'Estimativa pelo custo cadastrado')}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Produtos no estoque mínimo para compra</h2><p class="ops-muted">Posição atual do estoque. Itens exatamente no mínimo continuam sinalizados; a quantidade sugerida repõe apenas até o mínimo configurado.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Falta p/ mínimo</th><th>Custo estimado</th><th>Situação</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.name)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)} ${escapeHtml(row.unit || '')}</td><td>${qty(row.minimumStock)}</td><td>${qty(row.shortageToMinimum)}</td><td>${money(row.suggestedPurchaseCostCents)}</td><td>${row.zeroStock ? 'SEM ESTOQUE' : row.belowMinimum ? 'ABAIXO' : 'NO MÍNIMO'}</td></tr>`).join('') || empty('Nenhum produto atingiu o estoque mínimo.',7)}</tbody></table></div></section>`;
+    const current = selectedInventory(inventory);
+    const rows = current.purchaseList || [];
+    return `<div class="ops-metrics report-v2-metrics">${metric('Itens no mínimo/abaixo',String(current.lowStockCount || 0))}${metric('Abaixo do mínimo',String(current.belowMinimumCount || 0))}${metric('Sem estoque',String(current.zeroStockCount || 0))}${metric('Custo para recompor mínimo',money(current.suggestedPurchaseCostCents || 0),'Calculado separadamente por local')}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Produtos no estoque mínimo para compra</h2><p class="ops-muted">Posição atual por local. Saldo de outra loja ou depósito não esconde a falta neste local; a sugestão repõe até o mínimo configurado do produto.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Local</th><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Falta p/ mínimo</th><th>Custo estimado</th><th>Situação</th></tr></thead><tbody>${rows.map(row => `<tr><td>${escapeHtml(row.locationName || current.locationName || '—')}</td><td><strong>${escapeHtml(row.name)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)} ${escapeHtml(row.unit || '')}</td><td>${qty(row.minimumStock)}</td><td>${qty(row.shortageToMinimum)}</td><td>${money(row.suggestedPurchaseCostCents)}</td><td>${row.zeroStock ? 'SEM ESTOQUE' : row.belowMinimum ? 'ABAIXO' : 'NO MÍNIMO'}</td></tr>`).join('') || empty('Nenhum produto atingiu o estoque mínimo neste recorte.',8)}</tbody></table></div></section>`;
   }
 
   function cashView(cash) {
@@ -162,15 +179,19 @@
 
   function currentCsv(sales,inventory,cash,commissions) {
     if (state.view === 'customers') return { name:'relatorio-vendas-por-cliente.csv',headers:['cliente','vendas','bruto_centavos','devolucoes_centavos','liquido_centavos','ticket_medio_centavos','ultima_venda','canceladas','canceladas_centavos'],rows:selectedCustomerRows(sales).map(r => [r.customerName,r.salesCount,r.grossCents,r.returnedCents,r.netCents,r.averageTicketCents,r.lastSaleAt || '',r.cancelledSalesCount || 0,r.cancelledSalesCents || 0]) };
-    if (state.view === 'products') return { name:'relatorio-vendas-por-produto.csv',headers:['produto','sku','quantidade_vendida','quantidade_devolvida','quantidade_liquida','linhas_antes_desconto_centavos','desconto_rateado_centavos','receita_apos_desconto_centavos','devolvido_centavos','liquido_centavos','margem_estimada_centavos'],rows:selectedProductRows(sales).map(r => [r.productName,r.sku || '',r.quantity,r.returnedQuantity,r.netQuantity,r.lineGrossCents || r.grossCents,r.discountCents || 0,r.grossCents,r.returnedCents,r.netCents,r.estimatedMarginCents]) };
+    if (state.view === 'products') return { name:'relatorio-vendas-por-produto.csv',headers:['produto','sku','quantidade_vendida','quantidade_devolvida','quantidade_liquida','linhas_antes_desconto_centavos','desconto_rateado_centavos','receita_apos_desconto_centavos','devolvido_centavos','liquido_centavos','custo_liquido_centavos','custo_medio_unitario_centavos','margem_centavos','base_custo'],rows:selectedProductRows(sales).map(r => [r.productName,r.sku || '',r.quantity,r.returnedQuantity,r.netQuantity,r.lineGrossCents || r.grossCents,r.discountCents || 0,r.grossCents,r.returnedCents,r.netCents,r.estimatedCostCents,r.averageUnitCostCents,r.estimatedMarginCents,r.costBasis]) };
     if (state.view === 'payments') return { name:'relatorio-por-meio-de-pagamento.csv',headers:['forma','vendas','transacoes','recebido_centavos','reembolsado_centavos','liquido_centavos'],rows:selectedPaymentRows(sales).map(r => [paymentLabel(r.method),r.salesCount,r.transactionCount,r.grossCents,r.refundCents,r.netCents]) };
-    if (state.view === 'inventory') return { name:'relatorio-estoque-minimo-compra.csv',headers:['produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(inventory.purchaseList || []).map(r => [r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) };
+    if (state.view === 'inventory') { const selected=selectedInventory(inventory); return { name:'relatorio-estoque-minimo-compra.csv',headers:['local','produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(selected.purchaseList || []).map(r => [r.locationName || selected.locationName || '',r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) }; }
     if (state.view === 'cash') return { name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements || []).filter(r => r.isPhysicalCash).map(r => [r.createdAt,r.terminalId || '',r.operatorName || r.operatorId || '',movementLabel(r.type),r.note || '',r.signedCents]) };
     if (state.view === 'commissions') return { name:'relatorio-comissoes.csv',headers:['vendedor','gerada_centavos','estornada_centavos','paga_centavos','saldo_periodo_centavos','em_aberto_centavos'],rows:(commissions?.sellers || []).map(r => [r.sellerName,r.earnedCents,r.reversedCents,r.paidCents,r.periodBalanceCents,r.outstandingCents]) };
-    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor_centavos'],rows:[['subtotal_antes_descontos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos',sales.salesDiscountCents || 0],['vendas_apos_descontos',sales.grossSalesCents || 0],['devolucoes',sales.returnedCents || 0],['vendas_liquidas',sales.netSalesCents || 0],['ticket_medio',sales.averageTicketCents || 0],['margem_estimada',sales.estimatedMarginCents || 0],['cancelamentos',sales.cancelledSalesCents || 0]] };
+    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor'],rows:[['subtotal_antes_descontos_centavos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos_centavos',sales.salesDiscountCents || 0],['vendas_apos_descontos_centavos',sales.grossSalesCents || 0],['devolucoes_centavos',sales.returnedCents || 0],['vendas_liquidas_centavos',sales.netSalesCents || 0],['ticket_medio_centavos',sales.averageTicketCents || 0],['margem_centavos',sales.estimatedMarginCents || 0],['base_custo',sales.costBasis || 'HISTORICAL_SNAPSHOT'],['cancelamentos_centavos',sales.cancelledSalesCents || 0]] };
   }
 
-  function filterForm(sellers) {
+  function filterForm(sellers,inventory) {
+    if (state.view === 'inventory') {
+      const options=(inventory.locations||[]).map(location=>`<option value="${escapeHtml(location.id)}" ${state.locationId===location.id?'selected':''}>${escapeHtml(location.name)}</option>`).join('');
+      return `<section class="ops-card report-v2-filter-card"><div class="report-v2-filter"><label>Local de estoque<select id="report-location-filter" class="ops-input"><option value="" ${state.locationId?'':'selected'}>Todos os locais</option>${options}</select></label><div class="report-v2-filter-note"><strong>Posição atual do estoque</strong><span>Período e vendedor/garçom não se aplicam a este relatório.</span></div></div></section>`;
+    }
     if (!PERIOD_FILTER_VIEWS.has(state.view)) {
       return `<section class="ops-card report-v2-filter-card"><strong>Posição atual do estoque</strong><p class="ops-muted">Período e vendedor/garçom não se aplicam a este relatório.</p></section>`;
     }
@@ -180,8 +201,11 @@
     return `<section class="ops-card report-v2-filter-card"><form id="report-v2-filter" class="report-v2-filter"><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
   }
 
-  function printMeta(sellers) {
-    if (state.view === 'inventory') return 'Posição atual · período e vendedor não se aplicam';
+  function printMeta(sellers,inventory) {
+    if (state.view === 'inventory') {
+      const selected=selectedInventory(inventory);
+      return `Posição atual · Local: ${selected.locationName || 'Todos os locais'} · período e vendedor não se aplicam`;
+    }
     const periodText = `${state.fromDate} a ${state.toDate}`;
     if (!SELLER_FILTER_VIEWS.has(state.view)) return `${periodText} · vendedor/garçom não se aplica ao caixa físico`;
     const sellerName = sellers.find(row => row.id === state.sellerId)?.name || 'Todos';
@@ -211,13 +235,14 @@
     if (state.customerId && !sales.customerSales?.some(row => (row.customerId || '__WALK_IN__') === state.customerId)) state.customerId = '';
     if (state.productId && !sales.productSales?.some(row => row.productId === state.productId)) state.productId = '';
     if (state.paymentMethod && !sales.paymentMethods?.some(row => row.method === state.paymentMethod)) state.paymentMethod = '';
+    if (state.locationId && !inventory.locations?.some(row => row.id === state.locationId)) state.locationId = '';
 
     const views = {
       overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash),commissions:commissionsView(commissions,sellers,products,rules)
     };
     const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
 
-    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo, caixa físico e comissões.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers))}</span></div>${filterForm(sellers)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
+    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo, caixa físico e comissões.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers,inventory))}</span></div>${filterForm(sellers,inventory)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
 
     document.getElementById('report-v2-filter')?.addEventListener('submit',event => {
       event.preventDefault();
@@ -231,6 +256,7 @@
     document.getElementById('report-customer-filter')?.addEventListener('change',event => void renderReportsV2({customerId:event.target.value}));
     document.getElementById('report-product-filter')?.addEventListener('change',event => void renderReportsV2({productId:event.target.value}));
     document.getElementById('report-payment-filter')?.addEventListener('change',event => void renderReportsV2({paymentMethod:event.target.value}));
+    document.getElementById('report-location-filter')?.addEventListener('change',event => void renderReportsV2({locationId:event.target.value}));
     document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash,commissions); downloadCsv(csv.name,csv.headers,csv.rows); });
     document.getElementById('report-print')?.addEventListener('click',() => root.print());
 
