@@ -12,6 +12,29 @@
   const page=()=>document.getElementById('route-content')?.querySelector('.page,.ops-page');
   const title=()=>page()?.querySelector('h1')?.textContent?.trim()||'';
   const optionalId=data=>{const id=String(data.get('id')||'').trim();return id?{id}:{};};
+  const showSettings=()=>window.PdvOperationalUi?.showRoute?.('settings');
+  const backButton=()=>'<button class="secondary-button" type="button" id="vertical-back">← Configurações</button>';
+
+  function renderExtraWorkspace(id){
+    const content=document.getElementById('route-content');if(!content)return;
+    const config=id==='SERVICES'
+      ?{title:'Serviços',description:'Agenda, atendimento e venda canônica de serviços.'}
+      :{title:'Oficina',description:'Ordens de serviço, peças, mão de obra e fechamento em venda.'};
+    content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>${config.title}</h1><p>${config.description}</p></div>${backButton()}</header><div class="data-card"><p class="vertical-rule">Módulo ativo. As operações completas aparecem abaixo.</p></div></section>`;
+    document.getElementById('vertical-back')?.addEventListener('click',showSettings);
+  }
+
+  function mountExtraWorkspaceEntries(){
+    for(const id of ['SERVICES','WORKSHOP']){
+      document.querySelectorAll(`[data-module-open='${id}']`).forEach(button=>{
+        button.disabled=false;
+        button.querySelector('span')?.replaceChildren(document.createTextNode('Abrir módulo'));
+        if(button.dataset.parityWorkspaceBound==='1')return;
+        button.dataset.parityWorkspaceBound='1';
+        button.addEventListener('click',()=>renderExtraWorkspace(id));
+      });
+    }
+  }
 
   async function mountPizzeria(){
     const target=page();if(!target||title()!=='Pizzaria'||target.querySelector('#parity-pizzeria-p1'))return;
@@ -77,8 +100,8 @@
     }catch(error){card.querySelector('#restaurant-p1-output').textContent=error.message;}
   }
 
-  function mount(){void mountPizzeria();void mountDelivery();void mountMarket();void mountRestaurant();}
-  const content=document.getElementById('route-content');if(content)new MutationObserver(mount).observe(content,{subtree:true,childList:true});
+  function mount(){mountExtraWorkspaceEntries();void mountPizzeria();void mountDelivery();void mountMarket();void mountRestaurant();}
+  const content=document.getElementById('route-content');if(content)new MutationObserver(()=>queueMicrotask(mount)).observe(content,{subtree:true,childList:true});
   document.addEventListener('DOMContentLoaded',mount,{once:true});
   mount();
 })();
