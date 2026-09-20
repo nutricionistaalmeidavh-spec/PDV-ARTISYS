@@ -52,7 +52,7 @@ test('sales summary distinguishes historical, estimated and mixed cost basis', (
 
 test('variant sales snapshot variant cost and legacy fallback uses current variant cost', () => {
   const runtime = fixture();
-  runtime.catalog.upsertProduct({ id:'p2', name:'Produto com variação', categoryId:'c1', unit:'UN', salePriceCents:1000, costCents:500, trackStock:true, minimumStock:0, active:true }, actor);
+  runtime.catalog.upsertProduct({ id:'p2', name:'Produto com variação', categoryId:'c1', unit:'UN', salePriceCents:1000, costCents:500, trackStock:false, minimumStock:0, active:true }, actor);
   runtime.catalogCustomization.upsertVariant({ id:'p2-v1', productId:'p2', name:'Variação A', priceDeltaCents:0, costCents:250 });
   runtime.retail.setProductVariantStock('p2-v1', 5);
 
