@@ -12,7 +12,7 @@ function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimi
   const sessionStore=new Map();
   const selfServiceHandler=createSelfServiceMobileRouter({runtime});
   const restaurantHandler=createRestaurantRouter({runtime,installationToken:token,requireTerminalAuth});
-  const finalVerticalHandler=createE48E54Router({runtime,installationToken:token,requireTerminalAuth});
+  const finalVerticalHandler=createE48E54Router({runtime,installationToken:token,requireTerminalAuth,sessionStore});
   const kitComboHandler=createKitComboRouter({runtime,installationToken:token,requireTerminalAuth});
   const productVariantHandler=createProductVariantRouter({runtime,installationToken:token,requireTerminalAuth});
   const verticalHandler=createVerticalRouter({runtime,installationToken:token,requireTerminalAuth,sessionStore});
