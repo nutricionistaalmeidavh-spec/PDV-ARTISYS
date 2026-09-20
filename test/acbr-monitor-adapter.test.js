@@ -14,7 +14,7 @@ function fiscalDocument() {
   return {
     documentType:'nfce', environment:'homologation', reference:'V-1001',
     issuer:{ cnpj:'12345678000195', legalName:'EMPRESA HOMOLOGACAO LTDA', tradeName:'EMPRESA HOMOLOGACAO', stateRegistration:'123456789', crt:'1', address:{ street:'Rua Teste', number:'100', district:'Centro', cityCode:'3543402', city:'Ribeirao Preto', state:'SP', zip:'14000000' } },
-    identification:{ model:'65', series:'1', number:'42', operationNature:'VENDA', issuedAt:'2026-09-20T19:00:00-03:00' },
+    identification:{ model:'65', series:'1', number:'42', numericCode:'87654321', operationNature:'VENDA', issuedAt:'2026-09-20T19:00:00-03:00' },
     items:[
       { line:1, code:'A-1', description:'Produto A', quantity:1, unit:'UN', unitPriceCents:1000, grossCents:1000, discountCents:67, totalCents:1000, tax:{ ncm:'22021000', cfop:'5102', origin:'0', csosn:'102', pisCst:'49', cofinsCst:'49' } },
       { line:2, code:'B-1', description:'Produto B', quantity:1, unit:'UN', unitPriceCents:500, grossCents:500, discountCents:34, totalCents:500, tax:{ ncm:'19059090', cfop:'5102', origin:'0', csosn:'102', pisCst:'49', cofinsCst:'49' } }
@@ -27,10 +27,13 @@ function fiscalDocument() {
 test('renders NFC-e INI with model 65, homologation and exact canonical totals', () => {
   const ini = renderNfceIni(fiscalDocument());
   assert.match(ini, /\[infNFe\][\s\S]*versao=4\.00/);
-  assert.match(ini, /\[Identificacao\][\s\S]*mod=65/);
+  assert.match(ini, /\[Identificacao\][\s\S]*cNF=87654321/);
+  assert.match(ini, /mod=65/);
   assert.match(ini, /tpAmb=2/);
   assert.match(ini, /serie=1/);
   assert.match(ini, /nNF=42/);
+  assert.match(ini, /cMunFG=3543402/);
+  assert.match(ini, /\[Emitente\][\s\S]*cUF=35/);
   assert.match(ini, /\[Produto001\][\s\S]*vProd=10\.00/);
   assert.match(ini, /\[Produto002\][\s\S]*vProd=5\.00/);
   assert.match(ini, /\[Total\][\s\S]*vProd=15\.00[\s\S]*vDesc=1\.01[\s\S]*vNF=13\.99/);
