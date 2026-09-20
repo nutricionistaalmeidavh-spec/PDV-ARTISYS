@@ -1,87 +1,231 @@
 'use strict';
 
 (() => {
-  const root=window;
-  const {ApiClient}=root.PdvApiClient||{};
-  if(!ApiClient)return;
-  const api=new ApiClient();
-  const ui=root.PdvUiModel;
-  const content=document.getElementById('route-content');
-  const toastRoot=document.getElementById('toast-root');
-  let config=null;
-  let state={view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:''};
+  const root = window;
+  const { ApiClient } = root.PdvApiClient || {};
+  if (!ApiClient) return;
 
-  const PAYMENT_LABELS=Object.freeze({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',STORE_CREDIT:'Crediário / crédito da loja',OTHER:'Outros'});
-  const VIEW_LABELS=Object.freeze({overview:'Visão geral',customers:'Venda por cliente',products:'Venda por produto',payments:'Por meio de pagamento',inventory:'Estoque mínimo / compra',cash:'Entradas e saídas do caixa'});
+  const api = new ApiClient();
+  const ui = root.PdvUiModel;
+  const content = document.getElementById('route-content');
+  const toastRoot = document.getElementById('toast-root');
+  let config = null;
+  let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'' };
 
-  function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
-  function money(value){return ui?.formatCents?ui.formatCents(value):(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
-  function qty(value){return Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
-  function when(value){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?String(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
-  function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
-  function metric(label,value,hint=''){return `<article class="ops-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${hint?`<small>${escapeHtml(hint)}</small>`:''}</article>`;}
-  function empty(message,cols=1){return `<tr><td colspan="${cols}"><div class="ops-empty">${escapeHtml(message)}</div></td></tr>`;}
-  function paymentLabel(method){return PAYMENT_LABELS[method]||method||'Outros';}
-  function dateValue(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
-  function csvCell(value){const text=String(value??'');return /[;"\r\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
-  function downloadCsv(name,headers,rows){const lines=[headers.map(csvCell).join(';'),...rows.map(row=>row.map(csvCell).join(';'))];const blob=new Blob([`\uFEFF${lines.join('\n')}\n`],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-  async function ready(){if(!config)config=await api.initialize();return config;}
-  function markActive(){document.body.classList.remove('theme-home');document.querySelectorAll('[data-route]').forEach(node=>node.classList.toggle('active',node.dataset.route==='reports'));}
+  const PAYMENT_LABELS = Object.freeze({
+    CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',STORE_CREDIT:'Crediário / crédito da loja',OTHER:'Outros'
+  });
+  const MOVEMENT_LABELS = Object.freeze({ OPENING:'Abertura',SUPPLY:'Suprimento',WITHDRAWAL:'Sangria / saída',SALE:'Venda',REVERSAL:'Estorno / devolução' });
+  const VIEW_LABELS = Object.freeze({
+    overview:'Visão geral',customers:'Venda por cliente',products:'Venda por produto',payments:'Por meio de pagamento',inventory:'Estoque mínimo / compra',cash:'Entradas e saídas do caixa'
+  });
+  const SELLER_FILTER_VIEWS = new Set(['overview','customers','products','payments']);
+  const PERIOD_FILTER_VIEWS = new Set(['overview','customers','products','payments','cash']);
 
-  function selectedCustomerRows(sales){const rows=sales.customerSales||[];if(!state.customerId)return rows;return rows.filter(row=>(row.customerId||'__WALK_IN__')===state.customerId);}
-  function selectedProductRows(sales){const rows=sales.productSales||[];if(!state.productId)return rows;return rows.filter(row=>row.productId===state.productId);}
-  function selectedPaymentRows(sales){const rows=sales.paymentMethods||[];if(!state.paymentMethod)return rows;return rows.filter(row=>row.method===state.paymentMethod);}
-
-  function overviewView(sales){
-    return `<div class="ops-metrics report-v2-metrics">${metric('Vendas brutas',money(sales.grossSalesCents||0),`${sales.salesCount||0} vendas`)}${metric('Devoluções',money(sales.returnedCents||0))}${metric('Vendas líquidas',money(sales.netSalesCents||0))}${metric('Ticket médio',money(sales.averageTicketCents||0))}${metric('Margem estimada',money(sales.estimatedMarginCents||0),'Com custo atual cadastrado')}${metric('Cancelamentos',money(sales.cancelledSalesCents||0),`${sales.cancelledSalesCount||0} canceladas`)}</div>
-      <div class="ops-grid two"><section class="ops-card report-print-section"><h2>Resumo por meio de pagamento</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Recebido</th><th>Reembolsado</th><th>Líquido</th></tr></thead><tbody>${(sales.paymentMethods||[]).map(row=>`<tr><td>${escapeHtml(paymentLabel(row.method))}</td><td>${row.salesCount||0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('')||empty('Sem pagamentos no período.',5)}</tbody></table></div></section>
-      <section class="ops-card report-print-section"><h2>Vendas por vendedor / garçom</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Vendas</th><th>Devoluções</th><th>Líquido</th><th>Canceladas</th></tr></thead><tbody>${(sales.sellers||[]).map(row=>`<tr><td>${escapeHtml(row.sellerName||row.sellerId||'—')}</td><td>${row.salesCount||0}</td><td>${money(row.returnedCents||0)}</td><td><strong>${money(row.salesCents||0)}</strong></td><td>${row.cancelledSalesCount||0} · ${money(row.cancelledSalesCents||0)}</td></tr>`).join('')||empty('Sem vendas no período.',5)}</tbody></table></div></section></div>`;
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
+  }
+  function money(value) {
+    return ui?.formatCents ? ui.formatCents(value) : (Number(value || 0) / 100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  }
+  function qty(value) { return Number(value || 0).toLocaleString('pt-BR',{maximumFractionDigits:3}); }
+  function when(value) {
+    if (!value) return '—';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  }
+  function showToast(message,type='') {
+    if (!toastRoot) return;
+    const node = document.createElement('div');
+    node.className = `toast ${type}`;
+    node.textContent = message;
+    toastRoot.appendChild(node);
+    setTimeout(() => node.remove(),3500);
+  }
+  function metric(label,value,hint='') {
+    return `<article class="ops-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</article>`;
+  }
+  function empty(message,cols=1) { return `<tr><td colspan="${cols}"><div class="ops-empty">${escapeHtml(message)}</div></td></tr>`; }
+  function paymentLabel(method) { return PAYMENT_LABELS[method] || method || 'Outros'; }
+  function movementLabel(type) { return MOVEMENT_LABELS[type] || type || 'Movimento'; }
+  function dateValue(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
+  }
+  function downloadCsv(name,headers,rows) {
+    const lines = [headers.map(csvCell).join(';'),...rows.map(row => row.map(csvCell).join(';'))];
+    const blob = new Blob([`\uFEFF${lines.join('\n')}\n`],{type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = name;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url),1000);
+  }
+  async function ready() { if (!config) config = await api.initialize(); return config; }
+  function markActive() {
+    document.body.classList.remove('theme-home');
+    document.querySelectorAll('[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route === 'reports'));
   }
 
-  function customersView(sales){const rows=selectedCustomerRows(sales);const options=(sales.customerSales||[]).map(row=>{const value=row.customerId||'__WALK_IN__';return `<option value="${escapeHtml(value)}" ${state.customerId===value?'selected':''}>${escapeHtml(row.customerName)}</option>`;}).join('');return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por cliente</h2><p class="ops-muted">Devoluções reduzem o valor líquido do cliente; cancelamentos aparecem separados.</p></div><label class="report-v2-inline-filter">Cliente<select id="report-customer-filter" class="ops-input"><option value="">Todos os clientes</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Cliente</th><th>Vendas</th><th>Bruto</th><th>Devoluções</th><th>Líquido</th><th>Ticket médio</th><th>Última venda</th><th>Canceladas</th></tr></thead><tbody>${rows.map(row=>`<tr><td><strong>${escapeHtml(row.customerName)}</strong></td><td>${row.salesCount}</td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.averageTicketCents)}</td><td>${when(row.lastSaleAt)}</td><td>${row.cancelledSalesCount||0} · ${money(row.cancelledSalesCents||0)}</td></tr>`).join('')||empty('Nenhum cliente com movimento no período.',8)}</tbody></table></div></section>`;}
-
-  function productsView(sales){const rows=selectedProductRows(sales);const options=(sales.productSales||[]).map(row=>`<option value="${escapeHtml(row.productId)}" ${state.productId===row.productId?'selected':''}>${escapeHtml(row.productName)}</option>`).join('');return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por produto</h2><p class="ops-muted">Quantidade e faturamento líquidos já descontam devoluções no período.</p></div><label class="report-v2-inline-filter">Produto<select id="report-product-filter" class="ops-input"><option value="">Todos os produtos</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Qtd. vendida</th><th>Qtd. devolvida</th><th>Qtd. líquida</th><th>Bruto</th><th>Devolvido</th><th>Líquido</th><th>Margem estimada</th></tr></thead><tbody>${rows.map(row=>`<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${escapeHtml(row.sku||'—')}</td><td>${qty(row.quantity)}</td><td>${qty(row.returnedQuantity)}</td><td><strong>${qty(row.netQuantity)}</strong></td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.estimatedMarginCents)}</td></tr>`).join('')||empty('Nenhum produto vendido no período.',9)}</tbody></table></div></section>`;}
-
-  function paymentsView(sales){const rows=selectedPaymentRows(sales);const methods=(sales.paymentMethods||[]).map(row=>`<option value="${escapeHtml(row.method)}" ${state.paymentMethod===row.method?'selected':''}>${escapeHtml(paymentLabel(row.method))}</option>`).join('');const gross=rows.reduce((sum,row)=>sum+Number(row.grossCents||0),0);const refunds=rows.reduce((sum,row)=>sum+Number(row.refundCents||0),0);return `<div class="ops-metrics report-v2-metrics">${metric('Recebido',money(gross))}${metric('Reembolsado',money(refunds))}${metric('Líquido',money(gross-refunds))}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório por meio de pagamento</h2><p class="ops-muted">Selecione uma única forma para conferir somente Dinheiro, PIX, débito, crédito ou outra modalidade.</p></div><label class="report-v2-inline-filter">Forma<select id="report-payment-filter" class="ops-input"><option value="">Todas as formas</option>${methods}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Transações</th><th>Recebido</th><th>Reembolsos</th><th>Líquido</th></tr></thead><tbody>${rows.map(row=>`<tr><td><strong>${escapeHtml(paymentLabel(row.method))}</strong></td><td>${row.salesCount||0}</td><td>${row.transactionCount||0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('')||empty('Sem movimento nesta forma de pagamento.',6)}</tbody></table></div></section>`;}
-
-  function inventoryView(inventory){const rows=inventory.purchaseList||[];return `<div class="ops-metrics report-v2-metrics">${metric('Itens no mínimo/abaixo',String(inventory.lowStockCount||0))}${metric('Abaixo do mínimo',String(inventory.belowMinimumCount||0))}${metric('Sem estoque',String(inventory.zeroStockCount||0))}${metric('Custo para recompor mínimo',money(inventory.suggestedPurchaseCostCents||0),'Estimativa pelo custo cadastrado')}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Produtos no estoque mínimo para compra</h2><p class="ops-muted">A quantidade a comprar indica apenas o necessário para voltar ao mínimo configurado; itens exatamente no mínimo permanecem sinalizados para decisão de compra.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Falta p/ mínimo</th><th>Custo estimado</th><th>Situação</th></tr></thead><tbody>${rows.map(row=>`<tr><td><strong>${escapeHtml(row.name)}</strong></td><td>${escapeHtml(row.sku||'—')}</td><td>${qty(row.quantity)} ${escapeHtml(row.unit||'')}</td><td>${qty(row.minimumStock)}</td><td>${qty(row.shortageToMinimum)}</td><td>${money(row.suggestedPurchaseCostCents)}</td><td>${row.zeroStock?'SEM ESTOQUE':row.belowMinimum?'ABAIXO':'NO MÍNIMO'}</td></tr>`).join('')||empty('Nenhum produto atingiu o estoque mínimo.',7)}</tbody></table></div></section>`;}
-
-  function cashView(cash){const rows=(cash.movements||[]).filter(row=>row.isPhysicalCash);return `<div class="ops-metrics report-v2-metrics">${metric('Entradas em dinheiro',money(cash.cashInCents||0),`Vendas ${money(cash.cashSalesCents||0)} · Suprimentos ${money(cash.suppliesCents||0)}`)}${metric('Saídas em dinheiro',money(cash.cashOutCents||0),`Sangrias ${money(cash.withdrawalsCents||0)} · Estornos/devoluções ${money(cash.cashReversalCents||0)}`)}${metric('Movimento líquido',money(cash.netCashFlowCents||0),'Inclui fundo de abertura no período')}${metric('Divergência de fechamentos',money(cash.divergenceCents||0),`${cash.divergentSessions||0} sessões divergentes`)}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Dinheiro que entrou e saiu do caixa</h2><p class="ops-muted">PIX e cartões não entram no saldo físico. Sangrias, devoluções e cancelamentos em dinheiro aparecem como saída.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Terminal</th><th>Operador</th><th>Movimento</th><th>Observação</th><th>Entrada/Saída</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(row.terminalId||'—')}</td><td>${escapeHtml(row.operatorName||row.operatorId||'—')}</td><td>${escapeHtml(row.type)}</td><td>${escapeHtml(row.note||'—')}</td><td><strong>${row.signedCents<0?'− ':'+ '}${money(Math.abs(row.signedCents||0))}</strong></td></tr>`).join('')||empty('Sem movimento físico de dinheiro no período.',6)}</tbody></table></div></section>`;}
-
-  function currentCsv(sales,inventory,cash){
-    if(state.view==='customers')return {name:'relatorio-vendas-por-cliente.csv',headers:['cliente','vendas','bruto_centavos','devolucoes_centavos','liquido_centavos','ticket_medio_centavos','ultima_venda','canceladas','canceladas_centavos'],rows:selectedCustomerRows(sales).map(r=>[r.customerName,r.salesCount,r.grossCents,r.returnedCents,r.netCents,r.averageTicketCents,r.lastSaleAt||'',r.cancelledSalesCount||0,r.cancelledSalesCents||0])};
-    if(state.view==='products')return {name:'relatorio-vendas-por-produto.csv',headers:['produto','sku','quantidade_vendida','quantidade_devolvida','quantidade_liquida','bruto_centavos','devolvido_centavos','liquido_centavos','margem_estimada_centavos'],rows:selectedProductRows(sales).map(r=>[r.productName,r.sku||'',r.quantity,r.returnedQuantity,r.netQuantity,r.grossCents,r.returnedCents,r.netCents,r.estimatedMarginCents])};
-    if(state.view==='payments')return {name:'relatorio-por-meio-de-pagamento.csv',headers:['forma','vendas','transacoes','recebido_centavos','reembolsado_centavos','liquido_centavos'],rows:selectedPaymentRows(sales).map(r=>[paymentLabel(r.method),r.salesCount,r.transactionCount,r.grossCents,r.refundCents,r.netCents])};
-    if(state.view==='inventory')return {name:'relatorio-estoque-minimo-compra.csv',headers:['produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(inventory.purchaseList||[]).map(r=>[r.name,r.sku||'',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock?'SEM ESTOQUE':r.belowMinimum?'ABAIXO':'NO MINIMO'])};
-    if(state.view==='cash')return {name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements||[]).filter(r=>r.isPhysicalCash).map(r=>[r.createdAt,r.terminalId||'',r.operatorName||r.operatorId||'',r.type,r.note||'',r.signedCents])};
-    return {name:'relatorio-resumo-vendas.csv',headers:['indicador','valor_centavos'],rows:[['vendas_brutas',sales.grossSalesCents||0],['devolucoes',sales.returnedCents||0],['vendas_liquidas',sales.netSalesCents||0],['ticket_medio',sales.averageTicketCents||0],['margem_estimada',sales.estimatedMarginCents||0],['cancelamentos',sales.cancelledSalesCents||0]]};
+  function selectedCustomerRows(sales) {
+    const rows = sales.customerSales || [];
+    return state.customerId ? rows.filter(row => (row.customerId || '__WALK_IN__') === state.customerId) : rows;
+  }
+  function selectedProductRows(sales) {
+    const rows = sales.productSales || [];
+    return state.productId ? rows.filter(row => row.productId === state.productId) : rows;
+  }
+  function selectedPaymentRows(sales) {
+    const rows = sales.paymentMethods || [];
+    return state.paymentMethod ? rows.filter(row => row.method === state.paymentMethod) : rows;
   }
 
-  async function renderReportsV2(next={}){
-    await ready();markActive();
-    const now=new Date();const firstDay=new Date(now.getFullYear(),now.getMonth(),1);
-    state={...state,...next};if(!state.fromDate)state.fromDate=dateValue(firstDay);if(!state.toDate)state.toDate=dateValue(now);
-    const filters={from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString(),sellerId:state.sellerId||''};
+  function overviewView(sales) {
+    return `<div class="ops-metrics report-v2-metrics">
+      ${metric('Subtotal antes de descontos',money(sales.subtotalSalesCents || sales.grossSalesCents || 0))}
+      ${metric('Descontos',money(sales.salesDiscountCents || 0))}
+      ${metric('Vendas após descontos',money(sales.grossSalesCents || 0),`${sales.salesCount || 0} vendas`)}
+      ${metric('Devoluções',money(sales.returnedCents || 0))}
+      ${metric('Vendas líquidas',money(sales.netSalesCents || 0))}
+      ${metric('Ticket médio',money(sales.averageTicketCents || 0))}
+      ${metric('Margem estimada',money(sales.estimatedMarginCents || 0),'Com custo atual cadastrado')}
+      ${metric('Cancelamentos',money(sales.cancelledSalesCents || 0),`${sales.cancelledSalesCount || 0} canceladas`)}
+    </div>
+    <div class="ops-grid two">
+      <section class="ops-card report-print-section"><h2>Resumo por meio de pagamento</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Transações</th><th>Recebido</th><th>Reembolsado</th><th>Líquido</th></tr></thead><tbody>${(sales.paymentMethods || []).map(row => `<tr><td>${escapeHtml(paymentLabel(row.method))}</td><td>${row.salesCount || 0}</td><td>${row.transactionCount || 0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('') || empty('Sem pagamentos no período.',6)}</tbody></table></div></section>
+      <section class="ops-card report-print-section"><h2>Vendas por vendedor / garçom</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Vendas</th><th>Devoluções</th><th>Líquido</th><th>Canceladas</th></tr></thead><tbody>${(sales.sellers || []).map(row => `<tr><td>${escapeHtml(row.sellerName || row.sellerId || '—')}</td><td>${row.salesCount || 0}</td><td>${money(row.returnedCents || 0)}</td><td><strong>${money(row.salesCents || 0)}</strong></td><td>${row.cancelledSalesCount || 0} · ${money(row.cancelledSalesCents || 0)}</td></tr>`).join('') || empty('Sem vendas no período.',5)}</tbody></table></div></section>
+    </div>`;
+  }
+
+  function customersView(sales) {
+    const rows = selectedCustomerRows(sales);
+    const options = (sales.customerSales || []).map(row => {
+      const value = row.customerId || '__WALK_IN__';
+      return `<option value="${escapeHtml(value)}" ${state.customerId === value ? 'selected' : ''}>${escapeHtml(row.customerName)}</option>`;
+    }).join('');
+    return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por cliente</h2><p class="ops-muted">Inclui consumidor não identificado. Devoluções reduzem o líquido; cancelamentos ficam separados.</p></div><label class="report-v2-inline-filter">Cliente<select id="report-customer-filter" class="ops-input"><option value="">Todos os clientes</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Cliente</th><th>Vendas</th><th>Bruto</th><th>Devoluções</th><th>Líquido</th><th>Ticket médio</th><th>Última venda</th><th>Canceladas</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.customerName)}</strong></td><td>${row.salesCount}</td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.averageTicketCents)}</td><td>${when(row.lastSaleAt)}</td><td>${row.cancelledSalesCount || 0} · ${money(row.cancelledSalesCents || 0)}</td></tr>`).join('') || empty('Nenhum cliente com movimento no período.',8)}</tbody></table></div></section>`;
+  }
+
+  function productsView(sales) {
+    const rows = selectedProductRows(sales);
+    const options = (sales.productSales || []).map(row => `<option value="${escapeHtml(row.productId)}" ${state.productId === row.productId ? 'selected' : ''}>${escapeHtml(row.productName)}</option>`).join('');
+    return `<section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório de venda por produto</h2><p class="ops-muted">Descontos gerais da venda são rateados entre os produtos para o faturamento fechar com o total das vendas.</p></div><label class="report-v2-inline-filter">Produto<select id="report-product-filter" class="ops-input"><option value="">Todos os produtos</option>${options}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Qtd. vendida</th><th>Qtd. devolvida</th><th>Qtd. líquida</th><th>Linhas antes desc.</th><th>Desconto rateado</th><th>Receita após desc.</th><th>Devolvido</th><th>Líquido</th><th>Margem estimada</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)}</td><td>${qty(row.returnedQuantity)}</td><td><strong>${qty(row.netQuantity)}</strong></td><td>${money(row.lineGrossCents || row.grossCents)}</td><td>${money(row.discountCents || 0)}</td><td>${money(row.grossCents)}</td><td>${money(row.returnedCents)}</td><td><strong>${money(row.netCents)}</strong></td><td>${money(row.estimatedMarginCents)}</td></tr>`).join('') || empty('Nenhum produto vendido no período.',11)}</tbody></table></div></section>`;
+  }
+
+  function paymentsView(sales) {
+    const rows = selectedPaymentRows(sales);
+    const methods = (sales.paymentMethods || []).map(row => `<option value="${escapeHtml(row.method)}" ${state.paymentMethod === row.method ? 'selected' : ''}>${escapeHtml(paymentLabel(row.method))}</option>`).join('');
+    const gross = rows.reduce((sum,row) => sum + Number(row.grossCents || 0),0);
+    const refunds = rows.reduce((sum,row) => sum + Number(row.refundCents || 0),0);
+    return `<div class="ops-metrics report-v2-metrics">${metric('Recebido',money(gross))}${metric('Reembolsado',money(refunds))}${metric('Líquido',money(gross-refunds))}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Relatório por meio de pagamento</h2><p class="ops-muted">Vendas com pagamento misto aparecem em cada forma usada, somente pelo valor atribuído àquela forma.</p></div><label class="report-v2-inline-filter">Forma<select id="report-payment-filter" class="ops-input"><option value="">Todas as formas</option>${methods}</select></label></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Transações</th><th>Recebido</th><th>Reembolsos</th><th>Líquido</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(paymentLabel(row.method))}</strong></td><td>${row.salesCount || 0}</td><td>${row.transactionCount || 0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('') || empty('Sem movimento nesta forma de pagamento.',6)}</tbody></table></div></section>`;
+  }
+
+  function inventoryView(inventory) {
+    const rows = inventory.purchaseList || [];
+    return `<div class="ops-metrics report-v2-metrics">${metric('Itens no mínimo/abaixo',String(inventory.lowStockCount || 0))}${metric('Abaixo do mínimo',String(inventory.belowMinimumCount || 0))}${metric('Sem estoque',String(inventory.zeroStockCount || 0))}${metric('Custo para recompor mínimo',money(inventory.suggestedPurchaseCostCents || 0),'Estimativa pelo custo cadastrado')}</div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Produtos no estoque mínimo para compra</h2><p class="ops-muted">Posição atual do estoque. Itens exatamente no mínimo continuam sinalizados; a quantidade sugerida repõe apenas até o mínimo configurado.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Falta p/ mínimo</th><th>Custo estimado</th><th>Situação</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.name)}</strong></td><td>${escapeHtml(row.sku || '—')}</td><td>${qty(row.quantity)} ${escapeHtml(row.unit || '')}</td><td>${qty(row.minimumStock)}</td><td>${qty(row.shortageToMinimum)}</td><td>${money(row.suggestedPurchaseCostCents)}</td><td>${row.zeroStock ? 'SEM ESTOQUE' : row.belowMinimum ? 'ABAIXO' : 'NO MÍNIMO'}</td></tr>`).join('') || empty('Nenhum produto atingiu o estoque mínimo.',7)}</tbody></table></div></section>`;
+  }
+
+  function cashView(cash) {
+    const rows = (cash.movements || []).filter(row => row.isPhysicalCash);
+    return `<div class="ops-metrics report-v2-metrics">
+      ${metric('Entradas operacionais em dinheiro',money(cash.operatingCashInCents || 0),`Vendas ${money(cash.cashSalesCents || 0)} · Suprimentos ${money(cash.suppliesCents || 0)}`)}
+      ${metric('Saídas em dinheiro',money(cash.cashOutCents || 0),`Sangrias ${money(cash.withdrawalsCents || 0)} · Estornos/devoluções ${money(cash.cashReversalCents || 0)}`)}
+      ${metric('Fluxo operacional líquido',money(cash.operatingNetCashFlowCents || 0),'Entradas operacionais menos saídas')}
+      ${metric('Fundo de abertura',money(cash.openingCashCents || 0))}
+      ${metric('Saldo esperado pelos movimentos',money(cash.expectedCashFromMovementsCents ?? cash.netCashFlowCents ?? 0),'Abertura + fluxo operacional')}
+      ${metric('Divergência de fechamentos',money(cash.divergenceCents || 0),`${cash.divergentSessions || 0} sessões divergentes`)}
+    </div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Dinheiro que entrou e saiu do caixa</h2><p class="ops-muted">Somente dinheiro físico. PIX e cartões não alteram este saldo. Sangrias, devoluções e cancelamentos reembolsados em dinheiro aparecem como saída.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Terminal</th><th>Operador</th><th>Movimento</th><th>Observação</th><th>Entrada/Saída</th></tr></thead><tbody>${rows.map(row => `<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(row.terminalId || '—')}</td><td>${escapeHtml(row.operatorName || row.operatorId || '—')}</td><td>${escapeHtml(movementLabel(row.type))}</td><td>${escapeHtml(row.note || '—')}</td><td><strong>${row.signedCents < 0 ? '− ' : '+ '}${money(Math.abs(row.signedCents || 0))}</strong></td></tr>`).join('') || empty('Sem movimento físico de dinheiro no período.',6)}</tbody></table></div></section>`;
+  }
+
+  function currentCsv(sales,inventory,cash) {
+    if (state.view === 'customers') return { name:'relatorio-vendas-por-cliente.csv',headers:['cliente','vendas','bruto_centavos','devolucoes_centavos','liquido_centavos','ticket_medio_centavos','ultima_venda','canceladas','canceladas_centavos'],rows:selectedCustomerRows(sales).map(r => [r.customerName,r.salesCount,r.grossCents,r.returnedCents,r.netCents,r.averageTicketCents,r.lastSaleAt || '',r.cancelledSalesCount || 0,r.cancelledSalesCents || 0]) };
+    if (state.view === 'products') return { name:'relatorio-vendas-por-produto.csv',headers:['produto','sku','quantidade_vendida','quantidade_devolvida','quantidade_liquida','linhas_antes_desconto_centavos','desconto_rateado_centavos','receita_apos_desconto_centavos','devolvido_centavos','liquido_centavos','margem_estimada_centavos'],rows:selectedProductRows(sales).map(r => [r.productName,r.sku || '',r.quantity,r.returnedQuantity,r.netQuantity,r.lineGrossCents || r.grossCents,r.discountCents || 0,r.grossCents,r.returnedCents,r.netCents,r.estimatedMarginCents]) };
+    if (state.view === 'payments') return { name:'relatorio-por-meio-de-pagamento.csv',headers:['forma','vendas','transacoes','recebido_centavos','reembolsado_centavos','liquido_centavos'],rows:selectedPaymentRows(sales).map(r => [paymentLabel(r.method),r.salesCount,r.transactionCount,r.grossCents,r.refundCents,r.netCents]) };
+    if (state.view === 'inventory') return { name:'relatorio-estoque-minimo-compra.csv',headers:['produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(inventory.purchaseList || []).map(r => [r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) };
+    if (state.view === 'cash') return { name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements || []).filter(r => r.isPhysicalCash).map(r => [r.createdAt,r.terminalId || '',r.operatorName || r.operatorId || '',movementLabel(r.type),r.note || '',r.signedCents]) };
+    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor_centavos'],rows:[['subtotal_antes_descontos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos',sales.salesDiscountCents || 0],['vendas_apos_descontos',sales.grossSalesCents || 0],['devolucoes',sales.returnedCents || 0],['vendas_liquidas',sales.netSalesCents || 0],['ticket_medio',sales.averageTicketCents || 0],['margem_estimada',sales.estimatedMarginCents || 0],['cancelamentos',sales.cancelledSalesCents || 0]] };
+  }
+
+  function filterForm(sellers) {
+    if (!PERIOD_FILTER_VIEWS.has(state.view)) {
+      return `<section class="ops-card report-v2-filter-card"><strong>Posição atual do estoque</strong><p class="ops-muted">Período e vendedor/garçom não se aplicam a este relatório.</p></section>`;
+    }
+    const sellerField = SELLER_FILTER_VIEWS.has(state.view)
+      ? `<label>Vendedor / Garçom<select name="sellerId" class="ops-input"><option value="">Todos</option>${sellers.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === state.sellerId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}</select></label>`
+      : `<div class="report-v2-filter-note"><strong>Caixa físico</strong><span>O filtro de vendedor/garçom não se aplica a sangrias, suprimentos e fundo de abertura.</span></div>`;
+    return `<section class="ops-card report-v2-filter-card"><form id="report-v2-filter" class="report-v2-filter"><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
+  }
+
+  function printMeta(sellers) {
+    if (state.view === 'inventory') return 'Posição atual · período e vendedor não se aplicam';
+    const periodText = `${state.fromDate} a ${state.toDate}`;
+    if (!SELLER_FILTER_VIEWS.has(state.view)) return `${periodText} · vendedor/garçom não se aplica ao caixa físico`;
+    const sellerName = sellers.find(row => row.id === state.sellerId)?.name || 'Todos';
+    return `${periodText} · Vendedor/Garçom: ${sellerName}`;
+  }
+
+  async function renderReportsV2(next = {}) {
+    await ready();
+    markActive();
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(),now.getMonth(),1);
+    state = { ...state,...next };
+    if (!state.fromDate) state.fromDate = dateValue(firstDay);
+    if (!state.toDate) state.toDate = dateValue(now);
+
+    const basePeriod = { from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString() };
+    const salesFilters = { ...basePeriod,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : '' };
     let sales,inventory,cash,sellers;
-    try{[sales,inventory,cash,sellers]=await Promise.all([api.reportSales(filters),api.reportInventory(),api.reportCash(filters),api.sellers()]);}catch(error){content.innerHTML=`<section class="ops-page"><header class="ops-head"><div><h1>Relatórios</h1><p>Não foi possível carregar os dados.</p></div></header><section class="ops-card"><div class="ops-empty">${escapeHtml(error.message)}</div></section></section>`;return;}
-    if(state.customerId&&!sales.customerSales?.some(row=>(row.customerId||'__WALK_IN__')===state.customerId))state.customerId='';
-    if(state.productId&&!sales.productSales?.some(row=>row.productId===state.productId))state.productId='';
-    if(state.paymentMethod&&!sales.paymentMethods?.some(row=>row.method===state.paymentMethod))state.paymentMethod='';
-    const sellerName=sellers.find(row=>row.id===state.sellerId)?.name||'Todos';
-    const views={overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash)};
-    const tabs=Object.entries(VIEW_LABELS).map(([key,label])=>`<button type="button" class="report-v2-tab ${state.view===key?'active':''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
-    content.innerHTML=`<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo e fluxo físico do caixa.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(state.fromDate)} a ${escapeHtml(state.toDate)} · Vendedor/Garçom: ${escapeHtml(sellerName)}</span></div><section class="ops-card report-v2-filter-card"><form id="report-v2-filter" class="report-v2-filter"><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label><label>Vendedor / Garçom<select name="sellerId" class="ops-input"><option value="">Todos</option>${sellers.map(s=>`<option value="${escapeHtml(s.id)}" ${s.id===state.sellerId?'selected':''}>${escapeHtml(s.name)}</option>`).join('')}</select></label><button class="ops-primary" type="submit">Aplicar período</button></form></section><nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view]||views.overview}</div></section>`;
+    try {
+      [sales,inventory,cash,sellers] = await Promise.all([api.reportSales(salesFilters),api.reportInventory(),api.reportCash(basePeriod),api.sellers()]);
+    } catch (error) {
+      content.innerHTML = `<section class="ops-page"><header class="ops-head"><div><h1>Relatórios</h1><p>Não foi possível carregar os dados.</p></div></header><section class="ops-card"><div class="ops-empty">${escapeHtml(error.message)}</div></section></section>`;
+      return;
+    }
 
-    document.getElementById('report-v2-filter')?.addEventListener('submit',event=>{event.preventDefault();const form=new FormData(event.currentTarget);const fromDate=String(form.get('fromDate'));const toDate=String(form.get('toDate'));if(fromDate>toDate){showToast('A data inicial não pode ser posterior à data final.','error');return;}void renderReportsV2({fromDate,toDate,sellerId:String(form.get('sellerId')||''),customerId:'',productId:'',paymentMethod:''});});
-    content.querySelectorAll('[data-report-view]').forEach(button=>button.addEventListener('click',()=>void renderReportsV2({view:button.dataset.reportView})));
-    document.getElementById('report-customer-filter')?.addEventListener('change',event=>void renderReportsV2({customerId:event.target.value}));
-    document.getElementById('report-product-filter')?.addEventListener('change',event=>void renderReportsV2({productId:event.target.value}));
-    document.getElementById('report-payment-filter')?.addEventListener('change',event=>void renderReportsV2({paymentMethod:event.target.value}));
-    document.getElementById('report-export')?.addEventListener('click',()=>{const csv=currentCsv(sales,inventory,cash);downloadCsv(csv.name,csv.headers,csv.rows);});
-    document.getElementById('report-print')?.addEventListener('click',()=>root.print());
+    if (state.customerId && !sales.customerSales?.some(row => (row.customerId || '__WALK_IN__') === state.customerId)) state.customerId = '';
+    if (state.productId && !sales.productSales?.some(row => row.productId === state.productId)) state.productId = '';
+    if (state.paymentMethod && !sales.paymentMethods?.some(row => row.method === state.paymentMethod)) state.paymentMethod = '';
+
+    const views = { overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash) };
+    const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
+
+    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo e fluxo físico do caixa.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers))}</span></div>${filterForm(sellers)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
+
+    document.getElementById('report-v2-filter')?.addEventListener('submit',event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      const fromDate = String(form.get('fromDate'));
+      const toDate = String(form.get('toDate'));
+      if (fromDate > toDate) { showToast('A data inicial não pode ser posterior à data final.','error'); return; }
+      void renderReportsV2({ fromDate,toDate,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? String(form.get('sellerId') || '') : state.sellerId,customerId:'',productId:'',paymentMethod:'' });
+    });
+    content.querySelectorAll('[data-report-view]').forEach(button => button.addEventListener('click',() => void renderReportsV2({view:button.dataset.reportView,customerId:'',productId:'',paymentMethod:''})));
+    document.getElementById('report-customer-filter')?.addEventListener('change',event => void renderReportsV2({customerId:event.target.value}));
+    document.getElementById('report-product-filter')?.addEventListener('change',event => void renderReportsV2({productId:event.target.value}));
+    document.getElementById('report-payment-filter')?.addEventListener('change',event => void renderReportsV2({paymentMethod:event.target.value}));
+    document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash); downloadCsv(csv.name,csv.headers,csv.rows); });
+    document.getElementById('report-print')?.addEventListener('click',() => root.print());
   }
 
-  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-route],[data-home-route]');if(!target)return;const route=target.dataset.route||target.dataset.homeRoute;if(route!=='reports')return;event.preventDefault();event.stopImmediatePropagation();void renderReportsV2();},true);
-  root.addEventListener('keydown',event=>{if(event.key!=='F9'||document.querySelector('.checkout-layout'))return;event.preventDefault();event.stopImmediatePropagation();void renderReportsV2();},true);
-  root.PdvReportsV2=Object.freeze({render:renderReportsV2});
+  root.addEventListener('click',event => {
+    const target = event.target.closest?.('[data-route],[data-home-route]');
+    if (!target) return;
+    const route = target.dataset.route || target.dataset.homeRoute;
+    if (route !== 'reports') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void renderReportsV2();
+  },true);
+
+  root.addEventListener('keydown',event => {
+    if (event.key !== 'F9') return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    void renderReportsV2();
+  },true);
+
+  root.PdvReportsV2 = Object.freeze({ render:renderReportsV2 });
 })();
