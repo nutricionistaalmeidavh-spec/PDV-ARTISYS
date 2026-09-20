@@ -17,10 +17,10 @@
   });
   const MOVEMENT_LABELS = Object.freeze({ OPENING:'Abertura',SUPPLY:'Suprimento',WITHDRAWAL:'Sangria / saída',SALE:'Venda',REVERSAL:'Estorno / devolução' });
   const VIEW_LABELS = Object.freeze({
-    overview:'Visão geral',customers:'Venda por cliente',products:'Venda por produto',payments:'Por meio de pagamento',inventory:'Estoque mínimo / compra',cash:'Entradas e saídas do caixa'
+    overview:'Visão geral',customers:'Venda por cliente',products:'Venda por produto',payments:'Por meio de pagamento',inventory:'Estoque mínimo / compra',cash:'Entradas e saídas do caixa',commissions:'Comissões'
   });
-  const SELLER_FILTER_VIEWS = new Set(['overview','customers','products','payments']);
-  const PERIOD_FILTER_VIEWS = new Set(['overview','customers','products','payments','cash']);
+  const SELLER_FILTER_VIEWS = new Set(['overview','customers','products','payments','commissions']);
+  const PERIOD_FILTER_VIEWS = new Set(['overview','customers','products','payments','cash','commissions']);
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g,char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
@@ -33,6 +33,11 @@
     if (!value) return '—';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  }
+  function centsInput(value) {
+    const text = String(value ?? '').trim().replace(/\./g,'').replace(',','.');
+    const number = Number(text);
+    return Number.isFinite(number) ? Math.round(number * 100) : 0;
   }
   function showToast(message,type='') {
     if (!toastRoot) return;
@@ -139,12 +144,29 @@
     </div><section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Dinheiro que entrou e saiu do caixa</h2><p class="ops-muted">Somente dinheiro físico. PIX e cartões não alteram este saldo. Sangrias, devoluções e cancelamentos reembolsados em dinheiro aparecem como saída.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Terminal</th><th>Operador</th><th>Movimento</th><th>Observação</th><th>Entrada/Saída</th></tr></thead><tbody>${rows.map(row => `<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(row.terminalId || '—')}</td><td>${escapeHtml(row.operatorName || row.operatorId || '—')}</td><td>${escapeHtml(movementLabel(row.type))}</td><td>${escapeHtml(row.note || '—')}</td><td><strong>${row.signedCents < 0 ? '− ' : '+ '}${money(Math.abs(row.signedCents || 0))}</strong></td></tr>`).join('') || empty('Sem movimento físico de dinheiro no período.',6)}</tbody></table></div></section>`;
   }
 
-  function currentCsv(sales,inventory,cash) {
+  function commissionsView(commissions,sellers,products,rules) {
+    const rows = commissions?.sellers || [];
+    const outstanding = rows.reduce((sum,row) => sum + Number(row.outstandingCents || 0),0);
+    return `<div class="ops-metrics report-v2-metrics">
+      ${metric('Comissões geradas',money(commissions?.totalEarnedCents || 0))}
+      ${metric('Comissões estornadas',money(commissions?.totalReversedCents || 0))}
+      ${metric('Comissões pagas no período',money(commissions?.totalPaidCents || 0))}
+      ${metric('Em aberto',money(outstanding),'Saldo atual dos vendedores com movimento no período')}
+    </div>
+    <div class="ops-grid two">
+      <section class="ops-card report-print-section"><h2>Comissões por vendedor / garçom</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Gerada</th><th>Estornada</th><th>Paga</th><th>Saldo do período</th><th>Em aberto</th><th class="report-v2-no-print"></th></tr></thead><tbody>${rows.map(row => `<tr><td>${escapeHtml(row.sellerName)}</td><td>${money(row.earnedCents)}</td><td>${money(row.reversedCents)}</td><td>${money(row.paidCents)}</td><td>${money(row.periodBalanceCents)}</td><td><strong>${money(row.outstandingCents)}</strong></td><td class="report-v2-no-print"><button class="ops-link" data-pay-commission="${escapeHtml(row.sellerId)}" data-outstanding="${Number(row.outstandingCents || 0)}" ${Number(row.outstandingCents || 0) <= 0 ? 'disabled' : ''}>Registrar pagamento</button></td></tr>`).join('') || empty('Sem comissões no período.',7)}</tbody></table></div></section>
+      <section class="ops-card report-v2-no-print"><h2>Regra de comissão</h2><form id="report-commission-rule" class="ops-form"><label>Vendedor / Garçom<select name="sellerId" class="ops-input" required>${sellers.map(seller => `<option value="${escapeHtml(seller.id)}">${escapeHtml(seller.name)}</option>`).join('')}</select></label><label>Produto específico<select name="productId" class="ops-input"><option value="">Regra padrão para todos os produtos</option>${products.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}</option>`).join('')}</select></label><label>Comissão (%)<input name="percent" class="ops-input" type="number" min="0" max="100" step="0.01" required></label><button class="ops-primary" type="submit">Salvar regra</button></form></section>
+    </div>
+    <section class="ops-card report-print-section"><h2>Regras cadastradas</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Aplicação</th><th>%</th><th>Status</th></tr></thead><tbody>${rules.map(rule => `<tr><td>${escapeHtml(rule.sellerName)}</td><td>${escapeHtml(rule.productName || 'Todos os produtos')}</td><td>${(Number(rule.commissionBps || 0) / 100).toLocaleString('pt-BR')}%</td><td>${rule.active ? 'Ativa' : 'Inativa'}</td></tr>`).join('') || empty('Nenhuma regra cadastrada.',4)}</tbody></table></div></section>`;
+  }
+
+  function currentCsv(sales,inventory,cash,commissions) {
     if (state.view === 'customers') return { name:'relatorio-vendas-por-cliente.csv',headers:['cliente','vendas','bruto_centavos','devolucoes_centavos','liquido_centavos','ticket_medio_centavos','ultima_venda','canceladas','canceladas_centavos'],rows:selectedCustomerRows(sales).map(r => [r.customerName,r.salesCount,r.grossCents,r.returnedCents,r.netCents,r.averageTicketCents,r.lastSaleAt || '',r.cancelledSalesCount || 0,r.cancelledSalesCents || 0]) };
     if (state.view === 'products') return { name:'relatorio-vendas-por-produto.csv',headers:['produto','sku','quantidade_vendida','quantidade_devolvida','quantidade_liquida','linhas_antes_desconto_centavos','desconto_rateado_centavos','receita_apos_desconto_centavos','devolvido_centavos','liquido_centavos','margem_estimada_centavos'],rows:selectedProductRows(sales).map(r => [r.productName,r.sku || '',r.quantity,r.returnedQuantity,r.netQuantity,r.lineGrossCents || r.grossCents,r.discountCents || 0,r.grossCents,r.returnedCents,r.netCents,r.estimatedMarginCents]) };
     if (state.view === 'payments') return { name:'relatorio-por-meio-de-pagamento.csv',headers:['forma','vendas','transacoes','recebido_centavos','reembolsado_centavos','liquido_centavos'],rows:selectedPaymentRows(sales).map(r => [paymentLabel(r.method),r.salesCount,r.transactionCount,r.grossCents,r.refundCents,r.netCents]) };
     if (state.view === 'inventory') return { name:'relatorio-estoque-minimo-compra.csv',headers:['produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(inventory.purchaseList || []).map(r => [r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) };
     if (state.view === 'cash') return { name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements || []).filter(r => r.isPhysicalCash).map(r => [r.createdAt,r.terminalId || '',r.operatorName || r.operatorId || '',movementLabel(r.type),r.note || '',r.signedCents]) };
+    if (state.view === 'commissions') return { name:'relatorio-comissoes.csv',headers:['vendedor','gerada_centavos','estornada_centavos','paga_centavos','saldo_periodo_centavos','em_aberto_centavos'],rows:(commissions?.sellers || []).map(r => [r.sellerName,r.earnedCents,r.reversedCents,r.paidCents,r.periodBalanceCents,r.outstandingCents]) };
     return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor_centavos'],rows:[['subtotal_antes_descontos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos',sales.salesDiscountCents || 0],['vendas_apos_descontos',sales.grossSalesCents || 0],['devolucoes',sales.returnedCents || 0],['vendas_liquidas',sales.netSalesCents || 0],['ticket_medio',sales.averageTicketCents || 0],['margem_estimada',sales.estimatedMarginCents || 0],['cancelamentos',sales.cancelledSalesCents || 0]] };
   }
 
@@ -177,9 +199,10 @@
 
     const basePeriod = { from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString() };
     const salesFilters = { ...basePeriod,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : '' };
-    let sales,inventory,cash,sellers;
+    let sales,inventory,cash,sellers,commissions=null,products=[],rules=[];
     try {
       [sales,inventory,cash,sellers] = await Promise.all([api.reportSales(salesFilters),api.reportInventory(),api.reportCash(basePeriod),api.sellers()]);
+      if (state.view === 'commissions') [commissions,products,rules] = await Promise.all([api.commissions(salesFilters),api.products(),api.commissionRules({includeInactive:true})]);
     } catch (error) {
       content.innerHTML = `<section class="ops-page"><header class="ops-head"><div><h1>Relatórios</h1><p>Não foi possível carregar os dados.</p></div></header><section class="ops-card"><div class="ops-empty">${escapeHtml(error.message)}</div></section></section>`;
       return;
@@ -189,10 +212,12 @@
     if (state.productId && !sales.productSales?.some(row => row.productId === state.productId)) state.productId = '';
     if (state.paymentMethod && !sales.paymentMethods?.some(row => row.method === state.paymentMethod)) state.paymentMethod = '';
 
-    const views = { overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash) };
+    const views = {
+      overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash),commissions:commissionsView(commissions,sellers,products,rules)
+    };
     const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
 
-    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo e fluxo físico do caixa.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers))}</span></div>${filterForm(sellers)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
+    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo, caixa físico e comissões.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers))}</span></div>${filterForm(sellers)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
 
     document.getElementById('report-v2-filter')?.addEventListener('submit',event => {
       event.preventDefault();
@@ -206,8 +231,31 @@
     document.getElementById('report-customer-filter')?.addEventListener('change',event => void renderReportsV2({customerId:event.target.value}));
     document.getElementById('report-product-filter')?.addEventListener('change',event => void renderReportsV2({productId:event.target.value}));
     document.getElementById('report-payment-filter')?.addEventListener('change',event => void renderReportsV2({paymentMethod:event.target.value}));
-    document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash); downloadCsv(csv.name,csv.headers,csv.rows); });
+    document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash,commissions); downloadCsv(csv.name,csv.headers,csv.rows); });
     document.getElementById('report-print')?.addEventListener('click',() => root.print());
+
+    document.getElementById('report-commission-rule')?.addEventListener('submit',async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      try {
+        await api.saveCommissionRule({sellerId:String(form.get('sellerId')),productId:String(form.get('productId') || '') || null,commissionBps:Math.round(Number(form.get('percent')) * 100)});
+        showToast('Regra de comissão salva. Vendas já concluídas não serão alteradas.','success');
+        await renderReportsV2();
+      } catch (error) { showToast(error.message,'error'); }
+    });
+    content.querySelectorAll('[data-pay-commission]').forEach(button => button.addEventListener('click',async () => {
+      const suggested = (Number(button.dataset.outstanding || 0) / 100).toFixed(2).replace('.',',');
+      const value = root.prompt('Valor da comissão paga (R$):',suggested);
+      if (value === null) return;
+      const amountCents = centsInput(value);
+      if (amountCents <= 0) { showToast('Informe um valor de comissão maior que zero.','error'); return; }
+      const note = root.prompt('Observação do pagamento:','') || '';
+      try {
+        await api.payCommission({sellerId:button.dataset.payCommission,amountCents,periodFrom:basePeriod.from,periodTo:basePeriod.to,note});
+        showToast('Pagamento de comissão registrado.','success');
+        await renderReportsV2();
+      } catch (error) { showToast(error.message,'error'); }
+    }));
   }
 
   root.addEventListener('click',event => {
