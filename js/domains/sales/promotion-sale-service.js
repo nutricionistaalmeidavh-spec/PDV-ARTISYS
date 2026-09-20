@@ -29,6 +29,25 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     return {...sale,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount,observation:observation.observation||'',printObservation:Boolean(observation.print_observation)};
   }
 
+  function enrichCostDetails(sale) {
+    const enriched=enrich(sale);
+    if(!enriched||!Array.isArray(enriched.items)||!enriched.items.length)return enriched;
+    const rows=db.prepare(`SELECT si.id,si.cost_cents_snapshot AS costCentsSnapshot,si.cost_snapshot_source AS costSnapshotSource,
+      COALESCE(pv.cost_cents,p.cost_cents,0) AS currentCostCents
+      FROM sale_items si
+      LEFT JOIN products p ON p.id=si.product_id
+      LEFT JOIN product_variants pv ON pv.id=json_extract(si.configuration_json,'$.variantId')
+      WHERE si.sale_id=?`).all(String(enriched.id));
+    const costs=new Map(rows.map(row=>[String(row.id),row]));
+    return {...enriched,items:enriched.items.map(item=>{
+      const cost=costs.get(String(item.id));
+      if(!cost)return item;
+      const historical=cost.costCentsSnapshot!=null;
+      const effectiveCostCents=historical?Number(cost.costCentsSnapshot):Number(cost.currentCostCents||0);
+      return {...item,costCentsSnapshot:historical?Number(cost.costCentsSnapshot):null,costSnapshotSource:historical?(cost.costSnapshotSource||'PRODUCT'):null,effectiveCostCents,costBasis:historical?'HISTORICAL_SNAPSHOT':'ESTIMATED_CURRENT'};
+    })};
+  }
+
   function writeState(saleId,state) {
     db.prepare(`INSERT INTO sale_discount_states(sale_id,manual_discount_cents,promotion_discount_cents,promotions_json,blocks_manual_discount,updated_at)
       VALUES(?,?,?,?,?,?) ON CONFLICT(sale_id) DO UPDATE SET manual_discount_cents=excluded.manual_discount_cents,promotion_discount_cents=excluded.promotion_discount_cents,promotions_json=excluded.promotions_json,blocks_manual_discount=excluded.blocks_manual_discount,updated_at=excluded.updated_at`)
@@ -139,7 +158,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
   function completeSale(id,input={}){reprice(id);const sale=baseSales.getSale(id);assertVariantStock(sale);persistObservation(id,input);baseSales.completeSale(id,stripObservationTransport(input));return enrich(baseSales.getSale(id));}
   function cancelSale(id,input={}){return enrich(baseSales.cancelSale(id,input));}
   function getSale(id){return enrich(baseSales.getSale(id));}
-  function getSaleDetails(id){return enrich(baseSales.getSaleDetails(id));}
+  function getSaleDetails(id){return enrichCostDetails(baseSales.getSaleDetails(id));}
   function listSales(filters={}){return baseSales.listSales(filters).map(enrich);}
   function listHistory(filters={}){return baseSales.listHistory(filters).map(enrich);}
 
