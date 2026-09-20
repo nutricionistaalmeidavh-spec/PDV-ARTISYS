@@ -90,6 +90,43 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
   return {ok:errors.length===0,errors,counts:{total:capabilities.length,customerAdmin,surfaceComplete,e2eComplete,completeCapabilities,coveragePercent,backendServices:discovered.length}};
 }
 
+function validateOperationRegistry({root=path.resolve(__dirname,'..'),registry,capabilityRegistry,require100=false,required=false}={}){
+  const errors=[];
+  if(!registry){
+    if(required)errors.push('operation registry: release/customer-operations.json not found');
+    return{ok:errors.length===0,errors,counts:{total:0,surface:0,complete:0,coveragePercent:required?0:100}};
+  }
+  const operations=Array.isArray(registry.operations)?registry.operations:[];
+  if(registry.schemaVersion!==1)errors.push('operation registry: schemaVersion must be 1');
+  if(!operations.length)errors.push('operation registry: operations must not be empty');
+  const capabilityIds=new Set((capabilityRegistry?.capabilities||[]).map(item=>item.id));
+  const ids=new Set();let surface=0;let complete=0;
+  for(const operation of operations){
+    if(!operation?.id){errors.push('operation registry: operation without id');continue;}
+    if(ids.has(operation.id))errors.push(`${operation.id}: duplicate operation id`);
+    ids.add(operation.id);
+    if(!capabilityIds.has(operation.capabilityId))errors.push(`${operation.id}: unknown capabilityId ${operation.capabilityId}`);
+    const exposure=operation.exposure||'customer';
+    if(!['customer','admin','internal'].includes(exposure))errors.push(`${operation.id}: invalid exposure ${exposure}`);
+    const layers=['backend','api','client','ui','e2e'];
+    for(const layer of layers)if(!Array.isArray(operation[layer]))errors.push(`${operation.id}: ${layer} must be an array`);
+    if(exposure==='internal'){
+      if(!(operation.backend||[]).length)errors.push(`${operation.id}: internal operation missing backend`);
+      for(const reference of operation.backend||[])validateReference({root,capability:operation,layer:'backend',reference,errors});
+      continue;
+    }
+    surface+=1;let ok=true;
+    for(const layer of layers){
+      if(!(operation[layer]||[]).length){errors.push(`${operation.id}: ${exposure} operation missing ${layer}`);ok=false;continue;}
+      for(const reference of operation[layer])if(!validateReference({root,capability:operation,layer,reference,errors}))ok=false;
+    }
+    if(ok)complete+=1;
+  }
+  const coveragePercent=surface===0?100:Number(((complete/surface)*100).toFixed(2));
+  if(require100&&coveragePercent!==100)errors.push(`operation coverage: ${coveragePercent}% < 100% (${complete}/${surface} customer/admin operations complete)`);
+  return{ok:errors.length===0,errors,counts:{total:operations.length,surface,complete,coveragePercent}};
+}
+
 function parseArgs(argv){
   const requireE2e=argv.includes('--require-e2e');
   const require100=argv.includes('--require-100');
@@ -103,13 +140,18 @@ function main(){
   const registryPath=path.join(root,'release','customer-capabilities.json');
   if(!fs.existsSync(registryPath)){console.error('CAPABILITY PARITY FAIL\nrelease/customer-capabilities.json not found');process.exitCode=1;return;}
   const registry=JSON.parse(fs.readFileSync(registryPath,'utf8'));
+  const operationPath=path.join(root,'release','customer-operations.json');
+  const operationRegistry=fs.existsSync(operationPath)?JSON.parse(fs.readFileSync(operationPath,'utf8')):null;
   const options=parseArgs(process.argv.slice(2));
   const result=validateRegistry({root,registry,...options});
-  const c=result.counts;
+  const operationResult=validateOperationRegistry({root,registry:operationRegistry,capabilityRegistry:registry,require100:options.require100,required:options.require100});
+  const c=result.counts;const o=operationResult.counts;
   console.log(`CAPABILITY PARITY\nregistry=${c.total} customer/admin=${c.customerAdmin} surface=${c.surfaceComplete}/${c.customerAdmin} e2e=${c.e2eComplete}/${c.customerAdmin} complete=${c.completeCapabilities}/${c.customerAdmin} coverage=${c.coveragePercent}% backend-services=${c.backendServices}`);
-  if(!result.ok){for(const error of result.errors)console.error(`- ${error}`);process.exitCode=1;return;}
+  console.log(`OPERATION PARITY\nregistry=${o.total} customer/admin=${o.surface} complete=${o.complete}/${o.surface} coverage=${o.coveragePercent}%`);
+  const errors=[...result.errors,...operationResult.errors];
+  if(errors.length){for(const error of errors)console.error(`- ${error}`);process.exitCode=1;return;}
   console.log('PASS');
 }
 
 if(require.main===module)main();
-module.exports={validateRegistry};
+module.exports={validateRegistry,validateOperationRegistry};
