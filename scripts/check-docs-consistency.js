@@ -32,7 +32,11 @@ for (const phrase of [
 for (const capability of [
   'catalog-parent-child-variants-core',
   'catalog-kits-component-stock-snapshot',
-  'catalog-promotional-combos-user-configurable'
+  'catalog-promotional-combos-user-configurable',
+  'historical-cost-snapshot-and-margin',
+  'stock-locations-reservations-and-transfers',
+  'purchase-orders-partial-receiving-moving-average-payable',
+  'sales-orders-pickup-delivery-reservation-fulfillment'
 ]) {
   if (!capabilities.includes(capability)) fail(`release/capabilities.json is missing ${capability}`);
 }
@@ -41,6 +45,13 @@ if (!Array.isArray(capabilities) || !capabilities.length) fail('release/capabili
 if (!Array.isArray(limitations) || !limitations.length) fail('release/limitations.json must be a non-empty array.');
 if (!limitations.some(item => /produto pai/i.test(String(item)) && /saldo/i.test(String(item)))) {
   fail('release/limitations.json must document parent-stock migration constraint.');
+}
+const versionedLimitations = limitations.filter(item => /versão\s+\d+\.\d+\.\d+/i.test(String(item)));
+if (!versionedLimitations.length || versionedLimitations.some(item => !String(item).includes(pkg.version))) {
+  fail(`every explicit release version in release/limitations.json must match package.json (${pkg.version}).`);
+}
+if (!limitations.some(item => /ESTIMATED_CURRENT/.test(String(item)))) {
+  fail('release/limitations.json must document the legacy historical-cost fallback.');
 }
 if (!/Regra obrigatória de documentação/.test(contributing) || !/mesma entrega/.test(contributing)) {
   fail('CONTRIBUTING.md must preserve the mandatory documentation-maintenance rule.');
