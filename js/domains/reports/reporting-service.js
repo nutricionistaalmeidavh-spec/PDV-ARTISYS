@@ -56,7 +56,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const seller = sellerExpressions('s');
     const sellerClause = filters.sellerId ? ` AND ${seller.id}=?` : '';
     const params = filters.sellerId ? [p.from,p.to,String(filters.sellerId)] : [p.from,p.to];
-    return db.prepare(`SELECT rt.*,${seller.id} AS resolved_seller_id,s.customer_id,c.name AS customer_name
+    return db.prepare(`SELECT rt.*,${seller.id} AS resolved_seller_id,${seller.name} AS seller_name,s.customer_id,c.name AS customer_name
       FROM return_transactions rt
       JOIN sales s ON s.id=rt.sale_id
       LEFT JOIN users u ON u.id=s.operator_id
@@ -86,8 +86,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const query = db.prepare(`SELECT COALESCE(payment_method,'OTHER') AS method,amount_cents AS amountCents
       FROM cash_movements WHERE type='REVERSAL' AND note=? ORDER BY created_at,id`);
     for (const ret of returns) {
-      const rows = query.all(`RETURN:${ret.id}:COMPLETED`);
-      for (const row of rows) {
+      for (const row of query.all(`RETURN:${ret.id}:COMPLETED`)) {
         const current = map.get(row.method) || { amountCents:0, transactionCount:0 };
         current.amountCents += Number(row.amountCents || 0);
         current.transactionCount += 1;
@@ -134,13 +133,13 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
   function buildSalesSummary(filters = {}) {
     const sales = completedSales(filters);
-    const saleIds = new Set(sales.map(s => s.id));
+    const saleIds = new Set(sales.map(sale => sale.id));
     const subtotalSalesCents = sales.reduce((sum,sale) => sum + Number(sale.subtotal_cents || 0),0);
     const salesDiscountCents = sales.reduce((sum,sale) => sum + Number(sale.discount_cents || 0),0);
-    const grossSalesCents = sales.reduce((sum, sale) => sum + Number(sale.total_cents || 0), 0);
+    const grossSalesCents = sales.reduce((sum,sale) => sum + Number(sale.total_cents || 0),0);
     const returns = completedReturns(filters);
     const cancellations = cancelledSales(filters);
-    const returnedCents = returns.reduce((sum, row) => sum + Number(row.total_cents || 0), 0);
+    const returnedCents = returns.reduce((sum,row) => sum + Number(row.total_cents || 0),0);
     const netSalesCents = grossSalesCents - returnedCents;
     const averageTicketCents = sales.length ? Math.round(grossSalesCents / sales.length) : 0;
 
@@ -183,13 +182,13 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
         costCents += itemCost;
       }
 
-      const operator = operators.get(sale.operator_id) || { operatorId:sale.operator_id, operatorName:sale.operator_name || 'Nao identificado', salesCount:0, salesCents:0 };
+      const operator = operators.get(sale.operator_id) || { operatorId:sale.operator_id,operatorName:sale.operator_name || 'Nao identificado',salesCount:0,salesCents:0 };
       operator.salesCount += 1;
       operator.salesCents += Number(sale.total_cents || 0);
       operators.set(sale.operator_id,operator);
 
       const sellerId = sale.resolved_seller_id || sale.operator_id;
-      const seller = sellers.get(sellerId) || { sellerId, sellerName:sale.seller_name || sale.operator_name || 'Nao identificado', salesCount:0, salesCents:0, returnedCents:0, cancelledSalesCount:0, cancelledSalesCents:0 };
+      const seller = sellers.get(sellerId) || { sellerId,sellerName:sale.seller_name || sale.operator_name || 'Nao identificado',salesCount:0,salesCents:0,returnedCents:0,cancelledSalesCount:0,cancelledSalesCents:0 };
       seller.salesCount += 1;
       seller.salesCents += Number(sale.total_cents || 0);
       sellers.set(sellerId,seller);
@@ -203,7 +202,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     }
 
     for (const ret of returns) {
-      const seller = sellers.get(ret.resolved_seller_id) || { sellerId:ret.resolved_seller_id,sellerName:'Nao identificado',salesCount:0,salesCents:0,returnedCents:0,cancelledSalesCount:0,cancelledSalesCents:0 };
+      const seller = sellers.get(ret.resolved_seller_id) || { sellerId:ret.resolved_seller_id,sellerName:ret.seller_name || 'Nao identificado',salesCount:0,salesCents:0,returnedCents:0,cancelledSalesCount:0,cancelledSalesCents:0 };
       seller.returnedCents += Number(ret.total_cents || 0);
       seller.salesCents -= Number(ret.total_cents || 0);
       sellers.set(ret.resolved_seller_id,seller);
@@ -245,13 +244,13 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     }
 
     for (const item of products.values()) {
-      item.netQuantity = roundQty(item.quantity - item.returnedQuantity);
-      item.netCents = item.grossCents - item.returnedCents;
-      item.estimatedMarginCents = item.netCents - item.estimatedCostCents;
+      item.netQuantity = roundQty(item.quantity-item.returnedQuantity);
+      item.netCents = item.grossCents-item.returnedCents;
+      item.estimatedMarginCents = item.netCents-item.estimatedCostCents;
     }
     for (const customer of customers.values()) {
-      customer.netCents = customer.grossCents - customer.returnedCents;
-      customer.averageTicketCents = customer.salesCount ? Math.round(customer.grossCents / customer.salesCount) : 0;
+      customer.netCents = customer.grossCents-customer.returnedCents;
+      customer.averageTicketCents = customer.salesCount ? Math.round(customer.grossCents/customer.salesCount) : 0;
     }
 
     const refundMap = returnRefundsByMethod(returns);
@@ -261,24 +260,36 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       current.refundTransactionCount += refund.transactionCount;
       paymentMethods.set(method,current);
     }
-    for (const current of paymentMethods.values()) current.netCents = current.grossCents - current.refundCents;
+    for (const current of paymentMethods.values()) current.netCents = current.grossCents-current.refundCents;
     const netPaymentsByMethod = {};
     for (const current of paymentMethods.values()) netPaymentsByMethod[current.method] = current.netCents;
 
     const productSales = [...products.values()].sort((a,b) => b.netCents-a.netCents || b.netQuantity-a.netQuantity || a.productName.localeCompare(b.productName));
+    const topProducts = [...products.values()].sort((a,b) => b.quantity-a.quantity || b.lineGrossCents-a.lineGrossCents || a.productName.localeCompare(b.productName)).map(item => ({
+      productId:item.productId,
+      productName:item.productName,
+      quantity:item.quantity,
+      grossCents:item.lineGrossCents,
+      realizedCents:item.grossCents,
+      discountCents:item.discountCents,
+      returnedQuantity:item.returnedQuantity,
+      returnedCents:item.returnedCents,
+      netQuantity:item.netQuantity,
+      netCents:item.netCents
+    }));
     const customerSales = [...customers.values()].sort((a,b) => b.netCents-a.netCents || b.salesCount-a.salesCount || a.customerName.localeCompare(b.customerName));
     const paymentMethodSales = [...paymentMethods.values()].sort((a,b) => b.netCents-a.netCents || a.method.localeCompare(b.method));
 
     return {
-      from: filters.from || null,
-      to: filters.to || null,
-      salesCount: sales.length,
+      from:filters.from || null,
+      to:filters.to || null,
+      salesCount:sales.length,
       subtotalSalesCents,
       salesDiscountCents,
       grossSalesCents,
       returnedCents,
       cancelledSalesCount:cancellations.length,
-      cancelledSalesCents:cancellations.reduce((sum,row) => sum + Number(row.total_cents || 0),0),
+      cancelledSalesCents:cancellations.reduce((sum,row) => sum+Number(row.total_cents || 0),0),
       netSalesCents,
       averageTicketCents,
       paymentsByMethod,
@@ -286,16 +297,12 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       paymentMethods:paymentMethodSales,
       customerSales,
       productSales,
-      topProducts: productSales.map(item => ({
-        productId:item.productId,productName:item.productName,quantity:item.quantity,grossCents:item.grossCents,
-        lineGrossCents:item.lineGrossCents,discountCents:item.discountCents,returnedQuantity:item.returnedQuantity,
-        returnedCents:item.returnedCents,netQuantity:item.netQuantity,netCents:item.netCents
-      })),
-      estimatedCostCents: costCents - returnedCostCents,
-      estimatedMarginCents: netSalesCents - (costCents - returnedCostCents),
-      operators: [...operators.values()].sort((a,b) => b.salesCents-a.salesCents || a.operatorName.localeCompare(b.operatorName)),
-      sellers: [...sellers.values()].sort((a,b) => b.salesCents-a.salesCents || a.sellerName.localeCompare(b.sellerName)),
-      saleIds: [...saleIds]
+      topProducts,
+      estimatedCostCents:costCents-returnedCostCents,
+      estimatedMarginCents:netSalesCents-(costCents-returnedCostCents),
+      operators:[...operators.values()].sort((a,b) => b.salesCents-a.salesCents || a.operatorName.localeCompare(b.operatorName)),
+      sellers:[...sellers.values()].sort((a,b) => b.salesCents-a.salesCents || a.sellerName.localeCompare(b.sellerName)),
+      saleIds:[...saleIds]
     };
   }
 
@@ -306,16 +313,16 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       WHERE p.active=1 AND p.track_stock=1 ORDER BY p.name,p.id`).all().map(row => {
         const quantity = roundQty(row.quantity);
         const minimumStock = roundQty(row.minimumStock);
-        const shortageToMinimum = roundQty(Math.max(minimumStock - quantity,0));
+        const shortageToMinimum = roundQty(Math.max(minimumStock-quantity,0));
         return {
           ...row,quantity,minimumStock,
-          lowStock:quantity <= minimumStock,
-          belowMinimum:quantity < minimumStock,
-          zeroStock:quantity <= 0,
+          lowStock:quantity<=minimumStock,
+          belowMinimum:quantity<minimumStock,
+          zeroStock:quantity<=0,
           shortageToMinimum,
-          suggestedPurchaseCostCents:Math.round(Number(row.costCents || 0) * shortageToMinimum),
-          costValueCents:Math.round(Number(row.costCents || 0) * quantity),
-          saleValueCents:Math.round(Number(row.salePriceCents || 0) * quantity)
+          suggestedPurchaseCostCents:Math.round(Number(row.costCents || 0)*shortageToMinimum),
+          costValueCents:Math.round(Number(row.costCents || 0)*quantity),
+          saleValueCents:Math.round(Number(row.salePriceCents || 0)*quantity)
         };
       });
     const purchaseList = items.filter(item => item.lowStock).sort((a,b) => Number(b.zeroStock)-Number(a.zeroStock) || b.shortageToMinimum-a.shortageToMinimum || a.name.localeCompare(b.name));
@@ -324,10 +331,10 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       lowStockCount:purchaseList.length,
       belowMinimumCount:items.filter(item => item.belowMinimum).length,
       zeroStockCount:items.filter(item => item.zeroStock).length,
-      quantityTotal:roundQty(items.reduce((sum,item) => sum + item.quantity,0)),
-      costValueCents:items.reduce((sum,item) => sum + item.costValueCents,0),
-      saleValueCents:items.reduce((sum,item) => sum + item.saleValueCents,0),
-      suggestedPurchaseCostCents:purchaseList.reduce((sum,item) => sum + item.suggestedPurchaseCostCents,0),
+      quantityTotal:roundQty(items.reduce((sum,item) => sum+item.quantity,0)),
+      costValueCents:items.reduce((sum,item) => sum+item.costValueCents,0),
+      saleValueCents:items.reduce((sum,item) => sum+item.saleValueCents,0),
+      suggestedPurchaseCostCents:purchaseList.reduce((sum,item) => sum+item.suggestedPurchaseCostCents,0),
       purchaseList,
       items
     };
@@ -344,32 +351,32 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       WHERE ${p.clause} ORDER BY cm.created_at,cm.id`).all(p.from,p.to).map(row => {
         const isPhysicalCash = ['OPENING','SUPPLY','WITHDRAWAL'].includes(row.type) || row.paymentMethod === 'CASH';
         const direction = ['WITHDRAWAL','REVERSAL'].includes(row.type) ? -1 : 1;
-        return { ...row,isPhysicalCash,signedCents:isPhysicalCash ? direction * Number(row.amountCents || 0) : 0 };
+        return { ...row,isPhysicalCash,signedCents:isPhysicalCash ? direction*Number(row.amountCents || 0) : 0 };
       });
     const physical = movements.filter(row => row.isPhysicalCash);
-    const sumType = (type,predicate = () => true) => physical.filter(row => row.type === type && predicate(row)).reduce((sum,row) => sum + Number(row.amountCents || 0),0);
+    const sumType = (type,predicate = () => true) => physical.filter(row => row.type === type && predicate(row)).reduce((sum,row) => sum+Number(row.amountCents || 0),0);
     const openingCashCents = sumType('OPENING');
     const suppliesCents = sumType('SUPPLY');
     const withdrawalsCents = sumType('WITHDRAWAL');
     const cashSalesCents = sumType('SALE',row => row.paymentMethod === 'CASH');
     const cashReversalCents = sumType('REVERSAL',row => row.paymentMethod === 'CASH');
     const cashReturnCents = sumType('REVERSAL',row => row.paymentMethod === 'CASH' && /^RETURN:[^:]+:COMPLETED$/.test(String(row.note || '')));
-    const cashCancellationCents = Math.max(cashReversalCents - cashReturnCents,0);
-    const operatingCashInCents = suppliesCents + cashSalesCents;
-    const cashOutCents = withdrawalsCents + cashReversalCents;
-    const operatingNetCashFlowCents = operatingCashInCents - cashOutCents;
-    const cashInCents = openingCashCents + operatingCashInCents;
-    const expectedCashFromMovementsCents = openingCashCents + operatingNetCashFlowCents;
+    const cashCancellationCents = Math.max(cashReversalCents-cashReturnCents,0);
+    const operatingCashInCents = suppliesCents+cashSalesCents;
+    const cashOutCents = withdrawalsCents+cashReversalCents;
+    const operatingNetCashFlowCents = operatingCashInCents-cashOutCents;
+    const cashInCents = openingCashCents+operatingCashInCents;
+    const expectedCashFromMovementsCents = openingCashCents+operatingNetCashFlowCents;
     const movementTotals = {};
     for (const row of movements) {
       const key = `${row.type}:${row.paymentMethod}`;
-      movementTotals[key] = (movementTotals[key] || 0) + Number(row.amountCents || 0);
+      movementTotals[key] = (movementTotals[key] || 0)+Number(row.amountCents || 0);
     }
     return {
       closedSessions:rows.length,
-      expectedCashCents:rows.reduce((sum,row) => sum + Number(row.expectedCashCents || 0),0),
-      countedCashCents:rows.reduce((sum,row) => sum + Number(row.countedCashCents || 0),0),
-      divergenceCents:rows.reduce((sum,row) => sum + Number(row.divergenceCents || 0),0),
+      expectedCashCents:rows.reduce((sum,row) => sum+Number(row.expectedCashCents || 0),0),
+      countedCashCents:rows.reduce((sum,row) => sum+Number(row.countedCashCents || 0),0),
+      divergenceCents:rows.reduce((sum,row) => sum+Number(row.divergenceCents || 0),0),
       divergentSessions:rows.filter(row => Number(row.divergenceCents || 0) !== 0).length,
       openingCashCents,
       suppliesCents,
@@ -417,7 +424,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const rows = [...completedSales(filters),...cancelledSales(filters)].sort((a,b) => String(a.completed_at || a.cancelled_at).localeCompare(String(b.completed_at || b.cancelled_at)) || a.id.localeCompare(b.id));
     const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente;vendedor_garcom;motivo_cancelamento'];
     for (const row of rows) {
-      const methods = db.prepare('SELECT method FROM payments WHERE sale_id=? ORDER BY created_at,id').all(row.id).map(p => p.method).join('+');
+      const methods = db.prepare('SELECT method FROM payments WHERE sale_id=? ORDER BY created_at,id').all(row.id).map(payment => payment.method).join('+');
       lines.push([row.sale_number,row.completed_at || row.cancelled_at,row.operator_name || '',row.status,row.total_cents,methods,row.customer_name || '',row.seller_name || '',row.cancel_reason || ''].map(csvCell).join(';'));
     }
     return `${lines.join('\n')}\n`;
