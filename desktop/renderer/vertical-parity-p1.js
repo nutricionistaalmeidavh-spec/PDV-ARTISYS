@@ -27,10 +27,10 @@
   function mountExtraWorkspaceEntries(){
     for(const id of ['SERVICES','WORKSHOP']){
       document.querySelectorAll(`[data-module-open='${id}']`).forEach(button=>{
-        button.disabled=false;
-        button.querySelector('span')?.replaceChildren(document.createTextNode('Abrir módulo'));
         if(button.dataset.parityWorkspaceBound==='1')return;
         button.dataset.parityWorkspaceBound='1';
+        button.disabled=false;
+        button.querySelector('span')?.replaceChildren(document.createTextNode('Abrir módulo'));
         button.addEventListener('click',()=>renderExtraWorkspace(id));
       });
     }
