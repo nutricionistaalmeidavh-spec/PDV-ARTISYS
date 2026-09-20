@@ -60,8 +60,17 @@ test('sales report reconciles customers, products, discounts, payments and retur
   assert.equal(product.quantity,3);assert.equal(product.returnedQuantity,1);assert.equal(product.netQuantity,2);
   assert.equal(product.lineGrossCents,3000);assert.equal(product.discountCents,100);assert.equal(product.grossCents,2900);assert.equal(product.returnedCents,1000);assert.equal(product.netCents,1900);assert.equal(product.estimatedMarginCents,700);
   assert.equal(r.productSales.reduce((sum,row)=>sum+row.grossCents,0),r.grossSalesCents);
+  assert.equal(r.topProducts[0].productId,'p1');assert.equal(r.topProducts[0].quantity,3);assert.equal(r.topProducts[0].grossCents,3000);assert.equal(r.topProducts[0].realizedCents,2900);
   assert.equal(r.estimatedCostCents,1200);assert.equal(r.estimatedMarginCents,700);
   assert.equal(r.operators[0].operatorName,'Ana');assert.equal(r.operators[0].salesCents,2900);
+  db.close();
+});
+
+test('return-only period retains seller identity',()=>{
+  const {db,reports}=fixture();
+  const r=reports.buildSalesSummary({from:'2026-09-09T11:59:59Z',to:'2026-09-09T12:00:01Z'});
+  assert.equal(r.salesCount,0);assert.equal(r.returnedCents,1000);
+  assert.equal(r.sellers.length,1);assert.equal(r.sellers[0].sellerId,'u1');assert.equal(r.sellers[0].sellerName,'Ana');assert.equal(r.sellers[0].salesCents,-1000);
   db.close();
 });
 
