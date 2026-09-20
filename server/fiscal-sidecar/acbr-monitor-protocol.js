@@ -4,14 +4,7 @@ const net = require('node:net');
 
 const ACBR_TERMINATOR = '\r\n.\r\n';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
-const PAYMENT_CODES = Object.freeze({
-  CASH:'01',
-  CREDIT_CARD:'03',
-  DEBIT_CARD:'04',
-  STORE_CREDIT:'05',
-  PIX:'17',
-  OTHER:'99'
-});
+const PAYMENT_CODES = Object.freeze({ CASH:'01', CREDIT_CARD:'03', DEBIT_CARD:'04', STORE_CREDIT:'05', PIX:'17', OTHER:'99' });
 
 function assertLoopbackHost(host) {
   const value = String(host || '').trim().toLowerCase();
@@ -25,28 +18,22 @@ function assertPort(value) {
   return port;
 }
 
-function safeIniValue(value) {
-  return String(value ?? '').replace(/[\r\n]/g, ' ').trim();
-}
-
+function safeIniValue(value) { return String(value ?? '').replace(/[\r\n]/g, ' ').trim(); }
 function cents(value) {
   if (!Number.isSafeInteger(Number(value)) || Number(value) < 0) throw new Error('Valor monetario fiscal invalido.');
   return (Number(value) / 100).toFixed(2);
 }
-
 function decimal(value, digits = 3) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) throw new Error('Quantidade fiscal invalida.');
   return number.toFixed(digits);
 }
-
 function acbrDateTime(value) {
   const text = String(value || '').trim();
   const match = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
   if (!match) throw new Error('Data fiscal invalida.');
   return `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}:${match[6]}`;
 }
-
 function pushSection(lines, name, entries) {
   lines.push(`[${name}]`);
   for (const [key, value] of entries) {
@@ -67,13 +54,17 @@ function renderNfceIni(document = {}) {
   const totals = document.totals || {};
   const items = Array.isArray(document.items) ? document.items : [];
   const payments = Array.isArray(document.payments) ? document.payments : [];
+  if (!/^\d{8}$/.test(String(identification.numericCode || ''))) throw new Error('cNF fiscal deve conter 8 digitos.');
+  if (!/^\d{7}$/.test(String(address.cityCode || ''))) throw new Error('Codigo IBGE do municipio invalido para NFC-e.');
   if (!items.length) throw new Error('NFC-e sem itens.');
   if (!payments.length) throw new Error('NFC-e sem pagamentos.');
 
+  const stateCode = String(address.cityCode).slice(0, 2);
   const lines = [];
   pushSection(lines, 'infNFe', [['versao','4.00']]);
   pushSection(lines, 'Identificacao', [
-    ['cUF', String(address.cityCode || '').slice(0, 2)],
+    ['cUF', stateCode],
+    ['cNF', identification.numericCode],
     ['natOp', identification.operationNature],
     ['mod','65'],
     ['serie', identification.series],
@@ -81,6 +72,7 @@ function renderNfceIni(document = {}) {
     ['dhEmi', acbrDateTime(identification.issuedAt)],
     ['tpNF','1'],
     ['idDest','1'],
+    ['cMunFG', address.cityCode],
     ['tpImp','4'],
     ['tpEmis','1'],
     ['tpAmb', environment === 'production' ? '1' : '2'],
@@ -102,6 +94,7 @@ function renderNfceIni(document = {}) {
     ['xBairro', address.district],
     ['cMun', address.cityCode],
     ['xMun', address.city],
+    ['cUF', stateCode],
     ['UF', address.state],
     ['CEP', address.zip],
     ['cPais','1058'],
@@ -112,48 +105,22 @@ function renderNfceIni(document = {}) {
     const suffix = String(index + 1).padStart(3, '0');
     const tax = item.tax || {};
     pushSection(lines, `Produto${suffix}`, [
-      ['cProd', item.code],
-      ['cEAN','SEM GTIN'],
-      ['xProd', item.description],
-      ['NCM', tax.ncm],
-      ['CEST', tax.cest],
-      ['CFOP', tax.cfop],
-      ['uCom', item.unit],
-      ['qCom', decimal(item.quantity)],
-      ['vUnCom', cents(item.unitPriceCents)],
-      ['vProd', cents(item.grossCents)],
-      ['cEANTrib','SEM GTIN'],
-      ['uTrib', item.unit],
-      ['qTrib', decimal(item.quantity)],
-      ['vUnTrib', cents(item.unitPriceCents)],
-      ['vDesc', item.discountCents ? cents(item.discountCents) : null],
-      ['indTot','1']
+      ['cProd', item.code], ['cEAN','SEM GTIN'], ['xProd', item.description], ['NCM', tax.ncm], ['CEST', tax.cest], ['CFOP', tax.cfop],
+      ['uCom', item.unit], ['qCom', decimal(item.quantity)], ['vUnCom', cents(item.unitPriceCents)], ['vProd', cents(item.grossCents)],
+      ['cEANTrib','SEM GTIN'], ['uTrib', item.unit], ['qTrib', decimal(item.quantity)], ['vUnTrib', cents(item.unitPriceCents)],
+      ['vDesc', item.discountCents ? cents(item.discountCents) : null], ['indTot','1']
     ]);
-    pushSection(lines, `ICMS${suffix}`, [
-      ['orig', tax.origin],
-      ['CSOSN', tax.csosn],
-      ['CST', tax.icmsCst]
-    ]);
+    pushSection(lines, `ICMS${suffix}`, [['orig', tax.origin], ['CSOSN', tax.csosn], ['CST', tax.icmsCst]]);
     pushSection(lines, `PIS${suffix}`, [['CST', tax.pisCst]]);
     pushSection(lines, `COFINS${suffix}`, [['CST', tax.cofinsCst]]);
   });
 
-  pushSection(lines, 'Total', [
-    ['vProd', cents(totals.subtotalCents)],
-    ['vDesc', cents(totals.discountCents || 0)],
-    ['vNF', cents(totals.totalCents)]
-  ]);
-
+  pushSection(lines, 'Total', [['vProd', cents(totals.subtotalCents)], ['vDesc', cents(totals.discountCents || 0)], ['vNF', cents(totals.totalCents)]]);
   payments.forEach((payment, index) => {
     const suffix = String(index + 1).padStart(3, '0');
-    pushSection(lines, `pag${suffix}`, [
-      ['indPag','0'],
-      ['tPag', PAYMENT_CODES[payment.method] || PAYMENT_CODES.OTHER],
-      ['vPag', cents(payment.amountCents)]
-    ]);
+    pushSection(lines, `pag${suffix}`, [['indPag','0'], ['tPag', PAYMENT_CODES[payment.method] || PAYMENT_CODES.OTHER], ['vPag', cents(payment.amountCents)]]);
   });
   if (totals.changeCents) pushSection(lines, 'pag', [['vTroco', cents(totals.changeCents)]]);
-
   return lines.join('\r\n').trimEnd() + '\r\n';
 }
 
@@ -165,23 +132,17 @@ function parseSections(raw) {
     const line = rawLine.trim();
     if (!line || line === '.') continue;
     const section = line.match(/^\[([^\]]+)\]$/);
-    if (section) {
-      current = section[1];
-      sections[current] ||= {};
-      continue;
-    }
+    if (section) { current = section[1]; sections[current] ||= {}; continue; }
     const index = line.indexOf('=');
     if (index > 0) sections[current][line.slice(0, index).trim()] = line.slice(index + 1).trim();
   }
   return sections;
 }
-
 function readKey(section, key) {
   if (!section) return null;
   const found = Object.keys(section).find(candidate => candidate.toLowerCase() === key.toLowerCase());
   return found ? section[found] : null;
 }
-
 function parseAcbrResponse(raw, { expectedNumber = null, expectedSeries = null } = {}) {
   const text = String(raw || '').trim();
   const sections = parseSections(text);
@@ -205,17 +166,10 @@ function parseAcbrResponse(raw, { expectedNumber = null, expectedSeries = null }
   };
   if (data.cStat === 100) return { ok:true, status:200, data, error:null };
   const rootError = text.match(/^(?:ERRO|ERROR):\s*(.+)$/im)?.[1] || null;
-  const message = xMotivo || rootError || 'ACBrMonitor nao retornou autorizacao fiscal.';
-  return { ok:false, status:data.cStat ? 422 : 502, data, error:message };
+  return { ok:false, status:data.cStat ? 422 : 502, data, error:xMotivo || rootError || 'ACBrMonitor nao retornou autorizacao fiscal.' };
 }
 
-function createAcbrMonitorTcpTransport({
-  host = '127.0.0.1',
-  port = 3434,
-  timeoutMs = 30000,
-  maxResponseBytes = 2 * 1024 * 1024,
-  connect = options => net.createConnection(options)
-} = {}) {
+function createAcbrMonitorTcpTransport({ host = '127.0.0.1', port = 3434, timeoutMs = 30000, maxResponseBytes = 2 * 1024 * 1024, connect = options => net.createConnection(options) } = {}) {
   const safeHost = assertLoopbackHost(host);
   const safePort = assertPort(port);
   const safeTimeout = Math.max(1000, Number(timeoutMs) || 30000);
@@ -236,9 +190,7 @@ function createAcbrMonitorTcpTransport({
         if (error) reject(error); else resolve(value);
       };
       socket.setTimeout?.(safeTimeout);
-      socket.once?.('connect', () => {
-        try { socket.write(`${text}${ACBR_TERMINATOR}`); } catch (error) { finish(error); }
-      });
+      socket.once?.('connect', () => { try { socket.write(`${text}${ACBR_TERMINATOR}`); } catch (error) { finish(error); } });
       socket.on?.('data', chunk => {
         if (settled) return;
         buffer = Buffer.concat([buffer, Buffer.from(chunk)]);
@@ -247,10 +199,7 @@ function createAcbrMonitorTcpTransport({
         const marker = content.indexOf(ACBR_TERMINATOR);
         if (marker >= 0) finish(null, content.slice(0, marker).trim());
       });
-      socket.once?.('timeout', () => {
-        try { socket.destroy?.(); } catch {}
-        finish(new Error('Timeout aguardando resposta do ACBrMonitor.'));
-      });
+      socket.once?.('timeout', () => { try { socket.destroy?.(); } catch {} finish(new Error('Timeout aguardando resposta do ACBrMonitor.')); });
       socket.once?.('error', error => finish(error));
       socket.once?.('close', () => {
         if (!settled && buffer.length) finish(null, buffer.toString('utf8').replace(/\r?\n\.\r?\n?$/, '').trim());
@@ -258,15 +207,7 @@ function createAcbrMonitorTcpTransport({
       });
     });
   }
-
   return Object.freeze({ host:safeHost, port:safePort, send });
 }
 
-module.exports = {
-  ACBR_TERMINATOR,
-  PAYMENT_CODES,
-  assertLoopbackHost,
-  renderNfceIni,
-  parseAcbrResponse,
-  createAcbrMonitorTcpTransport
-};
+module.exports = { ACBR_TERMINATOR, PAYMENT_CODES, assertLoopbackHost, renderNfceIni, parseAcbrResponse, createAcbrMonitorTcpTransport };
