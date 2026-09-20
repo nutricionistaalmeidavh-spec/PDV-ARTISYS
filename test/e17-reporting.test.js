@@ -7,7 +7,9 @@ const {createReportingService}=require('../js/domains/reports/reporting-service'
 
 function fixture(){
   const db=openDatabase(':memory:');runMigrations(db);
-  db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)").run('u1','ana','Ana','cashier','h','s',1,'2026-09-01','2026-09-01');
+  const user=db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)");
+  user.run('u1','ana','Ana','cashier','h','s',1,'2026-09-01','2026-09-01');
+  user.run('u2','bia','Bia','cashier','h','s',1,'2026-09-01','2026-09-01');
   db.prepare("INSERT INTO categories (id,name,active,created_at,updated_at) VALUES ('c1','Geral',1,'2026-09-01','2026-09-01')").run();
   db.prepare("INSERT INTO customers (id,name,active,credit_limit_cents,credit_used_cents,created_at,updated_at) VALUES ('cli1','Maria Cliente',1,0,0,'2026-09-01','2026-09-01')").run();
   const product=db.prepare(`INSERT INTO products (id,sku,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`);
@@ -19,8 +21,11 @@ function fixture(){
   sale.run('s1','V-001','T1','u1','cli1','COMPLETED',2000,0,2000,0,'2026-09-09T10:00:00Z','2026-09-09T10:05:00Z','2026-09-09T10:05:00Z');
   sale.run('s2','V-002','T1','u1',null,'COMPLETED',1000,100,900,0,'2026-09-09T11:00:00Z','2026-09-09T11:05:00Z','2026-09-09T11:05:00Z');
   const item=db.prepare(`INSERT INTO sale_items (id,sale_id,product_id,product_name,sku,quantity,unit_price_cents,total_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`);
-  item.run('i1','s1','p1','Café','SKU1',2,1000,2000,'2026-09-09','2026-09-09');item.run('i2','s2','p1','Café','SKU1',1,1000,1000,'2026-09-09','2026-09-09');
-  const pay=db.prepare("INSERT INTO payments (id,sale_id,method,amount_cents,created_at) VALUES (?,?,?,?,?)");pay.run('pa1','s1','CASH',2000,'2026-09-09');pay.run('pa2','s2','PIX',900,'2026-09-09');
+  item.run('i1','s1','p1','Café','SKU1',2,1000,2000,'2026-09-09','2026-09-09');
+  item.run('i2','s2','p1','Café','SKU1',1,1000,1000,'2026-09-09','2026-09-09');
+  const pay=db.prepare("INSERT INTO payments (id,sale_id,method,amount_cents,created_at) VALUES (?,?,?,?,?)");
+  pay.run('pa1','s1','CASH',2000,'2026-09-09');
+  pay.run('pa2','s2','PIX',900,'2026-09-09');
   db.prepare(`INSERT INTO return_transactions (id,sale_id,terminal_id,operator_id,status,total_cents,reason,created_at) VALUES (?,?,?,?,?,?,?,?)`).run('r1','s1','T1','u1','COMPLETED',1000,'Troca','2026-09-09T12:00:00Z');
   db.prepare(`INSERT INTO return_items (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at) VALUES (?,?,?,?,?,?,?,?,?)`).run('ri1','r1','i1','p1','Café',1,1000,1000,'2026-09-09T12:00:00Z');
   db.prepare(`INSERT INTO cash_sessions (id,terminal_id,operator_id,status,initial_cash_cents,expected_cash_cents,counted_cash_cents,divergence_cents,opened_at,closed_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).run('cs1','T1','u1','CLOSED',500,1400,1300,-100,'2026-09-09T09:00:00Z','2026-09-09T18:00:00Z');
@@ -35,17 +40,42 @@ function fixture(){
   return {db,reports:createReportingService({db,now:()=> '2026-09-10T12:00:00Z'})};
 }
 
-test('sales report aggregates totals, customers, products, payments, returns and operators',()=>{
+test('sales report reconciles customers, products, discounts, payments and returns',()=>{
   const {db,reports}=fixture();
   const r=reports.buildSalesSummary({from:'2026-09-09T00:00:00Z',to:'2026-09-09T23:59:59Z'});
-  assert.equal(r.salesCount,2);assert.equal(r.grossSalesCents,2900);assert.equal(r.returnedCents,1000);assert.equal(r.netSalesCents,1900);assert.equal(r.averageTicketCents,1450);
+  assert.equal(r.salesCount,2);
+  assert.equal(r.subtotalSalesCents,3000);
+  assert.equal(r.salesDiscountCents,100);
+  assert.equal(r.grossSalesCents,2900);
+  assert.equal(r.returnedCents,1000);
+  assert.equal(r.netSalesCents,1900);
+  assert.equal(r.averageTicketCents,1450);
   assert.deepEqual(r.paymentsByMethod,{CASH:2000,PIX:900});
-  const cash=r.paymentMethods.find(row=>row.method==='CASH');assert.equal(cash.grossCents,2000);assert.equal(cash.refundCents,1000);assert.equal(cash.netCents,1000);
-  const customer=r.customerSales.find(row=>row.customerId==='cli1');assert.equal(customer.customerName,'Maria Cliente');assert.equal(customer.grossCents,2000);assert.equal(customer.returnedCents,1000);assert.equal(customer.netCents,1000);
+  const cash=r.paymentMethods.find(row=>row.method==='CASH');
+  assert.equal(cash.grossCents,2000);assert.equal(cash.refundCents,1000);assert.equal(cash.netCents,1000);
+  const customer=r.customerSales.find(row=>row.customerId==='cli1');
+  assert.equal(customer.customerName,'Maria Cliente');assert.equal(customer.grossCents,2000);assert.equal(customer.returnedCents,1000);assert.equal(customer.netCents,1000);
   assert.equal(r.customerSales.find(row=>row.customerId===null).netCents,900);
-  const product=r.productSales.find(row=>row.productId==='p1');assert.equal(product.quantity,3);assert.equal(product.returnedQuantity,1);assert.equal(product.netQuantity,2);assert.equal(product.netCents,2000);
+  const product=r.productSales.find(row=>row.productId==='p1');
+  assert.equal(product.quantity,3);assert.equal(product.returnedQuantity,1);assert.equal(product.netQuantity,2);
+  assert.equal(product.lineGrossCents,3000);assert.equal(product.discountCents,100);assert.equal(product.grossCents,2900);assert.equal(product.returnedCents,1000);assert.equal(product.netCents,1900);assert.equal(product.estimatedMarginCents,700);
+  assert.equal(r.productSales.reduce((sum,row)=>sum+row.grossCents,0),r.grossSalesCents);
   assert.equal(r.estimatedCostCents,1200);assert.equal(r.estimatedMarginCents,700);
   assert.equal(r.operators[0].operatorName,'Ana');assert.equal(r.operators[0].salesCents,2900);
+  db.close();
+});
+
+test('payment-method refunds honor the selected seller scope',()=>{
+  const {db,reports}=fixture();
+  db.prepare(`INSERT INTO sales (id,sale_number,terminal_id,operator_id,status,subtotal_cents,discount_cents,total_cents,change_cents,opened_at,completed_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`).run('s3','V-003','T1','u2','COMPLETED',500,0,500,0,'2026-09-09T13:00:00Z','2026-09-09T13:05:00Z','2026-09-09T13:05:00Z');
+  db.prepare(`INSERT INTO sale_items (id,sale_id,product_id,product_name,sku,quantity,unit_price_cents,total_cents,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`).run('i3','s3','p2','Leite','SKU2',1,500,500,'2026-09-09T13:05:00Z','2026-09-09T13:05:00Z');
+  db.prepare("INSERT INTO payments (id,sale_id,method,amount_cents,created_at) VALUES (?,?,?,?,?)").run('pa3','s3','CASH',500,'2026-09-09T13:05:00Z');
+  db.prepare(`INSERT INTO return_transactions (id,sale_id,terminal_id,operator_id,status,total_cents,reason,created_at) VALUES (?,?,?,?,?,?,?,?)`).run('r2','s3','T1','u2','COMPLETED',500,'Troca','2026-09-09T14:00:00Z');
+  db.prepare(`INSERT INTO return_items (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at) VALUES (?,?,?,?,?,?,?,?,?)`).run('ri2','r2','i3','p2','Leite',1,500,500,'2026-09-09T14:00:00Z');
+  db.prepare(`INSERT INTO cash_movements (id,cash_session_id,type,amount_cents,payment_method,sale_id,note,created_at) VALUES (?,?,?,?,?,?,?,?)`).run('cm7','cs1','REVERSAL',500,'CASH',null,'RETURN:r2:COMPLETED','2026-09-09T14:00:00Z');
+  const filtered=reports.buildSalesSummary({from:'2026-09-09T00:00:00Z',to:'2026-09-09T23:59:59Z',sellerId:'u1'});
+  const cash=filtered.paymentMethods.find(row=>row.method==='CASH');
+  assert.equal(filtered.salesCount,2);assert.equal(filtered.returnedCents,1000);assert.equal(cash.refundCents,1000);assert.equal(cash.netCents,1000);
   db.close();
 });
 
@@ -56,10 +86,11 @@ test('inventory report exposes an actionable minimum-stock purchase list',()=>{
   db.close();
 });
 
-test('cash report separates physical cash entries and exits including refunds and withdrawals',()=>{
+test('cash report separates physical cash from electronic payments and exposes exits',()=>{
   const {db,reports}=fixture();const cash=reports.buildCashSummary({from:'2026-09-09T00:00:00Z',to:'2026-09-09T23:59:59Z'});
   assert.equal(cash.closedSessions,1);assert.equal(cash.divergenceCents,-100);assert.equal(cash.divergentSessions,1);
-  assert.equal(cash.openingCashCents,500);assert.equal(cash.suppliesCents,300);assert.equal(cash.cashSalesCents,2000);assert.equal(cash.withdrawalsCents,400);assert.equal(cash.cashReturnCents,1000);assert.equal(cash.cashOutCents,1400);assert.equal(cash.cashInCents,2800);assert.equal(cash.netCashFlowCents,1400);
+  assert.equal(cash.openingCashCents,500);assert.equal(cash.suppliesCents,300);assert.equal(cash.cashSalesCents,2000);assert.equal(cash.withdrawalsCents,400);assert.equal(cash.cashReturnCents,1000);
+  assert.equal(cash.operatingCashInCents,2300);assert.equal(cash.cashOutCents,1400);assert.equal(cash.operatingNetCashFlowCents,900);assert.equal(cash.expectedCashFromMovementsCents,1400);
   assert.equal(cash.movements.find(row=>row.id==='cm3').signedCents,0);
   db.close();
 });
