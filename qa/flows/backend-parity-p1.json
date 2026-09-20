@@ -17,6 +17,12 @@
     {"action":"waitFor","selector":"[data-module-toggle='RESTAURANT']","name":"p1-restaurant-toggle","timeoutMs":10000},
     {"action":"check","selector":"[data-module-toggle='RESTAURANT']","name":"p1-enable-restaurant"},
     {"action":"waitForTimeout","timeoutMs":300},
+    {"action":"waitFor","selector":"[data-module-toggle='SERVICES']","name":"p1-services-toggle","timeoutMs":10000},
+    {"action":"check","selector":"[data-module-toggle='SERVICES']","name":"p1-enable-services"},
+    {"action":"waitForTimeout","timeoutMs":300},
+    {"action":"waitFor","selector":"[data-module-toggle='WORKSHOP']","name":"p1-workshop-toggle","timeoutMs":10000},
+    {"action":"check","selector":"[data-module-toggle='WORKSHOP']","name":"p1-enable-workshop"},
+    {"action":"waitForTimeout","timeoutMs":300},
 
     {"action":"click","selector":"[data-module-open='PIZZERIA']","name":"p1-open-pizzeria"},
     {"action":"waitFor","selector":"#parity-pizzeria-p1","name":"p1-pizzeria-ui","timeoutMs":10000},
@@ -69,6 +75,23 @@
     {"action":"expectVisible","selector":"#restaurant-transfer-form","name":"p1-restaurant-transfer"},
     {"action":"expectVisible","selector":"#restaurant-merge-form","name":"p1-restaurant-merge"},
     {"action":"expectVisible","selector":"#restaurant-cancel-item-form","name":"p1-restaurant-cancel-item"},
+    {"action":"click","selector":"#vertical-back","name":"p1-back-from-restaurant"},
+
+    {"action":"waitFor","selector":"#ops-load-establishment-modules","name":"p1-modules-services-entry","timeoutMs":10000},
+    {"action":"click","selector":"#ops-load-establishment-modules","name":"p1-reload-modules-services"},
+    {"action":"waitFor","selector":"[data-module-open='SERVICES']","name":"p1-services-open-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-open='SERVICES']","name":"p1-open-services"},
+    {"action":"waitFor","selector":"#backend-services-lifecycle","name":"p1-services-ui","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#services-lifecycle-form","name":"p1-services-lifecycle"},
+    {"action":"click","selector":"#vertical-back","name":"p1-back-from-services"},
+
+    {"action":"waitFor","selector":"#ops-load-establishment-modules","name":"p1-modules-workshop-entry","timeoutMs":10000},
+    {"action":"click","selector":"#ops-load-establishment-modules","name":"p1-reload-modules-workshop"},
+    {"action":"waitFor","selector":"[data-module-open='WORKSHOP']","name":"p1-workshop-open-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-open='WORKSHOP']","name":"p1-open-workshop"},
+    {"action":"waitFor","selector":"#backend-workshop-lifecycle","name":"p1-workshop-ui","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#work-item-form","name":"p1-workshop-item"},
+    {"action":"expectVisible","selector":"#work-status-form","name":"p1-workshop-status"},
     {"action":"screenshot","name":"backend-parity-p1","fullPage":true}
   ]
 }
