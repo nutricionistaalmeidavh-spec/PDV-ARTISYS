@@ -48,14 +48,17 @@ function createFiscalProviderResolver({
   credentialStore = null,
   fetchImpl = globalThis.fetch,
   registry = null,
-  sidecarBaseUrlResolver = () => null
+  sidecarBaseUrlResolver = () => null,
+  sidecarAuthTokenResolver = () => null
 } = {}) {
   if (!store) throw new TypeError('Fiscal connection store is required.');
   if (typeof sidecarBaseUrlResolver !== 'function') throw new TypeError('sidecarBaseUrlResolver must be a function.');
+  if (typeof sidecarAuthTokenResolver !== 'function') throw new TypeError('sidecarAuthTokenResolver must be a function.');
 
   const providerRegistry = registry || createDefaultFiscalProviderRegistry({
     fetchImpl,
-    resolveSidecarBaseUrl:sidecarBaseUrlResolver
+    resolveSidecarBaseUrl:sidecarBaseUrlResolver,
+    resolveSidecarAuthToken:sidecarAuthTokenResolver
   });
 
   return async document => {
@@ -71,7 +74,10 @@ function createFiscalProviderResolver({
       ...secret,
       documentType:document?.documentType || secret.documentType
     };
-    return providerRegistry.create(connection, { sidecarBaseUrl:sidecarBaseUrlResolver() });
+    return providerRegistry.create(connection, {
+      sidecarBaseUrl:sidecarBaseUrlResolver(),
+      sidecarAuthToken:sidecarAuthTokenResolver()
+    });
   };
 }
 
@@ -82,7 +88,8 @@ function registerFiscalIpc({
   isTrustedSender = null,
   fetchImpl = globalThis.fetch,
   providerResolver = null,
-  sidecarBaseUrlResolver = () => null
+  sidecarBaseUrlResolver = () => null,
+  sidecarAuthTokenResolver = () => null
 } = {}) {
   if (!ipcMain || !store) throw new TypeError('ipcMain and fiscal store are required.');
   const trusted = event => typeof isTrustedSender !== 'function' || Boolean(isTrustedSender(event));
@@ -90,7 +97,8 @@ function registerFiscalIpc({
     store,
     credentialStore,
     fetchImpl,
-    sidecarBaseUrlResolver
+    sidecarBaseUrlResolver,
+    sidecarAuthTokenResolver
   });
 
   const handle = (channel, fn) => ipcMain.handle(channel, async (event, input) => {
