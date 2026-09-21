@@ -47,11 +47,10 @@ test('deep Products flow exercises the complete product surface through real UI 
   for (const marker of requiredMarkers) assert.ok(source.includes(marker), `deep Products flow missing ${marker}`);
 });
 
-test('QA photo selection uses a deterministic fixture only under ARTISYS_QA and keeps the production picker intact', () => {
+test('QA photo selection is isolated in the photo bridge and keeps the production picker intact', () => {
   const bridge = read('desktop/product-photo-bridge.cjs');
-  const main = read('desktop/main.cjs');
-  assert.match(main, /ARTISYS_QA/);
-  assert.match(main, /qaProductPhotoFixture/);
+  assert.match(bridge, /process\.env\.ARTISYS_QA\s*!==\s*'1'/);
+  assert.match(bridge, /resolveQaProductPhotoFixture/);
   assert.match(bridge, /qaFixturePath/);
   assert.match(bridge, /dialog\.showOpenDialog/);
   assert.match(bridge, /client\.upload/);
