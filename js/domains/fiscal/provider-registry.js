@@ -43,15 +43,19 @@ function createFiscalProviderRegistry({ factories = {} } = {}) {
 
 function createDefaultFiscalProviderRegistry({
   fetchImpl = globalThis.fetch,
-  resolveSidecarBaseUrl = () => null
+  resolveSidecarBaseUrl = () => null,
+  resolveSidecarAuthToken = () => null
 } = {}) {
+  if (typeof resolveSidecarBaseUrl !== 'function') throw new TypeError('resolveSidecarBaseUrl must be a function.');
+  if (typeof resolveSidecarAuthToken !== 'function') throw new TypeError('resolveSidecarAuthToken must be a function.');
   return createFiscalProviderRegistry({
     factories: {
       focus: connection => createFocusFiscalProvider({ connection, fetchImpl }),
       'acbr-local': (connection, context = {}) => createAcbrLocalProvider({
         connection,
         fetchImpl,
-        baseUrl: context.sidecarBaseUrl || resolveSidecarBaseUrl()
+        baseUrl:context.sidecarBaseUrl || resolveSidecarBaseUrl(),
+        authToken:context.sidecarAuthToken || resolveSidecarAuthToken()
       })
     }
   });
