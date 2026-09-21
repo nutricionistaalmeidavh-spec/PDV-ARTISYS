@@ -38,17 +38,28 @@ jobs:
           $env:WINDOWS_BUILD_RESULT = 'pass'
           npm run release:manifest -- --output dist/release-manifest.json --artifact $installer
           Get-FileHash -Algorithm SHA256 $installer | Format-List
+      - name: Validate updater metadata
+        shell: pwsh
+        run: |
+          $latest = (Get-ChildItem -Path dist -Filter 'latest.yml' | Select-Object -First 1).FullName
+          if (-not $latest) { throw 'latest.yml não foi gerado pelo electron-builder.' }
+          $blockmaps = @(Get-ChildItem -Path dist -Filter '*.blockmap')
+          if ($blockmaps.Count -eq 0) { throw 'Blockmap do updater não foi gerado pelo electron-builder.' }
+          Write-Host "Updater metadata: $latest"
+          $blockmaps | ForEach-Object { Write-Host "Blockmap: $($_.FullName)" }
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
           name: artisys-pdv-windows-x64
           path: |
             dist/*Setup.exe
+            dist/*.blockmap
+            dist/latest.yml
             dist/release-manifest.json
           if-no-files-found: error
           retention-days: 30
-      - name: Publish GitHub Release on version tag
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      - name: Publish GitHub Release for updater
+        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,10 +67,14 @@ jobs:
           $version = node -p "require('./package.json').version"
           $tag = "v$version"
           $installer = (Get-ChildItem -Path dist -Filter '*Setup.exe' | Select-Object -First 1).FullName
+          $latest = (Resolve-Path 'dist/latest.yml').Path
           $manifest = (Resolve-Path 'dist/release-manifest.json').Path
+          $blockmaps = @(Get-ChildItem -Path dist -Filter '*.blockmap' | ForEach-Object { $_.FullName })
+          $assets = @($installer, $latest, $manifest) + $blockmaps
+
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag $installer $manifest --clobber
+            & gh release upload $tag @assets --clobber
           } else {
-            gh release create $tag $installer $manifest --title "ArtiSys PDV $version" --notes-file release/release-notes.md --target $env:GITHUB_SHA
+            & gh release create $tag @assets --title "ArtiSys PDV $version" --notes-file release/release-notes.md --target $env:GITHUB_SHA
           }
