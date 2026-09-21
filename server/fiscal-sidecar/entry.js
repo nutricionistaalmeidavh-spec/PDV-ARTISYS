@@ -4,7 +4,7 @@ const { createFiscalSidecar } = require('./index');
 const { createControlledFiscalAdapter } = require('./controlled-adapter');
 const { createAcbrMonitorTcpTransport } = require('./acbr-monitor-protocol');
 const { createAcbrMonitorAdapter } = require('./acbr-monitor-adapter');
-const {normalizeAuthToken,isProductionEnvironment,assertProductionAdapterMode,normalizeBoundedInteger,sanitizeText}=require('../../js/domains/fiscal/security-hardening');
+const {normalizeAuthToken,isProductionEnvironment,assertProductionAdapterMode,normalizeBoundedInteger,sanitizeText}=require('./security-hardening');
 
 function createAdapter(env=process.env){
  const production=isProductionEnvironment(env);const mode=assertProductionAdapterMode(String(env.ARTISYS_FISCAL_SIDECAR_MODE||'unconfigured').trim().toLowerCase(),{production});
