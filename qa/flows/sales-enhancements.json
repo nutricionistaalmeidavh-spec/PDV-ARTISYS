@@ -10,10 +10,10 @@
     {"action":"waitFor","selector":"#login-form","name":"login-ready","timeoutMs":10000},
     {"action":"fill","selector":"#login-form input[name='username']","value":"qaadmin","name":"login-username"},
     {"action":"fill","selector":"#login-form input[name='password']","value":"QaLocalOnly-12345!","name":"login-password"},
-    {"action":"click","selector":"#login-form button[type='submit']","name":"relogin"},
+    {"action":"click","selector":"#login-form button[type='submit']","name":"qa-login"},
     {"action":"waitFor","selector":"#auth-overlay","state":"hidden","name":"authenticated","timeoutMs":10000},
 
-    {"action":"click","selector":"#sidebar-nav [data-route='sellers']","name":"open-sellers"},
+    {"action":"click","selector":"[data-home-route='sellers']","name":"open-sellers"},
     {"action":"waitFor","selector":"#new-seller","name":"sellers-ready"},
     {"action":"click","selector":"#new-seller","name":"new-seller"},
     {"action":"fill","selector":"#seller-form input[name='name']","value":"QA Vendedor","name":"seller-name"},

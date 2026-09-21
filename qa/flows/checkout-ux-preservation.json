@@ -83,7 +83,7 @@
 
     {"action":"click","selector":"[data-pay=\"card\"]","name":"ux-quick-card"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-card-payment-ready","timeoutMs":10000},
-    {"action":"expectText","selector":".payment-list","expected":"Cartão débito","name":"ux-card-payment-method"},
+    {"action":"expectText","selector":".payment-list","expected":"Cartão crédito / TEF","name":"ux-card-payment-method"},
     {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-card-payment"},
 
     {"action":"click","selector":"[data-pay=\"tef\"]","name":"ux-quick-tef"},
