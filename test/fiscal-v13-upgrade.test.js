@@ -26,7 +26,7 @@ test('upgrade v12 -> v13 is additive, idempotent and preserves legacy rows',()=>
     assert.equal(Number(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v),12);
 
     db.prepare("INSERT INTO categories(id,name,active,created_at,updated_at) VALUES('cat-fiscal','Fiscal',1,?,?)").run(now(),now());
-    db.prepare(`INSERT INTO products(id,category_id,name,sku,unit,sale_price_cents,cost_cents,track_stock,allow_negative_stock,active,created_at,updated_at)
+    db.prepare(`INSERT INTO products(id,category_id,name,sku,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,active,created_at,updated_at)
       VALUES('prod-existing','cat-fiscal','Produto Existente','EX-1','UN',1000,500,1,0,1,?,?)`).run(now(),now());
     const before=db.prepare("SELECT id,name,sku,sale_price_cents FROM products WHERE id='prod-existing'").get();
 
