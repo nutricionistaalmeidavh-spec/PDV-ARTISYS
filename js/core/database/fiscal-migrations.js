@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const FISCAL_SCHEMA_VERSION = 13;
-const FISCAL_MIGRATION_NAME = 'fiscal_configuration_tax_persistence_1_4_0';
+const FISCAL_SCHEMA_VERSION = 14;
+const FISCAL_MIGRATION_NAME = 'fiscal_state_reconciliation_1_4_0';
 
 function columns(db, table) {
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(column => column.name));
@@ -13,12 +13,7 @@ function ensureColumn(db, table, name, definition) {
   if (!columns(db, table).has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
 }
 
-function runFiscalMigrations(db, now = () => new Date().toISOString()) {
-  if (!db) throw new TypeError('Database is required.');
-  const current = Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version || 0);
-  if (current >= FISCAL_SCHEMA_VERSION) return current;
-  if (current < 12) throw new Error('Fiscal Bloco 2 requer schema v12 antes da migracao v13.');
-
+function applyV13(db, now) {
   withTransaction(db, () => {
     db.exec(`
       CREATE TABLE IF NOT EXISTS fiscal_company_settings (
@@ -119,9 +114,49 @@ function runFiscalMigrations(db, now = () => new Date().toISOString()) {
     ensureColumn(db, 'fiscal_documents', 'sefaz_message', 'TEXT');
 
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
-      .run(FISCAL_SCHEMA_VERSION, FISCAL_MIGRATION_NAME, now());
+      .run(13, 'fiscal_configuration_tax_persistence_1_4_0', now());
   });
-  return FISCAL_SCHEMA_VERSION;
+}
+
+function applyV14(db, now) {
+  withTransaction(db, () => {
+    ensureColumn(db, 'fiscal_documents', 'lifecycle_status', "TEXT NOT NULL DEFAULT 'PENDING' CHECK (lifecycle_status IN ('PENDING','PROCESSING','AUTHORIZED','REJECTED','UNKNOWN','FAILED','CANCELLED'))");
+    ensureColumn(db, 'fiscal_documents', 'attempt_count', 'INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0)');
+    ensureColumn(db, 'fiscal_documents', 'reconcile_required', 'INTEGER NOT NULL DEFAULT 0 CHECK (reconcile_required IN (0,1))');
+    ensureColumn(db, 'fiscal_documents', 'processing_started_at', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'last_transition_at', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'last_reconciled_at', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'last_reconcile_status', 'TEXT');
+
+    db.exec(`
+      UPDATE fiscal_documents
+      SET lifecycle_status=CASE status
+        WHEN 'ISSUED' THEN 'AUTHORIZED'
+        WHEN 'FAILED' THEN 'FAILED'
+        WHEN 'CANCELLED' THEN 'CANCELLED'
+        ELSE 'PENDING'
+      END
+      WHERE lifecycle_status='PENDING';
+      CREATE INDEX IF NOT EXISTS idx_fiscal_lifecycle_created ON fiscal_documents(lifecycle_status,created_at);
+      CREATE INDEX IF NOT EXISTS idx_fiscal_reconcile_required ON fiscal_documents(reconcile_required,lifecycle_status,updated_at);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_fiscal_authorized_access_key
+        ON fiscal_documents(access_key)
+        WHERE access_key IS NOT NULL AND lifecycle_status='AUTHORIZED';
+    `);
+
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+      .run(14, FISCAL_MIGRATION_NAME, now());
+  });
+}
+
+function runFiscalMigrations(db, now = () => new Date().toISOString()) {
+  if (!db) throw new TypeError('Database is required.');
+  let current = Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version || 0);
+  if (current >= FISCAL_SCHEMA_VERSION) return current;
+  if (current < 12) throw new Error('Fiscal requer schema v12 antes das migracoes fiscais.');
+  if (current < 13) { applyV13(db, now); current = 13; }
+  if (current < 14) { applyV14(db, now); current = 14; }
+  return current;
 }
 
 module.exports = {
