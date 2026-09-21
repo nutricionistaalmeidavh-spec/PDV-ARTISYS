@@ -4,6 +4,7 @@
     {"uses":"core-business-e2e.json"},
     {"action":"click","selector":"[data-route='settings']","name":"p2-open-settings"},
     {"action":"waitFor","selector":"#fiscal-config-workspace","name":"p2-workspace-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"#fiscal-config-workspace","expected":"P2 · Dados fiscais da empresa","name":"p2-company-visible"},
     {"action":"fill","selector":"#fiscal-company-form input[name='cnpj']","value":"123","name":"p2-invalid-cnpj"},
     {"action":"click","selector":"#fiscal-company-form button[type='submit']","name":"p2-reject-invalid-company"},
     {"action":"waitFor","selector":".toast.error","name":"p2-invalid-company-error","timeoutMs":5000},
@@ -33,6 +34,7 @@
     {"action":"expectText","selector":"#fiscal-company-summary","expected":"12345678000195","name":"p2-company-data-reloaded"},
 
     {"action":"click","selector":"[data-tab='profiles']","name":"p3-open-profiles"},
+    {"action":"expectText","selector":"#fiscal-config-body","expected":"P3 · Perfis tributários","name":"p3-profiles-visible"},
     {"action":"fill","selector":"#fiscal-profile-form input[name='name']","value":"QA Revenda Fiscal","name":"p3-profile-name"},
     {"action":"fill","selector":"#fiscal-profile-form input[name='ncm']","value":"61091000","name":"p3-ncm"},
     {"action":"fill","selector":"#fiscal-profile-form input[name='cfop']","value":"5102","name":"p3-cfop"},
@@ -65,6 +67,7 @@
     {"action":"waitFor","selector":".data-row:has-text('QA Core Stock') [data-edit-product]","name":"p4-core-product-ready","timeoutMs":10000},
     {"action":"click","selector":".data-row:has-text('QA Core Stock') [data-edit-product]","name":"p4-edit-core-product"},
     {"action":"waitFor","selector":"#product-fiscal-fields","name":"p4-fiscal-fields-mounted","timeoutMs":5000},
+    {"action":"expectText","selector":"#product-fiscal-fields","expected":"Dados fiscais","name":"p4-products-visible"},
     {"action":"selectOption","selector":"#product-fiscal-fields select[name='fiscalProfileId']","value":{"label":"QA Revenda Fiscal Editado · NCM 61091000"},"name":"p4-assign-profile"},
     {"action":"fill","selector":"#product-fiscal-fields input[name='fiscalGtin']","value":"7891234567895","name":"p4-gtin"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"p4-save-product-with-fiscal"},
