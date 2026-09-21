@@ -41,3 +41,8 @@ test('variant UI observes only canonical route replacements and locks parent sto
   assert.match(script,/data-parent-has-variants/);
   assert.match(script,/checkbox\.disabled=true/);
 });
+
+test('embedded desktop forwards its local installation credential to product-variant routes',()=>{
+  const main=fs.readFileSync(path.join(__dirname,'../desktop/main.cjs'),'utf8');
+  assert.match(main,/rawPath\.startsWith\('\/api\/v1\/product-variants'\)/);
+});
