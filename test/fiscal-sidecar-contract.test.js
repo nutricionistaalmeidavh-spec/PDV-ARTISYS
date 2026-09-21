@@ -9,9 +9,12 @@ const {
   normalizeLoopbackBaseUrl
 } = require('../js/domains/fiscal/acbr-local-provider');
 
+const TOKEN = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH';
+
 async function withSidecar(mode, fn) {
   const sidecar = createFiscalSidecar({
-    adapter:createControlledFiscalAdapter({ mode }),
+    adapter:createControlledFiscalAdapter({ mode, production:false }),
+    authToken:TOKEN,
     host:'127.0.0.1',
     port:0
   });
@@ -32,13 +35,15 @@ test('contract: acbr-local provider reaches only loopback sidecar and completes 
         environment:'homologation',
         documentType:'nfce'
       },
-      baseUrl
+      baseUrl,
+      authToken:TOKEN
     });
 
     const connection = await provider.testConnection();
     assert.equal(connection.configured, true);
     assert.equal(connection.reachable, true);
     assert.equal(connection.sidecar.loopbackOnly, true);
+    assert.equal(connection.sidecar.authenticated, true);
 
     const issued = await provider.issue({
       documentType:'nfce',
@@ -68,7 +73,8 @@ test('contract: unconfigured sidecar is healthy but refuses fake fiscal authoriz
         environment:'homologation',
         documentType:'nfce'
       },
-      baseUrl
+      baseUrl,
+      authToken:TOKEN
     });
 
     const connection = await provider.testConnection();
