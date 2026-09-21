@@ -2,7 +2,7 @@
 
 A camada fiscal é desacoplada do checkout. A venda é concluída no domínio e a emissão fiscal ocorre por efeito durável/idempotente, permitindo retry sem duplicar os efeitos de venda, estoque e caixa.
 
-## Estado atual — Fiscal Blocos 1 e 3
+## Estado atual — Fiscal Blocos 1, 2 e 3
 
 O núcleo suporta dois providers no contrato:
 
@@ -11,7 +11,51 @@ O núcleo suporta dois providers no contrato:
 
 O provider `acbr-local` conversa somente com o Fiscal Sidecar iniciado pelo Electron em loopback. O modo padrão do sidecar continua sendo `unconfigured`, que recusa emissão em vez de produzir autorização falsa. Os modos `mock-success` e `mock-failure` existem apenas para testes controlados.
 
-O Bloco 3 acrescenta:
+### Bloco 1 — fundação
+
+- invariantes de venda/estoque/caixa protegidos por E2E;
+- provider registry com `acbr-local` e Focus opcional;
+- Fiscal Sidecar local e lifecycle controlado;
+- isolamento de rede em loopback.
+
+### Bloco 2 — configuração, tributação e persistência
+
+O schema fiscal evolui de forma aditiva para v13 e acrescenta:
+
+- `fiscal_company_settings`;
+- `fiscal_profiles`;
+- `product_fiscal_data`;
+- `fiscal_sequences`;
+- `fiscal_certificates_metadata`;
+- `fiscal_document_events`;
+- campos adicionais de autorização, XML, DANFE, contingência e retorno SEFAZ em `fiscal_documents`.
+
+O runtime expõe `fiscalConfiguration` para persistir configuração pública da empresa, perfis fiscais, vínculo produto → perfil e sequência fiscal.
+
+A preparação de uma venda fiscal resolve **todos os produtos antes de consumir numeração**. Se um produto estiver sem perfil fiscal, a venda permanece válida e a sequência não avança.
+
+A reserva do número ocorre dentro de transação SQLite `BEGIN IMMEDIATE`, preservando a sequência entre restart e evitando uma numeração mantida apenas em memória.
+
+O modelo de perfil suporta os campos legados necessários ao builder (`NCM`, `CEST`, `CFOP`, origem, CST/CSOSN, PIS, COFINS e unidade) e preserva identidade da RTC por `CST IBS/CBS` + `cClassTrib`, sem hardcode da tabela oficial que pode ser atualizada ao longo do tempo.
+
+O CNPJ deixou de ser reduzido a somente dígitos no builder fiscal e é preservado como identificador alfanumérico de 14 posições. CNPJs numéricos legados continuam compatíveis.
+
+### Certificado A1 e CSC
+
+PFX, senha e CSC **não são gravados no SQLite**. O Electron usa `safeStorage` e arquivo local protegido no `userData`.
+
+O cofre A1:
+
+- valida o PKCS#12 e a senha usando o runtime TLS do Node;
+- extrai o X.509 sem dependência externa;
+- mantém fingerprint, serial, subject e validade como metadados públicos;
+- não retorna PFX, senha ou CSC em status público;
+- bloqueia o provider ACBr local quando o certificado está ausente, com validade não verificável ou vencido;
+- não interfere no checkout: uma falha dessas bloqueia a emissão fiscal, não a venda.
+
+A tabela `fiscal_certificates_metadata` existe apenas para metadados públicos; material criptográfico continua fora do SQLite comum.
+
+### Bloco 3 — documento e integração ACBr
 
 - `FiscalDocumentBuilder` canônico, independente de provider;
 - preservação dos totais da venda em centavos, sem recálculo fiscal paralelo;
@@ -20,21 +64,20 @@ O Bloco 3 acrescenta:
 - resolução explícita dos dados tributários de cada produto a partir de `fiscalContext`;
 - geração de INI NFC-e modelo 65 para ACBrMonitorPLUS;
 - transporte TCP local para ACBrMonitor com terminador de comando `CRLF . CRLF`;
-- parser de resposta de autorização com `cStat`, chave, protocolo e caminho do XML;
-- adapter `acbr-monitor` disponível somente por opt-in e somente em homologação neste bloco;
+- parser de resposta com `cStat`, chave, protocolo e caminho do XML;
+- adapter `acbr-monitor` somente por opt-in e homologação;
 - E2E determinístico do caminho `Sale -> FiscalDocument -> Sidecar -> ACBr adapter -> autorização normalizada`;
 - E2E externo opt-in para homologação real.
 
-A versão comercial continua sendo tratada como não fiscal enquanto o Bloco 2 não fornecer configuração persistida de certificado/CSC/tributação e enquanto uma autorização externa real em homologação não for executada e registrada como evidência.
+A versão comercial continua sendo tratada como não fiscal enquanto não existir evidência de autorização externa real em homologação, configuração operacional completa do ACBrMonitor e mapeamento validado do layout fiscal vigente.
 
 ## Documento fiscal canônico
 
 Para `acbr-local`, quando `resolveConfiguration()` fornecer `fiscalContext`, o efeito automático de `sale.completed` constrói um documento fiscal canônico antes de chamar `FiscalService.requestIssue()`.
 
-Fluxo:
-
 ```text
 Sale COMPLETED
+  -> fiscalConfiguration
   -> FiscalDocumentBuilder
   -> FiscalDocument
   -> FiscalService
@@ -55,25 +98,25 @@ O builder exige que:
 
 O domínio de vendas não conhece ACBr, XML, CSC, certificado ou SEFAZ.
 
-## Configuração
+## Configuração pública
 
-A configuração fiscal continua protegida fora do renderer pelo armazenamento seguro do sistema operacional.
+Para o core local devem ser persistidos sem segredo:
 
-Para Focus, o token continua obrigatório.
+- provider;
+- documento (`nfce`/`nfe`);
+- ambiente;
+- autoemissão;
+- CNPJ/IE;
+- razão social/nome fantasia;
+- CRT/CNAE;
+- endereço e código IBGE;
+- série;
+- natureza da operação;
+- ID do CSC (o CSC em si permanece no cofre criptografado).
+
+Para Focus, o token continua obrigatório e permanece no armazenamento seguro já existente.
 
 Para `acbr-local`, não existe token de API paga. O endpoint HTTP do sidecar não é configurado pelo usuário: ele é resolvido pelo processo principal e precisa ser loopback local.
-
-O Bloco 2 ainda é necessário para persistir e operar de forma segura:
-
-- certificado A1/PFX e senha;
-- CSC/ID CSC;
-- emitente e endereço fiscal;
-- série e sequência fiscal transacional;
-- perfis tributários/NCM/CFOP/CST/CSOSN/PIS/COFINS;
-- campos tributários vigentes da RTC, incluindo IBS/CBS quando aplicáveis ao cenário e ao cronograma fiscal em vigor;
-- compatibilidade com os schemas vigentes, inclusive evolução de CNPJ alfanumérico.
-
-Até essa etapa existir, o adapter ACBrMonitor pode ser exercitado por configuração técnica explícita em homologação, mas não constitui release fiscal pronto para cliente.
 
 ## Fiscal Sidecar
 
@@ -105,8 +148,6 @@ Essas rotas são contrato local interno e não são API LAN do PDV.
 
 O modo real é deliberadamente opt-in. O default permanece `unconfigured`.
 
-Variáveis técnicas:
-
 ```text
 ARTISYS_FISCAL_SIDECAR_MODE=acbr-monitor
 ARTISYS_ACBR_HOST=127.0.0.1
@@ -114,7 +155,7 @@ ARTISYS_ACBR_PORT=3434
 ARTISYS_ACBR_TIMEOUT_MS=30000
 ```
 
-O adapter do Bloco 3 aceita somente:
+O adapter atual aceita somente:
 
 ```text
 documentType = nfce
@@ -150,9 +191,7 @@ O teste exige retorno `cStat=100`, chave de 44 dígitos, protocolo e caminho do 
 
 ## Falhas e invariantes
 
-Falha de rede/provider/sidecar não deve apagar ou reverter a venda.
-
-O documento permanece pendente/falho conforme o estado persistido e pode ser reenviado pelo domínio fiscal sem repetir efeitos de estoque ou caixa.
+Falha de rede/provider/sidecar/certificado/configuração não deve apagar ou reverter a venda.
 
 Os testes protegem explicitamente:
 
@@ -164,22 +203,26 @@ Os testes protegem explicitamente:
 - instalação sem autoemissão continua operando normalmente;
 - `total fiscal === total canônico da venda`;
 - `cNF` estável em retry;
+- produto sem tributação não consome número fiscal;
+- sequência fiscal persiste após restart;
+- PFX/senha/CSC não aparecem em SQLite nem no status público;
 - rejeição ACBr não vira autorização;
-- provider e ACBrMonitor restritos a loopback;
+- provider e ACBrMonitor permanecem restritos a loopback;
 - Focus opcional continua compatível.
 
 Nunca marque emissão como aprovada sem resposta válida do provider.
 
 ## Homologação real — status
 
-A implementação do protocolo ACBrMonitor e o harness externo estão prontos, mas a evidência externa de autorização permanece pendente enquanto não houver, no ambiente autorizado de teste:
+A estrutura P3–P7 está preparada, mas a evidência externa de autorização continua pendente até existir, no ambiente autorizado de teste:
 
-- ACBrMonitorPLUS configurado;
+- ACBrMonitorPLUS instalado e configurado;
 - certificado A1 válido de homologação;
-- CSC/credenciamento quando aplicável;
+- CSC/credenciamento aplicável;
 - série/numeração de homologação;
-- dados tributários válidos para os itens, incluindo os grupos vigentes da RTC quando aplicáveis;
-- schema fiscal vigente compatível;
+- dados tributários reais dos produtos;
+- mapeamento ACBr compatível com os grupos vigentes da RTC;
+- schemas fiscais vigentes;
 - acesso ao serviço SEFAZ correspondente.
 
-Portanto, o Bloco 3 está **pronto no nível de integração e protocolo ACBr**, mas não deve ser anunciado como NFC-e homologada nem como emissão fiscal pronta para cliente até o Bloco 2 fornecer o contexto fiscal vigente e o `EXTERNAL_E2E` retornar autorização real com evidência registrada.
+Portanto, os Blocos 1–3 não devem ser anunciados como NFC-e homologada nem como emissão fiscal pronta para cliente antes do `EXTERNAL_E2E` retornar autorização real com evidência registrada.
