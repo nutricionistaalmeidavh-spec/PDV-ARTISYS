@@ -29,13 +29,24 @@ function createProductPhotoClient({cacheDir,fetchImpl=fetch,getApiBase,getTermin
   return{startSync,status,dataUrl,upload,remove};
 }
 
-function registerProductPhotoIpc({ipcMain,dialog,nativeImage,client,isTrustedSender=()=>true,getParentWindow=()=>null}={}){
+function registerProductPhotoIpc({ipcMain,dialog,nativeImage,client,isTrustedSender=()=>true,getParentWindow=()=>null,qaFixturePath=null}={}){
   const handle=(channel,fn)=>ipcMain.handle(channel,async(event,input={})=>{if(!isTrustedSender(event))throw new Error('Origem IPC nao autorizada.');return fn(input);});
   handle('artisys:photos:sync',input=>client.startSync(input.sessionToken,{force:Boolean(input.force)}));
   handle('artisys:photos:status',()=>client.status());
   handle('artisys:photos:data-url',input=>client.dataUrl(String(input.productId),input.sessionToken,{variant:input.variant||'thumbnail'}));
   handle('artisys:photos:remove',input=>client.remove(String(input.productId),input.sessionToken));
-  handle('artisys:photos:pick-upload',async input=>{const result=await dialog.showOpenDialog(getParentWindow(),{title:'Selecionar foto do produto',properties:['openFile'],filters:[{name:'Imagens',extensions:['png','jpg','jpeg','webp']}]});if(result.canceled||!result.filePaths[0])return null;const image=nativeImage.createFromPath(result.filePaths[0]);if(image.isEmpty())throw new Error('Nao foi possivel ler a foto selecionada.');const size=image.getSize();const width=Math.min(320,size.width);const thumbnail=image.resize({width,quality:'good'}).toPNG();return client.upload({productId:String(input.productId),filePath:result.filePaths[0],sessionToken:input.sessionToken,thumbnailBytes:thumbnail});});
+  handle('artisys:photos:pick-upload',async input=>{
+    let filePath=qaFixturePath?String(qaFixturePath):'';
+    if(!filePath){
+      const result=await dialog.showOpenDialog(getParentWindow(),{title:'Selecionar foto do produto',properties:['openFile'],filters:[{name:'Imagens',extensions:['png','jpg','jpeg','webp']}]});
+      if(result.canceled||!result.filePaths[0])return null;
+      filePath=result.filePaths[0];
+    }
+    const image=nativeImage.createFromPath(filePath);
+    if(image.isEmpty())throw new Error('Nao foi possivel ler a foto selecionada.');
+    const size=image.getSize();const width=Math.min(320,size.width);const thumbnail=image.resize({width,quality:'good'}).toPNG();
+    return client.upload({productId:String(input.productId),filePath,sessionToken:input.sessionToken,thumbnailBytes:thumbnail});
+  });
 }
 
 module.exports={createProductPhotoClient,registerProductPhotoIpc,dayKey,MIME_BY_EXTENSION};
