@@ -15,6 +15,7 @@ const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
+const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -221,8 +222,11 @@ app.whenReady().then(async () => {
   });
 
   if (shouldStartEmbeddedServer(bootstrapConfig)) {
+    const fiscalRuntimePaths = resolveFiscalRuntimePaths({ app, processObj:process, dirname:__dirname });
     fiscalSidecar = createFiscalSidecarRuntime({
       env:process.env,
+      entryPath:fiscalRuntimePaths.sidecarEntryPath,
+      cwd:fiscalRuntimePaths.runtimeDir,
       onError:error => console.error(error)
     });
     try {
