@@ -1,6 +1,13 @@
 'use strict';
 
 const http = require('node:http');
+const {
+  normalizeAuthToken,
+  authorizeRequest,
+  sanitizeText,
+  sanitizeValue,
+  normalizeBoundedInteger
+} = require('../../js/domains/fiscal/security-hardening');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1']);
 const DOCUMENT_TYPES = new Set(['nfce', 'nfe']);
@@ -17,17 +24,26 @@ function normalizePort(value) {
   return port;
 }
 
-function sendJson(res, statusCode, payload) {
+function sendJson(res, statusCode, payload, extraHeaders = {}) {
+  if (res.headersSent || res.destroyed) return;
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     'content-type':'application/json; charset=utf-8',
     'content-length':Buffer.byteLength(body),
-    'cache-control':'no-store'
+    'cache-control':'no-store',
+    'x-content-type-options':'nosniff',
+    ...extraHeaders
   });
   res.end(body);
 }
 
 async function readJson(req, maxBytes) {
+  const contentLength = Number(req.headers['content-length'] || 0);
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    const error = new Error('Payload fiscal local excede o limite permitido.');
+    error.statusCode = 413;
+    throw error;
+  }
   const chunks = [];
   let total = 0;
   for await (const chunk of req) {
@@ -78,27 +94,48 @@ function normalizeAdapterResult(result) {
   return {
     ok:Boolean(result.ok),
     status:Number(result.status || (result.ok ? 200 : 500)),
-    data:result.data ?? null,
-    error:result.error ? String(result.error) : null
+    data:sanitizeValue(result.data ?? null),
+    error:result.error ? sanitizeText(result.error) : null
   };
 }
 
 function createFiscalSidecar({
   adapter,
+  authToken,
   host = '127.0.0.1',
   port = 0,
-  maxBodyBytes = 1024 * 1024
+  maxBodyBytes = 512 * 1024,
+  requestTimeoutMs = 45000,
+  headersTimeoutMs = 5000,
+  maxHeadersCount = 32
 } = {}) {
   if (!adapter || typeof adapter !== 'object') throw new TypeError('Fiscal adapter is required.');
   for (const method of ['status','issue','query','cancel']) {
     if (typeof adapter[method] !== 'function') throw new TypeError(`Fiscal adapter must implement ${method}().`);
   }
 
+  const safeToken = normalizeAuthToken(authToken);
   const safeHost = assertLoopbackHost(host);
   const safePort = normalizePort(port);
+  const safeMaxBodyBytes = normalizeBoundedInteger(maxBodyBytes, {
+    name:'Limite de payload fiscal', fallback:512 * 1024, min:16 * 1024, max:2 * 1024 * 1024
+  });
+  const safeRequestTimeoutMs = normalizeBoundedInteger(requestTimeoutMs, {
+    name:'Timeout de requisicao fiscal', fallback:45000, min:5000, max:120000
+  });
+  const safeHeadersTimeoutMs = normalizeBoundedInteger(headersTimeoutMs, {
+    name:'Timeout de headers fiscal', fallback:5000, min:1000, max:Math.min(30000, safeRequestTimeoutMs)
+  });
+  const safeMaxHeadersCount = normalizeBoundedInteger(maxHeadersCount, {
+    name:'Limite de headers fiscal', fallback:32, min:8, max:64
+  });
   let server = null;
 
   async function handle(req, res) {
+    if (!authorizeRequest(req, safeToken)) {
+      return sendJson(res, 401, { error:'Nao autorizado.' }, { 'www-authenticate':'Bearer' });
+    }
+
     const origin = `http://${safeHost === '::1' ? '[::1]' : safeHost}`;
     const url = new URL(req.url || '/', origin);
     const method = String(req.method || 'GET').toUpperCase();
@@ -109,6 +146,7 @@ function createFiscalSidecar({
         healthy:true,
         service:'artisys-fiscal-sidecar',
         loopbackOnly:true,
+        authenticated:true,
         adapter:{
           ok:adapterStatus.ok,
           status:adapterStatus.status,
@@ -131,7 +169,10 @@ function createFiscalSidecar({
 
     if (isCancel) {
       if (method !== 'POST') return sendJson(res, 405, { error:'Metodo nao permitido.' });
-      const body = await readJson(req, maxBodyBytes);
+      if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) {
+        return sendJson(res, 415, { error:'Content-Type fiscal deve ser application/json.' });
+      }
+      const body = await readJson(req, safeMaxBodyBytes);
       const result = await adapter.cancel({
         type,
         reference,
@@ -142,7 +183,10 @@ function createFiscalSidecar({
     }
 
     if (method === 'POST') {
-      const body = await readJson(req, maxBodyBytes);
+      if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) {
+        return sendJson(res, 415, { error:'Content-Type fiscal deve ser application/json.' });
+      }
+      const body = await readJson(req, safeMaxBodyBytes);
       const result = await adapter.issue({
         type,
         reference,
@@ -170,11 +214,15 @@ function createFiscalSidecar({
       Promise.resolve(handle(req, res)).catch(error => {
         const statusCode = Number(error?.statusCode || 500);
         sendJson(res, statusCode >= 400 && statusCode <= 599 ? statusCode : 500, {
-          error:error?.message || String(error)
+          error:sanitizeText(error?.message || String(error))
         });
       });
     });
     server.keepAliveTimeout = 5000;
+    server.requestTimeout = safeRequestTimeoutMs;
+    server.headersTimeout = safeHeadersTimeoutMs;
+    server.maxHeadersCount = safeMaxHeadersCount;
+    server.maxRequestsPerSocket = 100;
     return new Promise((resolve, reject) => {
       const onError = error => {
         server?.removeListener('listening', onListening);
