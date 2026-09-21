@@ -110,8 +110,8 @@ test('Products extension modules keep their DOM hooks and canonical features', (
   const kits = read('desktop/renderer/kits-combos-ui.js');
   requireMarkers(kits, [
     'Kits e combos',
-    'data-new-kit',
-    'data-new-combo',
+    'dataset.newKit',
+    'dataset.newCombo',
     'data-edit-kit',
     'data-edit-combo',
     'saveKit',
