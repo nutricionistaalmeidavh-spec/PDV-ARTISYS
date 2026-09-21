@@ -37,7 +37,7 @@
     {"action":"selectOption","selector":"#product-form select[name='categoryId']","value":{"label":"QA Deep Category"},"name":"products-deep-product-category"},
     {"action":"fill","selector":"#product-form input[name='salePrice']","value":"33,00","name":"products-deep-product-price"},
     {"action":"fill","selector":"#product-form input[name='cost']","value":"12,00","name":"products-deep-product-cost"},
-    {"action":"fill","selector":"#product-form input[name='minimumStock']","value":"1","name":"products-deep-product-minimum"},
+    {"action":"fill","selector":"#product-form input[name='minimumStock']","value":"3","name":"products-deep-product-minimum"},
     {"action":"selectOption","selector":"#product-fiscal-fields select[name='fiscalProfileId']","value":{"label":"QA Deep Fiscal · NCM 61091000"},"name":"products-deep-product-fiscal-profile"},
     {"action":"fill","selector":"#product-fiscal-fields input[name='fiscalGtin']","value":"7891234567895","name":"products-deep-product-gtin"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"products-deep-save-product"},
