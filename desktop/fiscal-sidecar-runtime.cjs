@@ -2,8 +2,21 @@
 
 const path = require('node:path');
 const { fork } = require('node:child_process');
+const { randomBytes } = require('node:crypto');
+const {
+  normalizeAuthToken,
+  isProductionEnvironment,
+  normalizeBoundedInteger,
+  sanitizeText
+} = require('../js/domains/fiscal/security-hardening');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1']);
+const ENV_PASSTHROUGH = new Set([
+  'PATH','Path','SystemRoot','WINDIR','ComSpec','TEMP','TMP','HOME','USERPROFILE','LOCALAPPDATA','APPDATA','NODE_ENV',
+  'ARTISYS_FISCAL_SIDECAR_MODE','ARTISYS_FISCAL_SIDECAR_MAX_BODY_BYTES',
+  'ARTISYS_FISCAL_SIDECAR_REQUEST_TIMEOUT_MS','ARTISYS_FISCAL_SIDECAR_HEADERS_TIMEOUT_MS',
+  'ARTISYS_ACBR_HOST','ARTISYS_ACBR_PORT','ARTISYS_ACBR_TIMEOUT_MS'
+]);
 
 function assertLoopbackHost(host) {
   const value = String(host || '').trim();
@@ -21,6 +34,15 @@ function endpointFor(host, port) {
   return `http://${host === '::1' ? '[::1]' : host}:${port}`;
 }
 
+function buildSidecarEnv(source = {}, overrides = {}) {
+  const output = {};
+  for (const key of ENV_PASSTHROUGH) {
+    if (source[key] !== undefined) output[key] = String(source[key]);
+  }
+  for (const [key, value] of Object.entries(overrides)) output[key] = String(value);
+  return output;
+}
+
 function createFiscalSidecarRuntime({
   entryPath = path.join(__dirname, '..', 'server', 'fiscal-sidecar', 'entry.js'),
   forkImpl = fork,
@@ -28,6 +50,8 @@ function createFiscalSidecarRuntime({
   env = process.env,
   host = '127.0.0.1',
   port = 0,
+  authToken = randomBytes(32).toString('base64url'),
+  production = isProductionEnvironment(env),
   readyTimeoutMs = 10000,
   restartDelayMs = 250,
   maxRestarts = 3,
@@ -35,6 +59,16 @@ function createFiscalSidecarRuntime({
 } = {}) {
   const safeHost = assertLoopbackHost(host);
   const safePort = normalizePort(port);
+  const safeToken = normalizeAuthToken(authToken);
+  const safeReadyTimeoutMs = normalizeBoundedInteger(readyTimeoutMs, {
+    name:'Timeout de startup do fiscal sidecar', fallback:10000, min:1000, max:30000
+  });
+  const safeRestartDelayMs = normalizeBoundedInteger(restartDelayMs, {
+    name:'Delay de restart do fiscal sidecar', fallback:250, min:0, max:10000
+  });
+  const safeMaxRestarts = normalizeBoundedInteger(maxRestarts, {
+    name:'Limite de restarts do fiscal sidecar', fallback:3, min:0, max:10
+  });
   if (typeof forkImpl !== 'function') throw new TypeError('forkImpl is required.');
   if (typeof onError !== 'function') throw new TypeError('onError must be a function.');
 
@@ -49,23 +83,24 @@ function createFiscalSidecarRuntime({
     return {
       execPath,
       silent:true,
-      env:{
-        ...env,
+      env:buildSidecarEnv(env, {
         ELECTRON_RUN_AS_NODE:'1',
         ARTISYS_FISCAL_SIDECAR_HOST:safeHost,
-        ARTISYS_FISCAL_SIDECAR_PORT:String(safePort)
-      }
+        ARTISYS_FISCAL_SIDECAR_PORT:String(safePort),
+        ARTISYS_FISCAL_SIDECAR_TOKEN:safeToken,
+        ARTISYS_FISCAL_PRODUCTION:production ? '1' : '0'
+      })
     };
   }
 
   function scheduleRestart() {
-    if (stopping || restartTimer || restartCount >= maxRestarts) return;
+    if (stopping || restartTimer || restartCount >= safeMaxRestarts) return;
     restartCount += 1;
     restartTimer = setTimeout(() => {
       restartTimer = null;
       startPromise = null;
       void start().catch(error => { onError(error); scheduleRestart(); });
-    }, Math.max(0, Number(restartDelayMs) || 0));
+    }, safeRestartDelayMs);
     restartTimer.unref?.();
   }
 
@@ -92,7 +127,7 @@ function createFiscalSidecarRuntime({
 
       const onMessage = message => {
         if (message?.type === 'artisys:fiscal-sidecar:error') {
-          failStartup(new Error(message.error || 'Falha ao iniciar fiscal sidecar.'));
+          failStartup(new Error(sanitizeText(message.error || 'Falha ao iniciar fiscal sidecar.')));
           return;
         }
         if (message?.type !== 'artisys:fiscal-sidecar:ready') return;
@@ -109,11 +144,11 @@ function createFiscalSidecarRuntime({
         resolve({ baseUrl, pid:next.pid, host:safeHost, port:readyPort });
       };
 
-      const onStartupError = error => failStartup(error);
+      const onStartupError = error => failStartup(new Error(sanitizeText(error?.message || error)));
       const timer = setTimeout(() => {
         next.kill();
         failStartup(new Error('Tempo limite ao iniciar fiscal sidecar.'));
-      }, Math.max(1000, Number(readyTimeoutMs) || 10000));
+      }, safeReadyTimeoutMs);
       timer.unref?.();
 
       next.on('message', onMessage);
@@ -135,7 +170,7 @@ function createFiscalSidecarRuntime({
       });
 
       next.stderr?.on('data', chunk => {
-        const message = String(chunk || '').trim();
+        const message = sanitizeText(String(chunk || '').trim());
         if (message) onError(new Error(`Fiscal sidecar: ${message}`));
       });
     });
@@ -164,6 +199,9 @@ function createFiscalSidecarRuntime({
     baseUrl = null;
     if (!current) return;
 
+    const safeStopTimeoutMs = normalizeBoundedInteger(timeoutMs, {
+      name:'Timeout de parada do fiscal sidecar', fallback:3000, min:250, max:15000
+    });
     await new Promise(resolve => {
       let done = false;
       const finish = () => {
@@ -175,7 +213,7 @@ function createFiscalSidecarRuntime({
       const timer = setTimeout(() => {
         try { current.kill('SIGKILL'); } catch {}
         finish();
-      }, Math.max(250, Number(timeoutMs) || 3000));
+      }, safeStopTimeoutMs);
       timer.unref?.();
       current.once('exit', finish);
       try {
@@ -193,7 +231,8 @@ function createFiscalSidecarRuntime({
       baseUrl,
       pid:child?.pid || null,
       restartCount,
-      loopbackOnly:true
+      loopbackOnly:true,
+      authenticated:true
     };
   }
 
@@ -201,12 +240,18 @@ function createFiscalSidecarRuntime({
     return baseUrl;
   }
 
-  return Object.freeze({ start, stop, status, getBaseUrl });
+  function getAuthToken() {
+    return safeToken;
+  }
+
+  return Object.freeze({ start, stop, status, getBaseUrl, getAuthToken });
 }
 
 module.exports = {
   LOOPBACK_HOSTS,
+  ENV_PASSTHROUGH,
   assertLoopbackHost,
   endpointFor,
+  buildSidecarEnv,
   createFiscalSidecarRuntime
 };
