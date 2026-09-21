@@ -11,6 +11,12 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+function waitState(step) {
+  if (step.state) return step.state;
+  const selector = typeof step.selector === 'string' ? step.selector : '';
+  return /\boption(?=[:.\[#\s>+~]|$)/.test(selector) ? 'attached' : 'visible';
+}
+
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
@@ -28,7 +34,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
-    case 'waitFor': await locator(page, step).waitFor({ state: step.state || 'visible', timeout: step.timeoutMs }); break;
+    case 'waitFor': await locator(page, step).waitFor({ state: waitState(step), timeout: step.timeoutMs }); break;
     case 'waitForTimeout': await page.waitForTimeout(step.timeoutMs ?? 250); break;
     case 'expectVisible': {
       if (!(await locator(page, step).isVisible())) throw new Error(`${label}: expected locator to be visible`);
