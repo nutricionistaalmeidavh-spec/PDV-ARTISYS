@@ -21,6 +21,12 @@ function digits(value) {
   return String(value ?? '').replace(/\D/g, '');
 }
 
+function normalizeCnpj(value) {
+  const normalized=String(value??'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  if(normalized.length!==14) throw new Error('CNPJ do emitente deve possuir 14 caracteres alfanumericos.');
+  return normalized;
+}
+
 function deriveNumericCode({ issuerCnpj, model, series, number, reference }) {
   const seed = [issuerCnpj, model, series, number, reference].map(value => String(value ?? '').trim()).join('|');
   const digest = createHash('sha256').update(seed, 'utf8').digest();
@@ -54,6 +60,12 @@ function allocateDiscountCents(items = [], discountCents = 0) {
 
 function validateFiscalTax(tax, productId, crt) {
   if (!tax || typeof tax !== 'object') throw new Error(`Dados fiscais ausentes para produto ${productId}.`);
+  const ibsCbsCst=tax.ibsCbsCst?String(tax.ibsCbsCst).trim():null;
+  const cClassTrib=tax.cClassTrib?String(tax.cClassTrib).trim():null;
+  if(Boolean(ibsCbsCst)!==Boolean(cClassTrib)) throw new Error(`CST IBS/CBS e cClassTrib devem ser informados em conjunto para produto ${productId}.`);
+  if(ibsCbsCst && (!/^\d{3}$/.test(ibsCbsCst)||!/^\d{6}$/.test(cClassTrib)||!cClassTrib.startsWith(ibsCbsCst))) {
+    throw new Error(`Identidade IBS/CBS invalida para produto ${productId}.`);
+  }
   const normalized = {
     ncm:requiredText(tax.ncm, `NCM do produto ${productId}`),
     cest:tax.cest ? String(tax.cest).trim() : null,
@@ -64,6 +76,9 @@ function validateFiscalTax(tax, productId, crt) {
     icmsCst:tax.icmsCst ? String(tax.icmsCst).trim() : null,
     pisCst:requiredText(tax.pisCst, `CST PIS do produto ${productId}`),
     cofinsCst:requiredText(tax.cofinsCst, `CST COFINS do produto ${productId}`),
+    gtin:tax.gtin ? String(tax.gtin).trim() : null,
+    ibsCbsCst,
+    cClassTrib,
     rtc:tax.rtc && typeof tax.rtc === 'object' ? structuredClone(tax.rtc) : null
   };
   if (String(crt) === '1' && !normalized.csosn) throw new Error(`CSOSN obrigatorio para produto ${productId}.`);
@@ -83,10 +98,10 @@ function buildFiscalDocument({ sale, fiscalContext, documentType = 'nfce', envir
   const addressInput = issuerInput.address && typeof issuerInput.address === 'object' ? issuerInput.address : {};
   const crt = requiredText(issuerInput.crt, 'CRT do emitente');
   const issuer = {
-    cnpj:requiredText(digits(issuerInput.cnpj), 'CNPJ do emitente'),
+    cnpj:normalizeCnpj(issuerInput.cnpj),
     legalName:requiredText(issuerInput.legalName, 'Razao social do emitente'),
     tradeName:String(issuerInput.tradeName || issuerInput.legalName || '').trim(),
-    stateRegistration:requiredText(digits(issuerInput.stateRegistration), 'Inscricao estadual do emitente'),
+    stateRegistration:requiredText(String(issuerInput.stateRegistration??'').replace(/\s/g,''), 'Inscricao estadual do emitente'),
     crt,
     address:{
       street:requiredText(addressInput.street, 'Logradouro do emitente'),
@@ -172,6 +187,7 @@ function buildFiscalDocument({ sale, fiscalContext, documentType = 'nfce', envir
 
 module.exports = {
   DOCUMENT_MODELS,
+  normalizeCnpj,
   deriveNumericCode,
   allocateDiscountCents,
   buildFiscalDocument
