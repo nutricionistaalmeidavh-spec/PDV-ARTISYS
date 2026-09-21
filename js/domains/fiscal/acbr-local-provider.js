@@ -1,6 +1,11 @@
 'use strict';
 
 const { validateSecretConnection, publicConnection, validateReference } = require('./fiscal-core');
+const {
+  normalizeAuthToken,
+  normalizeBoundedInteger,
+  sanitizeText
+} = require('./security-hardening');
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
 
@@ -22,14 +27,26 @@ function normalizeLoopbackBaseUrl(value) {
 function createAcbrLocalProvider({
   connection,
   baseUrl,
+  authToken,
   fetchImpl = globalThis.fetch,
   timeoutMs = 10000,
+  maxRequestBytes = 512 * 1024,
   maxResponseBytes = 2 * 1024 * 1024
 } = {}) {
   const localConnection = validateSecretConnection(connection);
   if (localConnection.provider !== 'acbr-local') throw new Error('Provedor fiscal local nao suportado.');
   if (typeof fetchImpl !== 'function') throw new TypeError('fetchImpl is required.');
   const endpoint = normalizeLoopbackBaseUrl(baseUrl);
+  const safeToken = normalizeAuthToken(authToken);
+  const safeTimeoutMs = normalizeBoundedInteger(timeoutMs, {
+    name:'Timeout do provider fiscal local', fallback:10000, min:1000, max:60000
+  });
+  const safeMaxRequestBytes = normalizeBoundedInteger(maxRequestBytes, {
+    name:'Limite de request fiscal local', fallback:512 * 1024, min:16 * 1024, max:2 * 1024 * 1024
+  });
+  const safeMaxResponseBytes = normalizeBoundedInteger(maxResponseBytes, {
+    name:'Limite de resposta fiscal local', fallback:2 * 1024 * 1024, min:64 * 1024, max:4 * 1024 * 1024
+  });
 
   function documentType(value) {
     const type = String(value || localConnection.documentType).trim().toLowerCase();
@@ -39,13 +56,21 @@ function createAcbrLocalProvider({
 
   async function request(pathname, { method = 'GET', body } = {}) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.max(1000, Number(timeoutMs) || 10000));
+    const timer = setTimeout(() => controller.abort(), safeTimeoutMs);
     try {
-      const headers = { accept:'application/json' };
+      const headers = {
+        accept:'application/json',
+        authorization:`Bearer ${safeToken}`
+      };
       let payload;
       if (body !== undefined) {
         headers['content-type'] = 'application/json';
         payload = JSON.stringify(body);
+        if (Buffer.byteLength(payload, 'utf8') > safeMaxRequestBytes) {
+          const error = new Error('Payload fiscal local excede o limite permitido.');
+          error.statusCode = 413;
+          throw error;
+        }
       }
       const response = await fetchImpl(`${endpoint}${pathname}`, {
         method,
@@ -54,7 +79,7 @@ function createAcbrLocalProvider({
         signal:controller.signal
       });
       const text = await response.text();
-      if (Buffer.byteLength(text, 'utf8') > maxResponseBytes) throw new Error('Resposta fiscal local excede o limite permitido.');
+      if (Buffer.byteLength(text, 'utf8') > safeMaxResponseBytes) throw new Error('Resposta fiscal local excede o limite permitido.');
       let data = null;
       if (text) {
         try { data = JSON.parse(text); }
@@ -64,11 +89,16 @@ function createAcbrLocalProvider({
         ok:Boolean(response.ok),
         status:Number(response.status || 0),
         data,
-        error:response.ok ? null : String(data?.error || data?.message || `HTTP ${response.status || 0}`)
+        error:response.ok ? null : sanitizeText(data?.error || data?.message || `HTTP ${response.status || 0}`)
       };
     } catch (error) {
       if (error?.name === 'AbortError') return { ok:false, status:408, data:null, error:'Tempo limite na comunicacao com o fiscal sidecar.' };
-      return { ok:false, status:0, data:null, error:error?.message || String(error) };
+      return {
+        ok:false,
+        status:Number(error?.statusCode || 0),
+        data:null,
+        error:sanitizeText(error?.message || String(error))
+      };
     } finally {
       clearTimeout(timer);
     }
@@ -84,7 +114,7 @@ function createAcbrLocalProvider({
       ok:Boolean(result.ok),
       status:Number(result.status || (result.ok ? 200 : 500)),
       data:result.data ?? null,
-      error:result.error ? String(result.error) : null
+      error:result.error ? sanitizeText(result.error) : null
     };
   }
 
