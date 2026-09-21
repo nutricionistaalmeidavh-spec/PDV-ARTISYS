@@ -111,3 +111,29 @@ test('checkout styling is override-only and preserves established operational se
   const css=read('desktop/renderer/ux-home-checkout.css');
   for(const marker of ['.checkout-layout','.product-grid','.product-card','.sale-panel','.cart-list','.payment-strip','.finalize-button']) assert.match(css,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
 });
+
+test('release QA covers dynamic Home modules and checkout exception flows',()=>{
+  const manifest=JSON.parse(read('qa/artisys-qa.config.json'));
+  assert.equal(manifest.flows['sales-enhancements'],'flows/sales-enhancements.json');
+  assert.equal(manifest.flows['checkout-ux-preservation'],'flows/checkout-ux-preservation.json');
+  for(const profileName of ['full','release']) {
+    assert.ok(manifest.qaProfiles[profileName].flows.includes('sales-enhancements'));
+    assert.ok(manifest.qaProfiles[profileName].flows.includes('checkout-ux-preservation'));
+  }
+  assert.ok(manifest.qaProfiles.release.criticalFlows.includes('sales-enhancements'));
+  assert.ok(manifest.qaProfiles.release.criticalFlows.includes('checkout-ux-preservation'));
+
+  const home=read('qa/flows/home.json');
+  assert.match(home,/#route-content \[data-restaurant-route\]/);
+
+  const flow=read('qa/flows/checkout-ux-preservation.json');
+  for(const marker of [
+    '#customer-search','data-customer-id','#clear-cart','#discount-percent','#suspend-sale','data-resume',
+    '#cancel-sale','#confirm-cancel','data-pay=\"cash\"','data-pay=\"card\"','data-pay=\"pix\"','data-pay=\"tef\"',
+    '#new-payment-method','#add-payment','#confirm-payment','checkout-ux-final'
+  ]) assert.ok(flow.includes(marker),`missing QA marker: ${marker}`);
+
+  const workflow=read('.github/workflows/verify.yml');
+  assert.match(workflow,/Run checkout UX exceptions at 1366x768/);
+  assert.match(workflow,/--flow checkout-ux-preservation --viewport compactDesktop/);
+});
