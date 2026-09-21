@@ -91,6 +91,17 @@ test('dense controller adds stock filtering and Ctrl+K while preserving canonica
   ], 'dense interaction');
 });
 
+test('dense controller does not drop a canonical Products rerender while an async decoration is in flight', () => {
+  const controller = read('desktop/renderer/products-dense-controller.js');
+  includesAll(controller, [
+    'rerunRequested',
+    'rerunForceProducts',
+    'if (decorating)',
+    'rerunRequested = true',
+    'scheduleDecorate({ forceProducts: rerunForceProducts })'
+  ], 'dense rerender recovery');
+});
+
 test('variants, fiscal fields and kits/combos remain connected through the original DOM hooks', () => {
   const variants = read('desktop/renderer/product-variants-ui.js');
   const fiscal = read('desktop/renderer/product-fiscal-fields.js');
