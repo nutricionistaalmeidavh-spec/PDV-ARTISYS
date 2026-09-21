@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
+const { FISCAL_SCHEMA_VERSION } = require('../js/core/database/fiscal-migrations');
 const { buildFiscalDocument } = require('../js/domains/fiscal/fiscal-document-builder');
 
 function tempDatabase() {
@@ -72,7 +73,9 @@ test('P3-P5 migrate additively, persist fiscal configuration and survive restart
     let runtime = createPdvRuntime({ dbPath });
     assert.ok(runtime.fiscalConfiguration, 'runtime must expose fiscalConfiguration');
     const version = Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);
-    assert.equal(version, 13);
+    assert.equal(version, FISCAL_SCHEMA_VERSION);
+    assert.equal(Number(runtime.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations WHERE version=13').get().count), 1,
+      'P3-P5 migration v13 must remain applied exactly once');
 
     runtime.catalog.upsertProduct({ id:'prod-fiscal', name:'Produto Fiscal', sku:'PF-1', unit:'UN', salePriceCents:1000, costCents:500 }, actor);
     runtime.catalog.upsertProduct({ id:'prod-sem-fiscal', name:'Produto Sem Fiscal', sku:'PSF-1', unit:'UN', salePriceCents:1000, costCents:500 }, actor);
