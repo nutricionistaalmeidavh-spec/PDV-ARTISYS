@@ -80,6 +80,13 @@ function rowToCustomer(row) {
     id: row.id, name: row.name, document: row.document, phone: row.phone, email: row.email, notes: row.notes,
     address: addressFromRow(row),
     creditLimitCents: row.credit_limit_cents, creditUsedCents: row.credit_used_cents, active: Boolean(row.active),
+    lastSale: row.last_sale_id ? {
+      id: row.last_sale_id,
+      saleNumber: row.last_sale_number || null,
+      totalCents: Number(row.last_sale_total_cents ?? 0),
+      openedAt: row.last_sale_opened_at || null,
+      completedAt: row.last_sale_completed_at || null
+    } : null,
     createdAt: row.created_at, updatedAt: row.updated_at
   };
 }
@@ -161,6 +168,18 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     return db.prepare(sql).all().map(rowToProduct);
   }
 
+  function customerSelect(where = '') {
+    return `SELECT c.*,
+      ls.id AS last_sale_id,ls.sale_number AS last_sale_number,ls.total_cents AS last_sale_total_cents,
+      ls.opened_at AS last_sale_opened_at,ls.completed_at AS last_sale_completed_at
+      FROM customers c
+      LEFT JOIN sales ls ON ls.id=(
+        SELECT s.id FROM sales s
+        WHERE s.customer_id=c.id AND s.status='COMPLETED'
+        ORDER BY COALESCE(s.completed_at,s.opened_at) DESC,s.id DESC LIMIT 1
+      ) ${where}`;
+  }
+
   function upsertCustomer(input = {}, actor = null) {
     const id = String(input.id || idFactory('cust')).trim();
     const name = String(input.name || '').trim();
@@ -188,14 +207,14 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   }
 
   function getCustomer(id) {
-    return rowToCustomer(db.prepare('SELECT * FROM customers WHERE id=?').get(String(id)));
+    return rowToCustomer(db.prepare(customerSelect('WHERE c.id=?')).get(String(id)));
   }
 
   function listCustomers({ includeInactive = false } = {}) {
-    const rows = includeInactive
-      ? db.prepare('SELECT * FROM customers ORDER BY name,id').all()
-      : db.prepare('SELECT * FROM customers WHERE active=1 ORDER BY name,id').all();
-    return rows.map(rowToCustomer);
+    const sql = includeInactive
+      ? `${customerSelect()} ORDER BY c.name,c.id`
+      : `${customerSelect('WHERE c.active=1')} ORDER BY c.name,c.id`;
+    return db.prepare(sql).all().map(rowToCustomer);
   }
 
   function upsertSupplier(input = {}, actor = null) {
