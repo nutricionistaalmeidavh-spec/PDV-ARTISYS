@@ -97,7 +97,7 @@ test('variants, fiscal fields and kits/combos remain connected through the origi
   const kits = read('desktop/renderer/kits-combos-ui.js');
   includesAll(variants, ['.page .data-card', '.data-row', '[data-edit-product]', 'data-new-product-variant', 'data-edit-product-variant'], 'variants');
   includesAll(fiscal, ['#product-form', '#new-product', '[data-edit-product]', 'fiscalProfileId', 'fiscalGtin'], 'fiscal');
-  includesAll(kits, ['Kits e combos', 'data-new-kit', 'data-new-combo', 'data-edit-kit', 'data-edit-combo'], 'kits/combos');
+  includesAll(kits, ['Kits e combos', 'dataset.newKit', 'dataset.newCombo', 'data-edit-kit', 'data-edit-combo'], 'kits/combos');
 });
 
 test('phase 4 parity matrix is versioned and blocks legacy removal', () => {
@@ -110,7 +110,7 @@ test('phase 4 parity matrix is versioned and blocks legacy removal', () => {
     'Dense',
     'Novo produto',
     'Categoria',
-    'Fotos',
+    'Sincronizar fotos',
     'Variações',
     'Kits e combos',
     'Dados fiscais',
