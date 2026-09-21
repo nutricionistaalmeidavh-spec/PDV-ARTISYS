@@ -18,9 +18,12 @@ Baseline auditado: `main` em `ce798c727970433b442b44f901240bbfb574e35b`.
 4. Reorganizar o Balcão movendo os elementos DOM existentes para regiões de produto, contexto da venda e carrinho, sem clonar controles nem alterar IDs/handlers.
 5. Manter totais, pagamentos, observação e F12 compatíveis com extensões existentes; `#finalize-sale` permanece filho direto de `.sale-panel`.
 6. Tornar `.sale-panel` internamente rolável e compactar a composição em alturas de até 800 px, cobrindo a classe 1366×768 sem esconder controles.
-7. Executar `npm run verify:release`, os E2E de release e uma segunda execução do fluxo `core-business-e2e` no viewport exato `1366×768` (`compactDesktop`) pelo workflow oficial.
-8. QA visual/operacional somente após os gates verdes.
+7. Promover `sales-enhancements` ao gate E2E de release para cobrir vendedor, observação, alteração autorizada de preço, histórico e comissão.
+8. Adicionar `checkout-ux-preservation` ao gate E2E para cobrir cliente, desconto, limpar carrinho, suspensão/retomada, cancelamento, quatro atalhos de pagamento e pagamento múltiplo.
+9. A Home deve comprovar em E2E a preservação de lançadores dinâmicos, incluindo o módulo Restaurante dentro de `#route-content`.
+10. Executar `npm run verify:release`, os E2E de release e execuções compactas de `core-business-e2e` e `checkout-ux-preservation` no viewport exato `1366×768` (`compactDesktop`) pelo workflow oficial.
+11. QA visual/operacional somente após os gates verdes, usando os screenshots produzidos pelos próprios fluxos.
 
 ## Gate de regressão
 
-Qualquer rota, atalho, forma de pagamento ou controle listado no contrato que desapareça é regressão e bloqueia integração. O mesmo vale para perda da inserção dinâmica de observação antes do F12, para controles do painel direito que se tornem inalcançáveis em altura compacta ou para falha do fluxo de venda completo no viewport 1366×768.
+Qualquer rota, atalho, forma de pagamento ou controle listado no contrato que desapareça é regressão e bloqueia integração. O mesmo vale para perda da inserção dinâmica de observação antes do F12, perda de lançadores dinâmicos da Home, controles do painel direito que se tornem inalcançáveis em altura compacta ou falha dos fluxos de venda no viewport 1366×768.
