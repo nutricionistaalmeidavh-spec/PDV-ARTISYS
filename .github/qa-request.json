@@ -2,9 +2,9 @@
   "mode": "qa",
   "demo": "overview-60s",
   "preset": "landscape-16x9",
-  "flow": "ui-parity-p0-p2",
+  "flow": "backend-parity-p1",
   "environment": "ci",
   "viewport": "desktop",
-  "requestedAt": "2026-09-21T14:10:00-03:00",
-  "reason": "user-requested-current-version-ux-audit-pdf-ui-parity"
+  "requestedAt": "2026-09-21T14:13:00-03:00",
+  "reason": "user-requested-current-version-ux-audit-pdf-verticals"
 }
