@@ -1,6 +1,7 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
 const { buildFiscalDocument } = require('./fiscal-document-builder');
+const { buildNfeDocument } = require('./nfe-document-builder');
 const { classifyIssueResult, classifyReconcileResult } = require('./fiscal-state-machine');
 
 function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolver } = {}) {
@@ -72,7 +73,13 @@ function registerFiscalAutoIssueEffect({ bus, effectStore, fiscalService, saleSe
       const sale = saleService.getSaleDetails(event.aggregateId);if (!sale) throw new Error('Venda nao encontrada para emissao fiscal automatica.');const config = await resolveConfiguration({ event, sale });
       if (!config || config.configured === false || config.autoIssue === false) return { skipped:true, reason:'not-configured' };
       const reference = config.reference || sale.saleNumber || sale.id;const useCanonicalBuilder = config.provider === 'acbr-local' && config.fiscalContext;
-      const payload = useCanonicalBuilder ? buildFiscalDocument({sale,fiscalContext:config.fiscalContext,documentType:config.documentType,environment:config.environment,reference}) : (config.payload || {});
+      let payload=config.payload||{};
+      if(useCanonicalBuilder){
+        const type=String(config.documentType||'nfce').toLowerCase();
+        payload=type==='nfe'
+          ? buildNfeDocument({sale,fiscalContext:config.fiscalContext,recipient:config.recipient||config.fiscalContext.recipient,environment:config.environment,reference})
+          : buildFiscalDocument({sale,fiscalContext:config.fiscalContext,documentType:type,environment:config.environment,reference});
+      }
       return fiscalService.requestIssue({saleId:sale.id,provider:config.provider,environment:config.environment,documentType:config.documentType,reference,payload,actor:event.actor || {},mutationId:event.mutationId || null});
     }
   });
