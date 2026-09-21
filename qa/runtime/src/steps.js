@@ -34,6 +34,22 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
+    case 'setFeatureFlags': {
+      const allowed = new Set(['productsDenseView', 'customersMasterDetailView']);
+      const flags = step.flags;
+      if (!flags || typeof flags !== 'object' || Array.isArray(flags)) throw new TypeError('setFeatureFlags requires a flags object');
+      for (const [key, value] of Object.entries(flags)) {
+        if (!allowed.has(key)) throw new Error(`Unsupported QA feature flag: ${key}`);
+        if (typeof value !== 'boolean') throw new TypeError(`QA feature flag ${key} must be boolean`);
+      }
+      await page.evaluate(nextFlags => {
+        window.PdvFeatureFlags = {
+          ...(window.PdvFeatureFlags || {}),
+          ...nextFlags,
+        };
+      }, flags);
+      break;
+    }
     case 'waitFor': await locator(page, step).waitFor({ state: waitState(step), timeout: step.timeoutMs }); break;
     case 'waitForTimeout': await page.waitForTimeout(step.timeoutMs ?? 250); break;
     case 'expectVisible': {
