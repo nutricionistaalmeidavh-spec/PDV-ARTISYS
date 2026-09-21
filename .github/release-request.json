@@ -1,5 +1,5 @@
 {
   "platform": "windows-x64",
-  "requestedAt": "2026-09-21T13:35:39-03:00",
-  "reason": "retry-1.4.0-installer-after-windows-path-gate-fix"
+  "requestedAt": "2026-09-21T13:59:01-03:00",
+  "reason": "publish-1.4.0-github-release-with-updater-metadata"
 }
