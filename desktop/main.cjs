@@ -13,6 +13,7 @@ const { createProductPhotoClient, registerProductPhotoIpc } = require('./product
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
+const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
 
 let mainWindow = null;
@@ -24,6 +25,7 @@ let bootstrapConfig = null;
 let terminalCredentialStore = null;
 let hardwareController = null;
 let fiscalStore = null;
+let fiscalCredentialStore = null;
 let fiscalSidecar = null;
 let fiscalProviderResolver = async () => null;
 let printWorker = null;
@@ -156,6 +158,7 @@ function registerIpc() {
   registerFiscalIpc({
     ipcMain,
     store:fiscalStore,
+    credentialStore:fiscalCredentialStore,
     isTrustedSender:trustedSender,
     providerResolver:fiscalProviderResolver,
     sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
@@ -206,8 +209,10 @@ app.whenReady().then(async () => {
   }
   validateBootstrapConfig(bootstrapConfig);
   fiscalStore = createFiscalConnectionStore({ app, safeStorage });
+  fiscalCredentialStore = createFiscalCredentialStore({ app, safeStorage });
   fiscalProviderResolver = createFiscalProviderResolver({
     store:fiscalStore,
+    credentialStore:fiscalCredentialStore,
     sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
   });
 
