@@ -18,9 +18,7 @@
   "electron": {
     "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
-    "args": [
-      "--no-sandbox"
-    ]
+    "args": ["--no-sandbox"]
   },
   "environments": {
     "ci": {
@@ -41,6 +39,7 @@
     "backend-parity-p0": "flows/backend-parity-p0.json",
     "backend-parity-p1": "flows/backend-parity-p1.json",
     "ui-parity-p0-p2": "flows/ui-parity-p0-p2.json",
+    "sales-enhancements": "flows/sales-enhancements.json",
     "fiscal-block6": "flows/fiscal-block6.json",
     "fiscal-ui-parity-baseline": "flows/fiscal-ui-parity-baseline.json",
     "fiscal-config-p2-p5": "flows/fiscal-config-p2-p5.json",
@@ -48,92 +47,29 @@
   },
   "qaProfiles": {
     "quick": {
-      "flows": [
-        "smoke"
-      ],
-      "criticalFlows": [
-        "smoke"
-      ],
+      "flows": ["smoke"],
+      "criticalFlows": ["smoke"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "full": {
-      "flows": [
-        "smoke",
-        "home",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
+      "flows": ["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
+      "criticalFlows": ["smoke","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": [
-        "smoke",
-        "home",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "home",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
+      "flows": ["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
+      "criticalFlows": ["smoke","home","reports-v2-complete","core-business-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     }
   },
   "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
-    }
+    "quick-30s": {"file":"demo/quick-30s.json","preset":"reels-9x16","durationTargetSec":30},
+    "overview-60s": {"file":"demo/overview-60s.json","preset":"landscape-16x9","durationTargetSec":60}
   }
 }
