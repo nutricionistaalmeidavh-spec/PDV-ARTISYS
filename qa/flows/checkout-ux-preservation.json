@@ -66,6 +66,7 @@
 
     {"action":"click","selector":".product-card[data-add-product]:has-text('QA UX Balcao')","name":"ux-add-product-payment"},
     {"action":"waitFor","selector":".cart-line","name":"ux-cart-before-payment","timeoutMs":10000},
+    {"action":"screenshot","name":"checkout-ux-layout"},
 
     {"action":"click","selector":"[data-pay=\"cash\"]","name":"ux-quick-cash"},
     {"action":"waitFor","selector":"#initial-cash","name":"ux-cash-open-required","timeoutMs":10000},
@@ -94,10 +95,10 @@
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-multi-payment-ready","timeoutMs":10000},
     {"action":"click","selector":"[data-remove-payment=\"0\"]","name":"ux-remove-default-payment"},
     {"action":"selectOption","selector":"#new-payment-method","value":"CASH","name":"ux-multi-cash-method"},
-    {"action":"fill","selector":"#new-payment-value","value":"45,00","name":"ux-multi-cash-value"},
+    {"action":"fill","selector":"#new-payment-value","value":"50,00","name":"ux-multi-cash-value"},
     {"action":"click","selector":"#add-payment","name":"ux-add-cash-payment"},
     {"action":"selectOption","selector":"#new-payment-method","value":"PIX","name":"ux-multi-pix-method"},
-    {"action":"fill","selector":"#new-payment-value","value":"45,00","name":"ux-multi-pix-value"},
+    {"action":"fill","selector":"#new-payment-value","value":"50,00","name":"ux-multi-pix-value"},
     {"action":"click","selector":"#add-payment","name":"ux-add-pix-payment"},
     {"action":"expectText","selector":".payment-list","expected":"Dinheiro","name":"ux-multi-has-cash"},
     {"action":"expectText","selector":".payment-list","expected":"PIX","name":"ux-multi-has-pix"},
