@@ -8,6 +8,8 @@ const { createAcbrLocalProvider } = require('../js/domains/fiscal/acbr-local-pro
 const { createFiscalSidecar } = require('../server/fiscal-sidecar');
 const { createAcbrMonitorAdapter } = require('../server/fiscal-sidecar/acbr-monitor-adapter');
 
+const TOKEN = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH';
+
 function sampleSale(overrides = {}) {
   return {
     id:'sale-e2e', saleNumber:'V-E2E-1', status:'COMPLETED', subtotalCents:1000, discountCents:0, totalCents:1000, changeCents:0,
@@ -50,13 +52,14 @@ test('E2E P6-P7 deterministic: canonical sale reaches ACBr adapter and returns a
     }
   };
   const adapter = createAcbrMonitorAdapter({ transport });
-  const sidecar = createFiscalSidecar({ adapter, host:'127.0.0.1', port:0 });
+  const sidecar = createFiscalSidecar({ adapter, authToken:TOKEN, host:'127.0.0.1', port:0 });
   const address = await sidecar.start();
   t.after(() => sidecar.stop());
 
   const provider = createAcbrLocalProvider({
     connection:{ provider:'acbr-local', environment:'homologation', documentType:'nfce' },
-    baseUrl:`http://127.0.0.1:${address.port}`
+    baseUrl:`http://127.0.0.1:${address.port}`,
+    authToken:TOKEN
   });
   const result = await provider.issue({ documentType:'nfce', reference:sale.saleNumber, payload:document });
 
@@ -71,10 +74,14 @@ test('E2E P6-P7 deterministic: canonical sale reaches ACBr adapter and returns a
 test('E2E P7 guard: ACBr rejection stays failed and never becomes authorization', async t => {
   const { document } = buildDocument({ reference:'V-REJECT', number:'1' });
   const adapter = createAcbrMonitorAdapter({ transport:{ async send(command){ readIniFromCreateSendCommand(command); return '[NFE1]\r\nCStat=225\r\nXMotivo=Falha no Schema XML'; } } });
-  const sidecar = createFiscalSidecar({ adapter, host:'127.0.0.1', port:0 });
+  const sidecar = createFiscalSidecar({ adapter, authToken:TOKEN, host:'127.0.0.1', port:0 });
   const address = await sidecar.start();
   t.after(() => sidecar.stop());
-  const provider = createAcbrLocalProvider({ connection:{ provider:'acbr-local', environment:'homologation', documentType:'nfce' }, baseUrl:`http://127.0.0.1:${address.port}` });
+  const provider = createAcbrLocalProvider({
+    connection:{ provider:'acbr-local', environment:'homologation', documentType:'nfce' },
+    baseUrl:`http://127.0.0.1:${address.port}`,
+    authToken:TOKEN
+  });
   const result = await provider.issue({ documentType:'nfce', reference:'V-REJECT', payload:document });
   assert.equal(result.ok, false);
   assert.equal(result.data.cStat, 225);
