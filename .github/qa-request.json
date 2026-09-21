@@ -1,10 +1,10 @@
 {
   "mode": "demo",
-  "demo": "quick-30s",
-  "preset": "reels-9x16",
+  "demo": "overview-60s",
+  "preset": "landscape-16x9",
   "flow": "smoke",
   "environment": "ci",
   "viewport": "desktop",
-  "requestedAt": "2026-09-18",
-  "reason": "user-requested-current-pdv-demo-video-no-audio"
+  "requestedAt": "2026-09-21T14:00:00-03:00",
+  "reason": "user-requested-current-version-ux-audit-pdf-screens"
 }
