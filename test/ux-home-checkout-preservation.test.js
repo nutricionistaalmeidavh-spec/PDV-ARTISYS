@@ -68,6 +68,29 @@ test('home typography and topbar density match the approved compact scale',()=>{
   assert.match(css,/body\.theme-home \.app-footer \{ font-size:16px; \}/);
 });
 
+test('checkout enhancer restructures existing controls without replacing them',()=>{
+  const js=read('desktop/renderer/ux-home-checkout.js');
+  assert.match(js,/function enhanceCheckout\(\)/);
+  assert.match(js,/\.checkout-layout:not\(\[data-ux-checkout-preserved\]\)/);
+  assert.match(js,/layout\.dataset\.uxCheckoutPreserved = 'true'/);
+  assert.match(js,/productRegion\.appendChild\(tools\)/);
+  assert.match(js,/productRegion\.appendChild\(categories\)/);
+  assert.match(js,/productRegion\.appendChild\(productGrid\)/);
+  assert.match(js,/contextRegion\.appendChild\(sellerBlock\)/);
+  assert.match(js,/contextRegion\.appendChild\(customerBlock\)/);
+  assert.match(js,/cartRegion\.appendChild\(cartHead\)/);
+  assert.match(js,/cartRegion\.appendChild\(cartList\)/);
+  assert.doesNotMatch(js,/appendChild\(finalize\)/,'finalize must remain a direct sale-panel child for sale-observation-ui');
+});
+
+test('checkout compact-height layout keeps the sale panel internally scrollable at 1366x768 class heights',()=>{
+  const css=read('desktop/renderer/ux-home-checkout.css');
+  assert.match(css,/\.sale-panel \{[^}]*overflow-y:auto;/s);
+  assert.match(css,/\.sale-panel \{[^}]*overscroll-behavior:contain;/s);
+  assert.match(css,/@media \(max-height:800px\)[\s\S]*\.sale-panel \{[^}]*max-height:calc\(100vh - 190px\);/);
+  assert.match(css,/\.sale-context-grid \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
+});
+
 test('checkout preservation keeps current controls handlers payments and shortcuts untouched',()=>{
   const app=read('desktop/renderer/app.js');
   for(const id of ['product-search','scan-focus','seller-select','customer-search','clear-cart','discount-percent','new-sale','remove-item','cancel-sale','suspend-sale','finalize-sale']) assert.match(app,new RegExp(`id=\\"${id}\\"`));
