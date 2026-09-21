@@ -1,10 +1,12 @@
 'use strict';
 
 const fs=require('node:fs');
+const os=require('node:os');
 const path=require('node:path');
 const {createHash}=require('node:crypto');
 
 const MIME_BY_EXTENSION=Object.freeze({'.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp'});
+const QA_PRODUCT_PHOTO_BASE64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 function dayKey(date=new Date()){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
 
 function createProductPhotoClient({cacheDir,fetchImpl=fetch,getApiBase,getTerminalHeaders=()=>({}),now=()=>new Date(),fsImpl=fs,pathImpl=path}={}){
@@ -29,6 +31,14 @@ function createProductPhotoClient({cacheDir,fetchImpl=fetch,getApiBase,getTermin
   return{startSync,status,dataUrl,upload,remove};
 }
 
+function resolveQaProductPhotoFixture(qaFixturePath){
+  if(qaFixturePath)return String(qaFixturePath);
+  if(process.env.ARTISYS_QA!=='1')return '';
+  const qaProductPhotoFixture=path.join(os.tmpdir(),`artisys-pdv-qa-product-photo-${process.pid}.png`);
+  if(!fs.existsSync(qaProductPhotoFixture))fs.writeFileSync(qaProductPhotoFixture,Buffer.from(QA_PRODUCT_PHOTO_BASE64,'base64'));
+  return qaProductPhotoFixture;
+}
+
 function registerProductPhotoIpc({ipcMain,dialog,nativeImage,client,isTrustedSender=()=>true,getParentWindow=()=>null,qaFixturePath=null}={}){
   const handle=(channel,fn)=>ipcMain.handle(channel,async(event,input={})=>{if(!isTrustedSender(event))throw new Error('Origem IPC nao autorizada.');return fn(input);});
   handle('artisys:photos:sync',input=>client.startSync(input.sessionToken,{force:Boolean(input.force)}));
@@ -36,7 +46,7 @@ function registerProductPhotoIpc({ipcMain,dialog,nativeImage,client,isTrustedSen
   handle('artisys:photos:data-url',input=>client.dataUrl(String(input.productId),input.sessionToken,{variant:input.variant||'thumbnail'}));
   handle('artisys:photos:remove',input=>client.remove(String(input.productId),input.sessionToken));
   handle('artisys:photos:pick-upload',async input=>{
-    let filePath=qaFixturePath?String(qaFixturePath):'';
+    let filePath=resolveQaProductPhotoFixture(qaFixturePath);
     if(!filePath){
       const result=await dialog.showOpenDialog(getParentWindow(),{title:'Selecionar foto do produto',properties:['openFile'],filters:[{name:'Imagens',extensions:['png','jpg','jpeg','webp']}]});
       if(result.canceled||!result.filePaths[0])return null;
@@ -49,4 +59,4 @@ function registerProductPhotoIpc({ipcMain,dialog,nativeImage,client,isTrustedSen
   });
 }
 
-module.exports={createProductPhotoClient,registerProductPhotoIpc,dayKey,MIME_BY_EXTENSION};
+module.exports={createProductPhotoClient,registerProductPhotoIpc,resolveQaProductPhotoFixture,dayKey,MIME_BY_EXTENSION};
