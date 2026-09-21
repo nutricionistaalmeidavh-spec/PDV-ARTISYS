@@ -42,18 +42,8 @@ test('renders NFC-e INI with model 65, homologation and exact canonical totals',
 
 test('parses ACBr authorization response into stable provider data', () => {
   const response = [
-    'OK: Lote processado',
-    '[RETORNO]',
-    'CStat=104',
-    'XMotivo=Lote processado',
-    '[NFE42]',
-    'CStat=100',
-    'XMotivo=Autorizado o uso da NF-e',
-    'ChDFe=35260912345678000195650010000000421000000420',
-    'NProt=135260000123456',
-    'DhRecbto=2026-09-20T19:00:03-03:00',
-    '[NFe_Arq42]',
-    'Arquivo=C:\\ACBrMonitorPLUS\\Arqs\\3526-nfe.xml'
+    'OK: Lote processado','[RETORNO]','CStat=104','XMotivo=Lote processado','[NFE42]','CStat=100','XMotivo=Autorizado o uso da NF-e',
+    'ChDFe=35260912345678000195650010000000421000000420','NProt=135260000123456','DhRecbto=2026-09-20T19:00:03-03:00','[NFe_Arq42]','Arquivo=C:\\ACBrMonitorPLUS\\Arqs\\3526-nfe.xml'
   ].join('\r\n');
   const parsed = parseAcbrResponse(response, { expectedNumber:'42', expectedSeries:'1' });
   assert.equal(parsed.ok, true);
@@ -74,14 +64,7 @@ test('does not authorize non-100 ACBr response', () => {
 
 test('TCP transport is loopback-only and sends ACBr command terminator', async () => {
   let written = '';
-  const fakeSocket = {
-    setTimeout(){},
-    write(value){ written += value; },
-    end(){},
-    destroy(){},
-    once(event, handler){ if (event === 'connect') queueMicrotask(handler); },
-    on(event, handler){ if (event === 'data') queueMicrotask(() => handler(Buffer.from('OK: teste\r\n.\r\n'))); }
-  };
+  const fakeSocket = {setTimeout(){},write(value){ written += value; },end(){},destroy(){},once(event, handler){ if (event === 'connect') queueMicrotask(handler); },on(event, handler){ if (event === 'data') queueMicrotask(() => handler(Buffer.from('OK: teste\r\n.\r\n'))); }};
   const transport = createAcbrMonitorTcpTransport({ host:'127.0.0.1', port:3434, connect:() => fakeSocket });
   const result = await transport.send('ACBr.DataHora');
   assert.equal(result, 'OK: teste');
@@ -91,12 +74,7 @@ test('TCP transport is loopback-only and sends ACBr command terminator', async (
 
 test('adapter issues NFC-e synchronously through NFe.CriarEnviarNFe and normalizes authorization', async () => {
   const commands = [];
-  const transport = {
-    async send(command) {
-      commands.push(command);
-      return '[NFE42]\r\nCStat=100\r\nXMotivo=Autorizado o uso da NF-e\r\nChDFe=35260912345678000195650010000000421000000420\r\nNProt=135260000123456\r\n[NFe_Arq42]\r\nArquivo=C:\\ACBr\\3526-nfe.xml';
-    }
-  };
+  const transport = {async send(command) {commands.push(command);return '[NFE42]\r\nCStat=100\r\nXMotivo=Autorizado o uso da NF-e\r\nChDFe=35260912345678000195650010000000421000000420\r\nNProt=135260000123456\r\n[NFe_Arq42]\r\nArquivo=C:\\ACBr\\3526-nfe.xml';}};
   const adapter = createAcbrMonitorAdapter({ transport });
   const result = await adapter.issue({ type:'nfce', reference:'V-1001', payload:fiscalDocument(), environment:'homologation' });
   assert.equal(result.ok, true);
@@ -105,4 +83,23 @@ test('adapter issues NFC-e synchronously through NFe.CriarEnviarNFe and normaliz
   assert.equal(commands.length, 1);
   assert.match(commands[0], /^NFe\.CriarEnviarNFe\("/);
   assert.match(commands[0], /",1,0,1\)$/);
+});
+
+test('P9 adapter preserves timeout as indeterminate instead of a retryable generic failure', async()=>{
+  const adapter=createAcbrMonitorAdapter({transport:{async send(){throw new Error('Timeout aguardando resposta do ACBrMonitor.');}}});
+  const result=await adapter.issue({type:'nfce',reference:'V-1001',payload:fiscalDocument(),environment:'homologation'});
+  assert.equal(result.ok,false);
+  assert.equal(result.status,408);
+  assert.equal(result.indeterminate,true);
+});
+
+test('P9 adapter queries an existing access key through NFe.ConsultarNFe',async()=>{
+  const commands=[];
+  const key='35260912345678000195650010000000421000000420';
+  const adapter=createAcbrMonitorAdapter({transport:{async send(command){commands.push(command);return `[CONSULTA]\r\nCStat=100\r\nXMotivo=Autorizado o uso da NF-e\r\nChDFe=${key}\r\nNProt=135260000123456`;}}});
+  const result=await adapter.query({type:'nfce',accessKey:key,environment:'homologation'});
+  assert.equal(result.ok,true);
+  assert.equal(result.data.cStat,100);
+  assert.equal(result.data.chave,key);
+  assert.equal(commands[0],`NFe.ConsultarNFe("${key}")`);
 });
