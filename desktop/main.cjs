@@ -14,6 +14,7 @@ const { createHardwareController, registerHardwareIpc } = require('./hardware-br
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
+const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
 const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
 
@@ -29,6 +30,7 @@ let fiscalStore = null;
 let fiscalCredentialStore = null;
 let fiscalSidecar = null;
 let fiscalProviderResolver = async () => null;
+let nfseProviderResolver = async () => null;
 let printWorker = null;
 let printWorkerBusy = false;
 const installToken = randomBytes(32).toString('hex');
@@ -49,6 +51,7 @@ async function startEmbeddedServer() {
     appVersion:app.getVersion(),
     serverVersion:app.getVersion(),
     fiscalProviderResolver,
+    nfseProviderResolver,
     receiptOptions: {
       storeName: bootstrapConfig?.storeName || process.env.PDV_STORE_NAME || 'Loja Matriz',
       width: Number(process.env.PDV_RECEIPT_WIDTH || 42)
@@ -220,6 +223,7 @@ app.whenReady().then(async () => {
     credentialStore:fiscalCredentialStore,
     sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
   });
+  nfseProviderResolver = createNfseProviderResolver({credentialStore:fiscalCredentialStore,env:process.env});
 
   if (shouldStartEmbeddedServer(bootstrapConfig)) {
     const fiscalRuntimePaths = resolveFiscalRuntimePaths({ app, processObj:process, dirname:__dirname });
