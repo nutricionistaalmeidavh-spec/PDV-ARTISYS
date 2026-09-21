@@ -1,6 +1,6 @@
 'use strict';
 
-const {assertProductionAdapterMode}=require('../../js/domains/fiscal/security-hardening');
+const {assertProductionAdapterMode}=require('./security-hardening');
 const MODES = new Set(['unconfigured', 'mock-success', 'mock-failure']);
 function normalizeMode(value){const mode=String(value||'unconfigured').trim().toLowerCase();if(!MODES.has(mode))throw new Error('Modo do fiscal sidecar invalido.');return mode;}
 function createControlledFiscalAdapter({mode=process.env.ARTISYS_FISCAL_SIDECAR_MODE,production=false}={}){
