@@ -1,0 +1,21 @@
+{
+  "name": "ux-products-clients-responsive-evidence",
+  "steps": [
+    {"uses":"home.json"},
+    {"action":"setFeatureFlags","flags":{"productsDenseView":true,"customersMasterDetailView":true},"name":"paired-ux-responsive-flags-on"},
+
+    {"action":"click","selector":"[data-route='products']","name":"responsive-open-products"},
+    {"action":"waitFor","selector":"#new-product","name":"responsive-products-new-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#new-category","name":"responsive-products-category-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#sync-product-photos","name":"responsive-products-photo-sync-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-products-dense-header]","name":"responsive-products-dense-header","timeoutMs":10000},
+    {"action":"waitFor","selector":"#products-stock-filter","name":"responsive-products-stock-filter","timeoutMs":10000},
+    {"action":"screenshot","name":"ux-products-responsive","fullPage":true},
+
+    {"action":"click","selector":"[data-route='customers']","name":"responsive-open-customers"},
+    {"action":"waitFor","selector":"#new-customer","name":"responsive-customers-new-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#customer-page-search","name":"responsive-customers-search","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-customers-master-panel]","name":"responsive-customers-master-panel","timeoutMs":10000},
+    {"action":"screenshot","name":"ux-customers-responsive","fullPage":true}
+  ]
+}
