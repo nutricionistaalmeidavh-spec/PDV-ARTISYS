@@ -83,7 +83,7 @@ test('customer history uses canonical sales data and never invents a frontend-on
   includesAll(view, [
     'function salesForCustomer',
     'function latestSaleForCustomer',
-    'sale.customerId',
+    'sale?.customerId',
     'sale.completedAt',
     'sale.totalCents'
   ], 'history view');
