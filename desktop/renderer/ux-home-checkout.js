@@ -124,6 +124,7 @@
     recent.querySelector('[data-home-history]')?.addEventListener('click', () => byRoute.get('sales')?.click());
     hub.appendChild(recent);
 
+    grid.dataset.uxPreserved = 'true';
     grid.replaceWith(hub);
     adoptExtraLaunchers(hub);
     void hydrateRecentSales(hub.querySelector('#home-recent-sales'));
