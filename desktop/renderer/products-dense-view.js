@@ -5,12 +5,14 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.PdvProductsDenseView = api;
 })(typeof window !== 'undefined' ? window : globalThis, function factory() {
-  const PRODUCTS_UX_LEVEL = 2;
+  const PRODUCTS_UX_LEVEL = 3;
   const PRODUCTS_UX_GUARDS = Object.freeze({
     reversible: true,
     progressiveEnhancement: true,
     legacyHandlersPreserved: true,
-    parityGuarded: true
+    parityGuarded: true,
+    crossFlowGuarded: true,
+    releaseRegressionGuarded: true
   });
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
 
