@@ -3,9 +3,9 @@
 (() => {
   const ApiClient = window.PdvApiClient?.ApiClient;
   const content = document.getElementById('route-content');
-  const dense = window.PdvProductsDenseView;
-  const ux = window.ArtisysUxComponents;
-  if (!ApiClient || !content || !dense || !ux) return;
+  const PdvProductsDenseView = window.PdvProductsDenseView;
+  const ArtisysUxComponents = window.ArtisysUxComponents;
+  if (!ApiClient || !content || !PdvProductsDenseView || !ArtisysUxComponents) return;
 
   const api = new ApiClient();
   let stockFilter = '';
@@ -14,7 +14,7 @@
   let productsById = new Map();
   let productsLoadedAt = 0;
 
-  const enabled = () => window.PdvFeatureFlags?.productsDenseView !== false;
+  const enabled = () => !window.PdvFeatureFlags || window.PdvFeatureFlags.productsDenseView !== false;
   const productsPage = () => {
     const page = content.querySelector('section.page');
     return page?.querySelector('.page-head h1')?.textContent?.trim() === 'Produtos' ? page : null;
@@ -97,7 +97,7 @@
     const signature = `${status.key}:${status.label}:${status.tone}`;
     if (cell.dataset.statusSignature !== signature) {
       cell.dataset.statusSignature = signature;
-      cell.innerHTML = ux.StatusBadge(status);
+      cell.innerHTML = ArtisysUxComponents.StatusBadge(status);
     }
   }
 
@@ -114,13 +114,13 @@
     }
     row.classList.add('products-dense-row');
     row.dataset.denseProductId = String(product.id);
-    const status = dense.productStatus(product);
+    const status = PdvProductsDenseView.productStatus(product);
     row.dataset.denseStockStatus = status.key;
     ensureStatusCell(row, status);
   }
 
   function applyStockFilter(card, visibleProducts) {
-    const allowed = new Set(dense.filterByStock(visibleProducts, stockFilter).map(product => String(product.id)));
+    const allowed = new Set(PdvProductsDenseView.filterByStock(visibleProducts, stockFilter).map(product => String(product.id)));
     let visibleCount = 0;
     let parentHidden = false;
 
@@ -139,7 +139,7 @@
     if (stockFilter && visibleCount === 0) {
       const empty = document.createElement('div');
       empty.dataset.productsFilterEmpty = '1';
-      empty.innerHTML = ux.EmptyState({
+      empty.innerHTML = ArtisysUxComponents.EmptyState({
         title:'Nenhum produto neste filtro de estoque',
         description:'Selecione outra situação de estoque ou limpe o filtro.'
       });
