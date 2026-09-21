@@ -40,6 +40,24 @@ test('home compact module links keep their existing icons visible',()=>{
   assert.doesNotMatch(css,/\.home-hub \.home-module-link \.tile-icon\s*\{\s*display\s*:\s*none/);
 });
 
+test('home typography matches the requested operational scale without enlarging Inicio',()=>{
+  const css=read('desktop/renderer/ux-home-checkout.css');
+  assert.match(css,/\.home-hub-head h1 \{[^}]*font-size:31px/);
+  assert.match(css,/\.home-hub-head p \{ font-size:18px; \}/);
+  assert.match(css,/\.home-hub \.home-primary-action h2 \{ font-size:24px; \}/);
+  assert.match(css,/\.home-hub \.home-primary-action p \{ font-size:15px; \}/);
+  assert.match(css,/\.home-context-card h2,[\s\S]*\.home-extra-card > h2 \{ font-size:16px; \}/);
+  assert.match(css,/\.home-hub \.home-module-link h2 \{ font-size:18px; \}/);
+  assert.match(css,/\.home-hub \.home-module-link p \{ font-size:15px; \}/);
+  assert.match(css,/\.home-hub \.home-module-link \.shortcut-badge \{ font-size:13px; \}/);
+  assert.match(css,/\.home-recent-head h2 \{ font-size:19px; \}/);
+  assert.match(css,/\.home-recent-head p \{ font-size:14px; \}/);
+  assert.match(css,/\.home-recent-row \{ font-size:15px; \}/);
+  assert.match(css,/\.home-recent-header \{ font-size:12px; \}/);
+  assert.match(css,/body\.theme-home \.topbar-brand \{ font-size:27px; \}/);
+  assert.match(css,/body\.theme-home \.app-footer \{ font-size:14px; \}/);
+});
+
 test('checkout preservation keeps current controls handlers payments and shortcuts untouched',()=>{
   const app=read('desktop/renderer/app.js');
   for(const id of ['product-search','scan-focus','seller-select','customer-search','clear-cart','discount-percent','new-sale','remove-item','cancel-sale','suspend-sale','finalize-sale']) assert.match(app,new RegExp(`id=\\"${id}\\"`));
