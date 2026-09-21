@@ -9,12 +9,12 @@
   const toast=(message,type='')=>{const host=document.getElementById('toast-root');if(!host)return;const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;host.appendChild(el);setTimeout(()=>el.remove(),3500);};
   const request=(path,options)=>api.request(path,options);
 
-  function actions(doc){const id=encodeURIComponent(doc.id);const buttons=[`<button class="ops-link" data-fiscal-detail="${esc(doc.id)}">Detalhes</button>`];
+  function actions(doc){const buttons=[`<button class="ops-link" data-fiscal-detail="${esc(doc.id)}">Detalhes</button>`];
     if(doc.lifecycleStatus==='UNKNOWN')buttons.push(`<button class="ops-link" data-fiscal-reconcile="${esc(doc.id)}">Reconciliar</button>`);
     if(doc.lifecycleStatus==='FAILED'||(doc.lifecycleStatus==='UNKNOWN'&&!doc.reconcileRequired&&doc.lastReconcileStatus==='NOT_FOUND'))buttons.push(`<button class="ops-link" data-fiscal-retry="${esc(doc.id)}">Tentar novamente</button>`);
     if(['AUTHORIZED','CANCELLED'].includes(doc.lifecycleStatus)){buttons.push(`<button class="ops-link" data-fiscal-xml="${esc(doc.id)}" data-kind="authorized">XML</button>`);buttons.push(`<button class="ops-link" data-fiscal-danfe="${esc(doc.id)}">DANFE</button>`);}
     if(doc.lifecycleStatus==='AUTHORIZED')buttons.push(`<button class="ops-link danger" data-fiscal-cancel="${esc(doc.id)}">Cancelar</button>`);
-    if(doc.lifecycleStatus==='CANCELLED'&&doc.cancellationXmlPath)buttons.push(`<button class="ops-link" data-fiscal-xml="${esc(doc.id)}" data-kind="cancellation">XML cancelamento</button>`);
+    if(doc.lifecycleStatus==='CANCELLED')buttons.push(`<button class="ops-link" data-fiscal-xml="${esc(doc.id)}" data-kind="cancellation">XML cancelamento</button>`);
     return `<div class="ops-row-actions">${buttons.join('')}</div>`;
   }
 
