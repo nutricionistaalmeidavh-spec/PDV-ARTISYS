@@ -12,6 +12,14 @@ O objetivo técnico é preservar os nós DOM que já possuem listeners e que sã
 
 **Não remover o renderer legado** enquanto a feature flag existir e enquanto a paridade não estiver coberta por regressão automatizada e QA visual/operacional.
 
+## Caminho canônico
+
+O caminho de produção de Produtos é **progressive enhancement**: `renderProducts()` em `app.js` monta primeiro a superfície Legacy e seus handlers canônicos; em seguida, `products-dense-controller.js` aprimora essa mesma árvore DOM quando `productsDenseView` está habilitada.
+
+`products-dense-view.js` permanece como fronteira pura de apresentação/status e como helper testável. Ele não deve se tornar um segundo caminho concorrente de montagem completa da tela enquanto fiscal, fotos, variações, kits/combos e demais extensões dependerem dos nós e listeners canônicos.
+
+Consequentemente, qualquer evolução estrutural deve preservar a sequência `renderProducts()` → controller de melhoria progressiva. Remover ou substituir o renderer Legacy exige uma migração coordenada de todos os contratos listados nesta matriz e nova certificação E2E/visual.
+
 ## Feature flag
 
 - Flag: `window.PdvFeatureFlags.productsDenseView`.
