@@ -3,7 +3,7 @@
 
 const os = require('node:os');
 const path = require('node:path');
-const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-service');
+const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-store');
 
 function parse(argv) {
   const args = [...argv];

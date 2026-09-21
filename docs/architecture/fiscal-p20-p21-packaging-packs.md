@@ -73,4 +73,4 @@ A homologação/produção reais também dependem do binário oficial ACBr distr
 
 ## Evidência
 
-`test/fiscal-packaging-packs.test.js` cobre contracts/unit/integration de paths e importação. `test/fiscal-packaging-e2e.test.js` monta um layout de instalação em diretório temporário, inicia o sidecar a partir do caminho externo ao ASAR e comprova persistência de um pack após recriar o serviço. O gate final continua `npm run verify:release` seguido do E2E Electron de release.
+`test/fiscal-packaging-packs.test.js` cobre contracts/unit/integration de paths e importação usando `js/domains/fiscal/fiscal-pack-store.js`. `test/fiscal-packaging-e2e.test.js` monta um layout de instalação em diretório temporário, inicia o sidecar a partir do caminho externo ao ASAR e comprova persistência de um pack após recriar o serviço. O gate final continua `npm run verify:release` seguido do E2E Electron de release.

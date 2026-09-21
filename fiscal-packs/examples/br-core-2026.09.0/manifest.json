@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "id": "br-core-example",
+  "version": "2026.09.0",
+  "createdAt": "2026-09-20T00:00:00.000Z",
+  "files": [
+    {
+      "path": "parameters/runtime.json",
+      "kind": "parameters",
+      "sha256": "b873fffca66bc6bea1d05f3d3bdc41aea5b8b0299c2d1be3e78fb68a76f4c7f2"
+    }
+  ]
+}

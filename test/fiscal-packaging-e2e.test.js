@@ -8,7 +8,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { createFiscalSidecarRuntime } = require('../desktop/fiscal-sidecar-runtime.cjs');
 const { resolveFiscalRuntimePaths } = require('../desktop/fiscal-runtime-paths.cjs');
-const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-service');
+const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-store');
 
 function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');

@@ -10,7 +10,7 @@ const { spawnSync } = require('node:child_process');
 
 const packageJson = require('../package.json');
 const { resolveFiscalRuntimePaths } = require('../desktop/fiscal-runtime-paths.cjs');
-const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-service');
+const { createFiscalPackService } = require('../js/domains/fiscal/fiscal-pack-store');
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
