@@ -38,7 +38,7 @@ test('PDV release profile gates reporting v2, core business, enterprise depth, b
   assert.equal(config.flows['backend-parity-p1'],'flows/backend-parity-p1.json');
   assert.equal(config.flows['ui-parity-p0-p2'],'flows/ui-parity-p0-p2.json');
   assert.equal(config.flows['fiscal-block6'],'flows/fiscal-block6.json');
-  assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');\n  assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
+  assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');\n  assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');\n  assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
 });
 
 test('future QA updates remain explicit and local-first',()=>{
