@@ -71,21 +71,27 @@ test('master-detail controller augments existing customer rows and reuses the ca
   assert.equal(controller.includes('id="customer-form"'), false, 'controller must not rebuild the canonical customer form');
 });
 
-test('customer history uses canonical sales data and never invents a frontend-only purchase record', () => {
+test('customer history uses canonical customer-filtered sales data and never invents a frontend-only purchase record', () => {
   const controller = read('desktop/renderer/customers-master-detail-controller.js');
   const view = read('desktop/renderer/customers-master-detail-view.js');
   includesAll(controller, [
-    "api.sales('COMPLETED', 200)",
-    'salesLoadedAt',
-    'historyOpen',
-    'PdvCustomersMasterDetail.salesForCustomer'
+    'api.salesHistory({',
+    'customerId:id',
+    "status:'COMPLETED'",
+    'limit:HISTORY_PAGE_SIZE',
+    'offset:state.offset',
+    'historyByCustomer',
+    'historyOpen'
   ], 'history controller');
+  assert.equal(controller.includes("api.sales('COMPLETED', 200)"), false, 'history must not depend on the global 200-sale window');
   includesAll(view, [
     'function salesForCustomer',
     'function latestSaleForCustomer',
     'sale?.customerId',
     'sale.completedAt',
-    'sale.totalCents'
+    'sale.totalCents',
+    'customer.lastSale',
+    'customer-history-more'
   ], 'history view');
 });
 
