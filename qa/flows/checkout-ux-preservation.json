@@ -41,7 +41,7 @@
     {"action":"click","selector":"[data-customer-id]","name":"ux-select-customer"},
     {"action":"expectText","selector":".sale-context-grid","expected":"QA Cliente Balcao","name":"ux-customer-selected"},
 
-    {"action":"click","selector":".product-card:has-text('QA UX Balcao') [data-add-product]","name":"ux-add-product-discount"},
+    {"action":"click","selector":".product-card[data-add-product]:has-text('QA UX Balcao')","name":"ux-add-product-discount"},
     {"action":"waitFor","selector":".cart-line","name":"ux-cart-ready","timeoutMs":10000},
     {"action":"fill","selector":"#discount-percent","value":"10","name":"ux-discount-10"},
     {"action":"press","selector":"#discount-percent","key":"Tab","name":"ux-apply-discount"},
@@ -50,7 +50,7 @@
     {"action":"click","selector":"#clear-cart","name":"ux-clear-cart"},
     {"action":"expectText","selector":".cart-list","expected":"Nenhum item","name":"ux-cart-cleared"},
 
-    {"action":"click","selector":".product-card:has-text('QA UX Balcao') [data-add-product]","name":"ux-add-product-suspend"},
+    {"action":"click","selector":".product-card[data-add-product]:has-text('QA UX Balcao')","name":"ux-add-product-suspend"},
     {"action":"waitFor","selector":".cart-line","name":"ux-cart-before-suspend","timeoutMs":10000},
     {"action":"click","selector":"#suspend-sale","name":"ux-suspend-sale"},
     {"action":"waitFor","selector":"[data-resume]","name":"ux-resume-ready","timeoutMs":10000},
@@ -64,7 +64,7 @@
     {"action":"waitFor","selector":".checkout-layout[data-ux-checkout-preserved='true']","name":"ux-checkout-after-cancel","timeoutMs":10000},
     {"action":"expectText","selector":".cart-list","expected":"Nenhum item","name":"ux-cancelled-cart-empty"},
 
-    {"action":"click","selector":".product-card:has-text('QA UX Balcao') [data-add-product]","name":"ux-add-product-payment"},
+    {"action":"click","selector":".product-card[data-add-product]:has-text('QA UX Balcao')","name":"ux-add-product-payment"},
     {"action":"waitFor","selector":".cart-line","name":"ux-cart-before-payment","timeoutMs":10000},
 
     {"action":"click","selector":"[data-pay=\"cash\"]","name":"ux-quick-cash"},
