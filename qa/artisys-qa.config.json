@@ -35,6 +35,8 @@
   "flows": {
     "smoke": "flows/smoke.json",
     "home": "flows/home.json",
+    "sales-enhancements": "flows/sales-enhancements.json",
+    "checkout-ux-preservation": "flows/checkout-ux-preservation.json",
     "reports-v2-complete": "flows/reports-v2-complete.json",
     "core-business-e2e": "flows/core-business-e2e.json",
     "enterprise-depth-p0": "flows/enterprise-depth-p0.json",
@@ -62,6 +64,8 @@
       "flows": [
         "smoke",
         "home",
+        "sales-enhancements",
+        "checkout-ux-preservation",
         "reports-v2-complete",
         "core-business-e2e",
         "enterprise-depth-p0",
@@ -75,6 +79,9 @@
       ],
       "criticalFlows": [
         "smoke",
+        "home",
+        "sales-enhancements",
+        "checkout-ux-preservation",
         "reports-v2-complete",
         "core-business-e2e",
         "enterprise-depth-p0",
@@ -94,6 +101,8 @@
       "flows": [
         "smoke",
         "home",
+        "sales-enhancements",
+        "checkout-ux-preservation",
         "reports-v2-complete",
         "core-business-e2e",
         "enterprise-depth-p0",
@@ -108,6 +117,8 @@
       "criticalFlows": [
         "smoke",
         "home",
+        "sales-enhancements",
+        "checkout-ux-preservation",
         "reports-v2-complete",
         "core-business-e2e",
         "enterprise-depth-p0",
