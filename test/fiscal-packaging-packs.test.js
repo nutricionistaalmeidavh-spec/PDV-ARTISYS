@@ -47,7 +47,7 @@ function writePack(root, {
 }
 
 test('P20: packaged runtime paths resolve exclusively below process.resourcesPath/fiscal', () => {
-  const resourcesPath = path.join(path.sep, 'opt', 'artisys', 'resources');
+  const resourcesPath = path.join(path.parse(process.cwd()).root, 'opt', 'artisys', 'resources');
   const resolved = resolveFiscalRuntimePaths({ isPackaged:true, resourcesPath });
 
   assert.equal(resolved.runtimeRoot, path.join(resourcesPath, 'fiscal'));
