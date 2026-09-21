@@ -5,6 +5,8 @@ const path = require('node:path');
 const { validateSecretConnection, publicConnection } = require('../js/domains/fiscal/fiscal-core');
 const { createDefaultFiscalProviderRegistry } = require('../js/domains/fiscal/provider-registry');
 
+const MAX_PFX_BYTES = 4 * 1024 * 1024;
+
 function createFiscalConnectionStore({ app, safeStorage, fileName = 'pdv-fiscal-connection.enc' } = {}) {
   if (!app || typeof app.getPath !== 'function' || !safeStorage) throw new TypeError('app and safeStorage are required.');
   const filePath = path.join(app.getPath('userData'), fileName);
@@ -82,7 +84,11 @@ function registerFiscalIpc({
   isTrustedSender = null,
   fetchImpl = globalThis.fetch,
   providerResolver = null,
-  sidecarBaseUrlResolver = () => null
+  sidecarBaseUrlResolver = () => null,
+  dialog = null,
+  getParentWindow = () => null,
+  onCertificateSaved = null,
+  isProductionEnabled = () => false
 } = {}) {
   if (!ipcMain || !store) throw new TypeError('ipcMain and fiscal store are required.');
   const trusted = event => typeof isTrustedSender !== 'function' || Boolean(isTrustedSender(event));
@@ -102,6 +108,20 @@ function registerFiscalIpc({
   handle('artisys:fiscal:save', input => store.saveSecret(input));
   handle('artisys:fiscal:remove', () => store.removeSecret());
   handle('artisys:fiscal:certificate-status', () => credentialStore?.publicStatus?.() || { configured:false });
+  handle('artisys:fiscal:certificate-import', async input => {
+    if (!credentialStore || typeof credentialStore.save !== 'function') throw new Error('Cofre de certificado fiscal indisponivel.');
+    if (!dialog || typeof dialog.showOpenDialog !== 'function') throw new Error('Seletor de certificado indisponivel.');
+    const selection=await dialog.showOpenDialog(getParentWindow?.()||undefined,{title:'Selecionar certificado A1',properties:['openFile'],filters:[{name:'Certificado A1',extensions:['pfx','p12']}]});
+    if(selection.canceled||!selection.filePaths?.[0])return{cancelled:true};
+    const selected=selection.filePaths[0];const stat=fs.statSync(selected);if(!stat.isFile()||stat.size<=0||stat.size>MAX_PFX_BYTES)throw new Error('Certificado A1 excede o limite de 4 MiB ou e invalido.');
+    const pfx=fs.readFileSync(selected);const status=credentialStore.save({pfxBase64:pfx.toString('base64'),password:String(input.pfxPassword??''),csc:String(input.cscSecret??''),cscId:String(input.cscId??''),certificateName:path.basename(selected)});
+    if(typeof onCertificateSaved==='function')await onCertificateSaved(status);
+    return status;
+  });
+  handle('artisys:fiscal:set-environment', input => {
+    const environment=String(input.environment||'').trim().toLowerCase();if(!['homologation','production'].includes(environment))throw new Error('Ambiente fiscal invalido.');if(environment==='production'&&!isProductionEnabled())throw new Error('Ambiente de producao ainda nao foi ativado pelo checklist fiscal.');
+    const secret=store.readSecret();if(!secret)throw new Error('Conexao fiscal nao configurada.');return store.saveSecret({...secret,environment});
+  });
   handle('artisys:fiscal:test', async () => {
     const secret = store.readSecret();
     if (!secret) return { configured:false, reachable:false, error:'Conexao fiscal nao configurada.' };
