@@ -161,7 +161,11 @@ function registerIpc() {
     credentialStore:fiscalCredentialStore,
     isTrustedSender:trustedSender,
     providerResolver:fiscalProviderResolver,
-    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
+    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null,
+    dialog,
+    getParentWindow:()=>mainWindow,
+    onCertificateSaved:status=>runtime?.fiscalConfiguration?.saveCertificateMetadata?.({certificateName:status.certificateName,...(status.certificate||{})}),
+    isProductionEnabled:()=>runtime?.fiscalProduction?.getActivation?.().enabled===true
   });
   registerImportIpc({ ipcMain, dialog, getParentWindow:()=>mainWindow, isTrustedSender:trustedSender });
   const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
