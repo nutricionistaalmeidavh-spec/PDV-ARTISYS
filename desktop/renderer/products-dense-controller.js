@@ -10,7 +10,10 @@
   const api = new ApiClient();
   let stockFilter = '';
   let scheduled = false;
+  let scheduledForceProducts = false;
   let decorating = false;
+  let rerunRequested = false;
+  let rerunForceProducts = false;
   let productsById = new Map();
   let productsLoadedAt = 0;
 
@@ -170,7 +173,12 @@
   }
 
   async function decorateProducts(page = productsPage(), { forceProducts = false } = {}) {
-    if (!page || decorating) return;
+    if (!page) return;
+    if (decorating) {
+      rerunRequested = true;
+      rerunForceProducts = rerunForceProducts || forceProducts;
+      return;
+    }
     if (!enabled()) {
       restoreLegacy(page);
       return;
@@ -202,16 +210,24 @@
       console.warn('Produtos densos indisponíveis; mantendo UI legada.', error?.message || error);
     } finally {
       decorating = false;
+      if (rerunRequested) {
+        rerunRequested = false;
+        scheduleDecorate({ forceProducts: rerunForceProducts });
+        rerunForceProducts = false;
+      }
     }
   }
 
   function scheduleDecorate({ forceProducts = false } = {}) {
+    scheduledForceProducts = scheduledForceProducts || forceProducts;
     if (scheduled) return;
     scheduled = true;
     setTimeout(() => {
       scheduled = false;
+      const pendingForceProducts = scheduledForceProducts;
+      scheduledForceProducts = false;
       const page = productsPage();
-      if (page) void decorateProducts(page, { forceProducts });
+      if (page) void decorateProducts(page, { forceProducts: pendingForceProducts });
     }, 0);
   }
 
