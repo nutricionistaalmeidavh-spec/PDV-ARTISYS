@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const tls = require('node:tls');
+const { X509Certificate } = require('node:crypto');
 
 const MAX_PFX_BYTES = 4 * 1024 * 1024;
 
@@ -10,15 +11,34 @@ function encryptionReady(safeStorage) {
   return Boolean(safeStorage && typeof safeStorage.isEncryptionAvailable === 'function' && safeStorage.isEncryptionAvailable());
 }
 
-function validatePfxBuffer({ pfx, password = '' } = {}) {
+function loadPfxContext({ pfx, password = '' } = {}) {
   const buffer = Buffer.isBuffer(pfx) ? pfx : Buffer.from(pfx || []);
   if (!buffer.length || buffer.length > MAX_PFX_BYTES) throw new Error('Certificado PFX/PKCS#12 invalido.');
   try {
-    tls.createSecureContext({ pfx:buffer, passphrase:String(password ?? '') });
+    return tls.createSecureContext({ pfx:buffer, passphrase:String(password ?? '') });
   } catch {
     throw new Error('Certificado PFX/PKCS#12 invalido ou senha incorreta.');
   }
+}
+
+function validatePfxBuffer(input = {}) {
+  loadPfxContext(input);
   return true;
+}
+
+function inspectPfxBuffer(input = {}) {
+  const secureContext=loadPfxContext(input);
+  const der=typeof secureContext.context?.getCertificate==='function' ? secureContext.context.getCertificate() : null;
+  if(!der||!Buffer.from(der).length) throw new Error('Certificado X.509 nao encontrado dentro do PFX/PKCS#12.');
+  const certificate=new X509Certificate(Buffer.from(der));
+  return {
+    fingerprint:certificate.fingerprint256 || certificate.fingerprint || null,
+    subject:certificate.subject || null,
+    serialNumber:certificate.serialNumber || null,
+    validFrom:certificate.validFrom ? new Date(certificate.validFrom).toISOString() : null,
+    validTo:certificate.validTo ? new Date(certificate.validTo).toISOString() : null,
+    cnpj:null
+  };
 }
 
 function decodePfxBase64(value) {
@@ -51,9 +71,7 @@ function createFiscalCredentialStore({
 }={}) {
   if(!app||typeof app.getPath!=='function'||!safeStorage) throw new TypeError('app and safeStorage are required.');
   const filePath=path.join(app.getPath('userData'),fileName);
-  const inspector=typeof inspectPfx==='function'
-    ? inspectPfx
-    : ({pfx,password})=>{validatePfxBuffer({pfx,password});return {};};
+  const inspector=typeof inspectPfx==='function' ? inspectPfx : inspectPfxBuffer;
 
   function requireEncryption(){if(!encryptionReady(safeStorage)) throw new Error('Criptografia segura do sistema operacional indisponivel.');}
 
@@ -115,6 +133,8 @@ function createFiscalCredentialStore({
       if(/PFX|PKCS|certificado|senha/i.test(message)) throw error;
       throw new Error(`Falha ao validar certificado PFX: ${message}`);
     }
+    const timestampValue=now();
+    const timestamp=timestampValue instanceof Date?timestampValue:new Date(timestampValue);
     encryptPayload({
       schemaVersion:1,
       pfxBase64:pfx.toString('base64'),
@@ -123,7 +143,7 @@ function createFiscalCredentialStore({
       cscId,
       certificateName:certificateName||null,
       certificate:metadata,
-      updatedAt:(now() instanceof Date?now():new Date(now())).toISOString()
+      updatedAt:timestamp.toISOString()
     });
     return publicStatus();
   }
@@ -132,6 +152,7 @@ function createFiscalCredentialStore({
     const secret=readSecret();
     if(!secret) throw new Error('Certificado A1/CSC nao configurado.');
     const status=calculateStatus(secret);
+    if(!status.expiryVerified) throw new Error('Validade do certificado A1 nao verificada.');
     if(status.expired) throw new Error('Certificado A1 expirado/vencido.');
     return secret;
   }
@@ -141,4 +162,4 @@ function createFiscalCredentialStore({
   return Object.freeze({filePath,save,readSecret,publicStatus,assertUsable,remove});
 }
 
-module.exports={MAX_PFX_BYTES,validatePfxBuffer,createFiscalCredentialStore};
+module.exports={MAX_PFX_BYTES,validatePfxBuffer,inspectPfxBuffer,createFiscalCredentialStore};
