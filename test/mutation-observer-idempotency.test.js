@@ -36,6 +36,7 @@ test('every renderer MutationObserver is explicitly covered by the idempotency a
     'delivery-address-ui.js',
     'e48-e54-ui.js',
     'enterprise-depth-ui.js',
+    'fiscal-monitor.js',
     'kits-combos-ui.js',
     'product-variants-ui.js',
     'restaurant-ui.js',
@@ -116,6 +117,10 @@ test('remaining renderer observers have a pre-mutation guard, lock, marker, or s
   const admin=read('admin-ops.js');
   assert.match(admin,/if\(rendering\|\|!content\|\|!content\.querySelector\('\.ops-page'\)\)return;[\s\S]*content\.querySelector\('#ops-admin-control-center'\)\)return;[\s\S]*rendering=true;[\s\S]*appendChild\(panel\)/);
   assert.match(admin,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
+
+  const fiscal=read('fiscal-monitor.js');
+  assert.match(fiscal,/if\(rendering\|\|!content\|\|content\.querySelector\('#fiscal-monitor-panel'\)\)return;[\s\S]*rendering=true;[\s\S]*page\.appendChild\(panel\)/);
+  assert.match(fiscal,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
 
   const enterprise=read('enterprise-depth-ui.js');
   assert.match(enterprise,/if\(!page\|\|h\?\.textContent\?\.trim\(\)!=='Estoque'\|\|page\.querySelector\('#enterprise-depth-entry'\)\)return;[\s\S]*page\.appendChild\(card\)/);
