@@ -14,6 +14,7 @@ const { createHardwareController, registerHardwareIpc } = require('./hardware-br
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
+const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -212,8 +213,20 @@ app.whenReady().then(async () => {
   });
 
   if (shouldStartEmbeddedServer(bootstrapConfig)) {
+    const fiscalRuntimePaths = resolveFiscalRuntimePaths({
+      isPackaged:app.isPackaged,
+      resourcesPath:process.resourcesPath,
+      projectRoot:path.join(__dirname, '..')
+    });
     fiscalSidecar = createFiscalSidecarRuntime({
-      env:process.env,
+      entryPath:fiscalRuntimePaths.sidecarEntry,
+      env:{
+        ...process.env,
+        ARTISYS_FISCAL_RUNTIME_ROOT:fiscalRuntimePaths.runtimeRoot,
+        ARTISYS_FISCAL_ACBR_ROOT:fiscalRuntimePaths.acbrRoot,
+        ARTISYS_FISCAL_CONFIGS_ROOT:fiscalRuntimePaths.configsRoot,
+        ARTISYS_FISCAL_SCHEMAS_ROOT:fiscalRuntimePaths.schemasRoot
+      },
       onError:error => console.error(error)
     });
     try {
