@@ -12,7 +12,7 @@ function assertBefore(block,guard,mutations,label){const guardIndex=block.indexO
 
 test('every renderer MutationObserver is explicitly covered by the idempotency audit',()=>{
  const actual=fs.readdirSync(rendererDir).filter(file=>file.endsWith('.js')&&read(file).includes('MutationObserver')).sort();
- const expected=['admin-ops.js','backend-parity-ui.js','delivery-address-ui.js','e48-e54-ui.js','enterprise-depth-ui.js','fiscal-monitor.js','kits-combos-ui.js','product-variants-ui.js','restaurant-ui.js','sale-observation-ui.js','seller-select-sync.js','store-branding-ui.js','ui-parity-p0-p2.js','vertical-modules.js','vertical-parity-p1.js'].sort();
+ const expected=['admin-ops.js','backend-parity-ui.js','delivery-address-ui.js','e48-e54-ui.js','enterprise-depth-ui.js','fiscal-config-ui.js','fiscal-monitor.js','kits-combos-ui.js','product-variants-ui.js','restaurant-ui.js','sale-observation-ui.js','seller-select-sync.js','store-branding-ui.js','ui-parity-p0-p2.js','vertical-modules.js','vertical-parity-p1.js'].sort();
  assert.deepEqual(actual,expected,'new or removed MutationObserver requires an explicit idempotency review');
 });
 
