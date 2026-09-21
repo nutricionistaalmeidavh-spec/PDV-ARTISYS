@@ -47,9 +47,28 @@ test('paired screens are both loaded, flagged, parity-documented and regression-
     'docs/architecture/products-dense-parity.md',
     'docs/architecture/customers-master-detail-parity.md',
     'docs/architecture/paired-ux-evolution.md',
+    'docs/architecture/ux-products-clients-evidence.json',
     'test/products-dense-integration-parity.test.js',
     'test/customers-master-detail-integration-parity.test.js'
   ]) assert.equal(fs.existsSync(path.join(root, file)), true, `paired UX artifact missing: ${file}`);
+});
+
+test('paired UX evidence manifest blocks evidence-free maturity bumps', () => {
+  const evidence = JSON.parse(read('docs/architecture/ux-products-clients-evidence.json'));
+  assert.deepEqual(evidence.products, evidence.customers,
+    'Produtos e Clientes precisam carregar o mesmo contrato de evidências reais');
+  for (const key of [
+    'featureFlag',
+    'fallbackE2E',
+    'parityMatrix',
+    'controllerIntegration',
+    'deepE2E',
+    'crossFlow',
+    'responsiveEvidence',
+    'releaseRegistration'
+  ]) {
+    assert.equal(evidence.products?.[key], true, `evidência pareada ausente: ${key}`);
+  }
 });
 
 test('paired evolution policy requires bumping both local UX levels for structural changes', () => {
