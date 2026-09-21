@@ -23,13 +23,15 @@ function buildStoredZip(entries,createdAt){
   return Buffer.concat([...localParts,...centralParts,end]);
 }
 
-function createDiagnosticPackage({db,health,settings,logger,diagnosticsDir,version='0.0.0',now=()=>new Date().toISOString(),idFactory=()=>`diag-${randomUUID()}`}={}){
+function createDiagnosticPackage({db,health,settings,logger,diagnosticsDir,version='0.0.0',now=()=>new Date().toISOString(),idFactory=()=>`diag-${randomUUID()}`,fiscalSnapshot=null}={}){
   if(!db||!health||!settings||!logger||!diagnosticsDir)throw new TypeError('db, health, settings, logger and diagnosticsDir are required.');
+  if(fiscalSnapshot!==null&&typeof fiscalSnapshot!=='function')throw new TypeError('fiscalSnapshot deve ser funcao quando informado.');
   fs.mkdirSync(diagnosticsDir,{recursive:true});
   function createPackage({actor={}}={}){
     if(String(actor.role||'')!=='admin')throw new Error('Pacote de diagnostico exige usuario administrador.');
     const createdAt=now();const id=String(idFactory('diag'));const schemaVersion=Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get().version||0);
-    const manifest={id,product:'ArtiSys PDV',version:String(version),schemaVersion,createdAt,contents:['health.json','settings-public.json','migrations.json','logs.json'],safeSupportBundle:true};
+    const contents=['health.json','settings-public.json','migrations.json','logs.json'];if(fiscalSnapshot)contents.push('fiscal-diagnostics.json');
+    const manifest={id,product:'ArtiSys PDV',version:String(version),schemaVersion,createdAt,contents,safeSupportBundle:true};
     const migrations=db.prepare('SELECT version,name,applied_at AS appliedAt FROM schema_migrations ORDER BY version').all();
     const entries=[
       {name:'manifest.json',data:jsonBuffer(manifest)},
@@ -38,6 +40,7 @@ function createDiagnosticPackage({db,health,settings,logger,diagnosticsDir,versi
       {name:'migrations.json',data:jsonBuffer(migrations)},
       {name:'logs.json',data:jsonBuffer(logger.list({limit:1000}))}
     ];
+    if(fiscalSnapshot)entries.push({name:'fiscal-diagnostics.json',data:jsonBuffer(fiscalSnapshot())});
     const zip=buildStoredZip(entries,createdAt);const fileName=`${id}.zip`;const filePath=path.join(diagnosticsDir,fileName);fs.writeFileSync(filePath,zip);const sha256=createHash('sha256').update(zip).digest('hex');
     writeAudit(db,{action:'diagnostics.create',entity:'diagnostics',entityId:id,actor,context:{fileName,sha256,size:zip.length}},now);
     return{id,fileName,filePath,sha256,size:zip.length,createdAt};
