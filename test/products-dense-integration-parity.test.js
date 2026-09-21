@@ -12,73 +12,91 @@ function includesAll(source, markers, label) {
   for (const marker of markers) assert.ok(source.includes(marker), `${label}: missing ${marker}`);
 }
 
-test('Products dense assets load before app and preserve legacy assets', () => {
+test('Products dense assets load around app without removing legacy renderer assets', () => {
   const index = read('desktop/renderer/index.html');
-  includesAll(index, ['./ux-components.css', './products-dense-view.css', './ux-components.js', './products-dense-view.js', './app.js'], 'index');
-  assert.ok(index.indexOf('./ux-components.js') < index.indexOf('./products-dense-view.js'));
+  includesAll(index, [
+    './ux-components.css',
+    './products-dense-view.css',
+    './ux-components.js',
+    './feature-flags.js',
+    './products-dense-view.js',
+    './app.js',
+    './products-dense-controller.js'
+  ], 'index');
+  assert.ok(index.indexOf('./feature-flags.js') < index.indexOf('./app.js'));
   assert.ok(index.indexOf('./products-dense-view.js') < index.indexOf('./app.js'));
+  assert.ok(index.indexOf('./app.js') < index.indexOf('./products-dense-controller.js'));
 });
 
-test('Products dense view is enabled by a reversible feature flag and legacy renderer remains present', () => {
-  const app = read('desktop/renderer/app.js');
-  includesAll(app, [
+test('Products dense view is enabled by a reversible global feature flag', () => {
+  const flags = read('desktop/renderer/feature-flags.js');
+  includesAll(flags, [
     'productsDenseView: true',
-    'window.PdvFeatureFlags = featureFlags',
-    "productStockFilter: ''",
-    'function renderProductsLegacy()',
-    'function renderProductsDense()',
-    'function renderProducts()',
-    'featureFlags.productsDenseView',
-    'window.PdvProductsDenseView',
-    'window.ArtisysUxComponents'
-  ], 'app');
+    'window.PdvFeatureFlags',
+    'productsDenseView'
+  ], 'feature flags');
 });
 
-test('legacy and dense Products paths preserve every current top-level action hook', () => {
-  const app = read('desktop/renderer/app.js');
-  const dense = read('desktop/renderer/products-dense-view.js');
-  const hooks = [
-    'new-product',
-    'new-category',
-    'product-page-search',
-    'sync-product-photos',
-    'data-product-photo-edit',
-    'data-product-photo-remove',
-    'data-edit-product'
-  ];
-  for (const hook of hooks) {
-    assert.ok(app.includes(hook), `legacy path must keep ${hook}`);
-    assert.ok(dense.includes(hook), `dense path must keep ${hook}`);
-  }
-  includesAll(app, ['product-category-filter', 'openProductForm', 'openCategoryForm', 'syncProductPhotos', 'uploadProductPhoto', 'removeProductPhoto'], 'legacy behavior');
-  includesAll(dense, ['data-filter-id', 'category', 'stock', 'Custo', 'Margem', 'data-product-stock-cell'], 'dense behavior');
-});
-
-test('dense Products integrates category and stock filters without replacing canonical search semantics', () => {
+test('legacy Product renderer remains untouched as the source of action handlers', () => {
   const app = read('desktop/renderer/app.js');
   includesAll(app, [
-    'ui.filterProducts(state.products, state.productQuery, state.categoryId)',
-    'dense.filterByStock(',
-    "filter.dataset.filterId === 'category'",
-    "filter.dataset.filterId === 'stock'",
-    'state.productStockFilter',
-    "event.key.toLowerCase() === 'k'",
-    "state.route === 'products'"
-  ], 'dense filters');
+    'function renderProducts()',
+    'id="new-product"',
+    'id="new-category"',
+    'id="product-page-search"',
+    'id="product-category-filter"',
+    'id="sync-product-photos"',
+    'data-product-photo-edit=',
+    'data-product-photo-remove=',
+    'data-edit-product=',
+    'openProductForm',
+    'openCategoryForm',
+    'syncProductPhotos',
+    'uploadProductPhoto',
+    'removeProductPhoto'
+  ], 'legacy app');
 });
 
-test('product variants explicitly supports both legacy div rows and dense table rows', () => {
-  const variants = read('desktop/renderer/product-variants-ui.js');
-  includesAll(variants, [
-    "data-products-view",
+test('dense controller augments existing DOM instead of replacing action nodes', () => {
+  const controller = read('desktop/renderer/products-dense-controller.js');
+  includesAll(controller, [
+    'PdvFeatureFlags.productsDenseView',
+    'PdvProductsDenseView.productStatus',
+    'PdvProductsDenseView.filterByStock',
+    'ArtisysUxComponents.StatusBadge',
+    'function decorateProducts',
+    'data-products-view',
     'products-dense-table',
-    'data-product-title',
-    'data-product-stock-cell',
-    'variantDenseRowHtml',
-    'variantLegacyRowHtml',
-    'data-new-product-variant',
-    'data-edit-product-variant'
-  ], 'variants parity');
+    'data-dense-status-cell',
+    '#product-page-search',
+    '#product-category-filter',
+    '#products-stock-filter',
+    '[data-edit-product]',
+    '[data-product-photo-edit]',
+    '[data-product-photo-remove]'
+  ], 'dense controller');
+  assert.doesNotMatch(controller, /innerHTML\s*=\s*.*data-edit-product/s, 'controller must not rebuild canonical action buttons');
+});
+
+test('dense controller adds stock filtering and Ctrl+K while preserving canonical search/category handlers', () => {
+  const controller = read('desktop/renderer/products-dense-controller.js');
+  includesAll(controller, [
+    'stockFilter',
+    "event.key.toLowerCase() === 'k'",
+    "page.querySelector('#product-page-search')",
+    "page.querySelector('#product-category-filter')",
+    'row.hidden =',
+    'filterByStock'
+  ], 'dense interaction');
+});
+
+test('variants, fiscal fields and kits/combos remain connected through the original DOM hooks', () => {
+  const variants = read('desktop/renderer/product-variants-ui.js');
+  const fiscal = read('desktop/renderer/product-fiscal-fields.js');
+  const kits = read('desktop/renderer/kits-combos-ui.js');
+  includesAll(variants, ['.page .data-card', '.data-row', '[data-edit-product]', 'data-new-product-variant', 'data-edit-product-variant'], 'variants');
+  includesAll(fiscal, ['#product-form', '#new-product', '[data-edit-product]', 'fiscalProfileId', 'fiscalGtin'], 'fiscal');
+  includesAll(kits, ['Kits e combos', 'data-new-kit', 'data-new-combo', 'data-edit-kit', 'data-edit-combo'], 'kits/combos');
 });
 
 test('phase 4 parity matrix is versioned and blocks legacy removal', () => {
