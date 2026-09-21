@@ -5,6 +5,13 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.PdvProductsDenseView = api;
 })(typeof window !== 'undefined' ? window : globalThis, function factory() {
+  const PRODUCTS_UX_LEVEL = 2;
+  const PRODUCTS_UX_GUARDS = Object.freeze({
+    reversible: true,
+    progressiveEnhancement: true,
+    legacyHandlersPreserved: true,
+    parityGuarded: true
+  });
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
 
   function productStatus(product = {}) {
@@ -120,5 +127,11 @@
     return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Produtos</h1><p>Catálogo, preços, fotos, custo, margem e estoque mínimo.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo produto</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
   }
 
-  return Object.freeze({ productStatus, filterByStock, renderProductsDense });
+  return Object.freeze({
+    PRODUCTS_UX_LEVEL,
+    PRODUCTS_UX_GUARDS,
+    productStatus,
+    filterByStock,
+    renderProductsDense
+  });
 });
