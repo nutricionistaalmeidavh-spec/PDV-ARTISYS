@@ -27,6 +27,19 @@ test('home enhancer only reuses existing route buttons and sales-history API',()
   assert.match(js,/api\.salesHistory\(\{ limit:5 \}\)/);
 });
 
+test('home preserves dynamic launchers injected by other renderer modules',()=>{
+  const js=read('desktop/renderer/ux-home-checkout.js');
+  assert.match(js,/hub\.className = 'home-hub home-grid'/);
+  assert.match(js,/querySelectorAll\(':scope > \.home-tile:not\(\[data-home-route\]\)'\)/);
+  assert.match(js,/data-home-extra-host/);
+  assert.match(js,/extraHost\.appendChild\(launcher\)/);
+});
+
+test('home compact module links keep their existing icons visible',()=>{
+  const css=read('desktop/renderer/ux-home-checkout.css');
+  assert.doesNotMatch(css,/\.home-hub \.home-module-link \.tile-icon\s*\{\s*display\s*:\s*none/);
+});
+
 test('checkout preservation keeps current controls handlers payments and shortcuts untouched',()=>{
   const app=read('desktop/renderer/app.js');
   for(const id of ['product-search','scan-focus','seller-select','customer-search','clear-cart','discount-percent','new-sale','remove-item','cancel-sale','suspend-sale','finalize-sale']) assert.match(app,new RegExp(`id=\\"${id}\\"`));
