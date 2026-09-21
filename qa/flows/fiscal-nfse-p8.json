@@ -1,0 +1,31 @@
+{
+  "name": "fiscal-nfse-p8",
+  "steps": [
+    {
+      "action": "click",
+      "selector": "[data-route='settings']",
+      "name": "p8-open-settings"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#nfse-workspace",
+      "name": "p8-nfse-workspace",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#nfse-issue-form",
+      "name": "p8-nfse-issue"
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#nfse-body",
+      "name": "p8-nfse-list"
+    },
+    {
+      "action": "screenshot",
+      "name": "fiscal-nfse-p8",
+      "fullPage": true
+    }
+  ]
+}
