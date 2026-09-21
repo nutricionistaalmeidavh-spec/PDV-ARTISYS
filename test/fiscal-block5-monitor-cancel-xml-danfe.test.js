@@ -40,12 +40,12 @@ async function authorizedRuntime({dir,provider}){
   await drain(runtime);return{runtime,doc:runtime.fiscal.getDocument(doc.id)};
 }
 
-test('P10/P12 schema v15 is additive and fiscal monitor exposes events and artifact metadata',async()=>{
+test('P10/P12 schema v15 remains preserved while later fiscal schemas advance additively',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-fiscal-b5-'));
   try{
     const provider={issue:async()=>({ok:true,status:200,data:{cStat:100,chave:'35260912345678000123650010000000411234567890',protocolo:'135260000000041',numero:'41',serie:'1',xml:'<nfeProc><NFe>autorizada</NFe></nfeProc>'}})};
     const {runtime,doc}=await authorizedRuntime({dir,provider});
-    const version=Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);assert.equal(version,15);
+    const version=Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);assert.ok(version>=15);
     for(const name of ['cancellation_protocol','cancellation_xml_path','cancellation_reason','danfe_print_job_id']) assert.ok(runtime.db.prepare("SELECT 1 FROM pragma_table_info('fiscal_documents') WHERE name=?").get(name),name);
     assert.equal(doc.lifecycleStatus,'AUTHORIZED');assert.ok(doc.xmlPath);assert.equal(fs.existsSync(doc.xmlPath),true);
     const details=runtime.fiscal.getMonitorDocument(doc.id);assert.equal(details.document.id,doc.id);assert.ok(details.events.some(event=>event.status==='AUTHORIZED'));assert.equal(details.sale.id,'sale1');
