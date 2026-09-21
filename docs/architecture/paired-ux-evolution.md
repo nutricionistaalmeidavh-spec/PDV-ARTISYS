@@ -11,7 +11,7 @@ Cada módulo exporta seu nível local:
 - `PRODUCTS_UX_LEVEL`
 - `CUSTOMERS_UX_LEVEL`
 
-Os dois devem permanecer com o **mesmo valor**.
+Os dois devem permanecer com o **mesmo valor**. Após as Entregas 7 e 8, ambos estão no nível **3**, que acrescenta validação cross-flow e regressão completa de release ao nível de paridade/reversibilidade anterior.
 
 O nível representa maturidade da adaptação, não quantidade de funcionalidades de negócio. As telas têm domínios diferentes, mas precisam manter a mesma profundidade de implementação e proteção.
 
@@ -23,7 +23,8 @@ Qualquer **alteração estrutural** relevante em uma das duas telas — nova arq
 2. implementar adaptação equivalente na outra tela;
 3. elevar o nível da outra tela para o mesmo valor;
 4. atualizar as duas matrizes de paridade quando aplicável;
-5. manter testes de regressão específicos nas duas telas.
+5. manter testes de regressão específicos nas duas telas;
+6. manter os fluxos encadeados entre cadastro, venda, estoque, histórico e relatórios verdes.
 
 Se apenas um nível for elevado, o **CI deve falhar**.
 
@@ -34,9 +35,11 @@ Produtos e Clientes devem declarar as mesmas garantias estruturais:
 - `reversible: true`;
 - `progressiveEnhancement: true`;
 - `legacyHandlersPreserved: true`;
-- `parityGuarded: true`.
+- `parityGuarded: true`;
+- `crossFlowGuarded: true`;
+- `releaseRegressionGuarded: true`.
 
-O teste `paired-ux-evolution-guard.test.js` compara diretamente os dois contratos.
+O teste `paired-ux-evolution-guard.test.js` compara diretamente os dois contratos. O teste `ux-products-clients-release-regression.test.js` exige ainda o cross-flow e o gate completo de release.
 
 ## O que significa evolução pareada
 
@@ -48,7 +51,9 @@ Evolução pareada não significa copiar recursos de Produtos para Clientes ou v
 - matriz de paridade;
 - testes de integração/paridade;
 - teste de idempotência de observers;
-- fallback sem perda funcional.
+- fallback sem perda funcional;
+- cross-flow real entre módulos;
+- cobertura obrigatória no perfil de release.
 
 ## Exceções
 
