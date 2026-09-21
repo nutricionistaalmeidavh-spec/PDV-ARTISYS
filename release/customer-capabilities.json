@@ -335,7 +335,8 @@
       "declaredCapabilities": [],
       "backend": [
         { "path": "js/domains/fiscal/fiscal-service.js" },
-        { "path": "js/domains/fiscal/fiscal-configuration-service.js" }
+        { "path": "js/domains/fiscal/fiscal-configuration-service.js" },
+        { "path": "js/domains/fiscal/fiscal-production-service.js" }
       ],
       "api": [],
       "client": [],
