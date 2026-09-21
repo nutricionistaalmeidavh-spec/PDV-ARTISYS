@@ -18,6 +18,7 @@ body.theme-home .app-footer strong { color: #1d2b4d; }
 body.theme-home .window-controls button:hover { background: #edf1f7; }
 
 .home-hub { max-width: 1500px; margin: 0 auto; display: grid; gap: 14px; }
+.home-hub.home-grid { grid-template-columns:minmax(0,1fr); grid-auto-rows:auto; min-height:0; }
 .home-hub-head { display:flex; align-items:end; justify-content:space-between; min-height:56px; }
 .home-hub-head h1 { margin:0 0 4px; font-size:31px; }
 .home-hub-head p { margin:0; color:var(--muted); }
@@ -36,10 +37,17 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
 .home-module-list { display:grid; gap:5px; }
 .home-hub .home-module-link { min-height:52px; grid-column:auto !important; border-radius:10px; padding:9px 10px; color:#1c2c4d; background:#f8fafc; border:1px solid #edf1f6; box-shadow:none; }
 .home-hub .home-module-link:hover { transform:none; filter:none; background:#f0f6ff; border-color:#cfe2fb; color:var(--artisys-blue); }
-.home-hub .home-module-link .tile-icon { display:none; }
+.home-hub .home-module-link .tile-icon { display:block; margin:0 0 5px; color:var(--artisys-blue); }
+.home-hub .home-module-link .tile-icon svg { width:20px; height:20px; }
 .home-hub .home-module-link h2 { margin:0 0 3px; font-size:14px; color:inherit; }
 .home-hub .home-module-link p { margin:0; max-width:none; font-size:11px; color:var(--muted); opacity:1; }
 .home-hub .home-module-link .shortcut-badge { margin-top:6px; padding:3px 7px; background:#eef4fb; color:#52627f; border-color:#dbe5f1; font-size:10px; }
+.home-extra-card { background:#fff; border:1px solid var(--line); border-radius:13px; padding:11px; box-shadow:0 5px 16px rgba(31,57,94,.04); }
+.home-extra-card[hidden] { display:none; }
+.home-extra-card > h2 { margin:0 0 8px; font-size:14px; color:#273652; }
+.home-extra-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:5px; }
+.home-extra-list .home-tile { grid-column:auto !important; min-height:72px; }
+.home-extra-list .restaurant-symbol { display:block; font-size:18px; line-height:20px; }
 .home-recent-card { background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 6px 18px rgba(31,57,94,.05); overflow:hidden; }
 .home-recent-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 15px; border-bottom:1px solid #edf1f6; }
 .home-recent-head h2 { margin:0 0 3px; font-size:17px; }
