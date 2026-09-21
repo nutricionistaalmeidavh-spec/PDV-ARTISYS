@@ -62,11 +62,14 @@
     return parts.join(' · ') || '—';
   }
 
-  function renderHistory(sales, { formatCents, formatDate } = {}) {
+  function renderHistory(sales, { formatCents, formatDate, hasMore = false, loading = false } = {}) {
     const money = typeof formatCents === 'function' ? formatCents : value => String(value ?? 0);
     const when = typeof formatDate === 'function' ? formatDate : value => String(value || '—');
-    const rows = sales.slice(0, 5).map(sale => `<li class="customers-history-item"><div><strong>${esc(sale.saleNumber || sale.id || 'Venda')}</strong><small>${esc(when(sale.completedAt || sale.openedAt))}</small></div><strong>${esc(money(sale.totalCents || 0))}</strong></li>`).join('');
-    return `<section class="customers-history" data-customer-history-panel><div class="customers-history__head"><strong>Histórico recente</strong><small>${sales.length} venda${sales.length === 1 ? '' : 's'} vinculada${sales.length === 1 ? '' : 's'}</small></div>${rows ? `<ul>${rows}</ul>` : '<p>Nenhuma venda concluída vinculada a este cliente.</p>'}</section>`;
+    const rows = sales.map(sale => `<li class="customers-history-item"><div><strong>${esc(sale.saleNumber || sale.id || 'Venda')}</strong><small>${esc(when(sale.completedAt || sale.openedAt))}</small></div><strong>${esc(money(sale.totalCents || 0))}</strong></li>`).join('');
+    const more = hasMore
+      ? `<button type="button" class="secondary-button customers-history-more" data-action="customer-history-more"${loading ? ' disabled' : ''}>${loading ? 'Carregando…' : 'Carregar mais'}</button>`
+      : '';
+    return `<section class="customers-history" data-customer-history-panel><div class="customers-history__head"><strong>Histórico de compras</strong><small>${sales.length} venda${sales.length === 1 ? '' : 's'} carregada${sales.length === 1 ? '' : 's'}</small></div>${rows ? `<ul>${rows}</ul>` : '<p>Nenhuma venda concluída vinculada a este cliente.</p>'}${more}</section>`;
   }
 
   function renderCustomerDetail({
@@ -75,7 +78,9 @@
     components,
     formatCents = value => String(value ?? 0),
     formatDate = value => String(value || '—'),
-    historyOpen = false
+    historyOpen = false,
+    historyHasMore = false,
+    historyLoading = false
   } = {}) {
     if (!components?.DetailPanel) throw new Error('DetailPanel da ArtiSys indisponível para Clientes.');
     if (!customer) {
@@ -89,7 +94,7 @@
 
     const credit = creditSnapshot(customer);
     const customerSales = salesForCustomer(sales, customer.id);
-    const latest = customerSales[0] || null;
+    const latest = customerSales[0] || customer.lastSale || null;
     const panel = components.DetailPanel({
       eyebrow:'Cliente',
       title:customer.name || 'Cliente sem nome',
@@ -112,7 +117,7 @@
       ]
     });
 
-    return `<div class="customers-detail-stack">${panel}${historyOpen ? renderHistory(customerSales, { formatCents, formatDate }) : ''}</div>`;
+    return `<div class="customers-detail-stack">${panel}${historyOpen ? renderHistory(customerSales, { formatCents, formatDate, hasMore:historyHasMore, loading:historyLoading }) : ''}</div>`;
   }
 
   return Object.freeze({
