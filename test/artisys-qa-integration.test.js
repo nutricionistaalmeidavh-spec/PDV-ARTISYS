@@ -24,9 +24,9 @@ test('vendors runtime capabilities used by CI',()=>{
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile gates reporting v2, core business, enterprise depth, backend/UI parity, fiscal B6 and P0 fiscal baseline E2E',()=>{
+test('PDV release profile gates reporting v2, core business, enterprise depth, backend/UI parity and fiscal E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline'];
+  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5'];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
@@ -39,6 +39,7 @@ test('PDV release profile gates reporting v2, core business, enterprise depth, b
   assert.equal(config.flows['ui-parity-p0-p2'],'flows/ui-parity-p0-p2.json');
   assert.equal(config.flows['fiscal-block6'],'flows/fiscal-block6.json');
   assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');
+  assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
 });
 
 test('future QA updates remain explicit and local-first',()=>{
