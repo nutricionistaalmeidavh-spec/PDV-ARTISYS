@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+  assertProductionAdapterMode,
+  isProductionEnvironment
+} = require('../../js/domains/fiscal/security-hardening');
+
 const MODES = new Set(['unconfigured', 'mock-success', 'mock-failure']);
 
 function normalizeMode(value) {
@@ -8,8 +13,11 @@ function normalizeMode(value) {
   return mode;
 }
 
-function createControlledFiscalAdapter({ mode = process.env.ARTISYS_FISCAL_SIDECAR_MODE } = {}) {
-  const resolvedMode = normalizeMode(mode);
+function createControlledFiscalAdapter({
+  mode = process.env.ARTISYS_FISCAL_SIDECAR_MODE,
+  production = isProductionEnvironment()
+} = {}) {
+  const resolvedMode = assertProductionAdapterMode(normalizeMode(mode), { production:Boolean(production) });
   const documents = new Map();
   let sequence = 1;
 
