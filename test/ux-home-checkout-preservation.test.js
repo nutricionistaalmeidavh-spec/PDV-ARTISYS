@@ -91,6 +91,14 @@ test('checkout compact-height layout keeps the sale panel internally scrollable 
   assert.match(css,/\.sale-context-grid \{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
 });
 
+test('official CI exercises the core checkout flow at exact 1366x768',()=>{
+  const config=read('qa/runtime/src/config.js');
+  const workflow=read('.github/workflows/verify.yml');
+  assert.match(config,/compactDesktop:\s*\{\s*width:\s*1366,\s*height:\s*768\s*\}/);
+  assert.match(workflow,/Run core checkout E2E at 1366x768/);
+  assert.match(workflow,/--flow core-business-e2e --viewport compactDesktop/);
+});
+
 test('checkout preservation keeps current controls handlers payments and shortcuts untouched',()=>{
   const app=read('desktop/renderer/app.js');
   for(const id of ['product-search','scan-focus','seller-select','customer-search','clear-cart','discount-percent','new-sale','remove-item','cancel-sale','suspend-sale','finalize-sale']) assert.match(app,new RegExp(`id=\\"${id}\\"`));
