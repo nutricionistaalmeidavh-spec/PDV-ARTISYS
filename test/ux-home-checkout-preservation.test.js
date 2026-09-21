@@ -126,12 +126,15 @@ test('release QA covers dynamic Home modules and checkout exception flows',()=>{
   const home=read('qa/flows/home.json');
   assert.match(home,/#route-content \[data-restaurant-route\]/);
 
-  const flow=read('qa/flows/checkout-ux-preservation.json');
+  const flow=JSON.parse(read('qa/flows/checkout-ux-preservation.json'));
+  const selectors=flow.steps.map(step=>step.selector||'').join('\n');
+  const names=flow.steps.map(step=>step.name||'').join('\n');
   for(const marker of [
-    '#customer-search','data-customer-id','#clear-cart','#discount-percent','#suspend-sale','data-resume',
-    '#cancel-sale','#confirm-cancel','data-pay=\"cash\"','data-pay=\"card\"','data-pay=\"pix\"','data-pay=\"tef\"',
-    '#new-payment-method','#add-payment','#confirm-payment','checkout-ux-final'
-  ]) assert.ok(flow.includes(marker),`missing QA marker: ${marker}`);
+    '#customer-search','[data-customer-id]','#clear-cart','#discount-percent','#suspend-sale','[data-resume]',
+    '#cancel-sale','#confirm-cancel','[data-pay="cash"]','[data-pay="card"]','[data-pay="pix"]','[data-pay="tef"]',
+    '#new-payment-method','#add-payment','#confirm-payment'
+  ]) assert.ok(selectors.includes(marker),`missing QA selector: ${marker}`);
+  assert.ok(names.includes('checkout-ux-final'),'missing final checkout screenshot');
 
   const workflow=read('.github/workflows/verify.yml');
   assert.match(workflow,/Run checkout UX exceptions at 1366x768/);
