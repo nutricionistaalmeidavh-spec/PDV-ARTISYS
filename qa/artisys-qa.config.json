@@ -12,7 +12,7 @@
   },
   "capture": {
     "video": true,
-    "screenshotEachStep": false,
+    "screenshotEachStep": true,
     "fps": 8
   },
   "electron": {
