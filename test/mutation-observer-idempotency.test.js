@@ -42,6 +42,7 @@ test('every renderer MutationObserver is explicitly covered by the idempotency a
     'sale-observation-ui.js',
     'seller-select-sync.js',
     'store-branding-ui.js',
+    'ui-parity-p0-p2.js',
     'vertical-modules.js',
     'vertical-parity-p1.js'
   ].sort();
@@ -112,6 +113,16 @@ test('remaining renderer observers have a pre-mutation guard, lock, marker, or s
   for(const marker of ['#backend-parity-stock','#backend-terminal-stock','#backend-return-cancel','#backend-finance-parity','#backend-services-lifecycle','#backend-workshop-lifecycle']){
     assert.ok(backend.includes(marker),`backend-parity-ui missing idempotency marker ${marker}`);
   }
+
+  const p02=read('ui-parity-p0-p2.js');
+  for(const marker of ['#p0-partial-receipt-panel','#p1-purchase-receipts-panel','#p0-partial-fulfillment-panel','#p2-return-details-panel','#p1-print-retry-panel','#p1-terminal-admin-panel','#p2-import-batch-panel']){
+    assert.ok(p02.includes(marker),`ui-parity-p0-p2 missing idempotency marker ${marker}`);
+  }
+  assert.match(p02,/if\(!root\.querySelector\('#p0-partial-receipt-panel'\)\)\{[\s\S]*root\.appendChild\(card\)/);
+  assert.match(p02,/if\(!root\.querySelector\('#p1-purchase-receipts-panel'\)\)\{[\s\S]*root\.appendChild\(history\)/);
+  assert.match(p02,/title\(\)!=='Orçamentos e pedidos'\|\|root\.querySelector\('#p0-partial-fulfillment-panel'\)\)return;[\s\S]*root\.appendChild\(card\)/);
+  assert.match(p02,/title\(\)!=='Devolução'\|\|root\.querySelector\('#p2-return-details-panel'\)\)return;[\s\S]*root\.appendChild\(card\)/);
+  assert.match(p02,/new MutationObserver\(\(\)=>queueMicrotask\(mount\)\)\.observe\(host,\{childList:true,subtree:true\}\)/);
 
   const admin=read('admin-ops.js');
   assert.match(admin,/if\(rendering\|\|!content\|\|!content\.querySelector\('\.ops-page'\)\)return;[\s\S]*content\.querySelector\('#ops-admin-control-center'\)\)return;[\s\S]*rendering=true;[\s\S]*appendChild\(panel\)/);
