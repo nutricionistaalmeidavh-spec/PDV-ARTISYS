@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const FISCAL_SCHEMA_VERSION = 16;
-const FISCAL_MIGRATION_NAME = 'fiscal_production_contingency_1_4_0';
+const FISCAL_SCHEMA_VERSION = 17;
+const FISCAL_MIGRATION_NAME = 'fiscal_contingency_state_machine_1_4_0';
 
 function columns(db, table) {
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(column => column.name));
@@ -210,7 +210,44 @@ function applyV16(db, now) {
       CREATE INDEX IF NOT EXISTS idx_fiscal_contingency_status ON fiscal_contingency(status,entered_at);
     `);
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
-      .run(16, FISCAL_MIGRATION_NAME, now());
+      .run(16, 'fiscal_production_contingency_1_4_0', now());
+  });
+}
+
+function applyV17(db, now) {
+  withTransaction(db, () => {
+    db.exec(`
+      DROP INDEX IF EXISTS idx_fiscal_contingency_status;
+      ALTER TABLE fiscal_contingency RENAME TO fiscal_contingency_v16;
+      CREATE TABLE fiscal_contingency (
+        fiscal_document_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('CONTINGENCY_PENDING','ISSUED','TRANSMITTING','RECONCILING','RESOLVED','FAILED')),
+        reason TEXT NOT NULL,
+        entered_at TEXT NOT NULL,
+        tp_emis TEXT NOT NULL DEFAULT '9' CHECK (tp_emis='9'),
+        document_json TEXT NOT NULL,
+        generated_xml TEXT,
+        access_key TEXT,
+        transmission_attempts INTEGER NOT NULL DEFAULT 0 CHECK (transmission_attempts >= 0),
+        last_attempt_at TEXT,
+        last_error TEXT,
+        resolved_at TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (fiscal_document_id) REFERENCES fiscal_documents(id)
+      );
+      INSERT INTO fiscal_contingency(
+        fiscal_document_id,status,reason,entered_at,tp_emis,document_json,generated_xml,access_key,
+        transmission_attempts,last_attempt_at,last_error,resolved_at,updated_at
+      )
+      SELECT fiscal_document_id,
+        CASE WHEN status='ISSUED' AND generated_xml IS NULL THEN 'CONTINGENCY_PENDING' ELSE status END,
+        reason,entered_at,tp_emis,document_json,generated_xml,access_key,transmission_attempts,last_attempt_at,last_error,resolved_at,updated_at
+      FROM fiscal_contingency_v16;
+      DROP TABLE fiscal_contingency_v16;
+      CREATE INDEX idx_fiscal_contingency_status ON fiscal_contingency(status,entered_at);
+    `);
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+      .run(17, FISCAL_MIGRATION_NAME, now());
   });
 }
 
@@ -223,6 +260,7 @@ function runFiscalMigrations(db, now = () => new Date().toISOString()) {
   if (current < 14) { applyV14(db, now); current = 14; }
   if (current < 15) { applyV15(db, now); current = 15; }
   if (current < 16) { applyV16(db, now); current = 16; }
+  if (current < 17) { applyV17(db, now); current = 17; }
   return current;
 }
 
