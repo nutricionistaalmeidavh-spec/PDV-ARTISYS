@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Rastreabilidade por operação para superfícies P1. Cada operação customer/admin precisa de backend, rota, cliente, ação de UI e evidência E2E explícita.",
+  "description": "Rastreabilidade por operação para superfícies customer/admin. Cada operação registrada precisa de backend, rota, cliente, ação de UI e evidência E2E explícita.",
   "operations": [
     {
       "id":"pizzeria.size.upsert","capabilityId":"verticals.operations","exposure":"customer",
@@ -145,6 +145,70 @@
       "client":[{"path":"desktop/renderer/vertical-api-client.js","marker":"transferRestaurantItems"}],
       "ui":[{"path":"desktop/renderer/vertical-parity-p1.js","marker":"restaurant-transfer-form"}],
       "e2e":[{"path":"qa/flows/backend-parity-p1.json","marker":"p1-restaurant-transfer"}]
+    },
+    {
+      "id":"procurement.partial-receive","capabilityId":"operations.enterprise-depth","exposure":"customer",
+      "backend":[{"path":"js/domains/procurement/procurement-service.js","marker":"function receivePurchaseOrder"}],
+      "api":[{"path":"server/enterprise-depth-router.js","marker":"runtime.procurement.receivePurchaseOrder"}],
+      "client":[{"path":"desktop/renderer/enterprise-depth-api-client.js","marker":"receivePurchaseOrder"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-partial-receive"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p0-partial-receipt-panel"}]
+    },
+    {
+      "id":"orders.partial-fulfill","capabilityId":"operations.enterprise-depth","exposure":"customer",
+      "backend":[{"path":"js/domains/orders/sales-order-service.js","marker":"function fulfillOrder"}],
+      "api":[{"path":"server/enterprise-depth-router.js","marker":"runtime.orders.fulfillOrder"}],
+      "client":[{"path":"desktop/renderer/enterprise-depth-api-client.js","marker":"fulfillSalesOrder"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-partial-fulfill"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p0-partial-fulfillment-panel"}]
+    },
+    {
+      "id":"printing.failed.retry","capabilityId":"printing.customer-documents","exposure":"admin",
+      "backend":[{"path":"js/domains/printing/print-service.js","marker":"function retryJob"}],
+      "api":[{"path":"server/router.js","marker":"runtime.printing.retryJob"}],
+      "client":[{"path":"desktop/renderer/api-client.js","marker":"retryPrint"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-print-retry"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p1-print-retry-panel"}]
+    },
+    {
+      "id":"lan.pairing-code.create","capabilityId":"admin.local-operations","exposure":"admin",
+      "backend":[{"path":"server/lan/terminal-registry.js","marker":"function createPairingCode"}],
+      "api":[{"path":"server/router.js","marker":"runtime.terminals.createPairingCode"}],
+      "client":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"/api/v1/lan/pairing-codes"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-create-pairing-code"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p1-terminal-admin-panel"}]
+    },
+    {
+      "id":"lan.terminal.status.update","capabilityId":"admin.local-operations","exposure":"admin",
+      "backend":[{"path":"server/lan/terminal-registry.js","marker":"function setTerminalStatus"}],
+      "api":[{"path":"server/router.js","marker":"runtime.terminals.setTerminalStatus"}],
+      "client":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"/api/v1/terminals/"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-terminal-status"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p1-terminal-admin-panel"}]
+    },
+    {
+      "id":"procurement.receipt.list","capabilityId":"operations.enterprise-depth","exposure":"customer",
+      "backend":[{"path":"js/domains/procurement/procurement-service.js","marker":"function listReceipts"}],
+      "api":[{"path":"server/enterprise-depth-router.js","marker":"runtime.procurement.listReceipts"}],
+      "client":[{"path":"desktop/renderer/enterprise-depth-api-client.js","marker":"purchaseReceipts"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"p1-purchase-receipts-panel"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p1-purchase-receipts-panel"}]
+    },
+    {
+      "id":"returns.details.get","capabilityId":"core.operations","exposure":"customer",
+      "backend":[{"path":"js/domains/returns/return-service.js","marker":"function getReturn"}],
+      "api":[{"path":"server/router.js","marker":"runtime.returns.getReturn"}],
+      "client":[{"path":"desktop/renderer/api-client.js","marker":"returnDetails"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"data-return-details"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p2-return-details-panel"}]
+    },
+    {
+      "id":"imports.batch.get","capabilityId":"admin.local-operations","exposure":"admin",
+      "backend":[{"path":"js/core/import/import-service.js","marker":"function getBatch"}],
+      "api":[{"path":"server/router.js","marker":"runtime.imports.getBatch"}],
+      "client":[{"path":"desktop/renderer/api-client.js","marker":"importBatch"}],
+      "ui":[{"path":"desktop/renderer/ui-parity-p0-p2.js","marker":"ops-import-batch-lookup"}],
+      "e2e":[{"path":"qa/flows/ui-parity-p0-p2.json","marker":"p2-import-batch-panel"}]
     }
   ]
 }
