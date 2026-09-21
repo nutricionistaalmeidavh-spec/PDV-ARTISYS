@@ -37,7 +37,10 @@ const PDV_EVENT_TYPES = Object.freeze({
   RESTAURANT_BILL_REQUESTED: 'restaurant.bill-requested',
 
   FISCAL_ISSUE_REQUESTED: 'fiscal.issue-requested',
+  FISCAL_RECONCILE_REQUESTED: 'fiscal.reconcile-requested',
   FISCAL_ISSUED: 'fiscal.issued',
+  FISCAL_REJECTED: 'fiscal.rejected',
+  FISCAL_UNKNOWN: 'fiscal.unknown',
   FISCAL_FAILED: 'fiscal.failed',
   FISCAL_CANCELLED: 'fiscal.cancelled',
 

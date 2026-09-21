@@ -9,6 +9,8 @@ const { runKitComboMigrations }=require('./database/kit-combo-migrations');
 const { runEnterpriseDepthMigrations }=require('./database/enterprise-depth-migrations');
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
+const { runFiscalMigrations }=require('./database/fiscal-migrations');
+const { runNfseMigrations }=require('../domains/nfse/nfse-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -38,7 +40,13 @@ const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createNonFiscalPrintService }=require('../domains/printing/non-fiscal-service');
 const { registerNonFiscalEffects }=require('../domains/printing/non-fiscal-effects');
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
+const { createFiscalConfigurationService }=require('../domains/fiscal/fiscal-configuration-service');
+const { createFiscalProductionService }=require('../domains/fiscal/fiscal-production-service');
+const { createFiscalArtifactStore }=require('../domains/fiscal/fiscal-artifact-store');
+const { createFiscalObservability }=require('../domains/fiscal/fiscal-observability');
+const { createFiscalRecoveryService }=require('../domains/fiscal/fiscal-recovery-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
+const { createNfseService }=require('../domains/nfse/nfse-service');
 const { createRestaurantService }=require('../domains/restaurant/restaurant-service');
 const { createConfiguredRestaurantService }=require('../domains/restaurant/restaurant-configured-service');
 const { createRestaurantSettlementService }=require('../domains/restaurant/restaurant-settlement-service');
@@ -71,14 +79,16 @@ const { createPilotService }=require('./pilot/pilot-service');
 
 function createPdvRuntime({
   dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
-  fiscalProviderResolver=async()=>null,fiscalAutoIssueResolver=null,receiptOptions={},serverVersion='1.0.0',minimumTerminalVersion='1.0.0',capabilities,
+  fiscalProviderResolver=async()=>null,nfseProviderResolver=async()=>null,fiscalAutoIssueResolver=null,fiscalArchiveDir=null,fiscalRecoveryDir=null,fiscalPackStoreRoot=null,receiptOptions={},serverVersion='1.0.0',minimumTerminalVersion='1.0.0',capabilities,
   backupDir=null,backupRetention=30,diagnosticsDir=null,productPhotoDir=null,logRetention=5000,appVersion=serverVersion,readScale=null
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runFiscalMigrations(db,now);runNfseMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
+  const baseFiscalConfiguration=createFiscalConfigurationService({db,now,idFactory});
+  const fiscalConfiguration={...baseFiscalConfiguration,saveCompanySettings(input={},actor={}){if(String(input.environment||'').toLowerCase()==='production'){const activation=db.prepare("SELECT enabled FROM fiscal_production_activation WHERE id='default'").get();if(!Boolean(activation?.enabled))throw new Error('Ambiente de producao bloqueado: conclua a ativacao fiscal antes de selecionar producao.');}return baseFiscalConfiguration.saveCompanySettings(input,actor);}};
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
   const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});productPhotos.cleanupExpired();
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
@@ -95,13 +105,17 @@ function createPdvRuntime({
   const procurement=createProcurementService({db,inventory,finance,now,idFactory});
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
-  const fiscal=createFiscalService({db,outbox,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
+  const resolvedFiscalArchiveDir=fiscalArchiveDir||(dbPath!==':memory:'?path.join(path.dirname(path.resolve(dbPath)),'fiscal-archive'):null);const fiscalArtifacts=resolvedFiscalArchiveDir?createFiscalArtifactStore({rootDir:resolvedFiscalArchiveDir}):null;
+  const fiscal=createFiscalService({db,outbox,artifactStore:fiscalArtifacts,printing,now,idFactory});const nfse=createNfseService({db,providerResolver:nfseProviderResolver,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});const mobileDevices=createMobileDeviceService({db,now,idFactory});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const services=createServicesService({db,modules,catalog,sales,now,idFactory});const workshop=createWorkshopService({db,modules,catalog,services,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
-  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;const terminals=createTerminalRegistry(terminalOptions);const mutations=createMutationCoordinator({db,now});const imports=createImportService({db,catalog,inventory,now,idFactory});const logger=createSystemLogger({db,now,retention:logRetention});const pilot=createPilotService({db,now});
-  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
+  const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;const terminals=createTerminalRegistry(terminalOptions);const mutations=createMutationCoordinator({db,now});const imports=createImportService({db,catalog,inventory,now,idFactory});const logger=createSystemLogger({db,now,retention:logRetention});const fiscalObservability=createFiscalObservability({db,logger,now,idFactory});const pilot=createPilotService({db,now});
+  const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
+  const resolvedFiscalRecoveryDir=dbPath!==':memory:'?(fiscalRecoveryDir||path.join(path.dirname(dbPath),'fiscal-recovery')):null;const resolvedFiscalPackStoreRoot=dbPath!==':memory:'?(fiscalPackStoreRoot||path.join(path.dirname(dbPath),'fiscal-packs')):null;const fiscalRecovery=backups&&resolvedFiscalRecoveryDir?createFiscalRecoveryService({db,backups,backupDir:resolvedBackupDir,recoveryDir:resolvedFiscalRecoveryDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,appVersion,now,idFactory}):null;
+  const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory,fiscalSnapshot:()=>fiscalObservability.snapshot()}):null;
+  const fiscalProduction=createFiscalProductionService({db,fiscalConfiguration,fiscal,printing,backups,fiscalProviderResolver,now,idFactory});
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
-  registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
+  registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver,observability:fiscalObservability});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,fiscalProduction,fiscalObservability,fiscalRecovery,nfse,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalRecoveryDir:resolvedFiscalRecoveryDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};

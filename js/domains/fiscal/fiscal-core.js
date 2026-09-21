@@ -1,6 +1,6 @@
 'use strict';
 
-const PROVIDERS = new Set(['focus']);
+const PROVIDERS = new Set(['acbr-local', 'focus']);
 const ENVIRONMENTS = new Set(['homologation','production']);
 const DOCUMENT_TYPES = new Set(['nfce','nfe']);
 
@@ -18,16 +18,23 @@ function validateConnection(input = {}) {
 
 function validateSecretConnection(input = {}) {
   const connection = validateConnection(input);
-  const token = String(input.token || '').trim();
-  if (!token) throw new Error('Token fiscal obrigatorio.');
-  return { ...connection, token };
+  if (connection.provider === 'focus') {
+    const token = String(input.token || '').trim();
+    if (!token) throw new Error('Token fiscal obrigatorio para Focus.');
+    return { ...connection, token };
+  }
+  if (connection.provider === 'acbr-local') return connection;
+  throw new Error('Provedor fiscal invalido.');
 }
 
 function publicConnection(input) {
   if (!input || typeof input !== 'object') return { configured:false };
   try {
     const connection = validateConnection(input);
-    return { configured:Boolean(String(input.token || '').trim()), ...connection };
+    const configured = connection.provider === 'focus'
+      ? Boolean(String(input.token || '').trim())
+      : true;
+    return { configured, ...connection };
   } catch {
     return { configured:false };
   }

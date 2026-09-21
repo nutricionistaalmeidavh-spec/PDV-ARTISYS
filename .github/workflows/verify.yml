@@ -65,3 +65,36 @@ jobs:
             qa-results
           if-no-files-found: warn
           retention-days: 7
+
+  fiscal-certification:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Ensure Xvfb is available
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y xvfb
+          fi
+      - name: Run cumulative fiscal certification P25
+        run: xvfb-run -a npm run fiscal:certify
+      - name: Upload fiscal certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fiscal-certification-${{ github.run_number }}
+          path: |
+            release/fiscal-certification.json
+            qa-artifacts
+            qa-report
+            qa-results
+          if-no-files-found: warn
+          retention-days: 14

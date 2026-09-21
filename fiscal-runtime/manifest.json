@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "runtimeVersion": "2026.09",
+  "layout": "resources/fiscal",
+  "core": {
+    "mode": "local-first",
+    "monthlyCostBRL": 0,
+    "perDocumentCostBRL": 0,
+    "cloudRequired": false,
+    "paidProviderRequired": false
+  },
+  "sidecar": {
+    "entry": "sidecar/entry.js",
+    "transport": "loopback-only",
+    "packagedOutsideAsar": true
+  },
+  "acbr": {
+    "root": "acbr",
+    "expectedExecutable": "ACBrMonitorPLUS.exe",
+    "bundledExecutable": false,
+    "runtimeDownload": false,
+    "provider": "acbr-local"
+  },
+  "configs": "configs",
+  "schemas": "schemas"
+}

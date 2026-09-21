@@ -1,0 +1,15 @@
+'use strict';
+
+const {assertProductionAdapterMode}=require('./security-hardening');
+const MODES = new Set(['unconfigured', 'mock-success', 'mock-failure']);
+function normalizeMode(value){const mode=String(value||'unconfigured').trim().toLowerCase();if(!MODES.has(mode))throw new Error('Modo do fiscal sidecar invalido.');return mode;}
+function createControlledFiscalAdapter({mode=process.env.ARTISYS_FISCAL_SIDECAR_MODE,production=false}={}){
+ const resolvedMode=assertProductionAdapterMode(normalizeMode(mode),{production});const documents=new Map();let sequence=1;
+ function key(type,reference){return `${String(type||'').toLowerCase()}:${String(reference||'')}`;}function failure(message='Adapter ACBr ainda nao configurado.'){return{ok:false,status:503,data:null,error:message};}
+ async function status(){if(resolvedMode==='mock-failure')return failure('SEFAZ simulada indisponivel.');return{ok:true,status:200,data:{adapter:'controlled',mode:resolvedMode,ready:resolvedMode==='mock-success'},error:null};}
+ async function issue({type,reference,payload={},environment='homologation'}={}){if(resolvedMode==='unconfigured')return failure();if(resolvedMode==='mock-failure')return failure('Falha fiscal simulada.');const id=key(type,reference);const existing=documents.get(id);if(existing&&existing.status==='autorizado')return{ok:true,status:200,data:existing,error:null};const currentNumber=String(sequence++);const accessKey=`MOCK-${String(type||'').toUpperCase()}-${String(reference||'')}`;const data={status:'autorizado',ambiente:String(environment||'homologation'),referencia:String(reference||''),numero:currentNumber,serie:'1',chave:accessKey,chave_nfce:String(type).toLowerCase()==='nfce'?accessKey:undefined,chave_nfe:String(type).toLowerCase()==='nfe'?accessKey:undefined,payload,mock:true};documents.set(id,data);return{ok:true,status:200,data,error:null};}
+ async function query({type,reference}={}){if(resolvedMode==='unconfigured')return failure();if(resolvedMode==='mock-failure')return failure('Falha de consulta fiscal simulada.');const data=documents.get(key(type,reference));if(!data)return{ok:false,status:404,data:null,error:'Documento fiscal simulado nao encontrado.'};return{ok:true,status:200,data,error:null};}
+ async function cancel({type,reference,justification}={}){if(resolvedMode==='unconfigured')return failure();if(resolvedMode==='mock-failure')return failure('Falha de cancelamento fiscal simulada.');const id=key(type,reference);const current=documents.get(id);if(!current)return{ok:false,status:404,data:null,error:'Documento fiscal simulado nao encontrado.'};const cancelled={...current,status:'cancelado',justificativa:String(justification||''),cancelled:true};documents.set(id,cancelled);return{ok:true,status:200,data:cancelled,error:null};}
+ return Object.freeze({mode:resolvedMode,status,issue,query,cancel});
+}
+module.exports={MODES,normalizeMode,createControlledFiscalAdapter};
