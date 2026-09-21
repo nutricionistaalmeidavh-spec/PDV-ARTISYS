@@ -1,0 +1,30 @@
+{
+  "name": "ux-products-clients-flags-e2e",
+  "steps": [
+    {"uses":"home.json"},
+
+    {"action":"setFeatureFlags","flags":{"productsDenseView":false,"customersMasterDetailView":false},"name":"paired-ux-flags-off"},
+    {"action":"click","selector":"[data-route='products']","name":"flags-off-open-products"},
+    {"action":"waitFor","selector":"#new-product","name":"flags-off-products-legacy-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-products-dense-header]","state":"detached","name":"flags-off-products-dense-detached","timeoutMs":5000},
+    {"action":"waitFor","selector":"#products-stock-filter","state":"detached","name":"flags-off-products-stock-filter-detached","timeoutMs":5000},
+    {"action":"screenshot","name":"flags-off-products-legacy","fullPage":true},
+
+    {"action":"click","selector":"[data-route='customers']","name":"flags-off-open-customers"},
+    {"action":"waitFor","selector":"#new-customer","name":"flags-off-customers-legacy-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-customers-master-panel]","state":"detached","name":"flags-off-customers-master-detached","timeoutMs":5000},
+    {"action":"screenshot","name":"flags-off-customers-legacy","fullPage":true},
+
+    {"action":"setFeatureFlags","flags":{"productsDenseView":true,"customersMasterDetailView":true},"name":"paired-ux-flags-on"},
+    {"action":"click","selector":"[data-route='products']","name":"flags-on-open-products"},
+    {"action":"waitFor","selector":"#new-product","name":"flags-on-products-canonical-action-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-products-dense-header]","name":"flags-on-products-dense-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"#products-stock-filter","name":"flags-on-products-stock-filter-ready","timeoutMs":10000},
+    {"action":"screenshot","name":"flags-on-products-dense","fullPage":true},
+
+    {"action":"click","selector":"[data-route='customers']","name":"flags-on-open-customers"},
+    {"action":"waitFor","selector":"#new-customer","name":"flags-on-customers-canonical-action-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-customers-master-panel]","name":"flags-on-customers-master-ready","timeoutMs":10000},
+    {"action":"screenshot","name":"flags-on-customers-master-detail","fullPage":true}
+  ]
+}
