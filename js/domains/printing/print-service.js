@@ -46,7 +46,10 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
   async function processJob(id, printer){
     const job=requireJob(id);if(job.status!=='PENDING')throw new Error('Trabalho nao esta pendente.');
     if(!printer||typeof printer.print!=='function')throw new Error('Impressora indisponivel.');
-    try { const result=await printer.print({id:job.id,text:String(job.payload.text||''),width:job.width,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null}); if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.'); return {job:markPrinted(id),result}; }
+    try {
+      const result=await printer.print({id:job.id,text:String(job.payload.text||''),html:job.payload.html?String(job.payload.html):null,format:job.payload.format?String(job.payload.format):null,width:job.width,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null});
+      if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.'); return {job:markPrinted(id),result};
+    }
     catch(error){markFailed(id,error?.message||String(error));throw error;}
   }
   return {queueJob,getJob,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,processJob};
