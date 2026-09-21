@@ -1,6 +1,7 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
 const { buildFiscalDocument } = require('./fiscal-document-builder');
+const { classifyIssueResult, classifyReconcileResult } = require('./fiscal-state-machine');
 
 function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolver } = {}) {
   if (!bus || !effectStore || !fiscalService || typeof providerResolver !== 'function') {
@@ -11,9 +12,11 @@ function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolv
     effectKey:'fiscal.issue-requested',
     effectStore,
     handler:async event => {
-      const document = fiscalService.getDocument(event.aggregateId);
+      let document = fiscalService.getDocument(event.aggregateId);
       if (!document) throw new Error('Documento fiscal nao encontrado para emissao.');
-      if (document.status === 'ISSUED' || document.status === 'CANCELLED') return document;
+      if (['AUTHORIZED','CANCELLED'].includes(document.lifecycleStatus) || ['ISSUED','CANCELLED'].includes(document.status)) return document;
+      if (document.lifecycleStatus === 'UNKNOWN') return document;
+      document = fiscalService.markProcessing(document.id,event.actor || {});
       let provider;
       try {
         provider = await providerResolver(document);
@@ -25,21 +28,40 @@ function registerFiscalEffects({ bus, effectStore, fiscalService, providerResolv
       }
       let result;
       try {
-        result = await provider.issue({
-          documentType:document.documentType,
-          reference:document.reference,
-          payload:document.requestPayload
-        });
+        result = await provider.issue({documentType:document.documentType,reference:document.reference,payload:document.requestPayload});
       } catch (error) {
-        result = {ok:false,status:0,error:error?.message || String(error)};
+        result = {ok:false,status:0,indeterminate:true,error:error?.message || String(error)};
       }
-      return result?.ok
-        ? fiscalService.markIssued(document.id,result,event.actor || {})
-        : fiscalService.markFailed(document.id,result || {error:'Falha na emissao fiscal.'},event.actor || {});
+      const classification=classifyIssueResult(result || {});
+      if(classification==='AUTHORIZED') return fiscalService.markAuthorized(document.id,result,event.actor || {});
+      if(classification==='REJECTED') return fiscalService.markRejected(document.id,result,event.actor || {});
+      if(classification==='UNKNOWN') return fiscalService.markUnknown(document.id,result,event.actor || {});
+      return fiscalService.markFailed(document.id,result || {error:'Falha na emissao fiscal.'},event.actor || {});
     }
   });
 
-  return [bus.subscribe('fiscal.issue-requested',issueRequested)];
+  const reconcileRequested=createIdempotentDomainEffect({
+    effectKey:'fiscal.reconcile-requested',
+    effectStore,
+    handler:async event=>{
+      const document=fiscalService.getDocument(event.aggregateId);
+      if(!document) throw new Error('Documento fiscal nao encontrado para reconciliacao.');
+      if(document.lifecycleStatus!=='UNKNOWN') return document;
+      let provider;
+      try{provider=await providerResolver(document);}catch(error){return fiscalService.markReconcileUnknown(document.id,{status:0,indeterminate:true,error:error?.message||String(error)},event.actor||{});}
+      if(!provider||typeof provider.query!=='function') return fiscalService.markReconcileUnknown(document.id,{status:0,error:'Provedor fiscal nao suporta reconciliacao.'},event.actor||{});
+      let result;
+      try{result=await provider.query(document.reference,document.documentType,{accessKey:document.accessKey,payload:document.requestPayload});}
+      catch(error){result={ok:false,status:0,indeterminate:true,error:error?.message||String(error)};}
+      const classification=classifyReconcileResult(result||{});
+      if(classification==='AUTHORIZED') return fiscalService.markAuthorized(document.id,result,event.actor||{});
+      if(classification==='REJECTED') return fiscalService.markRejected(document.id,result,event.actor||{});
+      if(classification==='NOT_FOUND') return fiscalService.markReconcileNotFound(document.id,result,event.actor||{});
+      return fiscalService.markReconcileUnknown(document.id,result||{},event.actor||{});
+    }
+  });
+
+  return [bus.subscribe('fiscal.issue-requested',issueRequested),bus.subscribe('fiscal.reconcile-requested',reconcileRequested)];
 }
 
 function registerFiscalAutoIssueEffect({ bus, effectStore, fiscalService, saleService, resolveConfiguration } = {}) {
@@ -57,24 +79,9 @@ function registerFiscalAutoIssueEffect({ bus, effectStore, fiscalService, saleSe
       const reference = config.reference || sale.saleNumber || sale.id;
       const useCanonicalBuilder = config.provider === 'acbr-local' && config.fiscalContext;
       const payload = useCanonicalBuilder
-        ? buildFiscalDocument({
-            sale,
-            fiscalContext:config.fiscalContext,
-            documentType:config.documentType,
-            environment:config.environment,
-            reference
-          })
+        ? buildFiscalDocument({sale,fiscalContext:config.fiscalContext,documentType:config.documentType,environment:config.environment,reference})
         : (config.payload || {});
-      return fiscalService.requestIssue({
-        saleId:sale.id,
-        provider:config.provider,
-        environment:config.environment,
-        documentType:config.documentType,
-        reference,
-        payload,
-        actor:event.actor || {},
-        mutationId:event.mutationId || null
-      });
+      return fiscalService.requestIssue({saleId:sale.id,provider:config.provider,environment:config.environment,documentType:config.documentType,reference,payload,actor:event.actor || {},mutationId:event.mutationId || null});
     }
   });
   return [bus.subscribe('sale.completed',autoIssue)];
