@@ -114,27 +114,57 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
   .action-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
-/* Home typography scale requested for improved operational readability. */
-body.theme-home .topbar-brand { font-size:30px; }
+/* Home typography + compact topbar refinement. */
+body.theme-home .app-column { grid-template-rows: 70px 1fr 58px; }
+body.theme-home .sidebar .brand-mark {
+  height: 70px !important;
+}
+body.theme-home .topbar {
+  padding: 0 0 0 22px;
+  gap: 18px;
+}
+body.theme-home .topbar-brand { font-size:25px; }
 body.theme-home .status-pill,
 body.theme-home .context-pill,
 body.theme-home .operator-pill,
 body.theme-home .operator-pill small,
-body.theme-home .clock { font-size:21px; }
-body.theme-home .app-footer { font-size:17px; }
-.home-hub-head h1 { font-size:34px; }
-.home-hub-head p { font-size:21px; }
-.home-hub .home-primary-action h2 { font-size:27px; }
-.home-hub .home-primary-action p { font-size:18px; }
-.home-hub .home-primary-action .shortcut-badge { font-size:16px; }
+body.theme-home .clock { font-size:16px; }
+body.theme-home .window-controls button { font-size:16px; }
+body.theme-home .app-footer { font-size:16px; }
+body.theme-home .route-content {
+  padding-top: 14px;
+}
+.home-hub { gap: 10px; }
+.home-hub-head {
+  min-height: 34px;
+  align-items: start;
+}
+.home-hub-head h1 { margin:0 0 2px; font-size:33px; }
+.home-hub-head p { font-size:20px; }
+.home-primary-grid { gap:10px; }
+.home-hub .home-primary-action {
+  min-height:84px;
+  padding:14px 16px;
+}
+.home-hub .home-primary-action h2 { font-size:26px; }
+.home-hub .home-primary-action p { font-size:17px; }
+.home-hub .home-primary-action .shortcut-badge { font-size:15px; }
+.home-context-grid { gap:8px; }
+.home-context-card,
+.home-extra-card { padding:10px; }
 .home-context-card h2,
-.home-extra-card > h2 { font-size:19px; }
-.home-hub .home-module-link h2 { font-size:21px; }
-.home-hub .home-module-link p { font-size:18px; }
-.home-hub .home-module-link .shortcut-badge { font-size:16px; }
-.home-recent-head h2 { font-size:22px; }
-.home-recent-head p { font-size:17px; }
-.home-history-link { font-size:21px; }
-.home-recent-row { font-size:18px; }
-.home-recent-header { font-size:15px; }
-.home-recent-state { font-size:17px; }
+.home-extra-card > h2 { font-size:18px; }
+.home-hub .home-module-link {
+  min-height:48px;
+  padding:8px 9px;
+}
+.home-hub .home-module-link h2 { font-size:20px; }
+.home-hub .home-module-link p { font-size:17px; }
+.home-hub .home-module-link .shortcut-badge { font-size:15px; }
+.home-recent-head { padding:11px 14px; }
+.home-recent-head h2 { font-size:21px; }
+.home-recent-head p { font-size:16px; }
+.home-history-link { font-size:17px; }
+.home-recent-row { font-size:17px; padding:8px 14px; }
+.home-recent-header { font-size:14px; }
+.home-recent-state { font-size:16px; }
