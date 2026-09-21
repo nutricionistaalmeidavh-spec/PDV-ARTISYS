@@ -9,12 +9,12 @@
   if (!ApiClient || !content || !PdvCustomersMasterDetail || !ArtisysUxComponents) return;
 
   const api = new ApiClient();
+  const HISTORY_PAGE_SIZE = 25;
   let selectedCustomerId = '';
   let historyOpen = false;
   let customersById = new Map();
-  let sales = [];
+  const historyByCustomer = new Map();
   let customersLoadedAt = 0;
-  let salesLoadedAt = 0;
   let scheduled = false;
   let decorating = false;
 
@@ -32,25 +32,56 @@
 
   async function loadData(force = false) {
     const now = Date.now();
-    const needCustomers = force || !customersById.size || now - customersLoadedAt >= 1500;
-    const needSales = force || now - salesLoadedAt >= 1500;
-    const [customerResult, salesResult] = await Promise.all([
-      needCustomers ? api.customers(true).then(value => ({ ok:true, value })).catch(error => ({ ok:false, error })) : Promise.resolve({ ok:true, value:[...customersById.values()] }),
-      needSales ? api.sales('COMPLETED', 200).then(value => ({ ok:true, value })).catch(error => ({ ok:false, error })) : Promise.resolve({ ok:true, value:sales })
-    ]);
-
-    if (customerResult.ok) {
-      const list = Array.isArray(customerResult.value) ? customerResult.value : [];
+    if (!force && customersById.size && now - customersLoadedAt < 1500) return;
+    try {
+      const customers = await api.customers(true);
+      const list = Array.isArray(customers) ? customers : [];
       customersById = new Map(list.map(customer => [String(customer.id), customer]));
       customersLoadedAt = now;
-    } else if (!customersById.size) throw customerResult.error;
+    } catch (error) {
+      if (!customersById.size) throw error;
+    }
+  }
 
-    if (salesResult.ok) {
-      sales = Array.isArray(salesResult.value) ? salesResult.value : [];
-      salesLoadedAt = now;
-    } else if (!salesLoadedAt) {
-      sales = [];
-      salesLoadedAt = now;
+  function historyState(customerId) {
+    const id = String(customerId || '');
+    if (!historyByCustomer.has(id)) {
+      historyByCustomer.set(id, { sales:[], offset:0, hasMore:true, loaded:false, loading:false, loadedAt:0 });
+    }
+    return historyByCustomer.get(id);
+  }
+
+  async function loadCustomerHistory(customerId, { reset = false } = {}) {
+    const id = String(customerId || '');
+    if (!id) return historyState(id);
+    const state = historyState(id);
+    if (state.loading) return state;
+    if (reset) {
+      state.sales = [];
+      state.offset = 0;
+      state.hasMore = true;
+      state.loaded = false;
+    }
+    if (!state.hasMore && state.loaded) return state;
+    state.loading = true;
+    try {
+      const page = await api.salesHistory({
+        customerId:id,
+        status:'COMPLETED',
+        limit:HISTORY_PAGE_SIZE,
+        offset:state.offset
+      });
+      const rows = Array.isArray(page) ? page : [];
+      const byId = new Map(state.sales.map(sale => [String(sale.id), sale]));
+      for (const sale of rows) byId.set(String(sale.id), sale);
+      state.sales = [...byId.values()].sort((a,b) => String(b.completedAt || b.openedAt || '').localeCompare(String(a.completedAt || a.openedAt || '')) || String(b.id).localeCompare(String(a.id)));
+      state.offset += rows.length;
+      state.hasMore = rows.length === HISTORY_PAGE_SIZE;
+      state.loaded = true;
+      state.loadedAt = Date.now();
+      return state;
+    } finally {
+      state.loading = false;
     }
   }
 
@@ -152,9 +183,8 @@
       row.dataset.customerMasterRow = '1';
       row.dataset.customerId = id;
       row.tabIndex = 0;
-      const customerSales = PdvCustomersMasterDetail.salesForCustomer(sales, id);
       ensureCreditMeta(row, customer);
-      ensureLastSaleCell(row, customerSales[0] || null);
+      ensureLastSaleCell(row, customer.lastSale || null);
     }
 
     if (!visibleIds.includes(selectedCustomerId)) {
@@ -171,10 +201,11 @@
     const panel = page.querySelector('[data-customers-master-panel]');
     if (!panel) return;
     const customer = customersById.get(String(selectedCustomerId)) || null;
-    const customerSales = customer ? PdvCustomersMasterDetail.salesForCustomer(sales, customer.id) : [];
-    const latest = customerSales[0] || null;
+    const history = customer ? historyState(customer.id) : { sales:[], loaded:false, loading:false, hasMore:false, offset:0 };
+    const sales = history.loaded ? history.sales : (customer?.lastSale ? [customer.lastSale] : []);
+    const latest = sales[0] || customer?.lastSale || null;
     const signature = customer
-      ? `${customer.id}:${customer.updatedAt || ''}:${customer.creditLimitCents || 0}:${customer.creditUsedCents || 0}:${latest?.id || ''}:${latest?.completedAt || latest?.openedAt || ''}:${historyOpen}`
+      ? `${customer.id}:${customer.updatedAt || ''}:${customer.creditLimitCents || 0}:${customer.creditUsedCents || 0}:${latest?.id || ''}:${latest?.completedAt || latest?.openedAt || ''}:${historyOpen}:${history.sales.length}:${history.offset}:${history.hasMore}:${history.loading}`
       : `empty:${historyOpen}`;
     if (panel.dataset.renderSignature === signature) return;
     panel.dataset.renderSignature = signature;
@@ -184,7 +215,9 @@
       components:ArtisysUxComponents,
       formatCents:money,
       formatDate:when,
-      historyOpen
+      historyOpen,
+      historyHasMore:history.hasMore,
+      historyLoading:history.loading
     });
   }
 
@@ -194,6 +227,12 @@
     selectedCustomerId = normalized;
     historyOpen = false;
     for (const row of page.querySelectorAll('[data-customer-master-row]')) row.setAttribute('aria-selected', String(row.dataset.customerId === normalized));
+    const panel = page.querySelector('[data-customers-master-panel]');
+    if (panel) delete panel.dataset.renderSignature;
+    renderPanel(page);
+  }
+
+  function invalidatePanel(page) {
     const panel = page.querySelector('[data-customers-master-panel]');
     if (panel) delete panel.dataset.renderSignature;
     renderPanel(page);
@@ -274,7 +313,7 @@
     search.select?.();
   });
 
-  document.addEventListener('click', event => {
+  document.addEventListener('click', async event => {
     if (!enabled()) return;
     const page = customersPage();
     if (!page) return;
@@ -292,9 +331,24 @@
     }
     if (panelAction?.dataset.action === 'customer-history') {
       historyOpen = !historyOpen;
-      const panel = page.querySelector('[data-customers-master-panel]');
-      if (panel) delete panel.dataset.renderSignature;
-      renderPanel(page);
+      invalidatePanel(page);
+      if (historyOpen && selectedCustomerId) {
+        try {
+          await loadCustomerHistory(selectedCustomerId, { reset:true });
+        } catch (error) {
+          console.warn('Histórico do cliente indisponível.', error?.message || error);
+        }
+        invalidatePanel(page);
+      }
+      return;
+    }
+    if (panelAction?.dataset.action === 'customer-history-more' && selectedCustomerId) {
+      try {
+        await loadCustomerHistory(selectedCustomerId);
+      } catch (error) {
+        console.warn('Não foi possível carregar mais vendas do cliente.', error?.message || error);
+      }
+      invalidatePanel(page);
       return;
     }
 
