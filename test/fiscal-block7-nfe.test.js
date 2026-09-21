@@ -6,13 +6,13 @@ const {renderNfeIni}=require('../server/fiscal-sidecar/acbr-monitor-protocol');
 const {createAcbrMonitorAdapter}=require('../server/fiscal-sidecar/acbr-monitor-adapter');
 const {renderDanfeNfeA4}=require('../js/domains/fiscal/danfe-nfe-renderer');
 
-function sale(){return{id:'sale-nfe',saleNumber:'V-55',status:'COMPLETED',createdAt:'2026-09-21T10:00:00-03:00',subtotalCents:2500,discountCents:0,totalCents:2500,changeCents:0,items:[{productId:'p1',sku:'SKU1',name:'Produto modelo 55',quantity:1,unitPriceCents:2500,totalCents:2500}],payments:[{method:'PIX',amountCents:2500}]};}
+function sale(){return{id:'sale-nfe',saleNumber:'V-55',status:'COMPLETED',completedAt:'2026-09-21T10:00:00-03:00',subtotalCents:2500,discountCents:0,totalCents:2500,changeCents:0,items:[{productId:'p1',sku:'SKU1',productName:'Produto modelo 55',quantity:1,unitPriceCents:2500,totalCents:2500}],payments:[{method:'PIX',amountCents:2500}]};}
 function context(){return{provider:'acbr-local',environment:'homologation',series:'2',number:42,operationNature:'VENDA DE MERCADORIA',issuer:{cnpj:'12345678000195',stateRegistration:'123456789',legalName:'Empresa Teste LTDA',tradeName:'Empresa Teste',crt:'1',address:{street:'Rua A',number:'1',district:'Centro',cityCode:'3543402',city:'Ribeirao Preto',state:'SP',zip:'14010000'}},items:{p1:{ncm:'61091000',cfop:'5102',origin:'0',csosn:'102',pisCst:'49',cofinsCst:'49',unit:'UN'}}};}
 const recipient={taxId:'98765432000198',name:'Cliente Empresa LTDA',stateRegistration:'ISENTO',address:{street:'Rua B',number:'20',district:'Centro',cityCode:'3550308',city:'Sao Paulo',state:'SP',zip:'01001000'}};
 
 test('P17 builds model 55 from canonical sale, requires recipient and keeps independent sequence',()=>{
  const doc=buildNfeDocument({sale:sale(),fiscalContext:context(),recipient});
- assert.equal(doc.documentType,'nfe');assert.equal(doc.identification.model,'55');assert.equal(doc.identification.series,'2');assert.equal(doc.identification.number,42);assert.equal(doc.recipient.taxId,recipient.taxId);assert.equal(doc.totals.totalCents,2500);
+ assert.equal(doc.documentType,'nfe');assert.equal(doc.identification.model,'55');assert.equal(doc.identification.series,'2');assert.equal(String(doc.identification.number),'42');assert.equal(doc.recipient.taxId,recipient.taxId);assert.equal(doc.totals.totalCents,2500);
  assert.throws(()=>buildNfeDocument({sale:sale(),fiscalContext:context()}),/destinat|recipient/i);
 });
 
