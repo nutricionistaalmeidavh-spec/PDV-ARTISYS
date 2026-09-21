@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "products": {
+    "featureFlag": true,
+    "fallbackE2E": true,
+    "parityMatrix": true,
+    "controllerIntegration": true,
+    "deepE2E": true,
+    "crossFlow": true,
+    "responsiveEvidence": true,
+    "releaseRegistration": true
+  },
+  "customers": {
+    "featureFlag": true,
+    "fallbackE2E": true,
+    "parityMatrix": true,
+    "controllerIntegration": true,
+    "deepE2E": true,
+    "crossFlow": true,
+    "responsiveEvidence": true,
+    "releaseRegistration": true
+  }
+}
