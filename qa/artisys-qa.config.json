@@ -43,7 +43,8 @@
     "ui-parity-p0-p2": "flows/ui-parity-p0-p2.json",
     "fiscal-block6": "flows/fiscal-block6.json",
     "fiscal-ui-parity-baseline": "flows/fiscal-ui-parity-baseline.json",
-    "fiscal-config-p2-p5": "flows/fiscal-config-p2-p5.json"
+    "fiscal-config-p2-p5": "flows/fiscal-config-p2-p5.json",
+    "fiscal-nfse-p8": "flows/fiscal-nfse-p8.json"
   },
   "qaProfiles": {
     "quick": {
@@ -69,7 +70,8 @@
         "ui-parity-p0-p2",
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5"
+        "fiscal-config-p2-p5",
+        "fiscal-nfse-p8"
       ],
       "criticalFlows": [
         "smoke",
@@ -81,7 +83,8 @@
         "ui-parity-p0-p2",
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5"
+        "fiscal-config-p2-p5",
+        "fiscal-nfse-p8"
       ],
       "includeVisual": false,
       "includeDesktop": false,
@@ -99,7 +102,8 @@
         "ui-parity-p0-p2",
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5"
+        "fiscal-config-p2-p5",
+        "fiscal-nfse-p8"
       ],
       "criticalFlows": [
         "smoke",
@@ -112,7 +116,8 @@
         "ui-parity-p0-p2",
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5"
+        "fiscal-config-p2-p5",
+        "fiscal-nfse-p8"
       ],
       "includeVisual": false,
       "includeDesktop": false,
