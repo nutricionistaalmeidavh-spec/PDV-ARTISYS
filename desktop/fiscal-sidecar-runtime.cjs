@@ -18,6 +18,8 @@ const ENV_PASSTHROUGH = new Set([
   'ARTISYS_ACBR_HOST','ARTISYS_ACBR_PORT','ARTISYS_ACBR_TIMEOUT_MS'
 ]);
 
+let activeFiscalSidecarAuthToken = null;
+
 function assertLoopbackHost(host) {
   const value = String(host || '').trim();
   if (!LOOPBACK_HOSTS.has(value)) throw new Error('Fiscal sidecar deve usar somente loopback local.');
@@ -43,6 +45,14 @@ function buildSidecarEnv(source = {}, overrides = {}) {
   return output;
 }
 
+function detectProductionRuntime(env = process.env, processLike = process) {
+  return isProductionEnvironment(env) || Boolean(processLike?.resourcesPath && processLike?.defaultApp !== true);
+}
+
+function getActiveFiscalSidecarAuthToken() {
+  return activeFiscalSidecarAuthToken;
+}
+
 function createFiscalSidecarRuntime({
   entryPath = path.join(__dirname, '..', 'server', 'fiscal-sidecar', 'entry.js'),
   forkImpl = fork,
@@ -51,7 +61,7 @@ function createFiscalSidecarRuntime({
   host = '127.0.0.1',
   port = 0,
   authToken = randomBytes(32).toString('base64url'),
-  production = isProductionEnvironment(env),
+  production = detectProductionRuntime(env),
   readyTimeoutMs = 10000,
   restartDelayMs = 250,
   maxRestarts = 3,
@@ -122,6 +132,7 @@ function createFiscalSidecarRuntime({
         settled = true;
         cleanupReady();
         if (child === next) child = null;
+        if (activeFiscalSidecarAuthToken === safeToken) activeFiscalSidecarAuthToken = null;
         reject(error);
       };
 
@@ -141,6 +152,7 @@ function createFiscalSidecarRuntime({
         cleanupReady();
         restartCount = 0;
         baseUrl = endpointFor(safeHost, readyPort);
+        activeFiscalSidecarAuthToken = safeToken;
         resolve({ baseUrl, pid:next.pid, host:safeHost, port:readyPort });
       };
 
@@ -158,6 +170,7 @@ function createFiscalSidecarRuntime({
         if (wasCurrent) {
           child = null;
           baseUrl = null;
+          if (activeFiscalSidecarAuthToken === safeToken) activeFiscalSidecarAuthToken = null;
         }
         if (!settled) {
           failStartup(new Error(`Fiscal sidecar encerrou durante startup (${signal || code || 0}).`));
@@ -197,6 +210,7 @@ function createFiscalSidecarRuntime({
     const current = child;
     child = null;
     baseUrl = null;
+    if (activeFiscalSidecarAuthToken === safeToken) activeFiscalSidecarAuthToken = null;
     if (!current) return;
 
     const safeStopTimeoutMs = normalizeBoundedInteger(timeoutMs, {
@@ -253,5 +267,7 @@ module.exports = {
   assertLoopbackHost,
   endpointFor,
   buildSidecarEnv,
+  detectProductionRuntime,
+  getActiveFiscalSidecarAuthToken,
   createFiscalSidecarRuntime
 };
