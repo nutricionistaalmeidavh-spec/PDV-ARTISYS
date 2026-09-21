@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validateSecretConnection, publicConnection } = require('../js/domains/fiscal/fiscal-core');
 const { createDefaultFiscalProviderRegistry } = require('../js/domains/fiscal/provider-registry');
+const { getActiveFiscalSidecarAuthToken } = require('./fiscal-sidecar-runtime.cjs');
 
 function createFiscalConnectionStore({ app, safeStorage, fileName = 'pdv-fiscal-connection.enc' } = {}) {
   if (!app || typeof app.getPath !== 'function' || !safeStorage) throw new TypeError('app and safeStorage are required.');
@@ -49,7 +50,7 @@ function createFiscalProviderResolver({
   fetchImpl = globalThis.fetch,
   registry = null,
   sidecarBaseUrlResolver = () => null,
-  sidecarAuthTokenResolver = () => null
+  sidecarAuthTokenResolver = getActiveFiscalSidecarAuthToken
 } = {}) {
   if (!store) throw new TypeError('Fiscal connection store is required.');
   if (typeof sidecarBaseUrlResolver !== 'function') throw new TypeError('sidecarBaseUrlResolver must be a function.');
@@ -89,7 +90,7 @@ function registerFiscalIpc({
   fetchImpl = globalThis.fetch,
   providerResolver = null,
   sidecarBaseUrlResolver = () => null,
-  sidecarAuthTokenResolver = () => null
+  sidecarAuthTokenResolver = getActiveFiscalSidecarAuthToken
 } = {}) {
   if (!ipcMain || !store) throw new TypeError('ipcMain and fiscal store are required.');
   const trusted = event => typeof isTrustedSender !== 'function' || Boolean(isTrustedSender(event));
