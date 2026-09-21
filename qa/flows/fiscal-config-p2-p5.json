@@ -27,7 +27,7 @@
     {"action":"click","selector":"#fiscal-company-form button[type='submit']","name":"p2-save-company"},
     {"action":"waitFor","selector":"#fiscal-company-summary","name":"p2-company-persisted","timeoutMs":5000},
     {"action":"expectText","selector":"#fiscal-company-summary","expected":"QA Fiscal LTDA","name":"p2-company-summary"},
-    {"action":"click","selector":"[data-route='home']","name":"p2-leave-settings"},
+    {"action":"click","selector":"#app-sidebar .sidebar-back[data-route='home']","name":"p2-leave-settings"},
     {"action":"click","selector":"[data-route='settings']","name":"p2-reopen-settings"},
     {"action":"waitFor","selector":"#fiscal-company-summary","name":"p2-company-reloaded","timeoutMs":10000},
     {"action":"expectText","selector":"#fiscal-company-summary","expected":"12345678000195","name":"p2-company-data-reloaded"},
