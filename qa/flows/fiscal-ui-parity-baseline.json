@@ -1,0 +1,14 @@
+{
+  "name":"fiscal-ui-parity-baseline",
+  "steps":[
+    {"uses":"core-business-e2e.json"},
+    {"action":"click","selector":"[data-route='settings']","name":"p0-open-settings"},
+    {"action":"waitFor","selector":"#fiscal-production-panel","name":"p0-fiscal-production-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"#fiscal-production-panel","expected":"Configuração e Produção","name":"p0-fiscal-production-heading"},
+    {"action":"expectText","selector":"#fiscal-production-panel","expected":"Certificado A1","name":"p0-certificate-visible"},
+    {"action":"expectText","selector":"#fiscal-production-panel","expected":"Checklist de produção","name":"p0-readiness-visible"},
+    {"action":"waitFor","selector":"#fiscal-monitor-panel","name":"p0-fiscal-monitor-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"#fiscal-monitor-panel","expected":"Fiscal · Documentos","name":"p0-documents-monitor-visible"},
+    {"action":"screenshot","name":"fiscal-ui-parity-baseline","fullPage":true}
+  ]
+}
