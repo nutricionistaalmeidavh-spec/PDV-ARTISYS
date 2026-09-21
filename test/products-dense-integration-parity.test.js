@@ -65,7 +65,7 @@ test('dense controller augments existing DOM instead of replacing action nodes',
     'PdvProductsDenseView.filterByStock',
     'ArtisysUxComponents.StatusBadge',
     'function decorateProducts',
-    'data-products-view',
+    'dataset.productsView',
     'products-dense-table',
     'data-dense-status-cell',
     '#product-page-search',
@@ -75,14 +75,15 @@ test('dense controller augments existing DOM instead of replacing action nodes',
     '[data-product-photo-edit]',
     '[data-product-photo-remove]'
   ], 'dense controller');
-  assert.doesNotMatch(controller, /innerHTML\s*=\s*.*data-edit-product/s, 'controller must not rebuild canonical action buttons');
+  assert.equal(controller.includes('data-edit-product="'), false, 'controller must not rebuild canonical edit buttons');
+  assert.equal(controller.includes('data-product-photo-edit="'), false, 'controller must not rebuild canonical photo buttons');
 });
 
 test('dense controller adds stock filtering and Ctrl+K while preserving canonical search/category handlers', () => {
   const controller = read('desktop/renderer/products-dense-controller.js');
   includesAll(controller, [
     'stockFilter',
-    "event.key.toLowerCase() === 'k'",
+    "event.key.toLowerCase() !== 'k'",
     "page.querySelector('#product-page-search')",
     "page.querySelector('#product-category-filter')",
     'row.hidden =',
