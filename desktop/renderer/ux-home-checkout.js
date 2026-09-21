@@ -36,6 +36,19 @@
     return button;
   }
 
+  function adoptExtraLaunchers(root) {
+    if (!root?.isConnected) return;
+    const extraHost = root.querySelector('[data-home-extra-host]');
+    if (!extraHost) return;
+    const launchers = [...root.querySelectorAll(':scope > .home-tile:not([data-home-route])')];
+    for (const launcher of launchers) {
+      launcher.classList.add('home-module-link','home-extra-module-link');
+      extraHost.appendChild(launcher);
+    }
+    const card = extraHost.closest('.home-extra-card');
+    if (card) card.hidden = extraHost.children.length === 0;
+  }
+
   async function hydrateRecentSales(root) {
     try {
       const sales = await api.salesHistory({ limit:5 });
@@ -56,16 +69,24 @@
 
   function enhanceHome() {
     if (!document.body.classList.contains('theme-home')) return;
+    const existingHub = content.querySelector('#home-hub[data-ux-preserved]');
+    if (existingHub) {
+      adoptExtraLaunchers(existingHub);
+      return;
+    }
+
     const grid = content.querySelector('.home-grid:not([data-ux-preserved])');
     if (!grid) return;
     const buttons = [...grid.querySelectorAll(':scope > [data-home-route]')];
+    const extraLaunchers = [...grid.querySelectorAll(':scope > .home-tile:not([data-home-route])')];
     const byRoute = new Map(buttons.map((button) => [button.dataset.homeRoute, button]));
     const required = GROUPS.flatMap((group) => group.routes);
     if (!required.every((route) => byRoute.has(route))) return;
 
     const hub = document.createElement('section');
     hub.id = 'home-hub';
-    hub.className = 'home-hub';
+    hub.className = 'home-hub home-grid';
+    hub.dataset.uxPreserved = 'true';
     hub.dataset.uxRevision = 'UX-HOME-CHECKOUT-2026-09-21';
     hub.innerHTML = '<header class="home-hub-head"><div><h1>Início</h1><p>Acesso rápido às tarefas mais frequentes sem esconder nenhum módulo.</p></div></header>';
 
@@ -90,14 +111,21 @@
     }
     hub.appendChild(context);
 
+    const extraCard = document.createElement('section');
+    extraCard.className = 'home-extra-card';
+    extraCard.hidden = true;
+    extraCard.innerHTML = '<h2>Módulos adicionais</h2><div class="home-extra-list" data-home-extra-host></div>';
+    hub.appendChild(extraCard);
+    for (const launcher of extraLaunchers) hub.appendChild(launcher);
+
     const recent = document.createElement('section');
     recent.className = 'home-recent-card';
     recent.innerHTML = '<div class="home-recent-head"><div><h2>Últimas vendas</h2><p>Resumo operacional; o histórico completo continua no módulo existente.</p></div><button type="button" class="secondary-button home-history-link" data-home-history>Ver histórico <kbd>F10</kbd></button></div><div id="home-recent-sales" class="home-recent-table" aria-live="polite"><div class="home-recent-state">Carregando vendas recentes…</div></div>';
     recent.querySelector('[data-home-history]')?.addEventListener('click', () => byRoute.get('sales')?.click());
     hub.appendChild(recent);
 
-    grid.dataset.uxPreserved = 'true';
     grid.replaceWith(hub);
+    adoptExtraLaunchers(hub);
     void hydrateRecentSales(hub.querySelector('#home-recent-sales'));
   }
 
