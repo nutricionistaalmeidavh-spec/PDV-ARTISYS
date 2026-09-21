@@ -133,7 +133,7 @@ test('DetailPanel renders compact fields and actions while preserving explicit a
   assert.match(html, /data-action="customer-history"/);
 });
 
-test('foundation styles are scoped and remain inert until a later screen migration', () => {
+test('foundation styles remain scoped when Products begins consuming the shared assets', () => {
   assert.equal(fs.existsSync(stylePath), true, 'ux-components.css deve existir como fundação visual');
   const css = fs.readFileSync(stylePath, 'utf8');
   for (const selector of ['.ux-data-table', '.ux-status', '.ux-search-field', '.ux-filter-bar', '.ux-empty-state', '.ux-action-menu', '.ux-detail-panel']) {
@@ -142,6 +142,7 @@ test('foundation styles are scoped and remain inert until a later screen migrati
 
   const index = fs.readFileSync(indexPath, 'utf8');
   const app = fs.readFileSync(appPath, 'utf8');
-  assert.doesNotMatch(index, /ux-components\.(?:js|css)/, 'Entrega 2 não deve carregar a fundação nas telas atuais');
-  assert.doesNotMatch(app, /ArtisysUxComponents/, 'Entrega 2 não deve substituir Produtos/Clientes ainda');
+  assert.match(index, /ux-components\.css/);
+  assert.match(index, /ux-components\.js/);
+  assert.doesNotMatch(app, /ArtisysUxComponents/, 'app.js legado não deve incorporar a fundação diretamente');
 });
