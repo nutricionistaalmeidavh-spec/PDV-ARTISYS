@@ -15,6 +15,8 @@
     {"action":"waitFor","selector":"#sidebar-nav [data-route='home']","name":"home-nav-ready","timeoutMs":10000},
     {"action":"click","selector":"#sidebar-nav [data-route='home']","name":"open-home"},
     {"action":"waitFor","selector":"#route-content","name":"home-content"},
+    {"action":"waitFor","selector":"#route-content [data-restaurant-route]","name":"restaurant-home-launcher-ready","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#route-content [data-restaurant-route]","name":"restaurant-home-launcher-visible"},
     {"action":"expectVisible","selector":"#network-status","name":"network-status-visible"},
     {"action":"expectText","selector":"#store-name","expected":"Loja","name":"store-context"},
     {"action":"screenshot","name":"home-ready"}
