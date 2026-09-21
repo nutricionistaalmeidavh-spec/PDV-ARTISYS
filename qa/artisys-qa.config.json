@@ -39,6 +39,8 @@
     "core-business-e2e": "flows/core-business-e2e.json",
     "ux-products-clients-cross-flow": "flows/ux-products-clients-cross-flow.json",
     "products-deep-e2e": "flows/products-deep-e2e.json",
+    "ux-products-clients-flags-e2e": "flows/ux-products-clients-flags-e2e.json",
+    "ux-products-clients-responsive-evidence": "flows/ux-products-clients-responsive-evidence.json",
     "enterprise-depth-p0": "flows/enterprise-depth-p0.json",
     "backend-parity-p0": "flows/backend-parity-p0.json",
     "backend-parity-p1": "flows/backend-parity-p1.json",
