@@ -45,6 +45,7 @@ function createFiscalConnectionStore({ app, safeStorage, fileName = 'pdv-fiscal-
 
 function createFiscalProviderResolver({
   store,
+  credentialStore = null,
   fetchImpl = globalThis.fetch,
   registry = null,
   sidecarBaseUrlResolver = () => null
@@ -62,6 +63,9 @@ function createFiscalProviderResolver({
     if (!secret) throw new Error('Conexao fiscal nao configurada.');
     if (document?.provider && document.provider !== secret.provider) throw new Error('Provedor fiscal do documento difere da configuracao ativa.');
     if (document?.environment && document.environment !== secret.environment) throw new Error('Ambiente fiscal do documento difere da configuracao ativa.');
+    if (secret.provider === 'acbr-local' && credentialStore && typeof credentialStore.assertUsable === 'function') {
+      credentialStore.assertUsable();
+    }
 
     const connection = {
       ...secret,
@@ -74,6 +78,7 @@ function createFiscalProviderResolver({
 function registerFiscalIpc({
   ipcMain,
   store,
+  credentialStore = null,
   isTrustedSender = null,
   fetchImpl = globalThis.fetch,
   providerResolver = null,
@@ -83,6 +88,7 @@ function registerFiscalIpc({
   const trusted = event => typeof isTrustedSender !== 'function' || Boolean(isTrustedSender(event));
   const resolveProvider = providerResolver || createFiscalProviderResolver({
     store,
+    credentialStore,
     fetchImpl,
     sidecarBaseUrlResolver
   });
@@ -95,6 +101,7 @@ function registerFiscalIpc({
   handle('artisys:fiscal:status', () => store.publicStatus());
   handle('artisys:fiscal:save', input => store.saveSecret(input));
   handle('artisys:fiscal:remove', () => store.removeSecret());
+  handle('artisys:fiscal:certificate-status', () => credentialStore?.publicStatus?.() || { configured:false });
   handle('artisys:fiscal:test', async () => {
     const secret = store.readSecret();
     if (!secret) return { configured:false, reachable:false, error:'Conexao fiscal nao configurada.' };
