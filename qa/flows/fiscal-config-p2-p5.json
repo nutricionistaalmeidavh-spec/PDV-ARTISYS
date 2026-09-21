@@ -81,7 +81,7 @@
     {"action":"fill","selector":"#product-form input[name='sku']","value":"QA-FISC-PENDING","name":"p5-pending-sku"},
     {"action":"fill","selector":"#product-form input[name='salePrice']","value":"10,00","name":"p5-pending-price"},
     {"action":"click","selector":"#product-form button[type='submit']","name":"p5-save-pending-product"},
-    {"action":"expectText","selector":".data-card","expected":"QA Fiscal Pending","name":"p5-pending-created"},
+    {"action":"expectText","selector":".data-row:has-text('QA Fiscal Pending')","expected":"QA Fiscal Pending","name":"p5-pending-created"},
 
     {"action":"click","selector":"[data-route='settings']","name":"p5-open-settings"},
     {"action":"waitFor","selector":"#fiscal-config-workspace","name":"p5-workspace-ready","timeoutMs":10000},
