@@ -21,7 +21,7 @@ function companyInput() {
     documentType:'nfce',
     environment:'homologation',
     autoIssue:true,
-    cnpj:'AB123456789CDE',
+    cnpj:'AB123456789012',
     stateRegistration:'123456789',
     legalName:'Empresa Fiscal Teste Ltda',
     tradeName:'Empresa Fiscal',
@@ -78,7 +78,7 @@ test('P3-P5 migrate additively, persist fiscal configuration and survive restart
     runtime.catalog.upsertProduct({ id:'prod-sem-fiscal', name:'Produto Sem Fiscal', sku:'PSF-1', unit:'UN', salePriceCents:1000, costCents:500 }, actor);
 
     const company = runtime.fiscalConfiguration.saveCompanySettings(companyInput(), actor);
-    assert.equal(company.cnpj, 'AB123456789CDE');
+    assert.equal(company.cnpj, 'AB123456789012');
     assert.equal(company.cscId, '1');
     assert.equal(company.autoIssue, true);
 
@@ -95,19 +95,19 @@ test('P3-P5 migrate additively, persist fiscal configuration and survive restart
 
     const fiscalContext = runtime.fiscalConfiguration.buildFiscalContextForSale(completedSale());
     assert.equal(fiscalContext.number, '41');
-    assert.equal(fiscalContext.issuer.cnpj, 'AB123456789CDE');
+    assert.equal(fiscalContext.issuer.cnpj, 'AB123456789012');
     assert.equal(fiscalContext.items['prod-fiscal'].cClassTrib, '000001');
     assert.equal(runtime.fiscalConfiguration.getSequence({ documentType:'nfce', environment:'homologation', series:'1' }).nextNumber, 42);
 
     const document = buildFiscalDocument({
       sale:completedSale(), fiscalContext, documentType:'nfce', environment:'homologation', reference:'VENDA-B2-1'
     });
-    assert.equal(document.issuer.cnpj, 'AB123456789CDE', 'CNPJ alfanumerico must survive the canonical builder');
+    assert.equal(document.issuer.cnpj, 'AB123456789012', 'CNPJ alfanumerico must survive the canonical builder');
     assert.equal(document.totals.totalCents, 900);
 
     runtime.close();
     runtime = createPdvRuntime({ dbPath });
-    assert.equal(runtime.fiscalConfiguration.getCompanySettings().cnpj, 'AB123456789CDE');
+    assert.equal(runtime.fiscalConfiguration.getCompanySettings().cnpj, 'AB123456789012');
     assert.equal(runtime.fiscalConfiguration.getProductFiscalData('prod-fiscal').profileId, 'profile-retail');
     assert.equal(runtime.fiscalConfiguration.getSequence({ documentType:'nfce', environment:'homologation', series:'1' }).nextNumber, 42);
 
