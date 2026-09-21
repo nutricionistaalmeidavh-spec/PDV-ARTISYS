@@ -49,8 +49,11 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'expectText': {
-      const actual = (await locator(page, step).textContent()) ?? '';
-      if (!actual.includes(step.expected ?? '')) throw new Error(`${label}: expected text ${JSON.stringify(step.expected)}, got ${JSON.stringify(actual)}`);
+      const expected = step.expected ?? '';
+      const texts = await locator(page, step).allTextContents();
+      if (!texts.some(actual => actual.includes(expected))) {
+        throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+      }
       break;
     }
     case 'expectURL': {
