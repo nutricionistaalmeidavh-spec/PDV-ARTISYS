@@ -40,9 +40,9 @@ test('deep Products flow exercises the complete product surface through real UI 
     '#product-page-search',
     '#product-category-filter',
     '#products-stock-filter',
-    'data-route="checkout"',
-    'data-route="inventory"',
-    'data-route="reports"'
+    "data-route='checkout'",
+    "data-route='inventory'",
+    "data-route='reports'"
   ];
   for (const marker of requiredMarkers) assert.ok(source.includes(marker), `deep Products flow missing ${marker}`);
 });
