@@ -35,7 +35,7 @@ jobs:
   e2e:
     needs: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,6 +54,8 @@ jobs:
         run: npm run qa:validate
       - name: Run release E2E flows
         run: xvfb-run -a npm run qa:release
+      - name: Run paired UX finalization
+        run: xvfb-run -a npm run qa:ux:finalize
       - name: Upload QA evidence
         if: always()
         uses: actions/upload-artifact@v4
