@@ -2,7 +2,7 @@
 
 A camada fiscal é desacoplada do checkout. A venda é concluída no domínio e a emissão fiscal ocorre por efeito durável/idempotente, permitindo retry sem duplicar os efeitos de venda, estoque e caixa.
 
-## Estado atual — Fiscal Blocos 1, 2 e 3
+## Estado atual — Fiscal Blocos 1 a 4
 
 O núcleo suporta dois providers no contrato:
 
@@ -70,6 +70,39 @@ A tabela `fiscal_certificates_metadata` existe apenas para metadados públicos; 
 - E2E externo opt-in para homologação real.
 
 A versão comercial continua sendo tratada como não fiscal enquanto não existir evidência de autorização externa real em homologação, configuração operacional completa do ACBrMonitor e mapeamento validado do layout fiscal vigente.
+
+### Bloco 4 — máquina de estados e reconciliação
+
+O schema fiscal evolui de forma aditiva para v14. O status legado (`PENDING`, `ISSUED`, `FAILED`, `CANCELLED`) permanece por compatibilidade, enquanto `lifecycle_status` passa a representar o estado fiscal detalhado:
+
+```text
+PENDING
+PROCESSING
+AUTHORIZED
+REJECTED
+UNKNOWN
+FAILED
+CANCELLED
+```
+
+Regras principais:
+
+- o envio entra em `PROCESSING` antes de chamar o provider;
+- autorização válida termina em `AUTHORIZED` e continua aparecendo como `ISSUED` no contrato legado;
+- rejeição fiscal com `cStat` termina em `REJECTED` e preserva código/motivo SEFAZ;
+- timeout, conexão encerrada ou resultado tecnicamente indeterminado termina em `UNKNOWN`;
+- `UNKNOWN` bloqueia qualquer reenvio enquanto `reconcile_required=1`;
+- a reconciliação é uma operação durável própria (`fiscal.reconcile-requested`), independente de um novo envio;
+- consulta que encontra autorização promove o mesmo documento para `AUTHORIZED` sem segunda emissão;
+- `cStat=217` (`NOT_FOUND`) registra reconciliação conclusiva como não encontrado e somente então libera retry controlado do mesmo documento;
+- restart preserva `UNKNOWN`, tentativas e estado de reconciliação;
+- cada transição relevante é registrada em `fiscal_document_events`.
+
+Além do estado, `fiscal_documents` preserva `attempt_count`, `reconcile_required`, início de processamento, última transição e último resultado de reconciliação. Uma chave autorizada possui índice único parcial para impedir duas linhas `AUTHORIZED` com a mesma chave.
+
+O adapter ACBrMonitor também preserva timeout de transporte como resultado indeterminado, em vez de transformá-lo em erro genérico retryable. A consulta real por chave usa o caminho de consulta do ACBrMonitor em homologação.
+
+**Limite seguro atual:** se a conexão cair antes de o PDV receber a chave de acesso, o adapter não inventa nem recalcula a chave para consultar. Nesse caso o documento permanece `UNKNOWN` e bloqueado para reenvio até que a chave/status seja obtido por uma fonte fiscal confiável. Esse comportamento é deliberadamente conservador para impedir NFC-e duplicada.
 
 ## Documento fiscal canônico
 
@@ -144,7 +177,7 @@ POST /v1/documents/:type/:reference/cancel
 
 Essas rotas são contrato local interno e não são API LAN do PDV.
 
-## ACBrMonitor — caminho de integração do Bloco 3
+## ACBrMonitor — caminho de integração dos Blocos 3 e 4
 
 O modo real é deliberadamente opt-in. O default permanece `unconfigured`.
 
@@ -155,7 +188,7 @@ ARTISYS_ACBR_PORT=3434
 ARTISYS_ACBR_TIMEOUT_MS=30000
 ```
 
-O adapter atual aceita somente:
+O adapter de emissão atual aceita somente:
 
 ```text
 documentType = nfce
@@ -163,7 +196,7 @@ environment  = homologation
 model        = 65
 ```
 
-Tentativa de produção é recusada. NF-e modelo 55, consulta/reconciliação e cancelamento real permanecem para os blocos correspondentes do roadmap.
+Tentativa de produção é recusada. NF-e modelo 55 e cancelamento real permanecem para os blocos correspondentes do roadmap. A consulta/reconciliação por chave de acesso está disponível em homologação.
 
 A emissão usa arquivo INI temporário com permissão restrita, chama `NFe.CriarEnviarNFe(..., 1, 0, 1)` de forma síncrona e remove o arquivo temporário ao final. Somente resposta fiscal com `cStat=100` é normalizada como autorizada.
 
@@ -195,11 +228,13 @@ Falha de rede/provider/sidecar/certificado/configuração não deve apagar ou re
 
 Os testes protegem explicitamente:
 
-- venda `COMPLETED` preservada quando o fiscal falha;
+- venda `COMPLETED` preservada quando o fiscal falha, rejeita ou fica `UNKNOWN`;
 - estoque movimentado uma única vez;
 - caixa movimentado uma única vez;
 - retry fiscal sem criar outro `fiscal_document`;
-- persistência após reinício;
+- `UNKNOWN` não pode ser reenviado antes de reconciliação;
+- timeout seguido de autorização encontrada na reconciliação produz uma única emissão e o mesmo documento termina `AUTHORIZED`;
+- `UNKNOWN` e pendências sobrevivem a reinício;
 - instalação sem autoemissão continua operando normalmente;
 - `total fiscal === total canônico da venda`;
 - `cNF` estável em retry;
@@ -210,11 +245,11 @@ Os testes protegem explicitamente:
 - provider e ACBrMonitor permanecem restritos a loopback;
 - Focus opcional continua compatível.
 
-Nunca marque emissão como aprovada sem resposta válida do provider.
+Nunca marque emissão como aprovada sem resposta válida do provider ou reconciliação fiscal confiável.
 
 ## Homologação real — status
 
-A estrutura P3–P7 está preparada, mas a evidência externa de autorização continua pendente até existir, no ambiente autorizado de teste:
+A estrutura P3–P9 está preparada, mas a evidência externa de autorização e reconciliação reais continua pendente até existir, no ambiente autorizado de teste:
 
 - ACBrMonitorPLUS instalado e configurado;
 - certificado A1 válido de homologação;
@@ -225,4 +260,4 @@ A estrutura P3–P7 está preparada, mas a evidência externa de autorização c
 - schemas fiscais vigentes;
 - acesso ao serviço SEFAZ correspondente.
 
-Portanto, os Blocos 1–3 não devem ser anunciados como NFC-e homologada nem como emissão fiscal pronta para cliente antes do `EXTERNAL_E2E` retornar autorização real com evidência registrada.
+Portanto, os Blocos 1–4 não devem ser anunciados como NFC-e homologada nem como emissão fiscal pronta para cliente antes do `EXTERNAL_E2E` retornar autorização real com evidência registrada.
