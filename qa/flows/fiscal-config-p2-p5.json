@@ -75,7 +75,7 @@
     {"action":"click","selector":".data-row:has-text('QA Core Stock') [data-edit-product]","name":"p4-reopen-core-product"},
     {"action":"waitFor","selector":"#product-fiscal-current","name":"p4-fiscal-current-ready","timeoutMs":5000},
     {"action":"expectText","selector":"#product-fiscal-current","expected":"QA Revenda Fiscal Editado","name":"p4-profile-persisted"},
-    {"action":"click","selector":"[data-close-modal]","name":"p4-close-product"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"p4-close-product"},
     {"action":"click","selector":"#new-product","name":"p5-new-pending-product"},
     {"action":"fill","selector":"#product-form input[name='name']","value":"QA Fiscal Pending","name":"p5-pending-name"},
     {"action":"fill","selector":"#product-form input[name='sku']","value":"QA-FISC-PENDING","name":"p5-pending-sku"},
