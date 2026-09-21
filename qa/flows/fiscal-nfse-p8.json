@@ -1,6 +1,7 @@
 {
   "name": "fiscal-nfse-p8",
   "steps": [
+    {"uses":"home.json"},
     {
       "action": "click",
       "selector": "[data-route='settings']",
