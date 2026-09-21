@@ -594,7 +594,7 @@
       "e2e": [
         {
           "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "fiscal-company-form"
+          "marker": "p2-company-visible"
         }
       ]
     },
@@ -630,7 +630,7 @@
       "e2e": [
         {
           "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "fiscal-profile-form"
+          "marker": "p3-profiles-visible"
         }
       ]
     },
@@ -666,7 +666,7 @@
       "e2e": [
         {
           "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "fiscal-product-form"
+          "marker": "p4-products-visible"
         }
       ]
     },
@@ -683,7 +683,7 @@
       ],
       "api": [
         {
-          "path": "server/fiscal-block6-router.js",
+          "path": "server/router.js",
           "marker": "/api/v1/fiscal/documents"
         }
       ],
@@ -773,8 +773,8 @@
       ],
       "e2e": [
         {
-          "path": "qa/flows/fiscal-block6.json",
-          "marker": "contingency"
+          "path": "test/fiscal-block6-production-contingency.test.js",
+          "marker": "enterContingency"
         }
       ]
     },
