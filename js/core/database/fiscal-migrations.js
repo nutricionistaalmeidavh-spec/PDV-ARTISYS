@@ -158,6 +158,10 @@ function applyV15(db, now) {
     db.exec(`
       CREATE INDEX IF NOT EXISTS idx_fiscal_cancelled_at ON fiscal_documents(cancelled_at,created_at);
       CREATE INDEX IF NOT EXISTS idx_fiscal_authorized_at ON fiscal_documents(authorized_at,created_at);
+      DROP INDEX IF EXISTS idx_fiscal_authorized_access_key;
+      CREATE UNIQUE INDEX idx_fiscal_authorized_access_key
+        ON fiscal_documents(access_key)
+        WHERE access_key IS NOT NULL AND lifecycle_status IN ('AUTHORIZED','CANCELLED');
     `);
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
       .run(15, FISCAL_MIGRATION_NAME, now());
