@@ -11,6 +11,8 @@ const {
   createDefaultFiscalProviderRegistry
 } = require('../js/domains/fiscal/provider-registry');
 
+const TOKEN = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGH';
+
 test('acbr-local is a first-class provider and does not require a paid-provider token', () => {
   const local = validateSecretConnection({
     provider:'acbr-local',
@@ -52,19 +54,21 @@ test('provider registry resolves factories by provider without changing the fisc
     provider:'acbr-local',
     environment:'homologation',
     documentType:'nfce'
-  }, { sidecarBaseUrl:'http://127.0.0.1:9999' });
+  }, { sidecarBaseUrl:'http://127.0.0.1:9999', sidecarAuthToken:TOKEN });
   const result = await provider.issue({});
   assert.equal(result.ok, true);
   assert.equal(result.data.chave, 'LOCAL');
   assert.equal(calls[0].context.sidecarBaseUrl, 'http://127.0.0.1:9999');
+  assert.equal(calls[0].context.sidecarAuthToken, TOKEN);
 });
 
-test('default registry keeps Focus available while adding acbr-local', () => {
+test('default registry keeps Focus optional while acbr-local resolves ephemeral sidecar auth', () => {
   const registry = createDefaultFiscalProviderRegistry({
     fetchImpl:async () => {
       throw new Error('network should not be called while constructing providers');
     },
-    resolveSidecarBaseUrl:() => 'http://127.0.0.1:9999'
+    resolveSidecarBaseUrl:() => 'http://127.0.0.1:9999',
+    resolveSidecarAuthToken:() => TOKEN
   });
   assert.deepEqual(registry.list(), ['acbr-local','focus']);
 
