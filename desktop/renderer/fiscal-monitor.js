@@ -35,19 +35,22 @@
     <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th></th><th>Verificação</th><th>Estado</th></tr></thead><tbody>${readinessRows(readiness)}</tbody></table></div>
     <div class="ops-row-actions" style="margin-top:12px">${readiness?.enabled?'<button id="fiscal-production-disable" class="ops-secondary">Voltar para homologação</button>':`<button id="fiscal-production-enable" class="ops-primary" ${readiness?.ready?'':'disabled'}>Ativar produção</button>`}</div>`;}
 
+  function stillOnSettings(page){const currentPage=content?.querySelector('.ops-page');const heading=content?.querySelector('.ops-head h1');return Boolean(page?.isConnected&&currentPage===page&&heading?.textContent?.trim()==='Configurações');}
+  function retryMount(){setTimeout(()=>{if(content?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'&&!content.querySelector('#fiscal-monitor-panel'))void mount();},250);}
   async function mount(){
     if(rendering||!content||content.querySelector('#fiscal-monitor-panel'))return;
     const page=content.querySelector('.ops-page');const heading=content.querySelector('.ops-head h1');if(!page||!heading||heading.textContent.trim()!=='Configurações')return;
     rendering=true;
     try{
-      const [docs,readiness,desktop]=await Promise.all([load(),loadProduction(),desktopStatus()]);if(!content.querySelector('.ops-page')||content.querySelector('#fiscal-monitor-panel'))return;
+      const [docs,readiness,desktop]=await Promise.all([load(),loadProduction(),desktopStatus()]);
+      if(!stillOnSettings(page)||content.querySelector('#fiscal-monitor-panel')){if(content.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações')retryMount();return;}
       const production=document.createElement('section');production.id='fiscal-production-panel';production.className='ops-card';production.innerHTML=productionHtml(readiness,desktop);page.appendChild(production);wireProduction(production);
       const panel=document.createElement('section');panel.id='fiscal-monitor-panel';panel.className='ops-card';panel.innerHTML=`
         <div class="ops-card-head"><div><h2>Fiscal · Documentos</h2><p class="ops-muted">Monitor local de NFC-e/NF-e. Estados incertos exigem reconciliação antes de reenvio; contingência não apaga o estado fiscal original.</p></div><div class="ops-row-actions"><select id="fiscal-status-filter" class="ops-input compact"><option value="">Todos</option>${['PENDING','PROCESSING','AUTHORIZED','REJECTED','UNKNOWN','FAILED','CANCELLED'].map(s=>`<option>${s}</option>`).join('')}</select><button id="fiscal-refresh" class="ops-secondary">Atualizar</button></div></div>
         <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Venda</th><th>Documento</th><th>Estado</th><th>Chave</th><th>Tentativas</th><th>Atualização</th><th>Ações</th></tr></thead><tbody id="fiscal-monitor-body">${rows(docs)}</tbody></table></div>
         <div id="fiscal-monitor-detail"></div>`;
       page.appendChild(panel);wire(panel);
-    }catch(error){console.warn('Fiscal monitor unavailable:',error?.message||error);}finally{rendering=false;}
+    }catch(error){console.warn('Fiscal monitor unavailable:',error?.message||error);retryMount();}finally{rendering=false;}
   }
   function rows(docs){return docs.map(doc=>`<tr><td>${esc(doc.saleId)}</td><td><strong>${esc((doc.documentType||'').toUpperCase())}</strong><small>${esc(doc.number||'—')} · série ${esc(doc.series||'—')}</small></td><td>${badge(doc.lifecycleStatus)}${doc.contingency?`<small>Contingência: ${esc(doc.contingency.status)}</small>`:''}</td><td>${esc(doc.accessKey?`${doc.accessKey.slice(0,8)}…${doc.accessKey.slice(-6)}`:(doc.contingency?.accessKey?`${doc.contingency.accessKey.slice(0,8)}…${doc.contingency.accessKey.slice(-6)}`:'—'))}</td><td>${esc(doc.attemptCount)}</td><td>${when(doc.updatedAt)}</td><td>${actions(doc)}</td></tr>`).join('')||'<tr><td colspan="7">Nenhum documento fiscal registrado.</td></tr>';}
   async function refresh(panel){const status=panel.querySelector('#fiscal-status-filter')?.value||'';panel.querySelector('#fiscal-monitor-body').innerHTML=rows(await load(status));wireRows(panel);}
