@@ -24,7 +24,7 @@ test('P2-P5 UI matches roadmap: company, profiles, product taxation and pending-
  assert.doesNotThrow(()=>new Function(src),'fiscal config renderer must parse');
 });
 
-test('P4 is also present in the canonical product create/edit modal',()=>{
+test('P4 is also present in the canonical product create/edit modal and waits for catalog success',()=>{
  const src=read('desktop/renderer/product-fiscal-fields.js');
  assert.ok(src.includes('#product-form'));
  assert.ok(src.includes('product-fiscal-fields'));
@@ -33,6 +33,9 @@ test('P4 is also present in the canonical product create/edit modal',()=>{
  assert.ok(src.includes('saveProductFiscal'));
  assert.ok(src.includes('[data-edit-product]'));
  assert.ok(src.includes('#new-product'));
+ assert.ok(src.includes('waitForCatalogSave'),'P4 must wait for canonical product save');
+ assert.ok(src.includes("node.textContent.trim()==='Produto salvo.'"),'P4 must observe a fresh successful catalog save');
+ assert.ok(src.indexOf('await waitForCatalogSave')<src.indexOf('await api.saveProductFiscal'),'tax binding cannot run before catalog save succeeds');
  assert.doesNotThrow(()=>new Function(src),'product fiscal extension must parse');
 });
 
