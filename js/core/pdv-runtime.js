@@ -9,6 +9,7 @@ const { runKitComboMigrations }=require('./database/kit-combo-migrations');
 const { runEnterpriseDepthMigrations }=require('./database/enterprise-depth-migrations');
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
+const { runFiscalMigrations }=require('./database/fiscal-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -38,6 +39,7 @@ const { registerPrintEffects }=require('../domains/printing/print-effects');
 const { createNonFiscalPrintService }=require('../domains/printing/non-fiscal-service');
 const { registerNonFiscalEffects }=require('../domains/printing/non-fiscal-effects');
 const { createFiscalService }=require('../domains/fiscal/fiscal-service');
+const { createFiscalConfigurationService }=require('../domains/fiscal/fiscal-configuration-service');
 const { registerFiscalEffects, registerFiscalAutoIssueEffect }=require('../domains/fiscal/fiscal-effects');
 const { createRestaurantService }=require('../domains/restaurant/restaurant-service');
 const { createConfiguredRestaurantService }=require('../domains/restaurant/restaurant-configured-service');
@@ -77,8 +79,9 @@ function createPdvRuntime({
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runFiscalMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
+  const fiscalConfiguration=createFiscalConfigurationService({db,now,idFactory});
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
   const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});productPhotos.cleanupExpired();
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
@@ -102,6 +105,6 @@ function createPdvRuntime({
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
