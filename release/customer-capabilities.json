@@ -332,11 +332,15 @@
       "exposure": "internal",
       "status": "supported",
       "targetPhase": 0,
-      "declaredCapabilities": [],
+      "declaredCapabilities": [
+        "nfce-nfe-local-provider-infrastructure",
+        "nfse-national-provider-infrastructure"
+      ],
       "backend": [
         { "path": "js/domains/fiscal/fiscal-service.js" },
         { "path": "js/domains/fiscal/fiscal-configuration-service.js" },
-        { "path": "js/domains/fiscal/fiscal-production-service.js" }
+        { "path": "js/domains/fiscal/fiscal-production-service.js" },
+        { "path": "js/domains/nfse/nfse-service.js" }
       ],
       "api": [],
       "client": [],
