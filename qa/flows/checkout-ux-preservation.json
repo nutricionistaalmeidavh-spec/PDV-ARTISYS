@@ -74,22 +74,22 @@
     {"action":"click","selector":"#confirm-open-cash","name":"ux-open-cash"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-cash-payment-ready","timeoutMs":10000},
     {"action":"expectText","selector":".payment-list","expected":"Dinheiro","name":"ux-cash-payment-method"},
-    {"action":"click","selector":"[data-close-modal]","name":"ux-close-cash-payment"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-cash-payment"},
 
     {"action":"click","selector":"[data-pay=\"pix\"]","name":"ux-quick-pix"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-pix-payment-ready","timeoutMs":10000},
     {"action":"expectText","selector":".payment-list","expected":"PIX","name":"ux-pix-payment-method"},
-    {"action":"click","selector":"[data-close-modal]","name":"ux-close-pix-payment"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-pix-payment"},
 
     {"action":"click","selector":"[data-pay=\"card\"]","name":"ux-quick-card"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-card-payment-ready","timeoutMs":10000},
     {"action":"expectText","selector":".payment-list","expected":"Cartão débito","name":"ux-card-payment-method"},
-    {"action":"click","selector":"[data-close-modal]","name":"ux-close-card-payment"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-card-payment"},
 
     {"action":"click","selector":"[data-pay=\"tef\"]","name":"ux-quick-tef"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-tef-payment-ready","timeoutMs":10000},
     {"action":"expectText","selector":".payment-list","expected":"Cartão crédito / TEF","name":"ux-tef-payment-method"},
-    {"action":"click","selector":"[data-close-modal]","name":"ux-close-tef-payment"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-tef-payment"},
 
     {"action":"click","selector":"#finalize-sale","name":"ux-open-multi-payment"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-multi-payment-ready","timeoutMs":10000},
