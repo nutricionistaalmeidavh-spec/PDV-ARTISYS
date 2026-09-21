@@ -1,0 +1,11 @@
+{
+  "formatVersion": 1,
+  "sidecar": {
+    "host": "127.0.0.1"
+  },
+  "acbr": {
+    "host": "127.0.0.1",
+    "port": 3434
+  },
+  "secrets": "never-store-here"
+}
