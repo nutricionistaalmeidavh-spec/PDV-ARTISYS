@@ -1,0 +1,22 @@
+{
+  "name":"ui-parity-p0-p2",
+  "steps":[
+    {"uses":"home.json"},
+    {"action":"click","selector":"[data-route='inventory']","name":"p0-open-inventory"},
+    {"action":"waitFor","selector":"#enterprise-depth-entry","name":"p0-enterprise-depth-entry","timeoutMs":10000},
+    {"action":"click","selector":"[data-open='purchases']","name":"p0-open-purchases"},
+    {"action":"waitFor","selector":"#p0-partial-receipt-panel","name":"p0-partial-receipt-panel","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#p1-purchase-receipts-panel","name":"p1-purchase-receipts-panel"},
+    {"action":"click","selector":"[data-enterprise-back]","name":"p0-back-inventory-from-purchases"},
+    {"action":"waitFor","selector":"#enterprise-depth-entry","name":"p0-enterprise-depth-orders-entry","timeoutMs":10000},
+    {"action":"click","selector":"[data-open='orders']","name":"p0-open-orders"},
+    {"action":"waitFor","selector":"#p0-partial-fulfillment-panel","name":"p0-partial-fulfillment-panel","timeoutMs":10000},
+    {"action":"click","selector":"[data-route='returns']","name":"p2-open-returns"},
+    {"action":"waitFor","selector":"#p2-return-details-panel","name":"p2-return-details-panel","timeoutMs":10000},
+    {"action":"click","selector":"[data-route='settings']","name":"p1-open-settings"},
+    {"action":"waitFor","selector":"#p1-print-retry-panel","name":"p1-print-retry-panel","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#p1-terminal-admin-panel","name":"p1-terminal-admin-panel"},
+    {"action":"expectVisible","selector":"#p2-import-batch-panel","name":"p2-import-batch-panel"},
+    {"action":"screenshot","name":"ui-parity-p0-p2","fullPage":true}
+  ]
+}
