@@ -69,7 +69,7 @@
     const more = hasMore
       ? `<button type="button" class="secondary-button customers-history-more" data-action="customer-history-more"${loading ? ' disabled' : ''}>${loading ? 'Carregando…' : 'Carregar mais'}</button>`
       : '';
-    return `<section class="customers-history" data-customer-history-panel><div class="customers-history__head"><strong>Histórico de compras</strong><small>${sales.length} venda${sales.length === 1 ? '' : 's'} carregada${sales.length === 1 ? '' : 's'}</small></div>${rows ? `<ul>${rows}</ul>` : '<p>Nenhuma venda concluída vinculada a este cliente.</p>'}${more}</section>`;
+    return `<section class="customers-history" data-customer-history-panel><div class="customers-history__head"><strong>Histórico de compras</strong><small>${sales.length} venda${sales.length === 1 ? '' : 's'} vinculada${sales.length === 1 ? '' : 's'}</small></div>${rows ? `<ul>${rows}</ul>` : '<p>Nenhuma venda concluída vinculada a este cliente.</p>'}${more}</section>`;
   }
 
   function renderCustomerDetail({
