@@ -1,0 +1,17 @@
+'use strict';
+
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function money(cents){return (Number(cents||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function groupedKey(value){return String(value||'').replace(/\s/g,'').replace(/(.{4})/g,'$1 ').trim();}
+
+function renderDanfeNfeA4({document}={}){
+  if(!document||document.documentType!=='nfe')throw new Error('DANFE A4 exige NF-e modelo 55.');
+  if(!['AUTHORIZED','CANCELLED'].includes(String(document.lifecycleStatus||'')))throw new Error('DANFE NF-e exige documento autorizado ou cancelado.');
+  if(!document.accessKey)throw new Error('DANFE NF-e exige chave de acesso.');
+  const payload=document.requestPayload||{};const issuer=payload.issuer||{};const recipient=payload.recipient||{};const id=payload.identification||{};const items=Array.isArray(payload.items)?payload.items:[];const totals=payload.totals||{};
+  const itemRows=items.map(item=>`<tr><td>${esc(item.code)}</td><td>${esc(item.description)}</td><td>${esc(item.tax?.ncm||'')}</td><td>${esc(item.tax?.cfop||'')}</td><td>${esc(item.unit)}</td><td class="num">${esc(item.quantity)}</td><td class="num">${money(item.unitPriceCents)}</td><td class="num">${money(item.netCents)}</td></tr>`).join('');
+  const cancelled=String(document.lifecycleStatus)==='CANCELLED'?'<div class="cancelled">DOCUMENTO CANCELADO</div>':'';
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>DANFE NF-e ${esc(id.number||'')}</title><style>@page{size:A4;margin:8mm}body{font-family:Arial,sans-serif;font-size:10px;color:#111}h1{font-size:18px;margin:0}.box{border:1px solid #111;padding:6px;margin-bottom:5px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}table{border-collapse:collapse;width:100%;font-size:9px}th,td{border:1px solid #555;padding:3px}.num{text-align:right}.cancelled{font-size:28px;font-weight:700;text-align:center;color:#900;border:3px solid #900;padding:10px;margin:8px 0}.key{font-family:monospace;font-size:13px;letter-spacing:.5px}</style></head><body data-format="A4">${cancelled}<div class="grid"><div class="box"><strong>${esc(issuer.legalName||issuer.tradeName)}</strong><br>CNPJ ${esc(issuer.cnpj)}<br>${esc(issuer.address?.street)}, ${esc(issuer.address?.number)} — ${esc(issuer.address?.city)}/${esc(issuer.address?.state)}</div><div class="box"><h1>DANFE</h1>Documento Auxiliar da Nota Fiscal Eletrônica<br>NF-e modelo 55 · Série ${esc(id.series)} · Nº ${esc(id.number)}</div></div><div class="box"><strong>CHAVE DE ACESSO</strong><div class="key">${esc(groupedKey(document.accessKey))}</div>${document.authorizationProtocol?`Protocolo de autorização: ${esc(document.authorizationProtocol)}`:''}</div><div class="box"><strong>DESTINATÁRIO</strong><br>${esc(recipient.name)} · CPF/CNPJ ${esc(recipient.taxId)}<br>${esc(recipient.address?.street)}, ${esc(recipient.address?.number)} — ${esc(recipient.address?.city)}/${esc(recipient.address?.state)}</div><table><thead><tr><th>Cód.</th><th>Descrição</th><th>NCM</th><th>CFOP</th><th>Un.</th><th>Qtd.</th><th>V. unit.</th><th>Total</th></tr></thead><tbody>${itemRows}</tbody></table><div class="box" style="margin-top:5px"><strong>Totais</strong><br>Subtotal: R$ ${money(totals.subtotalCents)} · Desconto: R$ ${money(totals.discountCents)} · <strong>Total NF-e: R$ ${money(totals.totalCents)}</strong></div></body></html>`;
+}
+
+module.exports={renderDanfeNfeA4};
