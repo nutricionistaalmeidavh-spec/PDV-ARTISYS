@@ -8,7 +8,11 @@ Abra o caixa antes das vendas, informando o fundo inicial. Suprimentos e sangria
 
 Use **F2** para abrir o Balcão. Pesquise por nome/SKU/código de barras ou use leitor keyboard-wedge. Adicione/ajuste itens, selecione cliente, aplique desconto autorizado e escolha uma ou mais formas de pagamento. **F12** conclui a venda quando estoque, caixa e pagamentos são válidos. A conclusão é idempotente: reenvio da mesma mutação não cria uma segunda venda.
 
-Na interface revisada em 21/09/2026, a reorganização visual não substitui o fluxo operacional existente. Busca/catálogo permanecem à esquerda; vendedor, cliente, carrinho, total e pagamento permanecem no painel direito. As ações F1/F2/F3/F4/F6/F12, alteração de preço autorizada, limpar carrinho, desconto e vendas suspensas continuam com os mesmos efeitos operacionais.
+Na interface revisada em 21/09/2026, a reorganização visual não substitui o fluxo operacional existente. A própria busca, categorias, catálogo, vendedor/garçom, cliente, cabeçalho do carrinho e lista de itens são movidos para regiões mais claras usando os elementos DOM originais; IDs, listeners e regras não são recriados. Busca/catálogo permanecem à esquerda; vendedor e cliente ficam compactos no topo do painel direito; carrinho, total, pagamento, observação e F12 continuam na sequência operacional da venda.
+
+As ações F1/F2/F3/F4/F6/F12, alteração de preço autorizada, limpar carrinho, desconto e vendas suspensas continuam com os mesmos efeitos operacionais. O botão F12 permanece diretamente no painel da venda para que a observação dinâmica continue sendo inserida imediatamente antes dele.
+
+Em monitores com pouca altura, inclusive 1366×768, o painel direito possui rolagem interna própria. Nenhum controle é removido quando o conteúdo ultrapassa a altura disponível: vendedor, cliente, itens, total, formas de pagamento, observação e finalizar permanecem alcançáveis por rolagem dentro do painel.
 
 Vendas podem ser suspensas e retomadas. Cancelamento de venda concluída exige permissão/motivo e gera os efeitos de reversão pelo EventBus/outbox, sem apagar o documento original.
 
