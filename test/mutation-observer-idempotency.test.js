@@ -7,130 +7,32 @@ const path=require('node:path');
 
 const rendererDir=path.join(__dirname,'../desktop/renderer');
 const read=file=>fs.readFileSync(path.join(rendererDir,file),'utf8');
-
-function between(source,startMarker,endMarker){
-  const start=source.indexOf(startMarker);
-  const end=source.indexOf(endMarker,start+startMarker.length);
-  assert.ok(start>=0,`missing start marker: ${startMarker}`);
-  assert.ok(end>start,`missing end marker after: ${startMarker}`);
-  return source.slice(start,end);
-}
-
-function assertBefore(block,guard,mutations,label){
-  const guardIndex=block.indexOf(guard);
-  assert.ok(guardIndex>=0,`${label}: missing guard ${guard}`);
-  for(const mutation of mutations){
-    const mutationIndex=block.indexOf(mutation);
-    assert.ok(mutationIndex>=0,`${label}: missing mutation ${mutation}`);
-    assert.ok(guardIndex<mutationIndex,`${label}: guard must run before DOM mutation ${mutation}`);
-  }
-}
+function between(source,startMarker,endMarker){const start=source.indexOf(startMarker);const end=source.indexOf(endMarker,start+startMarker.length);assert.ok(start>=0,`missing start marker: ${startMarker}`);assert.ok(end>start,`missing end marker after: ${startMarker}`);return source.slice(start,end);}
+function assertBefore(block,guard,mutations,label){const guardIndex=block.indexOf(guard);assert.ok(guardIndex>=0,`${label}: missing guard ${guard}`);for(const mutation of mutations){const mutationIndex=block.indexOf(mutation);assert.ok(mutationIndex>=0,`${label}: missing mutation ${mutation}`);assert.ok(guardIndex<mutationIndex,`${label}: guard must run before DOM mutation ${mutation}`);}}
 
 test('every renderer MutationObserver is explicitly covered by the idempotency audit',()=>{
-  const actual=fs.readdirSync(rendererDir)
-    .filter(file=>file.endsWith('.js')&&read(file).includes('MutationObserver'))
-    .sort();
-  const expected=[
-    'admin-ops.js',
-    'backend-parity-ui.js',
-    'delivery-address-ui.js',
-    'e48-e54-ui.js',
-    'enterprise-depth-ui.js',
-    'fiscal-monitor.js',
-    'kits-combos-ui.js',
-    'product-variants-ui.js',
-    'restaurant-ui.js',
-    'sale-observation-ui.js',
-    'seller-select-sync.js',
-    'store-branding-ui.js',
-    'vertical-modules.js',
-    'vertical-parity-p1.js'
-  ].sort();
-  assert.deepEqual(actual,expected,'new or removed MutationObserver requires an explicit idempotency review');
+ const actual=fs.readdirSync(rendererDir).filter(file=>file.endsWith('.js')&&read(file).includes('MutationObserver')).sort();
+ const expected=['admin-ops.js','backend-parity-ui.js','delivery-address-ui.js','e48-e54-ui.js','enterprise-depth-ui.js','fiscal-monitor.js','kits-combos-ui.js','product-variants-ui.js','restaurant-ui.js','sale-observation-ui.js','seller-select-sync.js','store-branding-ui.js','ui-parity-p0-p2.js','vertical-modules.js','vertical-parity-p1.js'].sort();
+ assert.deepEqual(actual,expected,'new or removed MutationObserver requires an explicit idempotency review');
 });
 
-test('module-manager observers guard already-bound buttons before changing watched child nodes',()=>{
-  const p1=read('vertical-parity-p1.js');
-  const p1Block=between(p1,'function mountExtraWorkspaceEntries()','async function mountPizzeria()');
-  assertBefore(
-    p1Block,
-    "if(button.dataset.parityWorkspaceBound==='1')return;",
-    ['button.disabled=false;',"replaceChildren(document.createTextNode('Abrir módulo'))"],
-    'vertical-parity-p1'
-  );
+test('module-manager observers guard already-bound buttons before changing watched child nodes',()=>{const p1=read('vertical-parity-p1.js');const p1Block=between(p1,'function mountExtraWorkspaceEntries()','async function mountPizzeria()');assertBefore(p1Block,"if(button.dataset.parityWorkspaceBound==='1')return;",['button.disabled=false;',"replaceChildren(document.createTextNode('Abrir módulo'))"],'vertical-parity-p1');const e48=read('e48-e54-ui.js');const e48Block=between(e48,'function patchModuleManager(root=document){','const observer=new MutationObserver');assertBefore(e48Block,'if(button.dataset.e48Bound)return;',['button.disabled=false;',"span.textContent='Abrir módulo'"],'e48-e54-ui');});
 
-  const e48=read('e48-e54-ui.js');
-  const e48Block=between(e48,'function patchModuleManager(root=document){','const observer=new MutationObserver');
-  assertBefore(
-    e48Block,
-    'if(button.dataset.e48Bound)return;',
-    ['button.disabled=false;',"span.textContent='Abrir módulo'"],
-    'e48-e54-ui'
-  );
-});
+test('promotion observer does not remove and recreate watched rows on every callback',()=>{const kits=read('kits-combos-ui.js');const block=between(kits,'function mountPromotionRow(){','const observer=new MutationObserver');const stateGuard=block.indexOf("if(!sale||!['OPEN','SUSPENDED'].includes(sale.status)||promo<=0)");const promotionRemove=block.indexOf("querySelector('[data-promotion-row]')?.remove()");const lockedRemove=block.indexOf("querySelector('[data-promo-locked]')?.remove()");assert.ok(stateGuard>=0,'kits-combos-ui: promotion state guard must exist');assert.ok(promotionRemove<0||promotionRemove>stateGuard,'kits-combos-ui: promotion row cannot be removed before state is known');assert.ok(lockedRemove<0||lockedRemove>stateGuard,'kits-combos-ui: promo lock cannot be removed before state is known');});
 
-test('promotion observer does not remove and recreate watched rows on every callback',()=>{
-  const kits=read('kits-combos-ui.js');
-  const block=between(kits,'function mountPromotionRow(){','const observer=new MutationObserver');
-  const stateGuard=block.indexOf("if(!sale||!['OPEN','SUSPENDED'].includes(sale.status)||promo<=0)");
-  const promotionRemove=block.indexOf("querySelector('[data-promotion-row]')?.remove()");
-  const lockedRemove=block.indexOf("querySelector('[data-promo-locked]')?.remove()");
-  assert.ok(stateGuard>=0,'kits-combos-ui: promotion state guard must exist');
-  assert.ok(promotionRemove<0||promotionRemove>stateGuard,'kits-combos-ui: promotion row cannot be removed before state is known');
-  assert.ok(lockedRemove<0||lockedRemove>stateGuard,'kits-combos-ui: promo lock cannot be removed before state is known');
-});
-
-test('final module navigation uses the canonical settings route and no removed launcher',()=>{
-  const e48=read('e48-e54-ui.js');
-  assert.doesNotMatch(e48,/vertical-modules-launcher/);
-  assert.match(e48,/id="vertical-back"/);
-  assert.match(e48,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
-});
+test('final module navigation uses the canonical settings route and no removed launcher',()=>{const e48=read('e48-e54-ui.js');assert.doesNotMatch(e48,/vertical-modules-launcher/);assert.match(e48,/id="vertical-back"/);assert.match(e48,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);});
 
 test('remaining renderer observers have a pre-mutation guard, lock, marker, or scheduler',()=>{
-  const seller=read('seller-select-sync.js');
-  assert.match(seller,/if \(select === observedSelect \|\| activeRequest\) return;[\s\S]*observedSelect = select;[\s\S]*select\.replaceChildren\(fragment\)/);
-  assert.match(seller,/if \(select !== observedSelect\) void synchronizeSellerSelect\(\)/);
-
-  const sale=read('sale-observation-ui.js');
-  assert.match(sale,/if \(!card \|\| card\.querySelector\('\[data-sale-observation-detail\]'\)\) return;[\s\S]*card\.appendChild\(block\)/);
-  assert.match(sale,/if \(!panel \|\| !finalize \|\| panel\.querySelector\('\[data-sale-observation\]'\)\) return;[\s\S]*panel\.insertBefore\(block, finalize\)/);
-
-  const branding=read('store-branding-ui.js');
-  assert.match(branding,/if\(mounting\|\|!content\)return;[\s\S]*mounting=true;[\s\S]*(?:page\.insertBefore\(card,firstGrid\)|page\.appendChild\(card\))[\s\S]*page\.dataset\.storeBrandingMounted='true'/);
-
-  const delivery=read('delivery-address-ui.js');
-  assert.match(delivery,/if\(form\.querySelector\('\[data-customer-address\]'\)\)return;[\s\S]*(?:grid\.insertBefore\(section,active\)|grid\.appendChild\(section\))/);
-  assert.match(delivery,/if\(form\.querySelector\('\[data-delivery-address\]'\)\)return;[\s\S]*form\.appendChild\(block\)/);
-  assert.match(delivery,/if\(article\.querySelector\('\[data-delivery-summary\]'\)\)return;[\s\S]*appendChild\(summary\)/);
-
-  const variants=read('product-variants-ui.js');
-  assert.match(variants,/if\(enhancing\)return;enhancing=true;/);
-  assert.match(variants,/if\(scheduled\)return;scheduled=true;/);
-  assert.match(variants,/new MutationObserver\(scheduleEnhance\)\.observe\(content,\{childList:true\}\)/);
-
-  const backend=read('backend-parity-ui.js');
-  for(const marker of ['#backend-parity-stock','#backend-terminal-stock','#backend-return-cancel','#backend-finance-parity','#backend-services-lifecycle','#backend-workshop-lifecycle']){
-    assert.ok(backend.includes(marker),`backend-parity-ui missing idempotency marker ${marker}`);
-  }
-
-  const admin=read('admin-ops.js');
-  assert.match(admin,/if\(rendering\|\|!content\|\|!content\.querySelector\('\.ops-page'\)\)return;[\s\S]*content\.querySelector\('#ops-admin-control-center'\)\)return;[\s\S]*rendering=true;[\s\S]*appendChild\(panel\)/);
-  assert.match(admin,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
-
-  const fiscal=read('fiscal-monitor.js');
-  assert.match(fiscal,/if\(rendering\|\|!content\|\|content\.querySelector\('#fiscal-monitor-panel'\)\)return;[\s\S]*rendering=true;[\s\S]*page\.appendChild\(panel\)/);
-  assert.match(fiscal,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
-
-  const enterprise=read('enterprise-depth-ui.js');
-  assert.match(enterprise,/if\(!page\|\|h\?\.textContent\?\.trim\(\)!=='Estoque'\|\|page\.querySelector\('#enterprise-depth-entry'\)\)return;[\s\S]*page\.appendChild\(card\)/);
-
-  const restaurant=read('restaurant-ui.js');
-  assert.match(restaurant,/if\(nav&&!nav\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*nav\.appendChild\(button\)/);
-  assert.match(restaurant,/if\(grid&&!grid\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*grid\.appendChild\(button\)/);
-
-  const modules=read('vertical-modules.js');
-  assert.match(modules,/if\(!page\|\|page\.querySelector\('#ops-establishment-modules-card'\)\)return;[\s\S]*(?:page\.insertBefore\(card,firstGrid\)|page\.appendChild\(card\))/);
-  assert.match(modules,/if\(sanitizeScheduled\)return;[\s\S]*sanitizeScheduled=true;[\s\S]*sanitizeScheduled=false;sanitizeLegacyPaymentCopy\(document\.body\)/);
-  assert.match(modules,/observe\(content,\{subtree:true,childList:true\}\)/);
+ const seller=read('seller-select-sync.js');assert.match(seller,/if \(select === observedSelect \|\| activeRequest\) return;[\s\S]*observedSelect = select;[\s\S]*select\.replaceChildren\(fragment\)/);assert.match(seller,/if \(select !== observedSelect\) void synchronizeSellerSelect\(\)/);
+ const sale=read('sale-observation-ui.js');assert.match(sale,/if \(!card \|\| card\.querySelector\('\[data-sale-observation-detail\]'\)\) return;[\s\S]*card\.appendChild\(block\)/);assert.match(sale,/if \(!panel \|\| !finalize \|\| panel\.querySelector\('\[data-sale-observation\]'\)\) return;[\s\S]*panel\.insertBefore\(block, finalize\)/);
+ const branding=read('store-branding-ui.js');assert.match(branding,/if\(mounting\|\|!content\)return;[\s\S]*mounting=true;[\s\S]*(?:page\.insertBefore\(card,firstGrid\)|page\.appendChild\(card\))[\s\S]*page\.dataset\.storeBrandingMounted='true'/);
+ const delivery=read('delivery-address-ui.js');assert.match(delivery,/if\(form\.querySelector\('\[data-customer-address\]'\)\)return;[\s\S]*(?:grid\.insertBefore\(section,active\)|grid\.appendChild\(section\))/);assert.match(delivery,/if\(form\.querySelector\('\[data-delivery-address\]'\)\)return;[\s\S]*form\.appendChild\(block\)/);assert.match(delivery,/if\(article\.querySelector\('\[data-delivery-summary\]'\)\)return;[\s\S]*appendChild\(summary\)/);
+ const variants=read('product-variants-ui.js');assert.match(variants,/if\(enhancing\)return;enhancing=true;/);assert.match(variants,/if\(scheduled\)return;scheduled=true;/);assert.match(variants,/new MutationObserver\(scheduleEnhance\)\.observe\(content,\{childList:true\}\)/);
+ const backend=read('backend-parity-ui.js');for(const marker of ['#backend-parity-stock','#backend-terminal-stock','#backend-return-cancel','#backend-finance-parity','#backend-services-lifecycle','#backend-workshop-lifecycle'])assert.ok(backend.includes(marker),`backend-parity-ui missing idempotency marker ${marker}`);
+ const p02=read('ui-parity-p0-p2.js');for(const marker of ['#p0-partial-receipt-panel','#p1-purchase-receipts-panel','#p0-partial-fulfillment-panel','#p2-return-details-panel','#p1-print-retry-panel','#p1-terminal-admin-panel','#p2-import-batch-panel'])assert.ok(p02.includes(marker),`ui-parity-p0-p2 missing idempotency marker ${marker}`);assert.match(p02,/if\(!root\.querySelector\('#p0-partial-receipt-panel'\)\)\{[\s\S]*root\.appendChild\(card\)/);assert.match(p02,/if\(!root\.querySelector\('#p1-purchase-receipts-panel'\)\)\{[\s\S]*root\.appendChild\(history\)/);assert.match(p02,/title\(\)!=='Orçamentos e pedidos'\|\|root\.querySelector\('#p0-partial-fulfillment-panel'\)\)return;[\s\S]*root\.appendChild\(card\)/);assert.match(p02,/title\(\)!=='Devolução'\|\|root\.querySelector\('#p2-return-details-panel'\)\)return;[\s\S]*root\.appendChild\(card\)/);assert.match(p02,/new MutationObserver\(\(\)=>queueMicrotask\(mount\)\)\.observe\(host,\{childList:true,subtree:true\}\)/);
+ const admin=read('admin-ops.js');assert.match(admin,/if\(rendering\|\|!content\|\|!content\.querySelector\('\.ops-page'\)\)return;[\s\S]*content\.querySelector\('#ops-admin-control-center'\)\)return;[\s\S]*rendering=true;[\s\S]*appendChild\(panel\)/);assert.match(admin,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
+ const fiscal=read('fiscal-monitor.js');assert.match(fiscal,/if\(rendering\|\|!content\|\|content\.querySelector\('#fiscal-monitor-panel'\)\)return;[\s\S]*rendering=true;[\s\S]*page\.appendChild\(panel\)/);assert.match(fiscal,/observer\.observe\(content,\{childList:true,subtree:false\}\)/);
+ const enterprise=read('enterprise-depth-ui.js');assert.match(enterprise,/if\(!page\|\|h\?\.textContent\?\.trim\(\)!=='Estoque'\|\|page\.querySelector\('#enterprise-depth-entry'\)\)return;[\s\S]*page\.appendChild\(card\)/);
+ const restaurant=read('restaurant-ui.js');assert.match(restaurant,/if\(nav&&!nav\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*nav\.appendChild\(button\)/);assert.match(restaurant,/if\(grid&&!grid\.querySelector\('\[data-restaurant-route\]'\)\)[\s\S]*grid\.appendChild\(button\)/);
+ const modules=read('vertical-modules.js');assert.match(modules,/if\(!page\|\|page\.querySelector\('#ops-establishment-modules-card'\)\)return;[\s\S]*(?:page\.insertBefore\(card,firstGrid\)|page\.appendChild\(card\))/);assert.match(modules,/if\(sanitizeScheduled\)return;[\s\S]*sanitizeScheduled=true;[\s\S]*sanitizeScheduled=false;sanitizeLegacyPaymentCopy\(document\.body\)/);assert.match(modules,/observe\(content,\{subtree:true,childList:true\}\)/);
 });
