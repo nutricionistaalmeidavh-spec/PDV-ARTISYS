@@ -7,6 +7,7 @@
 
   window.PdvFeatureFlags = {
     productsDenseView: true,
+    customersMasterDetailView: true,
     ...existing
   };
 })();
