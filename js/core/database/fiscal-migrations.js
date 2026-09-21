@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const FISCAL_SCHEMA_VERSION = 14;
-const FISCAL_MIGRATION_NAME = 'fiscal_state_reconciliation_1_4_0';
+const FISCAL_SCHEMA_VERSION = 15;
+const FISCAL_MIGRATION_NAME = 'fiscal_monitor_cancel_xml_danfe_1_4_0';
 
 function columns(db, table) {
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(column => column.name));
@@ -145,7 +145,22 @@ function applyV14(db, now) {
     `);
 
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
-      .run(14, FISCAL_MIGRATION_NAME, now());
+      .run(14, 'fiscal_state_reconciliation_1_4_0', now());
+  });
+}
+
+function applyV15(db, now) {
+  withTransaction(db, () => {
+    ensureColumn(db, 'fiscal_documents', 'cancellation_protocol', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'cancellation_xml_path', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'cancellation_reason', 'TEXT');
+    ensureColumn(db, 'fiscal_documents', 'danfe_print_job_id', 'TEXT');
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_fiscal_cancelled_at ON fiscal_documents(cancelled_at,created_at);
+      CREATE INDEX IF NOT EXISTS idx_fiscal_authorized_at ON fiscal_documents(authorized_at,created_at);
+    `);
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+      .run(15, FISCAL_MIGRATION_NAME, now());
   });
 }
 
@@ -156,6 +171,7 @@ function runFiscalMigrations(db, now = () => new Date().toISOString()) {
   if (current < 12) throw new Error('Fiscal requer schema v12 antes das migracoes fiscais.');
   if (current < 13) { applyV13(db, now); current = 13; }
   if (current < 14) { applyV14(db, now); current = 14; }
+  if (current < 15) { applyV15(db, now); current = 15; }
   return current;
 }
 
