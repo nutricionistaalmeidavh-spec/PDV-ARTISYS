@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     save: (connection) => ipcRenderer.invoke('artisys:fiscal:save', connection),
     remove: () => ipcRenderer.invoke('artisys:fiscal:remove'),
     test: () => ipcRenderer.invoke('artisys:fiscal:test'),
+    sefazStatus: () => ipcRenderer.invoke('artisys:fiscal:sefaz-status'),
     certificateStatus: () => ipcRenderer.invoke('artisys:fiscal:certificate-status'),
     importCertificate: (input) => ipcRenderer.invoke('artisys:fiscal:certificate-import', input),
     setEnvironment: (environment) => ipcRenderer.invoke('artisys:fiscal:set-environment', { environment })
