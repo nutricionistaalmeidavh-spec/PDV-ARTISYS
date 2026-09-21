@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const FISCAL_SCHEMA_VERSION = 15;
-const FISCAL_MIGRATION_NAME = 'fiscal_monitor_cancel_xml_danfe_1_4_0';
+const FISCAL_SCHEMA_VERSION = 16;
+const FISCAL_MIGRATION_NAME = 'fiscal_production_contingency_1_4_0';
 
 function columns(db, table) {
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(column => column.name));
@@ -164,7 +164,53 @@ function applyV15(db, now) {
         WHERE access_key IS NOT NULL AND lifecycle_status IN ('AUTHORIZED','CANCELLED');
     `);
     db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
-      .run(15, FISCAL_MIGRATION_NAME, now());
+      .run(15, 'fiscal_monitor_cancel_xml_danfe_1_4_0', now());
+  });
+}
+
+function applyV16(db, now) {
+  withTransaction(db, () => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS fiscal_production_evidence (
+        check_key TEXT PRIMARY KEY,
+        passed INTEGER NOT NULL CHECK (passed IN (0,1)),
+        message TEXT,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        checked_at TEXT NOT NULL,
+        checked_by TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS fiscal_production_activation (
+        id TEXT PRIMARY KEY CHECK (id='default'),
+        enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0,1)),
+        activated_at TEXT,
+        activated_by TEXT,
+        deactivated_at TEXT,
+        deactivated_by TEXT,
+        check_snapshot_json TEXT NOT NULL DEFAULT '{}',
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS fiscal_contingency (
+        fiscal_document_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('ISSUED','TRANSMITTING','RECONCILING','RESOLVED','FAILED')),
+        reason TEXT NOT NULL,
+        entered_at TEXT NOT NULL,
+        tp_emis TEXT NOT NULL DEFAULT '9' CHECK (tp_emis='9'),
+        document_json TEXT NOT NULL,
+        generated_xml TEXT,
+        access_key TEXT,
+        transmission_attempts INTEGER NOT NULL DEFAULT 0 CHECK (transmission_attempts >= 0),
+        last_attempt_at TEXT,
+        last_error TEXT,
+        resolved_at TEXT,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (fiscal_document_id) REFERENCES fiscal_documents(id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_fiscal_contingency_status ON fiscal_contingency(status,entered_at);
+    `);
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+      .run(16, FISCAL_MIGRATION_NAME, now());
   });
 }
 
@@ -176,6 +222,7 @@ function runFiscalMigrations(db, now = () => new Date().toISOString()) {
   if (current < 13) { applyV13(db, now); current = 13; }
   if (current < 14) { applyV14(db, now); current = 14; }
   if (current < 15) { applyV15(db, now); current = 15; }
+  if (current < 16) { applyV16(db, now); current = 16; }
   return current;
 }
 
