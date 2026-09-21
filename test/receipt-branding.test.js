@@ -56,10 +56,28 @@ test('print service forwards persisted logo payload to hardware driver',async()=
   db.close();
 });
 
+test('print service forwards persisted A4 HTML to hardware driver',async()=>{
+  const db=openDatabase(':memory:');runMigrations(db);let received=null;
+  const print=createPrintService({db,idFactory:()=> 'print-a4'});
+  print.queueJob({id:'print-a4',type:'DANFE_NFE_A4',entityType:'fiscal-document',entityId:'f1',payload:{html:'<!doctype html><html><body>DANFE</body></html>',format:'A4'},width:42});
+  const result=await print.processJob('print-a4',{print:async input=>{received=input;return{success:true};}});
+  assert.equal(result.job.status,'PRINTED');assert.equal(received.format,'A4');assert.match(received.html,/DANFE/);assert.equal(received.text,'');
+  db.close();
+});
+
 test('electron printer embeds only safe local PNG logo before receipt text',async()=>{
   let loaded='';class FakeWindow{constructor(){this.webContents={print:(_opts,cb)=>cb(true,'')};}async loadURL(url){loaded=decodeURIComponent(url.slice(url.indexOf(',')+1));}isDestroyed(){return false;}close(){}}
   const driver=createElectronPrinterDriver({BrowserWindow:FakeWindow});const result=await driver.print({text:'cupom',logoDataUrl:PNG,width:42},{mode:'electron',width:42});
   assert.equal(result.success,true);assert.match(loaded,/receipt-logo/);assert.ok(loaded.indexOf('<img')<loaded.indexOf('<pre>cupom'));
+});
+
+test('electron printer prints trusted local A4 HTML and rejects active or remote content',async()=>{
+  let loaded='';let options=null;class FakeWindow{constructor(){this.webContents={print:(opts,cb)=>{options=opts;cb(true,'');}};}async loadURL(url){loaded=decodeURIComponent(url.slice(url.indexOf(',')+1));}isDestroyed(){return false;}close(){}}
+  const driver=createElectronPrinterDriver({BrowserWindow:FakeWindow});
+  const html='<!doctype html><html><body><h1>DANFE</h1></body></html>';const result=await driver.print({html,format:'A4',width:42},{mode:'electron',width:42});
+  assert.equal(result.success,true);assert.equal(result.format,'A4');assert.equal(loaded,html);assert.equal(options.pageSize,'A4');assert.equal(options.printBackground,true);
+  await assert.rejects(()=>driver.print({html:'<!doctype html><html><body><script>alert(1)</script></body></html>',format:'A4'},{mode:'electron',width:42}),/HTML A4 invalido|PRINTER_RENDER_FAILED/);
+  await assert.rejects(()=>driver.print({html:'<!doctype html><html><body><img src="https://example.com/x.png"></body></html>',format:'A4'},{mode:'electron',width:42}),/HTML A4 invalido|PRINTER_RENDER_FAILED/);
 });
 
 test('thermal printer emits PNG logo buffer before receipt text when driver supports images',async()=>{
