@@ -414,7 +414,7 @@
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; updateTopbar(); await loadCommonData(); await navigate('home'); } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; } catch (error) { showToast(error.message, 'error'); } });
   }
 
   async function restorePersistedSession() {
@@ -422,11 +422,11 @@
     try {
       const session = await api.currentSession();
       state.user = session.user;
-      authOverlay.classList.add('hidden');
-      authOverlay.innerHTML = '';
       updateTopbar();
       await loadCommonData();
       await navigate('home');
+      authOverlay.classList.add('hidden');
+      authOverlay.innerHTML = '';
       return true;
     } catch (error) {
       if (error.status === 401) {
