@@ -126,7 +126,7 @@
     {"action":"click","selector":"[data-route='inventory']","name":"products-deep-reopen-inventory"},
     {"action":"waitFor","selector":"#ops-inventory-body","name":"products-deep-inventory-body-ready","timeoutMs":10000},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"QA Deep Sale Editado","name":"products-deep-inventory-product-visible"},
-    {"action":"expectText","selector":"#ops-inventory-body","expected":"3 UN","name":"products-deep-stock-before-sale"},
+    {"action":"expectText","selector":"#ops-inventory-body tr:has-text('QA Deep Sale Editado') td:nth-child(3)","expected":"3","name":"products-deep-stock-before-sale"},
 
     {"action":"click","selector":"[data-route='checkout']","name":"products-deep-open-checkout"},
     {"action":"waitFor","selector":".checkout-layout","name":"products-deep-checkout-ready","timeoutMs":10000},
@@ -145,7 +145,7 @@
     {"action":"click","selector":"[data-route='inventory']","name":"products-deep-inventory-after-sale"},
     {"action":"waitFor","selector":"#ops-inventory-body","name":"products-deep-inventory-after-sale-ready","timeoutMs":10000},
     {"action":"expectText","selector":"#ops-inventory-body","expected":"QA Deep Sale Editado","name":"products-deep-stock-product-after-sale"},
-    {"action":"expectText","selector":"#ops-inventory-body","expected":"2 UN","name":"products-deep-stock-after-sale"},
+    {"action":"expectText","selector":"#ops-inventory-body tr:has-text('QA Deep Sale Editado') td:nth-child(3)","expected":"2","name":"products-deep-stock-after-sale"},
 
     {"action":"click","selector":"[data-route='reports']","name":"products-deep-open-reports"},
     {"action":"waitFor","selector":".report-v2-page","name":"products-deep-reports-ready","timeoutMs":10000},
