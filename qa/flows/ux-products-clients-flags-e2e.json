@@ -75,6 +75,7 @@
     {"action":"fill","selector":"#customer-form input[name='name']","value":"QA Flag Master Customer Edited","name":"flags-on-customer-edit-name"},
     {"action":"click","selector":"#customer-form button[type='submit']","name":"flags-on-customer-save-edit"},
     {"action":"fill","selector":"#customer-page-search","value":"QA Flag Master Customer Edited","name":"flags-on-customer-filter-edited"},
+    {"action":"waitFor","selector":".customers-master-list:has-text('QA Flag Master Customer Edited')","name":"flags-on-customer-edit-refresh-ready","timeoutMs":10000},
     {"action":"expectText","selector":".customers-master-list","expected":"QA Flag Master Customer Edited","name":"flags-on-customer-edit-visible"},
     {"action":"screenshot","name":"flags-on-customers-master-detail-crud","fullPage":true},
 
