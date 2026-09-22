@@ -7,11 +7,16 @@ const packages = [
   'serialport-legacy@npm:serialport@10.5.0'
 ];
 
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const result = spawnSync(npm, ['install', '--no-save', '--no-package-lock', ...packages], {
+const args = ['install', '--no-save', '--no-package-lock', ...packages];
+const command = process.platform === 'win32'
+  ? ['cmd.exe', ['/d', '/s', '/c', 'npm', ...args]]
+  : ['npm', args];
+
+const result = spawnSync(command[0], command[1], {
   cwd: process.cwd(),
   stdio: 'inherit',
-  env: process.env
+  env: process.env,
+  shell: false
 });
 
 if (result.error) throw result.error;
