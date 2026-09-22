@@ -49,6 +49,11 @@
   function parseAttributes(text){const result={};for(const part of String(text||'').split(';')){const [rawKey,...rest]=part.split(':');const key=String(rawKey||'').trim();const value=rest.join(':').trim();if(key&&value)result[key]=value;}return result;}
   function variantMatches(variant,query){const q=String(query||'').trim().toLowerCase();if(!q)return false;const product=parent(variant.productId);return[variant.name,variant.sku,variant.barcode,product?.name,attrsText(variant.attributes)].some(value=>String(value||'').toLowerCase().includes(q));}
   function exactVariant(query){const q=String(query||'').trim().toLowerCase();return variants.find(variant=>variant.active!==false&&[variant.sku,variant.barcode].some(value=>String(value||'').toLowerCase()===q));}
+  function baseProductCard(){
+    const preferred=content?.querySelector('.page .toolbar + .data-card');
+    if(preferred?.querySelector('[data-edit-product]'))return preferred;
+    return [...(content?.querySelectorAll('.page .data-card')||[])].find(card=>card.querySelector('[data-edit-product]'))||null;
+  }
 
   function variantRowHtml(variant){
     const product=parent(variant.productId);const inactive=variant.active===false?' · Inativa':'';
@@ -57,7 +62,7 @@
 
   async function enhanceProducts(){
     await loadCatalog();
-    const card=content?.querySelector('.page .data-card');if(!card)return;
+    const card=baseProductCard();if(!card)return;
     card.querySelectorAll('.variant-child-row,.variant-search-label').forEach(node=>node.remove());
     const visibleParents=new Set();
     for(const row of [...card.querySelectorAll('.data-row')]){
@@ -157,7 +162,6 @@
       selectedVariantItemId=null;refreshCurrentRoute();
     }catch(error){toast(error.message,'error');}
   }
-
   async function removeSelectedVariant(){
     if(!selectedVariantItemId)return false;
     const line=[...content.querySelectorAll('.cart-line[data-variant-item-id]')].find(node=>node.dataset.variantItemId===selectedVariantItemId);
