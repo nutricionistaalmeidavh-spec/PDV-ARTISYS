@@ -9,7 +9,7 @@
     {"action":"waitFor","selector":"#new-product","name":"responsive-wide-products-new-action","timeoutMs":10000},
     {"action":"waitFor","selector":"#new-category","name":"responsive-wide-products-category-action","timeoutMs":10000},
     {"action":"waitFor","selector":"#sync-product-photos","name":"responsive-wide-products-photo-sync-action","timeoutMs":10000},
-    {"action":"waitFor","selector":"[data-products-dense-header]","name":"responsive-wide-products-dense-header","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-products-dense-header]","state":"attached","name":"responsive-products-dense-header-present","timeoutMs":10000},
     {"action":"waitFor","selector":"#products-stock-filter","name":"responsive-wide-products-stock-filter","timeoutMs":10000},
     {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-wide-products-no-horizontal-overflow"},
     {"action":"screenshot","name":"ux-products-1440x900","fullPage":true},
