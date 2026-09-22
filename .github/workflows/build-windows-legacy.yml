@@ -1,0 +1,37 @@
+name: Build Windows 7-8 Legacy
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "js/**"
+      - "server/**"
+      - "vendor/**"
+      - "electron-builder.legacy.yml"
+      - "scripts/prepare-legacy-runtime.cjs"
+      - ".github/workflows/build-windows-legacy.yml"
+
+jobs:
+  legacy:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, ia32]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/prepare-legacy-runtime.cjs
+      - name: Build legacy installer
+        shell: pwsh
+        run: npx electron-builder --config electron-builder.legacy.yml --win --${{ matrix.arch }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artisys-pdv-legacy-${{ matrix.arch }}
+          path: dist-legacy/*.exe
+          if-no-files-found: error
