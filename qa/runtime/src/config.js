@@ -2,6 +2,7 @@ import { defineConfig, devices } from 'playwright/test';
 
 export const VIEWPORTS = Object.freeze({
   desktop: { width: 1440, height: 900 },
+  compactDesktop: { width: 1366, height: 768 },
   tablet: { width: 1024, height: 768 },
   mobile: { width: 390, height: 844 },
 });

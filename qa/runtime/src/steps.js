@@ -11,6 +11,16 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+async function ensureHomeRouteContext(page, step) {
+  if (typeof step.selector !== 'string' || !step.selector.includes('[data-home-route=')) return;
+  const target = page.locator(step.selector);
+  if (await target.isVisible().catch(() => false)) return;
+  const homeNav = page.locator("#sidebar-nav [data-route='home']");
+  if (!(await homeNav.isVisible().catch(() => false))) return;
+  await homeNav.click();
+  await target.waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+}
+
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
@@ -20,7 +30,11 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await page.goto(target, { waitUntil: step.waitUntil || 'domcontentloaded' });
       break;
     }
-    case 'click': await locator(page, step).click(); break;
+    case 'click': {
+      await ensureHomeRouteContext(page, step);
+      await locator(page, step).click();
+      break;
+    }
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
     case 'check': await locator(page, step).check(); break;
@@ -35,8 +49,11 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'expectText': {
-      const actual = (await locator(page, step).textContent()) ?? '';
-      if (!actual.includes(step.expected ?? '')) throw new Error(`${label}: expected text ${JSON.stringify(step.expected)}, got ${JSON.stringify(actual)}`);
+      const expected = step.expected ?? '';
+      const texts = await locator(page, step).allTextContents();
+      if (!texts.some(actual => actual.includes(expected))) {
+        throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+      }
       break;
     }
     case 'expectURL': {
