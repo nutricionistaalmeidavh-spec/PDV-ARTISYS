@@ -17,6 +17,12 @@ function waitState(step) {
   return /\boption(?=[:.\[#\s>+~]|$)/.test(selector) ? 'attached' : 'visible';
 }
 
+function positiveInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) throw new TypeError(`${label} must be a positive integer`);
+  return parsed;
+}
+
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
@@ -50,10 +56,51 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       }, flags);
       break;
     }
+    case 'setViewportSize': {
+      const width = positiveInteger(step.width, `${label}: width`);
+      const height = positiveInteger(step.height, `${label}: height`);
+      await page.setViewportSize({ width, height });
+      break;
+    }
     case 'waitFor': await locator(page, step).waitFor({ state: waitState(step), timeout: step.timeoutMs }); break;
     case 'waitForTimeout': await page.waitForTimeout(step.timeoutMs ?? 250); break;
     case 'expectVisible': {
       if (!(await locator(page, step).isVisible())) throw new Error(`${label}: expected locator to be visible`);
+      break;
+    }
+    case 'expectValue': {
+      if (step.expected == null) throw new Error(`${label}: expectValue requires expected`);
+      const target = locator(page, step);
+      await target.waitFor({ state: 'visible', timeout: step.timeoutMs });
+      const actual = await target.inputValue();
+      if (actual !== String(step.expected)) throw new Error(`${label}: expected value ${JSON.stringify(String(step.expected))}, got ${JSON.stringify(actual)}`);
+      break;
+    }
+    case 'expectNoHorizontalOverflow': {
+      const tolerancePx = Number(step.tolerancePx ?? 2);
+      if (!Number.isFinite(tolerancePx) || tolerancePx < 0) throw new TypeError(`${label}: tolerancePx must be a non-negative number`);
+      let measurement;
+      if (step.selector || step.testId || step.role || step.text || step.label) {
+        const target = locator(page, step).first();
+        await target.waitFor({ state: 'visible', timeout: step.timeoutMs });
+        measurement = await target.evaluate((element, tolerance) => ({
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          ok: element.scrollWidth <= element.clientWidth + tolerance,
+        }), tolerancePx);
+      } else {
+        measurement = await page.evaluate(tolerance => {
+          const element = document.documentElement;
+          return {
+            scrollWidth: element.scrollWidth,
+            clientWidth: element.clientWidth,
+            ok: element.scrollWidth <= element.clientWidth + tolerance,
+          };
+        }, tolerancePx);
+      }
+      if (!measurement.ok) {
+        throw new Error(`${label}: horizontal overflow detected (${measurement.scrollWidth}px > ${measurement.clientWidth}px + ${tolerancePx}px tolerance)`);
+      }
       break;
     }
     case 'expectText': {
