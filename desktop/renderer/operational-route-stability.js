@@ -3,6 +3,7 @@
 (() => {
   const content = document.getElementById('route-content');
   const operational = window.PdvOperationalUi;
+  const reportsV2 = window.PdvReportsV2;
   if (!content || typeof operational?.showRoute !== 'function') return;
 
   const STABLE_SIDEBAR_ROUTES = new Set(['inventory', 'finance', 'reports']);
@@ -15,6 +16,14 @@
     return STABLE_SIDEBAR_ROUTES.has(route) ? route : '';
   }
 
+  async function renderCanonicalRoute(route) {
+    if (route === 'reports' && typeof reportsV2?.render === 'function') {
+      await reportsV2.render();
+      return;
+    }
+    await operational.showRoute(route);
+  }
+
   async function stabilize() {
     if (restoring || content.querySelector('.ops-page')) return;
     const route = activeOperationalRoute();
@@ -22,7 +31,7 @@
 
     restoring = true;
     try {
-      await operational.showRoute(route);
+      await renderCanonicalRoute(route);
     } finally {
       restoring = false;
     }
