@@ -40,6 +40,26 @@ test('paired UX has an executable ON/OFF fallback flow', () => {
   ]) assert.ok(serialized.includes(marker), `feature flag flow missing ${marker}`);
 });
 
+test('feature-flag fallback CRUD stays attached to canonical legacy form selectors', () => {
+  const flow = read('qa/flows/ux-products-clients-flags-e2e.json');
+  for (const marker of [
+    "#product-form input[name='name']",
+    "#product-form input[name='sku']",
+    "#product-form input[name='salePrice']",
+    "#product-form input[name='cost']",
+    "#customer-form input[name='name']"
+  ]) assert.ok(flow.includes(marker), `feature flag flow missing canonical selector ${marker}`);
+
+  for (const stale of [
+    '"selector":"#product-name"',
+    '"selector":"#product-sku"',
+    '"selector":"#product-sale-price"',
+    '"selector":"#customer-name"',
+    '"selector":"#customer-document"',
+    '"selector":"#customer-phone"'
+  ]) assert.equal(flow.includes(stale), false, `feature flag flow still uses stale selector ${stale}`);
+});
+
 test('paired UX has executable responsive evidence at supported desktop widths', () => {
   const file = 'qa/flows/ux-products-clients-responsive-evidence.json';
   assert.equal(exists(file), true, `${file} must exist`);
@@ -73,6 +93,13 @@ test('paired UX has executable responsive evidence at supported desktop widths',
   assert.ok(pkg.scripts['qa:ux:responsive:desktop'].includes('--viewport desktop'));
   assert.ok(pkg.scripts['qa:ux:responsive:tablet'].includes('--viewport tablet'));
   assert.ok(pkg.scripts['qa:ux:responsive:mobile'].includes('--viewport mobile'));
+});
+
+test('responsive modal evidence closes the canonical Product and Customer forms', () => {
+  const flow = read('qa/flows/ux-products-clients-responsive-evidence.json');
+  assert.ok(flow.includes('#product-form [data-close-modal]'), 'Products responsive evidence must close the canonical Product form');
+  assert.ok(flow.includes('#customer-form [data-close-modal]'), 'Customers responsive evidence must close the canonical Customer form');
+  assert.equal(flow.includes('.modal-actions .btn:not(.primary)'), false, 'responsive evidence must not depend on a non-existent generic button class');
 });
 
 test('GitHub release E2E executes paired UX finalization on the same SHA', () => {
