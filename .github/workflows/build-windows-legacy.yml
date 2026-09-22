@@ -25,7 +25,9 @@ jobs:
         with:
           node-version: 22
       - run: npm install --ignore-scripts --no-package-lock
-      - run: node scripts/prepare-legacy-runtime.cjs
+      - name: Install legacy runtime dependencies for Electron 22
+        shell: pwsh
+        run: npm install --no-save --no-package-lock --ignore-scripts better-sqlite3@8.7.0 "serialport-legacy@npm:serialport@10.5.0"
       - name: Build legacy installer
         shell: pwsh
         run: npx electron-builder --config electron-builder.legacy.yml --win --${{ matrix.arch }} --publish never
