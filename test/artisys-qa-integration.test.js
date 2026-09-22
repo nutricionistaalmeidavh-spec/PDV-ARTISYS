@@ -26,15 +26,17 @@ test('vendors runtime capabilities used by CI',()=>{
 
 test('PDV release profile gates reporting v2, core business, paired UX finalization, enterprise depth, backend/UI parity and fiscal E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8'];
+  const releaseFlows=['smoke','home','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8'];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
+  assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
   assert.equal(config.flows['reports-v2-complete'],'flows/reports-v2-complete.json');
   assert.equal(config.flows['core-business-e2e'],'flows/core-business-e2e.json');
   assert.equal(config.flows['ux-products-clients-cross-flow'],'flows/ux-products-clients-cross-flow.json');
   assert.equal(config.flows['products-deep-e2e'],'flows/products-deep-e2e.json');
+  assert.equal(config.flows['customers-deep-e2e'],'flows/customers-deep-e2e.json');
   assert.equal(config.flows['ux-products-clients-flags-e2e'],'flows/ux-products-clients-flags-e2e.json');
   assert.equal(config.flows['ux-products-clients-responsive-evidence'],'flows/ux-products-clients-responsive-evidence.json');
   assert.equal(config.flows['enterprise-depth-p0'],'flows/enterprise-depth-p0.json');
