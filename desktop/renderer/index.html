@@ -6,6 +6,9 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self' data:; connect-src 'none'" />
   <title>ArtiSys PDV</title>
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./ux-components.css" />
+  <link rel="stylesheet" href="./products-dense-view.css" />
+  <link rel="stylesheet" href="./customers-master-detail.css" />
   <link rel="stylesheet" href="./operational-pages.css" />
   <link rel="stylesheet" href="./reporting-v2.css" />
   <link rel="stylesheet" href="./restaurant-ui.css" />
@@ -48,7 +51,7 @@
       </footer>
     </section>
   </div>
-  <div id="auth-overlay" class="overlay hidden" aria-live="polite"></div>
+  <div id="auth-overlay" class="overlay" aria-live="polite"><section class="auth-card" data-bootstrap-auth><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>Inicializando sistema local...</p></section></div>
   <div id="modal-root" class="overlay hidden" aria-live="polite"></div>
   <div id="toast-root" class="toast-root" aria-live="polite"></div>
   <script src="./ui-model.js"></script>
@@ -57,7 +60,13 @@
   <script src="./enterprise-depth-api-client.js"></script>
   <script src="./vertical-api-client.js"></script>
   <script src="./sale-observation-ui.js"></script>
+  <script src="./feature-flags.js"></script>
+  <script src="./ux-components.js"></script>
+  <script src="./products-dense-view.js"></script>
+  <script src="./customers-master-detail-view.js"></script>
   <script src="./app.js"></script>
+  <script src="./products-dense-controller.js"></script>
+  <script src="./customers-master-detail-controller.js"></script>
   <script src="./seller-select-sync.js"></script>
   <script src="./reporting-v2.js"></script>
   <script src="./reporting-v2-legacy-export.js"></script>
@@ -79,6 +88,7 @@
   <script src="./vertical-parity-p1.js"></script>
   <script src="./e48-e54-ui.js"></script>
   <script src="./kits-combos-ui.js"></script>
+  <script src="./reload-transition-ui.js"></script>
   <script src="./product-variants-ui.js"></script>
   <script src="./backend-parity-ui.js"></script>
   <script src="./ui-parity-p0-p2.js"></script>

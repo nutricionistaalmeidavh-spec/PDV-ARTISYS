@@ -114,7 +114,7 @@
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
     modalRoot.classList.remove('hidden');
     modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}"><header class="modal-head"><h2>${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal>×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
-    modalRoot.querySelector('[data-close-modal]')?.addEventListener('click', closeModal);
+    modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
     modalRoot.addEventListener('click', modalBackdropClose, { once: true });
     if (onMount) onMount(modalRoot);
   }
@@ -414,7 +414,27 @@
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; updateTopbar(); await loadCommonData(); await navigate('home'); } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; } catch (error) { showToast(error.message, 'error'); } });
+  }
+
+  async function restorePersistedSession() {
+    if (!api.sessionToken) return false;
+    try {
+      const session = await api.currentSession();
+      state.user = session.user;
+      updateTopbar();
+      await loadCommonData();
+      await navigate('home');
+      authOverlay.classList.add('hidden');
+      authOverlay.innerHTML = '';
+      return true;
+    } catch (error) {
+      if (error.status === 401) {
+        api.logout();
+        return false;
+      }
+      throw error;
+    }
   }
 
   function logout() { api.logout(); state.user = null; state.sale = null; updateTopbar(); showLogin(); }
@@ -438,8 +458,27 @@
 
   async function boot() {
     hydrateStaticIcons(); bindGlobalEvents(); updateClock(); setInterval(updateClock, 30000);
-    try { state.config = await api.initialize(); updateTopbar(); await api.health(); setOnline(true); const setup = await api.setupStatus(); renderSidebar(); renderHome(); if (setup.needsSetup) showSetup(); else showLogin(); }
-    catch (error) { setOnline(false); renderSidebar(); renderHome(); showToast(`Falha ao iniciar servidor local: ${error.message}`, 'error'); }
+    try {
+      state.config = await api.initialize();
+      updateTopbar();
+      await api.health();
+      setOnline(true);
+      const setup = await api.setupStatus();
+      renderSidebar();
+      renderHome();
+      if (setup.needsSetup) {
+        showSetup();
+        return;
+      }
+      const restored = await restorePersistedSession();
+      if (restored) return;
+      showLogin();
+    } catch (error) {
+      setOnline(false);
+      renderSidebar();
+      renderHome();
+      showToast(`Falha ao iniciar servidor local: ${error.message}`, 'error');
+    }
   }
 
   void boot();

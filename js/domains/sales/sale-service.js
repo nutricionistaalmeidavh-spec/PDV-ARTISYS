@@ -57,8 +57,9 @@ function createSaleService({ db, outbox, now = () => new Date().toISOString(), i
     if(filters.paymentMethod){clauses.push('EXISTS (SELECT 1 FROM payments p WHERE p.sale_id=s.id AND p.method=?)');params.push(normalizeMethod(filters.paymentMethod));}
     if(filters.query){const q=`%${String(filters.query).trim().toLowerCase()}%`;clauses.push('(LOWER(s.sale_number) LIKE ? OR LOWER(COALESCE(c.name,\'\')) LIKE ? OR LOWER(COALESCE(u.name,\'\')) LIKE ?)');params.push(q,q,q);}
     const limit=Math.min(Math.max(Number(filters.limit)||100,1),500);
-    params.push(limit);
-    const sql=`SELECT s.* FROM sales s LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN users u ON u.id=s.operator_id${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY COALESCE(s.completed_at,s.cancelled_at,s.opened_at) DESC,s.id DESC LIMIT ?`;
+    const offset=Math.max(Number.parseInt(filters.offset,10)||0,0);
+    params.push(limit,offset);
+    const sql=`SELECT s.* FROM sales s LEFT JOIN customers c ON c.id=s.customer_id LEFT JOIN users u ON u.id=s.operator_id${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY COALESCE(s.completed_at,s.cancelled_at,s.opened_at) DESC,s.id DESC LIMIT ? OFFSET ?`;
     return db.prepare(sql).all(...params).map(mapSale);
   }
 
