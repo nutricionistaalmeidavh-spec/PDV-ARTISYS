@@ -49,25 +49,53 @@ test('paired screens are both loaded, flagged, parity-documented and regression-
     'docs/architecture/paired-ux-evolution.md',
     'docs/architecture/ux-products-clients-evidence.json',
     'test/products-dense-integration-parity.test.js',
-    'test/customers-master-detail-integration-parity.test.js'
+    'test/customers-master-detail-integration-parity.test.js',
+    'test/products-deep-e2e-contract.test.js',
+    'test/customers-deep-e2e-contract.test.js'
   ]) assert.equal(fs.existsSync(path.join(root, file)), true, `paired UX artifact missing: ${file}`);
 });
 
-test('paired UX evidence manifest blocks evidence-free maturity bumps', () => {
-  const evidence = JSON.parse(read('docs/architecture/ux-products-clients-evidence.json'));
-  assert.deepEqual(evidence.products, evidence.customers,
-    'Produtos e Clientes precisam carregar o mesmo contrato de evidências reais');
-  for (const key of [
+function validateEvidenceReference(entity, key, reference) {
+  assert.equal(typeof reference, 'object', `${entity}.${key}: evidence reference must be an object`);
+  assert.equal(typeof reference.file, 'string', `${entity}.${key}: evidence file must be a string`);
+  assert.ok(reference.file.length > 0 && !reference.file.includes('..'), `${entity}.${key}: invalid evidence path`);
+  const absolute = path.join(root, reference.file);
+  assert.equal(fs.existsSync(absolute), true, `${entity}.${key}: evidence file missing: ${reference.file}`);
+  const source = fs.readFileSync(absolute, 'utf8');
+  for (const marker of reference.markers || []) {
+    assert.equal(typeof marker, 'string', `${entity}.${key}: marker must be a string`);
+    assert.ok(source.includes(marker), `${entity}.${key}: marker ${JSON.stringify(marker)} missing from ${reference.file}`);
+  }
+}
+
+test('paired UX evidence manifest resolves to concrete files and blocks evidence-free maturity bumps', () => {
+  const manifest = JSON.parse(read('docs/architecture/ux-products-clients-evidence.json'));
+  assert.equal(manifest.version, 2, 'paired evidence manifest must use verifiable-reference schema v2');
+
+  const expectedKeys = [
     'featureFlag',
     'fallbackE2E',
     'parityMatrix',
+    'unit',
     'controllerIntegration',
     'deepE2E',
     'crossFlow',
     'responsiveEvidence',
     'releaseRegistration'
-  ]) {
-    assert.equal(evidence.products?.[key], true, `evidência pareada ausente: ${key}`);
+  ];
+
+  for (const entity of ['products', 'customers']) {
+    assert.deepEqual(Object.keys(manifest[entity]).sort(), [...expectedKeys].sort(), `${entity}: evidence categories drifted`);
+    for (const key of expectedKeys) {
+      const references = manifest[entity][key];
+      assert.ok(Array.isArray(references) && references.length > 0, `${entity}.${key}: at least one concrete reference is required`);
+      for (const reference of references) validateEvidenceReference(entity, key, reference);
+    }
+  }
+
+  for (const key of expectedKeys) {
+    assert.equal(manifest.products[key].length, manifest.customers[key].length,
+      `${key}: Produtos e Clientes precisam ter a mesma profundidade de evidência`);
   }
 });
 
