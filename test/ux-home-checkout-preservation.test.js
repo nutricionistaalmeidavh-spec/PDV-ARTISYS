@@ -114,7 +114,7 @@ test('checkout styling is override-only and preserves established operational se
 
 test('release QA covers dynamic Home modules and checkout exception flows',()=>{
   const manifest=JSON.parse(read('qa/artisys-qa.config.json'));
-  assert.equal(manifest.flows['sales-enhancements'],'flows/sales-enhancements.json');
+  assert.equal(manifest.flows['sales-enhancements'],'flows/sales-enhancements-v2.json');
   assert.equal(manifest.flows['checkout-ux-preservation'],'flows/checkout-ux-preservation.json');
   for(const profileName of ['full','release']) {
     assert.ok(manifest.qaProfiles[profileName].flows.includes('sales-enhancements'));
