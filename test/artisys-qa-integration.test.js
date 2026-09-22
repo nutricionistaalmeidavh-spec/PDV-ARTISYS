@@ -31,7 +31,7 @@ test('PDV release profile gates reporting v2, checkout UX, core business, enterp
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
-  assert.equal(config.flows['sales-enhancements'],'flows/sales-enhancements.json');
+  assert.equal(config.flows['sales-enhancements'],'flows/sales-enhancements-v2.json');
   assert.equal(config.flows['checkout-ux-preservation'],'flows/checkout-ux-preservation.json');
   assert.equal(config.flows['reports-v2-complete'],'flows/reports-v2-complete.json');
   assert.equal(config.flows['core-business-e2e'],'flows/core-business-e2e.json');
