@@ -1,23 +1,63 @@
 {
-  "version": 1,
+  "version": 2,
   "products": {
-    "featureFlag": true,
-    "fallbackE2E": true,
-    "parityMatrix": true,
-    "controllerIntegration": true,
-    "deepE2E": true,
-    "crossFlow": true,
-    "responsiveEvidence": true,
-    "releaseRegistration": true
+    "featureFlag": [
+      {"file":"desktop/renderer/feature-flags.js","markers":["productsDenseView"]}
+    ],
+    "fallbackE2E": [
+      {"file":"qa/flows/ux-products-clients-flags-e2e.json","markers":["QA Flag Legacy Product","QA Flag Dense Product","expectValue"]}
+    ],
+    "parityMatrix": [
+      {"file":"docs/architecture/products-dense-parity.md"}
+    ],
+    "unit": [
+      {"file":"test/products-dense-view.test.js"}
+    ],
+    "controllerIntegration": [
+      {"file":"test/products-dense-integration-parity.test.js"}
+    ],
+    "deepE2E": [
+      {"file":"qa/flows/products-deep-e2e.json","markers":["products-deep-e2e","data-product-photo-edit","data-new-product-variant"]},
+      {"file":"test/products-deep-e2e-contract.test.js","markers":["products-deep-e2e"]}
+    ],
+    "crossFlow": [
+      {"file":"qa/flows/ux-products-clients-cross-flow.json","markers":["QA UX Produto Integrado","ux-paired-stock-after-sale"]}
+    ],
+    "responsiveEvidence": [
+      {"file":"qa/flows/ux-products-clients-responsive-evidence.json","markers":["ux-products-1440x900","ux-products-1180x800-modal","expectNoHorizontalOverflow"]}
+    ],
+    "releaseRegistration": [
+      {"file":"qa/artisys-qa.config.json","markers":["products-deep-e2e","criticalFlows"]}
+    ]
   },
   "customers": {
-    "featureFlag": true,
-    "fallbackE2E": true,
-    "parityMatrix": true,
-    "controllerIntegration": true,
-    "deepE2E": true,
-    "crossFlow": true,
-    "responsiveEvidence": true,
-    "releaseRegistration": true
+    "featureFlag": [
+      {"file":"desktop/renderer/feature-flags.js","markers":["customersMasterDetailView"]}
+    ],
+    "fallbackE2E": [
+      {"file":"qa/flows/ux-products-clients-flags-e2e.json","markers":["QA Flag Legacy Customer","QA Flag Master Customer","expectValue"]}
+    ],
+    "parityMatrix": [
+      {"file":"docs/architecture/customers-master-detail-parity.md"}
+    ],
+    "unit": [
+      {"file":"test/customers-master-detail-view.test.js"}
+    ],
+    "controllerIntegration": [
+      {"file":"test/customers-master-detail-integration-parity.test.js"}
+    ],
+    "deepE2E": [
+      {"file":"qa/flows/customers-deep-e2e.json","markers":["customers-deep-e2e","data-customer-address","1 venda vinculada"]},
+      {"file":"test/customers-deep-e2e-contract.test.js","markers":["customers-deep-e2e"]}
+    ],
+    "crossFlow": [
+      {"file":"qa/flows/ux-products-clients-cross-flow.json","markers":["QA UX Cliente Integrado","ux-paired-customer-sale-linked"]}
+    ],
+    "responsiveEvidence": [
+      {"file":"qa/flows/ux-products-clients-responsive-evidence.json","markers":["ux-customers-1440x900","ux-customers-1180x800-modal","expectNoHorizontalOverflow"]}
+    ],
+    "releaseRegistration": [
+      {"file":"qa/artisys-qa.config.json","markers":["customers-deep-e2e","criticalFlows"]}
+    ]
   }
 }
