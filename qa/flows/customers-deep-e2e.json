@@ -45,6 +45,7 @@
     {"action":"click","selector":"#customer-form button[type='submit']","name":"customers-deep-save-edit"},
     {"action":"waitFor","selector":"#customer-page-search","name":"customers-deep-list-after-edit","timeoutMs":10000},
     {"action":"fill","selector":"#customer-page-search","value":"QA Deep Cliente Editado","name":"customers-deep-filter-edited"},
+    {"action":"waitFor","selector":".customers-master-list:has-text('QA Deep Cliente Editado')","name":"customers-deep-edited-refresh-ready","timeoutMs":10000},
     {"action":"expectText","selector":".customers-master-list","expected":"QA Deep Cliente Editado","name":"customers-deep-edited-visible"},
     {"action":"reload","name":"customers-deep-reload-for-persistence"},
     {"action":"waitFor","selector":"[data-route='customers']","name":"customers-deep-nav-after-reload","timeoutMs":10000},
