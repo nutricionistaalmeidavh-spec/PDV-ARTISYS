@@ -33,7 +33,7 @@ test('customers deep E2E covers canonical CRUD, address persistence, linked sale
     '#customer-notes',
     '#customer-active',
     '[data-customer-address]',
-    '[name="zipCode"]',
+    '[name="postalCode"]',
     '[name="street"]',
     '[name="number"]',
     '[name="district"]',
