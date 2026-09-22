@@ -4,7 +4,9 @@ const { SerialError, normalizeSerialError, normalizeSerialOpenError } = require(
 
 function resolveSerialPortClass(SerialPortClass) {
   if (SerialPortClass) return SerialPortClass;
-  const loaded = require('serialport');
+  const electronMajor = Number(String(process.versions?.electron || '').split('.')[0] || 0);
+  const packageName = electronMajor > 0 && electronMajor <= 22 ? 'serialport-legacy' : 'serialport';
+  const loaded = require(packageName);
   const resolved = loaded?.SerialPort || loaded;
   if (typeof resolved !== 'function') throw new TypeError('SerialPortClass indisponivel.');
   return resolved;
