@@ -33,7 +33,7 @@
     {"action":"waitFor","selector":"#product-form","name":"responsive-min-products-modal-ready","timeoutMs":10000},
     {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-products-modal-no-overflow"},
     {"action":"screenshot","name":"ux-products-1180x800-modal","fullPage":true},
-    {"action":"click","selector":".modal-actions .btn:not(.primary)","name":"responsive-min-products-close-modal"},
+    {"action":"click","selector":"#product-form [data-close-modal]","name":"responsive-min-products-close-modal"},
 
     {"action":"click","selector":"[data-route='customers']","name":"responsive-min-open-customers"},
     {"action":"waitFor","selector":"[data-customers-master-panel]","name":"responsive-min-customers-master-panel","timeoutMs":10000},
@@ -46,7 +46,7 @@
     {"action":"waitFor","selector":"#customer-form [data-customer-address]","name":"responsive-min-customers-address-ready","timeoutMs":10000},
     {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-customers-modal-no-overflow"},
     {"action":"screenshot","name":"ux-customers-1180x800-modal","fullPage":true},
-    {"action":"click","selector":".modal-actions .btn:not(.primary)","name":"responsive-min-customers-close-modal"},
+    {"action":"click","selector":"#customer-form [data-close-modal]","name":"responsive-min-customers-close-modal"},
 
     {"action":"setViewportSize","width":1440,"height":900,"name":"responsive-restore-1440x900"},
     {"action":"screenshot","name":"ux-products-clients-responsive-final","fullPage":true}
