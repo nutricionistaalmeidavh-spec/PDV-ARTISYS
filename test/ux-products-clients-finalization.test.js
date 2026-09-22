@@ -31,11 +31,16 @@ test('paired UX has an executable ON/OFF fallback flow', () => {
     '[data-customers-master-panel]',
     'detached',
     '#new-product',
-    '#new-customer'
+    '#new-customer',
+    'QA Flag Legacy Product',
+    'QA Flag Legacy Customer',
+    'QA Flag Dense Product',
+    'QA Flag Master Customer',
+    'expectValue'
   ]) assert.ok(serialized.includes(marker), `feature flag flow missing ${marker}`);
 });
 
-test('paired UX has responsive screenshot evidence at desktop tablet and narrow viewport', () => {
+test('paired UX has executable responsive evidence at supported desktop widths', () => {
   const file = 'qa/flows/ux-products-clients-responsive-evidence.json';
   assert.equal(exists(file), true, `${file} must exist`);
   const flow = json(file);
@@ -47,6 +52,12 @@ test('paired UX has responsive screenshot evidence at desktop tablet and narrow 
     '[data-customers-master-panel]',
     '#new-product',
     '#new-customer',
+    'setViewportSize',
+    '1440',
+    '900',
+    '1180',
+    '800',
+    'expectNoHorizontalOverflow',
     'screenshot'
   ]) assert.ok(serialized.includes(marker), `responsive evidence flow missing ${marker}`);
 
@@ -75,20 +86,35 @@ test('paired evolution is evidence-based rather than UX-level-only', () => {
   const file = 'docs/architecture/ux-products-clients-evidence.json';
   assert.equal(exists(file), true, `${file} must exist`);
   const evidence = json(file);
-  assert.deepEqual(evidence.products, evidence.customers, 'Products and Customers must carry the same evidence contract');
+  assert.equal(evidence.version, 2, 'paired evidence must use the verifiable-reference schema');
+
+  const productKeys = Object.keys(evidence.products || {}).sort();
+  const customerKeys = Object.keys(evidence.customers || {}).sort();
+  assert.deepEqual(productKeys, customerKeys, 'Products and Customers must carry the same evidence categories');
+
   for (const key of [
     'featureFlag',
     'fallbackE2E',
     'parityMatrix',
+    'unit',
     'controllerIntegration',
     'deepE2E',
     'crossFlow',
     'responsiveEvidence',
     'releaseRegistration'
-  ]) assert.equal(evidence.products?.[key], true, `paired evidence missing ${key}`);
+  ]) {
+    const productRefs = evidence.products?.[key];
+    const customerRefs = evidence.customers?.[key];
+    assert.ok(Array.isArray(productRefs) && productRefs.length > 0, `Products evidence missing ${key}`);
+    assert.ok(Array.isArray(customerRefs) && customerRefs.length > 0, `Customers evidence missing ${key}`);
+    assert.equal(productRefs.length, customerRefs.length, `${key}: Products and Customers must carry the same evidence depth`);
+    assert.ok(productRefs.every(reference => reference && typeof reference.file === 'string'), `Products ${key} must use concrete file references`);
+    assert.ok(customerRefs.every(reference => reference && typeof reference.file === 'string'), `Customers ${key} must use concrete file references`);
+  }
 
   const guard = read('test/paired-ux-evolution-guard.test.js');
   assert.ok(guard.includes('ux-products-clients-evidence.json'), 'paired guard must read the evidence manifest');
+  assert.ok(guard.includes('validateEvidenceReference'), 'paired guard must validate concrete evidence files and markers');
 });
 
 test('architecture docs describe the current progressive-enhancement state', () => {
