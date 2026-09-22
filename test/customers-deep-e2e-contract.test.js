@@ -25,13 +25,13 @@ test('customers deep E2E covers canonical CRUD, address persistence, linked sale
     'customers-deep-e2e',
     '#new-customer',
     '#customer-form',
-    '#customer-name',
-    '#customer-document',
-    '#customer-phone',
-    '#customer-email',
-    '#customer-credit-limit',
-    '#customer-notes',
-    '#customer-active',
+    "#customer-form input[name='name']",
+    "#customer-form input[name='document']",
+    "#customer-form input[name='phone']",
+    "#customer-form input[name='email']",
+    "#customer-form input[name='creditLimit']",
+    "#customer-form textarea[name='notes']",
+    "#customer-form input[name='active']",
     'data-customer-address',
     'postalCode',
     'street',
@@ -41,10 +41,26 @@ test('customers deep E2E covers canonical CRUD, address persistence, linked sale
     'state',
     'edit-customer',
     'expectValue',
+    '[data-close-modal]',
     '#customer-search',
     'data-customer-history-panel',
     '1 venda vinculada',
     'data-report-view',
     'customers'
   ]) assert.ok(flow.includes(marker), `customers deep flow missing marker: ${marker}`);
+});
+
+test('customers deep E2E selectors stay aligned with the canonical legacy form', () => {
+  const app = read('desktop/renderer/app.js');
+  for (const marker of [
+    'id="customer-form"',
+    'input name="name"',
+    'input name="document"',
+    'input name="phone"',
+    'input name="email"',
+    'input name="creditLimit"',
+    'textarea name="notes"',
+    'input name="active"',
+    'data-close-modal'
+  ]) assert.ok(app.includes(marker), `canonical customer form missing marker: ${marker}`);
 });
