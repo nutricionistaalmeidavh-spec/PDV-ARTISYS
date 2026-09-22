@@ -114,7 +114,7 @@
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
     modalRoot.classList.remove('hidden');
     modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}"><header class="modal-head"><h2>${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal>×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
-    modalRoot.querySelector('[data-close-modal]')?.addEventListener('click', closeModal);
+    modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
     modalRoot.addEventListener('click', modalBackdropClose, { once: true });
     if (onMount) onMount(modalRoot);
   }
