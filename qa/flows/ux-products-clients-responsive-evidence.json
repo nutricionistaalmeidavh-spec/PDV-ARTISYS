@@ -1,21 +1,54 @@
 {
-  "name": "ux-products-clients-responsive-evidence",
-  "steps": [
+  "name":"ux-products-clients-responsive-evidence",
+  "steps":[
     {"uses":"home.json"},
     {"action":"setFeatureFlags","flags":{"productsDenseView":true,"customersMasterDetailView":true},"name":"paired-ux-responsive-flags-on"},
 
-    {"action":"click","selector":"[data-route='products']","name":"responsive-open-products"},
-    {"action":"waitFor","selector":"#new-product","name":"responsive-products-new-action","timeoutMs":10000},
-    {"action":"waitFor","selector":"#new-category","name":"responsive-products-category-action","timeoutMs":10000},
-    {"action":"waitFor","selector":"#sync-product-photos","name":"responsive-products-photo-sync-action","timeoutMs":10000},
-    {"action":"waitFor","selector":"[data-products-dense-header]","name":"responsive-products-dense-header","timeoutMs":10000},
-    {"action":"waitFor","selector":"#products-stock-filter","name":"responsive-products-stock-filter","timeoutMs":10000},
-    {"action":"screenshot","name":"ux-products-responsive","fullPage":true},
+    {"action":"setViewportSize","width":1440,"height":900,"name":"responsive-viewport-1440x900"},
+    {"action":"click","selector":"[data-route='products']","name":"responsive-wide-open-products"},
+    {"action":"waitFor","selector":"#new-product","name":"responsive-wide-products-new-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#new-category","name":"responsive-wide-products-category-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#sync-product-photos","name":"responsive-wide-products-photo-sync-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-products-dense-header]","name":"responsive-wide-products-dense-header","timeoutMs":10000},
+    {"action":"waitFor","selector":"#products-stock-filter","name":"responsive-wide-products-stock-filter","timeoutMs":10000},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-wide-products-no-horizontal-overflow"},
+    {"action":"screenshot","name":"ux-products-1440x900","fullPage":true},
 
-    {"action":"click","selector":"[data-route='customers']","name":"responsive-open-customers"},
-    {"action":"waitFor","selector":"#new-customer","name":"responsive-customers-new-action","timeoutMs":10000},
-    {"action":"waitFor","selector":"#customer-page-search","name":"responsive-customers-search","timeoutMs":10000},
-    {"action":"waitFor","selector":"[data-customers-master-panel]","name":"responsive-customers-master-panel","timeoutMs":10000},
-    {"action":"screenshot","name":"ux-customers-responsive","fullPage":true}
+    {"action":"click","selector":"[data-route='customers']","name":"responsive-wide-open-customers"},
+    {"action":"waitFor","selector":"#new-customer","name":"responsive-wide-customers-new-action","timeoutMs":10000},
+    {"action":"waitFor","selector":"#customer-page-search","name":"responsive-wide-customers-search","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-customers-master-panel]","name":"responsive-wide-customers-master-panel","timeoutMs":10000},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-wide-customers-no-horizontal-overflow"},
+    {"action":"screenshot","name":"ux-customers-1440x900","fullPage":true},
+
+    {"action":"setViewportSize","width":1180,"height":800,"name":"responsive-viewport-1180x800"},
+    {"action":"click","selector":"[data-route='products']","name":"responsive-min-open-products"},
+    {"action":"waitFor","selector":"[data-products-dense-header]","name":"responsive-min-products-dense-header","timeoutMs":10000},
+    {"action":"waitFor","selector":"#products-stock-filter","name":"responsive-min-products-stock-filter","timeoutMs":10000},
+    {"action":"fill","selector":"#product-page-search","value":"Produto QA com nome extremamente longo para validar densidade responsiva sem remover controles ou acoes canonicas","name":"responsive-min-products-long-search"},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-products-long-text-no-overflow"},
+    {"action":"screenshot","name":"ux-products-1180x800-long-text","fullPage":true},
+    {"action":"fill","selector":"#product-page-search","value":"","name":"responsive-min-products-clear-search"},
+    {"action":"click","selector":"#new-product","name":"responsive-min-products-open-modal"},
+    {"action":"waitFor","selector":"#product-form","name":"responsive-min-products-modal-ready","timeoutMs":10000},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-products-modal-no-overflow"},
+    {"action":"screenshot","name":"ux-products-1180x800-modal","fullPage":true},
+    {"action":"click","selector":".modal-actions .btn:not(.primary)","name":"responsive-min-products-close-modal"},
+
+    {"action":"click","selector":"[data-route='customers']","name":"responsive-min-open-customers"},
+    {"action":"waitFor","selector":"[data-customers-master-panel]","name":"responsive-min-customers-master-panel","timeoutMs":10000},
+    {"action":"fill","selector":"#customer-page-search","value":"Cliente QA com nome extremamente longo para validar master detail responsivo e preservar todas as acoes canonicas","name":"responsive-min-customers-long-search"},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-customers-long-text-no-overflow"},
+    {"action":"screenshot","name":"ux-customers-1180x800-long-text","fullPage":true},
+    {"action":"fill","selector":"#customer-page-search","value":"","name":"responsive-min-customers-clear-search"},
+    {"action":"click","selector":"#new-customer","name":"responsive-min-customers-open-modal"},
+    {"action":"waitFor","selector":"#customer-form","name":"responsive-min-customers-modal-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"#customer-form [data-customer-address]","name":"responsive-min-customers-address-ready","timeoutMs":10000},
+    {"action":"expectNoHorizontalOverflow","tolerancePx":2,"name":"responsive-min-customers-modal-no-overflow"},
+    {"action":"screenshot","name":"ux-customers-1180x800-modal","fullPage":true},
+    {"action":"click","selector":".modal-actions .btn:not(.primary)","name":"responsive-min-customers-close-modal"},
+
+    {"action":"setViewportSize","width":1440,"height":900,"name":"responsive-restore-1440x900"},
+    {"action":"screenshot","name":"ux-products-clients-responsive-final","fullPage":true}
   ]
 }
