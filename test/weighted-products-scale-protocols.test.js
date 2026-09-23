@@ -26,23 +26,30 @@ test('scale registry exposes supported presets and a generic protocol', () => {
   assert.ok(ids.includes('generic-numeric'));
 });
 
-test('Toledo Prix 3 Prt5 preset sends ENQ and parses a five-digit gram frame as kilograms', () => {
+test('Toledo Prix 3 Prt5 sends ENQ and parses the documented STX + 5 digit grams + ETX frame', () => {
   const protocol = createScaleProtocolRegistry().getProtocolForPreset('toledo-prix3-prt5');
   assert.deepEqual(Buffer.from(protocol.request()), Buffer.from([0x05]));
-  assert.deepEqual(protocol.parse(Buffer.from('00742')), { weight:0.742, unit:'kg', stable:true });
+  assert.deepEqual(protocol.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03])), { weight:0.742, unit:'kg', stable:true });
+  assert.throws(() => protocol.parse(Buffer.from([0x02,0x49,0x49,0x49,0x49,0x49,0x03])), /instavel/i);
 });
 
-test('Urano POP and UDC presets parse framed stable weight responses', () => {
+test('Urano POP PROT-3 and UDC Std04 presets parse documented STX + 5 digit grams + ETX frames', () => {
   const registry = createScaleProtocolRegistry();
   const pop = registry.getProtocolForPreset('urano-pop');
   const udc = registry.getProtocolForPreset('urano-udc');
+  const frame = Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03]);
 
-  assert.deepEqual(pop.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x0d])), { weight:0.742, unit:'kg', stable:true });
-  assert.deepEqual(udc.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03])), { weight:0.742, unit:'kg', stable:true });
+  assert.deepEqual(pop.parse(frame), { weight:0.742, unit:'kg', stable:true });
+  assert.deepEqual(udc.parse(frame), { weight:0.742, unit:'kg', stable:true });
+  assert.throws(() => udc.parse(Buffer.from([0x02,0x53,0x53,0x53,0x53,0x53,0x03])), /sobrecarga/i);
 });
 
-test('Filizola preset parses numeric weight while rejecting garbage', () => {
-  const protocol = createScaleProtocolRegistry().getProtocolForPreset('filizola-bp-cs');
-  assert.deepEqual(protocol.parse(Buffer.from('0.742\r\n')), { weight:0.742, unit:'kg', stable:true });
-  assert.throws(() => protocol.parse(Buffer.from('SEM PESO')), /peso|weight|resposta/i);
+test('Filizola legacy and generic presets parse numeric weight while rejecting garbage', () => {
+  const registry = createScaleProtocolRegistry();
+  const filizola = registry.getProtocolForPreset('filizola-bp-cs');
+  const generic = registry.getProtocolForPreset('generic-numeric');
+
+  assert.deepEqual(filizola.parse(Buffer.from('0.742\r\n')), { weight:0.742, unit:'kg', stable:true });
+  assert.deepEqual(generic.parse(Buffer.from('742 g\r\n')), { weight:0.742, unit:'kg', stable:true });
+  assert.throws(() => filizola.parse(Buffer.from('SEM PESO')), /peso|weight|resposta/i);
 });
