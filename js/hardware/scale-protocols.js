@@ -22,8 +22,16 @@ function stripFrame(value) {
   return buffer;
 }
 
+function requireFiveDigitFrame(value) {
+  const buffer = asBuffer(value);
+  if (buffer.length !== 7 || buffer[0] !== STX || buffer[buffer.length - 1] !== ETX) {
+    throw protocolError('Frame de resposta da balanca invalido.', 'SCALE_PROTOCOL_INVALID_FRAME');
+  }
+  return buffer.subarray(1, 6);
+}
+
 function parseFiveDigitGrams(value) {
-  const payload = stripFrame(value).toString('ascii').trim();
+  const payload = requireFiveDigitFrame(value).toString('ascii');
   if (/^I{5}$/.test(payload)) throw protocolError('Peso instavel.', 'SCALE_WEIGHT_UNSTABLE');
   if (/^N{5}$/.test(payload)) throw protocolError('Peso negativo.', 'SCALE_WEIGHT_NEGATIVE');
   if (/^S{5}$/.test(payload)) throw protocolError('Balanca em sobrecarga.', 'SCALE_OVERLOAD');
@@ -76,7 +84,7 @@ const PRESETS = Object.freeze([
     models:['Prix 3 Fit','Prix 3 Plus'],
     protocolId:'toledo-prt5',
     defaultBaudRate:9600,
-    documentationStatus:'manufacturer-verified'
+    documentationStatus:'manufacturer-protocol-documented'
   }),
   Object.freeze({
     id:'urano-pop',
@@ -84,7 +92,7 @@ const PRESETS = Object.freeze([
     models:['POP-S','POP-Z'],
     protocolId:'urano-pop-prot3',
     defaultBaudRate:9600,
-    documentationStatus:'manufacturer-verified'
+    documentationStatus:'manufacturer-protocol-documented'
   }),
   Object.freeze({
     id:'urano-udc',
@@ -92,7 +100,7 @@ const PRESETS = Object.freeze([
     models:['UDC CO','UDC CO-E'],
     protocolId:'urano-udc-std04',
     defaultBaudRate:9600,
-    documentationStatus:'manufacturer-verified'
+    documentationStatus:'manufacturer-protocol-documented'
   }),
   Object.freeze({
     id:'filizola-bp-cs',
@@ -100,7 +108,7 @@ const PRESETS = Object.freeze([
     models:['BP-S','CS'],
     protocolId:'filizola-legacy-numeric',
     defaultBaudRate:9600,
-    documentationStatus:'legacy-needs-physical-validation'
+    documentationStatus:'legacy-needs-protocol-confirmation'
   }),
   Object.freeze({
     id:'generic-numeric',
