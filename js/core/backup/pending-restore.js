@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { DatabaseSync } = require('../database/sqlite-runtime');
 const { createHash } = require('node:crypto');
 
 function sha256(filePath){return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');}

@@ -69,6 +69,14 @@ test('updater is unsupported outside packaged Windows', async () => {
   assert.equal((await service.check()).status,'unsupported');
 });
 
+test('updater stays disabled for the isolated legacy runtime', async () => {
+  const autoUpdater = fakeUpdater();
+  const service = createUpdaterService({ app:{getVersion:()=> '1.4.0',isPackaged:true}, autoUpdater, platform:'win32', enabled:false });
+  assert.equal(service.state().supported,false);
+  assert.equal((await service.check()).status,'unsupported');
+  assert.equal(autoUpdater.checkCalls,0);
+});
+
 test('desktop package publishes update metadata for GitHub Releases', () => {
   const root = path.resolve(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
