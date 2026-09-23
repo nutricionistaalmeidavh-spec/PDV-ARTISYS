@@ -41,6 +41,36 @@ function runErpFinanceMigrations(db, now = () => new Date().toISOString()) {
     CREATE INDEX IF NOT EXISTS idx_financial_entry_dimensions_category ON financial_entry_dimensions(category_id);
     CREATE INDEX IF NOT EXISTS idx_financial_entry_dimensions_cost_center ON financial_entry_dimensions(cost_center_id);
     CREATE INDEX IF NOT EXISTS idx_financial_entry_dimensions_competency ON financial_entry_dimensions(competency_date);
+
+    CREATE TABLE IF NOT EXISTS bank_statement_batches(
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL REFERENCES financial_accounts(id),
+      source_name TEXT NOT NULL,
+      format TEXT NOT NULL,
+      source_hash TEXT NOT NULL,
+      inserted_count INTEGER NOT NULL DEFAULT 0,
+      duplicate_count INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_statement_batches_account ON bank_statement_batches(account_id,created_at);
+    CREATE TABLE IF NOT EXISTS bank_statement_transactions(
+      id TEXT PRIMARY KEY,
+      batch_id TEXT NOT NULL REFERENCES bank_statement_batches(id),
+      account_id TEXT NOT NULL REFERENCES financial_accounts(id),
+      posted_date TEXT NOT NULL,
+      direction TEXT NOT NULL CHECK(direction IN ('credit','debit')),
+      amount_cents INTEGER NOT NULL CHECK(amount_cents>=0),
+      description TEXT NOT NULL,
+      external_id TEXT,
+      source_fingerprint TEXT NOT NULL UNIQUE,
+      business_fingerprint TEXT NOT NULL,
+      classification_json TEXT,
+      match_status TEXT NOT NULL DEFAULT 'UNMATCHED',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_statement_transactions_account_date ON bank_statement_transactions(account_id,posted_date);
+    CREATE INDEX IF NOT EXISTS idx_statement_transactions_business_fp ON bank_statement_transactions(business_fingerprint);
   `);
 
   const insertGroup = db.prepare(`INSERT OR IGNORE INTO finance_dre_groups(id,name,nature,sort_order,active,created_at,updated_at) VALUES(?,?,?,?,1,?,?)`);
