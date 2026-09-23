@@ -71,6 +71,32 @@ function runErpFinanceMigrations(db, now = () => new Date().toISOString()) {
     );
     CREATE INDEX IF NOT EXISTS idx_statement_transactions_account_date ON bank_statement_transactions(account_id,posted_date);
     CREATE INDEX IF NOT EXISTS idx_statement_transactions_business_fp ON bank_statement_transactions(business_fingerprint);
+
+    CREATE TABLE IF NOT EXISTS finance_reconciliations(
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      transaction_id TEXT NOT NULL REFERENCES bank_statement_transactions(id),
+      entry_id TEXT NOT NULL REFERENCES financial_entries(id),
+      decision TEXT NOT NULL CHECK(decision IN ('ACCEPTED','REJECTED','MANUAL')),
+      amount_cents INTEGER NOT NULL CHECK(amount_cents>=0),
+      settlement_id TEXT,
+      reason TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_finance_reconciliations_transaction ON finance_reconciliations(transaction_id,decision);
+    CREATE INDEX IF NOT EXISTS idx_finance_reconciliations_entry ON finance_reconciliations(entry_id,decision);
+    CREATE TABLE IF NOT EXISTS financial_transfers(
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      debit_transaction_id TEXT NOT NULL REFERENCES bank_statement_transactions(id),
+      credit_transaction_id TEXT NOT NULL REFERENCES bank_statement_transactions(id),
+      amount_cents INTEGER NOT NULL CHECK(amount_cents>0),
+      status TEXT NOT NULL DEFAULT 'CONFIRMED',
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      UNIQUE(debit_transaction_id,credit_transaction_id)
+    );
   `);
 
   const insertGroup = db.prepare(`INSERT OR IGNORE INTO finance_dre_groups(id,name,nature,sort_order,active,created_at,updated_at) VALUES(?,?,?,?,1,?,?)`);
