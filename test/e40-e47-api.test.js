@@ -43,6 +43,16 @@ test('E40-E43 configured pizza is created by local API and retains configuration
   }finally{await ctx.close();}}
 );
 
+test('weighted checkout persists fractional quantity and immutable weight snapshot without requiring optional market module',async()=>{
+  const ctx=await setup();try{const token=await bootstrap(ctx);const h=sessionHeaders(token);
+    let res=await fetch(`${ctx.base}/api/v1/products`,{method:'POST',headers:h,body:JSON.stringify({id:'tomate',name:'Tomate',unit:'KG',salePriceCents:899,trackStock:false})});assert.equal(res.status,201);
+    res=await fetch(`${ctx.base}/api/v1/vertical/modules`,{headers:h});assert.equal(res.status,200);const modules=await res.json();assert.equal(modules.find(m=>m.id==='MARKET_BAKERY').enabled,false);
+    res=await fetch(`${ctx.base}/api/v1/sales`,{method:'POST',headers:h,body:JSON.stringify({id:'weighted-sale',saleNumber:'W1',terminalId:'PDV-01'})});assert.equal(res.status,201);
+    res=await fetch(`${ctx.base}/api/v1/vertical/sales/weighted-sale/configured-item`,{method:'POST',headers:h,body:JSON.stringify({productId:'tomate',quantity:0.742,unitPriceCents:899,configurationSnapshot:{version:1,weight:{grams:742,source:'SCALE',unit:'KG'}},forceSeparateLine:true})});
+    assert.equal(res.status,200);const sale=await res.json();assert.equal(sale.totalCents,667);assert.equal(sale.items[0].quantity,0.742);assert.deepEqual(sale.items[0].configuration.weight,{grams:742,source:'SCALE',unit:'KG'});
+  }finally{await ctx.close();}}
+);
+
 test('E45-E47 vertical operational endpoints reject disabled modules and work after enablement',async()=>{
   const ctx=await setup();try{const token=await bootstrap(ctx);const h=sessionHeaders(token);
     let res=await fetch(`${ctx.base}/api/v1/vertical/delivery`,{method:'POST',headers:h,body:JSON.stringify({customerName:'Ana',fulfillmentType:'PICKUP',paymentMethod:'PIX'})});assert.equal(res.status,409);assert.match((await res.json()).error,/DELIVERY desativado/);
