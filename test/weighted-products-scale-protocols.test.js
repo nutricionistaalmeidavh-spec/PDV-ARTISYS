@@ -17,6 +17,11 @@ test('weighted product helper identifies KG and G but not UN', () => {
   assert.equal(ui.isWeightedProduct({}), false);
 });
 
+test('product form exposes UN, KG and G units in the visible UI', () => {
+  const source = fs.readFileSync(path.join(__dirname,'../desktop/renderer/app.js'),'utf8');
+  assert.match(source, /<select name="unit">[\s\S]*?<option value="UN">Unidade<\/option>[\s\S]*?<option value="KG"[^>]*>Quilograma<\/option>[\s\S]*?<option value="G"[^>]*>Grama<\/option>[\s\S]*?<\/select>/);
+});
+
 test('checkout API refuses to add a known KG/G product as one ordinary unit', async () => {
   const calls = [];
   const root = {
