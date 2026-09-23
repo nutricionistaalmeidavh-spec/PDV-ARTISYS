@@ -7,5 +7,5 @@
   page.querySelectorAll('[data-reconcile-accept]').forEach(btn=>btn.addEventListener('click',async()=>{const suggestions=await api.reconciliationSuggestions(btn.dataset.reconcileAccept);const choice=suggestions[0];if(!choice)return;await api.acceptReconciliation(btn.dataset.reconcileAccept,{entryId:choice.entryId,amountCents:choice.amountCents,idempotencyKey:api.mutationId()});await refresh();}));page.querySelectorAll('[data-alert-read]').forEach(btn=>btn.addEventListener('click',async()=>{await api.markFinanceAlertRead(btn.dataset.alertRead);await refresh();}));page.querySelectorAll('[data-alert-hide]').forEach(btn=>btn.addEventListener('click',async()=>{await api.hideFinanceAlert(btn.dataset.alertHide);await refresh();}));
  }finally{busy=false;}}
  async function refresh(){const page=document.querySelector('.erp-management-page');if(page){page.dataset.automationEnhanced='';document.getElementById('erp-finance-automation')?.remove();await enhance();}}
- const observer=new MutationObserver(()=>void enhance());observer.observe(document.getElementById('route-content'),{childList:true,subtree:true});root.PdvErpFinanceAutomationUi={enhance,refresh};
+ root.PdvErpFinanceAutomationUi={enhance,refresh};
 })();

@@ -31,7 +31,6 @@
       form.addEventListener('submit',async event=>{const fd=new FormData(form);if(!fd.get('categoryId')&&!fd.get('costCenterId')&&!fd.get('competencyDate'))return;event.preventDefault();event.stopImmediatePropagation();try{const amountText=String(fd.get('amount')||'').trim().replace(/\./g,'').replace(',','.');await api.createFinanceEntry({kind:fd.get('kind'),description:fd.get('description'),category:fd.get('category')||null,categoryId:fd.get('categoryId')||null,costCenterId:fd.get('costCenterId')||null,competencyDate:fd.get('competencyDate')||null,accountId:fd.get('accountId')||null,amountCents:Math.round(Number(amountText)*100),dueAt:new Date(`${fd.get('dueAt')}T12:00:00`).toISOString()});toast('Lançamento criado.','success');await root.PdvOperationalUi?.renderFinance?.();}catch(error){toast(error.message,'error');}},true);
     }catch(error){console.warn('Falha ao carregar dimensoes financeiras',error);}
   }
-  const observer=new MutationObserver(()=>{if(document.getElementById('ops-finance-form'))void enhanceFinancePage();});observer.observe(content,{childList:true,subtree:true});
   root.addEventListener('click',event=>{const target=event.target.closest?.('[data-route="management"],[data-home-route="management"]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();void renderManagement();},true);
   root.PdvErpFinanceUi=Object.freeze({renderManagement,enhanceFinancePage});
 })();
