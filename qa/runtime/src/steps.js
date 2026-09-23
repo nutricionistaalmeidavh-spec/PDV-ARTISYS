@@ -47,9 +47,16 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       const target = locator(page, step);
       const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
       if (isModalClose && !(await target.isVisible().catch(() => false))) break;
-      await target.click();
       if (step.selector === "#ops-inventory-form button[type='submit']") {
+        const refreshedInventory = page.waitForResponse(response => {
+          const url = new URL(response.url());
+          return response.request().method() === 'GET' && url.pathname === '/api/v1/inventory' && response.ok();
+        }, { timeout: step.timeoutMs ?? 10000 });
+        await target.click();
         await page.locator(".toast.success").filter({ hasText: "Movimentação registrada." }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+        await refreshedInventory;
+      } else {
+        await target.click();
       }
       break;
     }
