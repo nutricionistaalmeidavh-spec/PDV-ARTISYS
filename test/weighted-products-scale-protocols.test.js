@@ -25,7 +25,7 @@ test('checkout API refuses to add a known KG/G product as one ordinary unit', as
     artisysDesktop:{
       async apiRequest(input) {
         calls.push(input);
-        if (input.path === '/api/v1/products') return { ok:true, status:200, payload:[{id:'tomate',unit:'KG'},{id:'sacola',unit:'UN'}] };
+        if (input.path === '/api/v1/products') return { ok:true, status:200, payload:[{id:'tomate',unit:'KG'},{id:'farinha',unit:'G'},{id:'sacola',unit:'UN'}] };
         if (input.path.endsWith('/items')) return { ok:true, status:200, payload:{} };
         return { ok:true, status:200, payload:{} };
       }
@@ -37,6 +37,7 @@ test('checkout API refuses to add a known KG/G product as one ordinary unit', as
 
   await api.products();
   assert.throws(() => api.addSaleItem('sale-1','tomate',1), /peso|pesagem|kg/i);
+  assert.throws(() => api.addSaleItem('sale-1','farinha',1), /peso|pesagem|kg/i);
   await api.addSaleItem('sale-1','sacola',1);
   assert.equal(calls.filter((call) => call.path.endsWith('/items')).length, 1);
 });
@@ -53,14 +54,15 @@ test('scale registry exposes supported presets and a generic protocol', () => {
   assert.ok(ids.includes('generic-numeric'));
 });
 
-test('Toledo Prix 3 Prt5 sends ENQ and parses the documented STX + 5 digit grams + ETX frame', () => {
+test('Toledo Prix 3 Prt5 sends ENQ and parses only the documented framed response', () => {
   const protocol = createScaleProtocolRegistry().getProtocolForPreset('toledo-prix3-prt5');
   assert.deepEqual(Buffer.from(protocol.request()), Buffer.from([0x05]));
   assert.deepEqual(protocol.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03])), { weight:0.742, unit:'kg', stable:true });
   assert.throws(() => protocol.parse(Buffer.from([0x02,0x49,0x49,0x49,0x49,0x49,0x03])), /instavel/i);
+  assert.throws(() => protocol.parse(Buffer.from('00742')), /frame|resposta|protocolo/i);
 });
 
-test('Urano POP PROT-3 and UDC Std04 presets parse documented STX + 5 digit grams + ETX frames', () => {
+test('Urano POP PROT-3 and UDC Std04 presets parse documented framed stable weight responses', () => {
   const registry = createScaleProtocolRegistry();
   const pop = registry.getProtocolForPreset('urano-pop');
   const udc = registry.getProtocolForPreset('urano-udc');
@@ -68,6 +70,7 @@ test('Urano POP PROT-3 and UDC Std04 presets parse documented STX + 5 digit gram
 
   assert.deepEqual(pop.parse(frame), { weight:0.742, unit:'kg', stable:true });
   assert.deepEqual(udc.parse(frame), { weight:0.742, unit:'kg', stable:true });
+  assert.throws(() => pop.parse(Buffer.from('00742')), /frame|resposta|protocolo/i);
   assert.throws(() => udc.parse(Buffer.from([0x02,0x53,0x53,0x53,0x53,0x53,0x03])), /sobrecarga/i);
 });
 
