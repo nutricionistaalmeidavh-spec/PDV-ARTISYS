@@ -253,21 +253,19 @@ function applyV17(db, now) {
 
 function runFiscalMigrations(db, now = () => new Date().toISOString()) {
   if (!db) throw new TypeError('Database is required.');
-  let current = 12;
-  const fiscalVersions = [
-    [13, 'fiscal_configuration_tax_persistence_1_4_0'],
-    [14, 'fiscal_state_reconciliation_1_4_0'],
-    [15, 'fiscal_monitor_cancel_xml_danfe_1_4_0'],
-    [16, 'fiscal_production_contingency_1_4_0'],
-    [17, FISCAL_MIGRATION_NAME]
-  ];
-  for (const [version, name] of fiscalVersions) {
-    if (db.prepare('SELECT 1 FROM schema_migrations WHERE version=? AND name=?').get(version, name)) current = version;
-    else break;
-  }
-  // Repair databases created by builds that advanced the shared schema version
-  // without actually applying the fiscal columns.
-  if (current >= FISCAL_SCHEMA_VERSION && !columns(db, 'fiscal_documents').has('authorized_at')) current = 12;
+  // Older installations can report a newer shared schema version while
+  // fiscal_documents still has the pre-v13 shape. Repair the additive v13
+  // columns before any v15 index references them.
+  ensureColumn(db, 'fiscal_documents', 'authorization_protocol', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'xml_path', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'danfe_path', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'contingency_type', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'authorized_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'rejected_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'sefaz_code', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'sefaz_message', 'TEXT');
+
+  let current = Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version || 0);
   if (current >= FISCAL_SCHEMA_VERSION) return current;
   if (current < 12) throw new Error('Fiscal requer schema v12 antes das migracoes fiscais.');
   if (current < 13) { applyV13(db, now); current = 13; }
