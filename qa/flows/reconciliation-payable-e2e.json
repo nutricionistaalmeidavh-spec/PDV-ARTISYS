@@ -1,0 +1,1 @@
+{"name":"reconciliation-payable-e2e","steps":[{"action":"waitFor","selector":"#app-topbar","timeoutMs":15000},{"action":"capability","name":"finance.setup","scenario":"reconciliation-payable"},{"action":"capability","name":"finance.openManagement"},{"action":"waitFor","selector":"#erp-reconciliation-list","timeoutMs":15000},{"action":"capability","name":"finance.assert"}]}

@@ -5,171 +5,21 @@
   "defaultEnvironment": "ci",
   "defaultFlow": "smoke",
   "defaultDemo": "quick-30s",
+  "defaultDemoProfile": "erp-finance-ci",
   "defaultViewport": "desktop",
-  "demoCaptureViewport": {
-    "width": 1440,
-    "height": 900
-  },
-  "capture": {
-    "video": true,
-    "screenshotEachStep": false,
-    "fps": 8
-  },
-  "electron": {
-    "entry": "desktop/main.cjs",
-    "executablePath": "../node_modules/electron/dist/electron",
-    "args": [
-      "--no-sandbox"
-    ]
-  },
-  "environments": {
-    "ci": {
-      "env": {
-        "NODE_ENV": "test",
-        "ARTISYS_QA": "1",
-        "PDV_ENABLE_LAN": "false",
-        "PDV_AUTO_PRINT": "false"
-      }
-    }
-  },
+  "demoCaptureViewport": {"width":1440,"height":900},
+  "capture": {"video":true,"screenshotEachStep":false,"fps":8},
+  "electron": {"entry":"desktop/main.cjs","executablePath":"../node_modules/electron/dist/electron","args":["--no-sandbox"]},
+  "environments": {"ci":{"env":{"NODE_ENV":"test","ARTISYS_QA":"1","PDV_ENABLE_LAN":"false","PDV_AUTO_PRINT":"false"}}},
+  "demoProfiles": {"erp-finance-ci":{"adapter":"runtime/adapters/erp-finance-ci.mjs"}},
   "flows": {
-    "smoke": "flows/smoke.json",
-    "home": "flows/home.json",
-    "sales-enhancements": "flows/sales-enhancements-v2.json",
-    "checkout-ux-preservation": "flows/checkout-ux-preservation.json",
-    "reports-v2-complete": "flows/reports-v2-complete.json",
-    "core-business-e2e": "flows/core-business-e2e.json",
-    "ux-products-clients-cross-flow": "flows/ux-products-clients-cross-flow.json",
-    "products-deep-e2e": "flows/products-deep-e2e.json",
-    "customers-deep-e2e": "flows/customers-deep-e2e.json",
-    "ux-products-clients-flags-e2e": "flows/ux-products-clients-flags-e2e.json",
-    "ux-products-clients-responsive-evidence": "flows/ux-products-clients-responsive-evidence.json",
-    "enterprise-depth-p0": "flows/enterprise-depth-p0.json",
-    "backend-parity-p0": "flows/backend-parity-p0.json",
-    "backend-parity-p1": "flows/backend-parity-p1.json",
-    "ui-parity-p0-p2": "flows/ui-parity-p0-p2.json",
-    "fiscal-block6": "flows/fiscal-block6.json",
-    "fiscal-ui-parity-baseline": "flows/fiscal-ui-parity-baseline.json",
-    "fiscal-config-p2-p5": "flows/fiscal-config-p2-p5.json",
-    "fiscal-nfse-p8": "flows/fiscal-nfse-p8.json"
+    "smoke":"flows/smoke.json","home":"flows/home.json","sales-enhancements":"flows/sales-enhancements-v2.json","checkout-ux-preservation":"flows/checkout-ux-preservation.json","reports-v2-complete":"flows/reports-v2-complete.json","core-business-e2e":"flows/core-business-e2e.json","ux-products-clients-cross-flow":"flows/ux-products-clients-cross-flow.json","products-deep-e2e":"flows/products-deep-e2e.json","customers-deep-e2e":"flows/customers-deep-e2e.json","ux-products-clients-flags-e2e":"flows/ux-products-clients-flags-e2e.json","ux-products-clients-responsive-evidence":"flows/ux-products-clients-responsive-evidence.json","enterprise-depth-p0":"flows/enterprise-depth-p0.json","backend-parity-p0":"flows/backend-parity-p0.json","backend-parity-p1":"flows/backend-parity-p1.json","ui-parity-p0-p2":"flows/ui-parity-p0-p2.json","fiscal-block6":"flows/fiscal-block6.json","fiscal-ui-parity-baseline":"flows/fiscal-ui-parity-baseline.json","fiscal-config-p2-p5":"flows/fiscal-config-p2-p5.json","fiscal-nfse-p8":"flows/fiscal-nfse-p8.json",
+    "finance-management-base-e2e":"flows/finance-management-base-e2e.json","finance-source-link-e2e":"flows/finance-source-link-e2e.json","finance-dimensions-e2e":"flows/finance-dimensions-e2e.json","finance-base-idempotency-e2e":"flows/finance-base-idempotency-e2e.json","business-dashboard-e2e":"flows/business-dashboard-e2e.json","dre-e2e":"flows/dre-e2e.json","cashflow-e2e":"flows/cashflow-e2e.json","period-comparison-e2e":"flows/period-comparison-e2e.json","cost-center-e2e":"flows/cost-center-e2e.json","statement-ofx-e2e":"flows/statement-ofx-e2e.json","statement-dedupe-e2e":"flows/statement-dedupe-e2e.json","reconciliation-payable-e2e":"flows/reconciliation-payable-e2e.json","reconciliation-receivable-e2e":"flows/reconciliation-receivable-e2e.json","bank-transfer-e2e":"flows/bank-transfer-e2e.json","finance-recurrence-e2e":"flows/finance-recurrence-e2e.json","recurrence-idempotency-e2e":"flows/recurrence-idempotency-e2e.json","financial-alerts-e2e":"flows/financial-alerts-e2e.json","cash-projection-e2e":"flows/cash-projection-e2e.json"
   },
   "qaProfiles": {
-    "quick": {
-      "flows": [
-        "smoke"
-      ],
-      "criticalFlows": [
-        "smoke"
-      ],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    },
-    "full": {
-      "flows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    },
-    "release": {
-      "flows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    }
+    "quick":{"flows":["smoke"],"criticalFlows":["smoke"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
+    "full":{"flows":["smoke","home","sales-enhancements","checkout-ux-preservation","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8","finance-management-base-e2e","finance-source-link-e2e","finance-dimensions-e2e","finance-base-idempotency-e2e","business-dashboard-e2e","dre-e2e","cashflow-e2e","period-comparison-e2e","cost-center-e2e","statement-ofx-e2e","statement-dedupe-e2e","reconciliation-payable-e2e","reconciliation-receivable-e2e","bank-transfer-e2e","finance-recurrence-e2e","recurrence-idempotency-e2e","financial-alerts-e2e","cash-projection-e2e"],"criticalFlows":["smoke","home","sales-enhancements","checkout-ux-preservation","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8","finance-management-base-e2e","finance-source-link-e2e","finance-dimensions-e2e","finance-base-idempotency-e2e","business-dashboard-e2e","dre-e2e","cashflow-e2e","period-comparison-e2e","cost-center-e2e","statement-ofx-e2e","statement-dedupe-e2e","reconciliation-payable-e2e","reconciliation-receivable-e2e","bank-transfer-e2e","finance-recurrence-e2e","recurrence-idempotency-e2e","financial-alerts-e2e","cash-projection-e2e"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false},
+    "release":{"flows":["smoke","home","sales-enhancements","checkout-ux-preservation","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8","finance-management-base-e2e","finance-source-link-e2e","finance-dimensions-e2e","finance-base-idempotency-e2e","business-dashboard-e2e","dre-e2e","cashflow-e2e","period-comparison-e2e","cost-center-e2e","statement-ofx-e2e","statement-dedupe-e2e","reconciliation-payable-e2e","reconciliation-receivable-e2e","bank-transfer-e2e","finance-recurrence-e2e","recurrence-idempotency-e2e","financial-alerts-e2e","cash-projection-e2e"],"criticalFlows":["smoke","home","sales-enhancements","checkout-ux-preservation","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8","finance-management-base-e2e","finance-source-link-e2e","finance-dimensions-e2e","finance-base-idempotency-e2e","business-dashboard-e2e","dre-e2e","cashflow-e2e","period-comparison-e2e","cost-center-e2e","statement-ofx-e2e","statement-dedupe-e2e","reconciliation-payable-e2e","reconciliation-receivable-e2e","bank-transfer-e2e","finance-recurrence-e2e","recurrence-idempotency-e2e","financial-alerts-e2e","cash-projection-e2e"],"includeVisual":false,"includeDesktop":false,"includeNetwork":false}
   },
-  "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
-    }
-  }
+  "demos":{"quick-30s":{"file":"demo/quick-30s.json","preset":"reels-9x16","durationTargetSec":30},"overview-60s":{"file":"demo/overview-60s.json","preset":"landscape-16x9","durationTargetSec":60}}
 }
