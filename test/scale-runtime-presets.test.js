@@ -13,12 +13,12 @@ function fakeModules(calls) {
       },
       createRequestResponseSession(options) {
         calls.push(['request-session', options]);
-        return { run:async()=>({weight:0.742,unit:'kg'}) };
+        return { run:async()=>0.742 };
       },
       createScaleAdapter({ session, profile }) {
         return {
           status:async()=>({ available:true, path:profile.path, baudRate:profile.baudRate, unit:'kg' }),
-          readWeight:()=>session.run()
+          readWeight:async()=>({weight:Number(await session.run()),unit:'kg'})
         };
       },
       createDrawerAdapter(){ return { status:async()=>({available:false}), open:async()=>true }; },
@@ -43,7 +43,7 @@ test('Toledo preset wires ENQ and Prt5 parser into the hardware request session'
   const session=calls.find((entry)=>Array.isArray(entry)&&entry[0]==='request-session')?.[1];
   assert.ok(session);
   assert.deepEqual(Buffer.from(session.request), Buffer.from([0x05]));
-  assert.deepEqual(session.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03])), {weight:0.742,unit:'kg',stable:true});
+  assert.equal(session.parse(Buffer.from([0x02,0x30,0x30,0x37,0x34,0x32,0x03])), 0.742);
   const diagnostics=await runtime.diagnostics();
   assert.equal(diagnostics.configuration.scale.preset,'toledo-prix3-prt5');
   assert.equal(diagnostics.configuration.scale.protocol,'toledo-prt5');
