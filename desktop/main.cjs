@@ -67,7 +67,13 @@ async function startEmbeddedServer() {
     const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
     if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
     lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true });
-    await lanServer.start();
+    try {
+      await lanServer.start();
+    } catch (error) {
+      console.error('Servidor LAN indisponivel; PDV continuara em modo local.', error);
+      try { await lanServer.stop(); } catch {}
+      lanServer = null;
+    }
   }
 }
 
@@ -250,7 +256,13 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 }).catch((error) => {
-  console.error(error);
+  console.error('Falha fatal ao iniciar o ArtiSys PDV.', error);
+  try {
+    dialog.showErrorBox(
+      'ArtiSys PDV - Falha na inicialização',
+      `${error?.message || error}\n\nReinicie o computador e tente novamente. Se o problema continuar, envie esta mensagem ao suporte ArtiSys.`
+    );
+  } catch {}
   app.quit();
 });
 
