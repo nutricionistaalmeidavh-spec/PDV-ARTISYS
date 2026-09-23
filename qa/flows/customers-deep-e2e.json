@@ -89,7 +89,7 @@
     {"action":"waitFor","selector":"#confirm-payment","name":"customers-deep-payment-ready","timeoutMs":10000},
     {"action":"click","selector":"#confirm-payment","name":"customers-deep-confirm-payment"},
     {"action":"waitForTimeout","timeoutMs":800,"name":"customers-deep-sale-completed"},
-    {"action":"click","selector":"#modal-root .overlay-actions button","name":"customers-deep-dismiss-sale-summary"},
+    {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"customers-deep-dismiss-sale-summary"},
     {"action":"click","selector":"[data-route='customers']","name":"customers-deep-return-customers"},
     {"action":"waitFor","selector":"#customer-page-search","name":"customers-deep-history-search-ready","timeoutMs":10000},
     {"action":"fill","selector":"#customer-page-search","value":"QA Deep Cliente Editado","name":"customers-deep-history-filter"},
