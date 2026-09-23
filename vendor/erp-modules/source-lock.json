@@ -22,6 +22,13 @@
       "sourcePath": "modules/artisys-inventory",
       "copiedInto": "vendor/erp-modules/artisys-inventory",
       "mode": "physical-copy"
+    },
+    "artisys-catalog": {
+      "sourceRepository": "nutricionistaalmeidavh-spec/utilidades",
+      "sourceCommit": "9bca8b29f3a5875433b42d01ceb84e743dabba82",
+      "sourcePath": "modules/artisys-catalog",
+      "copiedInto": "vendor/erp-modules/artisys-catalog",
+      "mode": "physical-copy"
     }
   }
 }
