@@ -38,6 +38,25 @@ function configurationDetails(configuration) {
   return details;
 }
 
+function receiptCurrency(cents){
+  const value=Math.round(Number(cents)||0)/100;
+  return `R$ ${value.toFixed(2).replace('.',',')}`;
+}
+
+function weightedReceiptDetails(item={}){
+  const weight=item.configuration?.weight;
+  if(!weight||typeof weight!=='object')return[];
+  const grams=Number(weight.grams);
+  if(!Number.isFinite(grams)||grams<=0)return[];
+  const unit=String(weight.unit||'KG').trim().toUpperCase();
+  if(!['KG','G'].includes(unit))return[];
+  const amount=unit==='G'
+    ? `${grams.toLocaleString('pt-BR',{maximumFractionDigits:3})} g`
+    : `${(grams/1000).toFixed(3).replace('.',',')} kg`;
+  const basis=unit==='G'?'/g':'/kg';
+  return[`Peso: ${amount} x ${receiptCurrency(item.unitPriceCents)}${basis}`];
+}
+
 function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhone = '', branding = null, documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
   const w = Number(width);
   if (![32,42,48].includes(w)) throw new Error('Largura de cupom invalida.');
@@ -78,7 +97,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
       quantity:Number(item.quantity || 0),
       unitPriceCents:Number(item.unitPriceCents || 0),
       totalCents:Number(item.totalCents || 0),
-      details:configurationDetails(item.configuration)
+      details:[...configurationDetails(item.configuration),...weightedReceiptDetails(item)]
     })),
     totals,
     payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
@@ -89,4 +108,4 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   return renderPlainText(document);
 }
 
-module.exports = { renderSaleReceipt, configurationDetails, money, fit, center, columns };
+module.exports = { renderSaleReceipt, configurationDetails, weightedReceiptDetails, money, fit, center, columns };
