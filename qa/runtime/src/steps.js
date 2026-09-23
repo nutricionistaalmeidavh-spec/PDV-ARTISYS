@@ -48,13 +48,15 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
       if (isModalClose && !(await target.isVisible().catch(() => false))) break;
       if (step.selector === "#ops-inventory-form button[type='submit']") {
-        const refreshedInventory = page.waitForResponse(response => {
-          const url = new URL(response.url());
-          return response.request().method() === 'GET' && url.pathname === '/api/v1/inventory' && response.ok();
-        }, { timeout: step.timeoutMs ?? 10000 });
+        const selectedProduct = await page.locator("#ops-inventory-form select[name='productId'] option:checked").textContent();
+        const quantity = await page.locator("#ops-inventory-form input[name='quantity']").inputValue();
+        const type = await page.locator("#ops-inventory-form select[name='type']").inputValue();
         await target.click();
         await page.locator(".toast.success").filter({ hasText: "Movimentação registrada." }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
-        await refreshedInventory;
+        if (selectedProduct && type !== 'adjustment-out') {
+          const expectedQuantity = Number(quantity).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+          await page.locator("#ops-inventory-body tr", { hasText: selectedProduct.trim() }).filter({ hasText: expectedQuantity }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+        }
       } else {
         await target.click();
       }
