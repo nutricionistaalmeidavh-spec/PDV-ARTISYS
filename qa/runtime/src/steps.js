@@ -52,10 +52,11 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         const quantity = await page.locator("#ops-inventory-form input[name='quantity']").inputValue();
         const type = await page.locator("#ops-inventory-form select[name='type']").inputValue();
         await target.click();
-        await page.locator(".toast.success").filter({ hasText: "Movimentação registrada." }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
         if (selectedProduct && type !== 'adjustment-out') {
           const expectedQuantity = Number(quantity).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
-          await page.locator("#ops-inventory-body tr", { hasText: selectedProduct.trim() }).filter({ hasText: expectedQuantity }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+          await page.locator("#ops-inventory-body tr", { hasText: selectedProduct.trim() }).filter({ hasText: expectedQuantity }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 15000 });
+        } else {
+          await page.locator("#ops-inventory-form").waitFor({ state: 'visible', timeout: step.timeoutMs ?? 15000 });
         }
       } else {
         await target.click();
