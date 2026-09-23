@@ -1,5 +1,7 @@
 'use strict';
 
+const { createScaleProtocolRegistry } = require('../js/hardware/scale-protocols');
+
 function readPositiveInteger(value, fallback, name) {
   const parsed = Number(value == null || value === '' ? fallback : value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} invalido.`);
@@ -46,19 +48,33 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   let scale = null;
   let scaleSettleMs = null;
+  let scalePreset = null;
+  let scaleProtocol = null;
   if (String(env.PDV_SCALE_PORT || '').trim()) {
+    const presetId = String(env.PDV_SCALE_PRESET || '').trim();
+    if (presetId) {
+      const registry = createScaleProtocolRegistry();
+      scalePreset = registry.getPreset(presetId);
+      scaleProtocol = registry.getProtocolForPreset(presetId);
+    }
+    const defaultScaleBaud = scalePreset?.defaultBaudRate || 9600;
     const profile = {
       path:String(env.PDV_SCALE_PORT).trim(),
-      baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, 9600, 'PDV_SCALE_BAUD')
+      baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, defaultScaleBaud, 'PDV_SCALE_BAUD')
     };
     scaleSettleMs = readPositiveInteger(env.PDV_SCALE_SETTLE_MS, 30, 'PDV_SCALE_SETTLE_MS');
     const transport = serial.createSerialTransport({ profile });
+    const hasExplicitCommand = env.PDV_SCALE_COMMAND != null && String(env.PDV_SCALE_COMMAND) !== '';
+    const request = hasExplicitCommand ? env.PDV_SCALE_COMMAND : (scaleProtocol ? scaleProtocol.request() : '');
+    const parse = scaleProtocol
+      ? buffer => scaleProtocol.parse(buffer).weight
+      : buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer);
     const session = serial.createRequestResponseSession({
       transport,
-      request:env.PDV_SCALE_COMMAND || '',
+      request,
       timeoutMs:readPositiveInteger(env.PDV_SCALE_TIMEOUT_MS, 1500, 'PDV_SCALE_TIMEOUT_MS'),
       responseIdleMs:scaleSettleMs,
-      parse:buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer)
+      parse
     });
     scale = serial.createScaleAdapter({ session, profile });
   }
@@ -154,12 +170,13 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   async function diagnostics(){
+    const defaultScaleBaud = scalePreset?.defaultBaudRate || 9600;
     return{
       status:await status(),
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs},
+        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,defaultScaleBaud,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs,preset:scalePreset?.id||null,protocol:scaleProtocol?.id||null,documentationStatus:scalePreset?.documentationStatus||null},
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
