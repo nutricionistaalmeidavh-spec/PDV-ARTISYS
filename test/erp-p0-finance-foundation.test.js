@@ -5,7 +5,7 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {runErpFinanceMigrations}=require('../js/core/database/erp-finance-migrations');
 const {createFinanceService}=require('../js/domains/finance/finance-service');
-const {createFinanceDimensionsService}=require('../js/domains/finance/finance-dimensions-service');
+const {createFinanceDimensionsService}=require('../js/domains/finance/finance-dimensions');
 
 const admin={userId:'admin-1',role:'admin'};
 function fixture(){
