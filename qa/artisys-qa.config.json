@@ -16,7 +16,7 @@
     "fps": 8
   },
   "electron": {
-    "entry": "qa/desktop/main.cjs",
+    "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
     "args": [
       "--no-sandbox"
