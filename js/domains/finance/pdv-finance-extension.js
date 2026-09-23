@@ -7,8 +7,8 @@ const { createProcurementService }=require('../procurement/procurement-service')
 const { createFinanceManagementService }=require('./finance-management');
 const { createStatementImport }=require('./statement-import');
 const { createReconciliation }=require('./reconciliation');
-const { createRecurrenceService }=require('./recurrence-service');
-const { createFinanceAlertService }=require('./finance-alert-service');
+const { createRecurrenceService }=require('./recurrence');
+const { createFinanceAlertService }=require('./finance-alerts');
 
 function ensurePdvFinance(runtime,{now=()=>new Date().toISOString(),idFactory}={}){
   if(!runtime?.db||!runtime?.inventory)throw new TypeError('PDV runtime invalido para extensao financeira.');
