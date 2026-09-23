@@ -47,6 +47,10 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   try{if(typeof serial.createSerialPortManager==='function')serialManager=serial.createSerialPortManager();}catch{/* hardware opcional */}
 
   const scaleRegistry = createScaleProtocolRegistry();
+  const qaScaleWeightCandidate = Number(env.PDV_QA_SCALE_WEIGHT_KG);
+  const qaScaleWeightKg = String(env.ARTISYS_QA || '') === '1' && Number.isFinite(qaScaleWeightCandidate) && qaScaleWeightCandidate > 0
+    ? Math.round(qaScaleWeightCandidate * 1000) / 1000
+    : null;
   let scale = null;
   let scaleSettleMs = null;
   let scalePreset = null;
@@ -196,7 +200,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     const printerStatus = typeof printer.status === 'function' ? await printer.status(printerProfile) : { available:true };
     return {
       barcodeScanner:{ available:true, mode:'keyboard-wedge' },
-      scale:scale ? await scale.status() : { available:false, reason:'not-configured' },
+      scale:scale ? await scale.status() : qaScaleWeightKg != null ? { available:true, mode:'qa-simulator' } : { available:false, reason:'not-configured' },
       printer:printerMode === 'serial' ? { ...printerStatus, mode:'serial' } : printerStatus,
       cashDrawer:cashDrawer ? await cashDrawer.status() : { available:false, reason:'not-configured' }
     };
@@ -208,7 +212,10 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   async function readWeight() {
-    if (!scale) throw new Error('Balanca nao configurada.');
+    if (!scale) {
+      if (qaScaleWeightKg != null) return { weight:qaScaleWeightKg, unit:'kg' };
+      throw new Error('Balanca nao configurada.');
+    }
     const result = await scale.readWeight();
     const weight = Number(result && typeof result === 'object' ? result.weight : result);
     if (!Number.isFinite(weight) || weight < 0) throw new Error('Leitura de peso invalida.');
@@ -240,7 +247,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{ ...scaleConfiguration },
+        scale:qaScaleWeightKg != null && !scale ? { ...scaleConfiguration, simulated:true, weightKg:qaScaleWeightKg } : { ...scaleConfiguration },
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
