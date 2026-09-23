@@ -8,11 +8,21 @@ O modo padrão é **keyboard-wedge**: mantenha o foco no campo de busca do Balc�
 
 ## Balança
 
-Configure `PDV_SCALE_PORT` e, quando necessário, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
+Configure `PDV_SCALE_PORT` e, quando necessário, `PDV_SCALE_PRESET`, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
+
+Presets disponíveis:
+
+- `toledo-prix3-prt5` — Toledo Prix 3 Fit / Prix 3 Plus, protocolo Prt5;
+- `urano-pop` — Urano POP-S / POP-Z, família PROT-3;
+- `urano-udc` — Urano UDC CO / CO-E, família Std04;
+- `filizola-bp-cs` — Filizola BP-S / CS em modo legado, ainda sujeito a validação física/especificação do equipamento;
+- `generic-numeric` — resposta serial numérica genérica.
+
+Quando `PDV_SCALE_PRESET` não é informado, o comportamento serial genérico anterior é preservado. Um preset desconhecido falha explicitamente em vez de cair silenciosamente para outro protocolo. `PDV_SCALE_COMMAND` continua disponível como override explícito do comando enviado pela sessão serial.
 
 `PDV_SCALE_SETTLE_MS` define uma pequena janela de silêncio, padrão de 30 ms, antes de interpretar a resposta acumulada. Isso evita aceitar prematuramente um fragmento como `1.` quando a continuação `250 kg` chega logo depois. O timeout total continua sendo controlado separadamente por `PDV_SCALE_TIMEOUT_MS`.
 
-A leitura passa pelo transporte e adapter do `@artisys/serialport`; a UI recebe somente peso normalizado em kg, nunca uma porta serial genérica.
+A leitura passa pelo transporte e adapter do `@artisys/serialport`; a UI recebe somente peso normalizado em kg, nunca uma porta serial genérica. Toledo e Urano possuem fixtures automatizadas para os frames documentados de peso/estado; isso valida o caminho de protocolo, não substitui teste com equipamento físico.
 
 ## Gaveta
 
