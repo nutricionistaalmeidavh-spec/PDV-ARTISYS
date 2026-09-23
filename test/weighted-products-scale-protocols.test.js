@@ -2,6 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 
 const { createScaleProtocolRegistry } = require('../js/hardware/scale-protocols');
 const ui = require('../desktop/renderer/ui-model');
@@ -12,6 +15,30 @@ test('weighted product helper identifies KG and G but not UN', () => {
   assert.equal(ui.isWeightedProduct({ unit:'G' }), true);
   assert.equal(ui.isWeightedProduct({ unit:'UN' }), false);
   assert.equal(ui.isWeightedProduct({}), false);
+});
+
+test('checkout API refuses to add a known KG/G product as one ordinary unit', async () => {
+  const calls = [];
+  const root = {
+    sessionStorage:{ getItem(){ return ''; }, setItem(){}, removeItem(){} },
+    crypto:{ randomUUID(){ return 'mutation-1'; } },
+    artisysDesktop:{
+      async apiRequest(input) {
+        calls.push(input);
+        if (input.path === '/api/v1/products') return { ok:true, status:200, payload:[{id:'tomate',unit:'KG'},{id:'sacola',unit:'UN'}] };
+        if (input.path.endsWith('/items')) return { ok:true, status:200, payload:{} };
+        return { ok:true, status:200, payload:{} };
+      }
+    }
+  };
+  const source = fs.readFileSync(path.join(__dirname,'../desktop/renderer/api-client.js'),'utf8');
+  vm.runInNewContext(source, { window:root, URLSearchParams, Date, Math, Error, encodeURIComponent });
+  const api = new root.PdvApiClient.ApiClient();
+
+  await api.products();
+  assert.throws(() => api.addSaleItem('sale-1','tomate',1), /peso|pesagem|kg/i);
+  await api.addSaleItem('sale-1','sacola',1);
+  assert.equal(calls.filter((call) => call.path.endsWith('/items')).length, 1);
 });
 
 test('scale registry exposes supported presets and a generic protocol', () => {
