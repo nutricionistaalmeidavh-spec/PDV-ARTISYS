@@ -65,6 +65,26 @@ test('configured scale and drawer use the shared serial module with fragmented-r
   assert.equal(sessionCall[1].responseIdleMs,30);
 });
 
+test('scale can be configured and disabled at runtime by the settings UI', async () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  const calls=[];
+  const runtime=createPdvHardwareRuntime({ BrowserWindow:function(){}, env:{}, modules:fakeModules(calls) });
+
+  const configured=await runtime.configureScale({ preset:'toledo-prix3-prt5', port:'COM7', baud:9600, connection:'serial' });
+  assert.equal(configured.configured,true);
+  assert.equal(configured.preset,'toledo-prix3-prt5');
+  assert.equal(configured.port,'COM7');
+  assert.equal(calls.some(entry=>Array.isArray(entry) && entry[0]==='serial-transport' && entry[1].path==='COM7'),true);
+  assert.deepEqual(await runtime.readWeight(),{weight:1.235,unit:'kg'});
+  const diagnostics=await runtime.diagnostics();
+  assert.equal(diagnostics.configuration.scale.port,'COM7');
+  assert.equal(diagnostics.configuration.scale.preset,'toledo-prix3-prt5');
+
+  const disabled=await runtime.configureScale({ enabled:false });
+  assert.equal(disabled.configured,false);
+  await assert.rejects(()=>runtime.readWeight(),/Balanca nao configurada/);
+});
+
 test('thermal mode selects thermal driver without silent fallback', async () => {
   const { createPdvHardwareRuntime } = require(runtimePath);
   const calls=[];
