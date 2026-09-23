@@ -28,6 +28,17 @@ jobs:
         run: npm run verify:release
       - name: Build Windows x64 installer
         run: npm run dist:win
+      - name: Smoke test packaged Windows app
+        shell: pwsh
+        run: |
+          $exe = (Get-ChildItem -Path dist/win-unpacked -Filter '*.exe' | Where-Object { $_.Name -notmatch 'elevate' } | Select-Object -First 1).FullName
+          if (-not $exe) { throw 'Executável empacotado não encontrado para smoke test.' }
+          $env:PDV_ENABLE_LAN = 'false'
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 12
+          if ($process.HasExited) { throw "Aplicativo empacotado encerrou durante a inicialização. ExitCode=$($process.ExitCode)" }
+          Stop-Process -Id $process.Id -Force
+
       - name: Generate release manifest and SHA-256
         shell: pwsh
         run: |
