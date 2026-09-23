@@ -44,7 +44,10 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'click': {
       await ensureHomeRouteContext(page, step);
-      await locator(page, step).click();
+      const target = locator(page, step);
+      const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
+      if (isModalClose && !(await target.isVisible().catch(() => false))) break;
+      await target.click();
       break;
     }
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
