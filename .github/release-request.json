@@ -1,5 +1,5 @@
 {
   "platform": "windows-x64",
-  "requestedAt": "2026-09-21T14:02:33-03:00",
-  "reason": "publish-1.4.0-github-release-after-release-governance-update"
+  "requestedAt": "2026-09-23T17:30:00-03:00",
+  "reason": "rebuild-1.4.0-after-inventory-e2e-fix"
 }
