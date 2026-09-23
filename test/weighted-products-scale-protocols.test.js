@@ -8,6 +8,7 @@ const vm = require('node:vm');
 
 const { createScaleProtocolRegistry } = require('../js/hardware/scale-protocols');
 const ui = require('../desktop/renderer/ui-model');
+const weightedUnitUi = require('../desktop/renderer/weighted-product-unit-ui');
 
 test('weighted product helper identifies KG and G but not UN', () => {
   assert.equal(ui.isWeightedProduct({ unit:'KG' }), true);
@@ -17,9 +18,24 @@ test('weighted product helper identifies KG and G but not UN', () => {
   assert.equal(ui.isWeightedProduct({}), false);
 });
 
-test('product form exposes UN, KG and G units in the visible UI', () => {
-  const source = fs.readFileSync(path.join(__dirname,'../desktop/renderer/app.js'),'utf8');
-  assert.match(source, /<select name="unit">[\s\S]*?<option value="UN">Unidade<\/option>[\s\S]*?<option value="KG"[^>]*>Quilograma<\/option>[\s\S]*?<option value="G"[^>]*>Grama<\/option>[\s\S]*?<\/select>/);
+test('product form exposes G through the visible weighted-unit UI extension', () => {
+  const options = [{ value:'UN' }, { value:'KG' }, { value:'LT' }, { value:'CX' }];
+  const select = {
+    value:'UN',
+    querySelector(selector) {
+      const match = selector.match(/option\[value="([A-Z]+)"\]/);
+      return match ? options.find(option => option.value === match[1]) || null : null;
+    },
+    appendChild(option) { options.push(option); return option; }
+  };
+
+  assert.equal(weightedUnitUi.ensureGramOption(select), true);
+  assert.deepEqual(options.map(option => option.value), ['UN','KG','LT','CX','G']);
+  assert.equal(weightedUnitUi.ensureGramOption(select, 'G'), true);
+  assert.equal(select.value, 'G');
+
+  const index = fs.readFileSync(path.join(__dirname,'../desktop/renderer/index.html'),'utf8');
+  assert.match(index, /<script src="\.\/weighted-product-unit-ui\.js"><\/script>/);
 });
 
 test('checkout API refuses to add a known KG/G product as one ordinary unit', async () => {
