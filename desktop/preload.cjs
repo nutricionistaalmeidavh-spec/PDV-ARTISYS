@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
     listSerialPorts: () => ipcRenderer.invoke('artisys:hardware:ports'),
     diagnostics: () => ipcRenderer.invoke('artisys:hardware:diagnostics'),
+    configureScale: (input) => ipcRenderer.invoke('artisys:hardware:scale-configure', input),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
     tare: () => ipcRenderer.invoke('artisys:hardware:scale-tare'),
     openDrawer: () => ipcRenderer.invoke('artisys:hardware:drawer-open'),
