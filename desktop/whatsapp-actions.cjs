@@ -22,6 +22,7 @@ function buildPickupReadyWhatsappUrl({phone,customerName}={}) {
 
 async function openPickupReadyWhatsapp(input={},openExternal=null) {
   const url=buildPickupReadyWhatsappUrl(input);
+  if(process.env.ARTISYS_QA==='1' && typeof openExternal!=='function')return {opened:true,url,simulated:true};
   const opener=typeof openExternal==='function'
     ? openExternal
     : async target=>{
