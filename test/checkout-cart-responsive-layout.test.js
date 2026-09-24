@@ -24,6 +24,13 @@ test('checkout cart layout shrinks long names and reflows at compact desktop wid
   assert.match(css,/@media \(max-width:1399px\)[\s\S]*\.checkout-layout \.cart-line \{[^}]*grid-template-areas:[^}]*"product total"[^}]*"product quantity"/s);
 });
 
+test('compact-height sale panel keeps the cart region from shrinking under totals',()=>{
+  const css=read('desktop/renderer/ux-home-checkout.css');
+  assert.match(css,/\.sale-cart-region \{[^}]*flex-shrink:0;/s);
+  assert.match(css,/@media \(max-height:800px\)[\s\S]*?\.sale-panel \{[^}]*overflow-y:auto;/s);
+  assert.match(css,/@media \(max-height:800px\)[\s\S]*?\.sale-cart-region \.cart-list \{[^}]*min-height:100px;[^}]*max-height:220px;/s);
+});
+
 test('dedicated E2E locks 1366x768 long-name price-override regression',()=>{
   const flow=JSON.parse(read('qa/flows/checkout-cart-responsive-layout.json'));
   assert.ok(flow.steps.some(step=>step.action==='setViewportSize'&&step.width===1366&&step.height===768));
