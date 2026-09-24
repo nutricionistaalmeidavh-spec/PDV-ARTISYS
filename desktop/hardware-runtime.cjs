@@ -29,7 +29,7 @@ function sanitizePort(port={}){
   };
 }
 
-function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = null } = {}) {
+function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = null, resolvePrinterPreferences = null } = {}) {
   const shared = loadModules(modules);
   const serial = shared.serial;
   const printing = shared.printing;
@@ -111,8 +111,35 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     printer = printing.createTransportPrinterDriver({ transport });
   }
 
+  function currentPreferences(){
+    if(typeof resolvePrinterPreferences!=='function')return null;
+    const value=resolvePrinterPreferences();
+    return value&&typeof value==='object'?value:null;
+  }
+
+  function resolvePrintOptions(job={}){
+    const preferences=currentPreferences();
+    const width=Number(job.width || preferences?.columns || printerProfile.width || 42);
+    if(![32,42,48].includes(width))throw new Error('Largura de impressao invalida.');
+    const requestedPaper=job.paperMm ?? preferences?.paperMm;
+    const paperMm=requestedPaper==null||requestedPaper===''?null:Number(requestedPaper);
+    if(paperMm!==null&&![58,80].includes(paperMm))throw new Error('Papel de impressao invalido. Use 58 ou 80 mm.');
+    const dynamic={...printerProfile,width};
+    if(preferences){
+      if(Object.hasOwn(preferences,'deviceName'))dynamic.deviceName=String(preferences.deviceName||'').trim()||null;
+      if(Object.hasOwn(preferences,'showSystemDialog'))dynamic.silent=!Boolean(preferences.showSystemDialog);
+      if(Object.hasOwn(preferences,'cut'))dynamic.cut=Boolean(preferences.cut);
+      if(Object.hasOwn(preferences,'openDrawerAfterPrint'))dynamic.openDrawerAfterPrint=Boolean(preferences.openDrawerAfterPrint);
+    }
+    if(job.printerName)dynamic.deviceName=String(job.printerName).trim()||null;
+    if(job.silent!==undefined)dynamic.silent=Boolean(job.silent);
+    const profile=printing.normalizePrinterProfile(dynamic);
+    return {profile,width,paperMm,preferences};
+  }
+
   async function status() {
-    const printerStatus = typeof printer.status === 'function' ? await printer.status(printerProfile) : { available:true };
+    const {profile}=resolvePrintOptions({});
+    const printerStatus = typeof printer.status === 'function' ? await printer.status(profile) : { available:true };
     return {
       barcodeScanner:{ available:true, mode:'keyboard-wedge' },
       scale:scale ? await scale.status() : { available:false, reason:'not-configured' },
@@ -153,27 +180,38 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   async function print(job = {}) {
-    const width = Number(job.width || printerProfile.width || 42);
-    if (![32,42,48].includes(width)) throw new Error('Largura de impressao invalida.');
+    const {profile,width,paperMm}=resolvePrintOptions(job);
     const text = String(job.text || '');
-    if (!text) throw new Error('Conteudo de impressao vazio.');
-    const profile = printing.normalizePrinterProfile({ ...printerProfile, width });
-    return printer.print({ ...job, text, width }, profile);
+    const html = String(job.html || '');
+    const format = String(job.format || '').toUpperCase();
+    if (!text && !(format === 'A4' && html)) throw new Error('Conteudo de impressao vazio.');
+    return printer.print({
+      ...job,
+      text,
+      ...(html?{html}:{}),
+      ...(format?{format}:{}),
+      width,
+      ...(paperMm?{paperMm}:{})
+    }, profile);
   }
 
   async function diagnostics(){
+    const {profile,paperMm}=resolvePrintOptions({});
     return{
       status:await status(),
       serialPorts:await listSerialPorts(),
       configuration:{
-        printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
+        printer:{mode:printerMode,type:basePrinterProfile.printerType,width:profile.width,paperMm,deviceName:profile.deviceName||null,silent:Boolean(profile.silent),cut:Boolean(profile.cut),openDrawerAfterPrint:Boolean(profile.openDrawerAfterPrint),interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
         scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs},
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
     };
   }
-  async function testPrinter(text='TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'){return print({text:String(text||'TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'),width:receiptWidth});}
+  async function testPrinter(text='TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'){
+    const {width,paperMm}=resolvePrintOptions({});
+    return print({text:String(text||'TESTE DE IMPRESSAO\nDOCUMENTO NAO FISCAL\n'),width,...(paperMm?{paperMm}:{})});
+  }
   async function testDrawer(){return openDrawer();}
   async function testScale(){return readWeight();}
 
