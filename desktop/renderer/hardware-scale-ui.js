@@ -94,7 +94,8 @@
     loadConfiguration().catch(error=>setStatus(error.message,true));
   }
 
-  const observer=new MutationObserver(enhance);
-  observer.observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('click',event=>{
+    if(event.target?.closest?.('#e54-hardware-card'))queueMicrotask(enhance);
+  });
   enhance();
 })();
