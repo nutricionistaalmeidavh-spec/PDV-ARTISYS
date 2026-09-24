@@ -9,11 +9,35 @@
   const STABLE_SIDEBAR_ROUTES = new Set(['inventory', 'finance', 'reports']);
   let scheduled = false;
   let restoring = false;
+  let detachedStablePage = null;
+  let detachedStableRoute = '';
 
   function activeOperationalRoute() {
     const active = document.querySelector('#sidebar-nav [data-route].active');
     const route = active?.dataset.route || '';
     return STABLE_SIDEBAR_ROUTES.has(route) ? route : '';
+  }
+
+  function operationalPageFromNode(node) {
+    if (!(node instanceof Element)) return null;
+    if (node.matches('.ops-page')) return node;
+    return node.querySelector('.ops-page');
+  }
+
+  function captureDetachedPage(records) {
+    if (content.querySelector('.ops-page')) return;
+    const route = activeOperationalRoute();
+    if (!route || route === 'reports') return;
+
+    for (const record of records) {
+      for (const removed of record.removedNodes) {
+        const candidate = operationalPageFromNode(removed);
+        if (!candidate) continue;
+        detachedStablePage = candidate;
+        detachedStableRoute = route;
+        return;
+      }
+    }
   }
 
   async function renderCanonicalRoute(route) {
@@ -29,6 +53,21 @@
     const route = activeOperationalRoute();
     if (!route) return;
 
+    if (route !== 'reports' && detachedStablePage && detachedStableRoute === route) {
+      restoring = true;
+      try {
+        const page = detachedStablePage;
+        detachedStablePage = null;
+        detachedStableRoute = '';
+        content.replaceChildren(page);
+      } finally {
+        restoring = false;
+      }
+      return;
+    }
+
+    detachedStablePage = null;
+    detachedStableRoute = '';
     restoring = true;
     try {
       await renderCanonicalRoute(route);
@@ -46,5 +85,8 @@
     });
   }
 
-  new MutationObserver(schedule).observe(content, { childList: true, subtree: true });
+  new MutationObserver((records) => {
+    captureDetachedPage(records);
+    schedule();
+  }).observe(content, { childList: true, subtree: true });
 })();
