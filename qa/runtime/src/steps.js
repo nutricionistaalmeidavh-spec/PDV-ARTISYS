@@ -209,10 +209,20 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'expectText': {
-      const expected = step.expected ?? '';
-      const texts = await locator(page, step).allTextContents();
-      if (!texts.some(actual => actual.includes(expected))) {
-        throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+      const expected = String(step.expected ?? '');
+      const target = locator(page, step);
+      const timeoutMs = step.timeoutMs == null ? 5000 : Number(step.timeoutMs);
+      if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw new TypeError(`${label}: timeoutMs must be a non-negative number`);
+      const deadline = Date.now() + timeoutMs;
+      let texts = [];
+      while (true) {
+        texts = await target.allTextContents();
+        if (texts.some(actual => actual.includes(expected))) break;
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+          throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+        }
+        await page.waitForTimeout(Math.min(50, remaining));
       }
       break;
     }
