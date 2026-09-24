@@ -6,6 +6,7 @@ const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
+const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
@@ -39,6 +40,10 @@ const installToken = randomBytes(32).toString('hex');
 
 function rendererPath(...parts) {
   return path.join(__dirname, 'renderer', ...parts);
+}
+
+function currentPrintingPreferences() {
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:true });
 }
 
 async function startEmbeddedServer() {
@@ -102,7 +107,11 @@ function createMainWindow() {
 }
 
 function buildHardwareController() {
-  const hardwareRuntime = createPdvHardwareRuntime({ BrowserWindow, env:process.env });
+  const hardwareRuntime = createPdvHardwareRuntime({
+    BrowserWindow,
+    env:process.env,
+    resolvePrinterPreferences:() => currentPrintingPreferences()
+  });
   return createHardwareController(hardwareRuntime);
 }
 
@@ -136,9 +145,16 @@ async function writeReceiptFile(filePath, bytes) {
 }
 
 function startPrintWorker() {
-  if (printWorker || process.env.PDV_AUTO_PRINT === 'false' || !runtime) return;
+  if (printWorker || !runtime) return;
   const tick = async () => {
     if (printWorkerBusy || !runtime || !hardwareController) return;
+    let preferences;
+    try { preferences = currentPrintingPreferences(); }
+    catch (error) {
+      runtime.logger?.log({ level:'error', subsystem:'printing', message:error?.message || 'Falha ao resolver configuracao de impressao.' });
+      return;
+    }
+    if (!preferences.autoPrint) return;
     const job = runtime.printing.listJobs({ status:'PENDING' })[0];
     if (!job) return;
     printWorkerBusy = true;
