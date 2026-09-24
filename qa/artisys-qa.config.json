@@ -18,9 +18,7 @@
   "electron": {
     "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
-    "args": [
-      "--no-sandbox"
-    ]
+    "args": ["--no-sandbox"]
   },
   "environments": {
     "ci": {
@@ -51,6 +49,7 @@
     "customers-deep-e2e": "flows/customers-deep-e2e.json",
     "ux-products-clients-flags-e2e": "flows/ux-products-clients-flags-e2e.json",
     "ux-products-clients-responsive-evidence": "flows/ux-products-clients-responsive-evidence.json",
+    "desktop-regressions-e2e": "flows/desktop-regressions-e2e.json",
     "enterprise-depth-p0": "flows/enterprise-depth-p0.json",
     "backend-parity-p0": "flows/backend-parity-p0.json",
     "backend-parity-p1": "flows/backend-parity-p1.json",
@@ -70,126 +69,22 @@
       "includeNetwork": false
     },
     "full": {
-      "flows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "weighted-scale-e2e",
-        "post-sale-print-pdf",
-        "printing-settings-e2e",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "whatsapp-pickup-ready-e2e",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "weighted-scale-e2e",
-        "post-sale-print-pdf",
-        "printing-settings-e2e",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "whatsapp-pickup-ready-e2e",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
+      "flows": ["smoke","home","sales-enhancements","checkout-ux-preservation","weighted-scale-e2e","post-sale-print-pdf","printing-settings-e2e","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","desktop-regressions-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","whatsapp-pickup-ready-e2e","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
+      "criticalFlows": ["smoke","home","sales-enhancements","checkout-ux-preservation","weighted-scale-e2e","post-sale-print-pdf","printing-settings-e2e","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","desktop-regressions-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","whatsapp-pickup-ready-e2e","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     },
     "release": {
-      "flows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "weighted-scale-e2e",
-        "post-sale-print-pdf",
-        "printing-settings-e2e",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "whatsapp-pickup-ready-e2e",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
-      "criticalFlows": [
-        "smoke",
-        "home",
-        "sales-enhancements",
-        "checkout-ux-preservation",
-        "weighted-scale-e2e",
-        "post-sale-print-pdf",
-        "printing-settings-e2e",
-        "reports-v2-complete",
-        "core-business-e2e",
-        "ux-products-clients-cross-flow",
-        "products-deep-e2e",
-        "customers-deep-e2e",
-        "ux-products-clients-flags-e2e",
-        "ux-products-clients-responsive-evidence",
-        "enterprise-depth-p0",
-        "backend-parity-p0",
-        "backend-parity-p1",
-        "whatsapp-pickup-ready-e2e",
-        "ui-parity-p0-p2",
-        "fiscal-block6",
-        "fiscal-ui-parity-baseline",
-        "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
-      ],
+      "flows": ["smoke","home","sales-enhancements","checkout-ux-preservation","weighted-scale-e2e","post-sale-print-pdf","printing-settings-e2e","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","desktop-regressions-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","whatsapp-pickup-ready-e2e","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
+      "criticalFlows": ["smoke","home","sales-enhancements","checkout-ux-preservation","weighted-scale-e2e","post-sale-print-pdf","printing-settings-e2e","reports-v2-complete","core-business-e2e","ux-products-clients-cross-flow","products-deep-e2e","customers-deep-e2e","ux-products-clients-flags-e2e","ux-products-clients-responsive-evidence","desktop-regressions-e2e","enterprise-depth-p0","backend-parity-p0","backend-parity-p1","whatsapp-pickup-ready-e2e","ui-parity-p0-p2","fiscal-block6","fiscal-ui-parity-baseline","fiscal-config-p2-p5","fiscal-nfse-p8"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
     }
   },
   "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
-    }
+    "quick-30s": {"file":"demo/quick-30s.json","preset":"reels-9x16","durationTargetSec":30},
+    "overview-60s": {"file":"demo/overview-60s.json","preset":"landscape-16x9","durationTargetSec":60}
   }
 }
