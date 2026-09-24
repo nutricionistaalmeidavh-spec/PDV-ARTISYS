@@ -168,6 +168,16 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     return db.prepare(sql).all().map(rowToProduct);
   }
 
+  function removeProduct(id, actor = null) {
+    const product = getProduct(id);
+    if (!product) throw new Error('Produto nao encontrado.');
+    if (!product.active) return product;
+    const timestamp = now();
+    db.prepare('UPDATE products SET active=0,updated_at=? WHERE id=?').run(timestamp, product.id);
+    writeAudit(db, { action: 'product.remove', entity: 'product', entityId: product.id, actor, context: { name: product.name, mode: 'soft-delete' } }, now);
+    return getProduct(product.id);
+  }
+
   function customerSelect(where = '') {
     return `SELECT c.*,
       ls.id AS last_sale_id,ls.sale_number AS last_sale_number,ls.total_cents AS last_sale_total_cents,
@@ -306,7 +316,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
 
   return {
     upsertCategory, listCategories,
-    upsertProduct, getProduct, listProducts,
+    upsertProduct, getProduct, listProducts, removeProduct,
     upsertCustomer, getCustomer, listCustomers,
     upsertSupplier, listSuppliers,
     createUser, upsertUser, getUser, listUsers, countUsers, verifyUserPassword

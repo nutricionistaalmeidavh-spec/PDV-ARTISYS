@@ -38,23 +38,16 @@ function configurationDetails(configuration) {
   return details;
 }
 
-function receiptCurrency(cents){
-  const value=Math.round(Number(cents)||0)/100;
-  return `R$ ${value.toFixed(2).replace('.',',')}`;
-}
-
-function weightedReceiptDetails(item={}){
-  const weight=item.configuration?.weight;
-  if(!weight||typeof weight!=='object')return[];
-  const grams=Number(weight.grams);
-  if(!Number.isFinite(grams)||grams<=0)return[];
-  const unit=String(weight.unit||'KG').trim().toUpperCase();
-  if(!['KG','G'].includes(unit))return[];
-  const amount=unit==='G'
-    ? `${grams.toLocaleString('pt-BR',{maximumFractionDigits:3})} g`
-    : `${(grams/1000).toFixed(3).replace('.',',')} kg`;
-  const basis=unit==='G'?'/g':'/kg';
-  return[`Peso: ${amount} x ${receiptCurrency(item.unitPriceCents)}${basis}`];
+function paymentReceiptLabel(method) {
+  const normalized=String(method || '').trim().toUpperCase();
+  return ({
+    CASH:'Dinheiro recebido',
+    PIX:'PIX',
+    DEBIT_CARD:'Cartao debito',
+    CREDIT_CARD:'Cartao credito',
+    STORE_CREDIT:'A prazo',
+    OTHER:'Outro'
+  })[normalized] || String(method || 'Pagamento');
 }
 
 function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhone = '', branding = null, documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
@@ -66,13 +59,16 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   const metadata = [];
   if(receiptBranding.address)metadata.push(['',receiptBranding.address]);
   if(receiptBranding.phone)metadata.push(['',`Telefone: ${receiptBranding.phone}`]);
+  const operatorName=String(sale.operatorName || ((sale.sellerId && sale.operatorId && sale.sellerId===sale.operatorId) ? sale.sellerName : '') || '').trim();
+  const sellerName=String(sale.sellerName || '').trim();
+  const customerName=String(sale.customerName || '').trim();
   metadata.push(
     ['Venda', sale.saleNumber],
-    ['Data', sale.completedAt || sale.updatedAt || ''],
-    ['Operador', sale.operatorName || sale.operatorId || '']
+    ['Data', sale.completedAt || sale.updatedAt || '']
   );
-  if (sale.sellerName || sale.sellerId) metadata.push(['Vendedor', sale.sellerName || sale.sellerId]);
-  if (sale.customerName || sale.customerId) metadata.push(['Cliente', sale.customerName || sale.customerId]);
+  if(operatorName)metadata.push(['Operador',operatorName]);
+  if(sellerName) metadata.push(['Vendedor', sellerName]);
+  if(customerName) metadata.push(['Cliente', customerName]);
 
   const totals = [['Subtotal', Number(sale.subtotalCents || 0)]];
   const hasBreakdown=sale.manualDiscountCents!=null||sale.promotionDiscountCents!=null;
@@ -97,10 +93,10 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
       quantity:Number(item.quantity || 0),
       unitPriceCents:Number(item.unitPriceCents || 0),
       totalCents:Number(item.totalCents || 0),
-      details:[...configurationDetails(item.configuration),...weightedReceiptDetails(item)]
+      details:configurationDetails(item.configuration)
     })),
     totals,
-    payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
+    payments:(sale.payments || []).map(payment => [paymentReceiptLabel(payment.method), Number(payment.amountCents || 0)]),
     changeCents:Number(sale.changeCents || 0),
     blocks:observationBlocks,
     footer:[...promotionNames.map(name=>`Promocao: ${name}`),'Obrigado pela preferencia']
@@ -108,4 +104,4 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   return renderPlainText(document);
 }
 
-module.exports = { renderSaleReceipt, configurationDetails, weightedReceiptDetails, money, fit, center, columns };
+module.exports = { renderSaleReceipt, configurationDetails, paymentReceiptLabel, money, fit, center, columns };

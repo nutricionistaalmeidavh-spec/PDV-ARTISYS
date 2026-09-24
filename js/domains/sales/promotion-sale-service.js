@@ -31,11 +31,22 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     return db.prepare('SELECT observation,print_observation FROM sales WHERE id=?').get(String(saleId))||{};
   }
 
+  function readPartyNames(sale) {
+    const operatorId=String(sale?.operatorId || '').trim();
+    const customerId=String(sale?.customerId || '').trim();
+    const operator=operatorId ? db.prepare('SELECT name FROM users WHERE id=?').get(operatorId) : null;
+    const customer=customerId ? db.prepare('SELECT name FROM customers WHERE id=?').get(customerId) : null;
+    const operatorName=String(sale?.operatorName || operator?.name || '').trim() || null;
+    const customerName=String(sale?.customerName || customer?.name || '').trim() || null;
+    return {operatorName,customerName};
+  }
+
   function enrich(sale) {
     if(!sale) return sale;
     const state=readState(sale);
     const observation=readObservation(sale.id);
-    return {...sale,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount,observation:observation.observation||'',printObservation:Boolean(observation.print_observation)};
+    const partyNames=readPartyNames(sale);
+    return {...sale,...partyNames,manualDiscountCents:state.manualDiscountCents,promotionDiscountCents:state.promotionDiscountCents,totalDiscountCents:Number(sale.discountCents||0),promotions:state.promotions,blocksManualDiscount:state.blocksManualDiscount,observation:observation.observation||'',printObservation:Boolean(observation.print_observation)};
   }
 
   function enrichCostDetails(sale) {

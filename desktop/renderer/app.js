@@ -121,6 +121,7 @@
 
   function modalBackdropClose(event) { if (event.target === modalRoot) closeModal(); }
   function closeModal() { modalRoot.classList.add('hidden'); modalRoot.innerHTML = ''; }
+  window.PdvModal = Object.freeze({ open: openModal, close: closeModal });
   function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
   function isRouteActive(route) { return document.body.dataset.activeRoute === route; }
 
@@ -202,11 +203,15 @@
 
   function selectedCustomer() { return state.customers.find((customer) => customer.id === state.sale?.customerId) || null; }
 
+  function checkoutProductGridHtml() {
+    const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
+    return products.map((product) => productCard(product)).join('') || '<div class="empty-state">Nenhum produto encontrado.</div>';
+  }
+
   function renderCheckout() {
     if (!isRouteActive('checkout')) return;
-    const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const customer = selectedCustomer(); const sale = state.sale;
-    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${products.map((product) => productCard(product)).join('') || '<div class="empty-state">Nenhum produto encontrado.</div>'}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente por nome, CPF ou código..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button><button class="pay-button tef" data-pay="tef">TEF</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
+    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${checkoutProductGridHtml()}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente por nome, CPF ou código..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button><button class="pay-button tef" data-pay="tef">TEF</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
     content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     hydrateProductPhotos();
     bindCheckoutEvents();
@@ -221,6 +226,18 @@
     content.querySelectorAll('[data-product-photo]').forEach(async image => { try { const source=await api.productPhotoDataUrl(image.dataset.productPhoto);if(source){image.src=source;image.addEventListener('load',()=>image.parentElement?.classList.add('has-photo'),{once:true});} } catch {} });
   }
 
+  function bindCheckoutProductCards(root = content) {
+    root.querySelectorAll('[data-add-product]').forEach((button) => button.addEventListener('click', () => addProduct(button.dataset.addProduct)));
+  }
+
+  function renderCheckoutProductGrid() {
+    const grid = content.querySelector('.product-grid');
+    if (!grid) return;
+    grid.innerHTML = checkoutProductGridHtml();
+    hydrateProductPhotos();
+    bindCheckoutProductCards(grid);
+  }
+
   function cartLine(item) {
     const changed = item.catalogUnitPriceCents != null && item.catalogUnitPriceCents !== item.unitPriceCents;
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}</small>`;
@@ -230,10 +247,10 @@
 
   function bindCheckoutEvents() {
     const search = document.getElementById('product-search');
-    search?.addEventListener('input', () => { state.productQuery = search.value; renderCheckout(); document.getElementById('product-search')?.focus(); });
+    search?.addEventListener('input', (event) => { state.productQuery = event.target.value; renderCheckoutProductGrid(); });
     document.getElementById('scan-focus')?.addEventListener('click', () => document.getElementById('product-search')?.focus());
     content.querySelectorAll('[data-category]').forEach((button) => button.addEventListener('click', () => { state.categoryId = button.dataset.category; renderCheckout(); }));
-    content.querySelectorAll('[data-add-product]').forEach((button) => button.addEventListener('click', () => addProduct(button.dataset.addProduct)));
+    bindCheckoutProductCards();
     content.querySelectorAll('[data-select-product]').forEach((line) => line.addEventListener('click', (event) => { if (event.target.closest('button')) return; state.selectedProductId = line.dataset.selectProduct; renderCheckout(); }));
     content.querySelectorAll('[data-qty-minus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyMinus, -1)));
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
@@ -390,7 +407,7 @@
     if (!isRouteActive('products')) return;
     const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const sync=state.photoSyncStatus||{};const syncLabel=sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
-    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Produtos</h1><p>Catálogo, preços, fotos, custo, margem e estoque mínimo.</p></div><div style="display:flex;gap:8px"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo produto</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar por nome, SKU ou código de barras" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.sku || 'Sem SKU')} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço / custo</small><strong>${ui.formatCents(product.salePriceCents)} / ${ui.formatCents(product.costCents)}</strong></div><div><small>Estoque</small><strong>${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}</strong></div><div style="display:flex;gap:6px"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Editar</button></div></div>`).join('') || '<div class="empty-state">Nenhum produto cadastrado.</div>'}</div></section>`;
+    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Produtos</h1><p>Catálogo, preços, fotos, custo, margem e estoque mínimo.</p></div><div style="display:flex;gap:8px"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo produto</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar por nome, SKU ou código de barras" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.sku || 'Sem SKU')} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço / custo</small><strong>${ui.formatCents(product.salePriceCents)} / ${ui.formatCents(product.costCents)}</strong></div><div><small>Estoque</small><strong>${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}</strong></div><div style="display:flex;gap:6px"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Editar</button><button class="danger-button" data-remove-product="${product.id}">Excluir</button></div></div>`).join('') || '<div class="empty-state">Nenhum produto cadastrado.</div>'}</div></section>`;
     document.getElementById('new-product')?.addEventListener('click', () => openProductForm()); document.getElementById('new-category')?.addEventListener('click', openCategoryForm);
     document.getElementById('product-page-search')?.addEventListener('input', (event) => { state.productQuery = event.target.value; renderProducts(); document.getElementById('product-page-search')?.focus(); });
     document.getElementById('product-category-filter')?.addEventListener('change', (event) => { state.categoryId = event.target.value; renderProducts(); });
@@ -398,14 +415,43 @@
     content.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
     content.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
     content.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openProductForm(state.products.find((product) => product.id === button.dataset.editProduct))));
+    content.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeCatalogProduct(button.dataset.removeProduct)));
   }
 
-  function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
+  async function removeCatalogProduct(productId){
+  const product=state.products.find(item=>item.id===productId);
+  if(!product)return;
+  openModal('Excluir produto', `<p>Excluir <strong>${escapeHtml(product.name)}</strong> do catálogo?</p><p>O produto será inativado para preservar vendas e movimentações já registradas.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product">Excluir produto</button></div>`, { onMount(root) {
+    root.querySelector('#confirm-remove-product')?.addEventListener('click',async()=>{
+      try{
+        await api.removeProduct(productId);
+        state.products=state.products.filter(item=>item.id!==productId);
+        closeModal();
+        renderProducts();
+        showToast('Produto excluído do catálogo. Histórico preservado.','success');
+      }catch(error){showToast(error.message,'error');}
+    });
+  } });
+}
+
+function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);renderProducts();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
   async function uploadProductPhoto(productId){try{const saved=await api.uploadProductPhoto(productId);if(!saved)return;state.products=await api.products();renderProducts();showToast('Foto e miniatura salvas no computador principal.','success');}catch(error){showToast(error.message,'error');}}
-  async function removeProductPhoto(productId){if(!confirm('Remover a foto deste produto? O arquivo ficará protegido por 30 dias.'))return;try{await api.removeProductPhoto(productId);state.products=await api.products();renderProducts();showToast('Foto removida com período de segurança de 30 dias.','success');}catch(error){showToast(error.message,'error');}}
+  async function removeProductPhoto(productId){
+  openModal('Remover foto do produto', `<p>Remover a foto deste produto?</p><p>O arquivo ficará protegido por 30 dias.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product-photo">Remover foto</button></div>`, { onMount(root) {
+    root.querySelector('#confirm-remove-product-photo')?.addEventListener('click',async()=>{
+      try{
+        await api.removeProductPhoto(productId);
+        state.products=await api.products();
+        closeModal();
+        renderProducts();
+        showToast('Foto removida com período de segurança de 30 dias.','success');
+      }catch(error){showToast(error.message,'error');}
+    });
+  } });
+}
 
-  function openCategoryForm() {
+function openCategoryForm() {
     openModal('Nova categoria', `<form id="category-form"><div class="field"><label>Nome *</label><input name="name" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar categoria</button></div></form>`, { onMount(root) { root.querySelector('#category-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const saved = await api.saveCategory({ name: formValue(event.currentTarget,'name') }); state.categories.push(saved); state.categories.sort((a,b) => a.name.localeCompare(b.name,'pt-BR')); closeModal(); renderProducts(); showToast('Categoria criada.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
   }
 

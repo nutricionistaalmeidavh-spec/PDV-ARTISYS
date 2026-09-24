@@ -1,0 +1,30 @@
+{
+  "name":"whatsapp-pickup-ready-e2e",
+  "steps":[
+    {"uses":"home.json"},
+    {"action":"click","selector":"[data-route='settings']","name":"wa-open-settings"},
+    {"action":"waitFor","selector":"#ops-load-establishment-modules","name":"wa-modules-entry","timeoutMs":10000},
+    {"action":"click","selector":"#ops-load-establishment-modules","name":"wa-load-modules"},
+    {"action":"waitFor","selector":"[data-module-toggle='DELIVERY']","name":"wa-delivery-toggle","timeoutMs":10000},
+    {"action":"check","selector":"[data-module-toggle='DELIVERY']","name":"wa-enable-delivery"},
+    {"action":"waitForTimeout","timeoutMs":300},
+    {"action":"waitFor","selector":"[data-module-open='DELIVERY']","name":"wa-delivery-open-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-module-open='DELIVERY']","name":"wa-open-delivery"},
+    {"action":"waitFor","selector":"#delivery-form","name":"wa-delivery-form","timeoutMs":10000},
+    {"action":"selectOption","selector":"#delivery-form select[name='fulfillmentType']","value":"PICKUP","name":"wa-select-pickup"},
+    {"action":"fill","selector":"#delivery-form [name='customerName']","value":"QA WhatsApp Pickup","name":"wa-fill-customer"},
+    {"action":"fill","selector":"#delivery-form [name='phone']","value":"+55 (16) 99999-9999","name":"wa-fill-formatted-phone"},
+    {"action":"expectValue","selector":"#delivery-form [name='phone']","expected":"16999999999","name":"wa-phone-normalized"},
+    {"action":"click","selector":"#delivery-form button[type='submit']","name":"wa-create-pickup"},
+    {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':PREPARING']","name":"wa-order-new","timeoutMs":10000},
+    {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':PREPARING']","name":"wa-to-preparing"},
+    {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':READY']","name":"wa-order-preparing","timeoutMs":10000},
+    {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':READY']","name":"wa-to-ready"},
+    {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button","timeoutMs":10000},
+    {"action":"expectVisible","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button-visible"},
+    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","expected":"Avisar no WhatsApp","name":"wa-ready-button-label"},
+    {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-open-whatsapp"},
+    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","expected":"WhatsApp aberto","name":"wa-open-whatsapp-result"},
+    {"action":"screenshot","name":"whatsapp-pickup-ready","fullPage":true}
+  ]
+}

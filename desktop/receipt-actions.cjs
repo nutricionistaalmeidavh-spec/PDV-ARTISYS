@@ -1,6 +1,7 @@
 'use strict';
 
 const path=require('node:path');
+const {registerWhatsappIpc}=require('./whatsapp-actions.cjs');
 
 function isoDate(value) {
   const date=value instanceof Date?value:new Date(value || Date.now());
@@ -146,6 +147,7 @@ function registerReceiptIpc({ipcMain,actions,isTrustedSender=null}={}) {
   });
   handle('artisys:receipts:print-sale',input=>actions.printSale(input));
   handle('artisys:receipts:save-pdf',input=>actions.saveSalePdf(input));
+  registerWhatsappIpc({ipcMain,isTrustedSender});
 }
 
 module.exports={createReceiptActions,registerReceiptIpc,safePdfFileName,receiptHtml,pageHeightMicrons};

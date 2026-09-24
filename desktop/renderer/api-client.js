@@ -7,7 +7,6 @@
     constructor() {
       this.sessionToken = root.sessionStorage?.getItem('artisys.sessionToken') || '';
       this.config = null;
-      this.productUnits = new Map();
     }
 
     async initialize() {
@@ -50,14 +49,9 @@
 
     categories(includeInactive = false) { return this.request(`/api/v1/categories${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
-    async products(includeInactive = false) {
-      const products = await this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`);
-      for (const product of Array.isArray(products) ? products : []) {
-        this.productUnits.set(String(product.id), String(product.unit || 'UN').trim().toUpperCase());
-      }
-      return products;
-    }
+    products(includeInactive = false) { return this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`); }
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
+    removeProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
     syncProductPhotos(force = false) { return root.artisysDesktop.photos.sync({ force, sessionToken:this.sessionToken }); }
     productPhotoSyncStatus() { return root.artisysDesktop.photos.status(); }
     productPhotoDataUrl(productId, variant = 'thumbnail') { return root.artisysDesktop.photos.dataUrl({ productId, variant, sessionToken:this.sessionToken }); }
@@ -95,11 +89,7 @@
     openSale(body) { return this.request('/api/v1/sales', { method: 'POST', body }); }
     setSaleCustomer(id, customerId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/customer`, { method: 'POST', body: { customerId } }); }
     setSaleSeller(id, sellerId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/seller`, { method: 'POST', body: { sellerId } }); }
-    addSaleItem(id, productId, quantity = 1) {
-      const unit = this.productUnits.get(String(productId));
-      if (unit === 'KG' || unit === 'G') throw new Error('Produto vendido por peso: use o fluxo de pesagem antes de adicionar ao carrinho.');
-      return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items`, { method: 'POST', body: { productId, quantity } });
-    }
+    addSaleItem(id, productId, quantity = 1) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items`, { method: 'POST', body: { productId, quantity } }); }
     updateSaleItem(id, productId, quantity) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(productId)}`, { method: 'PUT', body: { quantity } }); }
     overrideSaleItemPrice(id, itemId, body) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(itemId)}/price`, { method: 'PUT', body }); }
     removeSaleItem(id, productId) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}/items/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
