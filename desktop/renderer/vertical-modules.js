@@ -103,6 +103,28 @@
   function backButton(){return '<button class="secondary-button" type="button" id="vertical-back">← Configurações</button>';}
   function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{root.PdvOperationalUi?.showRoute?.('settings');});}
   function input(name,label,type='text',extra=''){return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${extra}></label>`;}
+  function normalizeNationalPhoneInput(value){
+    let digits=String(value??'').replace(/\D/g,'');
+    if(digits.length>11&&digits.startsWith('55'))digits=digits.slice(2);
+    return digits;
+  }
+  function bindNationalPhoneInput(input){
+    if(!input)return;
+    const normalize=()=>{
+      const normalized=normalizeNationalPhoneInput(input.value);
+      if(input.value!==normalized)input.value=normalized;
+      input.setCustomValidity(normalized&&!/^\d{10,11}$/.test(normalized)?'Telefone deve ter 10 ou 11 dígitos, com DDD e sem o 55.':'');
+    };
+    input.addEventListener('input',normalize);
+    input.addEventListener('paste',event=>{
+      const text=event.clipboardData?.getData('text');
+      if(text==null)return;
+      event.preventDefault();
+      input.value=normalizeNationalPhoneInput(text);
+      normalize();
+    });
+    normalize();
+  }
 
   async function renderWorkspace(id){
     if(!modules.find(module=>module.id===id&&module.enabled)){root.PdvOperationalUi?.showRoute?.('settings');return;}
@@ -121,8 +143,10 @@
 
   async function renderDelivery(){
     const content=document.getElementById('route-content');let orders=[];try{orders=await withTimeout(api.delivery());}catch(error){notify(error.message,true);}
-    content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Delivery</h1><p>Entrega e retirada com cobrança registrada manualmente.</p></div>${backButton()}</header><div class="data-card"><form id="delivery-form" class="vertical-form">${input('customerName','Cliente')}${input('phone','Telefone')}<label class="field"><span>Atendimento</span><select name="fulfillmentType"><option value="DELIVERY">Entrega</option><option value="PICKUP">Retirada</option></select></label>${input('region','Bairro / região')}${input('fee','Taxa em R$','text','inputmode="decimal"')}<label class="field"><span>Pagamento manual</span><select name="paymentMethod"><option>PIX</option><option value="CASH">Dinheiro</option><option value="DEBIT_CARD">Débito</option><option value="CREDIT_CARD">Crédito</option><option value="OTHER">Outro</option></select></label><button class="primary-button" type="submit">Criar pedido</button></form></div><div class="data-card"><h2>Pedidos</h2>${orders.map(order=>`<div class="vertical-row"><strong>${escapeHtml(order.customerName)}</strong><span>${escapeHtml(order.fulfillmentType)} · ${escapeHtml(order.status)}</span><span>${escapeHtml(order.paymentMethod||'Sem pagamento definido')}</span></div>`).join('')||'<p class="vertical-empty">Nenhum pedido.</p>'}</div></section>`;bindBack();
-    document.getElementById('delivery-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);const fee=Math.round(Number(String(data.get('fee')||'0').replace(',','.'))*100)||0;try{await withTimeout(api.createDelivery({customerName:data.get('customerName'),phone:data.get('phone'),fulfillmentType:data.get('fulfillmentType'),region:data.get('region'),feeCents:fee,paymentMethod:data.get('paymentMethod'),address:data.get('fulfillmentType')==='DELIVERY'?{description:'Informar endereço no atendimento'}:null}));notify('Pedido criado.');renderDelivery();}catch(error){notify(error.message,true);}});
+    content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Delivery</h1><p>Entrega e retirada com cobrança registrada manualmente.</p></div>${backButton()}</header><div class="data-card"><form id="delivery-form" class="vertical-form">${input('customerName','Cliente')}${input('phone','Telefone','tel','inputmode="numeric" maxlength="11" pattern="\\d{10,11}" autocomplete="tel-national"')}<label class="field"><span>Atendimento</span><select name="fulfillmentType"><option value="DELIVERY">Entrega</option><option value="PICKUP">Retirada</option></select></label>${input('region','Bairro / região')}${input('fee','Taxa em R$','text','inputmode="decimal"')}<label class="field"><span>Pagamento manual</span><select name="paymentMethod"><option>PIX</option><option value="CASH">Dinheiro</option><option value="DEBIT_CARD">Débito</option><option value="CREDIT_CARD">Crédito</option><option value="OTHER">Outro</option></select></label><button class="primary-button" type="submit">Criar pedido</button></form></div><div class="data-card"><h2>Pedidos</h2>${orders.map(order=>`<div class="vertical-row"><strong>${escapeHtml(order.customerName)}</strong><span>${escapeHtml(order.fulfillmentType)} · ${escapeHtml(order.status)}</span><span>${escapeHtml(order.paymentMethod||'Sem pagamento definido')}</span></div>`).join('')||'<p class="vertical-empty">Nenhum pedido.</p>'}</div></section>`;bindBack();
+    const phoneInput=document.querySelector('#delivery-form [name="phone"]');
+    bindNationalPhoneInput(phoneInput);
+    document.getElementById('delivery-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);const fee=Math.round(Number(String(data.get('fee')||'0').replace(',','.'))*100)||0;const phone=normalizeNationalPhoneInput(data.get('phone'));if(phone&&!/^\d{10,11}$/.test(phone)){notify('Telefone deve ter 10 ou 11 dígitos, com DDD e sem o 55.',true);return;}try{await withTimeout(api.createDelivery({customerName:data.get('customerName'),phone,fulfillmentType:data.get('fulfillmentType'),region:data.get('region'),feeCents:fee,paymentMethod:data.get('paymentMethod'),address:data.get('fulfillmentType')==='DELIVERY'?{description:'Informar endereço no atendimento'}:null}));notify('Pedido criado.');renderDelivery();}catch(error){notify(error.message,true);}});
   }
 
   async function renderFastFood(){
