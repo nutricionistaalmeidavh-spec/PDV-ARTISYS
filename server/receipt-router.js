@@ -13,6 +13,24 @@ function createReceiptRouter({runtime,sessionStore,env=process.env}={}) {
   function session(req){const token=bearer(req);const current=sessionStore.get(token);if(!current||current.expiresAt<=Date.now()){if(token)sessionStore.delete(token);throw Object.assign(new Error('Sessao invalida ou expirada.'),{statusCode:401});}return current;}
   function requireRole(current,roles){if(!roles.includes(String(current?.role||'')))throw Object.assign(new Error('Permissao insuficiente.'),{statusCode:403});}
   function printingPreferences(){return resolvePrintingPreferences({settings:runtime.settings,env,isExistingInstall:true});}
+  function originalReceipt(saleId){
+    const job=runtime.printing?.getOriginalSaleReceipt?.(saleId);
+    if(!job)return null;
+    const payload=job.payload&&typeof job.payload==='object'&&!Array.isArray(job.payload)?job.payload:{};
+    const text=String(payload.text||'');
+    const width=Number(job.width);
+    const paperMm=Number(payload.paperMm);
+    if(!text||![32,42,48].includes(width)||![58,80].includes(paperMm))return null;
+    return Object.freeze({
+      saleId:String(saleId),
+      saleNumber:String(payload.saleNumber||saleId),
+      width,
+      paperMm,
+      text,
+      logoDataUrl:payload.logoDataUrl||null
+    });
+  }
+  function saleReceipt(saleId){return originalReceipt(saleId)||receipts.build(saleId);}
   function savePrintingPreferences(input,current){
     requireRole(current,['admin','manager']);
     const normalized=validatePrintingPreferences({...printingPreferences(),...(input||{})});
@@ -44,7 +62,8 @@ function createReceiptRouter({runtime,sessionStore,env=process.env}={}) {
         throw Object.assign(new Error('Metodo nao permitido.'),{statusCode:405});
       }
       if(method!=='GET')throw Object.assign(new Error('Metodo nao permitido.'),{statusCode:405});
-      sendJson(res,200,receipts.build(decodeURIComponent(receiptMatch[1])));
+      const saleId=decodeURIComponent(receiptMatch[1]);
+      sendJson(res,200,saleReceipt(saleId));
       return true;
     }catch(error){sendJson(res,Number(error.statusCode||400),{error:error.message||'Falha ao processar comprovante/impressao.'});return true;}
   };
