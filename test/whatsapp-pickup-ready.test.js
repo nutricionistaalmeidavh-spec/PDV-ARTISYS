@@ -66,7 +66,7 @@ test('phone inputs are numeric national format and the release E2E proves normal
   assert.match(ui,/input\[name=["']phone["']\]/);
   assert.match(ui,/inputMode\s*=\s*'numeric'/);
   assert.match(ui,/maxLength\s*=\s*11/);
-  assert.match(ui,/replace\(\/\\D\/g,'\'\'\)/);
+  assert.match(ui,/replace\(\/\\D\/g,''\)/);
 
   const serialized=JSON.stringify(flow);
   assert.match(serialized,/\+55 \(16\) 99999-9999/);
