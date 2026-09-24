@@ -39,11 +39,27 @@ test('hardware controller validates values and delegates only supported terminal
   assert.equal(calls.length,3);
 });
 
-test('preload exposes narrow hardware API and no filesystem or raw serial primitives',()=>{
+test('hardware controller returns only sanitized installed-printer fields',async()=>{
+  const controller=createHardwareController({listPrinters:async()=>[
+    {name:'POS80',displayName:'POS80 Printer',isDefault:true,status:0,description:'should not leak'},
+    {name:'',displayName:'invalid'},
+    {name:'PDF',status:'not-a-number'}
+  ]});
+  assert.deepEqual(await controller.listPrinters(),[
+    {name:'POS80',displayName:'POS80 Printer',isDefault:true,status:0},
+    {name:'PDF',displayName:'PDF',isDefault:false,status:null}
+  ]);
+});
+
+test('preload exposes narrow hardware and receipt APIs without filesystem primitives',()=>{
   const preload=fs.readFileSync(path.join(__dirname,'..','desktop','preload.cjs'),'utf8');
   assert.match(preload,/hardware:/);
   assert.match(preload,/artisys:hardware:status/);
+  assert.match(preload,/artisys:hardware:printers/);
   assert.match(preload,/artisys:hardware:scale-read/);
   assert.match(preload,/artisys:hardware:drawer-open/);
+  assert.match(preload,/receipts:/);
+  assert.match(preload,/artisys:receipts:print-sale/);
+  assert.match(preload,/artisys:receipts:save-pdf/);
   assert.doesNotMatch(preload,/serial:list|serial:open|serial:write|require\(['"]node:fs/);
 });
