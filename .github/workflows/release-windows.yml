@@ -42,11 +42,11 @@ jobs:
           $packageVersion = node -p "require('./package.json').version"
           $latestTag = '-'
           $latestTarget = '-'
-          $latestJson = gh release view --repo "${{ github.repository }}" --json tagName,targetCommitish 2>$null
+          $latestJson = gh api "repos/${{ github.repository }}/releases/latest" 2>$null
           if ($LASTEXITCODE -eq 0 -and $latestJson) {
             $latestRelease = $latestJson | ConvertFrom-Json
-            $latestTag = [string]$latestRelease.tagName
-            $latestTarget = [string]$latestRelease.targetCommitish
+            $latestTag = [string]$latestRelease.tag_name
+            $latestTarget = [string]$latestRelease.target_commitish
           }
           $version = node scripts/resolve-release-version.js --package-version $packageVersion --latest-release-tag $latestTag --latest-target $latestTarget --current-commit $env:GITHUB_SHA
           if ($LASTEXITCODE -ne 0 -or -not $version) { throw 'Não foi possível resolver a versão automática da release.' }
