@@ -13,11 +13,11 @@ const { createKitComboRouter }=require('./kit-combo-router');
 const { createProductVariantRouter }=require('./product-variant-router');
 const { createVerticalRouter }=require('./vertical-router');
 const { createEnterpriseDepthRouter }=require('./enterprise-depth-router');
-function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false}={}){
+function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true}={}){
   const sessionStore=new Map();
   const selfServiceHandler=createSelfServiceMobileRouter({runtime});
   const authSessionHandler=createAuthSessionRouter({runtime,sessionStore,requireTerminalAuth});
-  const receiptHandler=createReceiptRouter({runtime,sessionStore});
+  const receiptHandler=createReceiptRouter({runtime,sessionStore,isExistingInstall});
   const restaurantHandler=createRestaurantRouter({runtime,installationToken:token,requireTerminalAuth});
   const finalVerticalHandler=createE48E54Router({runtime,installationToken:token,requireTerminalAuth,sessionStore});
   const kitComboHandler=createKitComboRouter({runtime,installationToken:token,requireTerminalAuth});
