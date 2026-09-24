@@ -8,11 +8,24 @@ O modo padrão é **keyboard-wedge**: mantenha o foco no campo de busca do Balc�
 
 ## Balança
 
-Configure pela tela **Configurações > Periféricos > Balança** sempre que possível. A seleção é persistida localmente em `hardware.json` dentro do `userData` do Electron e reaplicada no próximo início do PDV. Também continuam disponíveis, para implantação/diagnóstico avançado, `PDV_SCALE_PORT`, `PDV_SCALE_PROFILE`, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
+Configure pela tela **Configurações > Periféricos > Balança** sempre que possível. A seleção é persistida localmente em `hardware.json` dentro do `userData` do Electron e reaplicada no próximo início do PDV. A tela permite escolher perfil/modelo, conexão serial ou USB/serial virtual, porta COM e baud rate; perfis com parâmetros fixos bloqueiam os valores que não devem ser alterados.
+
+Também continuam disponíveis, para implantação/diagnóstico avançado, `PDV_SCALE_PORT`, `PDV_SCALE_PROFILE`, `PDV_SCALE_CONNECTION`, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
+
+Perfis disponíveis no runtime atual:
+
+- `urano-pop-s` — Urano US 31/2 POP-S, integração binária dedicada em 9600 / 8N2;
+- `toledo-prix3-prt5` — Toledo Prix 3 Fit / Prix 3 Plus, protocolo Prt5;
+- `urano-udc` — Urano UDC CO / CO-E, família Std04;
+- `filizola-bp-cs` — Filizola BP-S / CS em modo numérico legado, ainda sujeito a confirmação de protocolo e teste físico;
+- `generic-numeric` — resposta serial numérica genérica;
+- `generic` — comportamento serial genérico compatível com instalações anteriores.
+
+O perfil antigo `urano-pop` da PR #40 não é aplicado ao POP-S da `main`: ele assumia a família textual/PROT-3 e entraria em conflito com o protocolo dedicado 8N2 já integrado. O POP-Z, portanto, não deve ser anunciado como homologado ou suportado por herança do POP-S; requer confirmação específica do protocolo e teste físico antes de entrar na matriz suportada.
 
 `PDV_SCALE_SETTLE_MS` define uma pequena janela de silêncio, padrão de 30 ms, antes de interpretar a resposta acumulada. Isso evita aceitar prematuramente um fragmento como `1.` quando a continuação `250 kg` chega logo depois. O timeout total continua sendo controlado separadamente por `PDV_SCALE_TIMEOUT_MS`.
 
-A leitura passa pelo transporte e adapter do `@artisys/serialport`; a UI recebe somente peso normalizado em kg, nunca uma porta serial genérica.
+A leitura passa pelo transporte e adapter do `@artisys/serialport`; a UI recebe somente peso normalizado em kg, nunca uma porta serial genérica. Fixtures automatizadas validam os frames implementados de peso/estado; isso comprova o caminho de protocolo, não substitui teste com equipamento físico.
 
 ### Urano US 31/2 POP-S
 
@@ -21,6 +34,12 @@ Selecione o perfil **Urano US 31/2 POP-S** e a porta COM. O perfil fixa a comuni
 O parser dedicado reconhece o peso líquido nos layouts USE-P2/USE-CB2 cobertos pelos testes e rejeita payloads genéricos/incompletos em vez de adivinhar um número. O runtime pode aplicar ou trocar a configuração sem reiniciar o Electron, e **Salvar e testar** executa uma leitura imediatamente após a configuração.
 
 Até existir evidência de teste com uma unidade física, a implementação comprova o caminho de software/protocolo e o modelo deve continuar marcado como `UNTESTED_MODEL`, não `FIELD_VERIFIED`.
+
+### Venda por peso
+
+Produtos cadastrados em `KG` ou `G` usam o fluxo de pesagem do Balcão em vez de serem adicionados como uma unidade comum. O modal tenta ler a balança configurada e mantém entrada manual explícita como fallback. A venda registra um snapshot do peso, origem (`SCALE` ou `MANUAL`) e unidade; o cupom não fiscal preserva o peso medido e a base de preço.
+
+Em QA, `PDV_QA_SCALE_WEIGHT_KG` só é aceito quando `ARTISYS_QA=1`. Esse simulador existe para o E2E de venda por peso e não substitui a integração serial em produção.
 
 ## Gaveta
 
@@ -58,6 +77,8 @@ A suíte obrigatória de CI valida, por simulação:
 - porta COM ocupada ou inexistente e recuperação em tentativa posterior;
 - respostas de balança com ponto/vírgula, fragmentação, lixo, timeout e nova tentativa;
 - protocolo Urano POP-S com perfil 9600/8N2, comandos binários e frames USE-P2/USE-CB2;
+- presets Toledo Prt5, Urano UDC, Filizola legado e serial numérico em fixtures de protocolo;
+- fluxo de Balcão para produto `KG/G`, leitura simulada restrita a QA, cálculo, snapshot e cupom por peso;
 - Epson/Star com texto acentuado, corte, pulso de gaveta e larguras 32/42/48;
 - spooler Windows/Electron retornando offline e impressão posterior bem-sucedida;
 - leitor `keyboard-wedge` sob leituras repetidas e códigos inválidos;
