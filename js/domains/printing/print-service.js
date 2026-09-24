@@ -39,6 +39,17 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
   function markPrinted(id){const job=requireJob(id);if(job.status==='CANCELLED')throw new Error('Trabalho cancelado nao pode ser impresso.');const timestamp=now();db.prepare("UPDATE print_jobs SET status='PRINTED',attempts=attempts+1,last_error=NULL,printed_at=?,updated_at=? WHERE id=?").run(timestamp,timestamp,String(id));return getJob(id);}
   function cancelJob(id){requireJob(id);db.prepare("UPDATE print_jobs SET status='CANCELLED',updated_at=? WHERE id=? AND status<>'PRINTED'").run(now(),String(id));return getJob(id);}
   function reprint(id){const original=requireJob(id);return queueJob({type:'REPRINT',entityType:original.entityType,entityId:original.entityId,payload:{...original.payload,reprintOf:original.id},width:original.width});}
+  function createManualAttempt(saleId){
+    const original=getOriginalSaleReceipt(saleId);
+    if(!original)throw new Error('Comprovante original da venda nao encontrado.');
+    return queueJob({
+      type:'REPRINT',
+      entityType:'sale',
+      entityId:original.entityId,
+      payload:{...original.payload,reprintOf:original.id,manual:true},
+      width:original.width
+    });
+  }
   function listJobs(filters={}){
     const clauses=[];const params=[];
     if(filters.status){const status=String(filters.status).toUpperCase();if(!STATUSES.has(status))throw new Error('Status de impressao invalido.');clauses.push('status=?');params.push(status);}
@@ -58,7 +69,7 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
     }
     catch(error){markFailed(id,error?.message||String(error));throw error;}
   }
-  return {queueJob,getJob,getOriginalSaleReceipt,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,processJob};
+  return {queueJob,getJob,getOriginalSaleReceipt,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,createManualAttempt,processJob};
 }
 
 module.exports={createPrintService};
