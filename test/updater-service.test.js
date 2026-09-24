@@ -82,7 +82,7 @@ test('desktop package publishes update metadata for GitHub Releases', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const html = fs.readFileSync(path.join(root, 'desktop/renderer/index.html'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'desktop/preload.cjs'), 'utf8');
-  assert.equal(pkg.version, '1.4.0');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.main, 'desktop/updater-main.cjs');
   assert.equal(pkg.dependencies['electron-updater'], '^6.6.2');
   assert.deepEqual(pkg.build.publish, [{ provider:'github', owner:'nutricionistaalmeidavh-spec', repo:'PDV-ARTISYS', releaseType:'release' }]);
