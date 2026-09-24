@@ -38,6 +38,18 @@ function configurationDetails(configuration) {
   return details;
 }
 
+function paymentReceiptLabel(method) {
+  const normalized=String(method || '').trim().toUpperCase();
+  return ({
+    CASH:'Dinheiro recebido',
+    PIX:'PIX',
+    DEBIT_CARD:'Cartao debito',
+    CREDIT_CARD:'Cartao credito',
+    STORE_CREDIT:'A prazo',
+    OTHER:'Outro'
+  })[normalized] || String(method || 'Pagamento');
+}
+
 function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhone = '', branding = null, documentLabel = 'CUPOM NAO FISCAL', sale, width = 42 } = {}) {
   const w = Number(width);
   if (![32,42,48].includes(w)) throw new Error('Largura de cupom invalida.');
@@ -47,13 +59,16 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   const metadata = [];
   if(receiptBranding.address)metadata.push(['',receiptBranding.address]);
   if(receiptBranding.phone)metadata.push(['',`Telefone: ${receiptBranding.phone}`]);
+  const operatorName=String(sale.operatorName || ((sale.sellerId && sale.operatorId && sale.sellerId===sale.operatorId) ? sale.sellerName : '') || '').trim();
+  const sellerName=String(sale.sellerName || '').trim();
+  const customerName=String(sale.customerName || '').trim();
   metadata.push(
     ['Venda', sale.saleNumber],
-    ['Data', sale.completedAt || sale.updatedAt || ''],
-    ['Operador', sale.operatorName || sale.operatorId || '']
+    ['Data', sale.completedAt || sale.updatedAt || '']
   );
-  if (sale.sellerName || sale.sellerId) metadata.push(['Vendedor', sale.sellerName || sale.sellerId]);
-  if (sale.customerName || sale.customerId) metadata.push(['Cliente', sale.customerName || sale.customerId]);
+  if(operatorName)metadata.push(['Operador',operatorName]);
+  if(sellerName) metadata.push(['Vendedor', sellerName]);
+  if(customerName) metadata.push(['Cliente', customerName]);
 
   const totals = [['Subtotal', Number(sale.subtotalCents || 0)]];
   const hasBreakdown=sale.manualDiscountCents!=null||sale.promotionDiscountCents!=null;
@@ -81,7 +96,7 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
       details:configurationDetails(item.configuration)
     })),
     totals,
-    payments:(sale.payments || []).map(payment => [payment.method || 'Pagamento', Number(payment.amountCents || 0)]),
+    payments:(sale.payments || []).map(payment => [paymentReceiptLabel(payment.method), Number(payment.amountCents || 0)]),
     changeCents:Number(sale.changeCents || 0),
     blocks:observationBlocks,
     footer:[...promotionNames.map(name=>`Promocao: ${name}`),'Obrigado pela preferencia']
@@ -89,4 +104,4 @@ function renderSaleReceipt({ storeName = 'ArtiSys', storeAddress = '', storePhon
   return renderPlainText(document);
 }
 
-module.exports = { renderSaleReceipt, configurationDetails, money, fit, center, columns };
+module.exports = { renderSaleReceipt, configurationDetails, paymentReceiptLabel, money, fit, center, columns };
