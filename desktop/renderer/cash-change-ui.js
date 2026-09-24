@@ -8,6 +8,7 @@
 
   let cashReceivedCents = null;
   let cashRequiredCents = 0;
+  let enhanceGeneration = 0;
 
   function normalizeLabel(value) {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
@@ -124,12 +125,21 @@
     setTimeout(() => { input?.focus(); input?.select(); }, 0);
   }
 
-  const modalRoot = document.getElementById('modal-root');
-  if (modalRoot) {
-    const observer = new MutationObserver(() => queueMicrotask(enhancePaymentModal));
-    observer.observe(modalRoot, { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
+  function scheduleEnhance() {
+    const generation = ++enhanceGeneration;
+    for (const delay of [0,50,150,350,750,1500]) {
+      setTimeout(() => {
+        if (generation !== enhanceGeneration) return;
+        enhancePaymentModal();
+      }, delay);
+    }
   }
-  enhancePaymentModal();
+
+  root.addEventListener('click', scheduleEnhance, true);
+  root.addEventListener('keydown', event => {
+    if (event.key === 'F12' || event.key === 'Enter' || event.key === ' ') scheduleEnhance();
+  }, true);
+  scheduleEnhance();
 
   root.PdvCashChangeUi = Object.freeze({ cashSummary });
 })();
