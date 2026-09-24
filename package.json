@@ -41,6 +41,7 @@
     "dist:win": "electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
+    "@artisys/finance-domain": "file:vendor/artisys-finance-domain",
     "@artisys/printing": "file:vendor/artisys-printing",
     "@artisys/serialport": "file:vendor/artisys-serialport",
     "electron-updater": "^6.6.2",

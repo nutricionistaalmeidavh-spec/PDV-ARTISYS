@@ -27,7 +27,13 @@
     await operational.showRoute(route);
   }
 
+  function enhanceExtensions() {
+    if (document.getElementById('ops-finance-form')) void window.PdvErpFinanceUi?.enhanceFinancePage?.();
+    if (document.querySelector('.erp-management-page')) void window.PdvErpFinanceAutomationUi?.enhance?.();
+  }
+
   async function stabilize() {
+    enhanceExtensions();
     if (restoring || content.querySelector('.ops-page')) return;
     const route = activeOperationalRoute();
     if (!route || hasOwnedSubview(route)) return;
