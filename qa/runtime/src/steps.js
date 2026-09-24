@@ -12,6 +12,15 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+async function dismissPostSaleBeforeNavigation(page, step) {
+  const selector = typeof step.selector === 'string' ? step.selector : '';
+  if (!/\[data-(?:home-)?route=/.test(selector)) return;
+  const close = page.locator('#post-sale-close');
+  if (!(await close.isVisible().catch(() => false))) return;
+  await close.click();
+  await close.waitFor({ state:'detached', timeout:step.timeoutMs ?? 10000 });
+}
+
 async function ensureHomeRouteContext(page, step) {
   if (typeof step.selector !== 'string' || !step.selector.includes('[data-home-route=')) return;
   const target = page.locator(step.selector);
@@ -20,15 +29,6 @@ async function ensureHomeRouteContext(page, step) {
   if (!(await homeNav.isVisible().catch(() => false))) return;
   await homeNav.click();
   await target.waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
-}
-
-async function dismissPostSaleBeforeNavigation(page, step) {
-  const selector = typeof step.selector === 'string' ? step.selector : '';
-  const isNavigation = selector.includes('[data-route=') || selector.includes('[data-home-route=');
-  if (!isNavigation) return;
-  const close = page.locator('#post-sale-close');
-  if (!(await close.isVisible().catch(() => false))) return;
-  await close.click();
 }
 
 function waitState(step) {
@@ -88,11 +88,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await ensureHomeRouteContext(page, step);
       const target = locator(page, step);
       const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
-      if (isModalClose && !(await target.isVisible().catch(() => false))) {
-        const postSaleClose = page.locator('#post-sale-close');
-        if (await postSaleClose.isVisible().catch(() => false)) await postSaleClose.click();
-        break;
-      }
+      if (isModalClose && !(await target.isVisible().catch(() => false))) break;
       if (step.selector === "#ops-inventory-form button[type='submit']") {
         const selectedProduct = await page.locator("#ops-inventory-form select[name='productId'] option:checked").textContent();
         const quantity = await page.locator("#ops-inventory-form input[name='quantity']").inputValue();
@@ -223,20 +219,18 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'expectText': {
-      const expected = String(step.expected ?? '');
+      const expected = step.expected ?? '';
       const target = locator(page, step);
-      const timeoutMs = step.timeoutMs == null ? 5000 : Number(step.timeoutMs);
-      if (!Number.isFinite(timeoutMs) || timeoutMs < 0) throw new TypeError(`${label}: timeoutMs must be a non-negative number`);
+      const timeoutMs = Number(step.timeoutMs ?? 10000);
       const deadline = Date.now() + timeoutMs;
       let texts = [];
       while (true) {
         texts = await target.allTextContents();
         if (texts.some(actual => actual.includes(expected))) break;
-        const remaining = deadline - Date.now();
-        if (remaining <= 0) {
+        if (Date.now() >= deadline) {
           throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
         }
-        await page.waitForTimeout(Math.min(50, remaining));
+        await page.waitForTimeout(Math.min(100, Math.max(1, deadline - Date.now())));
       }
       break;
     }

@@ -23,8 +23,27 @@ function normalizeScaleConfig(input = {}) {
 
 function createHardwareConfigStore({ filePath } = {}) {
   if (!filePath) throw new TypeError('filePath obrigatorio.');
-  function load() { try { if (!fs.existsSync(filePath)) return { scale:null }; const parsed=JSON.parse(fs.readFileSync(filePath,'utf8')); return { scale:parsed?.scale ? normalizeScaleConfig(parsed.scale) : null }; } catch { return { scale:null }; } }
-  function saveScale(input={}) { const scale=normalizeScaleConfig(input); fs.mkdirSync(path.dirname(filePath),{recursive:true}); const tempPath=`${filePath}.tmp`; fs.writeFileSync(tempPath,JSON.stringify({scale},null,2),{encoding:'utf8',mode:0o600}); fs.renameSync(tempPath,filePath); return scale; }
-  return Object.freeze({load,saveScale});
+
+  function load() {
+    try {
+      if (!fs.existsSync(filePath)) return { scale:null };
+      const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      return { scale:parsed?.scale ? normalizeScaleConfig(parsed.scale) : null };
+    } catch {
+      return { scale:null };
+    }
+  }
+
+  function saveScale(input = {}) {
+    const scale = normalizeScaleConfig(input);
+    fs.mkdirSync(path.dirname(filePath), { recursive:true });
+    const tempPath = `${filePath}.tmp`;
+    fs.writeFileSync(tempPath, JSON.stringify({ scale }, null, 2), { encoding:'utf8', mode:0o600 });
+    fs.renameSync(tempPath, filePath);
+    return scale;
+  }
+
+  return Object.freeze({ load, saveScale });
 }
-module.exports={createHardwareConfigStore,normalizeScaleConfig,normalizeRequestCommand};
+
+module.exports = { createHardwareConfigStore, normalizeScaleConfig, normalizeRequestCommand };

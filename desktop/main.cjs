@@ -42,94 +42,328 @@ let printWorkerBusy = false;
 let installationWasExisting = true;
 const installToken = randomBytes(32).toString('hex');
 
-function rendererPath(...parts) { return path.join(__dirname, 'renderer', ...parts); }
-function currentPrintingPreferences() { return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting }); }
+function rendererPath(...parts) {
+  return path.join(__dirname, 'renderer', ...parts);
+}
+
+function currentPrintingPreferences() {
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting });
+}
 
 async function startEmbeddedServer() {
   const dbPath = path.join(app.getPath('userData'), 'pdv-artisys.sqlite');
   const backupDir = path.join(app.getPath('userData'), 'backups');
-  installationWasExisting = existsSync(dbPath);
   applyPendingRestore({ dbPath, backupDir });
+  installationWasExisting = existsSync(dbPath);
   runtime = createPdvRuntime({
-    dbPath, backupDir,
+    dbPath,
+    backupDir,
     diagnosticsDir:path.join(app.getPath('userData'),'diagnostics'),
     productPhotoDir:path.join(app.getPath('userData'),'product-photos'),
-    appVersion:app.getVersion(), serverVersion:app.getVersion(), fiscalProviderResolver, nfseProviderResolver,
-    receiptOptions:{storeName:bootstrapConfig?.storeName || process.env.PDV_STORE_NAME || 'Loja Matriz',width:Number(process.env.PDV_RECEIPT_WIDTH || 42)}
+    appVersion:app.getVersion(),
+    serverVersion:app.getVersion(),
+    fiscalProviderResolver,
+    nfseProviderResolver,
+    receiptOptions: {
+      storeName: bootstrapConfig?.storeName || process.env.PDV_STORE_NAME || 'Loja Matriz',
+      width: Number(process.env.PDV_RECEIPT_WIDTH || 42)
+    }
   });
-  localServer = createLocalServer({ runtime, host:'127.0.0.1', port:0, token:installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
+
+  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
+
   if (process.env.PDV_ENABLE_LAN !== 'false') {
-    const lanHost=process.env.PDV_LAN_HOST||'0.0.0.0'; const lanPort=Number(process.env.PDV_LAN_PORT||4174);
-    if(!Number.isInteger(lanPort)||lanPort<1||lanPort>65535)throw new Error('PDV_LAN_PORT invalida.');
-    lanServer=createLocalServer({runtime,host:lanHost,port:lanPort,token:installToken,requireTerminalAuth:true,isExistingInstall:installationWasExisting});
-    try{await lanServer.start();}catch(error){console.error('Servidor LAN indisponivel; PDV continuara em modo local.',error);try{await lanServer.stop();}catch{}lanServer=null;}
+    const lanHost = process.env.PDV_LAN_HOST || '0.0.0.0';
+    const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
+    if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
+    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true, isExistingInstall:installationWasExisting });
+    try {
+      await lanServer.start();
+    } catch (error) {
+      console.error('Servidor LAN indisponivel; PDV continuara em modo local.', error);
+      try { await lanServer.stop(); } catch {}
+      lanServer = null;
+    }
   }
 }
 
 function createMainWindow() {
-  mainWindow = new BrowserWindow({width:1536,height:1024,minWidth:1180,minHeight:760,show:false,frame:false,backgroundColor:'#f5f7fb',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:false}});
+  mainWindow = new BrowserWindow({
+    width: 1536,
+    height: 1024,
+    minWidth: 1180,
+    minHeight: 760,
+    show: false,
+    frame: false,
+    backgroundColor: '#f5f7fb',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+
   mainWindow.loadFile(rendererPath('index.html'));
-  mainWindow.once('ready-to-show',()=>mainWindow?.show());
-  mainWindow.on('closed',()=>{mainWindow=null;});
+  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 function buildHardwareController() {
-  const storedScale=hardwareConfigStore?.load()?.scale||null;
-  const hardwareEnv={...process.env};
-  if(storedScale){hardwareEnv.PDV_SCALE_PROFILE=storedScale.profile;hardwareEnv.PDV_SCALE_PORT=storedScale.port;if(storedScale.requestCommand)hardwareEnv.PDV_SCALE_URANO_REQUEST=storedScale.requestCommand;}
-  const hardwareRuntime=createPdvHardwareRuntime({BrowserWindow,env:hardwareEnv,resolvePrinterPreferences:()=>currentPrintingPreferences()});
-  return createHardwareController(hardwareRuntime,{onScaleConfigured:configuration=>hardwareConfigStore?.saveScale({profile:configuration.profile,port:configuration.port||'',requestCommand:configuration.requestCommand||undefined})});
-}
-
-function terminalApiHeaders(){if(bootstrapConfig?.profile!=='terminal')return{};return{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey};}
-async function receiptApiRequest(rawPath,sessionToken,{method='GET',body=undefined}={}){
-  const headers={accept:'application/json',authorization:`Bearer ${String(sessionToken||'')}`,...terminalApiHeaders()};let encodedBody;
-  if(body!==undefined){headers['content-type']='application/json';encodedBody=JSON.stringify(body);}
-  const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body:encodedBody}); const text=await response.text(); let payload=null;
-  if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}} if(!response.ok)throw new Error(payload?.error||`Erro HTTP ${response.status}`); return payload;
-}
-async function fetchSaleReceipt(saleId,sessionToken){return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,sessionToken);}
-async function createSalePrintAttempt(saleId,sessionToken){return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts`,sessionToken,{method:'POST'});}
-async function finishSalePrintAttempt(saleId,jobId,outcome,sessionToken){return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts/${encodeURIComponent(jobId)}/result`,sessionToken,{method:'POST',body:outcome});}
-async function writeReceiptFile(filePath,bytes){const target=path.resolve(String(filePath||''));await mkdir(path.dirname(target),{recursive:true});await writeFile(target,bytes);}
-
-function startPrintWorker(){
-  if(printWorker||!runtime)return;
-  const tick=async()=>{if(printWorkerBusy||!runtime||!hardwareController)return;let preferences;try{preferences=currentPrintingPreferences();}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao resolver configuracao de impressao.'});return;}if(!preferences.autoPrint)return;const job=runtime.printing.listJobs({status:'PENDING',type:'SALE_RECEIPT'})[0];if(!job)return;printWorkerBusy=true;try{await runtime.printing.processJob(job.id,{print:input=>hardwareController.print(input)});}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao processar impressao.'});}finally{printWorkerBusy=false;}};
-  printWorker=setInterval(()=>{void tick();},1200);void tick();
-}
-
-function registerIpc(){
-  ipcMain.handle('artisys:config',()=>({apiBase,deploymentProfile:bootstrapConfig?.profile||'server-terminal',terminalId:bootstrapConfig?.terminalId||'PDV-01',terminalName:bootstrapConfig?.terminalName||'Terminal PDV-01',storeName:bootstrapConfig?.storeName||'Loja Matriz',lanEnabled:Boolean(lanServer),version:app.getVersion()}));
-  ipcMain.handle('artisys:api',async(_event,request={})=>{
-    const method=String(request.method||'GET').toUpperCase();const rawPath=String(request.path||'/api/v1/health');if(!rawPath.startsWith('/api/v1/'))throw new Error('Rota de API invalida.');const headers={accept:'application/json'};
-    if(request.sessionToken)headers.authorization=`Bearer ${request.sessionToken}`;if(request.mutationId)headers['x-mutation-id']=String(request.mutationId);
-    if(bootstrapConfig?.profile==='terminal'){headers['x-terminal-id']=bootstrapConfig.terminalId;headers['x-terminal-key']=bootstrapConfig.terminalKey;}else if(rawPath==='/api/v1/auth/login'||rawPath==='/api/v1/setup/admin'||rawPath.startsWith('/api/v1/restaurant/')||rawPath.startsWith('/api/v1/vertical/')||rawPath.startsWith('/api/v1/product-variants'))headers['x-pdv-token']=installToken;
-    let body;if(request.body!==undefined&&request.body!==null){headers['content-type']='application/json';body=JSON.stringify(request.body);}const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body});let payload=null;const text=await response.text();if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}return{ok:response.ok,status:response.status,payload};
+  const storedScale = hardwareConfigStore?.load()?.scale || null;
+  const hardwareEnv = { ...process.env };
+  if (storedScale) {
+    hardwareEnv.PDV_SCALE_PROFILE = storedScale.profile;
+    hardwareEnv.PDV_SCALE_PORT = storedScale.port;
+    if (storedScale.requestCommand) hardwareEnv.PDV_SCALE_URANO_REQUEST = storedScale.requestCommand;
+  }
+  const hardwareRuntime = createPdvHardwareRuntime({
+    BrowserWindow,
+    env:hardwareEnv,
+    resolvePrinterPreferences:() => currentPrintingPreferences()
   });
-  hardwareController=buildHardwareController();
-  const trustedSender=event=>Boolean(mainWindow&&event.sender===mainWindow.webContents);
-  registerHardwareIpc({ipcMain,controller:hardwareController,isTrustedSender:trustedSender});
-  const receiptActions=createReceiptActions({BrowserWindow,dialog,writeFile:writeReceiptFile,getReceipt:fetchSaleReceipt,createPrintAttempt:createSalePrintAttempt,finishPrintAttempt:finishSalePrintAttempt,printReceipt:receipt=>hardwareController.print({id:`sale-${receipt.saleId}`,text:receipt.text,width:receipt.width,paperMm:receipt.paperMm,logoDataUrl:receipt.logoDataUrl||null}),env:process.env,getParentWindow:()=>mainWindow});
+  return createHardwareController(hardwareRuntime, {
+    onScaleConfigured: configuration => hardwareConfigStore?.saveScale({
+      profile:configuration.profile,
+      port:configuration.port || '',
+      requestCommand:configuration.requestCommand || undefined
+    })
+  });
+}
+
+function terminalApiHeaders() {
+  if (bootstrapConfig?.profile !== 'terminal') return {};
+  return {
+    'x-terminal-id':bootstrapConfig.terminalId,
+    'x-terminal-key':bootstrapConfig.terminalKey
+  };
+}
+
+async function receiptApiRequest(rawPath,{method='GET',sessionToken='',body=undefined}={}) {
+  const headers={
+    accept:'application/json',
+    authorization:`Bearer ${String(sessionToken||'')}`,
+    ...terminalApiHeaders()
+  };
+  let requestBody;
+  if(body!==undefined){headers['content-type']='application/json';requestBody=JSON.stringify(body);}
+  const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body:requestBody});
+  const text=await response.text();
+  let payload=null;
+  if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
+  if(!response.ok)throw new Error(payload?.error||`Erro HTTP ${response.status}`);
+  return payload;
+}
+
+async function fetchSaleReceipt(saleId, sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,{sessionToken});
+}
+
+async function createSalePrintAttempt(saleId,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts`,{method:'POST',sessionToken});
+}
+
+async function finishSalePrintAttempt(saleId,jobId,outcome,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts/${encodeURIComponent(jobId)}/result`,{method:'POST',sessionToken,body:outcome});
+}
+
+async function writeReceiptFile(filePath, bytes) {
+  const target=path.resolve(String(filePath||''));
+  await mkdir(path.dirname(target),{recursive:true});
+  await writeFile(target,bytes);
+}
+
+function startPrintWorker() {
+  if (printWorker || !runtime) return;
+  const tick = async () => {
+    if (printWorkerBusy || !runtime || !hardwareController) return;
+    let preferences;
+    try { preferences = currentPrintingPreferences(); }
+    catch (error) {
+      runtime.logger?.log({ level:'error', subsystem:'printing', message:error?.message || 'Falha ao resolver configuracao de impressao.' });
+      return;
+    }
+    if (!preferences.autoPrint) return;
+    const job = runtime.printing.listJobs({ status:'PENDING', type:'SALE_RECEIPT' })[0];
+    if (!job) return;
+    printWorkerBusy = true;
+    try {
+      await runtime.printing.processJob(job.id, { print: input => hardwareController.print(input) });
+    } catch (error) {
+      runtime.logger?.log({ level:'error', subsystem:'printing', message:error?.message || 'Falha ao processar impressao.' });
+    } finally {
+      printWorkerBusy = false;
+    }
+  };
+  printWorker = setInterval(() => { void tick(); }, 1200);
+  void tick();
+}
+
+function registerIpc() {
+  ipcMain.handle('artisys:config', () => ({
+    apiBase,
+    deploymentProfile: bootstrapConfig?.profile || 'server-terminal',
+    terminalId: bootstrapConfig?.terminalId || 'PDV-01',
+    terminalName: bootstrapConfig?.terminalName || 'Terminal PDV-01',
+    storeName: bootstrapConfig?.storeName || 'Loja Matriz',
+    lanEnabled: Boolean(lanServer),
+    version: app.getVersion()
+  }));
+
+  ipcMain.handle('artisys:api', async (_event, request = {}) => {
+    const method = String(request.method || 'GET').toUpperCase();
+    const rawPath = String(request.path || '/api/v1/health');
+    if (!rawPath.startsWith('/api/v1/')) throw new Error('Rota de API invalida.');
+    const headers = { accept: 'application/json' };
+    if (request.sessionToken) headers.authorization = `Bearer ${request.sessionToken}`;
+    if (request.mutationId) headers['x-mutation-id'] = String(request.mutationId);
+    if (bootstrapConfig?.profile === 'terminal') {
+      headers['x-terminal-id'] = bootstrapConfig.terminalId;
+      headers['x-terminal-key'] = bootstrapConfig.terminalKey;
+    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/restaurant/') || rawPath.startsWith('/api/v1/vertical/') || rawPath.startsWith('/api/v1/product-variants')) {
+      headers['x-pdv-token'] = installToken;
+    }
+    let body;
+    if (request.body !== undefined && request.body !== null) {
+      headers['content-type'] = 'application/json';
+      body = JSON.stringify(request.body);
+    }
+    const response = await fetch(`${apiBase}${rawPath}`, { method, headers, body });
+    let payload = null;
+    const text = await response.text();
+    if (text) {
+      try { payload = JSON.parse(text); }
+      catch { payload = { error: text }; }
+    }
+    return { ok: response.ok, status: response.status, payload };
+  });
+
+  hardwareController = buildHardwareController();
+  const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
+  registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
+  const receiptActions=createReceiptActions({
+    BrowserWindow,
+    dialog,
+    writeFile:writeReceiptFile,
+    getReceipt:fetchSaleReceipt,
+    createPrintAttempt:createSalePrintAttempt,
+    finishPrintAttempt:finishSalePrintAttempt,
+    printReceipt:receipt=>hardwareController.print({
+      id:`sale-${receipt.saleId}`,
+      text:receipt.text,
+      width:receipt.width,
+      paperMm:receipt.paperMm,
+      logoDataUrl:receipt.logoDataUrl||null
+    }),
+    env:process.env,
+    getParentWindow:()=>mainWindow
+  });
   registerReceiptIpc({ipcMain,actions:receiptActions,isTrustedSender:trustedSender});
-  registerFiscalIpc({ipcMain,store:fiscalStore,credentialStore:fiscalCredentialStore,isTrustedSender:trustedSender,providerResolver:fiscalProviderResolver,sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl()||null,dialog,getParentWindow:()=>mainWindow,onCertificateSaved:status=>runtime?.fiscalConfiguration?.saveCertificateMetadata?.({certificateName:status.certificateName,...(status.certificate||{})}),isProductionEnabled:()=>runtime?.fiscalProduction?.getActivation?.().enabled===true});
-  registerImportIpc({ipcMain,dialog,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
+  registerFiscalIpc({
+    ipcMain,
+    store:fiscalStore,
+    credentialStore:fiscalCredentialStore,
+    isTrustedSender:trustedSender,
+    providerResolver:fiscalProviderResolver,
+    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null,
+    dialog,
+    getParentWindow:()=>mainWindow,
+    onCertificateSaved:status=>runtime?.fiscalConfiguration?.saveCertificateMetadata?.({certificateName:status.certificateName,...(status.certificate||{})}),
+    isProductionEnabled:()=>runtime?.fiscalProduction?.getActivation?.().enabled===true
+  });
+  registerImportIpc({ ipcMain, dialog, getParentWindow:()=>mainWindow, isTrustedSender:trustedSender });
   const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
   registerProductPhotoIpc({ipcMain,dialog,nativeImage,client:photoClient,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
-  ipcMain.on('artisys:window:minimize',()=>mainWindow?.minimize());ipcMain.on('artisys:window:maximize',()=>{if(!mainWindow)return;if(mainWindow.isMaximized())mainWindow.unmaximize();else mainWindow.maximize();});ipcMain.on('artisys:window:close',()=>mainWindow?.close());
+
+  ipcMain.on('artisys:window:minimize', () => mainWindow?.minimize());
+  ipcMain.on('artisys:window:maximize', () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+  });
+  ipcMain.on('artisys:window:close', () => mainWindow?.close());
 }
 
-async function shutdown(){if(printWorker)clearInterval(printWorker);printWorker=null;try{if(lanServer)await lanServer.stop();if(localServer)await localServer.stop();}finally{lanServer=null;localServer=null;if(runtime)runtime.close();runtime=null;if(fiscalSidecar){try{await fiscalSidecar.stop();}catch(error){console.error(error);}}fiscalSidecar=null;}}
+async function shutdown() {
+  if (printWorker) clearInterval(printWorker);
+  printWorker = null;
+  try {
+    if (lanServer) await lanServer.stop();
+    if (localServer) await localServer.stop();
+  } finally {
+    lanServer = null;
+    localServer = null;
+    if (runtime) runtime.close();
+    runtime = null;
+    if (fiscalSidecar) {
+      try { await fiscalSidecar.stop(); }
+      catch (error) { console.error(error); }
+    }
+    fiscalSidecar = null;
+  }
+}
 
-app.whenReady().then(async()=>{
-  const deploymentPath=path.join(app.getPath('userData'),'deployment.json');const publicBootstrap=resolveBootstrapConfig({env:process.env,configPath:deploymentPath});terminalCredentialStore=createTerminalCredentialStore({app,safeStorage});hardwareConfigStore=createHardwareConfigStore({filePath:path.join(app.getPath('userData'),'hardware.json')});
-  if(publicBootstrap.profile==='terminal'){const bootstrapSecret=String(process.env.PDV_TERMINAL_KEY||'').trim();if(bootstrapSecret)terminalCredentialStore.save(bootstrapSecret);const terminalKey=bootstrapSecret||terminalCredentialStore.load();bootstrapConfig={...publicBootstrap,terminalKey};}else bootstrapConfig=publicBootstrap;
-  validateBootstrapConfig(bootstrapConfig);fiscalStore=createFiscalConnectionStore({app,safeStorage});fiscalCredentialStore=createFiscalCredentialStore({app,safeStorage});fiscalProviderResolver=createFiscalProviderResolver({store:fiscalStore,credentialStore:fiscalCredentialStore,sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl()||null});nfseProviderResolver=createNfseProviderResolver({credentialStore:fiscalCredentialStore,env:process.env});
-  if(shouldStartEmbeddedServer(bootstrapConfig)){const fiscalRuntimePaths=resolveFiscalRuntimePaths({app,processObj:process,dirname:__dirname});fiscalSidecar=createFiscalSidecarRuntime({env:process.env,entryPath:fiscalRuntimePaths.sidecarEntryPath,cwd:fiscalRuntimePaths.runtimeDir,onError:error=>console.error(error)});try{await fiscalSidecar.start();}catch(error){console.error('Fiscal sidecar indisponivel; PDV continuara sem emissao local.',error);}await startEmbeddedServer();}else apiBase=bootstrapConfig.apiBase.replace(/\/+$/,'');
-  registerIpc();createMainWindow();startPrintWorker();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createMainWindow();});
-}).catch(error=>{console.error('Falha fatal ao iniciar o ArtiSys PDV.',error);try{dialog.showErrorBox('ArtiSys PDV - Falha na inicialização',`${error?.message||error}\n\nReinicie o computador e tente novamente. Se o problema continuar, envie esta mensagem ao suporte ArtiSys.`);}catch{}app.quit();});
+app.whenReady().then(async () => {
+  const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
+  const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
+  terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
+  if (publicBootstrap.profile === 'terminal') {
+    const bootstrapSecret = String(process.env.PDV_TERMINAL_KEY || '').trim();
+    if (bootstrapSecret) terminalCredentialStore.save(bootstrapSecret);
+    const terminalKey = bootstrapSecret || terminalCredentialStore.load();
+    bootstrapConfig = { ...publicBootstrap, terminalKey };
+  } else {
+    bootstrapConfig = publicBootstrap;
+  }
+  validateBootstrapConfig(bootstrapConfig);
+  fiscalStore = createFiscalConnectionStore({ app, safeStorage });
+  fiscalCredentialStore = createFiscalCredentialStore({ app, safeStorage });
+  fiscalProviderResolver = createFiscalProviderResolver({
+    store:fiscalStore,
+    credentialStore:fiscalCredentialStore,
+    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
+  });
+  nfseProviderResolver = createNfseProviderResolver({credentialStore:fiscalCredentialStore,env:process.env});
 
-app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
-app.on('before-quit',()=>{void shutdown();});
+  if (shouldStartEmbeddedServer(bootstrapConfig)) {
+    const fiscalRuntimePaths = resolveFiscalRuntimePaths({ app, processObj:process, dirname:__dirname });
+    fiscalSidecar = createFiscalSidecarRuntime({
+      env:process.env,
+      entryPath:fiscalRuntimePaths.sidecarEntryPath,
+      cwd:fiscalRuntimePaths.runtimeDir,
+      onError:error => console.error(error)
+    });
+    try {
+      await fiscalSidecar.start();
+    } catch (error) {
+      console.error('Fiscal sidecar indisponivel; PDV continuara sem emissao local.', error);
+    }
+    await startEmbeddedServer();
+  } else {
+    apiBase = bootstrapConfig.apiBase.replace(/\/+$/, '');
+  }
+
+  registerIpc();
+  createMainWindow();
+  startPrintWorker();
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+  });
+}).catch((error) => {
+  console.error('Falha fatal ao iniciar o ArtiSys PDV.', error);
+  try {
+    dialog.showErrorBox(
+      'ArtiSys PDV - Falha na inicialização',
+      `${error?.message || error}\n\nReinicie o computador e tente novamente. Se o problema continuar, envie esta mensagem ao suporte ArtiSys.`
+    );
+  } catch {}
+  app.quit();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+app.on('before-quit', () => { void shutdown(); });

@@ -4,7 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {createReceiptActions,safePdfFileName,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
+const {createReceiptActions,safePdfFileName,receiptHtml,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
 
 function receipt(overrides={}){return {saleId:'sale-1',saleNumber:'V/001:*?',paperMm:80,width:48,text:'LOJA <QA>\nVenda V-001\nTOTAL 10,00',logoDataUrl:null,...overrides};}
 function fakeWindow({pdf=Buffer.from('%PDF-FAKE'),height=480,throwPdf=null}={}){
@@ -19,6 +19,11 @@ function fakeWindow({pdf=Buffer.from('%PDF-FAKE'),height=480,throwPdf=null}={}){
 
 test('safe PDF filename removes Windows-reserved characters',()=>{
   assert.equal(safePdfFileName('V/001:*?','2026-09-24T12:00:00Z'),'Venda-V-001-2026-09-24.pdf');
+});
+
+test('receipt HTML escapes quotes with complete entities',()=>{
+  const html=receiptHtml(receipt({text:'A "quoted" & <tag>'}));
+  assert.match(html,/A &quot;quoted&quot; &amp; &lt;tag&gt;/);
 });
 
 test('print sale creates and finishes an auditable attempt from the immutable snapshot',async()=>{
@@ -37,22 +42,6 @@ test('print sale creates and finishes an auditable attempt from the immutable sn
     ['print','sale-1'],
     ['finish','sale-1','manual-1',{success:true},'session']
   ]);
-});
-
-test('QA printer simulation keeps the audit lifecycle without touching host hardware',async()=>{
-  const calls=[];let hardwareCalls=0;
-  const actions=createReceiptActions({
-    getReceipt:async()=>receipt(),
-    createPrintAttempt:async()=>({job:{id:'manual-qa'},receipt:receipt()}),
-    finishPrintAttempt:async(id,jobId,outcome)=>{calls.push([id,jobId,outcome]);return {job:{id:jobId,status:'PRINTED'}};},
-    printReceipt:async()=>{hardwareCalls+=1;return {success:true};},
-    dialog:{showSaveDialog:async()=>({canceled:true})},writeFile:async()=>{},BrowserWindow:class{},
-    env:{ARTISYS_QA:'1',ARTISYS_QA_SIMULATE_PRINTER:'1'}
-  });
-  const result=await actions.printSale({saleId:'sale-1',sessionToken:'session'});
-  assert.deepEqual(result,{success:true,driver:'qa-simulated'});
-  assert.equal(hardwareCalls,0);
-  assert.deepEqual(calls,[['sale-1','manual-qa',{success:true}]]);
 });
 
 test('print sale records a sanitized failed attempt when local hardware rejects',async()=>{

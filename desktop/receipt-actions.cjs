@@ -87,8 +87,12 @@ function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,createP
       await finishPrintAttempt(saleId,jobId,{success:true},sessionToken);
       return result;
     } catch(error) {
-      const printableResult=result&&typeof result==='object'?result:{success:true};
-      return {...printableResult,auditPending:true,auditError:String(error?.message||error||'Falha ao persistir auditoria de impressao.')};
+      return {
+        ...(result&&typeof result==='object'?result:{success:true}),
+        success:true,
+        auditPending:true,
+        auditError:String(error?.message||error||'Falha ao registrar auditoria da impressao.')
+      };
     }
   }
 
