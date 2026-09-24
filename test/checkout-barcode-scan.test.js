@@ -14,26 +14,25 @@ test('checkout barcode input filters products without rebuilding the checkout in
   assert.doesNotMatch(binding,/search\?\.addEventListener\('input',[\s\S]*?renderCheckout\(\)/);
 });
 
-test('checkout QA simulates a fast EAN scanner and asserts digit order is preserved',()=>{
+test('checkout QA simulates an EAN scanner key by key and asserts digit order is preserved',()=>{
   const barcode='7891234567895';
   const flow=JSON.parse(read('qa/flows/checkout-ux-preservation.json'));
   const barcodeSetup=flow.steps.find(step=>step.selector==="#product-form input[name='barcode']");
   assert.equal(barcodeSetup?.action,'fill');
   assert.equal(barcodeSetup?.value,barcode);
 
-  const scanIndex=flow.steps.findIndex(step=>step.name==='ux-scan-barcode-sequentially');
-  assert.ok(scanIndex>=0,'missing simulated barcode scanner step');
-  const scan=flow.steps[scanIndex];
-  assert.equal(scan.action,'type');
-  assert.equal(scan.selector,'#product-search');
-  assert.equal(scan.value,barcode);
-  assert.ok(Number(scan.delayMs)>=0);
+  const scannerSteps=flow.steps.filter(step=>/^ux-barcode-\d{2}$/.test(step.name||''));
+  assert.equal(scannerSteps.length,barcode.length);
+  assert.equal(scannerSteps.map(step=>step.key).join(''),barcode);
+  assert.ok(scannerSteps.every(step=>step.action==='press'&&step.selector==='#product-search'));
 
-  const assertion=flow.steps.slice(scanIndex+1).find(step=>step.name==='ux-scan-barcode-order-preserved');
+  const assertion=flow.steps.find(step=>step.name==='ux-barcode-order-preserved');
   assert.equal(assertion?.action,'expectValue');
   assert.equal(assertion?.selector,'#product-search');
   assert.equal(assertion?.expected,barcode);
 
-  const runtime=read('qa/runtime/src/steps.js');
-  assert.match(runtime,/case 'type': await locator\(page, step\)\.pressSequentially\(resolveSecret\(step, env\), \{ delay: Number\(step\.delayMs \?\? 0\) \}\); break;/);
+  const productMatch=flow.steps.find(step=>step.name==='ux-barcode-product-found');
+  assert.equal(productMatch?.action,'expectText');
+  assert.equal(productMatch?.selector,'.product-grid');
+  assert.equal(productMatch?.expected,'QA UX Balcao');
 });
