@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     printSale: (input) => ipcRenderer.invoke('artisys:receipts:print-sale', input),
     saveSalePdf: (input) => ipcRenderer.invoke('artisys:receipts:save-pdf', input)
   },
+  external: {
+    openWhatsapp: (input) => ipcRenderer.invoke('artisys:external:whatsapp', input)
+  },
   fiscal: {
     status: () => ipcRenderer.invoke('artisys:fiscal:status'),
     save: (connection) => ipcRenderer.invoke('artisys:fiscal:save', connection),
