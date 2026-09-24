@@ -7,6 +7,7 @@
 
   const api = new ApiClient();
   const ui = root.PdvUiModel;
+  const modal = root.PdvModal;
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
   let config = null;
@@ -273,19 +274,28 @@
         await renderReportsV2();
       } catch (error) { showToast(error.message,'error'); }
     });
-    content.querySelectorAll('[data-pay-commission]').forEach(button => button.addEventListener('click',async () => {
-      const suggested = (Number(button.dataset.outstanding || 0) / 100).toFixed(2).replace('.',',');
-      const value = root.prompt('Valor da comissão paga (R$):',suggested);
-      if (value === null) return;
-      const amountCents = centsInput(value);
-      if (amountCents <= 0) { showToast('Informe um valor de comissão maior que zero.','error'); return; }
-      const note = root.prompt('Observação do pagamento:','') || '';
-      try {
-        await api.payCommission({sellerId:button.dataset.payCommission,amountCents,periodFrom:basePeriod.from,periodTo:basePeriod.to,note});
-        showToast('Pagamento de comissão registrado.','success');
-        await renderReportsV2();
-      } catch (error) { showToast(error.message,'error'); }
-    }));
+    content.querySelectorAll('[data-pay-commission]').forEach(button => button.addEventListener('click',() => {
+    const suggested = (Number(button.dataset.outstanding || 0) / 100).toFixed(2).replace('.',',');
+    if (!modal?.open) { showToast('Modal interno indisponível.','error'); return; }
+    modal.open('Registrar pagamento de comissão', `<form id="commission-payment-form"><div class="field"><label>Valor pago (R$) *</label><input name="amount" inputmode="decimal" required value="${escapeHtml(suggested)}"></div><div class="field"><label>Observação</label><textarea name="note" rows="3" placeholder="Opcional"></textarea></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="submit" class="primary-button">Registrar pagamento</button></div></form>`, { onMount(modalRoot) {
+      const form = modalRoot.querySelector('#commission-payment-form');
+      const amount = form?.querySelector('[name="amount"]');
+      amount?.focus();
+      amount?.select();
+      form?.addEventListener('submit',async event => {
+        event.preventDefault();
+        const amountCents = centsInput(form.elements.namedItem('amount')?.value);
+        if (amountCents <= 0) { showToast('Informe um valor de comissão maior que zero.','error'); return; }
+        const note = String(form.elements.namedItem('note')?.value || '').trim();
+        try {
+          await api.payCommission({sellerId:button.dataset.payCommission,amountCents,periodFrom:basePeriod.from,periodTo:basePeriod.to,note});
+          modal.close();
+          showToast('Pagamento de comissão registrado.','success');
+          await renderReportsV2();
+        } catch (error) { showToast(error.message,'error'); }
+      });
+    } });
+  }));
   }
 
   root.addEventListener('click',event => {
