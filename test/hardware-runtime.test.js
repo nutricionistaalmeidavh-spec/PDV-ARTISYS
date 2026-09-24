@@ -58,6 +58,31 @@ test('defaults to Electron printing and reports unconfigured scale/drawer', asyn
   assert.equal(status.barcodeScanner.mode,'keyboard-wedge');
 });
 
+test('runtime resolves persisted printer preferences at every print attempt', async () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  const calls=[];const printed=[];const modules=fakeModules(calls);
+  modules.printing.createElectronPrinterDriver=()=>({
+    status:async()=>({available:true,mode:'electron'}),
+    print:async(job,profile)=>{printed.push({job,profile});return {success:true,driver:'electron'};}
+  });
+  let prefs={deviceName:'POS80 Printer',paperMm:80,columns:48,showSystemDialog:true,cut:true,openDrawerAfterPrint:false};
+  const runtime=createPdvHardwareRuntime({BrowserWindow:function(){},env:{},modules,resolvePrinterPreferences:()=>prefs});
+  await runtime.print({text:'primeiro'});
+  prefs={deviceName:'POS58 Printer',paperMm:58,columns:32,showSystemDialog:false,cut:false,openDrawerAfterPrint:true};
+  await runtime.print({text:'segundo'});
+  assert.equal(printed.length,2);
+  assert.equal(printed[0].profile.deviceName,'POS80 Printer');
+  assert.equal(printed[0].profile.width,48);
+  assert.equal(printed[0].profile.silent,false);
+  assert.equal(printed[0].job.paperMm,80);
+  assert.equal(printed[1].profile.deviceName,'POS58 Printer');
+  assert.equal(printed[1].profile.width,32);
+  assert.equal(printed[1].profile.silent,true);
+  assert.equal(printed[1].profile.cut,false);
+  assert.equal(printed[1].profile.openDrawerAfterPrint,true);
+  assert.equal(printed[1].job.paperMm,58);
+});
+
 test('configured scale and drawer use the shared serial module with fragmented-response settling', async () => {
   const { createPdvHardwareRuntime } = require(runtimePath);
   const calls=[];

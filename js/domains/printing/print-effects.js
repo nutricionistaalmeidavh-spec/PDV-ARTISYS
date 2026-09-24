@@ -1,25 +1,28 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
-const { renderSaleReceipt } = require('./receipt-renderer');
-const { resolveReceiptBranding } = require('./receipt-branding');
+const { createSaleReceiptService } = require('./sale-receipt-projection');
 
 function registerPrintEffects({ bus, effectStore, printService, saleService, settings = null, storeName = 'ArtiSys', storeAddress = '', storePhone = '', logoDataUrl = null, documentLabel = 'CUPOM NAO FISCAL', width = 42 } = {}) {
   if (!bus || !effectStore || !printService || !saleService) throw new TypeError('bus, effectStore, printService and saleService are required.');
+  const receipts=createSaleReceiptService({
+    saleService,
+    settings,
+    env:{...process.env,PDV_RECEIPT_WIDTH:String(width)},
+    receiptDefaults:{storeName,storeAddress,storePhone,logoDataUrl,documentLabel}
+  });
   const saleCompleted = createIdempotentDomainEffect({
     effectKey:'receipt.sale-completed',
     effectStore,
     handler:async event => {
+      const receipt=receipts.build(event.aggregateId);
       const sale=saleService.getSaleDetails(event.aggregateId);
-      if(!sale)throw new Error('Venda nao encontrada para impressao.');
-      const branding=resolveReceiptBranding({settings,defaults:{name:storeName,address:storeAddress,phone:storePhone,logoDataUrl}});
-      const text=renderSaleReceipt({branding,documentLabel,sale,width});
       return printService.queueJob({
         id:`receipt-${event.eventId}`,
         type:'SALE_RECEIPT',
         entityType:'sale',
         entityId:event.aggregateId,
-        width,
-        payload:{text,terminalId:event.payload?.terminalId||sale.terminalId,...(branding.logoDataUrl?{logoDataUrl:branding.logoDataUrl}:{})}
+        width:receipt.width,
+        payload:{text:receipt.text,paperMm:receipt.paperMm,terminalId:event.payload?.terminalId||sale?.terminalId||null,...(receipt.logoDataUrl?{logoDataUrl:receipt.logoDataUrl}:{})}
       });
     }
   });

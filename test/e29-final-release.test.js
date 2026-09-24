@@ -86,16 +86,20 @@ test('all operations manuals and release metadata exist without future-delivery 
   assert.doesNotMatch(readme, /E2[1-9].*(futuro|pendente|a fazer)/i);
 });
 
-test('CI verifies main while Windows packaging is release-request scoped or version-tagged', () => {
+test('CI verifies main and automatically packages relevant Windows changes', () => {
   const verify = read('.github/workflows/verify.yml');
   const windows = read('.github/workflows/release-windows.yml');
   assert.match(verify, /branches:\s*\n\s*- main/);
   assert.match(verify, /npm install/);
   assert.match(verify, /npm run verify:release/);
   assert.match(windows, /workflow_dispatch/);
-  assert.match(windows, /tags:\s*\n\s*- 'v\*'/);
   assert.match(windows, /branches:\s*\n\s*- main/);
-  assert.match(windows, /paths:\s*\n\s*- ['"]?\.github\/release-request\.json['"]?/);
+  assert.match(windows, /- 'desktop\/\*\*'/);
+  assert.match(windows, /- 'js\/\*\*'/);
+  assert.match(windows, /- 'server\/\*\*'/);
+  assert.match(windows, /concurrency:/);
+  assert.match(windows, /Resolve automatic release version/);
+  assert.match(windows, /resolve-release-version\.js/);
   assert.match(windows, /windows-latest/);
   assert.match(windows, /npm run verify:release/);
   assert.match(windows, /npm run dist:win/);
@@ -104,5 +108,4 @@ test('CI verifies main while Windows packaging is release-request scoped or vers
   assert.match(windows, /\.blockmap/);
   assert.match(windows, /actions\/upload-artifact/);
   assert.match(windows, /gh release create/);
-  assert.match(windows, /github\.ref == 'refs\/heads\/main'/);
 });
