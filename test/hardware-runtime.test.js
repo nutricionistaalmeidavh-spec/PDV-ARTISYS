@@ -21,7 +21,19 @@ function fakeModules(calls) {
       createRequestResponseSession(options){ calls.push(['request-session', options]); return { run:async()=>1.23456 }; },
       createScaleAdapter(){ return { status:async()=>({available:true,path:'COM3',baudRate:9600,unit:'kg'}), readWeight:async()=>({weight:1.235,unit:'kg'}) }; },
       createDrawerAdapter({ transport }) { return { status:()=>transport.status(), open:async()=>{ calls.push('drawer-open'); return true; } }; },
-      parseNumericWeight(value){ return Number(value); }
+      parseNumericWeight(value){ return Number(value); },
+      createUranoPopSProtocol({ requestCommand=0x04 }={}) {
+        calls.push(['urano-protocol', requestCommand]);
+        return {
+          id:'urano-pop-s',
+          manufacturer:'Urano',
+          model:'US 31/2 POP-S',
+          serial:{baudRate:9600,dataBits:8,stopBits:2,parity:'none'},
+          request:Buffer.from([requestCommand]),
+          requestCommand,
+          parse:()=>1.235
+        };
+      }
     },
     printing: {
       normalizePrinterProfile(profile){ return profile; },
@@ -63,6 +75,30 @@ test('configured scale and drawer use the shared serial module with fragmented-r
   const sessionCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='request-session');
   assert.ok(sessionCall);
   assert.equal(sessionCall[1].responseIdleMs,30);
+});
+
+test('Urano POP-S scale profile forces documented 9600 8N2 and binary request', async () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  const calls=[];
+  const runtime=createPdvHardwareRuntime({
+    BrowserWindow:function(){},
+    env:{ PDV_SCALE_PORT:'COM7', PDV_SCALE_PROFILE:'urano-pop-s' },
+    modules:fakeModules(calls)
+  });
+
+  const transportCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='serial-transport');
+  assert.deepEqual(transportCall[1],{path:'COM7',baudRate:9600,dataBits:8,stopBits:2,parity:'none'});
+
+  const sessionCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='request-session');
+  assert.equal(Buffer.isBuffer(sessionCall[1].request),true);
+  assert.deepEqual([...sessionCall[1].request],[0x04]);
+
+  const diagnostics=await runtime.diagnostics();
+  assert.equal(diagnostics.configuration.scale.profile,'urano-pop-s');
+  assert.equal(diagnostics.configuration.scale.manufacturer,'Urano');
+  assert.equal(diagnostics.configuration.scale.model,'US 31/2 POP-S');
+  assert.equal(diagnostics.configuration.scale.stopBits,2);
+  assert.equal(diagnostics.configuration.scale.requestCommand,'0x04');
 });
 
 test('thermal mode selects thermal driver without silent fallback', async () => {
