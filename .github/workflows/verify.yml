@@ -58,6 +58,8 @@ jobs:
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow core-business-e2e --viewport compactDesktop --output qa-artifacts
       - name: Run checkout UX exceptions at 1366x768
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow checkout-ux-preservation --viewport compactDesktop --output qa-artifacts
+      - name: Run desktop regressions at 1366x768
+        run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow desktop-regressions-e2e --viewport compactDesktop --output qa-artifacts
       - name: Run paired UX finalization
         run: xvfb-run -a npm run qa:ux:finalize
       - name: Upload QA evidence
