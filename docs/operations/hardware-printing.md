@@ -8,11 +8,19 @@ O modo padrão é **keyboard-wedge**: mantenha o foco no campo de busca do Balc�
 
 ## Balança
 
-Configure `PDV_SCALE_PORT` e, quando necessário, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
+Configure pela tela **Configurações > Periféricos > Balança** sempre que possível. A seleção é persistida localmente em `hardware.json` dentro do `userData` do Electron e reaplicada no próximo início do PDV. Também continuam disponíveis, para implantação/diagnóstico avançado, `PDV_SCALE_PORT`, `PDV_SCALE_PROFILE`, `PDV_SCALE_BAUD`, `PDV_SCALE_COMMAND`, `PDV_SCALE_TIMEOUT_MS` e `PDV_SCALE_SETTLE_MS`.
 
 `PDV_SCALE_SETTLE_MS` define uma pequena janela de silêncio, padrão de 30 ms, antes de interpretar a resposta acumulada. Isso evita aceitar prematuramente um fragmento como `1.` quando a continuação `250 kg` chega logo depois. O timeout total continua sendo controlado separadamente por `PDV_SCALE_TIMEOUT_MS`.
 
 A leitura passa pelo transporte e adapter do `@artisys/serialport`; a UI recebe somente peso normalizado em kg, nunca uma porta serial genérica.
+
+### Urano US 31/2 POP-S
+
+Selecione o perfil **Urano US 31/2 POP-S** e a porta COM. O perfil fixa a comunicação serial em **9600 bps, 8 bits, sem paridade, 2 stop bits (8N2)** e usa o parser dedicado aos frames Urano POP-S. O comando de leitura padrão é `0x04`; `0x05` pode ser selecionado explicitamente quando necessário. O usuário não precisa configurar baud rate, paridade ou stop bits manualmente.
+
+O parser dedicado reconhece o peso líquido nos layouts USE-P2/USE-CB2 cobertos pelos testes e rejeita payloads genéricos/incompletos em vez de adivinhar um número. O runtime pode aplicar ou trocar a configuração sem reiniciar o Electron, e **Salvar e testar** executa uma leitura imediatamente após a configuração.
+
+Até existir evidência de teste com uma unidade física, a implementação comprova o caminho de software/protocolo e o modelo deve continuar marcado como `UNTESTED_MODEL`, não `FIELD_VERIFIED`.
 
 ## Gaveta
 
@@ -49,6 +57,7 @@ A suíte obrigatória de CI valida, por simulação:
 - falha de escrita serial e reconexão sem reiniciar o PDV;
 - porta COM ocupada ou inexistente e recuperação em tentativa posterior;
 - respostas de balança com ponto/vírgula, fragmentação, lixo, timeout e nova tentativa;
+- protocolo Urano POP-S com perfil 9600/8N2, comandos binários e frames USE-P2/USE-CB2;
 - Epson/Star com texto acentuado, corte, pulso de gaveta e larguras 32/42/48;
 - spooler Windows/Electron retornando offline e impressão posterior bem-sucedida;
 - leitor `keyboard-wedge` sob leituras repetidas e códigos inválidos;
