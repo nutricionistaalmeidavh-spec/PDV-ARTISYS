@@ -51,6 +51,17 @@
     return Math.round(numeric * 100);
   }
 
+  function calculateCashChange(totalCents, receivedCents) {
+    const total = Math.max(0, Math.round(Number(totalCents) || 0));
+    const received = Math.max(0, Math.round(Number(receivedCents) || 0));
+    return {
+      receivedCents: received,
+      remainingCents: Math.max(total - received, 0),
+      changeCents: Math.max(received - total, 0),
+      sufficient: received >= total
+    };
+  }
+
   function percentageToDiscountCents(subtotalCents, percent) {
     const subtotal = Math.max(0, Math.round(Number(subtotalCents) || 0));
     const bounded = Math.min(Math.max(Number(percent) || 0, 0), 100);
@@ -94,6 +105,7 @@
     resolveShortcut,
     formatCents,
     parseCurrencyToCents,
+    calculateCashChange,
     percentageToDiscountCents,
     calculateMarginPercent,
     normalizeSearch,

@@ -137,6 +137,7 @@
 
     {"action":"click","selector":"[data-route='settings']","name":"printing-open-settings"},
     {"action":"waitFor","selector":"#printing-settings-card","name":"printing-settings-ready","timeoutMs":15000},
+    {"action":"waitFor","selector":"#printing-device-name","name":"printing-controls-ready","timeoutMs":15000},
     {"action":"expectVisible","selector":"#printing-device-name","name":"printing-printer-select-visible"},
     {"action":"expectVisible","selector":"#printing-paper-mm","name":"printing-paper-select-visible"},
     {"action":"selectOption","selector":"#printing-paper-mm","value":"58","name":"printing-paper-58"},
@@ -149,6 +150,7 @@
     {"action":"waitFor","selector":"[data-route='settings']","name":"printing-after-reload-nav","timeoutMs":15000},
     {"action":"click","selector":"[data-route='settings']","name":"printing-open-settings-after-reload"},
     {"action":"waitFor","selector":"#printing-settings-card","name":"printing-settings-after-reload","timeoutMs":15000},
+    {"action":"waitFor","selector":"#printing-device-name","name":"printing-controls-after-reload","timeoutMs":15000},
     {"action":"expectValue","selector":"#printing-paper-mm","expected":"58","name":"printing-paper-persisted"},
     {"action":"expectValue","selector":"#printing-columns","expected":"32","name":"printing-columns-persisted"},
     {"action":"selectOption","selector":"#printing-paper-mm","value":"80","name":"printing-reset-paper-80"},
