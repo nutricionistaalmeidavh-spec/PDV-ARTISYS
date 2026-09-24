@@ -51,6 +51,7 @@
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
     products(includeInactive = false) { return this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`); }
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
+    removeProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
     syncProductPhotos(force = false) { return root.artisysDesktop.photos.sync({ force, sessionToken:this.sessionToken }); }
     productPhotoSyncStatus() { return root.artisysDesktop.photos.status(); }
     productPhotoDataUrl(productId, variant = 'thumbnail') { return root.artisysDesktop.photos.dataUrl({ productId, variant, sessionToken:this.sessionToken }); }
