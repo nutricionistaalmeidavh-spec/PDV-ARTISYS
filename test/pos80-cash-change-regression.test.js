@@ -6,6 +6,7 @@ const path=require('node:path');
 const ui=require('../desktop/renderer/ui-model');
 const {renderSaleReceipt}=require('../js/domains/printing/receipt-renderer');
 const {renderDanfeNfce}=require('../js/domains/fiscal/danfe-nfce-renderer');
+const {createPromotionSaleService}=require('../js/domains/sales/promotion-sale-service');
 const {createElectronPrinterDriver}=require('../vendor/artisys-printing/src/drivers/electron-printer');
 const printingPreferences=require('../js/domains/printing/printing-preferences');
 
@@ -52,6 +53,25 @@ test('receipt prints friendly cash label, amount received and change without lea
   });
   assert.match(fallback,/Operador: Administrador/);
   assert.doesNotMatch(fallback,/user-interno|cust-interno/);
+});
+
+test('sale receipt projection exposes readable operator and customer names from persisted ids',()=>{
+  const db={
+    exec(){},
+    prepare(sql){
+      if(sql==='PRAGMA table_info(sales)')return{all:()=>[{name:'observation'},{name:'print_observation'}]};
+      if(sql.startsWith('SELECT * FROM sale_discount_states'))return{get:()=>null};
+      if(sql.startsWith('SELECT observation,print_observation'))return{get:()=>({})};
+      if(sql.startsWith('SELECT name FROM users'))return{get:id=>id==='u1'?{name:'Administrador'}:undefined};
+      if(sql.startsWith('SELECT name FROM customers'))return{get:id=>id==='c1'?{name:'Cliente Teste'}:undefined};
+      throw new Error(`SQL inesperado no teste: ${sql}`);
+    }
+  };
+  const baseSales={getSaleDetails:()=>({id:'s1',saleNumber:'V-1',operatorId:'u1',sellerId:'u1',sellerName:'Administrador',customerId:'c1',discountCents:0,items:[]})};
+  const sales=createPromotionSaleService({db,baseSales,promotionService:{}});
+  const details=sales.getSaleDetails('s1');
+  assert.equal(details.operatorName,'Administrador');
+  assert.equal(details.customerName,'Cliente Teste');
 });
 
 test('DANFE NFC-e prints friendly cash payment and change from canonical sale values',()=>{
