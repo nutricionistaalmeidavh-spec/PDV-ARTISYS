@@ -1,0 +1,30 @@
+{
+  "name":"printing-settings-e2e",
+  "steps":[
+    {"uses":"home.json"},
+    {"action":"click","selector":"[data-route='settings']","name":"print-settings-open"},
+    {"action":"waitFor","selector":"#printing-settings-card","name":"print-settings-ready","timeoutMs":15000},
+    {"action":"expectText","selector":"#printing-settings-card","expected":"Salvar PDF","name":"print-settings-pdf-independent"},
+    {"action":"selectOption","selector":"#printing-paper-mm","value":"80","name":"print-settings-paper-80"},
+    {"action":"selectOption","selector":"#printing-columns-mode","value":"auto","name":"print-settings-auto-80"},
+    {"action":"expectValue","selector":"#printing-columns","expected":"48","name":"print-settings-auto-80-columns"},
+    {"action":"click","selector":"#printing-save","name":"print-settings-save-80"},
+    {"action":"expectText","selector":"#printing-settings-status","expected":"80 mm · 48 colunas","name":"print-settings-saved-80"},
+    {"action":"selectOption","selector":"#printing-paper-mm","value":"58","name":"print-settings-paper-58"},
+    {"action":"selectOption","selector":"#printing-columns-mode","value":"auto","name":"print-settings-auto-58"},
+    {"action":"expectValue","selector":"#printing-columns","expected":"32","name":"print-settings-auto-58-columns"},
+    {"action":"click","selector":"#printing-save","name":"print-settings-save-58"},
+    {"action":"expectText","selector":"#printing-settings-status","expected":"58 mm · 32 colunas","name":"print-settings-saved-58"},
+    {"action":"screenshot","name":"printing-settings-58mm"},
+    {"action":"reload","name":"print-settings-reload"},
+    {"action":"waitFor","selector":"#auth-overlay","state":"hidden","name":"print-settings-session-restored","timeoutMs":15000},
+    {"action":"click","selector":"[data-route='settings']","name":"print-settings-reopen"},
+    {"action":"waitFor","selector":"#printing-settings-card","name":"print-settings-reloaded-ready","timeoutMs":15000},
+    {"action":"expectValue","selector":"#printing-paper-mm","expected":"58","name":"print-settings-persisted-paper"},
+    {"action":"expectValue","selector":"#printing-columns-mode","expected":"auto","name":"print-settings-persisted-mode"},
+    {"action":"expectValue","selector":"#printing-columns","expected":"32","name":"print-settings-persisted-columns"},
+    {"action":"expectText","selector":"#printing-settings-card","expected":"Nenhuma impressora do Windows foi encontrada","name":"print-settings-no-printer-pdf-remains"},
+    {"action":"expectNoHorizontalOverflow","selector":"#printing-settings-card","name":"print-settings-card-no-overflow"},
+    {"action":"expectNoHorizontalOverflow","name":"print-settings-page-no-overflow"}
+  ]
+}
