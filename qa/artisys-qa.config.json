@@ -27,6 +27,7 @@
       "env": {
         "NODE_ENV": "test",
         "ARTISYS_QA": "1",
+        "ARTISYS_QA_PDF_DIR": "qa-artifacts/pdf",
         "PDV_ENABLE_LAN": "false",
         "PDV_AUTO_PRINT": "false"
       }
