@@ -10,6 +10,7 @@ const SCALE_PROFILES = new Set([
   'filizola-bp-cs',
   'generic-numeric'
 ]);
+const SCALE_CONNECTIONS = new Set(['serial','usb-serial']);
 
 function readPositiveInteger(value, fallback, name) {
   const parsed = Number(value == null || value === '' ? fallback : value);
@@ -26,6 +27,12 @@ function readScaleProfile(value) {
   const profile = String(value || 'generic').trim().toLowerCase();
   if (!SCALE_PROFILES.has(profile)) throw new Error('PDV_SCALE_PROFILE invalido.');
   return profile;
+}
+
+function readScaleConnection(value) {
+  const connection = String(value || 'serial').trim().toLowerCase();
+  if (!SCALE_CONNECTIONS.has(connection)) throw new Error('PDV_SCALE_CONNECTION invalida. Use serial ou usb-serial.');
+  return connection;
 }
 
 function readUranoRequestCommand(value) {
@@ -79,6 +86,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   let scaleConfiguration = {
     configured:false,
     profile:'generic',
+    connection:'serial',
     manufacturer:null,
     model:null,
     protocol:null,
@@ -94,6 +102,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   function setupScale(input = {}) {
     const profileName = readScaleProfile(input.profile);
+    const connection = readScaleConnection(input.connection);
     const port = String(input.port || '').trim();
     scale = null;
     scaleSettleMs = null;
@@ -103,6 +112,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       scaleConfiguration = {
         configured:false,
         profile:profileName,
+        connection,
         manufacturer:profileName==='urano-pop-s'?'Urano':preset?.manufacturer || null,
         model:profileName==='urano-pop-s'?'US 31/2 POP-S':preset?.models?.join(' / ') || null,
         protocol:profileName==='urano-pop-s'?'urano-pop-s':preset?.id || null,
@@ -175,6 +185,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     scaleConfiguration = {
       configured:true,
       profile:profileName,
+      connection,
       manufacturer,
       model,
       protocol:protocolId,
@@ -192,6 +203,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   setupScale({
     profile:env.PDV_SCALE_PROFILE || env.PDV_SCALE_PRESET || 'generic',
+    connection:env.PDV_SCALE_CONNECTION || 'serial',
     port:env.PDV_SCALE_PORT || '',
     baud:env.PDV_SCALE_BAUD,
     command:env.PDV_SCALE_COMMAND,
@@ -203,6 +215,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   async function configureScale(input = {}) {
     return setupScale({
       profile:input.profile || input.preset,
+      connection:input.connection,
       port:input.port,
       baud:input.baud,
       command:input.command,
@@ -370,4 +383,4 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, configureScale, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
-module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readUranoRequestCommand, sanitizePort, SCALE_PROFILES };
+module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readScaleConnection, readUranoRequestCommand, sanitizePort, SCALE_PROFILES, SCALE_CONNECTIONS };
