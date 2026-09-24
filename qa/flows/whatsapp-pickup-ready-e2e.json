@@ -23,6 +23,8 @@
     {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button","timeoutMs":10000},
     {"action":"expectVisible","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button-visible"},
     {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","text":"Avisar no WhatsApp","name":"wa-ready-button-label"},
+    {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-open-whatsapp"},
+    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","text":"WhatsApp aberto","name":"wa-open-whatsapp-result"},
     {"action":"screenshot","name":"whatsapp-pickup-ready","fullPage":true}
   ]
 }
