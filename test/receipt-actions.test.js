@@ -2,6 +2,7 @@
 
 const test=require('node:test');
 const assert=require('node:assert/strict');
+const fs=require('node:fs');
 const path=require('node:path');
 const {createReceiptActions,safePdfFileName,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
 
@@ -80,4 +81,13 @@ test('receipt IPC rejects untrusted senders and delegates trusted requests',asyn
   assert.deepEqual(await handlers.get('artisys:receipts:print-sale')({sender:'trusted'},{saleId:'s1',sessionToken:'t'}),{success:true});
   assert.deepEqual(await handlers.get('artisys:receipts:save-pdf')({sender:'trusted'},{saleId:'s1',sessionToken:'t'}),{cancelled:false});
   assert.equal(calls.length,2);
+});
+
+test('desktop main wires trusted receipt actions to canonical receipt API and local printer',()=>{
+  const main=fs.readFileSync(path.join(__dirname,'../desktop/main.cjs'),'utf8');
+  assert.match(main,/createReceiptActions/);
+  assert.match(main,/registerReceiptIpc/);
+  assert.match(main,/\/api\/v1\/sales\/\$\{encodeURIComponent\(saleId\)\}\/receipt/);
+  assert.match(main,/hardwareController\.print/);
+  assert.match(main,/writeFile/);
 });
