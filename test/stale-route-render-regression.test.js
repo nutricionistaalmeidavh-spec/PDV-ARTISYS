@@ -14,3 +14,32 @@ test('async product save does not redraw Products after another route became act
     /closeModal\(\);\s*if \(isRouteActive\('products'\)\) renderProducts\(\);\s*showToast\('Produto salvo\.', 'success'\)/,
   );
 });
+
+test('active route comes from the shared DOM route marker instead of stale app state', () => {
+  assert.match(source, /function isRouteActive\(route\) \{ return document\.body\.dataset\.activeRoute === route; \}/);
+  assert.match(source, /state\.route = route;\s*document\.body\.dataset\.activeRoute = route;/);
+  assert.doesNotMatch(source, /state\.route\s*===\s*'products'\)\s*renderProducts\(\)/);
+});
+
+test('route renderers reject stale asynchronous redraws', () => {
+  for (const [name, route] of [
+    ['renderCheckout', 'checkout'],
+    ['renderCustomers', 'customers'],
+    ['renderSellers', 'sellers'],
+    ['renderProducts', 'products'],
+  ]) {
+    const start = source.indexOf(`function ${name}(`);
+    assert.notEqual(start, -1, `${name} must exist`);
+    const block = source.slice(start, start + 260);
+    assert.match(block, new RegExp(`if \\(!isRouteActive\\('${route}'\\)\\) return;`), `${name} must ignore stale route redraws`);
+  }
+});
+
+test('photo sync monitor checks the real active route', () => {
+  const start = source.indexOf('function monitorProductPhotoSync()');
+  assert.notEqual(start, -1);
+  const block = source.slice(start, start + 700);
+  assert.match(block, /isRouteActive\('products'\)/);
+  assert.match(block, /isRouteActive\('checkout'\)/);
+  assert.doesNotMatch(block, /state\.route/);
+});

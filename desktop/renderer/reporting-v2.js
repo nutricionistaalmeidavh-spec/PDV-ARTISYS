@@ -69,7 +69,9 @@
     setTimeout(() => URL.revokeObjectURL(url),1000);
   }
   async function ready() { if (!config) config = await api.initialize(); return config; }
+  function routeActive() { return document.body.dataset.activeRoute === 'reports'; }
   function markActive() {
+    document.body.dataset.activeRoute = 'reports';
     document.body.classList.remove('theme-home');
     document.querySelectorAll('[data-route]').forEach(node => node.classList.toggle('active',node.dataset.route === 'reports'));
   }
@@ -228,10 +230,12 @@
       [sales,inventory,cash,sellers] = await Promise.all([api.reportSales(salesFilters),api.reportInventory(),api.reportCash(basePeriod),api.sellers()]);
       if (state.view === 'commissions') [commissions,products,rules] = await Promise.all([api.commissions(salesFilters),api.products(),api.commissionRules({includeInactive:true})]);
     } catch (error) {
+      if (!routeActive()) return;
       content.innerHTML = `<section class="ops-page"><header class="ops-head"><div><h1>Relatórios</h1><p>Não foi possível carregar os dados.</p></div></header><section class="ops-card"><div class="ops-empty">${escapeHtml(error.message)}</div></section></section>`;
       return;
     }
 
+    if (!routeActive()) return;
     if (state.customerId && !sales.customerSales?.some(row => (row.customerId || '__WALK_IN__') === state.customerId)) state.customerId = '';
     if (state.productId && !sales.productSales?.some(row => row.productId === state.productId)) state.productId = '';
     if (state.paymentMethod && !sales.paymentMethods?.some(row => row.method === state.paymentMethod)) state.paymentMethod = '';

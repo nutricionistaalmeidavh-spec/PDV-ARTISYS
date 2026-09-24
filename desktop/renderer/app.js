@@ -122,7 +122,7 @@
   function modalBackdropClose(event) { if (event.target === modalRoot) closeModal(); }
   function closeModal() { modalRoot.classList.add('hidden'); modalRoot.innerHTML = ''; }
   function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
-  function isRouteActive(route) { return document.querySelector('#sidebar-nav [data-route].active')?.dataset.route === route; }
+  function isRouteActive(route) { return document.body.dataset.activeRoute === route; }
 
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
@@ -171,6 +171,7 @@
   async function navigate(route) {
     if (!ROUTES[route]) route = 'home';
     state.route = route;
+    document.body.dataset.activeRoute = route;
     document.body.classList.toggle('theme-home', route === 'home');
     renderSidebar();
     if (route === 'checkout') {
@@ -202,6 +203,7 @@
   function selectedCustomer() { return state.customers.find((customer) => customer.id === state.sale?.customerId) || null; }
 
   function renderCheckout() {
+    if (!isRouteActive('checkout')) return;
     const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const customer = selectedCustomer(); const sale = state.sale;
     content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${products.map((product) => productCard(product)).join('') || '<div class="empty-state">Nenhum produto encontrado.</div>'}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente por nome, CPF ou código..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button><button class="pay-button tef" data-pay="tef">TEF</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
@@ -322,10 +324,11 @@
 
   async function suspendCurrentSale() {
     if (!state.sale?.items?.length) return showToast('Adicione itens antes de suspender.', 'error');
-    try { await api.suspendSale(state.sale.id); state.sale = null; state.selectedProductId = null; state.suspendedSales = await api.sales('SUSPENDED', 30); renderCheckout(); showSuspendedModal(); } catch (error) { showToast(error.message, 'error'); }
+    try { await api.suspendSale(state.sale.id); state.sale = null; state.selectedProductId = null; state.suspendedSales = await api.sales('SUSPENDED', 30); renderCheckout(); if (isRouteActive('checkout')) showSuspendedModal(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   function showSuspendedModal() {
+    if (!isRouteActive('checkout')) return;
     openModal('Vendas suspensas', `<div class="suspended-list">${state.suspendedSales.map((sale) => `<div class="suspended-item"><div><strong>${escapeHtml(sale.saleNumber)}</strong><small>${sale.items.length} itens · ${ui.formatCents(sale.totalCents)}</small></div><button class="primary-button" data-resume="${sale.id}">Retomar</button></div>`).join('') || '<div class="empty-state">Nenhuma venda suspensa.</div>'}</div>`, { onMount(root) { root.querySelectorAll('[data-resume]').forEach((button) => button.addEventListener('click', async () => { try { state.sale = await api.resumeSale(button.dataset.resume); state.discountPercent = state.sale.subtotalCents ? Number(((state.sale.discountCents / state.sale.subtotalCents) * 100).toFixed(2)) : 0; closeModal(); renderCheckout(); } catch (error) { showToast(error.message, 'error'); } })); } });
   }
 
@@ -340,6 +343,7 @@
   async function openPaymentModal(preferredMethod = '') {
     if (!state.sale?.items?.length) return showToast('Adicione itens antes de finalizar.', 'error');
     if (!(await ensureCashOpen())) return;
+    if (!isRouteActive('checkout')) return;
     const method = preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : 'CASH'; state.paymentDraft = [{ method, amountCents: state.sale.totalCents }]; renderPaymentModal();
   }
 
@@ -355,6 +359,7 @@
   }
 
   function renderCustomers() {
+    if (!isRouteActive('customers')) return;
     const query = ui.normalizeSearch(state.customerQuery); const customers = state.customers.filter((customer) => !query || ui.normalizeSearch(`${customer.name} ${customer.document || ''} ${customer.phone || ''}`).includes(query));
     content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Clientes</h1><p>Cadastro, consulta e limite de crédito.</p></div><button class="primary-button" id="new-customer">＋ Novo cliente</button></header><div class="toolbar"><label class="search-field">⌕<input id="customer-page-search" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${escapeHtml(state.customerQuery)}"></label></div><div class="data-card">${customers.map((customer) => `<div class="data-row"><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><div><small>Telefone</small><strong>${escapeHtml(customer.phone || '—')}</strong></div><div><small>Limite</small><strong>${ui.formatCents(customer.creditLimitCents)}</strong></div><button class="secondary-button" data-edit-customer="${customer.id}">Editar</button></div>`).join('') || '<div class="empty-state">Nenhum cliente cadastrado.</div>'}</div></section>`;
     document.getElementById('new-customer')?.addEventListener('click', () => openCustomerForm());
@@ -367,6 +372,7 @@
   }
 
   function renderSellers() {
+    if (!isRouteActive('sellers')) return;
     if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Vendedores');
     const sellers = state.users.filter((user) => ['cashier','manager'].includes(user.role));
     content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Vendedores</h1><p>Operadores, gerentes e permissões de acesso.</p></div><button class="primary-button" id="new-seller">＋ Novo vendedor</button></header><div class="data-card">${sellers.map((user) => `<div class="data-row"><div><strong>${escapeHtml(user.name)}</strong><small>@${escapeHtml(user.username)}</small></div><div><small>Perfil</small><strong>${escapeHtml(roleLabel(user.role))}</strong></div><div><small>Status</small><strong>${user.active ? 'Ativo' : 'Inativo'}</strong></div><button class="secondary-button" data-edit-seller="${user.id}">Editar</button></div>`).join('') || '<div class="empty-state">Nenhum vendedor cadastrado.</div>'}</div></section>`;
@@ -381,6 +387,7 @@
   }
 
   function renderProducts() {
+    if (!isRouteActive('products')) return;
     const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const sync=state.photoSyncStatus||{};const syncLabel=sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
     content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Produtos</h1><p>Catálogo, preços, fotos, custo, margem e estoque mínimo.</p></div><div style="display:flex;gap:8px"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo produto</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar por nome, SKU ou código de barras" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.sku || 'Sem SKU')} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço / custo</small><strong>${ui.formatCents(product.salePriceCents)} / ${ui.formatCents(product.costCents)}</strong></div><div><small>Estoque</small><strong>${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}</strong></div><div style="display:flex;gap:6px"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Editar</button></div></div>`).join('') || '<div class="empty-state">Nenhum produto cadastrado.</div>'}</div></section>`;
@@ -393,7 +400,7 @@
     content.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openProductForm(state.products.find((product) => product.id === button.dataset.editProduct))));
   }
 
-  function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(state.route==='products')renderProducts();if(state.route==='checkout')hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
+  function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);renderProducts();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
   async function uploadProductPhoto(productId){try{const saved=await api.uploadProductPhoto(productId);if(!saved)return;state.products=await api.products();renderProducts();showToast('Foto e miniatura salvas no computador principal.','success');}catch(error){showToast(error.message,'error');}}
   async function removeProductPhoto(productId){if(!confirm('Remover a foto deste produto? O arquivo ficará protegido por 30 dias.'))return;try{await api.removeProductPhoto(productId);state.products=await api.products();renderProducts();showToast('Foto removida com período de segurança de 30 dias.','success');}catch(error){showToast(error.message,'error');}}
@@ -454,7 +461,7 @@
   function bindGlobalEvents() {
     document.querySelectorAll('[data-window]').forEach((button) => button.addEventListener('click', () => window.artisysDesktop.window[button.dataset.window]?.()));
     document.getElementById('operator-button').addEventListener('click', () => { if (!state.user) return; openModal('Operador', `<div style="text-align:center;padding:12px"><div class="auth-logo" style="margin:0 auto 12px">${escapeHtml(initials(state.user.name))}</div><h3>${escapeHtml(state.user.name)}</h3><p>${escapeHtml(roleLabel(state.user.role))}</p><button id="logout-button" class="danger-button">Sair desta sessão</button></div>`, { onMount(root) { root.querySelector('#logout-button').addEventListener('click', () => { closeModal(); logout(); }); } }); });
-    document.addEventListener('keydown', (event) => { if (!/^F\d+$/.test(event.key)) return; const action = ui.resolveShortcut(event.key, state.route); if (action) { event.preventDefault(); void executeShortcut(action); } });
+    document.addEventListener('keydown', (event) => { if (!/^F\d+$/.test(event.key)) return; const action = ui.resolveShortcut(event.key, document.body.dataset.activeRoute || state.route); if (action) { event.preventDefault(); void executeShortcut(action); } });
   }
 
   async function boot() {
@@ -466,6 +473,7 @@
       setOnline(true);
       const setup = await api.setupStatus();
       renderSidebar();
+      document.body.dataset.activeRoute = 'home';
       renderHome();
       if (setup.needsSetup) {
         showSetup();
@@ -477,6 +485,7 @@
     } catch (error) {
       setOnline(false);
       renderSidebar();
+      document.body.dataset.activeRoute = 'home';
       renderHome();
       showToast(`Falha ao iniciar servidor local: ${error.message}`, 'error');
     }
