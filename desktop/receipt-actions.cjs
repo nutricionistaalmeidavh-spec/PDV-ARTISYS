@@ -71,7 +71,8 @@ function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,createP
     const receipt=attempt?.receipt;
     if(!jobId||!receipt)throw new Error('Tentativa manual de impressao invalida.');
     try {
-      const result=await printReceipt(receipt);
+      const qaSimulated=String(env?.ARTISYS_QA||'')==='1'&&String(env?.ARTISYS_QA_SIMULATE_PRINTER||'')==='1';
+      const result=qaSimulated?{success:true,driver:'qa-simulated'}:await printReceipt(receipt);
       if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.');
       await finishPrintAttempt(saleId,jobId,{success:true},sessionToken);
       return result;
