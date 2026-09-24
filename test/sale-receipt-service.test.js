@@ -2,7 +2,7 @@
 
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createSaleReceiptService}=require('../js/domains/printing/sale-receipt-service');
+const {createSaleReceiptService}=require('../js/domains/printing/sale-receipt-projection');
 
 function completedSale(overrides={}) {
   return {
