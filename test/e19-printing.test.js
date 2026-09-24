@@ -23,24 +23,43 @@ test('receipt renderer supports 32 42 and 48 logical columns using cents',()=>{
 test('print service persists failure retry success and explicit reprint',async()=>{
   const db=openDatabase(':memory:');runMigrations(db);let n=0;
   const service=createPrintService({db,now:()=>`2026-09-09T12:00:0${n}Z`,idFactory:p=>`${p}-${++n}`});
-  const job=service.queueJob({type:'SALE_RECEIPT',entityType:'sale',entityId:'s1',payload:{text:'cupom',terminalId:'T1'},width:42});
+  const job=service.queueJob({type:'SALE_RECEIPT',entityType:'sale',entityId:'s1',payload:{text:'cupom',terminalId:'T1',paperMm:80},width:42});
   assert.equal(job.status,'PENDING');
   const failed=service.markFailed(job.id,'sem papel');assert.equal(failed.status,'FAILED');assert.equal(failed.attempts,1);
   const retried=service.retryJob(job.id);assert.equal(retried.status,'PENDING');assert.equal(retried.lastError,null);
   const printed=service.markPrinted(job.id);assert.equal(printed.status,'PRINTED');assert.equal(printed.attempts,2);
   const reprint=service.reprint(job.id);assert.equal(reprint.status,'PENDING');assert.equal(reprint.type,'REPRINT');assert.notEqual(reprint.id,job.id);
   assert.equal(service.listJobs({entityId:'s1'}).length,2);
+  const original=service.getOriginalSaleReceipt('s1');
+  assert.equal(original.id,job.id);
+  assert.equal(original.type,'SALE_RECEIPT');
+  assert.equal(original.payload.text,'cupom');
+  assert.equal(original.payload.paperMm,80);
   db.close();
 });
 
-test('sale completed print effect queues exactly one durable job on retry',async()=>{
+test('process job forwards the canonical paper width to the printer',async()=>{
+  const db=openDatabase(':memory:');runMigrations(db);let n=0;let received=null;
+  const service=createPrintService({db,idFactory:p=>`${p}-${++n}`});
+  const job=service.queueJob({type:'SALE_RECEIPT',entityType:'sale',entityId:'s-paper',payload:{text:'cupom 58',paperMm:58},width:32});
+  await service.processJob(job.id,{print:async input=>{received=input;return {success:true};}});
+  assert.equal(received.paperMm,58);
+  assert.equal(received.width,32);
+  assert.equal(received.text,'cupom 58');
+  db.close();
+});
+
+test('sale completed print effect queues exactly one durable canonical snapshot on retry',async()=>{
   const db=openDatabase(':memory:');runMigrations(db);let n=0;
   const print=createPrintService({db,now:()=> '2026-09-09T12:00:00Z',idFactory:p=>`${p}-${++n}`});
   const bus=new DomainEventBus();const effectStore=new SqliteEffectStore(db);
-  registerPrintEffects({bus,effectStore,printService:print,saleService:{getSaleDetails:id=>id==='s1'?sale():null},storeName:'Loja ArtiSys'});
+  const settings={get:(key,{defaultValue})=>key==='printing.paperMm'?80:key==='printing.columnsMode'?'auto':defaultValue};
+  registerPrintEffects({bus,effectStore,printService:print,saleService:{getSaleDetails:id=>id==='s1'?sale():null},settings,storeName:'Loja ArtiSys'});
   const event={eventId:'evt-sale-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T12:00:00Z',actor:{userId:'u1',role:'cashier',terminalId:'T1'},source:'server',mutationId:null,payload:{terminalId:'T1'}};
   let result=await bus.publishAsync(event);assert.equal(result.failures.length,0);
   result=await bus.publishAsync(event);assert.equal(result.failures.length,0);
   const jobs=print.listJobs({entityId:'s1'});assert.equal(jobs.length,1);assert.equal(jobs[0].id,'receipt-evt-sale-1');assert.match(jobs[0].payload.text,/CUPOM NAO FISCAL/);
+  assert.equal(jobs[0].payload.paperMm,80);assert.equal(jobs[0].width,48);
+  assert.equal(print.getOriginalSaleReceipt('s1').id,jobs[0].id);
   db.close();
 });
