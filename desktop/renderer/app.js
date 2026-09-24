@@ -121,6 +121,7 @@
 
   function modalBackdropClose(event) { if (event.target === modalRoot) closeModal(); }
   function closeModal() { modalRoot.classList.add('hidden'); modalRoot.innerHTML = ''; }
+  window.PdvModal = Object.freeze({ open: openModal, close: closeModal });
   function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
   function isRouteActive(route) { return document.body.dataset.activeRoute === route; }
 
@@ -418,23 +419,39 @@
   }
 
   async function removeCatalogProduct(productId){
-    const product=state.products.find(item=>item.id===productId);
-    if(!product)return;
-    if(!confirm(`Excluir "${product.name}" do catálogo? O produto será inativado para preservar vendas e movimentações já registradas.`))return;
-    try{
-      await api.removeProduct(productId);
-      state.products=state.products.filter(item=>item.id!==productId);
-      renderProducts();
-      showToast('Produto excluído do catálogo. Histórico preservado.','success');
-    }catch(error){showToast(error.message,'error');}
-  }
+  const product=state.products.find(item=>item.id===productId);
+  if(!product)return;
+  openModal('Excluir produto', `<p>Excluir <strong>${escapeHtml(product.name)}</strong> do catálogo?</p><p>O produto será inativado para preservar vendas e movimentações já registradas.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product">Excluir produto</button></div>`, { onMount(root) {
+    root.querySelector('#confirm-remove-product')?.addEventListener('click',async()=>{
+      try{
+        await api.removeProduct(productId);
+        state.products=state.products.filter(item=>item.id!==productId);
+        closeModal();
+        renderProducts();
+        showToast('Produto excluído do catálogo. Histórico preservado.','success');
+      }catch(error){showToast(error.message,'error');}
+    });
+  } });
+}
 
-  function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
+function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);renderProducts();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
   async function uploadProductPhoto(productId){try{const saved=await api.uploadProductPhoto(productId);if(!saved)return;state.products=await api.products();renderProducts();showToast('Foto e miniatura salvas no computador principal.','success');}catch(error){showToast(error.message,'error');}}
-  async function removeProductPhoto(productId){if(!confirm('Remover a foto deste produto? O arquivo ficará protegido por 30 dias.'))return;try{await api.removeProductPhoto(productId);state.products=await api.products();renderProducts();showToast('Foto removida com período de segurança de 30 dias.','success');}catch(error){showToast(error.message,'error');}}
+  async function removeProductPhoto(productId){
+  openModal('Remover foto do produto', `<p>Remover a foto deste produto?</p><p>O arquivo ficará protegido por 30 dias.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product-photo">Remover foto</button></div>`, { onMount(root) {
+    root.querySelector('#confirm-remove-product-photo')?.addEventListener('click',async()=>{
+      try{
+        await api.removeProductPhoto(productId);
+        state.products=await api.products();
+        closeModal();
+        renderProducts();
+        showToast('Foto removida com período de segurança de 30 dias.','success');
+      }catch(error){showToast(error.message,'error');}
+    });
+  } });
+}
 
-  function openCategoryForm() {
+function openCategoryForm() {
     openModal('Nova categoria', `<form id="category-form"><div class="field"><label>Nome *</label><input name="name" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar categoria</button></div></form>`, { onMount(root) { root.querySelector('#category-form').addEventListener('submit', async (event) => { event.preventDefault(); try { const saved = await api.saveCategory({ name: formValue(event.currentTarget,'name') }); state.categories.push(saved); state.categories.sort((a,b) => a.name.localeCompare(b.name,'pt-BR')); closeModal(); renderProducts(); showToast('Categoria criada.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
   }
 
