@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolveSecret, stepLabel } from './helpers.js';
 import { isVisualValidationRequested, shouldUpdateVisualBaselines, validateVisualSnapshot } from './visual.js';
 
@@ -31,6 +32,28 @@ function positiveInteger(value, label) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new TypeError(`${label} must be a positive integer`);
   return parsed;
+}
+
+function assertQaFilePath(candidate, env, label) {
+  const target = path.resolve(candidate);
+  const root = path.resolve(String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`${label}: file assertion must stay inside QA output root ${root}`);
+  }
+  return target;
+}
+
+async function newestMatchingFile(directory, suffix = '') {
+  const names = await readdir(directory);
+  const candidates = [];
+  for (const name of names) {
+    if (suffix && !name.toLowerCase().endsWith(String(suffix).toLowerCase())) continue;
+    const filePath = path.join(directory, name);
+    const info = await stat(filePath).catch(() => null);
+    if (info?.isFile()) candidates.push({ filePath, mtimeMs:info.mtimeMs });
+  }
+  candidates.sort((a,b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0]?.filePath || null;
 }
 
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
@@ -104,6 +127,44 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await target.waitFor({ state: 'visible', timeout: step.timeoutMs });
       const actual = await target.inputValue();
       if (actual !== String(step.expected)) throw new Error(`${label}: expected value ${JSON.stringify(String(step.expected))}, got ${JSON.stringify(actual)}`);
+      break;
+    }
+    case 'expectSameRow': {
+      if (!Array.isArray(step.selectors) || step.selectors.length < 2) throw new Error(`${label}: expectSameRow requires selectors`);
+      const boxes = [];
+      for (const selector of step.selectors) {
+        const target = page.locator(selector).first();
+        await target.waitFor({ state:'visible', timeout:step.timeoutMs ?? 10000 });
+        const box = await target.boundingBox();
+        if (!box) throw new Error(`${label}: could not measure ${selector}`);
+        boxes.push(box);
+      }
+      const tolerancePx = Number(step.tolerancePx ?? 12);
+      const centers = boxes.map(box => box.y + box.height / 2);
+      if (Math.max(...centers) - Math.min(...centers) > tolerancePx) {
+        throw new Error(`${label}: controls are not aligned on the same row`);
+      }
+      break;
+    }
+    case 'expectFile': {
+      let filePath = null;
+      if (step.directory) {
+        const directory = assertQaFilePath(step.directory, env, label);
+        filePath = await newestMatchingFile(directory, step.suffix || '');
+      } else if (step.path) filePath = assertQaFilePath(step.path, env, label);
+      else throw new Error(`${label}: expectFile requires path or directory`);
+      if (!filePath) throw new Error(`${label}: expected file was not found`);
+      const bytes = await readFile(filePath);
+      const minBytes = Number(step.minBytes ?? 1);
+      if (!Number.isFinite(minBytes) || minBytes < 0) throw new TypeError(`${label}: minBytes must be non-negative`);
+      if (bytes.length < minBytes) throw new Error(`${label}: expected at least ${minBytes} bytes, got ${bytes.length}`);
+      if (step.startsWith != null) {
+        const prefix = Buffer.from(String(step.startsWith), 'utf8');
+        if (!bytes.subarray(0, prefix.length).equals(prefix)) throw new Error(`${label}: file does not start with ${JSON.stringify(String(step.startsWith))}`);
+      }
+      if (String(step.startsWith || '') === '%PDF-' && bytes.subarray(0,5).toString('utf8') !== '%PDF-') {
+        throw new Error(`${label}: invalid PDF signature`);
+      }
       break;
     }
     case 'expectNoHorizontalOverflow': {
