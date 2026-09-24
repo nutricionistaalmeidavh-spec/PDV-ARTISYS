@@ -84,7 +84,7 @@
     pdfButton?.addEventListener('click', () => runReceiptAction(pdfButton, () => root.artisysDesktop.receipts.saveSalePdf({ saleId:sale.id, sessionToken:token }), 'PDF salvo com sucesso.'));
     document.getElementById('post-sale-close')?.addEventListener('click', closePostSaleModal);
     document.getElementById('post-sale-new-sale')?.addEventListener('click', closePostSaleModal);
-    modal.addEventListener('click', event => { if (event.target === modal) closePostSaleModal(); }, { once:true });
+    modal.addEventListener('click', event => { if (event.target === modal) closePostSaleModal(); });
   }
 
   if (!ApiClient.prototype.__artisysPostSaleReceiptPatched) {
@@ -228,7 +228,7 @@
   const content = document.getElementById('route-content');
   if (content) {
     settingsObserver = new MutationObserver(queueSettingsInjection);
-    settingsObserver.observe(content, { childList:true, subtree:true });
+    settingsObserver.observe(content, { childList:true });
   }
   root.addEventListener('click', event => {
     if (event.target.closest?.('[data-route="settings"],[data-home-route="settings"]')) queueSettingsInjection();
