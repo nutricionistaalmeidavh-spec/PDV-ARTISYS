@@ -61,14 +61,15 @@ test('pickup-ready WhatsApp action is rendered by the canonical delivery rendere
   assert.doesNotMatch(modules,/scheduleDeliveryEnhancement/);
 });
 
-test('delivery phone is numeric national format without silent truncation',()=>{
+test('delivery phone accepts formatted input before validating 10-11 normalized digits',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
 
   assert.match(modules,/input\('phone','Telefone','tel'/);
   assert.match(modules,/inputmode="numeric"/);
-  assert.match(modules,/maxlength="11"/);
+  assert.match(modules,/pattern="\\\\d\{10,11\}"/);
   assert.match(modules,/replace\(\/\\D\/g,''\)/);
   assert.match(modules,/startsWith\('55'\)/);
+  assert.doesNotMatch(modules,/maxlength="11"/);
   assert.doesNotMatch(modules,/slice\(0,11\)/);
 });
 
