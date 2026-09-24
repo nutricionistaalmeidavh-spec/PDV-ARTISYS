@@ -1,5 +1,17 @@
 'use strict';
 
+const { createScaleProtocol } = require('../js/hardware/scale-protocols');
+
+const SCALE_PROFILES = new Set([
+  'generic',
+  'urano-pop-s',
+  'toledo-prix3-prt5',
+  'urano-udc',
+  'filizola-bp-cs',
+  'generic-numeric'
+]);
+const SCALE_CONNECTIONS = new Set(['serial','usb-serial']);
+
 function readPositiveInteger(value, fallback, name) {
   const parsed = Number(value == null || value === '' ? fallback : value);
   if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${name} invalido.`);
@@ -13,8 +25,14 @@ function readBoolean(value, fallback = false) {
 
 function readScaleProfile(value) {
   const profile = String(value || 'generic').trim().toLowerCase();
-  if (!['generic','urano-pop-s'].includes(profile)) throw new Error('PDV_SCALE_PROFILE invalido. Use generic ou urano-pop-s.');
+  if (!SCALE_PROFILES.has(profile)) throw new Error('PDV_SCALE_PROFILE invalido.');
   return profile;
+}
+
+function readScaleConnection(value) {
+  const connection = String(value || 'serial').trim().toLowerCase();
+  if (!SCALE_CONNECTIONS.has(connection)) throw new Error('PDV_SCALE_CONNECTION invalida. Use serial ou usb-serial.');
+  return connection;
 }
 
 function readUranoRequestCommand(value) {
@@ -58,13 +76,21 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   let serialManager=null;
   try{if(typeof serial.createSerialPortManager==='function')serialManager=serial.createSerialPortManager();}catch{/* hardware opcional */}
 
+  const qaScaleWeightCandidate=Number(env.PDV_QA_SCALE_WEIGHT_KG);
+  const qaScaleWeightKg=String(env.ARTISYS_QA||'')==='1'&&Number.isFinite(qaScaleWeightCandidate)&&qaScaleWeightCandidate>0
+    ? Math.round(qaScaleWeightCandidate*1000)/1000
+    : null;
+
   let scale = null;
   let scaleSettleMs = null;
   let scaleConfiguration = {
     configured:false,
     profile:'generic',
+    connection:'serial',
     manufacturer:null,
     model:null,
+    protocol:null,
+    documentationStatus:null,
     port:null,
     baud:null,
     dataBits:null,
@@ -76,16 +102,21 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   function setupScale(input = {}) {
     const profileName = readScaleProfile(input.profile);
+    const connection = readScaleConnection(input.connection);
     const port = String(input.port || '').trim();
     scale = null;
     scaleSettleMs = null;
 
     if (!port) {
+      const preset = !['generic','urano-pop-s'].includes(profileName) ? createScaleProtocol({ preset:profileName }) : null;
       scaleConfiguration = {
         configured:false,
         profile:profileName,
-        manufacturer:profileName==='urano-pop-s'?'Urano':null,
-        model:profileName==='urano-pop-s'?'US 31/2 POP-S':null,
+        connection,
+        manufacturer:profileName==='urano-pop-s'?'Urano':preset?.manufacturer || null,
+        model:profileName==='urano-pop-s'?'US 31/2 POP-S':preset?.models?.join(' / ') || null,
+        protocol:profileName==='urano-pop-s'?'urano-pop-s':preset?.id || null,
+        documentationStatus:profileName==='urano-pop-s'?'manufacturer-protocol-documented':preset?.documentationStatus || null,
         port:null,
         baud:null,
         dataBits:null,
@@ -102,6 +133,8 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     let parse;
     let manufacturer = null;
     let model = null;
+    let protocolId = null;
+    let documentationStatus = null;
     let requestCommand = null;
 
     if (profileName === 'urano-pop-s') {
@@ -113,7 +146,23 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       parse = protocol.parse;
       manufacturer = protocol.manufacturer || 'Urano';
       model = protocol.model || 'US 31/2 POP-S';
+      protocolId = protocol.id || 'urano-pop-s';
+      documentationStatus = 'manufacturer-protocol-documented';
       requestCommand = `0x${command.toString(16).padStart(2,'0')}`;
+    } else if (profileName !== 'generic') {
+      const protocol = createScaleProtocol({ preset:profileName });
+      profile = {
+        path:port,
+        ...protocol.serial,
+        baudRate:readPositiveInteger(input.baud, protocol.serial.baudRate, 'PDV_SCALE_BAUD')
+      };
+      const hasExplicitCommand = input.command != null && String(input.command) !== '';
+      request = hasExplicitCommand ? input.command : protocol.request();
+      parse = buffer => protocol.parse(buffer).weight;
+      manufacturer = protocol.manufacturer;
+      model = protocol.models.join(' / ');
+      protocolId = protocol.id;
+      documentationStatus = protocol.documentationStatus;
     } else {
       profile = {
         path:port,
@@ -136,8 +185,11 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     scaleConfiguration = {
       configured:true,
       profile:profileName,
+      connection,
       manufacturer,
       model,
+      protocol:protocolId,
+      documentationStatus,
       port:profile.path,
       baud:profile.baudRate,
       dataBits:profile.dataBits ?? null,
@@ -150,7 +202,8 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   setupScale({
-    profile:env.PDV_SCALE_PROFILE || 'generic',
+    profile:env.PDV_SCALE_PROFILE || env.PDV_SCALE_PRESET || 'generic',
+    connection:env.PDV_SCALE_CONNECTION || 'serial',
     port:env.PDV_SCALE_PORT || '',
     baud:env.PDV_SCALE_BAUD,
     command:env.PDV_SCALE_COMMAND,
@@ -161,7 +214,8 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   async function configureScale(input = {}) {
     return setupScale({
-      profile:input.profile,
+      profile:input.profile || input.preset,
+      connection:input.connection,
       port:input.port,
       baud:input.baud,
       command:input.command,
@@ -250,7 +304,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     const printerStatus = typeof printer.status === 'function' ? await printer.status(profile) : { available:true };
     return {
       barcodeScanner:{ available:true, mode:'keyboard-wedge' },
-      scale:scale ? await scale.status() : { available:false, reason:'not-configured' },
+      scale:scale ? await scale.status() : qaScaleWeightKg!=null ? { available:true, mode:'qa-simulator' } : { available:false, reason:'not-configured' },
       printer:printerMode === 'serial' ? { ...printerStatus, mode:'serial' } : printerStatus,
       cashDrawer:cashDrawer ? await cashDrawer.status() : { available:false, reason:'not-configured' }
     };
@@ -270,7 +324,10 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   async function readWeight() {
-    if (!scale) throw new Error('Balanca nao configurada.');
+    if (!scale) {
+      if(qaScaleWeightKg!=null)return { weight:qaScaleWeightKg, unit:'kg' };
+      throw new Error('Balanca nao configurada.');
+    }
     const result = await scale.readWeight();
     const weight = Number(result && typeof result === 'object' ? result.weight : result);
     if (!Number.isFinite(weight) || weight < 0) throw new Error('Leitura de peso invalida.');
@@ -310,7 +367,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:profile.width,paperMm,deviceName:profile.deviceName||null,silent:Boolean(profile.silent),cut:Boolean(profile.cut),openDrawerAfterPrint:Boolean(profile.openDrawerAfterPrint),interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{...scaleConfiguration},
+        scale:qaScaleWeightKg!=null&&!scale ? {...scaleConfiguration,simulated:true,weightKg:qaScaleWeightKg} : {...scaleConfiguration},
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
@@ -326,4 +383,4 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, configureScale, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
-module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readUranoRequestCommand, sanitizePort };
+module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readScaleConnection, readUranoRequestCommand, sanitizePort, SCALE_PROFILES, SCALE_CONNECTIONS };

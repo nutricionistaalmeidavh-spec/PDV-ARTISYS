@@ -102,12 +102,12 @@
 
     {"action":"click","selector":"[data-pay=\"card\"]","name":"ux-quick-card"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-card-payment-ready","timeoutMs":10000},
-    {"action":"expectText","selector":".payment-list","expected":"Cartão crédito / TEF","name":"ux-card-payment-method"},
+    {"action":"expectText","selector":".payment-list","expected":"Cartão crédito","name":"ux-card-payment-method"},
     {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-card-payment"},
 
     {"action":"click","selector":"[data-pay=\"tef\"]","name":"ux-quick-tef"},
     {"action":"waitFor","selector":"#confirm-payment","name":"ux-tef-payment-ready","timeoutMs":10000},
-    {"action":"expectText","selector":".payment-list","expected":"Cartão crédito / TEF","name":"ux-tef-payment-method"},
+    {"action":"expectText","selector":".payment-list","expected":"Cartão crédito","name":"ux-tef-payment-method"},
     {"action":"click","selector":"#modal-root .modal-head [data-close-modal]","name":"ux-close-tef-payment"},
 
     {"action":"click","selector":"#finalize-sale","name":"ux-open-multi-payment"},

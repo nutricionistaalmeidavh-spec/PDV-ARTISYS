@@ -51,7 +51,7 @@ test('hardware config store persists only normalized local scale fields', () => 
   const filePath=path.join(dir,'hardware.json');
   const store=createHardwareConfigStore({filePath});
   const saved=store.saveScale({profile:'urano-pop-s',port:' COM7 ',requestCommand:'0x04',unexpected:'discard'});
-  assert.deepEqual(saved,{profile:'urano-pop-s',port:'COM7',requestCommand:'0x04'});
+  assert.deepEqual(saved,{profile:'urano-pop-s',port:'COM7',connection:'serial',baud:9600,requestCommand:'0x04'});
   assert.deepEqual(store.load().scale,saved);
   const raw=JSON.parse(fs.readFileSync(filePath,'utf8'));
   assert.deepEqual(raw,{scale:saved});
