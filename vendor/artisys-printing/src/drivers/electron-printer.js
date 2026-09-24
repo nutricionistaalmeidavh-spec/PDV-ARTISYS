@@ -1,6 +1,7 @@
 'use strict';
 const { wrapPrintingError } = require('../errors');
 const { normalizePrinterProfile } = require('../printer-profile');
+const MICRONS_PER_PX=25400/96;
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
 }
@@ -16,6 +17,13 @@ function safeDocumentHtml(value){
   if(/<script\b|<iframe\b|<object\b|<embed\b|<link\b|<meta\s+http-equiv\s*=\s*["']?refresh/i.test(source))return null;
   if(/\b(?:src|href)\s*=\s*["']?\s*(?:https?:|file:|javascript:)/i.test(source))return null;
   return source;
+}
+function thermalPageSize(paperMm,scrollHeightPx){
+  const paper=Number(paperMm);
+  if(![58,80].includes(paper))return null;
+  const pixels=Number(scrollHeightPx);
+  const contentPx=Number.isFinite(pixels)&&pixels>0?pixels:480;
+  return {width:paper*1000,height:Math.max(50000,Math.ceil(contentPx*MICRONS_PER_PX)+6000)};
 }
 function createElectronPrinterDriver({ BrowserWindow } = {}) {
   if (typeof BrowserWindow !== 'function') throw new TypeError('BrowserWindow is required.');
@@ -38,8 +46,21 @@ function createElectronPrinterDriver({ BrowserWindow } = {}) {
         html=`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#fff}.receipt-logo{display:block;max-width:${maxLogoWidth}px;max-height:150px;width:auto;height:auto;object-fit:contain;margin:0 auto 8px}pre{margin:0;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap}</style></head><body>${logo?`<img class="receipt-logo" src="${logo}" alt="">`:''}<pre>${safe}</pre></body></html>`;
       }
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+      let receiptPageSize=null;
+      if(!a4&&[58,80].includes(Number(input.paperMm))){
+        let scrollHeight=480;
+        if(typeof window.webContents.executeJavaScript==='function'){
+          scrollHeight=await window.webContents.executeJavaScript('Math.max(document.body ? document.body.scrollHeight : 0, document.documentElement.scrollHeight)');
+        }
+        receiptPageSize=thermalPageSize(input.paperMm,scrollHeight);
+      }
       const result=await new Promise(resolve => {
-        window.webContents.print({ silent:profile.silent, printBackground:a4, deviceName:profile.deviceName || undefined, ...(a4?{pageSize:'A4',landscape:false}:{}) }, (success, failureReason) => resolve({ success:Boolean(success), failureReason:failureReason || '' }));
+        window.webContents.print({
+          silent:profile.silent,
+          printBackground:a4,
+          deviceName:profile.deviceName || undefined,
+          ...(a4?{pageSize:'A4',landscape:false}:receiptPageSize?{pageSize:receiptPageSize,landscape:false}:{})
+        }, (success, failureReason) => resolve({ success:Boolean(success), failureReason:failureReason || '' }));
       });
       return { ...result, driver:'electron', device:profile.deviceName, format:a4?'A4':'receipt', printedAt:result.success ? new Date().toISOString() : null };
     } catch (error) { throw wrapPrintingError(error,'PRINTER_WRITE_FAILED'); }
@@ -48,4 +69,4 @@ function createElectronPrinterDriver({ BrowserWindow } = {}) {
   async function status() { return { available:true, mode:'electron' }; }
   return Object.freeze({ print, status });
 }
-module.exports = { createElectronPrinterDriver, escapeHtml, safeLogoDataUrl, safeDocumentHtml };
+module.exports = { createElectronPrinterDriver, escapeHtml, safeLogoDataUrl, safeDocumentHtml, thermalPageSize };
