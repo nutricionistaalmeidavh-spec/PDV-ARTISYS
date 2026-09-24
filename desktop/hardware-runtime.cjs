@@ -126,6 +126,14 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
     try{return(await serialManager.list()).map(sanitizePort).filter(port=>port.path);}catch(error){return[{path:'',manufacturer:null,vendorId:null,productId:null,pnpId:null,error:String(error?.message||'Falha ao listar portas seriais.')}];}
   }
 
+  async function listPrinters(){
+    if(printerMode!=='electron'||!BrowserWindow||typeof BrowserWindow.getAllWindows!=='function')return[];
+    const windows=BrowserWindow.getAllWindows();
+    const target=(Array.isArray(windows)?windows:[]).find(window=>window?.webContents&&typeof window.webContents.getPrintersAsync==='function');
+    if(!target)return[];
+    return target.webContents.getPrintersAsync();
+  }
+
   async function readWeight() {
     if (!scale) throw new Error('Balanca nao configurada.');
     const result = await scale.readWeight();
@@ -169,7 +177,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   async function testDrawer(){return openDrawer();}
   async function testScale(){return readWeight();}
 
-  return Object.freeze({ status, listSerialPorts, diagnostics, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
+  return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
 module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, sanitizePort };
