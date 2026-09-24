@@ -15,6 +15,11 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
     return { id:row.id,type:row.type,entityType:row.entity_type,entityId:row.entity_id,payload,width:row.width,status:row.status,attempts:row.attempts,lastError:row.last_error,createdAt:row.created_at,updatedAt:row.updated_at,printedAt:row.printed_at };
   }
   function getJob(id) { return mapJob(db.prepare('SELECT * FROM print_jobs WHERE id=?').get(String(id))); }
+  function getOriginalSaleReceipt(saleId) {
+    const id=String(saleId||'').trim();
+    if(!id)return null;
+    return mapJob(db.prepare("SELECT * FROM print_jobs WHERE entity_type='sale' AND entity_id=? AND type='SALE_RECEIPT' ORDER BY created_at ASC,id ASC LIMIT 1").get(id));
+  }
   function queueJob(input = {}) {
     const id=String(input.id||idFactory('print'));
     const existing=getJob(id); if(existing)return existing;
@@ -47,12 +52,13 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
     const job=requireJob(id);if(job.status!=='PENDING')throw new Error('Trabalho nao esta pendente.');
     if(!printer||typeof printer.print!=='function')throw new Error('Impressora indisponivel.');
     try {
-      const result=await printer.print({id:job.id,text:String(job.payload.text||''),html:job.payload.html?String(job.payload.html):null,format:job.payload.format?String(job.payload.format):null,width:job.width,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null});
+      const paperMm=Number(job.payload.paperMm);
+      const result=await printer.print({id:job.id,text:String(job.payload.text||''),html:job.payload.html?String(job.payload.html):null,format:job.payload.format?String(job.payload.format):null,width:job.width,paperMm:[58,80].includes(paperMm)?paperMm:undefined,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null});
       if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.'); return {job:markPrinted(id),result};
     }
     catch(error){markFailed(id,error?.message||String(error));throw error;}
   }
-  return {queueJob,getJob,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,processJob};
+  return {queueJob,getJob,getOriginalSaleReceipt,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,processJob};
 }
 
 module.exports={createPrintService};
