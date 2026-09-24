@@ -103,4 +103,16 @@ function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,printRe
   return Object.freeze({printSale,saveSalePdf});
 }
 
-module.exports={createReceiptActions,safePdfFileName,receiptHtml,pageHeightMicrons};
+function registerReceiptIpc({ipcMain,actions,isTrustedSender=null}={}) {
+  if(!ipcMain||!actions)throw new TypeError('ipcMain e actions sao obrigatorios.');
+  if(typeof actions.printSale!=='function'||typeof actions.saveSalePdf!=='function')throw new TypeError('Acoes de comprovante invalidas.');
+  const trusted=event=>typeof isTrustedSender!=='function'||Boolean(isTrustedSender(event));
+  const handle=(channel,fn)=>ipcMain.handle(channel,async(event,input)=>{
+    if(!trusted(event))throw new Error('Origem IPC nao autorizada.');
+    return fn(input||{});
+  });
+  handle('artisys:receipts:print-sale',input=>actions.printSale(input));
+  handle('artisys:receipts:save-pdf',input=>actions.saveSalePdf(input));
+}
+
+module.exports={createReceiptActions,registerReceiptIpc,safePdfFileName,receiptHtml,pageHeightMicrons};
