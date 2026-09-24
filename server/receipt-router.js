@@ -1,6 +1,6 @@
 'use strict';
 
-const {createSaleReceiptService}=require('../js/domains/printing/sale-receipt-service');
+const {createSaleReceiptService}=require('../js/domains/printing/sale-receipt-projection');
 
 function sendJson(res,status,payload){if(res.headersSent)return;res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(payload));}
 function bearer(req){const value=String(req.headers.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
