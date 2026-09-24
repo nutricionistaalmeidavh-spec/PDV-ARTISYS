@@ -27,7 +27,7 @@ test('product parent row displays the active variant stock total as its main sto
 });
 
 test('product form Cancelar remains owned by the canonical modal close handler', () => {
-  assert.match(appSource, /id=\\"product-form\\"[\s\S]*?data-close-modal>Cancelar<\/button>/);
+  assert.match(appSource, /id="product-form"[\s\S]*?data-close-modal>Cancelar<\/button>/);
   assert.ok(
     appSource.includes("modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));"),
     'openModal must bind the product Cancelar control together with the header X'
