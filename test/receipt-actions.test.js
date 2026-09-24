@@ -4,7 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
-const {createReceiptActions,safePdfFileName,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
+const {createReceiptActions,safePdfFileName,receiptHtml,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
 
 function receipt(overrides={}){return {saleId:'sale-1',saleNumber:'V/001:*?',paperMm:80,width:48,text:'LOJA <QA>\nVenda V-001\nTOTAL 10,00',logoDataUrl:null,...overrides};}
 function fakeWindow({pdf=Buffer.from('%PDF-FAKE'),height=480,throwPdf=null}={}){
@@ -19,6 +19,11 @@ function fakeWindow({pdf=Buffer.from('%PDF-FAKE'),height=480,throwPdf=null}={}){
 
 test('safe PDF filename removes Windows-reserved characters',()=>{
   assert.equal(safePdfFileName('V/001:*?','2026-09-24T12:00:00Z'),'Venda-V-001-2026-09-24.pdf');
+});
+
+test('receipt HTML escapes quotes with complete entities',()=>{
+  const html=receiptHtml(receipt({text:'A "quoted" & <tag>'}));
+  assert.match(html,/A &quot;quoted&quot; &amp; &lt;tag&gt;/);
 });
 
 test('print sale creates and finishes an auditable attempt from the immutable snapshot',async()=>{
