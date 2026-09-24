@@ -56,6 +56,15 @@ async function newestMatchingFile(directory, suffix = '') {
   return candidates[0]?.filePath || null;
 }
 
+async function qaRunStartMs(screenshotsDir, runtimeContext) {
+  const explicit = Number(runtimeContext?.runStartedAtMs);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const info = await stat(screenshotsDir);
+  const birth = Number(info.birthtimeMs);
+  if (Number.isFinite(birth) && birth > 0) return birth;
+  return Number(info.ctimeMs || 0);
+}
+
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
@@ -154,6 +163,11 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       } else if (step.path) filePath = assertQaFilePath(step.path, env, label);
       else throw new Error(`${label}: expectFile requires path or directory`);
       if (!filePath) throw new Error(`${label}: expected file was not found`);
+      const info = await stat(filePath);
+      if (step.createdAfterRunStart) {
+        const startedAt = await qaRunStartMs(screenshotsDir, runtimeContext);
+        if (info.mtimeMs < startedAt) throw new Error(`${label}: file is stale (${new Date(info.mtimeMs).toISOString()} < run start ${new Date(startedAt).toISOString()})`);
+      }
       const bytes = await readFile(filePath);
       const minBytes = Number(step.minBytes ?? 1);
       if (!Number.isFinite(minBytes) || minBytes < 0) throw new TypeError(`${label}: minBytes must be non-negative`);
