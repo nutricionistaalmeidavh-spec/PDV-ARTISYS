@@ -3,15 +3,27 @@ name: release-windows
 on:
   workflow_dispatch:
   push:
-    tags:
-      - 'v*'
     branches:
       - main
     paths:
-      - '.github/release-request.json'
+      - 'desktop/**'
+      - 'js/**'
+      - 'server/**'
+      - 'vendor/**'
+      - 'fiscal-runtime/**'
+      - 'release/**'
+      - 'scripts/resolve-release-version.js'
+      - 'scripts/generate-release-manifest.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/release-windows.yml'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-windows-main
+  cancel-in-progress: false
 
 jobs:
   windows-package:
@@ -22,10 +34,32 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Resolve automatic release version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $packageVersion = node -p "require('./package.json').version"
+          $latestTag = '-'
+          $latestTarget = '-'
+          $latestJson = gh api "repos/${{ github.repository }}/releases/latest" 2>$null
+          if ($LASTEXITCODE -eq 0 -and $latestJson) {
+            $latestRelease = $latestJson | ConvertFrom-Json
+            $latestTag = [string]$latestRelease.tag_name
+            $latestTarget = [string]$latestRelease.target_commitish
+          }
+          $version = node scripts/resolve-release-version.js --package-version $packageVersion --latest-release-tag $latestTag --latest-target $latestTarget --current-commit $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0 -or -not $version) { throw 'Não foi possível resolver a versão automática da release.' }
+          $version = $version.Trim()
+          "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "Release version: $version"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Run release verification
         run: npm run verify:release
+      - name: Apply release version
+        shell: pwsh
+        run: npm version $env:RELEASE_VERSION --no-git-tag-version --allow-same-version
       - name: Build Windows x64 installer
         run: npm run dist:win
       - name: Smoke test packaged Windows app
@@ -61,7 +95,7 @@ jobs:
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: artisys-pdv-windows-x64
+          name: artisys-pdv-windows-x64-${{ env.RELEASE_VERSION }}
           path: |
             dist/*Setup.exe
             dist/*.blockmap
@@ -70,12 +104,11 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: Publish GitHub Release for updater
-        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $version = node -p "require('./package.json').version"
+          $version = $env:RELEASE_VERSION
           $tag = "v$version"
           $installer = (Get-ChildItem -Path dist -Filter '*Setup.exe' | Select-Object -First 1).FullName
           $latest = (Resolve-Path 'dist/latest.yml').Path
@@ -83,9 +116,10 @@ jobs:
           $blockmaps = @(Get-ChildItem -Path dist -Filter '*.blockmap' | ForEach-Object { $_.FullName })
           $assets = @($installer, $latest, $manifest) + $blockmaps
 
-          gh release view $tag *> $null
+          gh release view $tag --repo "${{ github.repository }}" *> $null
           if ($LASTEXITCODE -eq 0) {
-            & gh release upload $tag @assets --clobber
+            & gh release upload $tag @assets --repo "${{ github.repository }}" --clobber
           } else {
-            & gh release create $tag @assets --title "ArtiSys PDV $version" --notes-file release/release-notes.md --target $env:GITHUB_SHA
+            $notes = "Instalador Windows e metadados de atualização automática gerados e validados pelo CI para o commit $env:GITHUB_SHA."
+            & gh release create $tag @assets --repo "${{ github.repository }}" --title "ArtiSys PDV $version" --notes $notes --target $env:GITHUB_SHA
           }
