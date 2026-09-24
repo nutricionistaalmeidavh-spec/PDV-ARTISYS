@@ -38,6 +38,27 @@ test('print service persists failure retry success and explicit reprint',async()
   db.close();
 });
 
+test('manual sale print creates a distinct auditable reprint from the immutable original snapshot',()=>{
+  const db=openDatabase(':memory:');runMigrations(db);let n=0;
+  const service=createPrintService({db,now:()=>`2026-09-09T12:00:0${n}Z`,idFactory:p=>`${p}-${++n}`});
+  const original=service.queueJob({type:'SALE_RECEIPT',entityType:'sale',entityId:'manual-sale',payload:{text:'snapshot original',paperMm:58,saleNumber:'V-MANUAL'},width:32});
+  const attempt=service.createManualAttempt('manual-sale');
+  assert.equal(attempt.type,'REPRINT');
+  assert.equal(attempt.status,'PENDING');
+  assert.equal(attempt.entityType,'sale');
+  assert.equal(attempt.entityId,'manual-sale');
+  assert.equal(attempt.width,32);
+  assert.equal(attempt.payload.text,'snapshot original');
+  assert.equal(attempt.payload.paperMm,58);
+  assert.equal(attempt.payload.reprintOf,original.id);
+  assert.equal(attempt.payload.manual,true);
+  const second=service.createManualAttempt('manual-sale');
+  assert.notEqual(second.id,attempt.id);
+  assert.equal(service.listJobs({entityId:'manual-sale'}).length,3);
+  assert.throws(()=>service.createManualAttempt('missing-sale'),/comprovante original/i);
+  db.close();
+});
+
 test('process job forwards the canonical paper width to the printer',async()=>{
   const db=openDatabase(':memory:');runMigrations(db);let n=0;let received=null;
   const service=createPrintService({db,idFactory:p=>`${p}-${++n}`});
