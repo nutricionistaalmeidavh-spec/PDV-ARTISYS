@@ -36,9 +36,44 @@ A E54.1 simula desconexão durante o pulso, garante o fechamento controlado da p
 - `thermal` — usa o driver térmico local; exige `PDV_PRINTER_TYPE=epson|star` e `PDV_PRINTER_INTERFACE`;
 - `serial` — usa o transporte serial local; exige `PDV_PRINTER_PORT` e aceita `PDV_PRINTER_BAUD`.
 
-Opções comuns: `PDV_PRINTER_NAME`, `PDV_PRINT_SILENT`, `PDV_RECEIPT_WIDTH=32|42|48`, `PDV_PRINTER_CUT` e `PDV_PRINTER_TIMEOUT_MS`. Um modo inválido ou incompleto falha explicitamente no startup; não existe fallback silencioso entre drivers, evitando impressão duplicada.
+Opções legadas por ambiente: `PDV_PRINTER_NAME`, `PDV_PRINT_SILENT`, `PDV_RECEIPT_WIDTH=32|42|48`, `PDV_PRINTER_CUT`, `PDV_PRINTER_OPEN_DRAWER` e `PDV_PRINTER_TIMEOUT_MS`. Um modo inválido ou incompleto falha explicitamente no startup; não existe fallback silencioso entre drivers, evitando impressão duplicada.
 
-A impressão continua usando a fila persistente do PDV. Vendas geram jobs de comprovante; falhas ficam como `FAILED` e podem voltar à fila por **Tentar novamente**. Reimpressão cria uma nova tentativa auditável sem alterar a venda original.
+### Configuração pelo PDV
+
+Em **Configurações > Impressão do comprovante**, gerente ou administrador pode configurar:
+
+- impressora do Windows, ou deixar vazio para usar a impressora padrão;
+- papel físico de **58 mm** ou **80 mm**;
+- colunas em modo automático ou manual;
+- impressão automática ao concluir venda;
+- exibição do diálogo do Windows;
+- corte de papel, quando suportado;
+- abertura de gaveta após imprimir, quando suportada.
+
+No modo automático, 58 mm usa 32 colunas e 80 mm usa 48 colunas. No modo manual continuam disponíveis 32, 42 e 48 colunas. A largura física do papel e a largura lógica são tratadas separadamente: o driver Electron recebe o tamanho físico em milímetros, enquanto o renderer do comprovante usa o número de colunas.
+
+As preferências persistidas em `app_settings` têm precedência sobre as variáveis de ambiente legadas. Para **instalações novas**, `printing.autoPrint` começa desativado quando não existe configuração explícita. Para **instalações existentes**, o comportamento legado é preservado: impressão automática permanece ativa por padrão, salvo `PDV_AUTO_PRINT=false` ou uma preferência persistida diferente.
+
+O operador caixa pode consultar a configuração, mas alteração de preferência global continua restrita a gerente ou administrador no servidor.
+
+### Pós-venda: Imprimir e Salvar PDF
+
+Depois que a venda é concluída, o PDV mostra **Imprimir** e **Salvar PDF** lado a lado.
+
+- **Imprimir** cria uma tentativa de reimpressão persistente e auditável a partir do comprovante original e envia essa tentativa à impressora configurada.
+- **Salvar PDF** gera um PDF diretamente pelo Electron com `printToPDF()` e salva o arquivo localmente.
+
+O PDF **não depende de Microsoft Print to PDF, impressora virtual, driver de PDF, impressora térmica instalada, nuvem ou serviço externo**. Se o computador não tiver nenhuma impressora do Windows disponível, **Salvar PDF continua funcionando**.
+
+Falha de impressora não desfaz nem altera a venda concluída. A tentativa manual fica registrada como falha e não repete estoque, caixa, financeiro ou qualquer outro efeito comercial. Da mesma forma, cancelar o salvamento do PDF ou ocorrer erro ao gerar/escrever o PDF não cancela a venda e mantém o pós-venda utilizável.
+
+O PDF e a impressão manual usam o comprovante canônico da venda. Quando já existe o job original, o endpoint usa esse snapshot persistido em vez de regenerar o documento com configurações atuais; assim, alteração posterior de nome da loja, logo, papel ou colunas não modifica historicamente o comprovante daquela venda.
+
+### Fila e auditoria
+
+A impressão continua usando a fila persistente do PDV. Vendas geram jobs `SALE_RECEIPT`; falhas ficam como `FAILED` e podem voltar à fila por **Tentar novamente**. Uma ação manual de **Imprimir** gera um job `REPRINT` próprio, baseado no snapshot original, e registra sucesso ou falha sem executar novamente conclusão da venda.
+
+A impressão automática consulta a preferência persistida a cada ciclo. O worker ignora tentativas manuais para evitar corrida entre o clique do operador e a fila automática.
 
 ### Dados da loja no cupom não fiscal
 
@@ -49,6 +84,19 @@ A logo aceita PNG, JPG/JPEG ou WebP na seleção da interface e é convertida lo
 No momento em que a venda gera o job de impressão, o texto e a logo configurados são copiados para o payload persistente desse job. Por isso, uma reimpressão mantém a identidade visual registrada naquele comprovante, mesmo que a configuração da loja seja alterada depois.
 
 O caminho Electron renderiza a logo acima do texto do comprovante. O caminho térmico envia a imagem quando o driver da impressora oferece suporte; sem suporte a imagem, o conteúdo textual do cupom continua preservado.
+
+## Validação automatizada de impressão e PDF
+
+A suíte de QA/release cobre o fluxo pós-venda em Electron e valida:
+
+- presença de **Imprimir** e **Salvar PDF** na mesma linha após concluir uma venda;
+- PDF realmente criado pelo `printToPDF()`, com tamanho mínimo e assinatura `%PDF-`;
+- cenário sem impressora listada, mantendo PDF disponível;
+- persistência de 58/80 mm e mapeamento automático para 32/48 colunas após recarregar a aplicação;
+- tentativa física manual por adaptador simulado **somente em ambiente QA**, preservando o ciclo de auditoria sem depender de equipamento do runner;
+- ausência de overflow horizontal no cartão de configuração e no pós-venda.
+
+A simulação de impressora exige simultaneamente `ARTISYS_QA=1` e `ARTISYS_QA_SIMULATE_PRINTER=1`; ela não é fallback de produção. `ARTISYS_QA_NO_PRINTERS=1` é usado somente pelo QA para provar deterministicamente que o PDF continua disponível quando a lista de impressoras está vazia.
 
 ## E54.1 — validação automatizada sem equipamento físico
 
