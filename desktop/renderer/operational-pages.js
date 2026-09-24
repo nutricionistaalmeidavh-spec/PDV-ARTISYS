@@ -64,10 +64,13 @@
 
   async function renderReturns(){
     const cfg=await ready();
-    const [rows,session]=await Promise.all([api.returns(),api.currentSession()]);
+    const [rowsPayload,session,salesPayload]=await Promise.all([api.returns({}),api.currentSession(),api.salesHistory({status:'COMPLETED',limit:100})]);
+    const rows=Array.isArray(rowsPayload)?rowsPayload:(rowsPayload?.returns||[]);
+    const recentSales=Array.isArray(salesPayload)?salesPayload:(salesPayload?.sales||[]);
     const role=String(session?.user?.role||'');
     const needsDelegatedApproval=!['manager','admin'].includes(role);
-    const body=`<div class="ops-grid two"><div class="ops-return-workflow"><section class="ops-card"><div class="ops-card-head"><div><h2>Buscar venda</h2><p>Localize uma venda concluída por número, cliente, vendedor ou operador.</p></div></div><form id="ops-return-search-form" class="ops-return-search-form"><input id="ops-return-search" class="ops-input" autocomplete="off" placeholder="Buscar venda concluída"><button class="ops-secondary" type="submit">Buscar</button></form><div id="ops-return-search-results" class="ops-return-search-results">${empty('Busque ou selecione uma venda recente.')}</div></section><section id="ops-return-selected-sale" class="ops-card">${empty('Selecione uma venda para iniciar a devolução.')}</section><section class="ops-card"><h2>Reembolso e autorização</h2><form id="ops-return-form" class="ops-form"><label>Forma de reembolso<select id="ops-return-method" name="method" class="ops-input"><option value="CASH">Dinheiro</option><option value="PIX">PIX</option><option value="DEBIT_CARD">Cartão débito</option><option value="CREDIT_CARD">Cartão crédito</option><option value="STORE_CREDIT">Crédito loja</option></select></label><label>Motivo<input id="ops-return-reason" name="reason" class="ops-input" required placeholder="Motivo da devolução"></label><div id="ops-return-authorization" class="ops-return-authorization"></div><div id="ops-return-summary" class="ops-return-summary"><span>0 item selecionado</span><strong id="ops-return-total">${money(0)}</strong></div><button id="ops-return-submit" class="ops-primary" type="submit" disabled>Concluir devolução</button></form></section></div><section class="ops-card"><div class="ops-card-head"><div><h2>Devoluções realizadas</h2><p>Histórico recente com venda, total e autorização.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Venda</th><th>Total</th><th>Autorizado por</th><th>Status</th></tr></thead><tbody id="ops-return-history">${rows.map(row=>`<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(row.saleId)}</td><td>${money(row.totalCents)}</td><td>${escapeHtml(row.authorizedById||'—')}</td><td>${badge(row.status)}</td></tr>`).join('')||`<tr><td colspan="5">${empty('Nenhuma devolução registrada.')}</td></tr>`}</tbody></table></div></section></div>`;
+    const history=rows.slice(0,8);
+    const body=`<div class="ops-returns-layout"><div class="ops-return-workflow"><section class="ops-card"><div class="ops-card-head"><div><h2>Buscar venda</h2><p>Localize uma venda concluída por número, cliente, vendedor, operador ou data.</p></div></div><form id="ops-return-search-form" class="ops-return-search-form"><input id="ops-return-search" class="ops-input" autocomplete="off" placeholder="Buscar venda concluída"><button class="ops-secondary" type="submit">Buscar</button></form><div id="ops-return-results" class="ops-return-search-results">${empty('Busque ou selecione uma venda recente.')}</div></section><section id="ops-return-selected-sale" class="ops-card">${empty('Selecione uma venda para iniciar a devolução.')}</section><section class="ops-card"><h2>Reembolso e autorização</h2><form id="ops-return-form" class="ops-form"><label>Forma de reembolso<select id="ops-return-method" name="method" class="ops-input"><option value="CASH">Dinheiro</option><option value="PIX">PIX</option><option value="DEBIT_CARD">Cartão débito</option><option value="CREDIT_CARD">Cartão crédito</option><option value="STORE_CREDIT">Crédito loja</option><option value="OTHER">Outra / reembolso misto</option></select></label><label>Motivo<input id="ops-return-reason" name="reason" class="ops-input" required maxlength="240" placeholder="Motivo da devolução"></label><div id="ops-return-authorization" class="ops-return-authorization ops-return-auth-panel"></div><div id="ops-return-summary" class="ops-return-summary"><span>0 item selecionado</span><strong id="ops-return-total">${money(0)}</strong></div><button id="ops-return-submit" class="ops-primary" type="submit" disabled>Concluir devolução</button></form></section></div><section class="ops-card"><div class="ops-card-head"><div><h2>Devoluções realizadas</h2><p>Histórico recente com venda, total e autorização.</p></div></div><div id="ops-return-cancel-panel"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Venda</th><th>Total</th><th>Autorizado por</th><th>Status</th><th></th></tr></thead><tbody id="ops-return-history">${history.map(row=>`<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(row.saleId)}</td><td>${money(row.totalCents)}</td><td>${escapeHtml(row.authorizedById||'—')}</td><td>${badge(row.status)}</td><td>${!needsDelegatedApproval&&row.status==='COMPLETED'?`<button class="ops-link danger" type="button" data-return-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</td></tr>`).join('')||`<tr><td colspan="6">${empty('Nenhuma devolução registrada.')}</td></tr>`}</tbody></table></div></section></div>`;
     if(!routeActive('returns'))return;
     content.innerHTML=page('Devolução','Busque a venda, selecione somente o saldo devolvível, revise o reembolso e autorize a operação.',body);
 
@@ -75,7 +78,8 @@
     let selectedSaleReturns=[];
     let returnedByItem=new Map();
     let approval=null;
-    let searchSequence=0;
+
+    function approvalValid(){return !needsDelegatedApproval||Boolean(approval?.approvalToken&&new Date(approval.expiresAt).getTime()>Date.now());}
 
     function collectReturnItems(){
       const items=[];let total=0;let totalQuantity=0;let invalid='';
@@ -83,11 +87,13 @@
         const id=check.dataset.returnItem;
         const quantity=Number(content.querySelector(`[data-return-qty="${CSS.escape(id)}"]`)?.value||0);
         const available=Number(check.dataset.available||0);
+        const item=(selectedSale?.items||[]).find(candidate=>String(candidate.id)===String(id));
         if(!Number.isFinite(quantity)||quantity<=0){invalid='Quantidade devolvida deve ser maior que zero.';return;}
         if(quantity>available){invalid=`Quantidade devolvida excede o saldo disponível (${qty(available)}).`;return;}
+        if(!item){invalid='Item da venda não encontrado.';return;}
         items.push({saleItemId:id,quantity});
         totalQuantity+=quantity;
-        total+=Math.round(Number(check.dataset.price||0)*quantity);
+        total+=Math.round(Number(item.unitPriceCents) * quantity);
       });
       return{items,total,totalQuantity,invalid};
     }
@@ -96,10 +102,11 @@
       const summary=collectReturnItems();
       const summaryRoot=document.getElementById('ops-return-summary');
       const totalRoot=document.getElementById('ops-return-total');
+      const reason=String(document.getElementById('ops-return-reason')?.value||'').trim();
       if(summaryRoot){const label=summary.invalid?summary.invalid:`${summary.items.length} ${summary.items.length===1?'item':'itens'} · ${qty(summary.totalQuantity)} unidade(s)`;summaryRoot.querySelector('span').textContent=label;summaryRoot.classList.toggle('has-error',Boolean(summary.invalid));}
       if(totalRoot)totalRoot.textContent=money(summary.total);
       const submit=document.getElementById('ops-return-submit');
-      if(submit)submit.disabled=!selectedSale||!summary.items.length||Boolean(summary.invalid)||(needsDelegatedApproval&&!approval);
+      if(submit)submit.disabled=!selectedSale||!summary.items.length||!reason||Boolean(summary.invalid)||!approvalValid();
       return summary;
     }
 
@@ -113,15 +120,21 @@
       if(!authRoot)return;
       if(!selectedSale){authRoot.innerHTML='<p class="ops-muted">Selecione uma venda antes da autorização.</p>';updateReturnSummary();return;}
       if(!needsDelegatedApproval){authRoot.innerHTML=`<div class="ops-return-auth-status"><strong>Autorização pela sessão atual</strong><span>${escapeHtml(session?.user?.name||session?.user?.id||'Gerente')}</span></div>`;updateReturnSummary();return;}
+      if(approval&&!approvalValid())approval=null;
       if(approval){authRoot.innerHTML=`<div class="ops-return-auth-status"><div><strong>Autorizado por ${escapeHtml(approval.authorizedBy?.name||approval.authorizedBy?.id||'Gerente')}</strong><small>Válida até ${when(approval.expiresAt)}</small></div><button id="ops-return-authorize" class="ops-secondary" type="button">Refazer autorização</button></div>`;}else{authRoot.innerHTML='<div class="ops-return-auth-status"><div><strong>Autorização gerencial necessária</strong><small>Use as credenciais locais de um gerente ou administrador.</small></div><button id="ops-return-authorize" class="ops-secondary" type="button">Autorizar devolução</button></div>';}
       document.getElementById('ops-return-authorize')?.addEventListener('click',()=>{
         authRoot.innerHTML=`<form id="ops-return-auth-form" class="ops-form ops-return-auth-form"><label>Usuário gerente/admin<input name="username" class="ops-input" autocomplete="username" required></label><label>Senha<input name="password" type="password" class="ops-input" autocomplete="current-password" required></label><button class="ops-primary" type="submit">Validar autorização</button></form>`;
         document.getElementById('ops-return-auth-form')?.addEventListener('submit',async event=>{
           event.preventDefault();const form=new FormData(event.currentTarget);const passwordInput=event.currentTarget.elements.password;
-          try{approval=await api.authorizeReturn({username:String(form.get('username')||''),password:String(form.get('password')||''),scope:'return.complete',resource:{saleId:selectedSale.id,terminalId:cfg?.terminalId||session?.terminalId||null}});if(passwordInput)passwordInput.value='';showToast(`Autorizado por ${approval.authorizedBy?.name||approval.authorizedBy?.id||'gerente'}.`,'success');renderAuthorization();}catch(error){if(passwordInput)passwordInput.value='';approval=null;showToast(error.message,'error');renderAuthorization();}
+          try{approval=await api.authorizeReturn({username:String(form.get('username')||''),password:String(form.get('password')||''),saleId:selectedSale.id,terminalId:session?.terminalId||cfg?.terminalId||null});if(passwordInput)passwordInput.value='';showToast(`Autorizado por ${approval.authorizedBy?.name||approval.authorizedBy?.id||'gerente'}.`,'success');renderAuthorization();}catch(error){if(passwordInput)passwordInput.value='';approval=null;showToast(error.message,'error');renderAuthorization();}
         });
       });
       updateReturnSummary();
+    }
+
+    function inferRefundMethod(){
+      const methods=[...new Set((selectedSale?.payments||[]).map(payment=>String(payment.method||payment.paymentMethod||'').trim()).filter(Boolean))];
+      return methods.length===1?methods[0]:'OTHER';
     }
 
     function renderSelectedSale(){
@@ -130,39 +143,52 @@
         const returned=Number(returnedByItem.get(item.id)||0);
         const available=Math.max(0,Number((Number(item.quantity||0)-returned).toFixed(3)));
         const initial=Math.min(1,available);
-        return `<div class="ops-return-item ${available<=0?'is-disabled':''}"><input type="checkbox" data-return-item="${escapeHtml(item.id)}" data-price="${Number(item.unitPriceCents||0)}" data-available="${available}" ${available<=0?'disabled':''}><div class="ops-return-item-name"><strong>${escapeHtml(item.productName)}</strong><small>${money(item.unitPriceCents)} por unidade</small></div><span class="ops-return-meta">Vendido <strong>${qty(item.quantity)}</strong></span><span class="ops-return-meta">Devolvido <strong>${qty(returned)}</strong></span><span class="ops-return-meta">Disponível <strong>${qty(available)}</strong></span><label>Qtd.<input class="ops-input compact" data-return-qty="${escapeHtml(item.id)}" type="number" min="0.001" max="${available}" step="0.001" value="${initial}" ${available<=0?'disabled':''}></label></div>`;
+        return `<div class="ops-return-item ${available<=0?'is-disabled':''}"><input type="checkbox" data-return-item="${escapeHtml(item.id)}" data-available="${available}" ${available<=0?'disabled':''}><div class="ops-return-item-name"><strong>${escapeHtml(item.productName)}</strong><small>${money(item.unitPriceCents)} por unidade</small></div><span class="ops-return-meta">Vendido <strong>${qty(item.quantity)}</strong></span><span class="ops-return-meta">Devolvido <strong>${qty(returned)}</strong></span><span class="ops-return-meta">Disponível <strong>${qty(available)}</strong></span><label>Qtd.<input class="ops-input compact" data-return-qty="${escapeHtml(item.id)}" type="number" min="0.001" max="${available}" step="0.001" value="${initial}" ${available<=0?'disabled':''}></label></div>`;
       }).join('');
       const refundable=(selectedSale.items||[]).some(item=>Number(item.quantity||0)>Number(returnedByItem.get(item.id)||0));
       host.innerHTML=`<div class="ops-card-head"><div><h2>Venda ${escapeHtml(selectedSale.saleNumber||selectedSale.id)}</h2><p>${when(selectedSale.completedAt||selectedSale.openedAt)} · ${escapeHtml(selectedSale.customerName||'Consumidor')} · Total ${money(selectedSale.totalCents)}</p></div>${badge(selectedSale.status)}</div><div class="ops-return-items">${itemRows||empty('Venda sem itens.')}</div>${refundable?'':`<div class="ops-error">Todos os itens desta venda já foram devolvidos.</div>`}`;
+      const method=document.getElementById('ops-return-method');if(method){const inferred=inferRefundMethod();method.value=[...method.options].some(option=>option.value===inferred)?inferred:'OTHER';}
       bindReturnItemInputs();updateReturnSummary();
     }
 
     async function selectSale(saleId){
-      approval=null;const [sale,existingReturns]=await Promise.all([api.saleDetails(saleId),api.returns({saleId})]);
+      approval=null;const [sale,existingPayload]=await Promise.all([api.saleDetails(saleId),api.returns({saleId})]);
       if(!routeActive('returns'))return;
-      selectedSale=sale;selectedSaleReturns=existingReturns;returnedByItem=new Map();
-      for(const ret of selectedSaleReturns.filter(ret=>ret.status==='COMPLETED'))for(const item of ret.items||[])returnedByItem.set(item.saleItemId,Number(returnedByItem.get(item.saleItemId)||0)+Number(item.quantity||0));
+      selectedSale=sale;selectedSaleReturns=Array.isArray(existingPayload)?existingPayload:(existingPayload?.returns||[]);returnedByItem=new Map();
+      for(const ret of selectedSaleReturns.filter(ret=>String(ret.status||'').toUpperCase()==='COMPLETED'))for(const item of ret.items||[])returnedByItem.set(item.saleItemId,Number(returnedByItem.get(item.saleItemId)||0)+Number(item.quantity||0));
       renderSelectedSale();renderAuthorization();
     }
 
-    async function searchSales(value){
-      const query=String(value||'').trim();const sequence=++searchSequence;const resultsRoot=document.getElementById('ops-return-search-results');if(!resultsRoot)return;
-      resultsRoot.innerHTML='<div class="ops-loader"></div>';
-      try{const sales=await api.salesHistory({status:'COMPLETED',query,limit:30});if(!routeActive('returns')||sequence!==searchSequence)return;resultsRoot.innerHTML=sales.map(sale=>`<article class="ops-return-sale-card"><div><strong>${escapeHtml(sale.saleNumber||sale.id)}</strong><p>${when(sale.completedAt||sale.openedAt)} · ${escapeHtml(sale.customerName||'Consumidor')} · ${escapeHtml(sale.sellerName||sale.operatorName||'')}</p><small>${money(sale.totalCents)}</small></div><button class="ops-link" type="button" data-return-select-sale="${escapeHtml(sale.id)}">Selecionar</button></article>`).join('')||empty('Nenhuma venda concluída encontrada.');resultsRoot.querySelectorAll('[data-return-select-sale]').forEach(button=>button.addEventListener('click',()=>{void selectSale(button.dataset.returnSelectSale).catch(error=>showToast(error.message,'error'));}));}catch(error){resultsRoot.innerHTML=`<div class="ops-error">${escapeHtml(error.message)}</div>`;}
+    function saleSearchText(sale){return `${sale.saleNumber||''} ${sale.id||''} ${sale.customerName||''} ${sale.sellerName||''} ${sale.operatorName||''} ${sale.operatorId||''} ${sale.completedAt||sale.openedAt||''} ${when(sale.completedAt||sale.openedAt)}`.toLowerCase();}
+    function searchSales(value){
+      const query=String(value||'').trim().toLowerCase();const resultsRoot=document.getElementById('ops-return-results');if(!resultsRoot)return;
+      const sales=recentSales.filter(sale=>!query||saleSearchText(sale).includes(query)).slice(0,30);
+      resultsRoot.innerHTML=sales.map(sale=>`<article class="ops-return-sale-card"><div><strong>${escapeHtml(sale.saleNumber||sale.id)}</strong><p>${when(sale.completedAt||sale.openedAt)} · ${escapeHtml(sale.customerName||'Consumidor')} · ${escapeHtml(sale.sellerName||sale.operatorName||'')}</p><small>${money(sale.totalCents)}</small></div><button class="ops-link" type="button" data-return-sale-select="${escapeHtml(sale.id)}">Selecionar</button></article>`).join('')||empty('Nenhuma venda concluída encontrada.');
+      resultsRoot.querySelectorAll('[data-return-sale-select]').forEach(button=>button.addEventListener('click',()=>{void selectSale(button.dataset.returnSaleSelect).catch(error=>showToast(error.message,'error'));}));
     }
 
-    document.getElementById('ops-return-search-form')?.addEventListener('submit',event=>{event.preventDefault();void searchSales(document.getElementById('ops-return-search')?.value||'');});
+    document.getElementById('ops-return-search-form')?.addEventListener('submit',event=>{event.preventDefault();searchSales(document.getElementById('ops-return-search')?.value||'');});
+    document.getElementById('ops-return-search')?.addEventListener('input',event=>searchSales(event.target.value));
+    document.getElementById('ops-return-reason')?.addEventListener('input',updateReturnSummary);
     document.getElementById('ops-return-form')?.addEventListener('submit',async event=>{
       event.preventDefault();
       if(!selectedSale){showToast('Selecione uma venda concluída.','error');return;}
       const reason=String(document.getElementById('ops-return-reason')?.value||'').trim();if(!reason){showToast('Informe o motivo da devolução.','error');return;}
       const selection=collectReturnItems();if(selection.invalid){showToast(selection.invalid,'error');return;}if(!selection.items.length){showToast('Selecione ao menos um item.','error');return;}
-      if(needsDelegatedApproval&&!approval){showToast('Autorize a devolução com um gerente ou administrador.','error');return;}
-      const method=document.getElementById('ops-return-method')?.value||'CASH';
+      if(!approvalValid()){approval=null;renderAuthorization();showToast('Autorize a devolução com um gerente ou administrador.','error');return;}
+      const method=document.getElementById('ops-return-method')?.value||'OTHER';
       try{const response=await api.createReturn({saleId:selectedSale.id,items:selection.items,refunds:[{method,amountCents:selection.total}],reason,...(needsDelegatedApproval?{approvalToken:approval.approvalToken}:{})});const created=response?.return||response;showToast(`Devolução ${created?.id||''} concluída — ${money(selection.total)}.`,'success');await renderReturns();}catch(error){if(needsDelegatedApproval){approval=null;renderAuthorization();}showToast(error.message,'error');}
     });
+
+    content.querySelectorAll('[data-return-cancel]').forEach(button=>button.addEventListener('click',()=>{
+      const panel=document.getElementById('ops-return-cancel-panel');if(!panel)return;const returnId=button.dataset.returnCancel;
+      panel.className='ops-return-cancel-panel';panel.innerHTML=`<form id="ops-return-cancel-form" class="ops-form"><label>Motivo do cancelamento<input name="reason" class="ops-input" maxlength="240" autocomplete="off" required></label><div class="ops-actions"><button class="ops-danger" type="submit">Confirmar cancelamento</button><button class="ops-secondary" type="button" data-return-cancel-close>Voltar</button></div></form>`;
+      panel.querySelector('[data-return-cancel-close]')?.addEventListener('click',()=>{panel.className='';panel.innerHTML='';});
+      panel.querySelector('#ops-return-cancel-form')?.addEventListener('submit',async event=>{event.preventDefault();const reason=String(new FormData(event.currentTarget).get('reason')||'').trim();if(!reason)return;try{await api.cancelReturn(returnId,reason);showToast('Devolução cancelada.','success');await renderReturns();}catch(error){showToast(error.message,'error');}});
+    }));
+
     renderAuthorization();
-    void searchSales('');
+    searchSales('');
   }
 
   async function renderFinance(){
