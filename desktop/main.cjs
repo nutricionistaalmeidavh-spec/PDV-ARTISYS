@@ -97,7 +97,7 @@ async function writeReceiptFile(filePath,bytes){const target=path.resolve(String
 
 function startPrintWorker(){
   if(printWorker||!runtime)return;
-  const tick=async()=>{if(printWorkerBusy||!runtime||!hardwareController)return;let preferences;try{preferences=currentPrintingPreferences();}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao resolver configuracao de impressao.'});return;}if(!preferences.autoPrint)return;const job=runtime.printing.listJobs({status:'PENDING'})[0];if(!job)return;printWorkerBusy=true;try{await runtime.printing.processJob(job.id,{print:input=>hardwareController.print(input)});}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao processar impressao.'});}finally{printWorkerBusy=false;}};
+  const tick=async()=>{if(printWorkerBusy||!runtime||!hardwareController)return;let preferences;try{preferences=currentPrintingPreferences();}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao resolver configuracao de impressao.'});return;}if(!preferences.autoPrint)return;const job=runtime.printing.listJobs({status:'PENDING',type:'SALE_RECEIPT'})[0];if(!job)return;printWorkerBusy=true;try{await runtime.printing.processJob(job.id,{print:input=>hardwareController.print(input)});}catch(error){runtime.logger?.log({level:'error',subsystem:'printing',message:error?.message||'Falha ao processar impressao.'});}finally{printWorkerBusy=false;}};
   printWorker=setInterval(()=>{void tick();},1200);void tick();
 }
 
