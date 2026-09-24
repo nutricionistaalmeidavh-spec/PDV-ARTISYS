@@ -95,7 +95,7 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
 .customer-block h3 { margin-bottom:7px; font-size:13px; }
 .customer-block .search-field { height:42px; }
 .customer-selected { margin-top:6px; padding:8px; }
-.sale-cart-region { min-height:0; display:flex; flex-direction:column; }
+.sale-cart-region { min-height:0; display:flex; flex-direction:column; flex-shrink:0; }
 .cart-head { padding:9px 12px; }
 .cart-head h3 { font-size:13px; }
 .cart-head .secondary-button { padding:7px 9px; font-size:11px; }
@@ -129,7 +129,7 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
   .sale-panel { max-height:calc(100vh - 190px); overflow-y:auto; }
   .sale-context-grid .customer-block { padding:8px 9px; }
   .sale-context-grid .customer-block .search-field { height:38px; }
-  .sale-cart-region .cart-list { min-height:150px; max-height:220px; }
+  .sale-cart-region .cart-list { min-height:100px; max-height:220px; }
   .totals { padding:8px 10px; gap:5px; }
   .payment-strip { padding:0 8px 6px; }
   .finalize-button { margin:0 8px 8px; }
