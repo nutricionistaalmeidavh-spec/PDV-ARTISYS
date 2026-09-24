@@ -1,6 +1,6 @@
 'use strict';
 const { createIdempotentDomainEffect } = require('../../core/idempotent-domain-effect');
-const { createSaleReceiptService } = require('./sale-receipt-service');
+const { createSaleReceiptService } = require('./sale-receipt-projection');
 
 function registerPrintEffects({ bus, effectStore, printService, saleService, settings = null, storeName = 'ArtiSys', storeAddress = '', storePhone = '', logoDataUrl = null, documentLabel = 'CUPOM NAO FISCAL', width = 42 } = {}) {
   if (!bus || !effectStore || !printService || !saleService) throw new TypeError('bus, effectStore, printService and saleService are required.');
