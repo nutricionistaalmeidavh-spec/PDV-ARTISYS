@@ -43,7 +43,8 @@ function createElectronPrinterDriver({ BrowserWindow } = {}) {
         const safe=escapeHtml(text);
         const logo=safeLogoDataUrl(input.logoDataUrl);
         const maxLogoWidth=width<=32?180:260;
-        html=`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#fff}.receipt-logo{display:block;max-width:${maxLogoWidth}px;max-height:150px;width:auto;height:auto;object-fit:contain;margin:0 auto 8px}pre{margin:0;font-family:Consolas,monospace;font-size:12px;white-space:pre-wrap}</style></head><body>${logo?`<img class="receipt-logo" src="${logo}" alt="">`:''}<pre>${safe}</pre></body></html>`;
+        const fontSize=width<=32?11:12;
+        html=`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:#fff;width:100%;box-sizing:border-box}body{display:flex;justify-content:center}.receipt-sheet{box-sizing:border-box;width:100%;padding:0 3mm}.receipt-logo{display:block;max-width:${maxLogoWidth}px;max-height:150px;width:auto;height:auto;object-fit:contain;margin:0 auto 8px}pre{box-sizing:border-box;width:100%;margin:0;font-family:Consolas,"Courier New",monospace;font-size:${fontSize}px;line-height:1.2;white-space:pre;overflow:hidden}</style></head><body><main class="receipt-sheet">${logo?`<img class="receipt-logo" src="${logo}" alt="">`:''}<pre>${safe}</pre></main></body></html>`;
       }
       await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
       let receiptPageSize=null;
