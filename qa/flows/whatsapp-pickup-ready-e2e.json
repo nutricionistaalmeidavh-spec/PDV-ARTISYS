@@ -14,7 +14,7 @@
     {"action":"selectOption","selector":"#delivery-form select[name='fulfillmentType']","value":"PICKUP","name":"wa-select-pickup"},
     {"action":"fill","selector":"#delivery-form [name='customerName']","value":"QA WhatsApp Pickup","name":"wa-fill-customer"},
     {"action":"fill","selector":"#delivery-form [name='phone']","value":"+55 (16) 99999-9999","name":"wa-fill-formatted-phone"},
-    {"action":"expectValue","selector":"#delivery-form [name='phone']","value":"16999999999","name":"wa-phone-normalized"},
+    {"action":"expectValue","selector":"#delivery-form [name='phone']","expected":"16999999999","name":"wa-phone-normalized"},
     {"action":"click","selector":"#delivery-form button[type='submit']","name":"wa-create-pickup"},
     {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':PREPARING']","name":"wa-order-new","timeoutMs":10000},
     {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':PREPARING']","name":"wa-to-preparing"},
@@ -22,7 +22,9 @@
     {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-delivery-next$=':READY']","name":"wa-to-ready"},
     {"action":"waitFor","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button","timeoutMs":10000},
     {"action":"expectVisible","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-ready-button-visible"},
-    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","text":"Avisar no WhatsApp","name":"wa-ready-button-label"},
+    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","expected":"Avisar no WhatsApp","name":"wa-ready-button-label"},
+    {"action":"click","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","name":"wa-open-whatsapp"},
+    {"action":"expectText","selector":"[data-delivery-ops] .vertical-row:has-text('QA WhatsApp Pickup') [data-whatsapp-pickup-ready]","expected":"WhatsApp aberto","name":"wa-open-whatsapp-result"},
     {"action":"screenshot","name":"whatsapp-pickup-ready","fullPage":true}
   ]
 }
