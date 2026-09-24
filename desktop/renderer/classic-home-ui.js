@@ -11,7 +11,6 @@
     cash: '▤', finance: '$', reports: '▥', sales: '◷', returns: '↩'
   };
 
-  let classicActive = false;
   let activationQueued = false;
 
   function escapeHtml(value) {
@@ -42,7 +41,6 @@
   }
 
   function setClassicShell(active) {
-    classicActive = active;
     document.body.classList.toggle('home-view-classic', active);
     brandButton.classList.toggle('active', active);
     brandButton.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -73,7 +71,9 @@
       button.addEventListener('click', () => {
         const route = button.dataset.classicRoute;
         const nativeLauncher = operationalHome.querySelector(`[data-home-route="${CSS.escape(route)}"]`);
-        if (nativeLauncher) nativeLauncher.click();
+        if (!nativeLauncher) return;
+        setClassicShell(false);
+        nativeLauncher.click();
       });
     });
 
@@ -107,12 +107,7 @@
   brandButton.addEventListener('click', openClassicHome);
 
   document.getElementById('sidebar-nav')?.addEventListener('click', (event) => {
-    const homeButton = event.target.closest('[data-route="home"]');
-    if (!homeButton) return;
+    if (!event.target.closest('[data-route]')) return;
     setClassicShell(false);
   }, true);
-
-  new MutationObserver(() => {
-    if (document.body.dataset.activeRoute !== 'home') setClassicShell(false);
-  }).observe(document.body, { attributes: true, attributeFilter: ['data-active-route'] });
 })();
