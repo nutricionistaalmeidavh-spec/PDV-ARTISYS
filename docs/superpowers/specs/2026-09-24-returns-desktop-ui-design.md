@@ -12,12 +12,12 @@ The original sale remains immutable. A return is stored as its own transaction a
 
 ## Constraints
 
-- Core implementation must remain local/self-hosted and require no paid external service.
+- Core implementation remains local/self-hosted and requires no paid external service.
 - Reuse the existing Electron renderer, local HTTP API, SQLite runtime, authentication, event/outbox, and ArtiSys QA/Playwright stack.
 - No external identity or authorization provider is introduced.
 - Existing `/api/v1/returns` behavior for manager/admin sessions remains compatible.
 - The backend remains authoritative for refund totals, refundable quantities, sale status, authorization, and mutation idempotency.
-- Passwords used for delegated authorization must never be persisted, logged, returned to the renderer after validation, or embedded in audit payloads.
+- Passwords used for delegated authorization are never persisted, logged, returned after validation, or embedded in audit payloads.
 
 ## Current State
 
@@ -30,103 +30,73 @@ The repository already contains:
 - domain tests for partial/total returns, over-return rejection, immutable sales, cost snapshots, and effects;
 - ArtiSys QA/Playwright flows and runtime.
 
-The main UX gaps are sale discovery, explicit refund review, explicit authorization for a cashier-operated flow, visibility into previously returned quantities, and a complete desktop E2E scenario.
+The UX gaps are sale discovery, refund review, delegated authorization for a cashier-operated flow, visibility into previously returned quantities, and a complete desktop E2E scenario.
 
 ## User Flow
 
 ### 1. Open Returns
 
-The user opens the existing `returns` operational route (`F11` remains valid). The page shows two desktop columns:
+The user opens the existing `returns` operational route; `F11` remains valid. The page uses two desktop columns:
 
-- left/main: new-return workflow;
-- right/secondary: recent return history.
+- main column: new-return workflow;
+- secondary column: recent return history.
 
 ### 2. Search completed sales
 
-Replace raw sale-ID-only entry with a search field and result list.
+The raw sale-ID field is replaced by a sale search field and result list.
 
 The renderer calls:
 
 ```text
-GET /api/v1/sales/history?status=COMPLETED&query=<text>&limit=<n>
+GET /api/v1/sales/history?status=COMPLETED&query=<text>&limit=25
 ```
 
-Searchable information follows the existing sales-history semantics, including sale number, customer, seller/operator, or other indexed query data already supported by the sales service.
-
-Each result shows at minimum:
-
-- sale number;
-- completion date/time;
-- customer;
-- seller/operator;
-- total;
-- action to select the sale.
-
-Direct sale-ID entry may remain as a compatibility/fallback path, but it is not the primary desktop workflow.
+Search follows the existing sales-history semantics. Each result shows sale number, completion date/time, customer, seller/operator, total, and a select action.
 
 ### 3. Load sale and refundable balances
 
-After selecting a sale, the renderer loads sale details and return history for that sale in parallel:
+After selection, the renderer loads in parallel:
 
 ```text
 GET /api/v1/sales/:id/details
 GET /api/v1/returns?saleId=:id
 ```
 
-For each sale item the UI computes a display-only returned quantity from completed returns and derives:
+For each sale item the UI derives a display balance from completed returns:
 
 ```text
 available = sold quantity - completed returned quantity
 ```
 
-The backend independently recomputes and validates availability when the return is created.
+The backend independently recomputes availability during creation.
 
-Each row shows:
+Each item row shows product name, sold quantity, already-returned quantity, available quantity, original-sale unit price, editable return quantity, line subtotal, and selection control. Rows with zero availability are disabled.
 
-- product name;
-- quantity sold;
-- quantity already returned;
-- quantity available;
-- unit price from the original sale snapshot;
-- editable return quantity;
-- line subtotal;
-- selection control.
-
-Rows with zero available quantity are disabled.
+Changing the selected sale clears every item selection, refund draft, reason, and delegated approval token.
 
 ### 4. Build refund
 
-The page shows a live summary:
+The page shows a live summary with selected item count, total quantity, return total, refund method, and refund amount.
 
-- selected item count;
-- total quantity;
-- return total;
-- refund method;
-- refund amount.
-
-For this scope, the UI submits one refund line whose amount equals the calculated return total. Supported methods remain the domain-supported methods exposed in the UI: `CASH`, `PIX`, `DEBIT_CARD`, `CREDIT_CARD`, and `STORE_CREDIT`.
-
-The domain remains prepared to validate multiple refund lines even though this UI scope uses one line.
+The desktop UI sends exactly one refund line whose amount equals the selected return total. The exposed methods are `CASH`, `PIX`, `DEBIT_CARD`, `CREDIT_CARD`, and `STORE_CREDIT`. The domain remains capable of validating multiple refund lines, but split refunds are outside this UI scope.
 
 ### 5. Reason
 
-A non-empty reason is required before completion. The renderer provides inline validation, while the service remains the authoritative validator.
+A non-empty reason is mandatory. The renderer validates it before submission and the service validates it again.
 
 ### 6. Authorization
 
-Returns can be operated in two modes.
+Returns support two authorization modes.
 
-#### Manager/admin already logged in
+#### Manager/admin session
 
-The current session can authorize its own return. No secondary credential prompt is necessary. `authorizedById` is the current authenticated manager/admin user.
+A logged-in manager/admin self-authorizes the return. `authorizedById` is the current authenticated manager/admin user.
 
-#### Cashier/operator logged in
+#### Cashier/operator session
 
-The operator can prepare the return but cannot complete it without delegated approval.
+The operator prepares the return but cannot complete it without delegated approval. The UI opens an authorization dialog asking for a manager/admin username and password and posts them once to the local server.
 
-The UI opens an authorization panel/dialog asking for a manager/admin username and password. Credentials are posted once to a local protected authorization endpoint.
-
-Proposed endpoint:
+The new endpoint is:
 
 ```text
 POST /api/v1/auth/authorize
@@ -143,7 +113,7 @@ Authorization: Bearer <operator session>
 }
 ```
 
-On successful credential verification, the server returns an opaque one-time approval token and minimal non-secret approver metadata:
+On success the server returns an opaque one-time approval token plus non-secret approver metadata:
 
 ```json
 {
@@ -157,83 +127,74 @@ On successful credential verification, the server returns an opaque one-time app
 }
 ```
 
-The approval is stored only in server memory and contains:
-
-- approving user ID and role;
-- requesting session/user ID;
-- terminal ID;
-- scope `return.complete`;
-- sale ID;
-- expiry;
-- consumed flag or single-use deletion semantics.
-
-The token has a short TTL (target: 2 minutes), is cryptographically random, is bound to the requesting session/terminal/sale/scope, and can be consumed only once.
+The approval record exists only in server memory and stores approver ID/role, requesting session token identity, requesting user ID, terminal ID, scope, sale ID, and expiration. The TTL is exactly 120 seconds. Tokens are generated from cryptographically secure random bytes, are single-use, and are bound to the requesting session, terminal, scope `return.complete`, and selected sale ID.
 
 ### 7. Complete return
 
-`POST /api/v1/returns` is extended to support two valid authorization paths:
+`POST /api/v1/returns` accepts two authorization paths:
 
 1. caller session role is `manager` or `admin`; or
-2. caller session is another allowed operational role and supplies a valid one-time approval token for this exact return scope/resource.
+2. caller is another authenticated operational role and supplies a valid delegated `approvalToken`.
 
-The renderer sends the approval token only when delegated approval was needed.
+For delegated approval, the router validates token binding and expiration and removes the token from the approval store immediately before invoking the domain operation. A domain failure therefore requires a new manager approval before retrying.
 
-The router consumes and validates the approval before calling the return service. It passes separate identities:
+The router passes separate execution and authorization identities:
 
 ```text
-operatorId       = current authenticated session user
-actor             = current authenticated session actor
-authorizedById    = approving manager/admin user
+operatorId    = current authenticated session user
+authorizedBy = validated manager/admin identity
+actor         = current authenticated session actor
 ```
 
-For manager/admin self-authorization, `authorizedById` equals the current session user.
+For self-authorization, `authorizedBy` is derived from the current manager/admin session.
 
-The service must no longer infer `authorizedById` exclusively from `actor.userId`; it accepts the validated authorization identity from the router/runtime boundary while still rejecting any untrusted direct attempt to forge authorization.
+The return service accepts a trusted `authorizedBy` object and validates that its role is `manager` or `admin`. For backwards-compatible direct runtime calls, when `authorizedBy` is omitted and `actor.role` is manager/admin, the service treats `actor` as the authorizer. A cashier actor without explicit `authorizedBy` is rejected.
+
+The renderer cannot set `authorizedById` directly.
 
 ### 8. Success state
 
-After successful creation:
+After successful creation the UI:
 
-- show success toast/message with return identifier and total;
-- clear the draft workflow;
-- refresh recent return history;
-- keep the returns route active;
-- show authorization identity in the returned transaction detail/history where practical.
+- shows a success toast with return ID and total;
+- clears the draft;
+- refreshes recent return history;
+- keeps the returns route active;
+- shows operator and authorizer identities in the recent-return row/detail.
 
 ## Authorization Security Model
 
-The authorization endpoint uses the existing local user store and password verification function.
+The authorization endpoint uses the existing local user store and password verifier.
 
 Rules:
 
-- only active `manager` or `admin` users can approve;
-- the requesting operator must already have a valid authenticated session;
-- failed approval never creates a return;
-- password is handled only during request processing;
-- password is excluded from audit/log payloads;
-- approval token is opaque, random, short-lived, single-use, and stored only in memory;
-- approval token is bound to session, terminal, scope, and sale ID;
-- changing the selected sale invalidates any approval held by the renderer;
-- consuming or expiring a token removes it from the authorization store;
-- restarting the local server invalidates outstanding approvals by design.
+- the requesting user must already have a valid authenticated session;
+- only active `manager` or `admin` credentials issue approval;
+- password exists only for the duration of request processing;
+- password is never stored in the approval record, audit log, application log, or response;
+- approval token is opaque, random, expires after 120 seconds, and is single-use;
+- approval is bound to session, user, terminal, sale, and scope;
+- switching sales clears the renderer-held approval;
+- invalid, expired, mismatched, or consumed approval cannot create a return;
+- server restart invalidates outstanding approvals by design.
 
 ## API Changes
 
-### New
+### New endpoint
 
 ```text
 POST /api/v1/auth/authorize
 ```
 
-Purpose: verify a local manager/admin credential and issue a scoped, one-time approval.
+Purpose: verify a local manager/admin credential and issue a scoped, one-time approval for `return.complete`.
 
-### Extended
+### Extended endpoint
 
 ```text
 POST /api/v1/returns
 ```
 
-Request gains optional:
+The request gains optional:
 
 ```json
 {
@@ -241,13 +202,13 @@ Request gains optional:
 }
 ```
 
-Manager/admin callers do not need this field. Cashier/operator callers require it.
+Manager/admin callers do not need it. Cashier/operator callers do.
 
 No external network service is required.
 
 ## Domain Changes
 
-`js/domains/returns/return-service.js` keeps ownership of business invariants:
+`js/domains/returns/return-service.js` continues to own business invariants:
 
 - completed sale required;
 - at least one return item;
@@ -258,11 +219,9 @@ No external network service is required.
 - valid refund method;
 - non-empty reason;
 - immutable original sale;
-- audit/outbox/effects unchanged in principle.
+- audit/outbox/effect semantics remain unchanged.
 
-Authorization is represented explicitly in the call contract rather than inferred from the operator identity.
-
-The service should receive a trusted authorization context produced by the server layer, for example:
+Authorization becomes explicit:
 
 ```js
 {
@@ -272,50 +231,32 @@ The service should receive a trusted authorization context produced by the serve
 }
 ```
 
-The service validates `authorizedBy.role` as `manager` or `admin` and persists `authorized_by_id` from `authorizedBy.userId`.
-
-This preserves direct runtime testability without making the renderer authoritative.
+The service persists `authorized_by_id` from `authorizedBy.userId`; `operator_id` remains the authenticated operator executing the operation.
 
 ## Renderer Design
 
-`renderReturns()` remains the route entry point but is restructured into focused helpers local to `operational-pages.js` unless file size/readability requires extraction.
+`renderReturns()` remains the route entry point and is restructured into focused helpers inside `desktop/renderer/operational-pages.js` unless extraction is necessary to keep the file testable and readable. The required responsibilities are sale search/results, selected-sale summary, refundable-item rendering, live totals, refund/reason state, delegated authorization, submit, and recent-return history.
 
-Suggested responsibilities:
-
-- render search/results;
-- render selected sale summary;
-- render refundable item rows;
-- calculate selected totals;
-- render refund/reason summary;
-- request delegated authorization;
-- submit return;
-- render recent returns.
-
-No unrelated operational pages are refactored.
-
-The UI should follow existing `ops-*` component and CSS conventions. Any added CSS belongs in the existing operational renderer stylesheet rather than a new UI framework.
+Stable selectors are added for E2E/contract coverage. Styling changes go in `desktop/renderer/operational-pages.css` and reuse existing `ops-*` conventions; no UI framework or new paid dependency is introduced.
 
 ## Error Handling
 
-User-visible cases include:
+The UI handles and surfaces:
 
 - no completed sale found;
-- selected sale no longer exists or is not completed;
+- sale no longer exists or is no longer completed;
 - no refundable items remain;
 - no items selected;
 - invalid or excessive quantity;
 - missing reason;
-- unsupported refund method;
-- refund mismatch returned by server;
 - invalid manager credentials;
-- approving user is not manager/admin;
-- approval expired;
-- approval already consumed;
-- approval belongs to a different sale/session/terminal;
-- concurrent return reduced available quantity before submit;
+- approver not manager/admin;
+- expired, consumed, or mismatched approval;
+- concurrent return reducing availability before submit;
+- refund/business-rule rejection from the server;
 - server/network failure.
 
-Server messages remain the final source for race-condition/business-rule failures; the UI adds concise inline guidance and toasts.
+The server remains the final authority for race conditions and business rules.
 
 ## Testing Strategy
 
@@ -323,44 +264,35 @@ Server messages remain the final source for race-condition/business-rule failure
 
 Extend return tests to verify:
 
-- explicit `authorizedBy` identity is persisted separately from `operatorId`;
-- cashier operator + manager authorization succeeds;
+- explicit `authorizedBy` is persisted separately from `operatorId`;
+- cashier actor + manager authorization succeeds;
 - non-manager authorization is rejected;
-- existing manager self-authorization remains valid;
-- over-return, refund mismatch, immutable sale, effects, and historical cost behavior remain green.
+- manager/admin actor without explicit `authorizedBy` remains self-authorized for backwards compatibility;
+- existing over-return, refund mismatch, immutable-sale, effect, and historical-cost tests stay green.
 
 ### API tests
 
-Add tests for:
+Add coverage proving:
 
 - `/api/v1/auth/authorize` requires an authenticated requesting session;
 - valid local manager/admin credentials issue approval;
-- cashier can complete a return with valid approval;
+- cashier completes a return with valid approval;
 - cashier cannot complete without approval;
 - wrong credentials fail;
 - non-manager approver fails;
-- expired approval fails;
-- reused approval fails;
-- approval bound to another sale/terminal/session fails;
-- manager/admin direct return still succeeds.
+- approval expires after 120 seconds;
+- approval cannot be reused;
+- approval bound to another sale, terminal, session, or user fails;
+- manager/admin direct return remains valid;
+- credentials do not appear in returned/logged/audited data checked by the test surface.
 
 ### Renderer/contract tests
 
-Assert the desktop returns renderer exposes stable selectors/markers for:
-
-- sale search;
-- result selection;
-- refundable-item rows;
-- quantity inputs;
-- refund method;
-- reason;
-- authorization action;
-- submit action;
-- recent return history.
+Assert stable selectors/markers for sale search, result selection, selected sale, refundable item rows, quantity inputs, refund method, reason, authorization dialog/action, submit action, success state, and recent return history.
 
 ### End-to-end
 
-Create a dedicated ArtiSys QA flow, expected filename:
+Create:
 
 ```text
 qa/flows/returns-desktop-e2e.json
@@ -371,62 +303,61 @@ Primary scenario:
 1. launch with deterministic fixture data;
 2. log in as cashier/operator;
 3. open Returns;
-4. search for a completed sale by sale number/customer text;
-5. select sale;
-6. select one item and partial quantity;
-7. verify displayed return total;
+4. search for a completed sale;
+5. select it;
+6. select one item and a partial quantity;
+7. assert displayed total;
 8. choose refund method;
 9. enter reason;
 10. request authorization;
 11. authenticate manager/admin;
 12. complete return;
-13. assert success state;
-14. assert return appears in history;
-15. reload/reopen sale and assert remaining refundable quantity decreased.
+13. assert success;
+14. assert history shows the return plus operator/authorizer;
+15. reload/reselect the sale and assert remaining refundable quantity decreased.
 
-Negative coverage should include at least invalid authorization and excessive quantity through the narrowest appropriate test level; the full E2E need not duplicate every domain/API invariant.
+Invalid authorization and excessive quantity are covered at API/domain level so the full E2E remains focused on the complete successful customer workflow.
 
 ## Files Expected to Change
 
 Primary:
 
 - `desktop/renderer/operational-pages.js`
+- `desktop/renderer/operational-pages.css`
 - `desktop/renderer/api-client.js`
-- existing operational renderer CSS file if layout/states require styling
 - `server/router.js`
 - `js/domains/returns/return-service.js`
 - return/API/UI contract tests under `test/`
 - `qa/flows/returns-desktop-e2e.json`
-- `qa/artisys-qa.config.json` only if registration is required by the current QA configuration
+- `qa/artisys-qa.config.json` if the current QA runner requires explicit flow registration.
 
-Additional files are allowed only when required to keep authorization storage/test helpers isolated and understandable.
+A small server-side authorization helper/store file may be added if keeping the approval lifecycle in `server/router.js` would materially reduce readability or isolated testability. It must remain in-memory and dependency-free.
 
 ## Non-Goals
 
 - changing the immutable-sale model;
-- refund gateway integration;
-- automatic card-provider reversal;
+- refund gateway integration or automatic provider reversal;
 - cloud authorization service;
 - multi-level approval chains;
-- split/multiple refund methods in the desktop UI;
-- changing inventory/cash event semantics beyond what existing return effects already implement;
+- split/multiple refund methods in this desktop UI;
+- changing inventory/cash event semantics beyond existing return effects;
 - redesigning unrelated operational pages.
 
 ## Acceptance Criteria
 
-The work is complete when all of the following are true:
+The work is complete when:
 
-- `renderReturns()` provides desktop sale search instead of requiring knowledge of an internal sale ID;
-- a completed sale can be selected and its remaining refundable quantities are visible;
+- `renderReturns()` provides completed-sale search without requiring an internal sale ID;
+- a sale can be selected and its remaining refundable quantities are visible;
 - partial and total item selection is supported up to remaining availability;
-- the refund total is calculated from selected original-sale prices;
-- a reason is required;
-- manager/admin can self-authorize;
-- cashier/operator can complete only after a local, scoped manager/admin authorization;
-- operator and authorizer identities are persisted distinctly;
-- authorization is short-lived, single-use, local, and not dependent on paid/external services;
-- successful return continues to trigger existing inventory/cash/commission/outbox behavior;
+- the refund total uses original-sale prices;
+- reason is mandatory;
+- manager/admin self-authorization works;
+- cashier/operator completion requires a local scoped manager/admin authorization;
+- operator and authorizer identities are persisted and displayed distinctly;
+- delegated authorization is 120-second, single-use, local, bound to the operation, and free of paid/external dependencies;
+- successful return preserves existing inventory/cash/commission/outbox behavior;
 - the original sale remains unchanged;
-- unit/API/contract tests pass;
-- a dedicated E2E proves the complete desktop flow;
-- the branch is opened as a PR against `main` after verification.
+- domain/API/renderer contract tests pass;
+- `qa/flows/returns-desktop-e2e.json` proves the complete desktop flow;
+- verified changes are opened as a PR from `feat/returns-desktop-ui` to `main`.
