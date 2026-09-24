@@ -21,3 +21,13 @@ test('openModal wires every data-close-modal control', () => {
     'openModal must not wire only the first close control'
   );
 });
+
+test('modal close controls are wired only once by openModal', () => {
+  const singularBindings = appSource.match(/\.querySelector\('\[data-close-modal\]'\)(?:\?\.|\.)addEventListener\('click', closeModal\)/g) || [];
+
+  assert.equal(
+    singularBindings.length,
+    0,
+    'individual modals must not add a second close handler; openModal owns every data-close-modal control'
+  );
+});
