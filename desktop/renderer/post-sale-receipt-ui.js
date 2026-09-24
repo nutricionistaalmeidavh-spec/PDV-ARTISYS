@@ -23,13 +23,31 @@
     return String(client?.sessionToken || root.sessionStorage?.getItem('artisys.sessionToken') || '').trim();
   }
 
-  function modalRoot() { return document.getElementById('modal-root'); }
+  function postSaleRoot() {
+    let panel = document.getElementById('post-sale-receipt-root');
+    if (panel) return panel;
+    panel = document.createElement('div');
+    panel.id = 'post-sale-receipt-root';
+    panel.className = 'post-sale-receipt-root hidden';
+    panel.setAttribute('aria-live', 'polite');
+    Object.assign(panel.style, {
+      position:'fixed',
+      right:'24px',
+      bottom:'24px',
+      zIndex:'49',
+      maxWidth:'calc(100vw - 32px)',
+      pointerEvents:'none'
+    });
+    document.body.appendChild(panel);
+    return panel;
+  }
 
   function closePostSaleModal() {
-    const modal = modalRoot();
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.innerHTML = '';
+    const panel = document.getElementById('post-sale-receipt-root');
+    if (!panel) return;
+    panel.classList.add('hidden');
+    panel.innerHTML = '';
+    latestCompletedSale = null;
   }
 
   function setReceiptStatus(message, type = '') {
@@ -60,11 +78,11 @@
   }
 
   function showPostSaleModal(sale, token) {
-    const modal = modalRoot();
-    if (!modal || !sale?.id) return;
+    const panel = postSaleRoot();
+    if (!sale?.id) return;
     latestCompletedSale = { ...sale, sessionToken:token };
-    modal.classList.remove('hidden');
-    modal.innerHTML = `<section class="modal-card post-sale-card" role="dialog" aria-modal="true" aria-labelledby="post-sale-title">
+    panel.classList.remove('hidden');
+    panel.innerHTML = `<section class="modal-card post-sale-card" role="dialog" aria-labelledby="post-sale-title">
       <header class="modal-head"><div><h2 id="post-sale-title">Venda concluída</h2><p class="post-sale-subtitle">Venda ${escapeHtml(sale.saleNumber || sale.id)} finalizada com sucesso.</p></div><button class="modal-close" type="button" id="post-sale-close" aria-label="Fechar">×</button></header>
       <div class="modal-body">
         <div class="post-sale-summary"><div><span>Total</span><strong>${money(sale.totalCents)}</strong></div><div><span>Troco</span><strong>${money(sale.changeCents)}</strong></div></div>
@@ -78,13 +96,14 @@
       </div>
     </section>`;
 
+    const card = panel.querySelector('.post-sale-card');
+    if (card) card.style.pointerEvents = 'auto';
     const printButton = document.getElementById('post-sale-print');
     const pdfButton = document.getElementById('post-sale-save-pdf');
     printButton?.addEventListener('click', () => runReceiptAction(printButton, () => root.artisysDesktop.receipts.printSale({ saleId:sale.id, sessionToken:token }), 'Comprovante enviado para impressão.'));
     pdfButton?.addEventListener('click', () => runReceiptAction(pdfButton, () => root.artisysDesktop.receipts.saveSalePdf({ saleId:sale.id, sessionToken:token }), 'PDF salvo com sucesso.'));
     document.getElementById('post-sale-close')?.addEventListener('click', closePostSaleModal);
     document.getElementById('post-sale-new-sale')?.addEventListener('click', closePostSaleModal);
-    modal.addEventListener('click', event => { if (event.target === modal) closePostSaleModal(); });
   }
 
   if (!ApiClient.prototype.__artisysPostSaleReceiptPatched) {
@@ -231,6 +250,8 @@
     settingsObserver.observe(content, { childList:true, subtree:true });
   }
   root.addEventListener('click', event => {
+    const routeTarget = event.target.closest?.('[data-route],[data-home-route]');
+    if (routeTarget && !event.target.closest?.('#post-sale-receipt-root')) closePostSaleModal();
     if (event.target.closest?.('[data-route="settings"],[data-home-route="settings"]')) queueSettingsInjection();
   }, true);
   queueSettingsInjection();
