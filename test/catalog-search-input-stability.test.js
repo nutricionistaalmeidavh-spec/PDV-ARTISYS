@@ -2,31 +2,60 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const vm=require('node:vm');
 
 const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 const readJson=file=>JSON.parse(read(file));
 
-test('product and customer page searches filter their rows without rebuilding the focused input',()=>{
-  const app=read('desktop/renderer/app.js');
-  assert.match(app,/function renderProductRows\(\)/);
-  assert.match(app,/function renderCustomerRows\(\)/);
-
-  const productBinding=app.split('\n').find(line=>line.includes("getElementById('product-page-search')")&&line.includes("addEventListener('input'"))||'';
-  assert.match(productBinding,/state\.productQuery = event\.target\.value; renderProductRows\(\);/);
-  assert.doesNotMatch(productBinding,/renderProducts\(\)/);
-  assert.doesNotMatch(productBinding,/\.focus\(\)/);
-
-  const customerBinding=app.split('\n').find(line=>line.includes("getElementById('customer-page-search')")&&line.includes("addEventListener('input'"))||'';
-  assert.match(customerBinding,/state\.customerQuery = event\.target\.value; renderCustomerRows\(\);/);
-  assert.doesNotMatch(customerBinding,/renderCustomers\(\)/);
-  assert.doesNotMatch(customerBinding,/\.focus\(\)/);
+test('desktop hardening scripts are syntactically valid and loaded by the renderer',()=>{
+  for(const file of ['desktop/renderer/catalog-search-stability.js','desktop/renderer/returns-ui.js']) {
+    assert.doesNotThrow(()=>new vm.Script(read(file),{filename:file}));
+  }
+  const index=read('desktop/renderer/index.html');
+  assert.match(index,/regression-hardening\.css/);
+  assert.match(index,/catalog-search-stability\.js/);
+  assert.match(index,/returns-ui\.js/);
 });
 
-test('catalog QA enters product barcode and customer document key by key without reordering',()=>{
-  const flow=readJson('qa/flows/catalog-search-input-stability.json');
+test('product and customer searches intercept input before legacy full-page rerenders',()=>{
+  const source=read('desktop/renderer/catalog-search-stability.js');
+  assert.match(source,/document\.addEventListener\('input',[\s\S]*?\}, true\);/);
+  assert.match(source,/target\.id === 'product-page-search'/);
+  assert.match(source,/target\.id === 'customer-page-search'/);
+  assert.match(source,/event\.stopImmediatePropagation\(\)/);
+  assert.match(source,/api\.products\(true\)/);
+  assert.match(source,/input\.setSelectionRange\?\.\(end,end\)/);
+  assert.match(source,/dataset\.productList = '1'/);
+  assert.match(source,/dataset\.customerList = '1'/);
+});
+
+test('compact cart uses a two-column resilient grid instead of the legacy three-column squeeze',()=>{
+  const css=read('desktop/renderer/regression-hardening.css');
+  assert.match(css,/\.cart-line\s*\{[\s\S]*grid-template-columns:minmax\(0,1fr\) auto !important/);
+  assert.match(css,/\.cart-line > div:first-child[\s\S]*grid-row:1 \/ span 2/);
+  assert.match(css,/\.cart-line \.line-total[\s\S]*grid-column:2/);
+  assert.match(css,/\.cart-line \.qty-control[\s\S]*grid-column:2/);
+  assert.match(css,/overflow-wrap:anywhere/);
+});
+
+test('returns desktop UI connects completed sales, available quantities, refunds and authorization to real APIs',()=>{
+  const source=read('desktop/renderer/returns-ui.js');
+  assert.match(source,/\['admin','manager'\]\.includes/);
+  assert.match(source,/api\.salesHistory\(\{status:'COMPLETED'/);
+  assert.match(source,/api\.saleDetails\(saleId\)/);
+  assert.match(source,/api\.returns\(\{saleId/);
+  assert.match(source,/api\.createReturn\(\{/);
+  assert.match(source,/saleItemId:row\.dataset\.returnItem/);
+  assert.match(source,/refunds:\[\{method,amountCents:totalCents\}\]/);
+  assert.match(source,/availableQuantity\(item,already\)/);
+  assert.match(source,/A devolução exige sessão de gerente ou administrador/);
+});
+
+test('desktop regression E2E enters barcode and customer document key by key without reordering',()=>{
+  const flow=readJson('qa/flows/desktop-regressions-e2e.json');
   const cases=[
-    { prefix:'catalog-barcode', selector:'#product-page-search', expected:'7891234567895', resultSelector:'[data-product-list]', resultText:'QA Busca Estavel' },
+    { prefix:'catalog-barcode', selector:'#product-page-search', expected:'7899876543210', resultSelector:'[data-product-list]', resultText:'QA REGRESSAO PRODUTO NOME MUITO LONGO PARA TESTAR CARRINHO RESPONSIVO' },
     { prefix:'customer-document', selector:'#customer-page-search', expected:'12345678901', resultSelector:'[data-customer-list]', resultText:'QA Cliente Estavel' }
   ];
 
@@ -48,11 +77,22 @@ test('catalog QA enters product barcode and customer document key by key without
   }
 });
 
-test('catalog search stability E2E is mandatory in full and release QA profiles',()=>{
+test('desktop regression E2E gates cart overflow and a completed return',()=>{
+  const flow=readJson('qa/flows/desktop-regressions-e2e.json');
+  const names=new Set(flow.steps.map(step=>step.name));
+  for(const name of [
+    'reg-sale-panel-no-overflow','reg-cart-line-no-overflow','reg-cart-price-override-visible',
+    'reg-open-returns','reg-return-items-ready','reg-confirm-return','reg-return-success-copy','reg-return-history','reg-returns-no-overflow'
+  ]) assert.ok(names.has(name),`missing ${name}`);
+  assert.equal(flow.steps.find(step=>step.name==='reg-sale-panel-no-overflow')?.action,'expectNoHorizontalOverflow');
+  assert.equal(flow.steps.find(step=>step.name==='reg-return-success-copy')?.expected,'concluída');
+});
+
+test('desktop regression E2E is mandatory in full and release QA profiles',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  assert.equal(config.flows['catalog-search-input-stability'],'flows/catalog-search-input-stability.json');
+  assert.equal(config.flows['desktop-regressions-e2e'],'flows/desktop-regressions-e2e.json');
   for(const profileName of ['full','release']){
-    assert.ok(config.qaProfiles[profileName].flows.includes('catalog-search-input-stability'));
-    assert.ok(config.qaProfiles[profileName].criticalFlows.includes('catalog-search-input-stability'));
+    assert.ok(config.qaProfiles[profileName].flows.includes('desktop-regressions-e2e'));
+    assert.ok(config.qaProfiles[profileName].criticalFlows.includes('desktop-regressions-e2e'));
   }
 });
