@@ -3,6 +3,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const SCALE_PROFILES = new Set([
+  'generic',
+  'urano-pop-s',
+  'toledo-prix3-prt5',
+  'urano-udc',
+  'filizola-bp-cs',
+  'generic-numeric'
+]);
+
 function normalizeRequestCommand(value) {
   if (value == null || String(value).trim() === '') return '0x04';
   const text = String(value).trim().toLowerCase();
@@ -13,7 +22,7 @@ function normalizeRequestCommand(value) {
 
 function normalizeScaleConfig(input = {}) {
   const profile = String(input.profile || 'generic').trim().toLowerCase();
-  if (!['generic','urano-pop-s'].includes(profile)) throw new Error('Perfil de balanca invalido.');
+  if (!SCALE_PROFILES.has(profile)) throw new Error('Perfil de balanca invalido.');
   const port = String(input.port || '').trim();
   if (port.length > 128) throw new Error('Porta serial invalida.');
   const result = { profile, port };
@@ -46,4 +55,4 @@ function createHardwareConfigStore({ filePath } = {}) {
   return Object.freeze({ load, saveScale });
 }
 
-module.exports = { createHardwareConfigStore, normalizeScaleConfig, normalizeRequestCommand };
+module.exports = { createHardwareConfigStore, normalizeScaleConfig, normalizeRequestCommand, SCALE_PROFILES };
