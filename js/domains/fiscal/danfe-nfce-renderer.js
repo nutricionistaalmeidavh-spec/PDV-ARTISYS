@@ -7,6 +7,7 @@ function center(value,width){const text=fit(value,width);const left=Math.max(0,M
 function line(width,char='-'){return char.repeat(width);}
 function wrap(value,width){const words=String(value??'').trim().split(/\s+/).filter(Boolean);if(!words.length)return[];const lines=[];let current='';for(const word of words){if(!current){current=word;continue;}if(`${current} ${word}`.length<=width){current+=` ${word}`;}else{lines.push(fit(current,width));current=word;}}if(current)lines.push(fit(current,width));return lines;}
 function quantity(value){return Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
+function paymentLabel(method){const key=String(method||'OUTRO').trim().toUpperCase();return({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão débito',CREDIT_CARD:'Cartão crédito',STORE_CREDIT:'A prazo',OTHER:'Outro'})[key]||String(method||'OUTRO');}
 
 function renderDanfeNfce({document,width=42,allowContingency=false}={}){
   const cols=[32,42,48].includes(Number(width))?Number(width):42;
@@ -31,7 +32,7 @@ function renderDanfeNfce({document,width=42,allowContingency=false}={}){
   out.push(line(cols),fit(`Subtotal: R$ ${money(totals.subtotalCents)}`,cols));
   if(Number(totals.discountCents||0)>0)out.push(fit(`Desconto: R$ ${money(totals.discountCents)}`,cols));
   out.push(fit(`TOTAL: R$ ${money(totals.totalCents)}`,cols));
-  for(const payment of payments)out.push(fit(`Pagamento ${payment.method||'OUTRO'}: R$ ${money(payment.amountCents)}`,cols));
+  for(const payment of payments)out.push(fit(`Pagamento ${paymentLabel(payment.method)}: R$ ${money(payment.amountCents)}`,cols));
   if(Number(totals.changeCents||0)>0)out.push(fit(`Troco: R$ ${money(totals.changeCents)}`,cols));
   out.push(line(cols),'CHAVE DE ACESSO',...wrap(groupKey(document.accessKey),cols));
   if(document.authorizationProtocol)out.push(...wrap(`Protocolo de autorização: ${document.authorizationProtocol}`,cols));
@@ -42,4 +43,4 @@ function renderDanfeNfce({document,width=42,allowContingency=false}={}){
   return `${out.join('\n')}\n`;
 }
 
-module.exports={renderDanfeNfce};
+module.exports={renderDanfeNfce,paymentLabel};
