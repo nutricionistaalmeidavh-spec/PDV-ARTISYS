@@ -15,6 +15,10 @@
     return STABLE_OPERATIONAL_ROUTES.has(route) ? route : '';
   }
 
+  function hasOwnedSubview(route) {
+    return route === 'settings' && Boolean(content.querySelector('.vertical-page'));
+  }
+
   async function renderCanonicalRoute(route) {
     if (route === 'reports' && typeof reportsV2?.render === 'function') {
       await reportsV2.render();
@@ -26,7 +30,7 @@
   async function stabilize() {
     if (restoring || content.querySelector('.ops-page')) return;
     const route = activeOperationalRoute();
-    if (!route) return;
+    if (!route || hasOwnedSubview(route)) return;
 
     restoring = true;
     try {
