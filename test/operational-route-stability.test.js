@@ -8,6 +8,8 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../desktop/renderer/operational-route-stability.js'), 'utf8');
 const operational = fs.readFileSync(path.join(__dirname, '../desktop/renderer/operational-pages.js'), 'utf8');
 const reportsV2 = fs.readFileSync(path.join(__dirname, '../desktop/renderer/reporting-v2.js'), 'utf8');
+const verticalModules = fs.readFileSync(path.join(__dirname, '../desktop/renderer/vertical-modules.js'), 'utf8');
+const verticalParity = fs.readFileSync(path.join(__dirname, '../desktop/renderer/vertical-parity-p1.js'), 'utf8');
 
 test('route stability restores Reports through the canonical reporting v2 renderer', () => {
   assert.match(source, /const reportsV2 = window\.PdvReportsV2;/);
@@ -19,6 +21,14 @@ test('route stability stays guarded and coalesces mutation callbacks', () => {
   assert.match(source, /if \(restoring \|\| content\.querySelector\('\.ops-page'\)\) return;/);
   assert.match(source, /if \(scheduled\) return;[\s\S]*scheduled = true;[\s\S]*queueMicrotask\(\(\) => \{[\s\S]*scheduled = false;[\s\S]*void stabilize\(\)/);
   assert.match(source, /new MutationObserver\(schedule\)\.observe\(content, \{ childList: true, subtree: true \}\)/);
+});
+
+test('route stability preserves intentional subviews owned by an operational route', () => {
+  assert.match(source, /function hasOwnedSubview\(route\)/);
+  assert.match(source, /content\.querySelector\(`\[data-operational-subview="\$\{route\}"\]`\)/);
+  assert.match(source, /if \(!route \|\| hasOwnedSubview\(route\)\) return;/);
+  assert.match(verticalModules, /data-operational-subview="settings"/);
+  assert.match(verticalParity, /data-operational-subview="settings"/);
 });
 
 test('all operational routes use the shared active-route marker for recovery', () => {
