@@ -64,6 +64,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
+    case 'type': await locator(page, step).pressSequentially(resolveSecret(step, env), { delay: Number(step.delayMs ?? 0) }); break;
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
     case 'check': await locator(page, step).check(); break;
     case 'uncheck': await locator(page, step).uncheck(); break;
