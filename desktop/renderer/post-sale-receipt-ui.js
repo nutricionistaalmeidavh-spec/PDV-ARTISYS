@@ -11,7 +11,7 @@
   let settingsInjectionQueued = false;
 
   function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[char]);
+    return String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;' })[char]);
   }
 
   function money(cents) {
@@ -228,7 +228,7 @@
   const content = document.getElementById('route-content');
   if (content) {
     settingsObserver = new MutationObserver(queueSettingsInjection);
-    settingsObserver.observe(content, { childList:true });
+    settingsObserver.observe(content, { childList:true, subtree:true });
   }
   root.addEventListener('click', event => {
     if (event.target.closest?.('[data-route="settings"],[data-home-route="settings"]')) queueSettingsInjection();
