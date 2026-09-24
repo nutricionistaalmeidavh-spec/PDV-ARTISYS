@@ -22,7 +22,7 @@ function safePdfFileName(saleNumber,date=new Date()) {
 }
 
 function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  return String(value ?? '').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]));
 }
 
 function safeLogo(value) {
@@ -43,24 +43,44 @@ function pageHeightMicrons(scrollHeightPx) {
   return Math.max(50000,Math.ceil((bodyPx*25400)/96)+6000);
 }
 
-function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,printReceipt,env=process.env,getParentWindow=()=>null,now=()=>new Date()}={}) {
+function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,createPrintAttempt=null,finishPrintAttempt=null,printReceipt,env=process.env,getParentWindow=()=>null,now=()=>new Date()}={}) {
   if(typeof BrowserWindow!=='function')throw new TypeError('BrowserWindow e obrigatorio.');
   if(!dialog||typeof dialog.showSaveDialog!=='function')throw new TypeError('dialog.showSaveDialog e obrigatorio.');
   if(typeof writeFile!=='function')throw new TypeError('writeFile e obrigatorio.');
   if(typeof getReceipt!=='function')throw new TypeError('getReceipt e obrigatorio.');
   if(typeof printReceipt!=='function')throw new TypeError('printReceipt e obrigatorio.');
 
-  async function resolve(input={}) {
+  function requireInput(input={}) {
     const saleId=String(input.saleId || '').trim();
     const sessionToken=String(input.sessionToken || '').trim();
     if(!saleId)throw new Error('Venda obrigatoria para comprovante.');
     if(!sessionToken)throw new Error('Sessao obrigatoria para comprovante.');
+    return {saleId,sessionToken};
+  }
+
+  async function resolve(input={}) {
+    const {saleId,sessionToken}=requireInput(input);
     return getReceipt(saleId,sessionToken);
   }
 
   async function printSale(input={}) {
-    const receipt=await resolve(input);
-    return printReceipt(receipt);
+    if(typeof createPrintAttempt!=='function'||typeof finishPrintAttempt!=='function')throw new Error('Auditoria de impressao manual indisponivel.');
+    const {saleId,sessionToken}=requireInput(input);
+    const attempt=await createPrintAttempt(saleId,sessionToken);
+    const jobId=String(attempt?.job?.id || '').trim();
+    const receipt=attempt?.receipt;
+    if(!jobId||!receipt)throw new Error('Tentativa manual de impressao invalida.');
+    try {
+      const result=await printReceipt(receipt);
+      if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.');
+      await finishPrintAttempt(saleId,jobId,{success:true},sessionToken);
+      return result;
+    } catch(error) {
+      try {
+        await finishPrintAttempt(saleId,jobId,{success:false,error:String(error?.message||error||'Falha de impressao.')},sessionToken);
+      } catch {}
+      throw error;
+    }
   }
 
   async function saveSalePdf(input={}) {
