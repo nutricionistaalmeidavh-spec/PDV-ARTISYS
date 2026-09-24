@@ -26,7 +26,7 @@ test('vendors runtime capabilities used by CI',()=>{
 
 test('PDV release profile gates reporting v2, checkout UX, post-sale output, paired UX finalization, enterprise depth, backend/UI parity and fiscal E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8'];
+  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8'];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
@@ -46,6 +46,7 @@ test('PDV release profile gates reporting v2, checkout UX, post-sale output, pai
   assert.equal(config.flows['enterprise-depth-p0'],'flows/enterprise-depth-p0.json');
   assert.equal(config.flows['backend-parity-p0'],'flows/backend-parity-p0.json');
   assert.equal(config.flows['backend-parity-p1'],'flows/backend-parity-p1.json');
+  assert.equal(config.flows['whatsapp-pickup-ready-e2e'],'flows/whatsapp-pickup-ready-e2e.json');
   assert.equal(config.flows['ui-parity-p0-p2'],'flows/ui-parity-p0-p2.json');
   assert.equal(config.flows['fiscal-block6'],'flows/fiscal-block6.json');
   assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');
