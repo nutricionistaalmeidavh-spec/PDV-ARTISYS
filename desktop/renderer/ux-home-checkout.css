@@ -129,7 +129,7 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
   .sale-panel { max-height:calc(100vh - 190px); overflow-y:auto; }
   .sale-context-grid .customer-block { padding:8px 9px; }
   .sale-context-grid .customer-block .search-field { height:38px; }
-  .sale-cart-region .cart-list { min-height:100px; max-height:220px; }
+  .sale-cart-region .cart-list { min-height:150px; max-height:220px; }
   .totals { padding:8px 10px; gap:5px; }
   .payment-strip { padding:0 8px 6px; }
   .finalize-button { margin:0 8px 8px; }
@@ -189,7 +189,6 @@ body.theme-home .route-content {
 .home-recent-row { font-size:17px; padding:8px 14px; }
 .home-recent-header { font-size:14px; }
 .home-recent-state { font-size:16px; }
-
 
 /* Responsive cart-line contract: compact desktop */
 .checkout-layout .cart-line {
