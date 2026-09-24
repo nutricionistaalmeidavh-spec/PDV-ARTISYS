@@ -10,7 +10,7 @@ test('checkout barcode input filters products without rebuilding the checkout in
   const app=read('desktop/renderer/app.js');
   assert.match(app,/function renderCheckoutProductGrid\(\)/);
   const binding=app.match(/function bindCheckoutEvents\(\) \{([\s\S]*?)\n  \}/)?.[1]||'';
-  assert.match(binding,/search\?\.addEventListener\('input', \(\) => \{ state\.productQuery = search\.value; renderCheckoutProductGrid\(\); \}\);/);
+  assert.match(binding,/search\?\.addEventListener\('input', \(event\) => \{ state\.productQuery = event\.target\.value; renderCheckoutProductGrid\(\); \}\);/);
   assert.doesNotMatch(binding,/search\?\.addEventListener\('input',[\s\S]*?renderCheckout\(\)/);
 });
 
