@@ -68,18 +68,19 @@ test('cancelled Save As is not an error and does not write',async()=>{
 
 test('QA PDF directory writes a real printToPDF buffer without opening Save As',async()=>{
   const {BrowserWindow,state}=fakeWindow({pdf:Buffer.from('%PDF-QA')});const writes=[];let dialogs=0;
+  const qaPdfDir='/tmp/artisys-pdf';
   const actions=createReceiptActions({
     BrowserWindow,dialog:{showSaveDialog:async()=>{dialogs+=1;return {canceled:true};}},
     writeFile:async(file,bytes)=>writes.push([file,bytes.toString('utf8')]),
     getReceipt:async()=>receipt({saleNumber:'QA-123'}),printReceipt:async()=>({}),
-    env:{ARTISYS_QA:'1',ARTISYS_QA_PDF_DIR:'/tmp/artisys-pdf'},getParentWindow:()=>null,
+    env:{ARTISYS_QA:'1',ARTISYS_QA_PDF_DIR:qaPdfDir},getParentWindow:()=>null,
     now:()=>new Date('2026-09-24T12:00:00Z')
   });
   const result=await actions.saveSalePdf({saleId:'sale-1',sessionToken:'session'});
   assert.equal(dialogs,0);
   assert.equal(result.cancelled,false);
   assert.equal(result.fileName,'Venda-QA-123-2026-09-24.pdf');
-  assert.deepEqual(writes,[[path.join('/tmp/artisys-pdf','Venda-QA-123-2026-09-24.pdf'),'%PDF-QA']]);
+  assert.deepEqual(writes,[[path.join(path.resolve(qaPdfDir),'Venda-QA-123-2026-09-24.pdf'),'%PDF-QA']]);
   assert.equal(state.destroyed,true);
   assert.equal(state.options.pageSize.width,80000);
   assert.ok(state.options.pageSize.height>0);
