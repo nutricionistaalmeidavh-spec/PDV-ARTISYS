@@ -6,14 +6,13 @@
   const reportsV2 = window.PdvReportsV2;
   if (!content || typeof operational?.showRoute !== 'function') return;
 
-  const STABLE_SIDEBAR_ROUTES = new Set(['inventory', 'finance', 'reports']);
+  const STABLE_OPERATIONAL_ROUTES = new Set(['inventory', 'cash', 'sales', 'returns', 'finance', 'reports', 'settings']);
   let scheduled = false;
   let restoring = false;
 
   function activeOperationalRoute() {
-    const active = document.querySelector('#sidebar-nav [data-route].active');
-    const route = active?.dataset.route || '';
-    return STABLE_SIDEBAR_ROUTES.has(route) ? route : '';
+    const route = document.body.dataset.activeRoute || '';
+    return STABLE_OPERATIONAL_ROUTES.has(route) ? route : '';
   }
 
   async function renderCanonicalRoute(route) {
