@@ -12,6 +12,8 @@ const SCALE_PROFILES = new Set([
   'generic-numeric'
 ]);
 
+const SCALE_CONNECTIONS = new Set(['serial','usb-serial']);
+
 function normalizeRequestCommand(value) {
   if (value == null || String(value).trim() === '') return '0x04';
   const text = String(value).trim().toLowerCase();
@@ -20,12 +22,21 @@ function normalizeRequestCommand(value) {
   throw new Error('Comando Urano invalido. Use 0x04 ou 0x05.');
 }
 
+function normalizeBaud(value, fallback = 9600) {
+  const parsed = Number(value == null || value === '' ? fallback : value);
+  if (!Number.isInteger(parsed) || parsed < 1200 || parsed > 115200) throw new Error('Baud rate da balanca invalido.');
+  return parsed;
+}
+
 function normalizeScaleConfig(input = {}) {
   const profile = String(input.profile || 'generic').trim().toLowerCase();
   if (!SCALE_PROFILES.has(profile)) throw new Error('Perfil de balanca invalido.');
   const port = String(input.port || '').trim();
   if (port.length > 128) throw new Error('Porta serial invalida.');
-  const result = { profile, port };
+  const connection = String(input.connection || 'serial').trim().toLowerCase();
+  if (!SCALE_CONNECTIONS.has(connection)) throw new Error('Conexao da balanca invalida.');
+  const baud = profile === 'urano-pop-s' ? 9600 : normalizeBaud(input.baud, 9600);
+  const result = { profile, port, connection, baud };
   if (profile === 'urano-pop-s') result.requestCommand = normalizeRequestCommand(input.requestCommand);
   return Object.freeze(result);
 }
@@ -55,4 +66,4 @@ function createHardwareConfigStore({ filePath } = {}) {
   return Object.freeze({ load, saveScale });
 }
 
-module.exports = { createHardwareConfigStore, normalizeScaleConfig, normalizeRequestCommand, SCALE_PROFILES };
+module.exports = { createHardwareConfigStore, normalizeScaleConfig, normalizeRequestCommand, normalizeBaud, SCALE_PROFILES, SCALE_CONNECTIONS };
