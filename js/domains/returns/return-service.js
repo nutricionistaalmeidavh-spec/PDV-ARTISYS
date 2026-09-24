@@ -70,7 +70,8 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
 
   function createReturn(input = {}) {
     const actor = input.actor || {};
-    assertManager(actor);
+    const authorizedBy = input.authorizedBy || actor;
+    assertManager(authorizedBy);
     const saleId = String(input.saleId || '').trim();
     const terminalId = String(input.terminalId || actor.terminalId || '').trim();
     const operatorId = String(input.operatorId || actor.userId || '').trim();
@@ -106,7 +107,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
       db.prepare(`INSERT INTO return_transactions
         (id,sale_id,terminal_id,operator_id,status,total_cents,reason,authorized_by_id,created_at)
         VALUES (?,?,?,?,'COMPLETED',?,?,?,?)`)
-        .run(id, saleId, terminalId, operatorId, totalCents, reason, actor.userId || null, timestamp);
+        .run(id, saleId, terminalId, operatorId, totalCents, reason, authorizedBy.userId || null, timestamp);
       const insertItem = db.prepare(`INSERT INTO return_items
         (id,return_id,sale_item_id,product_id,product_name,quantity,unit_price_cents,total_cents,created_at)
         VALUES (?,?,?,?,?,?,?,?,?)`);
@@ -115,10 +116,10 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
       const event = {
         eventId:idFactory('evt'), type:'return.completed', aggregate:'return', aggregateId:id, occurredAt:timestamp,
         actor, source:'server', mutationId:input.mutationId || null,
-        payload:{ saleId, terminalId, totalCents, items:normalizedItems.map(item=>({productId:item.productId,quantity:item.quantity,configuration:item.configuration||null})), refunds }
+        payload:{ saleId, terminalId, totalCents, authorizedById:authorizedBy.userId || null, items:normalizedItems.map(item=>({productId:item.productId,quantity:item.quantity,configuration:item.configuration||null})), refunds }
       };
       outbox.insert(event);
-      writeAudit(db,{action:'return.complete',entity:'return',entityId:id,actor,context:{saleId,totalCents,eventId:event.eventId}},now);
+      writeAudit(db,{action:'return.complete',entity:'return',entityId:id,actor,context:{saleId,totalCents,authorizedById:authorizedBy.userId || null,eventId:event.eventId}},now);
       return getReturn(id);
     });
   }
