@@ -22,6 +22,15 @@ async function ensureHomeRouteContext(page, step) {
   await target.waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
 }
 
+async function dismissPostSaleBeforeNavigation(page, step) {
+  const selector = typeof step.selector === 'string' ? step.selector : '';
+  const isNavigation = selector.includes('[data-route=') || selector.includes('[data-home-route=');
+  if (!isNavigation) return;
+  const close = page.locator('#post-sale-close');
+  if (!(await close.isVisible().catch(() => false))) return;
+  await close.click();
+}
+
 function waitState(step) {
   if (step.state) return step.state;
   const selector = typeof step.selector === 'string' ? step.selector : '';
@@ -75,10 +84,15 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'click': {
+      await dismissPostSaleBeforeNavigation(page, step);
       await ensureHomeRouteContext(page, step);
       const target = locator(page, step);
       const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
-      if (isModalClose && !(await target.isVisible().catch(() => false))) break;
+      if (isModalClose && !(await target.isVisible().catch(() => false))) {
+        const postSaleClose = page.locator('#post-sale-close');
+        if (await postSaleClose.isVisible().catch(() => false)) await postSaleClose.click();
+        break;
+      }
       if (step.selector === "#ops-inventory-form button[type='submit']") {
         const selectedProduct = await page.locator("#ops-inventory-form select[name='productId'] option:checked").textContent();
         const quantity = await page.locator("#ops-inventory-form input[name='quantity']").inputValue();
