@@ -2,133 +2,72 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deliver a complete desktop return workflow that searches completed sales, selects refundable items, calculates refunds, supports local manager/admin authorization for cashier-operated returns, and proves the full flow with ArtiSys QA E2E.
+**Goal:** Complete the desktop returns workflow: completed-sale search, refundable-item selection, refund calculation, local manager/admin authorization for cashier returns, persistence, and full E2E verification.
 
-**Architecture:** Preserve the immutable-sale/return-transaction model. Add a focused in-memory approval store and local authorization router using the existing user/password store; the main returns route consumes a scoped one-time approval and passes separate operator/authorizer identities to the domain. Rebuild only `renderReturns()` plus namespaced operational CSS and add one dedicated QA flow.
+**Architecture:** Preserve immutable completed sales and the existing return transaction/effects model. Add an in-memory approval store and local authorization router using the existing scrypt user store; the return API consumes a scoped one-time approval and passes separate operator/authorizer identities to the domain. Rebuild only `renderReturns()` plus namespaced operational CSS.
 
-**Tech Stack:** Node.js >=22, `node:sqlite`/`DatabaseSync`, Electron 39, local HTTP `/api/v1`, existing scrypt authentication, `node:test`, ArtiSys QA/Playwright 1.63.0.
+**Tech Stack:** Node.js >=22, `node:sqlite`/`DatabaseSync`, Electron 39, local `/api/v1`, `node:test`, ArtiSys QA/Playwright 1.63.0.
 
 **Spec:** `docs/superpowers/specs/2026-09-24-returns-desktop-ui-design.md`
 
 ## Global Constraints
 
-- Core implementation must remain local/self-hosted and require no paid external service.
-- Reuse the existing Electron renderer, local HTTP API, SQLite runtime, authentication, event/outbox, and ArtiSys QA/Playwright stack.
-- No external identity or authorization provider is introduced.
-- Existing `/api/v1/returns` behavior for manager/admin sessions remains compatible.
-- The backend remains authoritative for refund totals, refundable quantities, sale status, authorization, and mutation idempotency.
-- Passwords used for delegated authorization must never be persisted, logged, returned after validation, or embedded in audit payloads.
-- Approval TTL is exactly `120000` ms, stored only in server memory, scoped to `return.complete`, bound to requester session/user + terminal + sale, and single-use.
-- `cancelReturn()` remains manager/admin-only.
-- Do not redesign unrelated operational pages or introduce a new UI framework.
+- Core is R$ 0, local/self-hosted, and has no paid/external dependency.
+- Approval TTL is exactly `120000` ms, memory-only, single-use, scoped to `return.complete`, and bound to requester session/user + terminal + sale.
+- Manager passwords are verified locally and never stored, logged, audited, or returned.
+- Backend remains authoritative for sale status, refundable quantity, cents totals, authorization, and mutation idempotency.
+- Manager/admin direct return creation remains compatible; `cancelReturn()` remains manager/admin-only.
+- Do not refactor unrelated operational pages.
 
 ## File Structure
 
-- Create `server/return-approval-store.js` — token issue/consume, TTL, binding, single-use.
-- Create `server/return-authorization-router.js` — authenticated local manager/admin credential verification and approval issuance.
-- Modify `server/local-server.js` — create/share one approval store.
-- Modify `server/router.js` — consume approval for cashier return creation; preserve manager/admin direct creation.
-- Modify `js/domains/returns/return-service.js` — persist operator and authorizer independently.
+- Create `server/return-approval-store.js` — token lifecycle and binding.
+- Create `server/return-authorization-router.js` — local manager/admin credential verification and approval issuance.
+- Modify `server/local-server.js` — share one approval store with both routers.
+- Modify `server/router.js` — consume approval for cashier return creation.
+- Modify `js/domains/returns/return-service.js` — separate `operatorId` from `authorizedById`.
 - Modify `desktop/renderer/api-client.js` — add `authorizeReturn()`.
-- Modify `desktop/renderer/operational-pages.js` — search/select/refund/authorize/submit flow.
-- Modify `desktop/renderer/operational-pages.css` — returns-only layout and states.
+- Modify `desktop/renderer/operational-pages.js` — complete returns UI flow.
+- Modify `desktop/renderer/operational-pages.css` — returns layout/states.
 - Create `test/return-approval-store.test.js`.
 - Modify `test/e15-returns-history.test.js`.
 - Create `test/returns-authorization-api.test.js`.
 - Create `test/returns-desktop-ui.test.js`.
 - Create `qa/flows/returns-desktop-e2e.json`.
-- Modify `qa/artisys-qa.config.json`.
-- Modify `package.json` — add new server modules to `lint:core`.
+- Modify `qa/artisys-qa.config.json` and `package.json`.
 
 ## Review Focus
 
-1. **Sale changed after approval:** renderer clears approval immediately and server rejects a token bound to another sale.
-2. **Concurrent return consumes remaining quantity:** backend rejects the stale/excess return and UI clears delegated approval before another attempt.
-3. **Approval replay:** first matching mutation succeeds; another mutation ID with the same approval fails; same mutation-ID retry remains idempotent through the existing mutation store.
-4. **Approver is cashier or inactive:** no approval token is issued.
-5. **Fractional quantity:** renderer uses `Math.round(unitPriceCents * quantity)`, matching domain cents calculation.
+1. Selecting another sale after approval clears the UI token; server binding rejects cross-sale use.
+2. A concurrent return that consumes remaining quantity makes the stale return fail and forces fresh approval.
+3. Approval replay with another mutation ID fails; same mutation-ID retry remains idempotent.
+4. Correct credentials for cashier/inactive users do not produce approval.
+5. Fractional quantities use `Math.round(unitPriceCents * quantity)` in both UI and domain.
 
 ---
 
-### Task 1: In-memory scoped approval store
+### Task 1: Scoped approval store
 
-**Files:**
-- Create: `server/return-approval-store.js`
-- Create: `test/return-approval-store.test.js`
-- Modify: `package.json`
+**Files:** Create `server/return-approval-store.js`, `test/return-approval-store.test.js`; modify `package.json`.
 
-**Interfaces:**
-- Produces `createReturnApprovalStore({ now, randomBytesFn, ttlMs })`.
-- `issue({ requesterSessionToken, requesterUserId, terminalId, saleId, authorizedBy })` returns `{ approvalToken, authorizedBy, expiresAt }`.
-- `consume(token, { requesterSessionToken, requesterUserId, terminalId, saleId, scope })` returns `{ userId, role, name }`.
+**Interfaces:** `createReturnApprovalStore({now,randomBytesFn,ttlMs})`; `issue(binding)`; `consume(token,binding)`.
 
 - [ ] **Step 1: Write RED store tests**
 
-Create `test/return-approval-store.test.js`:
-
 ```js
 'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { createReturnApprovalStore } = require('../server/return-approval-store');
-
-function fixture() {
-  let now = 1_000;
-  let seq = 0;
-  const store = createReturnApprovalStore({
-    now: () => now,
-    ttlMs: 120_000,
-    randomBytesFn: () => Buffer.from(`approval-${++seq}`)
-  });
-  return { store, advance(ms) { now += ms; } };
-}
-
-const binding = {
-  requesterSessionToken:'session-cashier',
-  requesterUserId:'cashier1',
-  terminalId:'PDV-01',
-  saleId:'sale1'
-};
-const manager = { userId:'manager1', role:'manager', name:'Gerente QA' };
-
-test('return approval is bound and single-use', () => {
-  const { store } = fixture();
-  const issued = store.issue({ ...binding, authorizedBy:manager });
-  assert.ok(issued.approvalToken);
-  assert.equal(issued.authorizedBy.userId, 'manager1');
-  assert.deepEqual(store.consume(issued.approvalToken, { ...binding, scope:'return.complete' }), manager);
-  assert.throws(() => store.consume(issued.approvalToken, { ...binding, scope:'return.complete' }), /invalida|consumida/i);
-});
-
-test('return approval rejects a different sale and remains unusable for that sale', () => {
-  const { store } = fixture();
-  const issued = store.issue({ ...binding, authorizedBy:manager });
-  assert.throws(() => store.consume(issued.approvalToken, { ...binding, saleId:'sale2', scope:'return.complete' }), /vinculo|escopo/i);
-});
-
-test('return approval rejects a different requester session', () => {
-  const { store } = fixture();
-  const issued = store.issue({ ...binding, authorizedBy:manager });
-  assert.throws(() => store.consume(issued.approvalToken, { ...binding, requesterSessionToken:'session-other', scope:'return.complete' }), /vinculo|escopo/i);
-});
-
-test('return approval rejects a different terminal', () => {
-  const { store } = fixture();
-  const issued = store.issue({ ...binding, authorizedBy:manager });
-  assert.throws(() => store.consume(issued.approvalToken, { ...binding, terminalId:'PDV-02', scope:'return.complete' }), /vinculo|escopo/i);
-});
-
-test('return approval expires after 120 seconds', () => {
-  const { store, advance } = fixture();
-  const issued = store.issue({ ...binding, authorizedBy:manager });
-  advance(120_001);
-  assert.throws(() => store.consume(issued.approvalToken, { ...binding, scope:'return.complete' }), /expirada/i);
-});
-
-test('return approval accepts only manager or admin identity', () => {
-  const { store } = fixture();
-  assert.throws(() => store.issue({ ...binding, authorizedBy:{userId:'cashier2',role:'cashier',name:'Caixa 2'} }), /gerente|autorizacao/i);
-});
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const {createReturnApprovalStore}=require('../server/return-approval-store');
+function fixture(){let now=1000,seq=0;const store=createReturnApprovalStore({now:()=>now,ttlMs:120000,randomBytesFn:()=>Buffer.from(`approval-${++seq}`)});return{store,advance:ms=>{now+=ms;}};}
+const base={requesterSessionToken:'session-cashier',requesterUserId:'cashier1',terminalId:'PDV-01',saleId:'sale1'};
+const manager={userId:'manager1',role:'manager',name:'Gerente QA'};
+test('approval is single use',()=>{const{store}=fixture();const issued=store.issue({...base,authorizedBy:manager});assert.deepEqual(store.consume(issued.approvalToken,{...base,scope:'return.complete'}),manager);assert.throws(()=>store.consume(issued.approvalToken,{...base,scope:'return.complete'}),/invalida|consumida/i);});
+test('approval rejects another sale',()=>{const{store}=fixture();const issued=store.issue({...base,authorizedBy:manager});assert.throws(()=>store.consume(issued.approvalToken,{...base,saleId:'sale2',scope:'return.complete'}),/vinculo|escopo/i);});
+test('approval rejects another session',()=>{const{store}=fixture();const issued=store.issue({...base,authorizedBy:manager});assert.throws(()=>store.consume(issued.approvalToken,{...base,requesterSessionToken:'other',scope:'return.complete'}),/vinculo|escopo/i);});
+test('approval rejects another terminal',()=>{const{store}=fixture();const issued=store.issue({...base,authorizedBy:manager});assert.throws(()=>store.consume(issued.approvalToken,{...base,terminalId:'PDV-02',scope:'return.complete'}),/vinculo|escopo/i);});
+test('approval expires after 120 seconds',()=>{const{store,advance}=fixture();const issued=store.issue({...base,authorizedBy:manager});advance(120001);assert.throws(()=>store.consume(issued.approvalToken,{...base,scope:'return.complete'}),/expirada/i);});
+test('approval rejects cashier authorizer',()=>{const{store}=fixture();assert.throws(()=>store.issue({...base,authorizedBy:{userId:'cashier2',role:'cashier',name:'Caixa'}}),/gerente|autorizacao/i);});
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -137,80 +76,45 @@ test('return approval accepts only manager or admin identity', () => {
 node --test test/return-approval-store.test.js
 ```
 
-Expected: FAIL because `server/return-approval-store.js` is absent.
+Expected: module-not-found failure.
 
-- [ ] **Step 3: Implement the store**
-
-Create `server/return-approval-store.js`:
+- [ ] **Step 3: Implement store**
 
 ```js
 'use strict';
-const { randomBytes } = require('node:crypto');
-
-function createReturnApprovalStore({ now=()=>Date.now(), randomBytesFn=randomBytes, ttlMs=120_000 }={}) {
-  const approvals = new Map();
-  const norm = value => value == null ? null : String(value);
-
-  function issue({ requesterSessionToken, requesterUserId, terminalId, saleId, authorizedBy }) {
-    if (!requesterSessionToken || !requesterUserId || !saleId) throw new Error('Dados da autorizacao incompletos.');
-    if (!['manager','admin'].includes(String(authorizedBy?.role || ''))) throw new Error('Autorizacao de gerente necessaria para devolucao.');
-    const approvalToken = randomBytesFn(32).toString('hex');
-    const expiresAtMs = now() + ttlMs;
-    const identity = {
-      userId:String(authorizedBy.userId),
-      role:String(authorizedBy.role),
-      name:String(authorizedBy.name || '')
-    };
-    approvals.set(approvalToken, {
-      requesterSessionToken:String(requesterSessionToken),
-      requesterUserId:String(requesterUserId),
-      terminalId:norm(terminalId),
-      saleId:String(saleId),
-      scope:'return.complete',
-      authorizedBy:identity,
-      expiresAtMs
-    });
-    return { approvalToken, authorizedBy:identity, expiresAt:new Date(expiresAtMs).toISOString() };
+const {randomBytes}=require('node:crypto');
+function createReturnApprovalStore({now=()=>Date.now(),randomBytesFn=randomBytes,ttlMs=120000}={}){
+  const approvals=new Map();const norm=value=>value==null?null:String(value);
+  function issue({requesterSessionToken,requesterUserId,terminalId,saleId,authorizedBy}){
+    if(!requesterSessionToken||!requesterUserId||!saleId)throw new Error('Dados da autorizacao incompletos.');
+    if(!['manager','admin'].includes(String(authorizedBy?.role||'')))throw new Error('Autorizacao de gerente necessaria para devolucao.');
+    const approvalToken=randomBytesFn(32).toString('hex');const expiresAtMs=now()+ttlMs;
+    const identity={userId:String(authorizedBy.userId),role:String(authorizedBy.role),name:String(authorizedBy.name||'')};
+    approvals.set(approvalToken,{requesterSessionToken:String(requesterSessionToken),requesterUserId:String(requesterUserId),terminalId:norm(terminalId),saleId:String(saleId),scope:'return.complete',authorizedBy:identity,expiresAtMs});
+    return{approvalToken,authorizedBy:identity,expiresAt:new Date(expiresAtMs).toISOString()};
   }
-
-  function consume(token, expected={}) {
-    const key = String(token || '');
-    const approval = approvals.get(key);
-    if (!approval) throw new Error('Autorizacao invalida ou ja consumida.');
-    if (approval.expiresAtMs <= now()) {
-      approvals.delete(key);
-      throw new Error('Autorizacao expirada.');
-    }
-    const matches = approval.requesterSessionToken === String(expected.requesterSessionToken || '') &&
-      approval.requesterUserId === String(expected.requesterUserId || '') &&
-      approval.terminalId === norm(expected.terminalId) &&
-      approval.saleId === String(expected.saleId || '') &&
-      approval.scope === String(expected.scope || '');
-    if (!matches) throw new Error('Autorizacao nao corresponde ao vinculo ou escopo desta devolucao.');
-    approvals.delete(key);
-    return approval.authorizedBy;
+  function consume(token,expected={}){
+    const key=String(token||'');const approval=approvals.get(key);if(!approval)throw new Error('Autorizacao invalida ou ja consumida.');
+    if(approval.expiresAtMs<=now()){approvals.delete(key);throw new Error('Autorizacao expirada.');}
+    const matches=approval.requesterSessionToken===String(expected.requesterSessionToken||'')&&approval.requesterUserId===String(expected.requesterUserId||'')&&approval.terminalId===norm(expected.terminalId)&&approval.saleId===String(expected.saleId||'')&&approval.scope===String(expected.scope||'');
+    if(!matches)throw new Error('Autorizacao nao corresponde ao vinculo ou escopo desta devolucao.');
+    approvals.delete(key);return approval.authorizedBy;
   }
-
-  return { issue, consume };
+  return{issue,consume};
 }
-
-module.exports = { createReturnApprovalStore };
+module.exports={createReturnApprovalStore};
 ```
 
-- [ ] **Step 4: Run GREEN tests and syntax check**
+- [ ] **Step 4: Verify GREEN and register syntax check**
 
 ```bash
 node --test test/return-approval-store.test.js
 node --check server/return-approval-store.js
 ```
 
-Expected: PASS.
+Add `node --check server/return-approval-store.js` to `lint:core` beside the server checks.
 
-- [ ] **Step 5: Register the file in `lint:core`**
-
-Add `node --check server/return-approval-store.js` beside the existing `server/router.js` check in `package.json`. Do not add dependencies.
-
-- [ ] **Step 6: Commit Task 1**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add server/return-approval-store.js test/return-approval-store.test.js package.json
@@ -219,61 +123,22 @@ git commit -m "feat: add scoped return approval store"
 
 ---
 
-### Task 2: Separate return operator from authorizer
+### Task 2: Separate operator and authorizer in the return domain
 
-**Files:**
-- Modify: `js/domains/returns/return-service.js`
-- Modify: `test/e15-returns-history.test.js`
+**Files:** Modify `js/domains/returns/return-service.js`, `test/e15-returns-history.test.js`.
 
-**Interfaces:**
-- Consumes trusted `input.authorizedBy = { userId, role, name }` from the server/runtime boundary.
-- When `authorizedBy` is absent and `actor` is manager/admin, self-authorization remains valid.
-- Produces distinct `operatorId` and `authorizedById` on the return record.
+**Interfaces:** trusted `input.authorizedBy={userId,role,name}`; self-authorization falls back to manager/admin `actor`.
 
-- [ ] **Step 1: Add RED delegated-authorization tests**
-
-Append to `test/e15-returns-history.test.js`:
+- [ ] **Step 1: Write RED domain tests**
 
 ```js
-function cashierActor() { return { userId:'cashier1', role:'cashier', terminalId:'PDV-01' }; }
-
-async function delegatedFixture() {
-  let seq = 100;
-  const runtime = createPdvRuntime({ now:()=>`2026-09-09T14:00:${String(seq++ % 60).padStart(2,'0')}Z`, idFactory:p=>`${p}-${seq++}` });
-  seed(runtime);
-  runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-forte-123'});
-  const sale = await completeSale(runtime);
-  return { runtime, sale, saleItemId:sale.items[0].id };
-}
-
-test('return persists cashier operator separately from manager authorizer', async () => {
-  const { runtime, saleItemId } = await delegatedFixture();
-  const created = runtime.returns.createReturn({
-    saleId:'sale1', terminalId:'PDV-01', operatorId:'cashier1', reason:'Devolucao autorizada',
-    items:[{ saleItemId, quantity:1 }], refunds:[{ method:'CASH', amountCents:1000 }],
-    actor:cashierActor(), authorizedBy:{ userId:'mgr', role:'manager', name:'Gerente' }
-  });
-  assert.equal(created.operatorId, 'cashier1');
-  assert.equal(created.authorizedById, 'mgr');
-  runtime.close();
-});
-
-test('return rejects delegated authorization from cashier role', async () => {
-  const { runtime, saleItemId } = await delegatedFixture();
-  assert.throws(() => runtime.returns.createReturn({
-    saleId:'sale1', terminalId:'PDV-01', operatorId:'cashier1', reason:'Autorizador invalido',
-    items:[{ saleItemId, quantity:1 }], refunds:[{ method:'CASH', amountCents:1000 }],
-    actor:cashierActor(), authorizedBy:{ userId:'cashier2', role:'cashier', name:'Caixa 2' }
-  }), /Autorizacao de gerente/i);
-  runtime.close();
-});
+function cashierActor(){return{userId:'cashier1',role:'cashier',terminalId:'PDV-01'};}
+async function delegatedFixture(){let seq=100;const runtime=createPdvRuntime({now:()=>`2026-09-09T14:00:${String(seq++%60).padStart(2,'0')}Z`,idFactory:p=>`${p}-${seq++}`});seed(runtime);runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-forte-123'});const sale=await completeSale(runtime);return{runtime,saleItemId:sale.items[0].id};}
+test('return persists cashier operator and manager authorizer separately',async()=>{const{runtime,saleItemId}=await delegatedFixture();const created=runtime.returns.createReturn({saleId:'sale1',terminalId:'PDV-01',operatorId:'cashier1',reason:'Devolucao autorizada',items:[{saleItemId,quantity:1}],refunds:[{method:'CASH',amountCents:1000}],actor:cashierActor(),authorizedBy:{userId:'mgr',role:'manager',name:'Gerente'}});assert.equal(created.operatorId,'cashier1');assert.equal(created.authorizedById,'mgr');runtime.close();});
+test('return rejects cashier as delegated authorizer',async()=>{const{runtime,saleItemId}=await delegatedFixture();assert.throws(()=>runtime.returns.createReturn({saleId:'sale1',terminalId:'PDV-01',operatorId:'cashier1',reason:'Autorizador invalido',items:[{saleItemId,quantity:1}],refunds:[{method:'CASH',amountCents:1000}],actor:cashierActor(),authorizedBy:{userId:'cashier2',role:'cashier',name:'Caixa 2'}}),/Autorizacao de gerente/i);runtime.close();});
 ```
 
-In the existing partial-return test, add:
-
-```js
-assert.equal(first.authorizedById, 'mgr');
-```
+Also assert `first.authorizedById === 'mgr'` in the existing manager partial-return test.
 
 - [ ] **Step 2: Verify RED**
 
@@ -281,55 +146,23 @@ assert.equal(first.authorizedById, 'mgr');
 node --test test/e15-returns-history.test.js
 ```
 
-Expected: delegated cashier case FAIL because current code validates `actor` as manager/admin.
+Expected: delegated cashier test fails at current `assertManager(actor)`.
 
-- [ ] **Step 3: Implement explicit authorization resolution**
-
-In `return-service.js` add:
+- [ ] **Step 3: Implement explicit authorizer resolution**
 
 ```js
-function resolveAuthorizedBy(input, actor) {
-  const candidate = input.authorizedBy || actor;
-  assertManager(candidate);
-  const userId = String(candidate?.userId || '').trim();
-  if (!userId) throw new Error('Identidade do autorizador e obrigatoria.');
-  return { userId, role:String(candidate.role), name:String(candidate.name || '') };
-}
+function resolveAuthorizedBy(input,actor){const candidate=input.authorizedBy||actor;assertManager(candidate);const userId=String(candidate?.userId||'').trim();if(!userId)throw new Error('Identidade do autorizador e obrigatoria.');return{userId,role:String(candidate.role),name:String(candidate.name||'')};}
 ```
 
-At the start of `createReturn()` use:
+At `createReturn()` start use `const authorizedBy=resolveAuthorizedBy(input,actor);`; keep `operatorId` from `input.operatorId || actor.userId`; persist `authorized_by_id=authorizedBy.userId`. Add `authorizedById` to `return.completed` payload and audit context without changing existing item/refund keys. Leave `cancelReturn()` unchanged.
 
-```js
-const actor = input.actor || {};
-const authorizedBy = resolveAuthorizedBy(input, actor);
-const saleId = String(input.saleId || '').trim();
-const terminalId = String(input.terminalId || actor.terminalId || '').trim();
-const operatorId = String(input.operatorId || actor.userId || '').trim();
-```
-
-Change the insert argument from `actor.userId || null` to `authorizedBy.userId`.
-
-Add non-secret `authorizedById` to the completed event payload and audit context without removing keys consumed by return effects:
-
-```js
-payload:{
-  saleId, terminalId, totalCents, authorizedById:authorizedBy.userId,
-  items:normalizedItems.map(item=>({productId:item.productId,quantity:item.quantity,configuration:item.configuration||null})),
-  refunds
-}
-```
-
-`cancelReturn()` keeps its current direct manager/admin check.
-
-- [ ] **Step 4: Run domain regressions**
+- [ ] **Step 4: Verify GREEN**
 
 ```bash
 node --test test/e15-returns-history.test.js test/historical-cost-snapshot.test.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 5: Commit Task 2**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add js/domains/returns/return-service.js test/e15-returns-history.test.js
@@ -340,81 +173,18 @@ git commit -m "feat: separate return operator and authorizer"
 
 ### Task 3: Local manager authorization API
 
-**Files:**
-- Create: `server/return-authorization-router.js`
-- Modify: `server/local-server.js`
-- Modify: `server/router.js`
-- Modify: `desktop/renderer/api-client.js`
-- Create: `test/returns-authorization-api.test.js`
-- Modify: `package.json`
+**Files:** Create `server/return-authorization-router.js`, `test/returns-authorization-api.test.js`; modify `server/local-server.js`, `server/router.js`, `desktop/renderer/api-client.js`, `package.json`.
 
-**Interfaces:**
-- `POST /api/v1/auth/authorize` body: `{ username, password, scope:'return.complete', resource:{ saleId, terminalId } }`.
-- Response: `{ approvalToken, authorizedBy:{ id, name, role }, expiresAt }`.
-- `POST /api/v1/returns` accepts optional `approvalToken`; cashier requires it, manager/admin do not.
-- Client: `authorizeReturn({ username, password, saleId, terminalId })`.
+**Interfaces:** `POST /api/v1/auth/authorize`; response `{approvalToken,authorizedBy:{id,name,role},expiresAt}`; cashier `POST /api/v1/returns` requires approval.
 
-- [ ] **Step 1: Write RED API fixture and tests**
+- [ ] **Step 1: Write RED API tests**
 
-Create `test/returns-authorization-api.test.js` with these helpers:
+Create a real `createLocalServer()` fixture with manager `manager1`, cashiers `cashier1`/`cashier2`, product `p1` at 1000 cents, an open cash session, and completed `sale1` containing quantity 2. Add separate tests for: unauthenticated authorize=401; wrong manager password=401; correct cashier approver=403; missing/non-completed sale=no token; valid manager approval=200; cashier return without token=403; valid approval=201 with `operatorId='cashier1'` and `authorizedById='manager1'`; reused token with a different mutation id=403; token from another cashier session=403; token for another sale=403; manager direct return=201; repeated successful request with the same mutation id returns cached success and does not create a second return.
+
+Use this exact return body in positive/replay cases:
 
 ```js
-'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { createPdvRuntime } = require('../js/core/pdv-runtime');
-const { createLocalServer } = require('../server/local-server');
-
-function headers(token, mutationId) {
-  return {
-    authorization:`Bearer ${token}`,
-    'content-type':'application/json',
-    ...(mutationId ? {'x-mutation-id':mutationId} : {})
-  };
-}
-
-async function login(base, username, password) {
-  const response = await fetch(`${base}/api/v1/auth/login`, {
-    method:'POST', headers:{'content-type':'application/json','x-pdv-token':'install-secret'},
-    body:JSON.stringify({username,password,terminalId:'PDV-01'})
-  });
-  assert.equal(response.status, 200);
-  return (await response.json()).sessionToken;
-}
-```
-
-The fixture must create users `manager1/manager`, `cashier1/cashier`, `cashier2/cashier`; create product `p1` at 1000 cents; open a cash session; create and complete `sale1` with quantity 2 and cash payment 2000; start `createLocalServer({token:'install-secret',port:0})`; and expose the created `saleItemId`.
-
-Add these exact behaviors as separate `test()` blocks:
-
-```text
-- unauthenticated POST /api/v1/auth/authorize => 401
-- cashier session + wrong manager password => 401
-- cashier session + correct cashier2 password => 403
-- cashier session + manager credentials + OPEN/nonexistent sale => 400 or 404, with no token
-- cashier session + manager credentials + completed sale => 200 and authorizedBy.role === 'manager'
-- cashier POST /api/v1/returns without approvalToken => 403
-- cashier + valid approval => 201, operatorId === 'cashier1', authorizedById === 'manager1'
-- reuse same approval with mutation id `return-second` => 403
-- approval issued by one cashier session cannot be used by a second cashier session => 403
-- approval issued for sale1 cannot be used with another completed sale id => 403
-- manager session can POST /api/v1/returns without approvalToken => 201
-- repeat the same successful cashier request with the same `x-mutation-id` => same cached success response and no second return row
-```
-
-For each return request send concrete payload:
-
-```js
-{
-  saleId:'sale1',
-  reason:'Cliente devolveu uma unidade',
-  items:[{saleItemId,quantity:1}],
-  refunds:[{method:'CASH',amountCents:1000}],
-  approvalToken
-}
+{saleId:'sale1',reason:'Cliente devolveu uma unidade',items:[{saleItemId,quantity:1}],refunds:[{method:'CASH',amountCents:1000}],approvalToken}
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -423,125 +193,40 @@ For each return request send concrete payload:
 node --test test/returns-authorization-api.test.js
 ```
 
-Expected: FAIL because authorization endpoint/store wiring does not exist and cashier is currently forbidden from return creation.
+Expected: authorize route absent and cashier return forbidden.
 
 - [ ] **Step 3: Implement `server/return-authorization-router.js`**
 
-Create a focused boolean handler. Use local helpers equivalent to `auth-session-router.js` for Bearer parsing and JSON response, plus bounded JSON parsing. Core request logic must be:
+Follow `auth-session-router.js` boolean-handler style. For `POST /api/v1/auth/authorize`: authenticate Bearer token from shared `sessionStore`; parse bounded JSON; require `scope==='return.complete'`; require `resource.saleId`; require `resource.terminalId` to equal `session.terminalId`; require `runtime.sales.getSale(saleId)?.status==='COMPLETED'`; call `runtime.catalog.verifyUserPassword(username,password)`; return 401 for invalid credentials; return 403 unless role is manager/admin; issue with `approvalStore.issue({requesterSessionToken:token,requesterUserId:session.userId,terminalId:session.terminalId,saleId,authorizedBy:{userId:auth.user.id,role:auth.user.role,name:auth.user.name}})`; respond 200 with token, `{id,name,role}`, expiry. Never pass password/token to logs or audit.
+
+- [ ] **Step 4: Wire store/router in `local-server.js`**
 
 ```js
-const token = bearer(request);
-const session = sessionStore.get(token);
-if (!session || session.expiresAt <= Date.now()) return sendError(response, 401, 'Sessao invalida ou expirada.');
-const body = await readJson(request, bodyLimitBytes);
-if (body.scope !== 'return.complete') return sendError(response, 400, 'Escopo de autorizacao invalido.');
-const saleId = String(body.resource?.saleId || '').trim();
-if (!saleId) return sendError(response, 400, 'Venda obrigatoria para autorizacao.');
-const requestedTerminal = body.resource?.terminalId == null ? null : String(body.resource.terminalId);
-const sessionTerminal = session.terminalId == null ? null : String(session.terminalId);
-if (requestedTerminal !== sessionTerminal) return sendError(response, 403, 'Terminal da autorizacao divergente.');
-const sale = runtime.sales.getSale(saleId);
-if (!sale || sale.status !== 'COMPLETED') return sendError(response, 400, 'Somente venda concluida pode ser autorizada para devolucao.');
-const auth = runtime.catalog.verifyUserPassword(body.username, body.password);
-if (!auth.ok) return sendError(response, 401, 'Usuario ou senha invalidos.');
-if (!['manager','admin'].includes(auth.user.role)) return sendError(response, 403, 'Autorizacao de gerente necessaria para devolucao.');
-const issued = approvalStore.issue({
-  requesterSessionToken:token,
-  requesterUserId:session.userId,
-  terminalId:session.terminalId || null,
-  saleId,
-  authorizedBy:{userId:auth.user.id,role:auth.user.role,name:auth.user.name}
-});
-sendJson(response, 200, {
-  approvalToken:issued.approvalToken,
-  authorizedBy:{id:issued.authorizedBy.userId,name:issued.authorizedBy.name,role:issued.authorizedBy.role},
-  expiresAt:issued.expiresAt
-});
-return true;
+const {createReturnApprovalStore}=require('./return-approval-store');
+const {createReturnAuthorizationRouter}=require('./return-authorization-router');
 ```
 
-Do not pass password or approval token to logger/audit calls.
+Create `returnApprovalStore=createReturnApprovalStore({ttlMs:120000})`; create `returnAuthorizationHandler` with runtime/sessionStore/store/bodyLimit; invoke it immediately after `authSessionHandler`; pass `returnApprovalStore` into `createRouter()`.
 
-- [ ] **Step 4: Wire shared store in `server/local-server.js`**
+- [ ] **Step 5: Extend return creation in `server/router.js`**
 
-Add imports and instantiate exactly once per server:
+Allow `['admin','manager','cashier']`. For cashier, inside the existing `mutation()` callback call:
 
 ```js
-const { createReturnApprovalStore }=require('./return-approval-store');
-const { createReturnAuthorizationRouter }=require('./return-authorization-router');
+authorizedBy=returnApprovalStore.consume(body.approvalToken,{requesterSessionToken:bearer(request),requesterUserId:session.userId,terminalId:session.terminalId||body.terminalId||null,saleId:body.saleId,scope:'return.complete'});
 ```
 
-Inside `createLocalServer()`:
+Map consume errors to HTTP 403. Before calling the domain destructure and discard renderer-supplied `approvalToken` and `authorizedBy`; call `runtime.returns.createReturn({...returnBody,terminalId:session.terminalId||returnBody.terminalId,operatorId:session.userId,actor:currentActor,authorizedBy,mutationId:mid})`. Manager/admin set `authorizedBy=currentActor` and need no token.
+
+- [ ] **Step 6: Add client method**
 
 ```js
-const sessionStore=new Map();
-const returnApprovalStore=createReturnApprovalStore({ttlMs:120_000});
-const authSessionHandler=createAuthSessionRouter({runtime,sessionStore,requireTerminalAuth});
-const returnAuthorizationHandler=createReturnAuthorizationRouter({runtime,sessionStore,approvalStore:returnApprovalStore,bodyLimitBytes});
-const handler=createRouter({runtime,installationToken:token,bodyLimitBytes,allowedOrigins,requireTerminalAuth,sessionStore,returnApprovalStore});
+authorizeReturn({username,password,saleId,terminalId}){return this.request('/api/v1/auth/authorize',{method:'POST',body:{username,password,scope:'return.complete',resource:{saleId,terminalId}}});}
 ```
 
-In `route()`, invoke `returnAuthorizationHandler` immediately after `authSessionHandler`.
+- [ ] **Step 7: Register syntax and verify GREEN**
 
-- [ ] **Step 5: Extend `POST /api/v1/returns` in `server/router.js`**
-
-Add `returnApprovalStore=null` to `createRouter()` options. For return creation, use:
-
-```js
-if(request.method==='POST'&&pathname==='/api/v1/returns'){
-  requireRole(session,['admin','manager','cashier']);
-  const body=await readJson(request,bodyLimitBytes);
-  const result=await mutation(request,pathname,201,async mid=>{
-    let authorizedBy=currentActor;
-    if(session.role==='cashier'){
-      if(!returnApprovalStore)throw new HttpError(503,'Servico de autorizacao de devolucao indisponivel.');
-      try{
-        authorizedBy=returnApprovalStore.consume(body.approvalToken,{
-          requesterSessionToken:bearer(request),
-          requesterUserId:session.userId,
-          terminalId:session.terminalId||body.terminalId||null,
-          saleId:body.saleId,
-          scope:'return.complete'
-        });
-      }catch(error){throw new HttpError(403,error.message);}
-    }
-    const { approvalToken, authorizedBy:ignoredAuthorizer, ...returnBody }=body;
-    const ret=runtime.returns.createReturn({
-      ...returnBody,
-      terminalId:session.terminalId||returnBody.terminalId,
-      operatorId:session.userId,
-      actor:currentActor,
-      authorizedBy,
-      mutationId:mid
-    });
-    const dispatchResult=await dispatch();
-    return{return:ret,dispatch:dispatchResult};
-  });
-  sendJson(response,result.statusCode,result.payload,request,allowedOrigins);
-  return;
-}
-```
-
-This explicitly discards any client-supplied `authorizedBy` field.
-
-- [ ] **Step 6: Add the API client method**
-
-In `desktop/renderer/api-client.js` directly before the return methods:
-
-```js
-authorizeReturn({ username, password, saleId, terminalId }) {
-  return this.request('/api/v1/auth/authorize', {
-    method:'POST',
-    body:{username,password,scope:'return.complete',resource:{saleId,terminalId}}
-  });
-}
-```
-
-- [ ] **Step 7: Add syntax coverage**
-
-Add `node --check server/return-authorization-router.js` to `lint:core` beside `return-approval-store.js`.
-
-- [ ] **Step 8: Run GREEN API checks**
+Add `node --check server/return-authorization-router.js` to `lint:core`, then run:
 
 ```bash
 node --test test/return-approval-store.test.js test/e15-returns-history.test.js test/returns-authorization-api.test.js test/e13-e20-api-ui.test.js
@@ -551,9 +236,7 @@ node --check server/router.js
 node --check desktop/renderer/api-client.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 9: Commit Task 3**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add server/return-authorization-router.js server/local-server.js server/router.js desktop/renderer/api-client.js test/returns-authorization-api.test.js package.json
@@ -562,49 +245,21 @@ git commit -m "feat: authorize cashier returns locally"
 
 ---
 
-### Task 4: Desktop `renderReturns()` workflow
+### Task 4: Complete desktop `renderReturns()`
 
-**Files:**
-- Modify: `desktop/renderer/operational-pages.js`
-- Modify: `desktop/renderer/operational-pages.css`
-- Create: `test/returns-desktop-ui.test.js`
+**Files:** Modify `desktop/renderer/operational-pages.js`, `desktop/renderer/operational-pages.css`; create `test/returns-desktop-ui.test.js`.
 
-**Interfaces:**
-- Consumes `currentSession`, `salesHistory`, `saleDetails`, `returns`, `authorizeReturn`, `createReturn`.
-- Stable selectors: `#ops-return-search`, `#ops-return-results`, `[data-return-sale-select]`, `#ops-return-selected-sale`, `[data-return-item]`, `[data-return-qty]`, `#ops-return-method`, `#ops-return-reason`, `#ops-return-total`, `#ops-return-authorize`, `#ops-return-authorization`, `#ops-return-submit`, `#ops-return-history`.
+**Stable selectors:** `#ops-return-search`, `#ops-return-results`, `[data-return-sale-select]`, `#ops-return-selected-sale`, `[data-return-item]`, `[data-return-qty]`, `#ops-return-method`, `#ops-return-reason`, `#ops-return-total`, `#ops-return-authorize`, `#ops-return-authorization`, `#ops-return-submit`, `#ops-return-history`.
 
 - [ ] **Step 1: Write RED UI contract tests**
 
-Create `test/returns-desktop-ui.test.js`:
-
 ```js
 'use strict';
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const root = path.join(__dirname,'..','desktop','renderer');
-const operational = fs.readFileSync(path.join(root,'operational-pages.js'),'utf8');
-const api = fs.readFileSync(path.join(root,'api-client.js'),'utf8');
-const css = fs.readFileSync(path.join(root,'operational-pages.css'),'utf8');
-
-test('returns desktop exposes search selection refund authorization and history markers',()=>{
-  for(const marker of ['ops-return-search','ops-return-results','data-return-sale-select','ops-return-selected-sale','data-return-item','data-return-qty','ops-return-method','ops-return-reason','ops-return-total','ops-return-authorize','ops-return-authorization','ops-return-submit','ops-return-history']) assert.match(operational,new RegExp(marker));
-  assert.match(api,/authorizeReturn\s*\(/);
-  assert.match(operational,/salesHistory\(\{[^}]*status:\s*'COMPLETED'/);
-  assert.match(operational,/api\.returns\(\{saleId/);
-});
-
-test('returns desktop rounds selected line cents like the domain',()=>{
-  assert.match(operational,/Math\.round\(Number\([^)]*unitPriceCents[^)]*\)\s*\*\s*quantity\)/);
-});
-
-test('returns desktop has namespaced layout styles',()=>{
-  assert.match(css,/\.ops-returns-layout/);
-  assert.match(css,/\.ops-return-search-results/);
-  assert.match(css,/\.ops-return-summary/);
-  assert.match(css,/\.ops-return-auth-panel/);
-});
+const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const path=require('node:path');
+const root=path.join(__dirname,'..','desktop','renderer');const operational=fs.readFileSync(path.join(root,'operational-pages.js'),'utf8');const api=fs.readFileSync(path.join(root,'api-client.js'),'utf8');const css=fs.readFileSync(path.join(root,'operational-pages.css'),'utf8');
+test('returns desktop exposes stable workflow markers',()=>{for(const marker of ['ops-return-search','ops-return-results','data-return-sale-select','ops-return-selected-sale','data-return-item','data-return-qty','ops-return-method','ops-return-reason','ops-return-total','ops-return-authorize','ops-return-authorization','ops-return-submit','ops-return-history'])assert.match(operational,new RegExp(marker));assert.match(api,/authorizeReturn\s*\(/);assert.match(operational,/salesHistory\(\{[^}]*status:\s*'COMPLETED'/);assert.match(operational,/api\.returns\(\{saleId/);});
+test('returns desktop matches domain line rounding',()=>assert.match(operational,/Math\.round\(Number\([^)]*unitPriceCents[^)]*\)\s*\*\s*quantity\)/));
+test('returns desktop styles are namespaced',()=>{for(const marker of ['ops-returns-layout','ops-return-search-results','ops-return-summary','ops-return-auth-panel'])assert.match(css,new RegExp(`\\.${marker}`));});
 ```
 
 - [ ] **Step 2: Verify RED**
@@ -613,351 +268,135 @@ test('returns desktop has namespaced layout styles',()=>{
 node --test test/returns-desktop-ui.test.js
 ```
 
-Expected: FAIL on new selectors/styles.
+- [ ] **Step 3: Render state/search/history shell**
 
-- [ ] **Step 3: Render page shell and state**
+Load `[session,rows]=await Promise.all([api.currentSession(),api.returns()])`; local state is `{session,selectedSale:null,saleReturns:[],approvalToken:'',authorizedBy:null}`. Render `.ops-returns-layout`; left card has search/form/workflow, right card is `#ops-return-history`. Search submit calls `api.salesHistory({status:'COMPLETED',query,limit:50})`; each result displays sale/date/customer/operator/total and button `data-return-sale-select`.
 
-At the start of `renderReturns()` load session and recent returns:
+- [ ] **Step 4: Select sale and compute remaining quantity**
 
-```js
-await ready();
-const [session, rows]=await Promise.all([api.currentSession(),api.returns()]);
-const state={session,selectedSale:null,saleReturns:[],approvalToken:'',authorizedBy:null};
-```
+On selection clear approval, then `Promise.all([api.saleDetails(saleId),api.returns({saleId})])`. For each sale item compute completed returned quantity by summing matching `saleItemId`; `available=Math.max(0,sold-returned)`. Render literal labels `Vendido`, `Já devolvido`, `Disponível`, `Preço` and the stable checkbox/quantity selectors; disable zero-available rows.
 
-Render a two-column `.ops-returns-layout`: new return on the left, `#ops-return-history` on the right. The new-return card contains search form/input, results container, selected-sale container, method/reason controls, authorization area, total, and submit button.
+- [ ] **Step 5: Calculate selected return**
 
-- [ ] **Step 4: Implement completed-sale search**
-
-On search form submit:
+Create local helper:
 
 ```js
-const query=String(new FormData(event.currentTarget).get('query')||'').trim();
-const sales=await api.salesHistory({status:'COMPLETED',query,limit:50});
+function selectedReturn(){const items=[];let totalCents=0;content.querySelectorAll('[data-return-item]:checked').forEach(check=>{const saleItemId=check.dataset.returnItem;const item=state.selectedSale.items.find(row=>row.id===saleItemId);const input=content.querySelector(`[data-return-qty="${CSS.escape(saleItemId)}"]`);const quantity=Number(input?.value||0);const max=Number(input?.max||0);if(!(quantity>0)||quantity>max)throw new Error('Quantidade devolvida invalida.');totalCents+=Math.round(Number(item.unitPriceCents||0)*quantity);items.push({saleItemId,quantity});});return{items,totalCents};}
 ```
 
-Render each result as `.ops-return-sale-result` with sale number/id, completion time, customer, seller/operator, total, and button `data-return-sale-select="<saleId>"`.
+Update `#ops-return-total` on checkbox/quantity change and immediately before submit.
 
-- [ ] **Step 5: Select sale and compute remaining refundable quantity**
+- [ ] **Step 6: Implement authorization UI**
 
-On result selection:
+Manager/admin session shows current user as authorized and does not require credentials. Cashier sees `#ops-return-authorize`; it reveals `#ops-return-authorization` with username/password. Submit to `api.authorizeReturn({username,password,saleId:state.selectedSale.id,terminalId:state.session.terminalId})`; store only `approvalToken`/`authorizedBy`; immediately blank password input. Selecting another sale clears token and authorizer.
 
-```js
-state.approvalToken='';
-state.authorizedBy=null;
-const saleId=button.dataset.returnSaleSelect;
-const [sale,returns]=await Promise.all([api.saleDetails(saleId),api.returns({saleId})]);
-state.selectedSale=sale;
-state.saleReturns=returns.filter(row=>row.status==='COMPLETED');
-```
+- [ ] **Step 7: Submit return and clear stale approval on error**
 
-For each sale item:
+Require selected sale, items, reason, method, and cashier approval. Submit `{saleId,items,refunds:[{method,amountCents:totalCents}],reason,approvalToken?}`. On success show `Devolução concluída` and rerender. On any create-return error set `state.approvalToken=''` and `state.authorizedBy=null` before showing the server message, so race failures require fresh authorization.
 
-```js
-const returned=state.saleReturns.flatMap(row=>row.items||[])
-  .filter(row=>row.saleItemId===item.id)
-  .reduce((sum,row)=>sum+Number(row.quantity||0),0);
-const available=Math.max(0,Number(item.quantity||0)-returned);
-```
-
-Render sold, returned, available, original unit price, checkbox `[data-return-item]`, and quantity input `[data-return-qty]` with `max=available`. Disable rows with `available<=0`.
-
-- [ ] **Step 6: Calculate refund using domain-equivalent cents rounding**
-
-Create a local `selectedReturn()` helper inside `renderReturns()` that reads checked rows:
-
-```js
-function selectedReturn(){
-  const items=[];
-  let totalCents=0;
-  content.querySelectorAll('[data-return-item]:checked').forEach(check=>{
-    const saleItemId=check.dataset.returnItem;
-    const item=state.selectedSale.items.find(row=>row.id===saleItemId);
-    const input=content.querySelector(`[data-return-qty="${CSS.escape(saleItemId)}"]`);
-    const quantity=Number(input?.value||0);
-    const max=Number(input?.max||0);
-    if(!(quantity>0)||quantity>max)throw new Error('Quantidade devolvida invalida.');
-    totalCents+=Math.round(Number(item.unitPriceCents||0)*quantity);
-    items.push({saleItemId,quantity});
-  });
-  return{items,totalCents};
-}
-```
-
-Use it to refresh `#ops-return-total` after checkbox/quantity changes and immediately before submit.
-
-- [ ] **Step 7: Implement delegated authorization UI**
-
-For manager/admin session, show current user as already authorized and do not require a secondary credential prompt.
-
-For cashier session, `#ops-return-authorize` reveals `#ops-return-authorization` with username/password fields. On authorization submit:
-
-```js
-const approval=await api.authorizeReturn({
-  username:String(form.get('username')||''),
-  password:String(form.get('password')||''),
-  saleId:state.selectedSale.id,
-  terminalId:state.session.terminalId
-});
-state.approvalToken=approval.approvalToken;
-state.authorizedBy=approval.authorizedBy;
-event.currentTarget.elements.password.value='';
-```
-
-Never assign the password to `state`, storage, dataset, toast, or history HTML.
-
-- [ ] **Step 8: Submit and invalidate stale approval**
-
-On `#ops-return-submit`:
-
-```js
-const {items,totalCents}=selectedReturn();
-if(!items.length)throw new Error('Selecione ao menos um item.');
-const reason=document.getElementById('ops-return-reason').value.trim();
-if(!reason)throw new Error('Informe o motivo da devolucao.');
-if(state.session.user.role==='cashier'&&!state.approvalToken)throw new Error('Autorizacao de gerente necessaria para devolucao.');
-const method=document.getElementById('ops-return-method').value;
-await api.createReturn({
-  saleId:state.selectedSale.id,
-  items,
-  refunds:[{method,amountCents:totalCents}],
-  reason,
-  ...(state.approvalToken?{approvalToken:state.approvalToken}:{})
-});
-showToast(`Devolucao concluida: ${money(totalCents)}.`,'success');
-await renderReturns();
-```
-
-In the submit catch block always set:
-
-```js
-state.approvalToken='';
-state.authorizedBy=null;
-```
-
-Selecting another sale performs the same invalidation before loading details.
-
-- [ ] **Step 9: Add namespaced CSS**
-
-Append to `operational-pages.css`:
+- [ ] **Step 8: Add CSS**
 
 ```css
-.ops-returns-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.75fr);gap:18px}
-.ops-return-search-results{display:grid;gap:8px;max-height:260px;overflow:auto}
-.ops-return-sale-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e5e9f1;border-radius:12px}
-.ops-return-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
-.ops-return-auth-panel{margin-top:14px;padding:14px;border:1px solid #e5e9f1;border-radius:12px;background:#fafbfe}
-.ops-returns-layout .ops-return-item{grid-template-columns:auto minmax(160px,1fr) repeat(4,minmax(70px,auto)) 90px}
-@media(max-width:1100px){.ops-returns-layout{grid-template-columns:1fr}.ops-return-summary{grid-template-columns:1fr}.ops-returns-layout .ops-return-item{grid-template-columns:auto minmax(120px,1fr) 90px}}
+.ops-returns-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(320px,.75fr);gap:18px}.ops-return-search-results{display:grid;gap:8px;max-height:260px;overflow:auto}.ops-return-sale-result{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px;border:1px solid #e5e9f1;border-radius:12px}.ops-return-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}.ops-return-auth-panel{margin-top:14px;padding:14px;border:1px solid #e5e9f1;border-radius:12px;background:#fafbfe}@media(max-width:1100px){.ops-returns-layout{grid-template-columns:1fr}.ops-return-summary{grid-template-columns:1fr}}
 ```
 
-- [ ] **Step 10: Run GREEN UI regressions**
+- [ ] **Step 9: Verify GREEN and commit**
 
 ```bash
 node --test test/returns-desktop-ui.test.js test/e15-returns-history.test.js test/returns-authorization-api.test.js test/operational-route-stability.test.js test/e13-e20-api-ui.test.js
 node --check desktop/renderer/operational-pages.js
 node --check desktop/renderer/api-client.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 11: Commit Task 4**
-
-```bash
 git add desktop/renderer/operational-pages.js desktop/renderer/operational-pages.css test/returns-desktop-ui.test.js
 git commit -m "feat: complete desktop returns workflow"
 ```
 
 ---
 
-### Task 5: Dedicated ArtiSys QA E2E
+### Task 5: Full returns E2E
 
-**Files:**
-- Create: `qa/flows/returns-desktop-e2e.json`
-- Modify: `qa/artisys-qa.config.json`
-- Modify: `test/returns-desktop-ui.test.js`
+**Files:** Create `qa/flows/returns-desktop-e2e.json`; modify `qa/artisys-qa.config.json`, `test/returns-desktop-ui.test.js`.
 
-**Interfaces:**
-- Produces flow id `returns-desktop-e2e`.
-- Uses stable selectors from Task 4.
-
-- [ ] **Step 1: Add RED QA registration assertions**
-
-Append to `test/returns-desktop-ui.test.js`:
+- [ ] **Step 1: Add RED QA registration test**
 
 ```js
-test('returns desktop e2e is registered as full and release critical flow',()=>{
-  const qa=JSON.parse(fs.readFileSync(path.join(__dirname,'..','qa','artisys-qa.config.json'),'utf8'));
-  assert.equal(qa.flows['returns-desktop-e2e'],'flows/returns-desktop-e2e.json');
-  assert.ok(qa.qaProfiles.full.flows.includes('returns-desktop-e2e'));
-  assert.ok(qa.qaProfiles.full.criticalFlows.includes('returns-desktop-e2e'));
-  assert.ok(qa.qaProfiles.release.flows.includes('returns-desktop-e2e'));
-  assert.ok(qa.qaProfiles.release.criticalFlows.includes('returns-desktop-e2e'));
-});
+test('returns e2e is full and release critical',()=>{const qa=JSON.parse(fs.readFileSync(path.join(__dirname,'..','qa','artisys-qa.config.json'),'utf8'));assert.equal(qa.flows['returns-desktop-e2e'],'flows/returns-desktop-e2e.json');for(const profile of ['full','release']){assert.ok(qa.qaProfiles[profile].flows.includes('returns-desktop-e2e'));assert.ok(qa.qaProfiles[profile].criticalFlows.includes('returns-desktop-e2e'));}});
 ```
 
-Run:
+Run `node --test test/returns-desktop-ui.test.js` and confirm RED.
 
-```bash
-node --test test/returns-desktop-ui.test.js
-```
+- [ ] **Step 2: Create exact QA flow sequence**
 
-Expected: FAIL because the flow is not registered.
-
-- [ ] **Step 2: Create `qa/flows/returns-desktop-e2e.json`**
-
-Build one JSON object with `name:"returns-desktop-e2e"` and a `steps` array using only existing QA actions. The steps are fixed in this order:
+Create `qa/flows/returns-desktop-e2e.json` with `name:"returns-desktop-e2e"`. Use the same setup/login/product selectors already used by `sales-enhancements-v2.json`. Sequence:
 
 ```text
-waitFor #setup-form
-fill setup name = QA Administrador
-fill setup username = qaadmin
-fill setup password = QaLocalOnly-12345!
-submit setup
-waitFor #login-form
-login qaadmin / QaLocalOnly-12345!
-waitFor #auth-overlay hidden
-open Sellers
-click #new-seller
-fill seller name = QA Caixa
-fill seller username = qacaixa
-choose role cashier
-fill seller password = QaCashierOnly-12345!
-submit seller
-open Products
-create product QA Produto Devolucao, SKU QA-RET-001, price 10,00, cost 5,00, stock control unchecked
-open Checkout
-add QA Produto Devolucao
-set item quantity to 2 using the current cart quantity control
-finalize sale
-open cash with 0,00 if prompted
-confirm payment
-navigate home
-logout using the current logout control
-login qacaixa / QaCashierOnly-12345!
-open Returns
-fill #ops-return-search with QA Produto Devolucao or the sale identifier exposed by results
-submit search
-waitFor [data-return-sale-select]
-click first [data-return-sale-select]
-waitFor #ops-return-selected-sale
-assert selected sale text contains QA Produto Devolucao and available quantity 2
-check [data-return-item]
-fill [data-return-qty] with 1
-assert #ops-return-total contains 10,00
-select CASH in #ops-return-method
-fill #ops-return-reason with QA devolucao parcial autorizada
-click #ops-return-authorize
-submit qaadmin with an intentionally wrong password first
-assert toast/error contains Usuario ou senha invalidos
-submit qaadmin / QaLocalOnly-12345!
-assert #ops-return-authorization shows QA Administrador or authorized state
-click #ops-return-submit
-wait for history refresh
-assert #ops-return-history contains 10,00 and COMPLETED
-search/select same sale again
-assert selected sale/item text contains available quantity 1
-screenshot full page named returns-desktop-complete
+setup admin: QA Administrador / qaadmin / QaLocalOnly-12345!
+login qaadmin
+open [data-home-route='sellers']; create QA Caixa / qacaixa / QaCashierOnly-12345! (default seller role is cashier)
+open [data-route='products']; create QA Produto Devolucao, SKU QA-RET-001, salePrice 10,00, cost 5,00; uncheck trackStock
+open [data-route='checkout']; click .product-card:has-text('QA Produto Devolucao'); wait .cart-line; click [data-qty-plus] once so quantity becomes 2
+click #finalize-sale; when #initial-cash appears fill 0,00 and click #confirm-open-cash; wait #confirm-payment and click it
+execute {"action":"capability","name":"auth.logout"}
+wait #login-form; login qacaixa / QaCashierOnly-12345!
+open [data-home-route='returns']; wait #ops-return-search
+fill #ops-return-search with QA Administrador; submit its containing form
+wait [data-return-sale-select]; click first result; wait #ops-return-selected-sale
+expect text #ops-return-selected-sale: QA Produto Devolucao; expect text: Disponível 2
+check [data-return-item]; fill [data-return-qty] with 1; expect #ops-return-total contains 10,00
+select CASH by pressing Home/Enter on #ops-return-method if CASH is already first; fill #ops-return-reason = QA devolucao parcial autorizada
+click #ops-return-authorize; wait #ops-return-authorization
+fill authorization username qaadmin; fill wrong password; submit; expect .toast contains Usuario ou senha invalidos
+refill authorization username qaadmin and password QaLocalOnly-12345!; submit; expect #ops-return-authorization contains QA Administrador
+click #ops-return-submit; wait #ops-return-history; expect #ops-return-history contains 10,00 and COMPLETED
+fill #ops-return-search with QA Administrador; submit search again; click first [data-return-sale-select]; expect #ops-return-selected-sale contains Disponível 1
+screenshot name returns-desktop-complete, fullPage true
 ```
 
-When translating that sequence to JSON, use the same escaped password style already used by `sales-enhancements-v2.json`; do not store any production credential. Use `press`/`click` for select/quantity controls only according to the actual selectors present after Task 4; do not introduce arbitrary waits when `waitFor` can observe a deterministic state.
+Passwords in JSON use the same escaped-unicode style as existing QA flows; no production secrets/tokens are included.
 
-- [ ] **Step 3: Register the flow**
+- [ ] **Step 3: Register flow**
 
-In `qa/artisys-qa.config.json` add:
+Add `"returns-desktop-e2e":"flows/returns-desktop-e2e.json"` and include its id in `full.flows`, `full.criticalFlows`, `release.flows`, `release.criticalFlows`; do not add to `quick`.
 
-```json
-"returns-desktop-e2e": "flows/returns-desktop-e2e.json"
-```
-
-Add `returns-desktop-e2e` to `full.flows`, `full.criticalFlows`, `release.flows`, and `release.criticalFlows`. Do not add it to `quick`.
-
-- [ ] **Step 4: Validate config and run the dedicated flow**
+- [ ] **Step 4: Validate/run/commit**
 
 ```bash
 npm run qa:validate
 node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow returns-desktop-e2e --environment ci --viewport desktop --output qa-artifacts
-```
-
-Expected: both PASS. The final screenshot must show the completed partial return and remaining refundable quantity 1.
-
-- [ ] **Step 5: Re-run the UI registration test**
-
-```bash
 node --test test/returns-desktop-ui.test.js
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit Task 5**
-
-```bash
 git add qa/flows/returns-desktop-e2e.json qa/artisys-qa.config.json test/returns-desktop-ui.test.js
 git commit -m "test: cover complete desktop return flow"
 ```
 
+Expected: all PASS; final screenshot shows completed partial return and `Disponível 1`.
+
 ---
 
-### Task 6: Full verification and PR
+### Task 6: Final verification and PR
 
-**Files:**
-- No planned production files beyond Tasks 1–5.
+**Files:** no planned new scope.
 
-**Interfaces:**
-- Produces verified branch `feat/returns-desktop-ui` and an open PR against `main`.
-
-- [ ] **Step 1: Run targeted return/security suite**
+- [ ] **Step 1: Run targeted suite**
 
 ```bash
 node --test test/return-approval-store.test.js test/e15-returns-history.test.js test/historical-cost-snapshot.test.js test/returns-authorization-api.test.js test/returns-desktop-ui.test.js test/e13-e20-api-ui.test.js test/operational-route-stability.test.js
 ```
 
-Expected: PASS.
-
-- [ ] **Step 2: Run repository verification**
+- [ ] **Step 2: Run repository verification and final E2E**
 
 ```bash
 npm run verify
-```
-
-Expected: PASS.
-
-- [ ] **Step 3: Re-run final E2E on branch head**
-
-```bash
 node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow returns-desktop-e2e --environment ci --viewport desktop --output qa-artifacts
 ```
 
-Expected: PASS.
+- [ ] **Step 3: Inspect `main...HEAD`**
 
-- [ ] **Step 4: Review `main...HEAD` for security and scope**
+Confirm: no password/token persistence/logging; no paid/external dependency; `cancelReturn()` manager/admin-only; completed sale remains immutable; both new server files are in `lint:core`; E2E is full/release critical. Any branch-created defect gets a reproducing RED test before the smallest fix.
 
-Confirm all six statements directly from the diff:
+- [ ] **Step 4: Open PR, do not merge**
 
-```text
-1. No manager password or approval token is persisted/logged/audited.
-2. No paid/external dependency was added.
-3. `cancelReturn()` remains manager/admin-only.
-4. No code mutates the original completed sale during a return.
-5. New server files are included in `lint:core`.
-6. QA flow is registered in full/release critical profiles.
-```
+Title: `feat: complete desktop returns workflow`
 
-If a branch-created defect is found, add a reproducing test first, run it RED, apply the smallest fix, rerun GREEN, then commit only those files with:
-
-```bash
-git commit -m "fix: harden desktop return flow"
-```
-
-- [ ] **Step 5: Open PR without merging**
-
-Open `feat/returns-desktop-ui` → `main` with title:
-
-```text
-feat: complete desktop returns workflow
-```
-
-Use this body:
+Body:
 
 ```markdown
 ## Summary
@@ -975,5 +414,3 @@ Use this body:
 - `npm run verify`
 - dedicated `returns-desktop-e2e` flow
 ```
-
-Leave the verified PR open for review; do not merge unless explicitly requested.
