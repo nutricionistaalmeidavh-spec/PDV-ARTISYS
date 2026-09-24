@@ -19,6 +19,19 @@
     {"action":"expectVisible","selector":"#route-content [data-restaurant-route]","name":"restaurant-home-launcher-visible"},
     {"action":"expectVisible","selector":"#network-status","name":"network-status-visible"},
     {"action":"expectText","selector":"#store-name","expected":"Loja","name":"store-context"},
+    {"action":"waitFor","selector":"#home-hub","name":"operational-home-ready","timeoutMs":10000},
+    {"action":"click","selector":".brand-mark","name":"open-classic-home"},
+    {"action":"waitFor","selector":"#classic-home-grid","name":"classic-home-ready","timeoutMs":10000},
+    {"action":"expectVisible","selector":"#classic-home-grid [data-classic-route='checkout']","name":"classic-checkout-visible"},
+    {"action":"expectVisible","selector":"#classic-home-grid [data-classic-route='products']","name":"classic-products-visible"},
+    {"action":"expectVisible","selector":"#classic-home-grid [data-classic-route='sales']","name":"classic-sales-visible"},
+    {"action":"expectVisible","selector":"#classic-home-grid [data-classic-route='returns']","name":"classic-returns-visible"},
+    {"action":"click","selector":"#classic-home-grid [data-classic-route='checkout']","name":"classic-open-checkout"},
+    {"action":"waitFor","selector":".checkout-layout","name":"checkout-from-classic-ready","timeoutMs":10000},
+    {"action":"click","selector":".brand-mark","name":"classic-from-checkout"},
+    {"action":"waitFor","selector":"#classic-home-grid","name":"classic-home-restored","timeoutMs":10000},
+    {"action":"click","selector":"#sidebar-nav [data-route='home']","name":"return-operational-home"},
+    {"action":"waitFor","selector":"#home-hub","name":"operational-home-restored","timeoutMs":10000},
     {"action":"screenshot","name":"home-ready"}
   ]
 }
