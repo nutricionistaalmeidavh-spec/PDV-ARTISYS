@@ -27,7 +27,7 @@
       "env": {
         "NODE_ENV": "test",
         "ARTISYS_QA": "1",
-        "ARTISYS_QA_PDF_DIR": "qa-artifacts/pdf",
+        "ARTISYS_QA_PDF_DIR": "../qa-artifacts/pdf",
         "ARTISYS_QA_SIMULATE_PRINTER": "1",
         "ARTISYS_QA_NO_PRINTERS": "1",
         "PDV_ENABLE_LAN": "false",
@@ -60,11 +60,12 @@
   },
   "qaProfiles": {
     "quick": {
-      "flows": ["smoke"],
-      "criticalFlows": ["smoke"],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
+      "flows": [
+        "smoke"
+      ],
+      "criticalFlows": [
+        "smoke"
+      ]
     },
     "full": {
       "flows": [
@@ -112,10 +113,7 @@
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
         "fiscal-nfse-p8"
-      ],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
+      ]
     },
     "release": {
       "flows": [
@@ -164,21 +162,10 @@
         "fiscal-config-p2-p5",
         "fiscal-nfse-p8"
       ],
-      "includeVisual": false,
-      "includeDesktop": false,
-      "includeNetwork": false
-    }
-  },
-  "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
+      "releaseGate": {
+        "enabled": true,
+        "requireAllCritical": true
+      }
     }
   }
 }
