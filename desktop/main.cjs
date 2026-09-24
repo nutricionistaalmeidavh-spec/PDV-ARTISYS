@@ -15,6 +15,7 @@ const { registerImportIpc } = require('./import-bridge.cjs');
 const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
+const { createHardwareConfigStore } = require('./hardware-config-store.cjs');
 const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
@@ -30,6 +31,7 @@ let apiBase = '';
 let bootstrapConfig = null;
 let terminalCredentialStore = null;
 let hardwareController = null;
+let hardwareConfigStore = null;
 let fiscalStore = null;
 let fiscalCredentialStore = null;
 let fiscalSidecar = null;
@@ -110,12 +112,25 @@ function createMainWindow() {
 }
 
 function buildHardwareController() {
+  const storedScale = hardwareConfigStore?.load()?.scale || null;
+  const hardwareEnv = { ...process.env };
+  if (storedScale) {
+    hardwareEnv.PDV_SCALE_PROFILE = storedScale.profile;
+    hardwareEnv.PDV_SCALE_PORT = storedScale.port;
+    if (storedScale.requestCommand) hardwareEnv.PDV_SCALE_URANO_REQUEST = storedScale.requestCommand;
+  }
   const hardwareRuntime = createPdvHardwareRuntime({
     BrowserWindow,
-    env:process.env,
+    env:hardwareEnv,
     resolvePrinterPreferences:() => currentPrintingPreferences()
   });
-  return createHardwareController(hardwareRuntime);
+  return createHardwareController(hardwareRuntime, {
+    onScaleConfigured: configuration => hardwareConfigStore?.saveScale({
+      profile:configuration.profile,
+      port:configuration.port || '',
+      requestCommand:configuration.requestCommand || undefined
+    })
+  });
 }
 
 function terminalApiHeaders() {
@@ -294,6 +309,7 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
   if (publicBootstrap.profile === 'terminal') {
     const bootstrapSecret = String(process.env.PDV_TERMINAL_KEY || '').trim();
     if (bootstrapSecret) terminalCredentialStore.save(bootstrapSecret);
