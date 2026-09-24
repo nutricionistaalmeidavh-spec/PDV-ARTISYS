@@ -70,10 +70,11 @@
       const productId=edit.dataset.editProduct;visibleParents.add(productId);
       row.querySelectorAll('.variant-parent-badge,.variant-add-button,.variant-parent-stock').forEach(node=>node.remove());
       const list=children(productId);const activeList=list.filter(item=>item.active!==false);
+      const totalStock=activeList.reduce((sum,item)=>sum+Number(item.quantity||0),0);const product=parent(productId);
       if(list.length)edit.dataset.parentHasVariants='true';else delete edit.dataset.parentHasVariants;
       const title=row.querySelector('div:first-child strong');
       if(title&&list.length){const badge=document.createElement('span');badge.className='variant-parent-badge';badge.textContent=`Produto pai · ${activeList.length} variação${activeList.length===1?'':'ões'} ativa${activeList.length===1?'':'s'}`;title.insertAdjacentElement('afterend',badge);}
-      const stockCell=row.children[2];if(stockCell&&list.length){const label=document.createElement('small');label.className='variant-parent-stock';label.textContent=`Estoque controlado nos subitens · total ${qty(activeList.reduce((sum,item)=>sum+Number(item.quantity||0),0))}`;stockCell.appendChild(label);}
+      const stockCell=row.querySelector('[data-product-stock-cell]')||row.children[2];if(stockCell&&list.length){const stockValue=stockCell.querySelector('strong');if(stockValue)stockValue.textContent=`${qty(totalStock)} ${product?.unit||'UN'}`;const label=document.createElement('small');label.className='variant-parent-stock';label.textContent='Estoque controlado nos subitens';stockCell.appendChild(label);}
       const add=document.createElement('button');add.type='button';add.className='secondary-button variant-add-button';add.dataset.newProductVariant=productId;add.textContent='＋ Variação';edit.insertAdjacentElement('beforebegin',add);
       let anchor=row;for(const variant of list){const wrapper=document.createElement('div');wrapper.innerHTML=variantRowHtml(variant);const child=wrapper.firstElementChild;anchor.insertAdjacentElement('afterend',child);anchor=child;}
     }
