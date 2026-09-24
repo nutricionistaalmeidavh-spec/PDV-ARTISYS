@@ -10,6 +10,14 @@ function columnsForPaper(value) {
   return paperMm===58 ? 32 : 48;
 }
 
+function suggestPaperForPrinter(deviceName) {
+  const normalized=String(deviceName || '').trim().toUpperCase().replace(/\s+/g,' ');
+  if (!normalized) return null;
+  if (/\bPOS\s*80\b/.test(normalized) || /SMX[-\s]?T80E/.test(normalized) || /\b80\s*MM\b/.test(normalized)) return 80;
+  if (/\bPOS\s*58\b/.test(normalized) || /\b58\s*MM\b/.test(normalized)) return 58;
+  return null;
+}
+
 function readBoolean(value,fallback=false) {
   if (value==null || value==='') return Boolean(fallback);
   if (typeof value==='boolean') return value;
@@ -25,17 +33,25 @@ function setting(settings,key,defaultValue) {
 }
 
 function validatePrintingPreferences(input={}) {
-  const paperMm=Number(input.paperMm ?? 80);
-  if (!VALID_PAPER_MM.has(paperMm)) throw new Error('Papel de impressao deve ser 58 ou 80 mm.');
-
-  const columnsMode=String(input.columnsMode ?? 'auto').trim().toLowerCase();
-  if (!VALID_COLUMNS_MODE.has(columnsMode)) throw new Error('Modo de colunas deve ser auto ou manual.');
-
-  const columns=columnsMode==='auto' ? columnsForPaper(paperMm) : Number(input.columns ?? columnsForPaper(paperMm));
-  if (!VALID_COLUMNS.has(columns)) throw new Error('Largura de impressao deve ser 32, 42 ou 48 colunas.');
-
   const deviceName=String(input.deviceName ?? '').trim();
   if (deviceName.length>255) throw new Error('Nome da impressora invalido.');
+
+  let paperMm=Number(input.paperMm ?? 80);
+  if (!VALID_PAPER_MM.has(paperMm)) throw new Error('Papel de impressao deve ser 58 ou 80 mm.');
+
+  let columnsMode=String(input.columnsMode ?? 'auto').trim().toLowerCase();
+  if (!VALID_COLUMNS_MODE.has(columnsMode)) throw new Error('Modo de colunas deve ser auto ou manual.');
+
+  const requestedColumns=Number(input.columns ?? columnsForPaper(paperMm));
+  if (!VALID_COLUMNS.has(requestedColumns)) throw new Error('Largura de impressao deve ser 32, 42 ou 48 colunas.');
+
+  const suggestedPaper=suggestPaperForPrinter(deviceName);
+  const legacyNarrowMismatch=suggestedPaper===80 && paperMm===58 && requestedColumns===32;
+  if (legacyNarrowMismatch) {
+    paperMm=80;
+    columnsMode='auto';
+  }
+  const columns=columnsMode==='auto' ? columnsForPaper(paperMm) : requestedColumns;
 
   return Object.freeze({
     deviceName,
@@ -71,4 +87,4 @@ function resolvePrintingPreferences({settings=null,env=process.env,isExistingIns
   });
 }
 
-module.exports={columnsForPaper,resolvePrintingPreferences,validatePrintingPreferences,readBoolean,VALID_PAPER_MM,VALID_COLUMNS,VALID_COLUMNS_MODE};
+module.exports={columnsForPaper,suggestPaperForPrinter,resolvePrintingPreferences,validatePrintingPreferences,readBoolean,VALID_PAPER_MM,VALID_COLUMNS,VALID_COLUMNS_MODE};
