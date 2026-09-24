@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const rendererRoot = path.join(__dirname, '..', 'desktop', 'renderer');
+const repoRoot = path.join(__dirname, '..');
+const rendererRoot = path.join(repoRoot, 'desktop', 'renderer');
 const operational = fs.readFileSync(path.join(rendererRoot, 'operational-pages.js'), 'utf8');
 const apiClient = fs.readFileSync(path.join(rendererRoot, 'api-client.js'), 'utf8');
 const css = fs.readFileSync(path.join(rendererRoot, 'operational-pages.css'), 'utf8');
@@ -53,5 +54,14 @@ test('renderReturns keeps delegated authorization inline and clears it when sele
 test('returns desktop CSS includes dedicated search, item and authorization states', () => {
   for (const selector of ['.ops-return-search-results','.ops-return-sale-card','.ops-return-item','.ops-return-authorization','.ops-return-summary']) {
     assert.match(css, new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
+});
+
+test('returns e2e is full and release critical', () => {
+  const qa = JSON.parse(fs.readFileSync(path.join(repoRoot, 'qa', 'artisys-qa.config.json'), 'utf8'));
+  assert.equal(qa.flows['returns-desktop-e2e'], 'flows/returns-desktop-e2e.json');
+  for (const profile of ['full', 'release']) {
+    assert.ok(qa.qaProfiles[profile].flows.includes('returns-desktop-e2e'));
+    assert.ok(qa.qaProfiles[profile].criticalFlows.includes('returns-desktop-e2e'));
   }
 });
