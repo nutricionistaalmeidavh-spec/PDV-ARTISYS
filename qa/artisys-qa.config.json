@@ -28,6 +28,8 @@
         "NODE_ENV": "test",
         "ARTISYS_QA": "1",
         "ARTISYS_QA_PDF_DIR": "qa-artifacts/pdf",
+        "ARTISYS_QA_SIMULATE_PRINTER": "1",
+        "ARTISYS_QA_NO_PRINTERS": "1",
         "PDV_ENABLE_LAN": "false",
         "PDV_AUTO_PRINT": "false"
       }
@@ -38,6 +40,8 @@
     "home": "flows/home.json",
     "sales-enhancements": "flows/sales-enhancements-v2.json",
     "checkout-ux-preservation": "flows/checkout-ux-preservation.json",
+    "post-sale-print-pdf": "flows/post-sale-print-pdf.json",
+    "printing-settings-e2e": "flows/printing-settings-e2e.json",
     "reports-v2-complete": "flows/reports-v2-complete.json",
     "core-business-e2e": "flows/core-business-e2e.json",
     "ux-products-clients-cross-flow": "flows/ux-products-clients-cross-flow.json",
@@ -56,12 +60,8 @@
   },
   "qaProfiles": {
     "quick": {
-      "flows": [
-        "smoke"
-      ],
-      "criticalFlows": [
-        "smoke"
-      ],
+      "flows": ["smoke"],
+      "criticalFlows": ["smoke"],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
@@ -72,6 +72,8 @@
         "home",
         "sales-enhancements",
         "checkout-ux-preservation",
+        "post-sale-print-pdf",
+        "printing-settings-e2e",
         "reports-v2-complete",
         "core-business-e2e",
         "ux-products-clients-cross-flow",
@@ -93,6 +95,8 @@
         "home",
         "sales-enhancements",
         "checkout-ux-preservation",
+        "post-sale-print-pdf",
+        "printing-settings-e2e",
         "reports-v2-complete",
         "core-business-e2e",
         "ux-products-clients-cross-flow",
@@ -119,6 +123,8 @@
         "home",
         "sales-enhancements",
         "checkout-ux-preservation",
+        "post-sale-print-pdf",
+        "printing-settings-e2e",
         "reports-v2-complete",
         "core-business-e2e",
         "ux-products-clients-cross-flow",
@@ -140,6 +146,8 @@
         "home",
         "sales-enhancements",
         "checkout-ux-preservation",
+        "post-sale-print-pdf",
+        "printing-settings-e2e",
         "reports-v2-complete",
         "core-business-e2e",
         "ux-products-clients-cross-flow",
