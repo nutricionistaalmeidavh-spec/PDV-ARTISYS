@@ -11,6 +11,14 @@ function readBoolean(value, fallback = false) {
   return String(value).toLowerCase() === 'true';
 }
 
+function readUranoRequestCommand(value) {
+  if (value == null || String(value).trim() === '') return 0x04;
+  const text = String(value).trim().toLowerCase();
+  const parsed = /^0x[0-9a-f]+$/.test(text) ? Number.parseInt(text.slice(2), 16) : Number(text);
+  if (![0x04, 0x05].includes(parsed)) throw new Error('PDV_SCALE_URANO_REQUEST invalido. Use 0x04 ou 0x05.');
+  return parsed;
+}
+
 function loadModules(modules) {
   if (modules) return modules;
   return {
@@ -44,21 +52,63 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   let serialManager=null;
   try{if(typeof serial.createSerialPortManager==='function')serialManager=serial.createSerialPortManager();}catch{/* hardware opcional */}
 
+  const scaleProfileName = String(env.PDV_SCALE_PROFILE || 'generic').trim().toLowerCase();
+  if (!['generic','urano-pop-s'].includes(scaleProfileName)) {
+    throw new Error('PDV_SCALE_PROFILE invalido. Use generic ou urano-pop-s.');
+  }
+
   let scale = null;
   let scaleSettleMs = null;
+  let scaleMetadata = {
+    profile: scaleProfileName,
+    manufacturer: null,
+    model: null,
+    dataBits: null,
+    stopBits: null,
+    parity: null,
+    requestCommand: null
+  };
   if (String(env.PDV_SCALE_PORT || '').trim()) {
-    const profile = {
-      path:String(env.PDV_SCALE_PORT).trim(),
-      baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, 9600, 'PDV_SCALE_BAUD')
-    };
+    const path = String(env.PDV_SCALE_PORT).trim();
+    let profile;
+    let request;
+    let parse;
+
+    if (scaleProfileName === 'urano-pop-s') {
+      if (typeof serial.createUranoPopSProtocol !== 'function') {
+        throw new Error('Perfil Urano POP-S indisponivel no modulo serial.');
+      }
+      const requestCommand = readUranoRequestCommand(env.PDV_SCALE_URANO_REQUEST);
+      const protocol = serial.createUranoPopSProtocol({ requestCommand });
+      profile = { path, ...protocol.serial };
+      request = protocol.request;
+      parse = protocol.parse;
+      scaleMetadata = {
+        profile: protocol.id || 'urano-pop-s',
+        manufacturer: protocol.manufacturer || 'Urano',
+        model: protocol.model || 'US 31/2 POP-S',
+        dataBits: Number(protocol.serial?.dataBits || 8),
+        stopBits: Number(protocol.serial?.stopBits || 2),
+        parity: String(protocol.serial?.parity || 'none'),
+        requestCommand: `0x${requestCommand.toString(16).padStart(2,'0')}`
+      };
+    } else {
+      profile = {
+        path,
+        baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, 9600, 'PDV_SCALE_BAUD')
+      };
+      request = env.PDV_SCALE_COMMAND || '';
+      parse = buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer);
+    }
+
     scaleSettleMs = readPositiveInteger(env.PDV_SCALE_SETTLE_MS, 30, 'PDV_SCALE_SETTLE_MS');
     const transport = serial.createSerialTransport({ profile });
     const session = serial.createRequestResponseSession({
       transport,
-      request:env.PDV_SCALE_COMMAND || '',
+      request,
       timeoutMs:readPositiveInteger(env.PDV_SCALE_TIMEOUT_MS, 1500, 'PDV_SCALE_TIMEOUT_MS'),
       responseIdleMs:scaleSettleMs,
-      parse:buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer)
+      parse
     });
     scale = serial.createScaleAdapter({ session, profile });
   }
@@ -159,7 +209,13 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:receiptWidth,deviceName:basePrinterProfile.deviceName||null,interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs},
+        scale:{
+          configured:Boolean(scale),
+          port:String(env.PDV_SCALE_PORT||'').trim()||null,
+          baud:scaleProfileName==='urano-pop-s'&&scale?9600:(scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null),
+          responseIdleMs:scaleSettleMs,
+          ...scaleMetadata
+        },
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
@@ -172,4 +228,4 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   return Object.freeze({ status, listSerialPorts, diagnostics, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
-module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, sanitizePort };
+module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readUranoRequestCommand, sanitizePort };
