@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
@@ -12,6 +13,7 @@ const { registerImportIpc } = require('./import-bridge.cjs');
 const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
+const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
 const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
@@ -104,6 +106,35 @@ function buildHardwareController() {
   return createHardwareController(hardwareRuntime);
 }
 
+function terminalApiHeaders() {
+  if (bootstrapConfig?.profile !== 'terminal') return {};
+  return {
+    'x-terminal-id':bootstrapConfig.terminalId,
+    'x-terminal-key':bootstrapConfig.terminalKey
+  };
+}
+
+async function fetchSaleReceipt(saleId, sessionToken) {
+  const response=await fetch(`${apiBase}/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,{
+    headers:{
+      accept:'application/json',
+      authorization:`Bearer ${String(sessionToken||'')}`,
+      ...terminalApiHeaders()
+    }
+  });
+  const text=await response.text();
+  let payload=null;
+  if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
+  if(!response.ok)throw new Error(payload?.error||`Erro HTTP ${response.status}`);
+  return payload;
+}
+
+async function writeReceiptFile(filePath, bytes) {
+  const target=path.resolve(String(filePath||''));
+  await mkdir(path.dirname(target),{recursive:true});
+  await writeFile(target,bytes);
+}
+
 function startPrintWorker() {
   if (printWorker || process.env.PDV_AUTO_PRINT === 'false' || !runtime) return;
   const tick = async () => {
@@ -165,6 +196,22 @@ function registerIpc() {
   hardwareController = buildHardwareController();
   const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
+  const receiptActions=createReceiptActions({
+    BrowserWindow,
+    dialog,
+    writeFile:writeReceiptFile,
+    getReceipt:fetchSaleReceipt,
+    printReceipt:receipt=>hardwareController.print({
+      id:`sale-${receipt.saleId}`,
+      text:receipt.text,
+      width:receipt.width,
+      paperMm:receipt.paperMm,
+      logoDataUrl:receipt.logoDataUrl||null
+    }),
+    env:process.env,
+    getParentWindow:()=>mainWindow
+  });
+  registerReceiptIpc({ipcMain,actions:receiptActions,isTrustedSender:trustedSender});
   registerFiscalIpc({
     ipcMain,
     store:fiscalStore,
