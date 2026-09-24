@@ -21,16 +21,35 @@ test('safe PDF filename removes Windows-reserved characters',()=>{
   assert.equal(safePdfFileName('V/001:*?','2026-09-24T12:00:00Z'),'Venda-V-001-2026-09-24.pdf');
 });
 
-test('print sale resolves canonical receipt and delegates without mutating sale',async()=>{
+test('print sale creates and finishes an auditable attempt from the immutable snapshot',async()=>{
   const calls=[];
   const actions=createReceiptActions({
-    getReceipt:async(id,token)=>{calls.push(['get',id,token]);return receipt();},
+    getReceipt:async()=>{throw new Error('manual print must use attempt snapshot');},
+    createPrintAttempt:async(id,token)=>{calls.push(['create',id,token]);return {job:{id:'manual-1'},receipt:receipt()};},
+    finishPrintAttempt:async(id,jobId,outcome,token)=>{calls.push(['finish',id,jobId,outcome,token]);return {job:{id:jobId,status:'PRINTED'}};},
     printReceipt:async value=>{calls.push(['print',value.saleId]);return {success:true};},
     dialog:{showSaveDialog:async()=>{throw new Error('not used');}},writeFile:async()=>{},BrowserWindow:class{},env:{}
   });
   const result=await actions.printSale({saleId:'sale-1',sessionToken:'session'});
   assert.equal(result.success,true);
-  assert.deepEqual(calls,[['get','sale-1','session'],['print','sale-1']]);
+  assert.deepEqual(calls,[
+    ['create','sale-1','session'],
+    ['print','sale-1'],
+    ['finish','sale-1','manual-1',{success:true},'session']
+  ]);
+});
+
+test('print sale records a sanitized failed attempt when local hardware rejects',async()=>{
+  const outcomes=[];
+  const actions=createReceiptActions({
+    getReceipt:async()=>receipt(),
+    createPrintAttempt:async()=>({job:{id:'manual-2'},receipt:receipt()}),
+    finishPrintAttempt:async(_saleId,_jobId,outcome)=>{outcomes.push(outcome);return {job:{status:'FAILED'}};},
+    printReceipt:async()=>{throw new Error('spooler indisponivel');},
+    dialog:{showSaveDialog:async()=>({canceled:true})},writeFile:async()=>{},BrowserWindow:class{},env:{}
+  });
+  await assert.rejects(()=>actions.printSale({saleId:'sale-1',sessionToken:'session'}),/spooler indisponivel/);
+  assert.deepEqual(outcomes,[{success:false,error:'spooler indisponivel'}]);
 });
 
 test('cancelled Save As is not an error and does not write',async()=>{
@@ -83,11 +102,20 @@ test('receipt IPC rejects untrusted senders and delegates trusted requests',asyn
   assert.equal(calls.length,2);
 });
 
-test('desktop main wires trusted receipt actions to canonical receipt API and local printer',()=>{
+test('desktop main wires trusted receipt actions through auditable attempt API and local printer',()=>{
   const main=fs.readFileSync(path.join(__dirname,'../desktop/main.cjs'),'utf8');
   assert.match(main,/createReceiptActions/);
   assert.match(main,/registerReceiptIpc/);
   assert.match(main,/\/api\/v1\/sales\/\$\{encodeURIComponent\(saleId\)\}\/receipt/);
+  assert.match(main,/print-attempts/);
+  assert.match(main,/createPrintAttempt/);
+  assert.match(main,/finishPrintAttempt/);
   assert.match(main,/hardwareController\.print/);
   assert.match(main,/writeFile/);
+});
+
+test('desktop detects a pre-existing database before resolving legacy printing defaults',()=>{
+  const main=fs.readFileSync(path.join(__dirname,'../desktop/main.cjs'),'utf8');
+  assert.match(main,/existsSync\(dbPath\)/);
+  assert.match(main,/isExistingInstall:\s*installationWasExisting/);
 });
