@@ -3,7 +3,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const path=require('node:path');
-const {createReceiptActions,safePdfFileName}=require('../desktop/receipt-actions.cjs');
+const {createReceiptActions,safePdfFileName,registerReceiptIpc}=require('../desktop/receipt-actions.cjs');
 
 function receipt(overrides={}){return {saleId:'sale-1',saleNumber:'V/001:*?',paperMm:80,width:48,text:'LOJA <QA>\nVenda V-001\nTOTAL 10,00',logoDataUrl:null,...overrides};}
 function fakeWindow({pdf=Buffer.from('%PDF-FAKE'),height=480,throwPdf=null}={}){
@@ -65,4 +65,19 @@ test('printToPDF failure propagates but hidden window is destroyed',async()=>{
   const actions=createReceiptActions({BrowserWindow,dialog:{showSaveDialog:async()=>({canceled:false,filePath:'/tmp/a.pdf'})},writeFile:async()=>{},getReceipt:async()=>receipt(),printReceipt:async()=>({}),env:{},getParentWindow:()=>null});
   await assert.rejects(()=>actions.saveSalePdf({saleId:'sale-1',sessionToken:'session'}),/pdf failed/);
   assert.equal(state.destroyed,true);
+});
+
+test('receipt IPC rejects untrusted senders and delegates trusted requests',async()=>{
+  const handlers=new Map();
+  const ipcMain={handle:(name,fn)=>handlers.set(name,fn)};
+  const calls=[];
+  registerReceiptIpc({
+    ipcMain,
+    actions:{printSale:async input=>{calls.push(['print',input]);return {success:true};},saveSalePdf:async input=>{calls.push(['pdf',input]);return {cancelled:false};}},
+    isTrustedSender:event=>event.sender==='trusted'
+  });
+  await assert.rejects(()=>handlers.get('artisys:receipts:print-sale')({sender:'evil'},{saleId:'s1',sessionToken:'t'}),/nao autorizada/i);
+  assert.deepEqual(await handlers.get('artisys:receipts:print-sale')({sender:'trusted'},{saleId:'s1',sessionToken:'t'}),{success:true});
+  assert.deepEqual(await handlers.get('artisys:receipts:save-pdf')({sender:'trusted'},{saleId:'s1',sessionToken:'t'}),{cancelled:false});
+  assert.equal(calls.length,2);
 });
