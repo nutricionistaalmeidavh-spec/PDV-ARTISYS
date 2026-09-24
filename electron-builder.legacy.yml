@@ -3,6 +3,8 @@ productName: ArtiSys PDV Legacy
 electronVersion: 22.3.27
 asar: true
 npmRebuild: true
+extraMetadata:
+  version: 1.4.5
 directories:
   output: dist-legacy
 files:
