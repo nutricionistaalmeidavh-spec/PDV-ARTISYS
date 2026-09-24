@@ -39,6 +39,22 @@ test('print sale creates and finishes an auditable attempt from the immutable sn
   ]);
 });
 
+test('QA printer simulation keeps the audit lifecycle without touching host hardware',async()=>{
+  const calls=[];let hardwareCalls=0;
+  const actions=createReceiptActions({
+    getReceipt:async()=>receipt(),
+    createPrintAttempt:async()=>({job:{id:'manual-qa'},receipt:receipt()}),
+    finishPrintAttempt:async(id,jobId,outcome)=>{calls.push([id,jobId,outcome]);return {job:{id:jobId,status:'PRINTED'}};},
+    printReceipt:async()=>{hardwareCalls+=1;return {success:true};},
+    dialog:{showSaveDialog:async()=>({canceled:true})},writeFile:async()=>{},BrowserWindow:class{},
+    env:{ARTISYS_QA:'1',ARTISYS_QA_SIMULATE_PRINTER:'1'}
+  });
+  const result=await actions.printSale({saleId:'sale-1',sessionToken:'session'});
+  assert.deepEqual(result,{success:true,driver:'qa-simulated'});
+  assert.equal(hardwareCalls,0);
+  assert.deepEqual(calls,[['sale-1','manual-qa',{success:true}]]);
+});
+
 test('print sale records a sanitized failed attempt when local hardware rejects',async()=>{
   const outcomes=[];
   const actions=createReceiptActions({
