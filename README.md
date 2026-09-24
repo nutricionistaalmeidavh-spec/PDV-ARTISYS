@@ -52,7 +52,7 @@ Principais capacidades:
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
 - health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto;
-- atualização desktop integrada via `electron-updater`, com download manual e instalação ao sair; o canal final de distribuição para clientes ainda precisa ser homologado sem expor segredo de repositório privado;
+- atualização desktop integrada via `electron-updater`, com verificação automática e download/instalação sob confirmação do operador; releases Windows modernas são geradas e publicadas automaticamente pela CI após mudanças relevantes na `main`;
 - perfis de implantação **Servidor + Terminal** e **Terminal**.
 
 ## Profundidade operacional 1.4.1
@@ -177,7 +177,7 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 `docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery, segurança e Fase 9. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
-Para solicitar uma build Windows sem duplicar o pipeline de verificação, atualize `.github/release-request.json` no `main`. Esse arquivo dispara somente `release-windows`; o workflow executa `verify:release`, gera o instalador NSIS x64 nativo, cria `release-manifest.json` com SHA-256 e publica ambos como artefato. O fluxo manual por `workflow_dispatch` e o fluxo por tag `v*` continuam disponíveis.
+Cada push/merge relevante na `main` dispara automaticamente `release-windows`. O workflow resolve o próximo patch a partir da última GitHub Release publicada, preserva uma versão intencionalmente maior declarada no `package.json`, executa `verify:release`, aplica a versão somente no workspace de empacotamento, gera e testa o NSIS x64, valida `latest.yml` e o blockmap e publica a GitHub Release consumida pelo updater. Alterações somente em documentação/testes não geram um novo instalador; `workflow_dispatch` permanece disponível para recuperação manual.
 
 ## Operação e arquitetura
 
