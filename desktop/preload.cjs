@@ -2,6 +2,8 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+const qaNoPrinters = process.env.ARTISYS_QA === '1' && process.env.ARTISYS_QA_NO_PRINTERS === '1';
+
 contextBridge.exposeInMainWorld('artisysDesktop', {
   getConfig: () => ipcRenderer.invoke('artisys:config'),
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
@@ -12,7 +14,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
   hardware: {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
     listSerialPorts: () => ipcRenderer.invoke('artisys:hardware:ports'),
-    listPrinters: () => ipcRenderer.invoke('artisys:hardware:printers'),
+    listPrinters: () => qaNoPrinters ? Promise.resolve([]) : ipcRenderer.invoke('artisys:hardware:printers'),
     diagnostics: () => ipcRenderer.invoke('artisys:hardware:diagnostics'),
     configureScale: (input) => ipcRenderer.invoke('artisys:hardware:scale-configure', input),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
