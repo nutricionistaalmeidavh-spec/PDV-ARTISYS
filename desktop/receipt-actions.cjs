@@ -70,16 +70,29 @@ function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,createP
     const jobId=String(attempt?.job?.id || '').trim();
     const receipt=attempt?.receipt;
     if(!jobId||!receipt)throw new Error('Tentativa manual de impressao invalida.');
+
+    let result;
     try {
-      const result=await printReceipt(receipt);
+      const qaSimulated=String(env?.ARTISYS_QA||'')==='1'&&String(env?.ARTISYS_QA_SIMULATE_PRINTER||'')==='1';
+      result=qaSimulated?{success:true,driver:'qa-simulated'}:await printReceipt(receipt);
       if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.');
-      await finishPrintAttempt(saleId,jobId,{success:true},sessionToken);
-      return result;
     } catch(error) {
       try {
         await finishPrintAttempt(saleId,jobId,{success:false,error:String(error?.message||error||'Falha de impressao.')},sessionToken);
       } catch {}
       throw error;
+    }
+
+    try {
+      await finishPrintAttempt(saleId,jobId,{success:true},sessionToken);
+      return result;
+    } catch(error) {
+      return {
+        ...(result&&typeof result==='object'?result:{success:true}),
+        success:true,
+        auditPending:true,
+        auditError:String(error?.message||error||'Falha ao registrar auditoria da impressao.')
+      };
     }
   }
 
