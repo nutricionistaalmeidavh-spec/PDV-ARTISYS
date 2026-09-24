@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
@@ -36,6 +37,7 @@ let fiscalProviderResolver = async () => null;
 let nfseProviderResolver = async () => null;
 let printWorker = null;
 let printWorkerBusy = false;
+let installationWasExisting = true;
 const installToken = randomBytes(32).toString('hex');
 
 function rendererPath(...parts) {
@@ -43,13 +45,14 @@ function rendererPath(...parts) {
 }
 
 function currentPrintingPreferences() {
-  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:true });
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting });
 }
 
 async function startEmbeddedServer() {
   const dbPath = path.join(app.getPath('userData'), 'pdv-artisys.sqlite');
   const backupDir = path.join(app.getPath('userData'), 'backups');
   applyPendingRestore({ dbPath, backupDir });
+  installationWasExisting = existsSync(dbPath);
   runtime = createPdvRuntime({
     dbPath,
     backupDir,
@@ -65,7 +68,7 @@ async function startEmbeddedServer() {
     }
   });
 
-  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false });
+  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
 
@@ -73,7 +76,7 @@ async function startEmbeddedServer() {
     const lanHost = process.env.PDV_LAN_HOST || '0.0.0.0';
     const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
     if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
-    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true });
+    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true, isExistingInstall:installationWasExisting });
     try {
       await lanServer.start();
     } catch (error) {
@@ -123,19 +126,32 @@ function terminalApiHeaders() {
   };
 }
 
-async function fetchSaleReceipt(saleId, sessionToken) {
-  const response=await fetch(`${apiBase}/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,{
-    headers:{
-      accept:'application/json',
-      authorization:`Bearer ${String(sessionToken||'')}`,
-      ...terminalApiHeaders()
-    }
-  });
+async function receiptApiRequest(rawPath,{method='GET',sessionToken='',body=undefined}={}) {
+  const headers={
+    accept:'application/json',
+    authorization:`Bearer ${String(sessionToken||'')}`,
+    ...terminalApiHeaders()
+  };
+  let requestBody;
+  if(body!==undefined){headers['content-type']='application/json';requestBody=JSON.stringify(body);}
+  const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body:requestBody});
   const text=await response.text();
   let payload=null;
   if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
   if(!response.ok)throw new Error(payload?.error||`Erro HTTP ${response.status}`);
   return payload;
+}
+
+async function fetchSaleReceipt(saleId, sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,{sessionToken});
+}
+
+async function createSalePrintAttempt(saleId,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts`,{method:'POST',sessionToken});
+}
+
+async function finishSalePrintAttempt(saleId,jobId,outcome,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts/${encodeURIComponent(jobId)}/result`,{method:'POST',sessionToken,body:outcome});
 }
 
 async function writeReceiptFile(filePath, bytes) {
@@ -155,7 +171,7 @@ function startPrintWorker() {
       return;
     }
     if (!preferences.autoPrint) return;
-    const job = runtime.printing.listJobs({ status:'PENDING' })[0];
+    const job = runtime.printing.listJobs({ status:'PENDING', type:'SALE_RECEIPT' })[0];
     if (!job) return;
     printWorkerBusy = true;
     try {
@@ -217,6 +233,8 @@ function registerIpc() {
     dialog,
     writeFile:writeReceiptFile,
     getReceipt:fetchSaleReceipt,
+    createPrintAttempt:createSalePrintAttempt,
+    finishPrintAttempt:finishSalePrintAttempt,
     printReceipt:receipt=>hardwareController.print({
       id:`sale-${receipt.saleId}`,
       text:receipt.text,
