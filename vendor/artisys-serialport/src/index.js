@@ -10,6 +10,7 @@ const { createLineBuffer } = require('./parsers/line-buffer');
 const { createScaleAdapter } = require('./adapters/scale');
 const { createDrawerAdapter, DEFAULT_PULSE } = require('./adapters/drawer');
 const { createGenericSerialDevice } = require('./adapters/generic-device');
+const { URANO_POP_S_PROFILE, createUranoPopSProtocol, parseUranoPopSWeight } = require('./protocols/urano-pop-s');
 
 module.exports = {
   SerialError,
@@ -23,5 +24,8 @@ module.exports = {
   createScaleAdapter,
   createDrawerAdapter,
   createGenericSerialDevice,
+  URANO_POP_S_PROFILE,
+  createUranoPopSProtocol,
+  parseUranoPopSWeight,
   DEFAULT_PULSE
 };

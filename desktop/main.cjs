@@ -2,9 +2,12 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const { existsSync } = require('node:fs');
+const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
+const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
@@ -12,6 +15,8 @@ const { registerImportIpc } = require('./import-bridge.cjs');
 const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
+const { createHardwareConfigStore } = require('./hardware-config-store.cjs');
+const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
 const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
 const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
 const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
@@ -26,6 +31,7 @@ let apiBase = '';
 let bootstrapConfig = null;
 let terminalCredentialStore = null;
 let hardwareController = null;
+let hardwareConfigStore = null;
 let fiscalStore = null;
 let fiscalCredentialStore = null;
 let fiscalSidecar = null;
@@ -33,16 +39,22 @@ let fiscalProviderResolver = async () => null;
 let nfseProviderResolver = async () => null;
 let printWorker = null;
 let printWorkerBusy = false;
+let installationWasExisting = true;
 const installToken = randomBytes(32).toString('hex');
 
 function rendererPath(...parts) {
   return path.join(__dirname, 'renderer', ...parts);
 }
 
+function currentPrintingPreferences() {
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting });
+}
+
 async function startEmbeddedServer() {
   const dbPath = path.join(app.getPath('userData'), 'pdv-artisys.sqlite');
   const backupDir = path.join(app.getPath('userData'), 'backups');
   applyPendingRestore({ dbPath, backupDir });
+  installationWasExisting = existsSync(dbPath);
   runtime = createPdvRuntime({
     dbPath,
     backupDir,
@@ -58,7 +70,7 @@ async function startEmbeddedServer() {
     }
   });
 
-  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false });
+  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
 
@@ -66,7 +78,7 @@ async function startEmbeddedServer() {
     const lanHost = process.env.PDV_LAN_HOST || '0.0.0.0';
     const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
     if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
-    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true });
+    lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true, isExistingInstall:installationWasExisting });
     try {
       await lanServer.start();
     } catch (error) {
@@ -100,15 +112,81 @@ function createMainWindow() {
 }
 
 function buildHardwareController() {
-  const hardwareRuntime = createPdvHardwareRuntime({ BrowserWindow, env:process.env });
-  return createHardwareController(hardwareRuntime);
+  const storedScale = hardwareConfigStore?.load()?.scale || null;
+  const hardwareEnv = { ...process.env };
+  if (storedScale) {
+    hardwareEnv.PDV_SCALE_PROFILE = storedScale.profile;
+    hardwareEnv.PDV_SCALE_PORT = storedScale.port;
+    if (storedScale.requestCommand) hardwareEnv.PDV_SCALE_URANO_REQUEST = storedScale.requestCommand;
+  }
+  const hardwareRuntime = createPdvHardwareRuntime({
+    BrowserWindow,
+    env:hardwareEnv,
+    resolvePrinterPreferences:() => currentPrintingPreferences()
+  });
+  return createHardwareController(hardwareRuntime, {
+    onScaleConfigured: configuration => hardwareConfigStore?.saveScale({
+      profile:configuration.profile,
+      port:configuration.port || '',
+      requestCommand:configuration.requestCommand || undefined
+    })
+  });
+}
+
+function terminalApiHeaders() {
+  if (bootstrapConfig?.profile !== 'terminal') return {};
+  return {
+    'x-terminal-id':bootstrapConfig.terminalId,
+    'x-terminal-key':bootstrapConfig.terminalKey
+  };
+}
+
+async function receiptApiRequest(rawPath,{method='GET',sessionToken='',body=undefined}={}) {
+  const headers={
+    accept:'application/json',
+    authorization:`Bearer ${String(sessionToken||'')}`,
+    ...terminalApiHeaders()
+  };
+  let requestBody;
+  if(body!==undefined){headers['content-type']='application/json';requestBody=JSON.stringify(body);}
+  const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body:requestBody});
+  const text=await response.text();
+  let payload=null;
+  if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
+  if(!response.ok)throw new Error(payload?.error||`Erro HTTP ${response.status}`);
+  return payload;
+}
+
+async function fetchSaleReceipt(saleId, sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/receipt`,{sessionToken});
+}
+
+async function createSalePrintAttempt(saleId,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts`,{method:'POST',sessionToken});
+}
+
+async function finishSalePrintAttempt(saleId,jobId,outcome,sessionToken) {
+  return receiptApiRequest(`/api/v1/sales/${encodeURIComponent(saleId)}/print-attempts/${encodeURIComponent(jobId)}/result`,{method:'POST',sessionToken,body:outcome});
+}
+
+async function writeReceiptFile(filePath, bytes) {
+  const target=path.resolve(String(filePath||''));
+  await mkdir(path.dirname(target),{recursive:true});
+  await writeFile(target,bytes);
 }
 
 function startPrintWorker() {
-  if (printWorker || process.env.PDV_AUTO_PRINT === 'false' || !runtime) return;
+  if (printWorker || !runtime) return;
   const tick = async () => {
     if (printWorkerBusy || !runtime || !hardwareController) return;
-    const job = runtime.printing.listJobs({ status:'PENDING' })[0];
+    let preferences;
+    try { preferences = currentPrintingPreferences(); }
+    catch (error) {
+      runtime.logger?.log({ level:'error', subsystem:'printing', message:error?.message || 'Falha ao resolver configuracao de impressao.' });
+      return;
+    }
+    if (!preferences.autoPrint) return;
+    const job = runtime.printing.listJobs({ status:'PENDING', type:'SALE_RECEIPT' })[0];
     if (!job) return;
     printWorkerBusy = true;
     try {
@@ -165,6 +243,24 @@ function registerIpc() {
   hardwareController = buildHardwareController();
   const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
+  const receiptActions=createReceiptActions({
+    BrowserWindow,
+    dialog,
+    writeFile:writeReceiptFile,
+    getReceipt:fetchSaleReceipt,
+    createPrintAttempt:createSalePrintAttempt,
+    finishPrintAttempt:finishSalePrintAttempt,
+    printReceipt:receipt=>hardwareController.print({
+      id:`sale-${receipt.saleId}`,
+      text:receipt.text,
+      width:receipt.width,
+      paperMm:receipt.paperMm,
+      logoDataUrl:receipt.logoDataUrl||null
+    }),
+    env:process.env,
+    getParentWindow:()=>mainWindow
+  });
+  registerReceiptIpc({ipcMain,actions:receiptActions,isTrustedSender:trustedSender});
   registerFiscalIpc({
     ipcMain,
     store:fiscalStore,
@@ -213,6 +309,7 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
   if (publicBootstrap.profile === 'terminal') {
     const bootstrapSecret = String(process.env.PDV_TERMINAL_KEY || '').trim();
     if (bootstrapSecret) terminalCredentialStore.save(bootstrapSecret);

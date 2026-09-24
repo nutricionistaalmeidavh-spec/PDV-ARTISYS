@@ -18,7 +18,9 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
   hardware: {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
     listSerialPorts: () => ipcRenderer.invoke('artisys:hardware:ports'),
+    listPrinters: () => ipcRenderer.invoke('artisys:hardware:printers'),
     diagnostics: () => ipcRenderer.invoke('artisys:hardware:diagnostics'),
+    configureScale: (input) => ipcRenderer.invoke('artisys:hardware:scale-configure', input),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
     tare: () => ipcRenderer.invoke('artisys:hardware:scale-tare'),
     openDrawer: () => ipcRenderer.invoke('artisys:hardware:drawer-open'),
@@ -26,6 +28,10 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     testPrinter: (text) => ipcRenderer.invoke('artisys:hardware:test-printer', { text }),
     testDrawer: () => ipcRenderer.invoke('artisys:hardware:test-drawer'),
     testScale: () => ipcRenderer.invoke('artisys:hardware:test-scale')
+  },
+  receipts: {
+    printSale: (input) => ipcRenderer.invoke('artisys:receipts:print-sale', input),
+    saveSalePdf: (input) => ipcRenderer.invoke('artisys:receipts:save-pdf', input)
   },
   fiscal: {
     status: () => ipcRenderer.invoke('artisys:fiscal:status'),
