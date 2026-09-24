@@ -11,6 +11,20 @@ function readBoolean(value, fallback = false) {
   return String(value).toLowerCase() === 'true';
 }
 
+function readScaleProfile(value) {
+  const profile = String(value || 'generic').trim().toLowerCase();
+  if (!['generic','urano-pop-s'].includes(profile)) throw new Error('PDV_SCALE_PROFILE invalido. Use generic ou urano-pop-s.');
+  return profile;
+}
+
+function readUranoRequestCommand(value) {
+  if (value == null || String(value).trim() === '') return 0x04;
+  const text = String(value).trim().toLowerCase();
+  const parsed = /^0x[0-9a-f]+$/.test(text) ? Number.parseInt(text.slice(2), 16) : Number(text);
+  if (![0x04,0x05].includes(parsed)) throw new Error('PDV_SCALE_URANO_REQUEST invalido. Use 0x04 ou 0x05.');
+  return parsed;
+}
+
 function loadModules(modules) {
   if (modules) return modules;
   return {
@@ -46,21 +60,115 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   let scale = null;
   let scaleSettleMs = null;
-  if (String(env.PDV_SCALE_PORT || '').trim()) {
-    const profile = {
-      path:String(env.PDV_SCALE_PORT).trim(),
-      baudRate:readPositiveInteger(env.PDV_SCALE_BAUD, 9600, 'PDV_SCALE_BAUD')
-    };
-    scaleSettleMs = readPositiveInteger(env.PDV_SCALE_SETTLE_MS, 30, 'PDV_SCALE_SETTLE_MS');
+  let scaleConfiguration = {
+    configured:false,
+    profile:'generic',
+    manufacturer:null,
+    model:null,
+    port:null,
+    baud:null,
+    dataBits:null,
+    stopBits:null,
+    parity:null,
+    requestCommand:null,
+    responseIdleMs:null
+  };
+
+  function setupScale(input = {}) {
+    const profileName = readScaleProfile(input.profile);
+    const port = String(input.port || '').trim();
+    scale = null;
+    scaleSettleMs = null;
+
+    if (!port) {
+      scaleConfiguration = {
+        configured:false,
+        profile:profileName,
+        manufacturer:profileName==='urano-pop-s'?'Urano':null,
+        model:profileName==='urano-pop-s'?'US 31/2 POP-S':null,
+        port:null,
+        baud:null,
+        dataBits:null,
+        stopBits:null,
+        parity:null,
+        requestCommand:profileName==='urano-pop-s'?`0x${readUranoRequestCommand(input.requestCommand).toString(16).padStart(2,'0')}`:null,
+        responseIdleMs:null
+      };
+      return { ...scaleConfiguration };
+    }
+
+    let profile;
+    let request;
+    let parse;
+    let manufacturer = null;
+    let model = null;
+    let requestCommand = null;
+
+    if (profileName === 'urano-pop-s') {
+      if (typeof serial.createUranoPopSProtocol !== 'function') throw new Error('Perfil Urano POP-S indisponivel no modulo serial.');
+      const command = readUranoRequestCommand(input.requestCommand);
+      const protocol = serial.createUranoPopSProtocol({ requestCommand:command });
+      profile = { path:port, ...protocol.serial };
+      request = protocol.request;
+      parse = protocol.parse;
+      manufacturer = protocol.manufacturer || 'Urano';
+      model = protocol.model || 'US 31/2 POP-S';
+      requestCommand = `0x${command.toString(16).padStart(2,'0')}`;
+    } else {
+      profile = {
+        path:port,
+        baudRate:readPositiveInteger(input.baud, 9600, 'PDV_SCALE_BAUD')
+      };
+      request = input.command || '';
+      parse = buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer);
+    }
+
+    scaleSettleMs = readPositiveInteger(input.settleMs, 30, 'PDV_SCALE_SETTLE_MS');
     const transport = serial.createSerialTransport({ profile });
     const session = serial.createRequestResponseSession({
       transport,
-      request:env.PDV_SCALE_COMMAND || '',
-      timeoutMs:readPositiveInteger(env.PDV_SCALE_TIMEOUT_MS, 1500, 'PDV_SCALE_TIMEOUT_MS'),
+      request,
+      timeoutMs:readPositiveInteger(input.timeoutMs, 1500, 'PDV_SCALE_TIMEOUT_MS'),
       responseIdleMs:scaleSettleMs,
-      parse:buffer => serial.parseNumericWeight(Buffer.isBuffer(buffer) ? buffer.toString('utf8') : buffer)
+      parse
     });
     scale = serial.createScaleAdapter({ session, profile });
+    scaleConfiguration = {
+      configured:true,
+      profile:profileName,
+      manufacturer,
+      model,
+      port:profile.path,
+      baud:profile.baudRate,
+      dataBits:profile.dataBits ?? null,
+      stopBits:profile.stopBits ?? null,
+      parity:profile.parity ?? null,
+      requestCommand,
+      responseIdleMs:scaleSettleMs
+    };
+    return { ...scaleConfiguration };
+  }
+
+  setupScale({
+    profile:env.PDV_SCALE_PROFILE || 'generic',
+    port:env.PDV_SCALE_PORT || '',
+    baud:env.PDV_SCALE_BAUD,
+    command:env.PDV_SCALE_COMMAND,
+    timeoutMs:env.PDV_SCALE_TIMEOUT_MS,
+    settleMs:env.PDV_SCALE_SETTLE_MS,
+    requestCommand:env.PDV_SCALE_URANO_REQUEST
+  });
+
+  async function configureScale(input = {}) {
+    return setupScale({
+      profile:input.profile,
+      port:input.port,
+      baud:input.baud,
+      command:input.command,
+      timeoutMs:input.timeoutMs,
+      settleMs:input.settleMs,
+      requestCommand:input.requestCommand
+    });
   }
 
   let cashDrawer = null;
@@ -202,7 +310,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       serialPorts:await listSerialPorts(),
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:profile.width,paperMm,deviceName:profile.deviceName||null,silent:Boolean(profile.silent),cut:Boolean(profile.cut),openDrawerAfterPrint:Boolean(profile.openDrawerAfterPrint),interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
-        scale:{configured:Boolean(scale),port:String(env.PDV_SCALE_PORT||'').trim()||null,baud:scale?readPositiveInteger(env.PDV_SCALE_BAUD,9600,'PDV_SCALE_BAUD'):null,responseIdleMs:scaleSettleMs},
+        scale:{...scaleConfiguration},
         drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
@@ -215,7 +323,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   async function testDrawer(){return openDrawer();}
   async function testScale(){return readWeight();}
 
-  return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
+  return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, configureScale, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
-module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, sanitizePort };
+module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readUranoRequestCommand, sanitizePort };
