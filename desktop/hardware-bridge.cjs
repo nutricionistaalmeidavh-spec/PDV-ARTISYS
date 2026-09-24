@@ -1,6 +1,6 @@
 'use strict';
 
-function createHardwareController(driver = {}) {
+function createHardwareController(driver = {}, { onScaleConfigured = null } = {}) {
   return Object.freeze({
     async status() {
       return typeof driver.status === 'function' ? driver.status() : { available:false };
@@ -24,6 +24,12 @@ function createHardwareController(driver = {}) {
     },
     async diagnostics(){
       return typeof driver.diagnostics==='function'?driver.diagnostics():{status:await this.status(),serialPorts:[]};
+    },
+    async configureScale(input = {}) {
+      if (typeof driver.configureScale !== 'function') throw new Error('Configuracao de balanca indisponivel.');
+      const configuration = await driver.configureScale(input);
+      if (typeof onScaleConfigured === 'function') await onScaleConfigured(configuration);
+      return configuration;
     },
     async readWeight() {
       if (typeof driver.readWeight !== 'function') throw new Error('Balanca nao configurada.');
@@ -68,6 +74,7 @@ function registerHardwareIpc({ ipcMain, controller, isTrustedSender = null } = {
   handle('artisys:hardware:ports', () => controller.listSerialPorts());
   handle('artisys:hardware:printers', () => controller.listPrinters());
   handle('artisys:hardware:diagnostics', () => controller.diagnostics());
+  handle('artisys:hardware:scale-configure', input => controller.configureScale(input));
   handle('artisys:hardware:scale-read', () => controller.readWeight());
   handle('artisys:hardware:scale-tare', () => controller.tare());
   handle('artisys:hardware:drawer-open', () => controller.openDrawer());
