@@ -1,5 +1,5 @@
 [
-  "O alvo de empacotamento e suporte comercial da versão 1.4.0 é Windows x64.",
+  "O alvo de empacotamento e suporte comercial da versão 1.4.1 é Windows x64.",
   "Todo o núcleo, a Fase 9 de profundidade operacional e os módulos E40-E54 funcionam localmente e na LAN, sem SaaS, nuvem ou assinatura obrigatória.",
   "Os módulos opcionais são ativados localmente por configuração; desativá-los não apaga dados históricos.",
   "Ao transformar um produto comum em produto pai com subitens/variações, qualquer saldo existente no produto pai deve ser zerado ou distribuído antes; depois disso o estoque passa a ser controlado nos subitens.",
@@ -8,7 +8,7 @@
   "Vendas concluídas antes da disponibilidade do snapshot histórico de custo não podem ter o custo original reconstruído com certeza; nesses registros o relatório sinaliza ESTIMATED_CURRENT e usa o custo atual como estimativa.",
   "Compras, recebimentos, reservas, transferências e pedidos da Fase 9 são locais e não constituem contabilidade por partidas dobradas, fiscal de entrada, multiempresa ou sincronização entre servidores independentes.",
   "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
-  "O QR de acesso mobile apenas codifica o endereço HTTP local; a versão 1.4.0 não declara a interface como PWA instalável.",
+  "O QR de acesso mobile apenas codifica o endereço HTTP local; a versão 1.4.1 não declara a interface como PWA instalável.",
   "A linha fiscal integrada contém a fundação P0-P16 já implementada, incluindo configuração tributária, ACBr local, máquina de estados, reconciliação, monitor, XML/DANFE, cancelamento, gate de produção e contingência. Isso não equivale a homologação real na SEFAZ sem certificado, CSC, credenciamento e evidência externa do cliente.",
   "O runtime fiscal P20 é empacotado como recurso externo ao ASAR. O projeto não redistribui automaticamente binários ACBr de terceiros; instalação e validação final dependem da licença e do ambiente do cliente.",
   "Fiscal Packs P21 são arquivos locais versionados e validados; sua instalação não exige servidor, SaaS ou assinatura. Um pack incompatível ou inválido deve ser rejeitado antes de substituir o pack ativo.",
@@ -18,6 +18,6 @@
   "A E54.1 valida automaticamente famílias de protocolos e cenários de falha/reconexão. PROTOCOL_VERIFIED significa compatibilidade de protocolo testada por CI, não homologação de um modelo físico específico.",
   "Nenhum modelo físico específico deve ser declarado homologado sem evidência real registrada. Modelo ainda não testado fisicamente usa UNTESTED_MODEL; somente equipamento realmente testado com evidência usa FIELD_VERIFIED.",
   "Formatos ou comandos proprietários de balança podem exigir configuração de porta, baud rate, comando e janela de resposta; um formato específico só deve ser anunciado como FIELD_VERIFIED após validação documentada no equipamento real.",
-  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.4.0 não usa sincronização em nuvem como substituto do servidor local.",
+  "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.4.1 não usa sincronização em nuvem como substituto do servidor local.",
   "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
 ]
