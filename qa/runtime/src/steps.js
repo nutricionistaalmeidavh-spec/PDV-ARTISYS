@@ -12,6 +12,15 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+async function dismissPostSaleBeforeNavigation(page, step) {
+  const selector = typeof step.selector === 'string' ? step.selector : '';
+  if (!/\[data-(?:home-)?route=/.test(selector)) return;
+  const close = page.locator('#post-sale-close');
+  if (!(await close.isVisible().catch(() => false))) return;
+  await close.click();
+  await close.waitFor({ state:'detached', timeout:step.timeoutMs ?? 10000 });
+}
+
 async function ensureHomeRouteContext(page, step) {
   if (typeof step.selector !== 'string' || !step.selector.includes('[data-home-route=')) return;
   const target = page.locator(step.selector);
@@ -75,6 +84,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'click': {
+      await dismissPostSaleBeforeNavigation(page, step);
       await ensureHomeRouteContext(page, step);
       const target = locator(page, step);
       const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
@@ -210,9 +220,17 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'expectText': {
       const expected = step.expected ?? '';
-      const texts = await locator(page, step).allTextContents();
-      if (!texts.some(actual => actual.includes(expected))) {
-        throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+      const target = locator(page, step);
+      const timeoutMs = Number(step.timeoutMs ?? 10000);
+      const deadline = Date.now() + timeoutMs;
+      let texts = [];
+      while (true) {
+        texts = await target.allTextContents();
+        if (texts.some(actual => actual.includes(expected))) break;
+        if (Date.now() >= deadline) {
+          throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+        }
+        await page.waitForTimeout(Math.min(100, Math.max(1, deadline - Date.now())));
       }
       break;
     }
