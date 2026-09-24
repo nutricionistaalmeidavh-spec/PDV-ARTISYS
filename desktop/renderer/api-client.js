@@ -46,6 +46,12 @@
     }
     logout() { this.sessionToken = ''; root.sessionStorage?.removeItem('artisys.sessionToken'); }
     currentSession() { return this.request('/api/v1/auth/session'); }
+    authorizeReturn({ username, password, saleId, terminalId }) {
+      return this.request('/api/v1/auth/authorize', {
+        method: 'POST',
+        body: { username, password, scope: 'return.complete', resource: { saleId, terminalId } }
+      });
+    }
 
     categories(includeInactive = false) { return this.request(`/api/v1/categories${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
