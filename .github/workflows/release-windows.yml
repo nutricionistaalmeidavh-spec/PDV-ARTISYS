@@ -52,12 +52,14 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or -not $version) { throw 'Não foi possível resolver a versão automática da release.' }
           $version = $version.Trim()
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
-          npm version $version --no-git-tag-version --allow-same-version
           Write-Host "Release version: $version"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Run release verification
         run: npm run verify:release
+      - name: Apply release version
+        shell: pwsh
+        run: npm version $env:RELEASE_VERSION --no-git-tag-version --allow-same-version
       - name: Build Windows x64 installer
         run: npm run dist:win
       - name: Smoke test packaged Windows app
