@@ -45,6 +45,14 @@ test('hardware scale UI exposes connection and baud and sends them to configureS
   assert.match(source, /configureScale\(\{profile,port,connection,baud,requestCommand\}\)/);
 });
 
+test('desktop bootstrap restores and persists connection and baud with the scale profile', () => {
+  const source = fs.readFileSync(path.join(__dirname,'../desktop/main.cjs'),'utf8');
+  assert.match(source, /PDV_SCALE_CONNECTION\s*=\s*storedScale\.connection/);
+  assert.match(source, /PDV_SCALE_BAUD\s*=\s*String\(storedScale\.baud/);
+  assert.match(source, /connection:configuration\.connection/);
+  assert.match(source, /baud:configuration\.baud/);
+});
+
 test('QA scale simulator exists only when ARTISYS_QA=1', async () => {
   const qaRuntime = createPdvHardwareRuntime({
     BrowserWindow:function(){},
