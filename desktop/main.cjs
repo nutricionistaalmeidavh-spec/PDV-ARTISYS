@@ -116,7 +116,7 @@ function registerIpc(){
   registerReceiptIpc({ipcMain,actions:receiptActions,isTrustedSender:trustedSender});
   registerFiscalIpc({ipcMain,store:fiscalStore,credentialStore:fiscalCredentialStore,isTrustedSender:trustedSender,providerResolver:fiscalProviderResolver,sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl()||null,dialog,getParentWindow:()=>mainWindow,onCertificateSaved:status=>runtime?.fiscalConfiguration?.saveCertificateMetadata?.({certificateName:status.certificateName,...(status.certificate||{})}),isProductionEnabled:()=>runtime?.fiscalProduction?.getActivation?.().enabled===true});
   registerImportIpc({ipcMain,dialog,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
-  const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey:{}}});
+  const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
   registerProductPhotoIpc({ipcMain,dialog,nativeImage,client:photoClient,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
   ipcMain.on('artisys:window:minimize',()=>mainWindow?.minimize());ipcMain.on('artisys:window:maximize',()=>{if(!mainWindow)return;if(mainWindow.isMaximized())mainWindow.unmaximize();else mainWindow.maximize();});ipcMain.on('artisys:window:close',()=>mainWindow?.close());
 }
