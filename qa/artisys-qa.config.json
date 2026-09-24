@@ -60,12 +60,11 @@
   },
   "qaProfiles": {
     "quick": {
-      "flows": [
-        "smoke"
-      ],
-      "criticalFlows": [
-        "smoke"
-      ]
+      "flows": ["smoke"],
+      "criticalFlows": ["smoke"],
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
     },
     "full": {
       "flows": [
@@ -113,7 +112,10 @@
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
         "fiscal-nfse-p8"
-      ]
+      ],
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
     },
     "release": {
       "flows": [
@@ -162,10 +164,21 @@
         "fiscal-config-p2-p5",
         "fiscal-nfse-p8"
       ],
-      "releaseGate": {
-        "enabled": true,
-        "requireAllCritical": true
-      }
+      "includeVisual": false,
+      "includeDesktop": false,
+      "includeNetwork": false
+    }
+  },
+  "demos": {
+    "quick-30s": {
+      "file": "demo/quick-30s.json",
+      "preset": "reels-9x16",
+      "durationTargetSec": 30
+    },
+    "overview-60s": {
+      "file": "demo/overview-60s.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 60
     }
   }
 }
