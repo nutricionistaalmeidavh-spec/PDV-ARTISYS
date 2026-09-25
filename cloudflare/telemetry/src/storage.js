@@ -24,4 +24,5 @@ async function recordError(db,event,now){
   return true;
 }
 async function purgeReceipts(db,now,days=30){const cutoff=new Date(Date.parse(now)-days*86400000).toISOString();await db.prepare('DELETE FROM event_receipts WHERE received_at < ?').bind(cutoff).run();}
-export{registerInstallation,updateInstallationSeen,recordError,purgeReceipts};
+async function purgeInactiveControlState(db,now,days=180){const cutoff=new Date(Date.parse(now)-days*86400000).toISOString();await db.prepare('DELETE FROM error_fingerprints WHERE last_seen_at < ?').bind(cutoff).run();await db.prepare('DELETE FROM installations WHERE last_seen_at < ?').bind(cutoff).run();}
+export{registerInstallation,updateInstallationSeen,recordError,purgeReceipts,purgeInactiveControlState};
