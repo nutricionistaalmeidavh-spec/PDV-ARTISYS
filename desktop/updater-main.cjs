@@ -28,6 +28,7 @@ onRuntimeTelemetryAttached((_telemetry, runtime) => {
   if (!runtime?.settings || telemetryConsentController) return;
   telemetryConsentController = createTelemetryConsentController({
     settings: {
+      get: (key, options) => runtime.settings.get(key, options),
       set: (key, value) => runtime.settings.set(key, value, {
         scope: 'global',
         actor: { role: 'system', userId: 'updater-consent' }
@@ -41,6 +42,7 @@ ipcMain.handle('updater:state', async () => service.state());
 ipcMain.handle('updater:check', async () => service.check());
 ipcMain.handle('updater:download', async () => service.download());
 ipcMain.handle('updater:install', async () => service.install());
+ipcMain.handle('updater:telemetry-consent-state', async () => telemetryConsentController?.state() || { version:0, requiredVersion:1, needsPrompt:false, available:false });
 ipcMain.handle('updater:telemetry-consent-install', async (_event, input = {}) => {
   if (!telemetryConsentController) throw new Error('Consentimento de telemetria indisponivel nesta instalacao.');
   return input.accepted ? telemetryConsentController.acceptAndInstall() : telemetryConsentController.declineAndInstall();
