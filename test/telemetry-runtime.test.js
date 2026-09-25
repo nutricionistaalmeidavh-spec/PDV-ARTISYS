@@ -1,0 +1,6 @@
+'use strict';
+const test=require('node:test');const assert=require('node:assert/strict');
+const {DatabaseSync}=require('node:sqlite');
+const {attachRuntimeTelemetry}=require('../js/core/telemetry/telemetry-runtime');
+function settings(){const m=new Map([['telemetry.enabled',true]]);return{get:(k,{defaultValue}={})=>m.has(k)?m.get(k):defaultValue,set:(k,v)=>{m.set(k,v);return{key:k,value:v};}};}
+test('authoritative host attaches telemetry once and transport can be configured later',async()=>{const db=new DatabaseSync(':memory:');db.exec('CREATE TABLE schema_migrations(version INTEGER); INSERT INTO schema_migrations VALUES(42);');const runtime={db,settings:settings(),logger:{log(){}},health:{snapshot:()=>({version:'1.4.1'})}};let seq=0;const telemetry=attachRuntimeTelemetry({runtime,idFactory:p=>`${p}-${++seq}`,now:()=> '2026-09-25T12:00:00.000Z'});assert.equal(runtime.telemetry,telemetry);assert.equal(attachRuntimeTelemetry({runtime}),telemetry);assert.equal(telemetry.record('screen_opened',{dimensions:{route:'sales'}}),true);assert.equal(telemetry.status().pending,1);let calls=0;telemetry.configureTransport({defaultEndpoint:'https://t.invalid',httpSender:{sendBatch:async()=>{calls++;return{status:200};}}});const out=await telemetry.flush();assert.equal(out.sent,1);assert.equal(calls,1);db.close();});
