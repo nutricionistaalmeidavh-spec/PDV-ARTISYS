@@ -19,7 +19,7 @@ Cloudflare is an optional hosted destination for the first implementation becaus
 3. Keep telemetry disabled by default and require explicit opt-in.
 4. Prevent collection of customer content, commercial content, credentials and fiscal payloads.
 5. Batch and retry events from a bounded local SQLite queue.
-6. Aggregate events in Cloudflare Analytics Engine and store control/state data in D1.
+6. Aggregate events in Cloudflare Analytics Engine and store only low-volume control/state data in D1.
 7. Generate stable error fingerprints so repeated failures become one diagnosable issue family.
 8. Provide automated terminal provisioning and deployment using Wrangler.
 9. Add tests that prove privacy, failure isolation, retry behavior and Worker validation.
@@ -162,7 +162,7 @@ Indexes support pending-event selection and retention cleanup.
 Queue rules:
 
 - default maximum retained pending events: 5,000;
-- successful events are removed or compacted after acknowledgment;
+- successful events are removed after acknowledgment;
 - oldest low-value events can be dropped when the hard cap is reached;
 - diagnostic/error events receive priority over flow events when trimming;
 - queue writes are short local SQLite operations;
@@ -197,7 +197,7 @@ error class
 
 Dynamic UUIDs, numeric IDs, file-system user paths, request values and message fragments likely to contain business/user content are removed before hashing.
 
-## 7. Local configuration
+## 7. Local configuration and protected state
 
 Use the existing `SettingsService` for non-secret telemetry configuration.
 
@@ -206,24 +206,28 @@ Initial settings:
 ```text
 telemetry.enabled = false
 telemetry.diagnostics = false
-telemetry.endpoint = <release default or empty>
+telemetry.endpoint = ''
 telemetry.batchSize = 50
 ```
 
-Secret material must not be stored in `app_settings` because the existing service correctly rejects sensitive keys. Installation credentials use the same protected-storage pattern already used for sensitive desktop credentials or a dedicated protected file/key store.
+`telemetry.endpoint` is empty in source and development by default. Official builds may inject the production telemetry endpoint through an explicit build/release configuration such as `PDV_TELEMETRY_ENDPOINT`; no Cloudflare URL is a hidden runtime dependency.
 
-The UI will expose a privacy/diagnostics setting that clearly states what is collected and what is never collected. First release behavior is opt-in; upgrades do not silently enable telemetry.
+Secret material must not be stored in `app_settings` because the existing service correctly rejects sensitive keys. Installation credentials reuse the Electron `safeStorage` pattern already used by `desktop/terminal-credentials.cjs`, in a separate telemetry credential file.
+
+The UI exposes a privacy/diagnostics setting that clearly states what is collected and what is never collected. First release behavior is opt-in; upgrades do not silently enable telemetry. Global enable/disable remains restricted to an administrator/manager path consistent with existing settings permissions.
 
 ## 8. Identifiers
 
-Allowed identifiers are pseudonymous technical identifiers:
+Telemetry identifiers are generated specifically for telemetry and are not derived from MAC address, hostname, Windows username, customer document or hardware serial.
 
-- `installation_id`
-- `terminal_id`
-- random `session_id`
-- `release_id` / git SHA
-- `app_version`
-- `database_schema_version`
+Allowed identifiers:
+
+- random `installation_id` generated once and persisted locally;
+- random telemetry `terminal_id` per terminal;
+- random `session_id` per app session;
+- `release_id` / git SHA;
+- `app_version`;
+- `database_schema_version`.
 
 No real `userId`, username or employee name is transmitted.
 
@@ -239,8 +243,8 @@ Every event uses a versioned envelope:
   "event_id": "uuid",
   "event_name": "sale_completed",
   "occurred_at": "2026-09-25T18:00:00.000Z",
-  "installation_id": "pseudonymous-id",
-  "terminal_id": "terminal-02",
+  "installation_id": "random-installation-id",
+  "terminal_id": "random-terminal-id",
   "session_id": "random-session-id",
   "app_version": "1.4.1",
   "release_id": "git-sha-or-build-id",
@@ -286,10 +290,11 @@ Rules:
 - retry uses exponential backoff with jitter;
 - `2xx` acknowledges the batch;
 - `400/413/422` marks invalid events as non-retryable;
-- `401/403` pauses transmission until credentials/configuration change;
+- `401/403` pauses transmission and triggers credential re-registration only on a later background cycle;
 - `429` and `5xx` retry with backoff;
-- app shutdown may attempt a short best-effort flush but cannot delay exit materially;
-- duplicate delivery is allowed and handled by `event_id` at the collector boundary.
+- app shutdown may attempt a short best-effort flush but cannot materially delay exit;
+- delivery is at-least-once; duplicate flow events are possible after ambiguous network failures;
+- D1-mutating error/control events use bounded receipt deduplication by `event_id`.
 
 ## 11. Runtime integration
 
@@ -304,9 +309,9 @@ Examples:
 - print job final failure -> `printer_failed`;
 - completed return -> `return_completed`.
 
-UI-only events such as `screen_opened` should be emitted from the renderer through a narrow IPC/API boundary rather than giving renderer code direct database access.
+UI-only events such as `screen_opened` are emitted from the renderer through a narrow IPC/API boundary rather than giving renderer code direct database access.
 
-## 12. Cloudflare project
+## 12. Cloudflare project and endpoints
 
 Add an independent project:
 
@@ -323,10 +328,27 @@ The Worker exposes:
 
 ```text
 GET  /health
+POST /v1/installations/register
 POST /v1/events
 ```
 
-No public administration endpoint is required for the first release.
+No public administration/read endpoint is required for the first release.
+
+### 12.1 Registration/bootstrap
+
+When telemetry is explicitly enabled and the client has no telemetry credential, it may call `POST /v1/installations/register` in the background.
+
+The client sends only:
+
+- its random telemetry `installation_id`;
+- current app/release/schema versions;
+- a protocol version.
+
+The Worker returns a random high-entropy ingestion credential exactly once in the response and stores only its hash in D1. The client stores the credential with Electron `safeStorage` in a dedicated telemetry credential file.
+
+The registration endpoint is intentionally capability-limited: it grants only event-ingestion permission and no read/admin access. Because the initial product has no external account/licensing authority suitable for telemetry bootstrap, registration is public but protected by strict request-size limits, schema validation and Cloudflare/Worker rate limiting. The Worker does not persist client IP addresses as telemetry data. A future customer-account or license system may replace this bootstrap without changing `/v1/events`.
+
+Registration failure never blocks ArtiSys. Events remain within the bounded local retention policy until a credential exists or they age out.
 
 ## 13. Worker request processing
 
@@ -340,10 +362,11 @@ No public administration endpoint is required for the first release.
 6. envelope/schema-version validation;
 7. event count limit;
 8. server-side field allowlist/sanitization;
-9. event-id deduplication where required;
-10. Analytics Engine write;
-11. D1 updates only for installation/fingerprint/control state;
-12. bounded structured response.
+9. Analytics Engine write;
+10. D1 updates only for installation/error/control state;
+11. bounded structured response.
+
+For error/control events that mutate D1 summaries, the Worker checks a bounded `event_receipts` table before applying the mutation. Flow events do not create D1 receipts.
 
 The Worker never stores raw rejected bodies.
 
@@ -362,11 +385,11 @@ Analytics Engine is used for questions such as:
 - recurring error fingerprints;
 - flow counts between key milestones.
 
-Raw customer/business content is never stored.
+Raw customer/business content is never stored. The implementation does not create a second long-term raw event archive outside Analytics Engine.
 
 ## 15. D1 responsibility
 
-D1 stores low-volume control/state data, not every telemetry event.
+D1 stores low-volume control/state data, not the general event stream.
 
 Initial migration creates:
 
@@ -393,15 +416,26 @@ CREATE TABLE error_fingerprints (
   fixed_version TEXT
 );
 
+CREATE TABLE error_fingerprint_installations (
+  fingerprint TEXT NOT NULL,
+  installation_id TEXT NOT NULL,
+  first_seen_at TEXT NOT NULL,
+  last_seen_at TEXT NOT NULL,
+  PRIMARY KEY (fingerprint, installation_id)
+);
+
 CREATE TABLE event_receipts (
   event_id TEXT PRIMARY KEY,
+  receipt_type TEXT NOT NULL,
   received_at TEXT NOT NULL
 );
 ```
 
-`event_receipts` uses bounded retention and exists only if needed for idempotency. It must not grow indefinitely.
+`error_fingerprint_installations` supports exact affected-installation counts without storing business payloads. `event_receipts` is used only for D1-mutating error/control events and is purged on bounded retention; ordinary flow events do not create receipt rows.
 
 Credentials are stored as hashes, not plaintext.
+
+Inactive installation/control records receive an explicit cleanup job or maintenance command; the first implementation must document the chosen retention window and must not retain obsolete receipt rows indefinitely.
 
 ## 16. Authentication and abuse controls
 
@@ -413,17 +447,17 @@ Properties:
 - revocable/rotatable;
 - no read access to telemetry;
 - no access to customer or PDV APIs;
-- Worker compares a hash or derived credential representation rather than storing plaintext secrets in D1;
+- Worker compares a cryptographic hash or derived credential representation rather than storing plaintext secrets in D1;
 - endpoint enforces maximum events/request and maximum bytes/request;
-- Cloudflare rate limiting or Worker-level limits can be added without changing the client contract.
+- registration and ingestion can use Cloudflare rate limiting/WAF controls without changing the client contract.
 
-Credential bootstrap must not require telemetry to be available for the PDV to operate. If no credential exists, events remain local or are discarded according to retention policy.
+Credential bootstrap must not require telemetry to be available for the PDV to operate.
 
 ## 17. Error fingerprint aggregation
 
 For error events the client sends the stable fingerprint plus allowed technical dimensions.
 
-The Worker updates D1 summary state and writes the occurrence to Analytics Engine.
+The Worker updates D1 summary state and writes the occurrence to Analytics Engine. It updates `affected_installations` only when `(fingerprint, installation_id)` is inserted for the first time.
 
 Example diagnostic view derivable from stored data:
 
@@ -446,22 +480,22 @@ Add a root command:
 npm run telemetry:cloudflare:setup
 ```
 
-Backed by a script under `scripts/`, for example `scripts/setup-cloudflare-telemetry.mjs`.
+Backed by `scripts/setup-cloudflare-telemetry.mjs`.
 
 The script orchestrates Wrangler and performs these steps:
 
 1. verify Node/npm and Wrangler availability;
-2. verify Cloudflare authentication (`wrangler whoami`);
+2. verify Cloudflare authentication with `wrangler whoami`;
 3. create or locate the D1 database;
 4. update/verify the D1 binding in `wrangler.jsonc`;
 5. verify Analytics Engine binding configuration;
 6. apply D1 migrations remotely;
-7. request/set required Worker secrets interactively when absent;
+7. set any server-only Worker secrets when required;
 8. deploy the Worker;
 9. call `/health` and fail if the deployed service is not healthy;
-10. print the resulting endpoint and the ArtiSys configuration command/value.
+10. print the resulting endpoint and the exact ArtiSys build/runtime configuration needed to use it.
 
-The setup script must be idempotent: rerunning it must reuse existing resources where possible instead of creating duplicates.
+The setup script must be idempotent: rerunning it reuses existing resources where possible instead of creating duplicates.
 
 No paid Cloudflare service becomes a hidden requirement. The README documents which resources may incur Cloudflare charges if usage exceeds the account's included quotas.
 
@@ -471,7 +505,7 @@ No paid Cloudflare service becomes a hidden requirement. The README documents wh
 
 Prove:
 
-- disabled telemetry records/sends nothing remotely;
+- disabled telemetry performs no remote transmission;
 - event schemas reject unknown fields;
 - sanitizer blocks sensitive field names and representative sensitive values;
 - queue survives runtime restart;
@@ -482,28 +516,33 @@ Prove:
 - 4xx classification does not retry invalid payloads indefinitely;
 - telemetry failures never fail a sale/business operation;
 - error fingerprints are deterministic after normalization;
-- dynamic IDs/paths do not change the fingerprint.
+- dynamic IDs/paths do not change the fingerprint;
+- installation and terminal telemetry IDs are random and independent from hardware/user identity;
+- telemetry credential is stored through protected desktop storage, not `app_settings`.
 
 ### 19.2 Worker tests
 
 Prove:
 
 - `/health` succeeds without exposing secrets;
-- missing/invalid credentials return auth errors;
+- registration accepts only the narrow bootstrap schema and is rate-limit compatible;
+- registration stores only credential hash and returns plaintext credential only in the creation response;
+- missing/invalid ingestion credentials return auth errors;
 - invalid content type/body/schema is rejected;
 - oversized payload is rejected;
 - event count is bounded;
 - server sanitizer rejects prohibited fields even when client sanitizer is bypassed;
 - valid events write to Analytics Engine;
 - installation/fingerprint state updates D1 correctly;
-- duplicate `event_id` is idempotent when receipt dedupe is enabled;
+- repeated error event IDs do not inflate D1 summary counters;
+- ordinary flow events do not write `event_receipts`;
 - internal failures return `500`, not `400/401`.
 
 ### 19.3 Integration/release gates
 
 Add telemetry files to syntax/lint checks and include telemetry tests in the existing `npm test` / release verification path.
 
-Cloudflare integration tests must use local/mocked bindings in normal CI and must not require a production Cloudflare account for the core repository test suite.
+Cloudflare integration tests use local/mocked bindings in normal CI and must not require a production Cloudflare account for the core repository test suite.
 
 An optional deployment smoke test may run only when Cloudflare CI credentials are explicitly configured.
 
@@ -526,9 +565,10 @@ Implementation is rejected if any of the following is true:
 - telemetry is enabled silently on upgrade;
 - arbitrary application objects can be serialized and sent;
 - credentials are written to `app_settings` or logs;
+- telemetry identifiers are derived from hostname, OS username, customer documents or hardware serials;
 - customer PII or payment/fiscal secret payloads appear in telemetry tests;
 - Worker logs raw request bodies;
-- D1 becomes the per-event analytics store;
+- D1 becomes the general per-event analytics store;
 - local queue can grow without a hard cap;
 - Cloudflare availability becomes a startup requirement.
 
@@ -542,10 +582,10 @@ The feature is complete when:
 4. the initial event allowlist is implemented;
 5. client and Worker both enforce privacy sanitization;
 6. batch upload, retry and backoff work without affecting business flows;
-7. Cloudflare Worker supports `/health` and `/v1/events`;
+7. Cloudflare Worker supports `/health`, `/v1/installations/register` and `/v1/events`;
 8. Analytics Engine receives event metrics;
-9. D1 stores installation/fingerprint control state only;
-10. telemetry credentials are separated from PDV credentials;
+9. D1 stores installation/fingerprint/control state rather than the general event stream;
+10. telemetry credentials are separated from PDV credentials and stored with protected local storage;
 11. automated Wrangler provisioning/deployment is idempotent;
 12. repository verification gates include telemetry tests;
 13. documentation includes the one-command Cloudflare setup and manual fallback commands;
@@ -560,4 +600,4 @@ npm install
 npm run telemetry:cloudflare:setup
 ```
 
-The setup command prints the deployed endpoint and any local configuration values required by ArtiSys. Day-to-day PDV operation requires no Cloudflare process, VPS, Docker container or workstation to remain running.
+The setup command prints the deployed endpoint and any build/runtime configuration values required by ArtiSys. Day-to-day PDV operation requires no Cloudflare process, VPS, Docker container or workstation to remain running.
