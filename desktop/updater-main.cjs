@@ -4,6 +4,7 @@ const { app, ipcMain, BrowserWindow } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { createUpdaterService } = require('./updater-service.cjs');
 require('./main.cjs');
+require('./telemetry-bootstrap.cjs');
 
 const electronMajor = Number(String(process.versions.electron || '').split('.')[0] || 0);
 const legacyRuntime = electronMajor > 0 && electronMajor <= 22;
