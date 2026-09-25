@@ -8,6 +8,7 @@
   const api=new ApiClient();
   const RESTAURANT_SETTING='modules.RESTAURANT.enabled';
   const GATE_STYLE_ID='restaurant-module-gate-style';
+  const REFRESH_INTERVAL_MS=5000;
   let restaurantEnabled=false;
   let stateResolved=false;
 
@@ -75,6 +76,10 @@
     Object.defineProperty(wrappedLogin,'__restaurantModuleGateWrapped',{value:true});
     ApiClient.prototype.login=wrappedLogin;
   }
+
+  root.addEventListener('focus',()=>{void refresh();});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
+  if(typeof root.setInterval==='function')root.setInterval(()=>{void refresh();},REFRESH_INTERVAL_MS);
 
   root.PdvRestaurantModuleGate=Object.freeze({
     refresh,

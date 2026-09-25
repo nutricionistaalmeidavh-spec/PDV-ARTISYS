@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 const fs=require('node:fs');
 const path=require('node:path');
@@ -140,7 +141,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
       return false;
     }catch(error){
       if(!pathname.startsWith('/api/v1/mobile/')&&!pathname.startsWith('/api/v1/restaurant/'))throw error;
-      const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400);
+      const status=statusForError(error);
       try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'restaurant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}
       json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});
       return true;

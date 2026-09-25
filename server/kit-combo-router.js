@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 class KitComboHttpError extends Error { constructor(statusCode,message){super(message);this.statusCode=statusCode;} }
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
@@ -23,7 +24,7 @@ function createKitComboRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='GET'&&pathname===combosPath){json(response,200,runtime.kitsCombos.listPromotionalCombos({includeInactive}));return true;}
       if(request.method==='POST'&&pathname===combosPath){json(response,201,runtime.kitsCombos.upsertPromotionalCombo(await body(request),actor));return true;}
       throw new KitComboHttpError(405,'Metodo nao permitido.');
-    }catch(error){const status=error.statusCode||(/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:'warn',subsystem:'kit-combo-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
+    }catch(error){const status=statusForError(error);try{runtime.logger?.log({level:'warn',subsystem:'kit-combo-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
   };
 }
 

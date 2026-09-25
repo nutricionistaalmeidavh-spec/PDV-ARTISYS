@@ -60,4 +60,12 @@ if (!/não dependem da ativação do módulo opcional `RETAIL`/.test(catalogDoc)
   fail('catalog architecture doc must state that parent/subitem variants are core catalog behavior.');
 }
 
+function assertReleaseChecklistVersionNeutral() {
+  const checklist = read('release/release-checklist.md');
+  if (/^#.*\bv?\d+\.\d+\.\d+/m.test(checklist)) fail('release checklist title must not hardcode a SemVer.');
+  if (/ArtiSys-PDV-\d+\.\d+\.\d+-x64-Setup\.exe/.test(checklist)) fail('release checklist artifact must use RELEASE_VERSION instead of a hardcoded SemVer.');
+  if (!checklist.includes('RELEASE_VERSION') || !checklist.includes('resolve-release-version.js')) fail('release checklist must document dynamic release version resolution.');
+}
+assertReleaseChecklistVersionNeutral();
+
 console.log(`Documentation consistency OK for ArtiSys PDV ${pkg.version}.`);

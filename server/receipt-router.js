@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 const {createSaleReceiptService}=require('../js/domains/printing/sale-receipt-projection');
 const {resolvePrintingPreferences,validatePrintingPreferences}=require('../js/domains/printing/printing-preferences');
@@ -97,7 +98,7 @@ function createReceiptRouter({runtime,sessionStore,env=process.env,isExistingIns
       const saleId=decodeURIComponent(receiptMatch[1]);
       sendJson(res,200,saleReceipt(saleId));
       return true;
-    }catch(error){sendJson(res,Number(error.statusCode||400),{error:error.message||'Falha ao processar comprovante/impressao.'});return true;}
+    }catch(error){sendJson(res,statusForError(error),{error:error.message||'Falha ao processar comprovante/impressao.'});return true;}
   };
 }
 
