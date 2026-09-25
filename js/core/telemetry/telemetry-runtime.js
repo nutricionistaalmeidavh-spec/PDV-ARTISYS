@@ -1,6 +1,6 @@
 'use strict';
 const {createTelemetryIdentity}=require('./telemetry-identity');
-const {createTelemetryService}=require('./telemetry-service');
+const {createTelemetryService}=require('./telemetry-core');
 const ATTACH_LISTENERS=new Set();let lastTelemetry=null;
 function onRuntimeTelemetryAttached(handler){if(typeof handler!=='function')throw new TypeError('handler obrigatorio.');ATTACH_LISTENERS.add(handler);if(lastTelemetry)queueMicrotask(()=>{if(ATTACH_LISTENERS.has(handler))handler(lastTelemetry);});return()=>ATTACH_LISTENERS.delete(handler);}
 function attachRuntimeTelemetry({runtime,httpSender=null,defaultEndpoint='',releaseId='',appVersion='',now=()=>new Date().toISOString(),idFactory}={}){
