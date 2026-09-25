@@ -7,10 +7,21 @@
 
   const api=new ApiClient();
   const RESTAURANT_SETTING='modules.RESTAURANT.enabled';
+  const GATE_STYLE_ID='restaurant-module-gate-style';
   let restaurantEnabled=false;
   let stateResolved=false;
 
+  function ensureGateStyle(){
+    if(document.getElementById(GATE_STYLE_ID))return;
+    const style=document.createElement('style');
+    style.id=GATE_STYLE_ID;
+    style.textContent='html[data-restaurant-module-enabled="false"] [data-restaurant-route]{display:none !important}';
+    (document.head||document.documentElement).appendChild(style);
+  }
+
   function applyLauncherState(){
+    ensureGateStyle();
+    document.documentElement?.setAttribute('data-restaurant-module-enabled',restaurantEnabled?'true':'false');
     document.querySelectorAll('[data-restaurant-route]').forEach(launcher=>{
       launcher.hidden = !restaurantEnabled;
       launcher.setAttribute('aria-hidden',restaurantEnabled?'false':'true');
@@ -35,9 +46,6 @@
     }
     return restaurantEnabled;
   }
-
-  const observer=new MutationObserver(()=>applyLauncherState());
-  observer.observe(document.documentElement||document.body,{childList:true,subtree:true});
 
   root.addEventListener('click',event=>{
     const target=event.target?.closest?.('[data-restaurant-route]');
