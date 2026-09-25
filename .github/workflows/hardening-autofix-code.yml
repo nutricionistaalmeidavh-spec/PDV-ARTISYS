@@ -1,0 +1,36 @@
+name: hardening-autofix-code
+
+on:
+  push:
+    branches:
+      - fix/hardening-modules-release-1.4.12
+    paths:
+      - '.github/workflows/hardening-autofix-code.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reuse hardening generator
+        shell: bash
+        run: |
+          awk '/^[[:space:]]*node <<'"'"'NODE'"'"'/{capture=1;next} capture && /^[[:space:]]*NODE[[:space:]]*$/{exit} capture{sub(/^[[:space:]]{10}/,"");print}' .github/workflows/hardening-autofix.yml > /tmp/hardening-apply.js
+          node /tmp/hardening-apply.js
+      - name: Generate root package lock
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit code and lockfile only
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add desktop qa server package-lock.json release scripts test docs/architecture/e30-e39-restaurant.md
+          git commit -m 'fix: harden modules errors and release reproducibility'
+          git push origin HEAD:fix/hardening-modules-release-1.4.12
