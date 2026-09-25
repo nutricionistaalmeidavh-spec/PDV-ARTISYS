@@ -27,6 +27,10 @@ test('route stability preserves intentional vertical subviews owned by Settings'
   assert.match(source, /if \(!route \|\| hasOwnedSubview\(route\)\) return;/);
 });
 
+test('route stability preserves the dedicated Returns UI instead of remounting the canonical route', () => {
+  assert.match(source, /route === 'returns' && Boolean\(content\.querySelector\('\[data-returns-ui\]'\)\)/);
+});
+
 test('all operational routes use the shared active-route marker for recovery', () => {
   for (const route of ['inventory','cash','sales','returns','finance','reports','settings']) {
     assert.match(source, new RegExp(`['\"]${route}['\"]`));
