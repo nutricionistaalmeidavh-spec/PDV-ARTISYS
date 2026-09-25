@@ -22,7 +22,9 @@ Vendas podem ser suspensas e retomadas. Cancelamento de venda concluída exige p
 
 Abra **Devolução (F11)**, pesquise uma venda concluída, carregue os detalhes, selecione itens/quantidades, informe o motivo e a forma de reembolso e confirme. A interface calcula o total selecionado e considera devoluções anteriores para mostrar somente a quantidade ainda disponível.
 
-A confirmação exige sessão de **gerente ou administrador**; operadores podem consultar a tela, mas não concluir a devolução. O servidor continua sendo a autoridade final de permissão, quantidade disponível, total e forma de reembolso.
+Sessões de **gerente ou administrador** podem concluir a devolução diretamente. Um operador de caixa pode concluir somente após informar credenciais válidas de gerente/admin; o servidor emite uma autorização de uso único vinculada ao contexto da devolução e preserva separadamente as identidades do operador e do autorizador na auditoria. Outros perfis sem permissão podem consultar a tela, mas não concluir a operação.
+
+O servidor continua sendo a autoridade final de permissão, quantidade disponível, total e forma de reembolso. A autorização delegada não substitui essas validações nem permite devolver acima do saldo restante.
 
 Devoluções parciais preservam a venda original e registram estoque/caixa como movimentos próprios e idempotentes. Depois de concluir, o histórico da própria venda é recarregado para exibir a devolução e impedir nova devolução acima da quantidade restante.
 
