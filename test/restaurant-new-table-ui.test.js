@@ -23,7 +23,8 @@ test('launcher do restaurante obedece ao estado do modulo e some quando desativa
   const gate=fs.readFileSync(gatePath,'utf8');
   const html=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
   assert.match(gate,/api\.modules\(\)/);
-  assert.match(gate,/modules\.RESTAURANT\.enabled/);
+  assert.match(gate,/modules\.find\(module=>module\.id==='RESTAURANT'\)/);
+  assert.match(gate,/restaurant\?\.enabled/);
   assert.match(gate,/\[data-restaurant-route\]/);
   assert.match(gate,/launcher\.hidden\s*=\s*!restaurantEnabled/);
   assert.match(gate,/ApiClient\.prototype\.saveSetting/);
