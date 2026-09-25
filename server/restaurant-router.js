@@ -29,6 +29,8 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     return{device:auth.device,actor:{userId:auth.device.userId||null,role:`mobile-${auth.device.deviceType.toLowerCase()}`,terminalId:null}};
   }
 
+  function requireRestaurantEnabled(){runtime.modules?.requireEnabled('RESTAURANT');}
+
   async function mutate(request,pathname,statusCode,handler){
     const mutationId=String(request.headers['x-mutation-id']||'').trim();
     if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};
@@ -47,6 +49,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(!pathname.startsWith('/api/v1/mobile/'))return false;
     if(request.method==='GET'&&pathname==='/api/v1/mobile/health'){json(response,200,{ok:true,localOnly:true});return true;}
     const principal=mobilePrincipal(request);
+    requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
       const device=principal.device;const products=runtime.catalog.listProducts().map(p=>({id:p.id,name:p.name,categoryId:p.categoryId,categoryName:p.categoryName,salePriceCents:p.salePriceCents,unit:p.unit}));
       if(device.deviceType==='TABLET'){
@@ -88,6 +91,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   async function desktopRoute(request,response,url,pathname){
     if(!pathname.startsWith('/api/v1/restaurant/'))return false;
     const principal=desktopPrincipal(request);const actor=principal.actor;
+    requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
     const tableOpen=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/open$/);
@@ -134,7 +138,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
       if(await mobileRoute(request,response,url,pathname))return true;
       if(await desktopRoute(request,response,url,pathname))return true;
       return false;
-    }catch(error){if(!pathname.startsWith('/api/v1/mobile/')&&!pathname.startsWith('/api/v1/restaurant/'))throw error;const status=error.statusCode||(/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'restaurant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
+    }catch(error){
+      if(!pathname.startsWith('/api/v1/mobile/')&&!pathname.startsWith('/api/v1/restaurant/'))throw error;
+      const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400);
+      try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'restaurant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}
+      json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});
+      return true;
+    }
   };
 }
 
