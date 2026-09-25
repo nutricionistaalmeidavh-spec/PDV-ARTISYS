@@ -54,7 +54,7 @@ jobs:
           "RELEASE_VERSION=$version" >> $env:GITHUB_ENV
           Write-Host "Release version: $version"
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Run release verification
         run: npm run verify:release
       - name: Apply release version

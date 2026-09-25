@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 function bearer(request) {
   const value = String(request.headers.authorization || '');
@@ -177,7 +178,7 @@ function createReturnAuthorizationRouter({
       sendJson(response, result.statusCode, result.payload);
       return true;
     } catch (error) {
-      sendJson(response, error.statusCode || 400, { error:error.message || 'Erro na autorizacao da devolucao.' });
+      sendJson(response, statusForError(error), { error:error.message || 'Erro na autorizacao da devolucao.' });
       return true;
     }
   };

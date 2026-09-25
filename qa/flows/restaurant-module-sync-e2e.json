@@ -1,0 +1,54 @@
+{
+  "name": "restaurant-module-sync-e2e",
+  "steps": [
+    {"uses":"home.json"},
+    {
+      "action": "waitFor",
+      "selector": "#route-content [data-restaurant-route]",
+      "state": "visible",
+      "name": "restaurant-launcher-visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/settings/modules.RESTAURANT.enabled",
+      "method": "PUT",
+      "body": {
+        "value": false,
+        "scope": "global"
+      },
+      "expectedStatus": 200,
+      "name": "disable-restaurant-outside-api-client"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#route-content [data-restaurant-route]",
+      "state": "hidden",
+      "name": "restaurant-launcher-hidden-after-external-change",
+      "timeoutMs": 12000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/settings/modules.RESTAURANT.enabled",
+      "method": "PUT",
+      "body": {
+        "value": true,
+        "scope": "global"
+      },
+      "expectedStatus": 200,
+      "name": "enable-restaurant-outside-api-client"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#route-content [data-restaurant-route]",
+      "state": "visible",
+      "name": "restaurant-launcher-restored-after-external-change",
+      "timeoutMs": 12000
+    },
+    {
+      "action": "screenshot",
+      "name": "restaurant-module-sync-restored",
+      "fullPage": true
+    }
+  ]
+}

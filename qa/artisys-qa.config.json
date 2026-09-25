@@ -58,12 +58,17 @@
     "fiscal-block6": "flows/fiscal-block6.json",
     "fiscal-ui-parity-baseline": "flows/fiscal-ui-parity-baseline.json",
     "fiscal-config-p2-p5": "flows/fiscal-config-p2-p5.json",
-    "fiscal-nfse-p8": "flows/fiscal-nfse-p8.json"
+    "fiscal-nfse-p8": "flows/fiscal-nfse-p8.json",
+    "restaurant-module-sync-e2e": "flows/restaurant-module-sync-e2e.json"
   },
   "qaProfiles": {
     "quick": {
-      "flows": ["smoke"],
-      "criticalFlows": ["smoke"],
+      "flows": [
+        "smoke"
+      ],
+      "criticalFlows": [
+        "smoke"
+      ],
       "includeVisual": false,
       "includeDesktop": false,
       "includeNetwork": false
@@ -92,7 +97,8 @@
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
+        "fiscal-nfse-p8",
+        "restaurant-module-sync-e2e"
       ],
       "criticalFlows": [
         "smoke",
@@ -117,7 +123,8 @@
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
+        "fiscal-nfse-p8",
+        "restaurant-module-sync-e2e"
       ],
       "includeVisual": false,
       "includeDesktop": false,
@@ -147,7 +154,8 @@
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
+        "fiscal-nfse-p8",
+        "restaurant-module-sync-e2e"
       ],
       "criticalFlows": [
         "smoke",
@@ -172,7 +180,8 @@
         "fiscal-block6",
         "fiscal-ui-parity-baseline",
         "fiscal-config-p2-p5",
-        "fiscal-nfse-p8"
+        "fiscal-nfse-p8",
+        "restaurant-module-sync-e2e"
       ],
       "includeVisual": false,
       "includeDesktop": false,

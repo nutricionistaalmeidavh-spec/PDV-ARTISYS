@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 class VerticalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
@@ -95,7 +96,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='POST'&&bakeryCancel){const data=await body(request);json(response,200,runtime.marketBakery.cancelBakeryOrder(decodeURIComponent(bakeryCancel[1]),data.reason,actor));return true;}
 
       throw new VerticalHttpError(404,'Rota vertical nao encontrada.');
-    }catch(error){const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
+    }catch(error){const status=statusForError(error);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
   };
 }
 module.exports={createVerticalRouter,VerticalHttpError};

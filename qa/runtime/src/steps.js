@@ -112,6 +112,18 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
+    case 'desktopApiRequest': {
+      const requestPath=String(step.path||'').trim();
+      if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);
+      const result=await page.evaluate(async input=>{
+        if(typeof window.artisysDesktop?.apiRequest!=='function')throw new Error('Desktop API bridge unavailable');
+        const sessionToken=sessionStorage.getItem('artisys.sessionToken')||null;
+        return window.artisysDesktop.apiRequest({path:input.path,method:input.method||'GET',body:input.body,sessionToken});
+      },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
+      if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
+      if(step.expectOk!==false&&!result?.ok)throw new Error(`${label}: desktop API request failed: ${JSON.stringify(result?.payload||null)}`);
+      break;
+    }
     case 'setFeatureFlags': {
       const allowed = new Set(['productsDenseView', 'customersMasterDetailView']);
       const flags = step.flags;
