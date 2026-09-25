@@ -69,7 +69,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install PDV dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Install pinned ArtiSys QA runtime
         run: npm ci --prefix qa/runtime --no-audit --no-fund
       - name: Ensure capture tools are available
