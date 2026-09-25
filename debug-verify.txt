@@ -1,0 +1,522 @@
+  ---
+  duration_ms: 1.651527
+  type: 'test'
+  ...
+# Subtest: P9 adapter preserves timeout as indeterminate instead of a retryable generic failure
+ok 6 - P9 adapter preserves timeout as indeterminate instead of a retryable generic failure
+  ---
+  duration_ms: 1.072802
+  type: 'test'
+  ...
+# Subtest: P9 adapter queries an existing access key through NFe.ConsultarNFe
+ok 7 - P9 adapter queries an existing access key through NFe.ConsultarNFe
+  ---
+  duration_ms: 0.670796
+  type: 'test'
+  ...
+# (node:2433) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/PDV-ARTISYS/PDV-ARTISYS/test/artisys-qa-integration.test.js is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+
+---
+
+  duration_ms: 1.651527
+  type: 'test'
+  ...
+# Subtest: P9 adapter preserves timeout as indeterminate instead of a retryable generic failure
+ok 6 - P9 adapter preserves timeout as indeterminate instead of a retryable generic failure
+  ---
+  duration_ms: 1.072802
+  type: 'test'
+  ...
+# Subtest: P9 adapter queries an existing access key through NFe.ConsultarNFe
+ok 7 - P9 adapter queries an existing access key through NFe.ConsultarNFe
+  ---
+  duration_ms: 0.670796
+  type: 'test'
+  ...
+# (node:2433) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///home/runner/work/PDV-ARTISYS/PDV-ARTISYS/test/artisys-qa-integration.test.js is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to /home/runner/work/PDV-ARTISYS/PDV-ARTISYS/package.json.
+
+---
+
+  duration_ms: 0.701162
+  type: 'test'
+  ...
+# Subtest: PDV release profile gates reporting v2, checkout UX, desktop regressions, post-sale output, paired UX finalization, enterprise depth, backend/UI parity and fiscal E2E
+not ok 10 - PDV release profile gates reporting v2, checkout UX, desktop regressions, post-sale output, paired UX finalization, enterprise depth, backend/UI parity and fiscal E2E
+  ---
+  duration_ms: 3.297033
+  type: 'test'
+  location: '/home/runner/work/PDV-ARTISYS/PDV-ARTISYS/test/artisys-qa-integration.test.js:27:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'smoke',
+        'home',
+
+---
+
+  ---
+  duration_ms: 3.297033
+  type: 'test'
+  location: '/home/runner/work/PDV-ARTISYS/PDV-ARTISYS/test/artisys-qa-integration.test.js:27:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'smoke',
+        'home',
+        'sales-enhancements',
+        'checkout-ux-preservation',
+    ...
+        'fiscal-nfse-p8',
+    +   'restaurant-module-sync-e2e'
+
+---
+
+  duration_ms: 3.297033
+  type: 'test'
+  location: '/home/runner/work/PDV-ARTISYS/PDV-ARTISYS/test/artisys-qa-integration.test.js:27:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    ... Skipped lines
+    
+      [
+        'smoke',
+        'home',
+        'sales-enhancements',
+        'checkout-ux-preservation',
+    ...
+        'fiscal-nfse-p8',
+    +   'restaurant-module-sync-e2e'
+      ]
+
+---
+
+        'fiscal-nfse-p8',
+    +   'restaurant-module-sync-e2e'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'smoke'
+    1: 'home'
+    2: 'sales-enhancements'
+    3: 'checkout-ux-preservation'
+    4: 'post-sale-print-pdf'
+    5: 'printing-settings-e2e'
+    6: 'reports-v2-complete'
+    7: 'core-business-e2e'
+    8: 'ux-products-clients-cross-flow'
+    9: 'products-deep-e2e'
+    10: 'customers-deep-e2e'
+
+---
+
+    +   'restaurant-module-sync-e2e'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'smoke'
+    1: 'home'
+    2: 'sales-enhancements'
+    3: 'checkout-ux-preservation'
+    4: 'post-sale-print-pdf'
+    5: 'printing-settings-e2e'
+    6: 'reports-v2-complete'
+    7: 'core-business-e2e'
+    8: 'ux-products-clients-cross-flow'
+    9: 'products-deep-e2e'
+    10: 'customers-deep-e2e'
+    11: 'ux-products-clients-flags-e2e'
+
+---
+
+  ---
+  duration_ms: 7.210089
+  type: 'test'
+  ...
+# Subtest: withTransaction rolls back all writes on failure
+ok 76 - withTransaction rolls back all writes on failure
+  ---
+  duration_ms: 4.908195
+  type: 'test'
+  ...
+# Subtest: withTransaction supports nested service transactions without DatabaseSync.isTransaction
+ok 77 - withTransaction supports nested service transactions without DatabaseSync.isTransaction
+  ---
+  duration_ms: 5.543856
+  type: 'test'
+  ...
+# Subtest: outbox persists pending events, failures and dispatch completion
+ok 78 - outbox persists pending events, failures and dispatch completion
+
+---
+
+  duration_ms: 7.210089
+  type: 'test'
+  ...
+# Subtest: withTransaction rolls back all writes on failure
+ok 76 - withTransaction rolls back all writes on failure
+  ---
+  duration_ms: 4.908195
+  type: 'test'
+  ...
+# Subtest: withTransaction supports nested service transactions without DatabaseSync.isTransaction
+ok 77 - withTransaction supports nested service transactions without DatabaseSync.isTransaction
+  ---
+  duration_ms: 5.543856
+  type: 'test'
+  ...
+# Subtest: outbox persists pending events, failures and dispatch completion
+ok 78 - outbox persists pending events, failures and dispatch completion
+  ---
+
+---
+
+  ---
+  duration_ms: 5.543856
+  type: 'test'
+  ...
+# Subtest: outbox persists pending events, failures and dispatch completion
+ok 78 - outbox persists pending events, failures and dispatch completion
+  ---
+  duration_ms: 5.471211
+  type: 'test'
+  ...
+# Subtest: effect store guarantees eventId plus effectKey idempotency
+ok 79 - effect store guarantees eventId plus effectKey idempotency
+  ---
+  duration_ms: 4.760791
+  type: 'test'
+  ...
+# Subtest: audit sanitizer removes secrets and writeAudit persists compact context
+ok 80 - audit sanitizer removes secrets and writeAudit persists compact context
+
+---
+
+  duration_ms: 5.543856
+  type: 'test'
+  ...
+# Subtest: outbox persists pending events, failures and dispatch completion
+ok 78 - outbox persists pending events, failures and dispatch completion
+  ---
+  duration_ms: 5.471211
+  type: 'test'
+  ...
+# Subtest: effect store guarantees eventId plus effectKey idempotency
+ok 79 - effect store guarantees eventId plus effectKey idempotency
+  ---
+  duration_ms: 4.760791
+  type: 'test'
+  ...
+# Subtest: audit sanitizer removes secrets and writeAudit persists compact context
+ok 80 - audit sanitizer removes secrets and writeAudit persists compact context
+  ---
+
+---
+
+  ---
+  duration_ms: 1.764186
+  type: 'test'
+  ...
+# Subtest: isolates subscriber failures and continues dispatching
+ok 94 - isolates subscriber failures and continues dispatching
+  ---
+  duration_ms: 0.29626
+  type: 'test'
+  ...
+# Subtest: unsubscribe removes the handler
+ok 95 - unsubscribe removes the handler
+  ---
+  duration_ms: 0.250736
+  type: 'test'
+  ...
+# Subtest: rejects invalid event envelopes before notifying subscribers
+ok 96 - rejects invalid event envelopes before notifying subscribers
+
+---
+
+  duration_ms: 1.764186
+  type: 'test'
+  ...
+# Subtest: isolates subscriber failures and continues dispatching
+ok 94 - isolates subscriber failures and continues dispatching
+  ---
+  duration_ms: 0.29626
+  type: 'test'
+  ...
+# Subtest: unsubscribe removes the handler
+ok 95 - unsubscribe removes the handler
+  ---
+  duration_ms: 0.250736
+  type: 'test'
+  ...
+# Subtest: rejects invalid event envelopes before notifying subscribers
+ok 96 - rejects invalid event envelopes before notifying subscribers
+  ---
+
+---
+
+  ---
+  duration_ms: 5.850314
+  type: 'test'
+  ...
+# Subtest: print service persists failure retry success and explicit reprint
+ok 127 - print service persists failure retry success and explicit reprint
+  ---
+  duration_ms: 6.904683
+  type: 'test'
+  ...
+# Subtest: manual sale print creates a distinct auditable reprint from the immutable original snapshot
+ok 128 - manual sale print creates a distinct auditable reprint from the immutable original snapshot
+  ---
+  duration_ms: 4.66865
+  type: 'test'
+  ...
+# Subtest: process job forwards the canonical paper width to the printer
+ok 129 - process job forwards the canonical paper width to the printer
+
+---
+
+  duration_ms: 5.850314
+  type: 'test'
+  ...
+# Subtest: print service persists failure retry success and explicit reprint
+ok 127 - print service persists failure retry success and explicit reprint
+  ---
+  duration_ms: 6.904683
+  type: 'test'
+  ...
+# Subtest: manual sale print creates a distinct auditable reprint from the immutable original snapshot
+ok 128 - manual sale print creates a distinct auditable reprint from the immutable original snapshot
+  ---
+  duration_ms: 4.66865
+  type: 'test'
+  ...
+# Subtest: process job forwards the canonical paper width to the printer
+ok 129 - process job forwards the canonical paper width to the printer
+  ---
+
+---
+
+  ---
+  duration_ms: 1.94401
+  type: 'test'
+  ...
+# Subtest: fiscal request persists payload and issue effect is durable/idempotent with retry after failure
+ok 133 - fiscal request persists payload and issue effect is durable/idempotent with retry after failure
+  ---
+  duration_ms: 12.094069
+  type: 'test'
+  ...
+# Subtest: fiscal secret store encrypts at rest and returns only public metadata
+ok 134 - fiscal secret store encrypts at rest and returns only public metadata
+  ---
+  duration_ms: 1.672005
+  type: 'test'
+  ...
+# (node:2665) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+
+---
+
+  duration_ms: 1.94401
+  type: 'test'
+  ...
+# Subtest: fiscal request persists payload and issue effect is durable/idempotent with retry after failure
+ok 133 - fiscal request persists payload and issue effect is durable/idempotent with retry after failure
+  ---
+  duration_ms: 12.094069
+  type: 'test'
+  ...
+# Subtest: fiscal secret store encrypts at rest and returns only public metadata
+ok 134 - fiscal secret store encrypts at rest and returns only public metadata
+  ---
+  duration_ms: 1.672005
+  type: 'test'
+  ...
+# (node:2665) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: LAN pair is public-by-code, login requires paired terminal credential, and blocked terminal is rejected
+
+---
+
+  ---
+  duration_ms: 3.077167
+  type: 'test'
+  ...
+# Subtest: E54.1 drawer write failure closes the port and a later pulse succeeds
+ok 222 - E54.1 drawer write failure closes the port and a later pulse succeeds
+  ---
+  duration_ms: 1.368914
+  type: 'test'
+  ...
+# Subtest: E54.1 thermal protocols accept all supported receipt widths
+ok 223 - E54.1 thermal protocols accept all supported receipt widths
+  ---
+  duration_ms: 1.222121
+  type: 'test'
+  ...
+# (node:2839) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+
+---
+
+  duration_ms: 3.077167
+  type: 'test'
+  ...
+# Subtest: E54.1 drawer write failure closes the port and a later pulse succeeds
+ok 222 - E54.1 drawer write failure closes the port and a later pulse succeeds
+  ---
+  duration_ms: 1.368914
+  type: 'test'
+  ...
+# Subtest: E54.1 thermal protocols accept all supported receipt widths
+ok 223 - E54.1 thermal protocols accept all supported receipt widths
+  ---
+  duration_ms: 1.222121
+  type: 'test'
+  ...
+# (node:2839) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: E54.1 v9 migration preserves rows and maps legacy hardware confidence statuses
+
+---
+
+  type: 'test'
+  ...
+# (node:2846) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: E54.1 serial write failure enters error state and reconnects without restarting the PDV
+ok 225 - E54.1 serial write failure enters error state and reconnects without restarting the PDV
+  ---
+  duration_ms: 2.254659
+  type: 'test'
+  ...
+# Subtest: E54.1 scale session waits for fragmented numeric response before parsing
+ok 226 - E54.1 scale session waits for fragmented numeric response before parsing
+  ---
+  duration_ms: 15.998454
+  type: 'test'
+  ...
+# Subtest: E54.1 scale timeout is recoverable and the next read can succeed
+ok 227 - E54.1 scale timeout is recoverable and the next read can succeed
+
+---
+
+  ...
+# (node:2846) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: E54.1 serial write failure enters error state and reconnects without restarting the PDV
+ok 225 - E54.1 serial write failure enters error state and reconnects without restarting the PDV
+  ---
+  duration_ms: 2.254659
+  type: 'test'
+  ...
+# Subtest: E54.1 scale session waits for fragmented numeric response before parsing
+ok 226 - E54.1 scale session waits for fragmented numeric response before parsing
+  ---
+  duration_ms: 15.998454
+  type: 'test'
+  ...
+# Subtest: E54.1 scale timeout is recoverable and the next read can succeed
+ok 227 - E54.1 scale timeout is recoverable and the next read can succeed
+  ---
+
+---
+
+  ---
+  duration_ms: 1.696882
+  type: 'test'
+  ...
+# Subtest: E54.1 Windows spooler failure stays controlled and a later print can recover
+ok 230 - E54.1 Windows spooler failure stays controlled and a later print can recover
+  ---
+  duration_ms: 1.307559
+  type: 'test'
+  ...
+# Subtest: E54.1 keyboard-wedge barcode lookup remains deterministic under rapid repeated scans
+ok 231 - E54.1 keyboard-wedge barcode lookup remains deterministic under rapid repeated scans
+  ---
+  duration_ms: 3.170631
+  type: 'test'
+  ...
+# Subtest: E54.1 serial transport survives repeated open/write/close cycles without retaining an open port
+ok 232 - E54.1 serial transport survives repeated open/write/close cycles without retaining an open port
+
+---
+
+  duration_ms: 1.696882
+  type: 'test'
+  ...
+# Subtest: E54.1 Windows spooler failure stays controlled and a later print can recover
+ok 230 - E54.1 Windows spooler failure stays controlled and a later print can recover
+  ---
+  duration_ms: 1.307559
+  type: 'test'
+  ...
+# Subtest: E54.1 keyboard-wedge barcode lookup remains deterministic under rapid repeated scans
+ok 231 - E54.1 keyboard-wedge barcode lookup remains deterministic under rapid repeated scans
+  ---
+  duration_ms: 3.170631
+  type: 'test'
+  ...
+# Subtest: E54.1 serial transport survives repeated open/write/close cycles without retaining an open port
+ok 232 - E54.1 serial transport survives repeated open/write/close cycles without retaining an open port
+  ---
+
+---
+
+  type: 'test'
+  ...
+# (node:2867) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: E2E invariant: fiscal failure never rolls back sale, stock or cash and retry stays idempotent
+ok 238 - E2E invariant: fiscal failure never rolls back sale, stock or cash and retry stays idempotent
+  ---
+  duration_ms: 167.378079
+  type: 'test'
+  ...
+# Subtest: E2E invariant: fiscal pending/failed state survives process restart
+ok 239 - E2E invariant: fiscal pending/failed state survives process restart
+  ---
+  duration_ms: 162.279506
+  type: 'test'
+  ...
+# Subtest: E2E invariant: installations without fiscal auto-issue keep selling with zero fiscal documents
+ok 240 - E2E invariant: installations without fiscal auto-issue keep selling with zero fiscal documents
+
+---
+
+  ...
+# (node:2867) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: E2E invariant: fiscal failure never rolls back sale, stock or cash and retry stays idempotent
+ok 238 - E2E invariant: fiscal failure never rolls back sale, stock or cash and retry stays idempotent
+  ---
+  duration_ms: 167.378079
+  type: 'test'
+  ...
+# Subtest: E2E invariant: fiscal pending/failed state survives process restart
+ok 239 - E2E invariant: fiscal pending/failed state survives process restart
+  ---
+  duration_ms: 162.279506
+  type: 'test'
+  ...
+# Subtest: E2E invariant: installations without fiscal auto-issue keep selling with zero fiscal documents
+ok 240 - E2E invariant: installations without fiscal auto-issue keep selling with zero fiscal documents
+  ---exit_code=1
