@@ -43,6 +43,10 @@ ipcMain.handle('updater:check', async () => service.check());
 ipcMain.handle('updater:download', async () => service.download());
 ipcMain.handle('updater:install', async () => service.install());
 ipcMain.handle('updater:telemetry-consent-state', async () => telemetryConsentController?.state() || { version:0, requiredVersion:1, needsPrompt:false, available:false });
+ipcMain.handle('updater:telemetry-consent-save', async (_event, input = {}) => {
+  if (!telemetryConsentController) throw new Error('Consentimento de telemetria indisponivel nesta instalacao.');
+  return input.accepted ? telemetryConsentController.accept() : telemetryConsentController.decline();
+});
 ipcMain.handle('updater:telemetry-consent-install', async (_event, input = {}) => {
   if (!telemetryConsentController) throw new Error('Consentimento de telemetria indisponivel nesta instalacao.');
   return input.accepted ? telemetryConsentController.acceptAndInstall() : telemetryConsentController.declineAndInstall();
