@@ -24,7 +24,7 @@ const service = createUpdaterService({
 });
 
 let telemetryConsentController = null;
-onRuntimeTelemetryAttached((_telemetry, runtime) => {
+onRuntimeTelemetryAttached((telemetry, runtime) => {
   if (!runtime?.settings || telemetryConsentController) return;
   telemetryConsentController = createTelemetryConsentController({
     settings: {
@@ -34,7 +34,8 @@ onRuntimeTelemetryAttached((_telemetry, runtime) => {
         actor: { role: 'system', userId: 'updater-consent' }
       })
     },
-    updater: service
+    updater: service,
+    onDecline: () => telemetry?.queue?.clear?.()
   });
 });
 
