@@ -51,7 +51,7 @@ test('restaurant desktop mutations are rejected when RESTAURANT module is disabl
 test('restaurant mobile mutations are rejected when RESTAURANT module is disabled',async t=>{
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
-  const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{role:'admin',userId:'admin-1'});
+  const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{role:'admin'});
   runtime.modules.setEnabled('RESTAURANT',false,{role:'admin',userId:'admin-1'});
   const router=createRestaurantRouter({runtime});
 
