@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     status: () => ipcRenderer.invoke('artisys:photos:status'),
     dataUrl: (input) => ipcRenderer.invoke('artisys:photos:data-url', input),
     pickAndUpload: (input) => ipcRenderer.invoke('artisys:photos:pick-upload', input),
-    remove: (input) => ipcRenderer.invoke('artisys:photos:remove', input)
+    remove: (input) => ipcRenderer.invoke('artisys:photos:remove')
   },
   hardware: {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
     telemetryConsentState: () => ipcRenderer.invoke('updater:telemetry-consent-state'),
+    saveTelemetryConsent: (accepted) => ipcRenderer.invoke('updater:telemetry-consent-save', { accepted: Boolean(accepted) }),
     acceptTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: true }),
     declineTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: false }),
     onState: (handler) => {
