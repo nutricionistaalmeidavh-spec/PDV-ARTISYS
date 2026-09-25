@@ -15,13 +15,15 @@ function buildTelemetryConsentSettings({ accepted, now = new Date() } = {}) {
       'telemetry.enabled': true,
       'telemetry.diagnostics': true,
       'telemetry.consent_version': TELEMETRY_CONSENT_VERSION,
-      'telemetry.consent_accepted_at': timestamp
+      'telemetry.consent_accepted_at': timestamp,
+      'telemetry.consent_declined_at': ''
     };
   }
   return {
     'telemetry.enabled': false,
     'telemetry.diagnostics': false,
     'telemetry.consent_version': TELEMETRY_CONSENT_VERSION,
+    'telemetry.consent_accepted_at': '',
     'telemetry.consent_declined_at': timestamp
   };
 }
