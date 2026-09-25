@@ -2,6 +2,26 @@
 
 /* Carrinho compacto: mantém nome/preço em uma coluna flexível e controles em uma coluna estável. */
 .sale-panel { min-width:0; }
+.sale-context-grid > * { min-width:0; }
+.customer-selected { min-width:0; max-width:100%; }
+.customer-selected .avatar { flex:0 0 35px; }
+.customer-selected > div {
+  min-width:0;
+  flex:1 1 auto;
+}
+.customer-selected strong,
+.customer-selected small {
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.customer-selected button { flex:0 0 auto; }
+.payment-strip {
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  min-width:0;
+}
+.pay-button { min-width:0; }
 .cart-line {
   grid-template-columns:minmax(0,1fr) auto !important;
   grid-template-rows:auto auto;

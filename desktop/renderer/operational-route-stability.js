@@ -16,7 +16,8 @@
   }
 
   function hasOwnedSubview(route) {
-    return route === 'settings' && Boolean(content.querySelector('.vertical-page'));
+    return (route === 'settings' && Boolean(content.querySelector('.vertical-page')))
+      || (route === 'returns' && Boolean(content.querySelector('[data-returns-ui]')));
   }
 
   async function renderCanonicalRoute(route) {
