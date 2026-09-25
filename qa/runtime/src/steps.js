@@ -117,7 +117,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);
       const result=await page.evaluate(async input=>{
         if(typeof window.artisysDesktop?.apiRequest!=='function')throw new Error('Desktop API bridge unavailable');
-        const sessionToken=sessionStorage.getItem('pdv.session')||null;
+        const sessionToken=sessionStorage.getItem('artisys.sessionToken')||null;
         return window.artisysDesktop.apiRequest({path:input.path,method:input.method||'GET',body:input.body,sessionToken});
       },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
       if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
