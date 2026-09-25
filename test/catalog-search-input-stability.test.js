@@ -45,11 +45,13 @@ test('returns desktop UI connects completed sales, available quantities, refunds
   assert.match(source,/api\.salesHistory\(\{status:'COMPLETED'/);
   assert.match(source,/api\.saleDetails\(saleId\)/);
   assert.match(source,/api\.returns\(\{saleId/);
-  assert.match(source,/api\.createReturn\(\{/);
+  assert.match(source,/const payload = \{/);
+  assert.match(source,/api\.createReturn\(payload\)/);
+  assert.match(source,/api\.authorizeReturn\(\{/);
+  assert.match(source,/requiresApproval\(\)/);
   assert.match(source,/saleItemId:row\.dataset\.returnItem/);
   assert.match(source,/refunds:\[\{method,amountCents:totalCents\}\]/);
   assert.match(source,/availableQuantity\(item,already\)/);
-  assert.match(source,/A devolução exige sessão de gerente ou administrador/);
 });
 
 test('desktop regression E2E enters barcode and customer document key by key without reordering',()=>{
