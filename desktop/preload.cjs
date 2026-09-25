@@ -51,6 +51,8 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     check: () => ipcRenderer.invoke('updater:check'),
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
+    acceptTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: true }),
+    declineTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: false }),
     onState: (handler) => {
       const listener = (_event, state) => handler(state);
       ipcRenderer.on('updater:state', listener);
