@@ -24,9 +24,13 @@ Principais capacidades:
 - **orçamentos e pedidos** com retirada/entrega, reserva de estoque, atendimento parcial/total e conversão para a mesma venda canônica do Balcão;
 - **snapshot histórico de custo** no item vendido para preservar margem histórica mesmo após alterações de custo; vendas legadas sem snapshot são explicitamente tratadas como estimativa pelo custo atual;
 - Balcão com busca/código de barras, seleção direta de variações, suspensão/retomada, descontos, cliente e pagamentos mistos manuais;
+- buscas de Produtos e Clientes preservando foco/caret e a ordem de digitação/leitura, inclusive para leitor `keyboard-wedge`;
+- carrinho desktop compacto para nomes longos, quantidade, total e alteração autorizada de preço sem sobreposição em 1366×768;
 - observação vinculada à venda/cliente, com até 500 caracteres para registro interno e impressão opcional limitada a 120 caracteres e 4 linhas no cupom não fiscal;
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
-- histórico de vendas, cancelamentos e devoluções parciais/totais;
+- histórico de vendas e cancelamentos;
+- **devoluções parciais/totais no desktop**, com busca de vendas concluídas, seleção de itens/quantidades, saldo ainda devolvível, cálculo de reembolso, histórico por venda e autorização local de gerente/admin;
+- perfil de caixa pode concluir devolução após aprovação de gerente/admin por credenciais, com token de uso único e separação entre operador e autorizador na auditoria;
 - financeiro operacional, relatórios e exportação CSV;
 - fila de impressão com retry/reimpressão, documentos operacionais **NÃO FISCAL** e identidade configurável do cupom com nome, endereço, telefone e logo local;
 - impressão Electron, térmica Epson/Star e serial por drivers locais explícitos;
@@ -60,6 +64,16 @@ Principais capacidades:
 Em **Estoque > Operação avançada**, o desktop expõe Compras, Logística e Pedidos. O fluxo de compras usa fornecedor já cadastrado, recebe itens no local selecionado, atualiza custo médio e gera contas a pagar. Transferências baixam a origem no despacho e somente creditam o destino no recebimento; cancelamentos em trânsito devolvem o saldo à origem. Pedidos confirmados reservam estoque e o atendimento gera uma venda normal, preservando caixa, comissão, impressão, estoque e devoluções do núcleo existente.
 
 O saldo legado é migrado para `MAIN — Estoque principal`. `inventory_balances` permanece como projeção agregada de compatibilidade, enquanto as novas operações usam saldos por local.
+
+## Devoluções no desktop
+
+A rota **Devolução (F11)** é operacional no desktop. O fluxo pesquisa vendas `COMPLETED`, abre os detalhes, considera devoluções anteriores para calcular o saldo ainda devolvível, permite selecionar itens e quantidades e mostra o total de reembolso antes da confirmação.
+
+As formas de reembolso expostas pela interface são `CASH`, `PIX`, `DEBIT_CARD`, `CREDIT_CARD`, `STORE_CREDIT` e `OTHER`. O servidor continua sendo a autoridade final para validar venda, quantidade restante, valor, sessão e permissão antes de registrar a operação.
+
+Perfis `admin` e `manager` concluem diretamente. O perfil `cashier` pode concluir somente depois de informar credenciais válidas de um gerente ou administrador. Essa autorização gera um token de aprovação de uso único, escopado para `return.complete` e associado ao contexto da devolução, preservando separadamente a identidade de quem operou e de quem autorizou para fins de auditoria.
+
+A devolução não apaga nem reescreve a venda original: registra movimentos próprios de estoque/caixa de forma idempotente e, após a conclusão, recarrega o histórico da venda para impedir uma nova devolução acima do saldo restante. O fluxo `desktop-regressions-e2e` cobre em 1366×768 a estabilidade das buscas, o carrinho compacto e uma venda concluída seguida de devolução real.
 
 ## Produto pai e subitens
 
@@ -175,7 +189,7 @@ npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.1-x64-Setup.exe
 ```
 
-`docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery, segurança e Fase 9. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
+`docs:check` valida invariantes documentais automatizáveis, incluindo versão do README e capacidades/limitações de release. `verify` cobre domínio/API/UI, architecture checks, documentação e E54.1. `verify:release` acrescenta gates de concorrência, recovery, segurança e Fase 9. O perfil completo de QA inclui `desktop-regressions-e2e`, que valida regressões de busca/carrinho e o fluxo real de devolução no desktop compacto. O workflow Windows gera o NSIS x64, manifesto e checksum a partir do mesmo commit.
 
 Cada push/merge relevante na `main` dispara automaticamente `release-windows`. O workflow resolve o próximo patch a partir da última GitHub Release publicada, preserva uma versão intencionalmente maior declarada no `package.json`, executa `verify:release`, aplica a versão somente no workspace de empacotamento, gera e testa o NSIS x64, valida `latest.yml` e o blockmap e publica a GitHub Release consumida pelo updater. Alterações somente em documentação/testes não geram um novo instalador; `workflow_dispatch` permanece disponível para recuperação manual.
 
