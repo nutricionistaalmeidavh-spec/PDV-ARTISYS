@@ -15,7 +15,9 @@ const { createKitComboRouter }=require('./kit-combo-router');
 const { createProductVariantRouter }=require('./product-variant-router');
 const { createVerticalRouter }=require('./vertical-router');
 const { createEnterpriseDepthRouter }=require('./enterprise-depth-router');
-function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true,returnApprovalStore=null}={}){
+const { attachRuntimeTelemetry }=require('../js/core/telemetry/telemetry-runtime');
+function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true,returnApprovalStore=null,telemetrySender=null,telemetryEndpoint='',telemetryReleaseId=''}={}){
+  attachRuntimeTelemetry({runtime,httpSender:telemetrySender,defaultEndpoint:telemetryEndpoint,releaseId:telemetryReleaseId});
   const sessionStore=new Map();
   const approvalStore=returnApprovalStore||createReturnApprovalStore();
   const selfServiceHandler=createSelfServiceMobileRouter({runtime});
