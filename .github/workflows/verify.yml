@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Verify unit integration architecture release and capability gates
         run: npm run verify:release
 
@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install PDV and QA peer dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Ensure Xvfb is available
         shell: bash
         run: |
@@ -84,7 +84,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Ensure Xvfb is available
         shell: bash
         run: |
