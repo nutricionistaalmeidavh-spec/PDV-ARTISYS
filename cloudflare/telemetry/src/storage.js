@@ -1,8 +1,13 @@
 async function registerInstallation(db,input,credentialHash,now){
-  await db.prepare(`INSERT INTO installations(installation_id,credential_hash,first_seen_at,last_seen_at,last_app_version,last_release_id,telemetry_schema_version)
-    VALUES(?,?,?,?,?,?,?)
-    ON CONFLICT(installation_id) DO UPDATE SET credential_hash=excluded.credential_hash,last_seen_at=excluded.last_seen_at,last_app_version=excluded.last_app_version,last_release_id=excluded.last_release_id,telemetry_schema_version=excluded.telemetry_schema_version`)
-    .bind(input.installation_id,credentialHash,now,now,input.app_version,input.release_id,input.telemetry_schema_version).run();
+  try{
+    await db.prepare(`INSERT INTO installations(installation_id,credential_hash,first_seen_at,last_seen_at,last_app_version,last_release_id,telemetry_schema_version)
+      VALUES(?,?,?,?,?,?,?)`)
+      .bind(input.installation_id,credentialHash,now,now,input.app_version,input.release_id,input.telemetry_schema_version).run();
+  }catch(error){
+    const message=String(error?.message||'');
+    if(/unique|constraint|already exists/i.test(message))throw Object.assign(new Error('Instalacao de telemetria ja registrada.'),{statusCode:409});
+    throw error;
+  }
 }
 async function updateInstallationSeen(db,{installationId,appVersion,releaseId},now){
   await db.prepare('UPDATE installations SET last_seen_at = ?, last_app_version = ?, last_release_id = ? WHERE installation_id = ?')
