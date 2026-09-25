@@ -1,5 +1,5 @@
 'use strict';
-const { buildTelemetryConsentSettings } = require('./telemetry-consent.cjs');
+const { TELEMETRY_CONSENT_VERSION, buildTelemetryConsentSettings } = require('./telemetry-consent.cjs');
 
 function createTelemetryConsentController({ settings, updater, now = () => new Date() } = {}) {
   if (!settings || typeof settings.set !== 'function') throw new Error('settings.set is required');
@@ -11,7 +11,19 @@ function createTelemetryConsentController({ settings, updater, now = () => new D
     return updater.install();
   }
 
+  function state() {
+    const version = typeof settings.get === 'function'
+      ? Number(settings.get('telemetry.consent_version', { scope:'global', defaultValue:0 }) || 0)
+      : 0;
+    return {
+      version,
+      requiredVersion: TELEMETRY_CONSENT_VERSION,
+      needsPrompt: version < TELEMETRY_CONSENT_VERSION
+    };
+  }
+
   return {
+    state,
     acceptAndInstall: () => persistAndInstall(true),
     declineAndInstall: () => persistAndInstall(false)
   };
