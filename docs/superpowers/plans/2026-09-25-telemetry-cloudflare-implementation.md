@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Adicionar telemetria opt-in, privacy-first e fail-open ao ArtiSys, com fila SQLite local, eventos semânticos, diagnóstico/fingerprints e coletor serverless em Cloudflare Workers + Analytics Engine + D1, sem tornar a nuvem requisito operacional do PDV.
+**Goal:** Adicionar telemetria opt-in, privacy-first e fail-open ao ArtiSys, com identidade pseudônima, fila SQLite local no servidor autoritativo, eventos semânticos, diagnóstico/fingerprints e coletor serverless em Cloudflare Workers + Analytics Engine + D1, sem tornar a nuvem requisito operacional do PDV.
 
-**Architecture:** O cliente ArtiSys expõe um serviço de telemetria independente de fornecedor que valida eventos por allowlist, persiste batches em SQLite e envia por HTTPS fora do caminho crítico. Eventos de negócio são derivados do EventBus durável existente e eventos de UI passam por IPC estreito; o Worker revalida/sanitiza, envia o stream de alta cardinalidade ao Analytics Engine e usa D1 somente para cadastro de instalações, credenciais hashadas, fingerprints e receipts idempotentes de baixo volume.
+**Architecture:** O servidor ArtiSys mantém a fila e a identidade de telemetria junto do runtime autoritativo; terminais LAN enviam apenas eventos UI allowlisted pela API autenticada, portanto não abrem SQLite local nem recebem credenciais Cloudflare. Eventos de negócio vêm do EventBus durável e de classificadores HTTP estreitos. O Worker revalida/sanitiza, envia o stream de alta cardinalidade ao Analytics Engine e usa D1 somente para cadastro de instalações, credenciais hashadas, fingerprints e receipts idempotentes de baixo volume.
 
 **Tech Stack:** Node.js >=22, CommonJS no core/desktop, `node:test`, `node:crypto`, SQLite (`node:sqlite` via abstração existente), Electron 39 `safeStorage`, Cloudflare Workers, D1, Workers Analytics Engine, Wrangler.
 
@@ -13,25 +13,26 @@
 ## Global Constraints
 
 - Telemetria fica `false` por padrão e upgrades não podem ativá-la silenciosamente.
-- Venda, devolução, impressão, fiscal, estoque, restaurante, login e startup devem funcionar quando internet/Worker/D1/Analytics Engine estiverem indisponíveis.
-- Core obrigatório permanece local/self-hosted/open; Cloudflare é destino opcional e configurável, nunca dependência silenciosa.
+- Venda, devolução, impressão, fiscal, estoque, restaurante, login e startup funcionam quando internet/Worker/D1/Analytics Engine estiverem indisponíveis.
+- Core obrigatório permanece local/self-hosted/open; Cloudflare é destino opcional/configurável, nunca dependência silenciosa.
 - Endpoint padrão em source/dev é vazio; build oficial pode injetar `PDV_TELEMETRY_ENDPOINT` explicitamente.
+- Terminais LAN continuam sem SQLite de negócio local; fila de telemetria fica no servidor autoritativo.
 - Renderer não recebe SQLite, filesystem, credencial de ingestão nem `safeStorage`.
-- Credencial de telemetria fica separada das credenciais de login/LAN/fiscal e é persistida com `safeStorage`.
-- Nenhum evento pode conter nome de cliente/operador, CPF/CNPJ, telefone, e-mail, endereço, observação livre, XML/DANFE, PAN/CVV, senha, token, Authorization, certificado, CSC ou segredo equivalente.
-- Identificadores de telemetria são aleatórios e não derivados de MAC, hostname, usuário do Windows, documento fiscal ou serial de hardware.
-- Fila local: máximo padrão de 5.000 eventos; batch padrão de 50; erros/diagnósticos têm prioridade de retenção sobre eventos de fluxo.
+- Credencial de telemetria é separada de login/LAN/fiscal e fica no host servidor com `safeStorage` quando Electron estiver hospedando o runtime.
+- Nenhum evento contém nome de cliente/operador, CPF/CNPJ, telefone, e-mail, endereço, observação livre, XML/DANFE, PAN/CVV, senha, token, Authorization, certificado, CSC ou segredo equivalente.
+- `installation_id` e `terminal_id` de telemetria são UUIDs aleatórios persistidos localmente e não são derivados de MAC, hostname, usuário do Windows, documento, serial de hardware ou ID comercial transmitido.
+- Fila local: máximo padrão 5.000; batch padrão 50; erro/diagnóstico tem prioridade de retenção sobre fluxo.
 - Delivery é at-least-once; somente mutações D1 de erro/controle usam receipt dedupe por `event_id`.
-- D1 não armazena o stream geral de cliques/eventos; Analytics Engine é o destino de alta cardinalidade.
+- D1 não armazena o stream geral; Analytics Engine recebe eventos de alta cardinalidade.
 - Testes normais/CI não dependem de conta Cloudflare real.
 
 ## Review Focus
 
-1. **Payload aparentemente válido contendo PII/segredo em chave ou string:** cliente e Worker devem rejeitar/sanitizar sem persistir o valor proibido.
-2. **Worker lento/fora do ar durante uma venda:** a operação de negócio deve concluir normalmente; somente a fila/retry de telemetria muda.
-3. **401/403 por credencial expirada/revogada:** envio pausa e registro é tentado apenas em ciclo de background; não pode criar loop agressivo nem bloquear UI.
-4. **SQLite cheio/erro ao gravar telemetria:** `record()` deve engolir a falha de telemetria, logar de forma limitada e nunca falhar o fluxo chamador.
-5. **Mesmo erro entregue mais de uma vez:** Analytics pode receber duplicata at-least-once, mas contadores D1/fingerprint não podem duplicar a mesma mutação pelo mesmo `event_id`.
+1. **PII/segredo em chave ou string aparentemente válida:** cliente e Worker rejeitam/sanitizam sem persistir o valor proibido.
+2. **Worker lento/fora do ar durante venda:** negócio conclui normalmente; somente fila/retry muda.
+3. **401/403 por credencial revogada:** envio pausa; registro ocorre somente em ciclo background sem loop agressivo.
+4. **SQLite cheio/erro ao gravar telemetria:** `record()` nunca falha o fluxo chamador.
+5. **Mesmo erro entregue duas vezes:** Analytics pode receber duplicata at-least-once, mas D1 não duplica contador/fingerprint pelo mesmo `event_id`.
 
 ---
 
@@ -39,351 +40,236 @@
 
 ### Criar
 
-- `js/core/telemetry/telemetry-events.js` — catálogo/schema allowlisted de eventos.
-- `js/core/telemetry/telemetry-sanitizer.js` — validação de campos/valores e limites.
-- `js/core/telemetry/telemetry-fingerprint.js` — normalização técnica e hash estável.
-- `js/core/telemetry/telemetry-queue.js` — fila SQLite limitada e prioridade/retry.
-- `js/core/telemetry/telemetry-service.js` — fachada `record/flush/status/setEnabled/close`.
-- `js/core/telemetry/telemetry-effects.js` — adaptação do EventBus para eventos semânticos de telemetria.
-- `desktop/telemetry-credentials.cjs` — credencial de ingestão em `safeStorage`.
-- `desktop/telemetry-identity.cjs` — IDs aleatórios de instalação/terminal persistidos em `userData`.
-- `desktop/telemetry-bridge.cjs` — registro/bootstrap, sender HTTPS, IPC estreito e worker de flush.
-- `test/telemetry-schema.test.js`.
-- `test/telemetry-queue.test.js`.
-- `test/telemetry-service.test.js`.
-- `test/telemetry-effects.test.js`.
-- `test/telemetry-desktop.test.js`.
-- `test/telemetry-settings-ui.test.js`.
-- `cloudflare/telemetry/package.json`.
-- `cloudflare/telemetry/wrangler.jsonc`.
-- `cloudflare/telemetry/src/schema.js`.
-- `cloudflare/telemetry/src/auth.js`.
-- `cloudflare/telemetry/src/storage.js`.
-- `cloudflare/telemetry/src/index.js`.
-- `cloudflare/telemetry/migrations/0001_init.sql`.
-- `cloudflare/telemetry/test/worker.test.js`.
-- `cloudflare/telemetry/README.md`.
-- `scripts/setup-cloudflare-telemetry.mjs`.
+- `js/core/telemetry/telemetry-events.js` — catálogo/schema allowlisted.
+- `js/core/telemetry/telemetry-sanitizer.js` — validação de campos/valores.
+- `js/core/telemetry/telemetry-fingerprint.js` — assinatura técnica estável.
+- `js/core/telemetry/telemetry-identity.js` — `installation_id` + mapa local `terminalKey -> telemetry_terminal_id` aleatório.
+- `js/core/telemetry/telemetry-queue.js` — fila SQLite limitada/retry.
+- `js/core/telemetry/telemetry-service.js` — `record/flush/status/setEnabled/close`.
+- `js/core/telemetry/telemetry-effects.js` — adaptação EventBus -> eventos de telemetria.
+- `desktop/telemetry-credentials.cjs` — credencial Cloudflare protegida no host Electron servidor.
+- `desktop/telemetry-bridge.cjs` — sender HTTPS, bootstrap e background flush.
+- `test/telemetry-schema.test.js`, `test/telemetry-queue.test.js`, `test/telemetry-service.test.js`, `test/telemetry-effects.test.js`, `test/telemetry-desktop.test.js`, `test/telemetry-settings-ui.test.js`.
+- `cloudflare/telemetry/package.json`, `wrangler.jsonc`, `src/schema.js`, `src/auth.js`, `src/storage.js`, `src/index.js`, `migrations/0001_init.sql`, `test/worker.test.js`, `README.md`.
+- `scripts/setup-cloudflare-telemetry.mjs`, `test/cloudflare-telemetry-setup.test.js`.
 - `docs/operations/telemetry.md`.
 
 ### Modificar
 
-- `js/core/pdv-runtime.js` — compor/expor `runtime.telemetry` e registrar telemetry effects.
-- `desktop/main.cjs` — inicializar identity/credential/sender/background flush e shutdown best-effort.
-- `desktop/preload.cjs` — namespace estreito `telemetry` para status/record UI-only.
-- `desktop/renderer/api-client.js` — helpers de configuração pública.
-- `desktop/renderer/admin-ops.js` — cartão Privacidade e Diagnóstico.
-- `desktop/renderer/app.js` — `screen_opened` nos limites de navegação já existentes.
-- `server/router.js` — endpoint autenticado de status/configuração somente se necessário para UI; preferir `settings` existente para toggle.
-- `server/start.js` — endpoint configurável no modo servidor por `PDV_TELEMETRY_ENDPOINT` sem obrigatoriedade.
-- `package.json` — scripts/lints e `telemetry:cloudflare:setup`.
-- `README.md` — referência operacional e natureza opcional.
-- `release/release-notes.md` — release note da telemetria opt-in.
+- `js/core/pdv-runtime.js` — compor identidade/fila/service e registrar effects.
+- `server/router.js` — UI-event endpoint autenticado e classificação estreita de falhas técnicas.
+- `server/start.js` — endpoint opcional e host background quando executado sem Electron.
+- `desktop/main.cjs` — credential store/sender/flush quando hospeda runtime.
+- `desktop/preload.cjs` — sem credencial; somente superfícies já necessárias.
+- `desktop/renderer/api-client.js` — `recordTelemetryUi()` e settings.
+- `desktop/renderer/admin-ops.js` — Privacidade e Diagnóstico.
+- `desktop/renderer/app.js` — `screen_opened`.
+- `package.json`, `README.md`, `release/release-notes.md`.
 
 ---
 
 ### Task 1: Schema allowlisted, sanitizer e fingerprint
 
-**Files:**
-- Create: `js/core/telemetry/telemetry-events.js`
-- Create: `js/core/telemetry/telemetry-sanitizer.js`
-- Create: `js/core/telemetry/telemetry-fingerprint.js`
-- Test: `test/telemetry-schema.test.js`
-- Modify: `package.json`
+**Files:** Create `js/core/telemetry/telemetry-events.js`, `telemetry-sanitizer.js`, `telemetry-fingerprint.js`; Test `test/telemetry-schema.test.js`; Modify `package.json`.
 
 **Interfaces:**
-- Produces: `validateTelemetryEvent(eventName, payload) -> {dimensions,measurements}`.
-- Produces: `sanitizeTelemetryEnvelope(envelope) -> sanitizedEnvelope`.
-- Produces: `normalizeErrorSignature({errorClass,subsystem,operation,stack}) -> string`.
-- Produces: `fingerprintError(input) -> "ERR-<hex>"`.
-- Event names iniciais: `app_started`, `app_closed`, `screen_opened`, `sale_started`, `sale_completed`, `sale_failed`, `return_started`, `return_completed`, `return_failed`, `printer_failed`, `fiscal_failed`, `database_failed`, `network_failed`, `operation_failed`.
+- `validateTelemetryEvent(eventName,payload) -> {dimensions,measurements}`.
+- `sanitizeTelemetryEnvelope(envelope) -> sanitizedEnvelope`.
+- `normalizeErrorSignature({errorClass,subsystem,operation,stack}) -> string`.
+- `fingerprintError(input) -> "ERR-<hex>"`.
+- Schemas iniciais: `app_started`, `app_closed`, `screen_opened`, `sale_started`, `sale_completed`, `sale_failed`, `return_started`, `return_completed`, `return_failed`, `printer_failed`, `fiscal_failed`, `database_failed`, `network_failed`, `operation_failed`.
 
-- [ ] **Step 1: Write failing schema/privacy tests**
-
-Adicionar testes que provem:
-- evento desconhecido é rejeitado;
-- campo desconhecido em `dimensions`/`measurements` é rejeitado;
-- chaves contendo `token`, `authorization`, `password`, `cpf`, `cnpj`, `email`, `phone`, `address`, `xml`, `danfe`, `card`, `cvv`, `observation` são rejeitadas;
-- strings acima do limite definido são rejeitadas/truncadas conforme o schema, nunca aceitas livremente;
-- fingerprint não muda quando UUID, caminho `C:\Users\...` ou números dinâmicos mudam;
-- fingerprint muda quando `subsystem`/`operation`/classe técnica muda.
-
-- [ ] **Step 2: Run RED**
-
-Run: `node --test test/telemetry-schema.test.js`
-
-Expected: FAIL por módulos ausentes.
-
-- [ ] **Step 3: Implement schemas mínimos e allowlist**
-
-Implementar `EVENT_SCHEMAS` com conjuntos explícitos de dimensões/medições por evento. Não aceitar objetos arbitrários nem payload recursivo.
-
-- [ ] **Step 4: Implement sanitizer/fingerprint**
-
-Usar `node:crypto.createHash('sha256')`; remover UUIDs, sequências numéricas dinâmicas, caminhos de perfil de usuário e fragments fora da allowlist antes do hash. Prefixar fingerprint com `ERR-` e usar representação hexadecimal curta estável.
-
-- [ ] **Step 5: Verify GREEN + syntax**
-
-Run: `node --test test/telemetry-schema.test.js && node --check js/core/telemetry/telemetry-events.js && node --check js/core/telemetry/telemetry-sanitizer.js && node --check js/core/telemetry/telemetry-fingerprint.js`
-
-Expected: PASS.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add js/core/telemetry test/telemetry-schema.test.js package.json
-git commit -m "feat(telemetry): add privacy-safe event schemas"
-```
+- [ ] **Step 1: Write RED tests**: evento/campo desconhecido rejeitado; nomes `token|authorization|password|cpf|cnpj|email|phone|address|xml|danfe|card|cvv|observation` rejeitados; strings bounded; fingerprint ignora UUID/path/IDs dinâmicos e muda por classe/subsystem/operation.
+- [ ] **Step 2: Run RED:** `node --test test/telemetry-schema.test.js` -> FAIL por módulos ausentes.
+- [ ] **Step 3: Implement `EVENT_SCHEMAS`** sem payload recursivo nem spreads arbitrários.
+- [ ] **Step 4: Implement sanitizer/fingerprint** com `node:crypto.createHash('sha256')`; stack é normalizada antes de qualquer persistência.
+- [ ] **Step 5: Verify:** `node --test test/telemetry-schema.test.js` + `node --check` dos três módulos -> PASS.
+- [ ] **Step 6: Commit:** `feat(telemetry): add privacy-safe event schemas`.
 
 ---
 
-### Task 2: Fila SQLite limitada e serviço fail-open
+### Task 2: Identidade pseudônima, fila SQLite e serviço fail-open
 
-**Files:**
-- Create: `js/core/telemetry/telemetry-queue.js`
-- Create: `js/core/telemetry/telemetry-service.js`
-- Test: `test/telemetry-queue.test.js`
-- Test: `test/telemetry-service.test.js`
-- Modify: `js/core/pdv-runtime.js`
+**Files:** Create `js/core/telemetry/telemetry-identity.js`, `telemetry-queue.js`, `telemetry-service.js`; Test `test/telemetry-queue.test.js`, `test/telemetry-service.test.js`; Modify `js/core/pdv-runtime.js`.
 
 **Interfaces:**
-- Produces: `createTelemetryQueue({db,now,maxPending=5000})` com `enqueue`, `listReady`, `ack`, `discard`, `reschedule`, `count`, `prune`.
-- Produces: `createTelemetryService({db,settings,logger,now,idFactory,httpSender,identity,appVersion,releaseId,schemaVersionResolver,credentialProvider})`.
-- Service: `record(eventName,payload)`, `flush()`, `status()`, `setEnabled(enabled,actor)`, `close()`.
-- `record()` é síncrono/best-effort e nunca lança para o chamador.
-- `flush()` retorna resumo `{attempted,sent,retryable,discarded,paused}`.
+- `createTelemetryIdentity({db,randomUUID})` -> `installationId()`, `terminalId(terminalKey)`; tabela guarda somente UUIDs e chave local do terminal, nunca envia `terminalKey`.
+- `createTelemetryQueue({db,now,maxPending=5000})` -> `enqueue`, `listReady`, `ack`, `discard`, `reschedule`, `count`, `prune`.
+- `createTelemetryService({db,settings,logger,identity,now,idFactory,httpSender,appVersion,releaseId,schemaVersionResolver})`.
+- Service: `record(eventName,payload,{terminalKey})`, `flush()`, `status()`, `setEnabled(enabled,actor)`, `close()`.
+- `record()` nunca lança. `flush()` -> `{attempted,sent,retryable,discarded,paused}`.
 
-- [ ] **Step 1: Write failing queue tests** para persistência após restart, limite de 5.000, prioridade de erros, seleção por `next_attempt_at` e remoção após ACK.
-- [ ] **Step 2: Run RED** com `node --test test/telemetry-queue.test.js`.
-- [ ] **Step 3: Implement queue** criando `telemetry_events` idempotentemente e índices para pendentes/retry; malformed rows são descartadas com logger sanitizado.
-- [ ] **Step 4: Write failing service tests** para disabled-by-default, `record()` fail-open em erro SQLite, batch 50, backoff/jitter, `400/413/422` discard, `401/403` pause, `429/5xx` retry.
-- [ ] **Step 5: Run RED** com `node --test test/telemetry-service.test.js`.
-- [ ] **Step 6: Implement service mínimo** sem timer interno: timers/background ficam no desktop/server host; serviço só expõe `flush()` e estado.
-- [ ] **Step 7: Compose in `createPdvRuntime()`** expondo `runtime.telemetry`; defaults `telemetry.enabled=false`, `telemetry.diagnostics=false`, `telemetry.endpoint=''`, `telemetry.batchSize=50`. Runtime sem sender/endpoint continua totalmente funcional.
-- [ ] **Step 8: Verify focused suite**
-
-Run: `node --test test/telemetry-queue.test.js test/telemetry-service.test.js test/pdv-runtime.integration.test.js`
-
-Expected: PASS e nenhum fluxo de negócio depende de telemetria.
-
-- [ ] **Step 9: Commit** `feat(telemetry): add durable fail-open queue and service`.
+- [ ] **Step 1: Write identity/queue RED tests**: installation UUID sobrevive restart; mesmo terminalKey mantém UUID aleatório; terminal diferente recebe UUID diferente; fila sobrevive restart; hard cap 5.000; erros sobrevivem trimming antes de flow.
+- [ ] **Step 2: Run RED:** `node --test test/telemetry-queue.test.js`.
+- [ ] **Step 3: Implement identity + queue** com tabelas/indexes idempotentes; nenhum valor de identity local entra no envelope além dos UUIDs pseudônimos.
+- [ ] **Step 4: Write service RED tests**: disabled default; `record()` em erro SQLite não lança; batch 50; `400/413/422` discard; `401/403` pause; `429/5xx` retry/backoff; endpoint vazio não envia.
+- [ ] **Step 5: Add disable-after-queue test**: evento já enfileirado não é enviado enquanto `telemetry.enabled=false`; reenable permite flush posterior. Service consulta setting tanto em `record()` quanto em `flush()`.
+- [ ] **Step 6: Implement service sem timer interno**; background pertence ao host.
+- [ ] **Step 7: Compose `runtime.telemetry`** em `createPdvRuntime()` com settings defaults `false,false,'',50`; runtime sem sender funciona normalmente.
+- [ ] **Step 8: Verify:** `node --test test/telemetry-queue.test.js test/telemetry-service.test.js test/pdv-runtime.integration.test.js` -> PASS.
+- [ ] **Step 9: Commit:** `feat(telemetry): add pseudonymous durable telemetry service`.
 
 ---
 
-### Task 3: Eventos semânticos via EventBus
+### Task 3: Instrumentação semântica de domínio e falhas técnicas
 
-**Files:**
-- Create: `js/core/telemetry/telemetry-effects.js`
-- Test: `test/telemetry-effects.test.js`
-- Modify: `js/core/pdv-runtime.js`
+**Files:** Create `js/core/telemetry/telemetry-effects.js`; Test `test/telemetry-effects.test.js`; Modify `js/core/pdv-runtime.js`, `server/router.js`.
 
 **Interfaces:**
-- Produces: `registerTelemetryEffects({bus,telemetry}) -> unsubscribe[]`.
-- Consumes `PDV_EVENT_TYPES` e `DomainEventBus.subscribe()` existentes.
-- Mapeamentos iniciais obrigatórios:
-  - `SALE_OPENED -> sale_started`;
-  - `SALE_COMPLETED -> sale_completed`;
-  - `RETURN_COMPLETED -> return_completed`;
-  - `RECEIPT_FAILED -> printer_failed`;
-  - `FISCAL_FAILED|FISCAL_REJECTED|FISCAL_UNKNOWN -> fiscal_failed` com dimensão de estado técnico allowlisted.
+- `registerTelemetryEffects({bus,telemetry}) -> unsubscribe[]`.
+- EventBus maps: `SALE_OPENED -> sale_started`, `SALE_COMPLETED -> sale_completed`, `RETURN_COMPLETED -> return_completed`, `RECEIPT_FAILED -> printer_failed`, `FISCAL_FAILED|FISCAL_REJECTED|FISCAL_UNKNOWN -> fiscal_failed`.
+- Router failure classifier: `classifyTelemetryHttpFailure({method,pathname,status}) -> null|{eventName,dimensions}`; nunca inclui URL query/body/error message.
+- `sale_failed`/`return_failed` são emitidos somente para falhas técnicas `5xx` em mutation routes correspondentes; validações `4xx` não são bugs.
+- `operation_failed` cobre `5xx` técnicos de rotas allowlisted não específicas; `database_failed` somente quando erro técnico classificado como SQLite/storage sem mensagem bruta.
 
-- [ ] **Step 1: Write failing effect tests** provando que payload de domínio não é repassado inteiro e que `actor.userId`, produto, cliente, valores livres e IDs comerciais não entram no envelope.
-- [ ] **Step 2: Add Review Focus test:** fazer `telemetry.record()` lançar artificialmente e provar que `runtime.dispatchPending()`/efeitos de negócio continuam concluindo sem tornar o outbox de domínio falho por causa de observabilidade.
-- [ ] **Step 3: Run RED** `node --test test/telemetry-effects.test.js`.
-- [ ] **Step 4: Implement adapters** lendo somente contagens/status/módulo/duração quando os campos são explicitamente seguros; não usar spread de `event.payload`.
-- [ ] **Step 5: Register effects after telemetry creation** no runtime.
-- [ ] **Step 6: Verify** `node --test test/telemetry-effects.test.js test/pdv-runtime.integration.test.js`.
-- [ ] **Step 7: Commit** `feat(telemetry): observe semantic domain events`.
+- [ ] **Step 1: Write RED effect tests**: payload de domínio não é copiado; `actor.userId`, cliente/produto/observações/IDs comerciais não são enviados.
+- [ ] **Step 2: Write fail-open test**: stub de `telemetry.record()` lança e `runtime.dispatchPending()` continua sem marcar o outbox de negócio como falho por observabilidade; adapter deve capturar internamente.
+- [ ] **Step 3: Write router classifier tests**: 500 em `/api/v1/sales/.../complete` -> `sale_failed`; 500 em `/api/v1/returns...` -> `return_failed`; 400/401/403/404 -> null; payload/URL query não aparece.
+- [ ] **Step 4: Run RED:** `node --test test/telemetry-effects.test.js`.
+- [ ] **Step 5: Implement adapters/classifier** com campos técnicos allowlisted apenas.
+- [ ] **Step 6: Register effects after telemetry creation**; classificador é chamado no catch global sem alterar status HTTP existente.
+- [ ] **Step 7: Verify:** `node --test test/telemetry-effects.test.js test/pdv-runtime.integration.test.js` -> PASS.
+- [ ] **Step 8: Commit:** `feat(telemetry): observe domain and technical failures`.
 
 ---
 
-### Task 4: Identidade, credencial segura, bootstrap e flush no Electron
+### Task 4: Credencial segura, bootstrap e background sender no host
 
-**Files:**
-- Create: `desktop/telemetry-identity.cjs`
-- Create: `desktop/telemetry-credentials.cjs`
-- Create: `desktop/telemetry-bridge.cjs`
-- Test: `test/telemetry-desktop.test.js`
-- Modify: `desktop/main.cjs`
-- Modify: `desktop/preload.cjs`
-- Modify: `server/start.js`
-- Modify: `package.json`
+**Files:** Create `desktop/telemetry-credentials.cjs`, `desktop/telemetry-bridge.cjs`; Test `test/telemetry-desktop.test.js`; Modify `desktop/main.cjs`, `server/start.js`, `package.json`.
 
 **Interfaces:**
-- `createTelemetryIdentityStore({filePath,randomUUID})` -> `loadOrCreate()` retornando `{installationId,terminalId}`; IDs são UUIDs aleatórios e arquivo não contém PII.
-- `createTelemetryCredentialStore({app,safeStorage})` -> `save`, `load`, `remove`, `status`; arquivo dedicado `telemetry-credential.bin`.
-- `createTelemetryHttpSender({endpoint,credentialStore,fetchImpl,registerInstallation,timeoutMs})` -> `sendBatch(batch)`.
-- Registration: `POST /v1/installations/register` somente depois de opt-in e quando não houver credencial.
-- IPC preload: `artisysDesktop.telemetry.status()` e `artisysDesktop.telemetry.recordUi(eventName,payload)`; não expor segredo/endpoint privado.
+- `createTelemetryCredentialStore({app,safeStorage})` -> `save/load/remove/status`, arquivo `telemetry-credential.bin`.
+- `createTelemetryHttpSender({endpoint,credentialStore,fetchImpl,registerInstallation,timeoutMs}) -> sendBatch(batch)`.
+- `POST /v1/installations/register` só após opt-in e ausência de credential.
+- Registro envia somente random `installation_id`, app/release/schema/protocol version.
 
-- [ ] **Step 1: Write failing desktop tests** para persistência de IDs, `safeStorage` obrigatório, credential nunca em plaintext e endpoint vazio = nenhuma request.
-- [ ] **Step 2: Write failing bootstrap tests**: registro envia somente `installation_id`, versão/release/schema/protocolo; falha de registro retorna estado offline sem lançar para runtime.
-- [ ] **Step 3: Run RED** `node --test test/telemetry-desktop.test.js`.
-- [ ] **Step 4: Implement stores e sender** com `AbortController`/timeout curto e credential Bearer somente no main process.
-- [ ] **Step 5: Integrate main/server hosts**: endpoint vem de `PDV_TELEMETRY_ENDPOINT` ou setting explícito; criar timer de flush desacoplado e `unref()` quando disponível; shutdown faz best-effort curto e fecha runtime independentemente do resultado.
-- [ ] **Step 6: Add Review Focus tests** para timeout, 401/403, falha de `safeStorage`, falha de escrita da fila e shutdown com endpoint indisponível.
-- [ ] **Step 7: Verify syntax + tests**.
-- [ ] **Step 8: Commit** `feat(telemetry): add protected desktop transport`.
+- [ ] **Step 1: Write RED desktop tests**: credential criptografada; `safeStorage` indisponível não cai startup; endpoint vazio = zero fetch; registration failure = estado offline.
+- [ ] **Step 2: Add lifecycle RED tests**: após runtime pronto, host chama `record('app_started',...)`; shutdown chama `app_closed` best-effort antes de `close()`, mas timeout de telemetria não segura encerramento.
+- [ ] **Step 3: Run RED:** `node --test test/telemetry-desktop.test.js`.
+- [ ] **Step 4: Implement store/sender** com `AbortController` e timeout curto; Bearer só no processo host.
+- [ ] **Step 5: Integrate Electron server-terminal host** com timer `flush()` desacoplado/`unref()`; terminal remoto não possui credential Cloudflare.
+- [ ] **Step 6: Integrate `server/start.js`** para modo headless: endpoint opcional e sender sem Electron deve receber credential por secret/env explícito somente quando operador configurar esse modo; ausência de secret mantém coleta local sem envio e nunca bloqueia server.
+- [ ] **Step 7: Verify syntax/tests**.
+- [ ] **Step 8: Commit:** `feat(telemetry): add protected background transport`.
 
 ---
 
-### Task 5: Opt-in e eventos de navegação na UI
+### Task 5: Opt-in, UI events e terminais LAN
 
-**Files:**
-- Modify: `desktop/renderer/admin-ops.js`
-- Modify: `desktop/renderer/api-client.js`
-- Modify: `desktop/renderer/app.js`
-- Test: `test/telemetry-settings-ui.test.js`
+**Files:** Modify `server/router.js`, `desktop/renderer/api-client.js`, `desktop/renderer/admin-ops.js`, `desktop/renderer/app.js`; Test `test/telemetry-settings-ui.test.js`, `test/e22-e25-api.test.js`.
 
 **Interfaces:**
-- UI em **Configurações > Privacidade e Diagnóstico** dentro do control center existente.
-- Toggle principal persiste `telemetry.enabled` via `settings.set`; toggle diagnóstico persiste `telemetry.diagnostics`.
-- Texto obrigatório deixa explícito que não são enviados clientes, documentos, credenciais, XML fiscal, cartão nem conteúdo de venda.
-- `screen_opened` usa somente identificador de rota allowlisted, nunca query de busca nem texto digitado.
+- Endpoint autenticado `POST /api/v1/system/telemetry/events` aceita somente UI event names `screen_opened` e `return_started` no primeiro release; body é revalidado pelo schema core.
+- Router usa `session.terminalId || 'server-terminal'` apenas como chave local para `identity.terminalId()`, nunca envia esse ID real.
+- `ApiClient.recordTelemetryUi(eventName,payload)` usa API existente/session; remote terminal funciona sem SQLite/Cloudflare credential local.
+- UI **Configurações > Privacidade e Diagnóstico** persiste `telemetry.enabled` e `telemetry.diagnostics` via SettingsService existente.
 
-- [ ] **Step 1: Write failing static/DOM contract tests** comprovando toggle default off, copy de privacidade, uso de `api.saveSetting('telemetry.enabled',...)` e ausência de exposição de credential.
-- [ ] **Step 2: Write navigation test** provando que `screen_opened` recebe apenas nome normalizado da rota e que pesquisa/ID de entidade não vai no evento.
-- [ ] **Step 3: Run RED**.
-- [ ] **Step 4: Implement card em `admin-ops.js`** reutilizando `settings()`/`saveSetting()` existentes; não criar endpoint administrativo novo se o SettingsService já cobre RBAC.
-- [ ] **Step 5: Wire renderer IPC estreito** para evento de tela; falha é ignorada/bounded warning.
-- [ ] **Step 6: Verify** `node --test test/telemetry-settings-ui.test.js` e testes renderer relacionados.
-- [ ] **Step 7: Commit** `feat(telemetry): add privacy controls and screen flow events`.
+- [ ] **Step 1: Write API RED tests**: endpoint exige sessão; evento fora da allowlist retorna 422; `screen_opened` válido retorna 202/204; real terminal ID não aparece na fila/envelope.
+- [ ] **Step 2: Write UI RED tests**: toggle default off; texto explicita dados nunca enviados; credential não aparece; `screen_opened` usa só nome de rota normalizado sem busca/ID.
+- [ ] **Step 3: Write return flow test**: entrada no fluxo de devolução emite `return_started`; falha técnica do backend já vira `return_failed` pela Task 3.
+- [ ] **Step 4: Run RED**.
+- [ ] **Step 5: Implement endpoint + ApiClient/UI** reutilizando RBAC/settings existentes; não criar endpoint de configuração paralelo.
+- [ ] **Step 6: Emit `screen_opened` nos limites de navegação**; erro de telemetria UI é ignorado e não gera toast de operação.
+- [ ] **Step 7: Verify:** `node --test test/telemetry-settings-ui.test.js test/e22-e25-api.test.js` + renderer regressions -> PASS.
+- [ ] **Step 8: Commit:** `feat(telemetry): add privacy controls and LAN-safe UI events`.
 
 ---
 
 ### Task 6: Worker Cloudflare, D1 e Analytics Engine
 
-**Files:**
-- Create: `cloudflare/telemetry/package.json`
-- Create: `cloudflare/telemetry/wrangler.jsonc`
-- Create: `cloudflare/telemetry/src/schema.js`
-- Create: `cloudflare/telemetry/src/auth.js`
-- Create: `cloudflare/telemetry/src/storage.js`
-- Create: `cloudflare/telemetry/src/index.js`
-- Create: `cloudflare/telemetry/migrations/0001_init.sql`
-- Create: `cloudflare/telemetry/test/worker.test.js`
+**Files:** Create `cloudflare/telemetry/package.json`, `wrangler.jsonc`, `src/schema.js`, `src/auth.js`, `src/storage.js`, `src/index.js`, `migrations/0001_init.sql`, `test/worker.test.js`.
 
 **Interfaces:**
-- `GET /health -> 200 {ok:true,schemaVersion:1}` sem segredos.
-- `POST /v1/installations/register` aceita body limitado e devolve `{installation_id,credential}` uma vez; D1 armazena somente hash.
-- `POST /v1/events` requer `Authorization: Bearer ...`, máximo 50 eventos/batch inicialmente e request-size bounded.
-- Bindings: `DB` (D1) e `ANALYTICS` (Analytics Engine).
-- Funções puras exportáveis para testes: `validateRegistration`, `validateBatch`, `hashCredential`, `handleRequest`.
+- `GET /health -> 200 {ok:true,schemaVersion:1}`.
+- `POST /v1/installations/register` -> `{installation_id,credential}`; D1 guarda somente hash.
+- `POST /v1/events` requer Bearer; máximo 50 eventos/batch e body bounded.
+- Bindings: `DB` D1 e `ANALYTICS` Analytics Engine.
+- Export testável: `validateRegistration`, `validateBatch`, `hashCredential`, `handleRequest`.
 
-- [ ] **Step 1: Write failing Worker tests** para health, content-type, tamanho, schema, auth, sanitização server-side, evento válido e erro interno = 500 (nunca 400/401 mascarado).
-- [ ] **Step 2: Add Review Focus duplicate test**: mesmo `event_id` de `fiscal_failed` duas vezes atualiza fingerprint D1 uma vez; flow event duplicado não cria receipt D1.
-- [ ] **Step 3: Add affected-installation test**: primeira combinação `(fingerprint,installation)` incrementa `affected_installations`; repetição da mesma instalação não incrementa.
-- [ ] **Step 4: Run RED** dentro de `cloudflare/telemetry`: `npm test`.
-- [ ] **Step 5: Implement migration** com `installations`, `error_fingerprints`, `error_fingerprint_installations`, `event_receipts` e índices/constraints necessários.
-- [ ] **Step 6: Implement auth/registration** usando segredo aleatório >=32 bytes e SHA-256/HMAC apropriado para representação persistida; plaintext só existe na resposta inicial e no cliente protegido.
-- [ ] **Step 7: Implement ingestion**: validar novamente por allowlist, escrever datapoint no `ANALYTICS`, atualizar `installations.last_seen_at`; somente eventos de erro/controle mutam tabelas agregadas/receipts.
-- [ ] **Step 8: Implement maintenance** para remover `event_receipts` antigos e documentar retenção inicial de 30 dias; não deletar dados de erro necessários para análise sem política explícita.
-- [ ] **Step 9: Verify Worker tests** e `wrangler deploy --dry-run` quando suportado sem credenciais reais.
-- [ ] **Step 10: Commit** `feat(telemetry): add Cloudflare ingestion worker`.
+- [ ] **Step 1: Write RED Worker tests**: health; content-type/tamanho/schema; auth; sanitizer server-side; valid event; erro interno => 500, nunca 400/401 mascarado.
+- [ ] **Step 2: Duplicate test**: mesmo `event_id` de erro duas vezes muta fingerprint D1 uma vez; flow duplicado não cria receipt D1.
+- [ ] **Step 3: Affected-installation test**: primeira `(fingerprint,installation)` incrementa; repetição não incrementa.
+- [ ] **Step 4: Run RED:** `npm --prefix cloudflare/telemetry test`.
+- [ ] **Step 5: Implement migration** `installations`, `error_fingerprints`, `error_fingerprint_installations`, `event_receipts` + indexes.
+- [ ] **Step 6: Implement auth/registration** com credential randômica >=32 bytes; hash persistido; plaintext apenas na resposta inicial.
+- [ ] **Step 7: Implement ingestion**: revalidar allowlist, `ANALYTICS.writeDataPoint`, atualizar `last_seen`; D1 agregado somente para erro/controle.
+- [ ] **Step 8: Implement maintenance** purge de `event_receipts` após 30 dias; documentar retenção e não armazenar IP/raw rejected body.
+- [ ] **Step 9: Verify:** Worker tests + `wrangler deploy --dry-run` quando disponível sem credencial real.
+- [ ] **Step 10: Commit:** `feat(telemetry): add Cloudflare ingestion worker`.
 
 ---
 
-### Task 7: Provisionamento automático via terminal
+### Task 7: Provisionamento automático pelo terminal
 
-**Files:**
-- Create: `scripts/setup-cloudflare-telemetry.mjs`
-- Modify: `package.json`
-- Modify: `cloudflare/telemetry/wrangler.jsonc`
-- Create: `cloudflare/telemetry/README.md`
-- Test: `test/cloudflare-telemetry-setup.test.js`
+**Files:** Create `scripts/setup-cloudflare-telemetry.mjs`, `test/cloudflare-telemetry-setup.test.js`, `cloudflare/telemetry/README.md`; Modify root `package.json`, `cloudflare/telemetry/wrangler.jsonc`.
 
 **Interfaces:**
-- Root script: `npm run telemetry:cloudflare:setup`.
-- Script usa `npx wrangler`/CLI instalado no subprojeto e não requer edição manual de dashboard para caminho normal.
-- Fluxo idempotente: `whoami` -> localizar/criar D1 -> escrever/validar `database_id` no `wrangler.jsonc` -> migrations remote -> deploy -> `/health` -> imprimir endpoint e próximo comando/configuração.
+- Root command: `npm run telemetry:cloudflare:setup`.
+- Fluxo idempotente: `wrangler whoami` -> localizar/criar D1 -> atualizar/verificar binding -> migrations remote -> verificar Analytics binding -> deploy -> `/health` -> imprimir endpoint/config.
 
-- [ ] **Step 1: Write failing setup-script tests** com executor CLI fake: recurso já existe deve ser reutilizado; primeira execução cria; rerun não duplica; falha em health resulta exit !=0.
-- [ ] **Step 2: Run RED** `node --test test/cloudflare-telemetry-setup.test.js`.
-- [ ] **Step 3: Implement command runner injetável** (`run(cmd,args,opts)`) para permitir teste sem Cloudflare.
-- [ ] **Step 4: Implement D1 discovery/create** parseando saída Wrangler estruturada quando disponível; nunca escolher database ambíguo silenciosamente.
-- [ ] **Step 5: Implement binding update seguro** preservando o restante de `wrangler.jsonc`; validar `ANALYTICS` binding e aplicar `wrangler d1 migrations apply ... --remote`.
-- [ ] **Step 6: Deploy + health check** e imprimir ao final:
-
-```text
-Worker: <url>
-D1: <name/id>
-Analytics binding: ANALYTICS
-ArtiSys: defina PDV_TELEMETRY_ENDPOINT=<url> no build/ambiente oficial ou configure explicitamente.
-```
-
-- [ ] **Step 7: Verify idempotency tests + `node --check scripts/setup-cloudflare-telemetry.mjs`**.
-- [ ] **Step 8: Commit** `feat(telemetry): automate Cloudflare provisioning`.
+- [ ] **Step 1: Write RED setup tests** com executor fake: primeira execução cria; rerun reutiliza; recurso ambíguo falha explicitamente; health fail => exit !=0.
+- [ ] **Step 2: Run RED:** `node --test test/cloudflare-telemetry-setup.test.js`.
+- [ ] **Step 3: Implement command runner injetável** para testes sem Cloudflare.
+- [ ] **Step 4: Implement D1 discovery/create e patch seguro de `wrangler.jsonc`** preservando outras chaves.
+- [ ] **Step 5: Apply `wrangler d1 migrations apply ... --remote`, deploy e health check**.
+- [ ] **Step 6: Final output obrigatório:** Worker URL, D1 name/id, Analytics binding e instrução `PDV_TELEMETRY_ENDPOINT=<url>`.
+- [ ] **Step 7: Verify idempotency + syntax**.
+- [ ] **Step 8: Commit:** `feat(telemetry): automate Cloudflare provisioning`.
 
 ---
 
-### Task 8: Documentação, lint, release gates e verificação final
+### Task 8: Docs, lint e gates finais
 
-**Files:**
-- Create: `docs/operations/telemetry.md`
-- Modify: `README.md`
-- Modify: `release/release-notes.md`
-- Modify: `package.json`
-- Modify: `docs/superpowers/specs/2026-09-25-telemetry-cloudflare-design.md` apenas se a implementação exigir esclarecer algo sem mudar escopo.
+**Files:** Create `docs/operations/telemetry.md`; Modify `README.md`, `release/release-notes.md`, `package.json`.
 
 **Interfaces:**
-- `npm run verify` inclui syntax checks dos novos arquivos core/desktop/setup.
-- Worker mantém suite própria `npm --prefix cloudflare/telemetry test` e pode ser chamada por `npm run test:telemetry:cloudflare` no root.
-- Documentação explica opt-in, dados coletados/não coletados, fila offline, como desativar, retenção, custos/quota Cloudflare e provisionamento.
+- Root `test:telemetry:cloudflare` roda suite Worker local.
+- `lint:core` inclui `js/core/telemetry/*`; `lint:desktop` inclui telemetry bridge/credential; setup script recebe `node --check`.
+- Docs cobrem opt-in, dados coletados/não coletados, fila offline, desativação, retenção, Cloudflare opcional, custos/quota sujeitos ao plano vigente e comando único de setup.
 
-- [ ] **Step 1: Add lint/scripts**:
-  - novos arquivos `js/core/telemetry/*` em `lint:core`;
-  - `desktop/telemetry-*.cjs` em `lint:desktop`;
-  - `telemetry:cloudflare:setup`;
-  - `test:telemetry:cloudflare`.
-- [ ] **Step 2: Document operational procedure** com comando único de setup e comandos de inspeção/redeploy/migrations sem prometer quotas eternas; apontar que preços/limites Cloudflare devem ser conferidos antes de produção em escala.
-- [ ] **Step 3: Run focused suites**:
+- [ ] **Step 1: Add scripts/lints** e manter `npm test` cobrindo todos `test/*.test.js`.
+- [ ] **Step 2: Write docs/release note** sem afirmar quota/preço permanente; orientar verificar Cloudflare antes de escala.
+- [ ] **Step 3: Focused verify:**
 
 ```bash
 node --test test/telemetry-schema.test.js test/telemetry-queue.test.js test/telemetry-service.test.js test/telemetry-effects.test.js test/telemetry-desktop.test.js test/telemetry-settings-ui.test.js test/cloudflare-telemetry-setup.test.js
 npm --prefix cloudflare/telemetry test
 ```
 
-Expected: PASS.
-
-- [ ] **Step 4: Run full repository verification**
-
-```bash
-npm run verify
-npm run test:release
-```
-
-Expected: todos os gates existentes passam; telemetria desligada não muda comportamento das suítes atuais.
-
-- [ ] **Step 5: Run release verification**
-
-```bash
-npm run verify:release
-```
-
-Expected: PASS.
-
-- [ ] **Step 6: Security/privacy grep**
-
-Inspecionar fixtures/outputs para garantir que testes não introduziram credenciais reais e que nenhuma linha nova envia objetos arbitrários (`event.payload`, request body, `process.env`) para telemetria.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add package.json README.md release/release-notes.md docs/operations/telemetry.md
-git commit -m "docs(telemetry): document privacy and operations"
-```
-
-- [ ] **Step 8: Final branch review** comparando `feat/telemetry-cloudflare` com `main`, com foco em fail-open, PII, auth bootstrap, D1 growth, timers e regressões de EventBus.
+- [ ] **Step 4: Full verify:** `npm run verify && npm run test:release`.
+- [ ] **Step 5: Release verify:** `npm run verify:release`.
+- [ ] **Step 6: Security/privacy review**: nenhum código novo faz spread de `event.payload`, request body ou `process.env` para telemetria; fixtures não contêm segredo real.
+- [ ] **Step 7: Whole-branch review** com foco em fail-open, PII, auth bootstrap, crescimento D1, timers e regressões EventBus/LAN.
+- [ ] **Step 8: Commit:** `docs(telemetry): document privacy and operations`.
 
 ---
 
-## Ordem de entrega funcional
+## Matriz de emissão inicial
 
-1. Tasks 1–2 entregam telemetria local testável sem rede.
-2. Task 3 conecta fluxos reais sem dependência de Cloudflare.
-3. Tasks 4–5 entregam opt-in, identidade e transporte seguro no produto.
-4. Task 6 entrega o coletor serverless testável isoladamente.
-5. Task 7 torna criação de Worker/D1/migrations/deploy automatizada pelo terminal.
-6. Task 8 fecha documentação e gates.
+| Evento | Origem inicial |
+|---|---|
+| `app_started` / `app_closed` | lifecycle do host do runtime (Task 4) |
+| `screen_opened` | renderer -> API autenticada (Task 5) |
+| `sale_started` / `sale_completed` | EventBus (Task 3) |
+| `sale_failed` | classificador de `5xx` em mutations de venda (Task 3) |
+| `return_started` | entrada explícita no fluxo UI (Task 5) |
+| `return_completed` | EventBus (Task 3) |
+| `return_failed` | classificador de `5xx` em devolução (Task 3) |
+| `printer_failed` | `RECEIPT_FAILED` (Task 3) |
+| `fiscal_failed` | eventos fiscal failed/rejected/unknown (Task 3) |
+| `database_failed` | classificador técnico allowlisted de storage/SQLite `5xx` (Task 3) |
+| `operation_failed` | outros `5xx` de rotas explicitamente allowlisted (Task 3) |
+| `network_failed` | schema entregue na v1; emissão fica limitada a falhas de rede de operações ArtiSys que possam ser observadas com segurança pelo host; falha da própria telemetria não gera `network_failed` para evitar recursão |
+
+A matriz evita eventos mortos acidentais e também evita inventar captura insegura só para preencher métricas.
+
+## Ordem de entrega
+
+1. Tasks 1–2: telemetria local testável sem rede.
+2. Task 3: fluxos reais e erros técnicos, ainda sem Cloudflare.
+3. Tasks 4–5: opt-in, transporte seguro e suporte a terminais LAN.
+4. Task 6: coletor serverless isoladamente testável.
+5. Task 7: provisionamento Worker/D1/migrations/deploy pelo terminal.
+6. Task 8: documentação e gates.
 
 Nenhuma task antes da 6 requer conta Cloudflare para passar testes, e nenhuma instalação do ArtiSys requer Cloudflare para vender ou operar.
