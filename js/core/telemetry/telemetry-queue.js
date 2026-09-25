@@ -11,7 +11,9 @@ function createTelemetryQueue({db,now=()=>new Date().toISOString(),maxPending=50
  const discard=ack;
  function reschedule(ids=[],nextAttemptAt){for(const id of ids)db.prepare('UPDATE telemetry_events SET attempts=attempts+1,next_attempt_at=? WHERE id=?').run(nextAttemptAt,String(id));return ids.length;}
  function count(){return Number(db.prepare('SELECT COUNT(*) AS count FROM telemetry_events').get().count||0);}
+ function clear(){return Number(db.prepare('DELETE FROM telemetry_events').run().changes||0);}
+ function discardEvents(eventNames=[]){const names=[...new Set(eventNames.map(String))];let changed=0;for(const name of names)changed+=Number(db.prepare('DELETE FROM telemetry_events WHERE event_name=?').run(name).changes||0);return changed;}
  function prune(){return trim();}
- return{enqueue,listReady,ack,discard,reschedule,count,prune};
+ return{enqueue,listReady,ack,discard,reschedule,count,clear,discardEvents,prune};
 }
 module.exports={createTelemetryQueue,ERROR_EVENTS};
