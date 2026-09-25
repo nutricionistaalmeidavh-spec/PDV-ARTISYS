@@ -16,10 +16,14 @@ function patchD1DatabaseId(configPath,databaseName,databaseId){let text=fs.readF
 function parseD1List(stdout,databaseName){let rows;try{rows=JSON.parse(String(stdout||'[]'));}catch{throw new Error('Nao foi possivel interpretar `wrangler d1 list --json`.');}if(!Array.isArray(rows))rows=Array.isArray(rows?.result)?rows.result:Array.isArray(rows?.databases)?rows.databases:[];const matches=rows.filter(item=>item?.name===databaseName||item?.database_name===databaseName);if(matches.length>1)throw new Error(`Encontrado mais de um D1 chamado ${databaseName}; descoberta ambigua.`);return matches[0]||null;}
 function d1Id(row){return String(row?.uuid||row?.id||row?.database_id||'').trim();}
 function deploymentUrl(output){const matches=String(output||'').match(/https:\/\/[A-Za-z0-9.-]+\.workers\.dev\/?/g)||[];return matches.at(-1)?.replace(/\/$/,'')||'';}
-async function provisionTelemetry({cwd=process.cwd(),configPath=path.join(cwd,'cloudflare','telemetry','wrangler.jsonc'),databaseName='artisys-telemetry',runner=defaultRunner,fetchImpl=globalThis.fetch,log=console.log}={}){
+async function provisionTelemetry({cwd=process.cwd(),configPath=path.join(cwd,'cloudflare','telemetry','wrangler.jsonc'),databaseName='artisys-telemetry',runner=defaultRunner,fetchImpl=globalThis.fetch,log=console.log,isInteractive=Boolean(process.stdin.isTTY&&process.stdout.isTTY)}={}){
   if(!fs.existsSync(configPath))throw new Error(`wrangler.jsonc nao encontrado: ${configPath}`);if(typeof fetchImpl!=='function')throw new Error('Fetch indisponivel para validar /health.');
   const cloudflareDir=path.dirname(configPath);const run=(args)=>runner('npx',args,{cwd:cloudflareDir});
-  await run(['wrangler','whoami','--config',configPath]);
+  try{await run(['wrangler','whoami','--config',configPath]);}
+  catch(error){
+    if(!isInteractive)throw new Error(`Cloudflare nao autenticada. Em CI defina CLOUDFLARE_API_TOKEN; em terminal execute npx wrangler login. Detalhe: ${error?.message||error}`);
+    log('Cloudflare ainda nao autenticada; abrindo login do Wrangler...');await run(['wrangler','login','--config',configPath]);await run(['wrangler','whoami','--config',configPath]);
+  }
   let listing=await run(['wrangler','d1','list','--json','--config',configPath]);let database=parseD1List(listing.stdout,databaseName);
   if(!database){log(`Criando D1 ${databaseName}...`);await run(['wrangler','d1','create',databaseName,'--binding','DB','--config',configPath]);listing=await run(['wrangler','d1','list','--json','--config',configPath]);database=parseD1List(listing.stdout,databaseName);if(!database)throw new Error(`D1 ${databaseName} nao apareceu apos a criacao.`);}
   const databaseId=d1Id(database);if(!databaseId)throw new Error(`D1 ${databaseName} nao retornou um identificador.`);patchD1DatabaseId(configPath,databaseName,databaseId);
