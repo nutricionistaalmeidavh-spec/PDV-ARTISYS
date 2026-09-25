@@ -3,6 +3,8 @@
 const { app, ipcMain, BrowserWindow } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { createUpdaterService } = require('./updater-service.cjs');
+const { createTelemetryConsentController } = require('./telemetry-consent-controller.cjs');
+const { onRuntimeTelemetryAttached } = require('../js/core/telemetry/telemetry-runtime');
 require('./main.cjs');
 require('./telemetry-bootstrap.cjs');
 
@@ -21,9 +23,27 @@ const service = createUpdaterService({
   }
 });
 
+let telemetryConsentController = null;
+onRuntimeTelemetryAttached((_telemetry, runtime) => {
+  if (!runtime?.settings || telemetryConsentController) return;
+  telemetryConsentController = createTelemetryConsentController({
+    settings: {
+      set: (key, value) => runtime.settings.set(key, value, {
+        scope: 'global',
+        actor: { role: 'system', userId: 'updater-consent' }
+      })
+    },
+    updater: service
+  });
+});
+
 ipcMain.handle('updater:state', async () => service.state());
 ipcMain.handle('updater:check', async () => service.check());
 ipcMain.handle('updater:download', async () => service.download());
 ipcMain.handle('updater:install', async () => service.install());
+ipcMain.handle('updater:telemetry-consent-install', async (_event, input = {}) => {
+  if (!telemetryConsentController) throw new Error('Consentimento de telemetria indisponivel nesta instalacao.');
+  return input.accepted ? telemetryConsentController.acceptAndInstall() : telemetryConsentController.declineAndInstall();
+});
 
 void app.whenReady().then(() => service.start());
