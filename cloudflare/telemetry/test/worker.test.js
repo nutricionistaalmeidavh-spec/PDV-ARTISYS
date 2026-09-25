@@ -13,12 +13,13 @@ class FakeStatement {
   }
   async run(){
     const s=this.sql;const a=this.args;
-    if(s.startsWith('INSERT INTO installations')){this.db.installations.set(a[0],{installation_id:a[0],credential_hash:a[1],first_seen_at:a[2],last_seen_at:a[2],last_app_version:a[3],last_release_id:a[4],telemetry_schema_version:a[5]});return{meta:{changes:1}};}
+    if(s.startsWith('INSERT INTO installations')){this.db.installations.set(a[0],{installation_id:a[0],credential_hash:a[1],first_seen_at:a[2],last_seen_at:a[3],last_app_version:a[4],last_release_id:a[5],telemetry_schema_version:a[6]});return{meta:{changes:1}};}
     if(s.startsWith('UPDATE installations SET last_seen_at')){const row=this.db.installations.get(a[3]);if(row){row.last_seen_at=a[0];row.last_app_version=a[1];row.last_release_id=a[2];}return{meta:{changes:row?1:0}};}
-    if(s.startsWith('DELETE FROM event_receipts')){return{meta:{changes:0}};}
+    if(s.startsWith('DELETE FROM event_receipts'))return{meta:{changes:0}};
     if(s.startsWith('INSERT OR IGNORE INTO event_receipts')){if(this.db.receipts.has(a[0]))return{meta:{changes:0}};this.db.receipts.add(a[0]);return{meta:{changes:1}};}
+    if(s.startsWith('INSERT INTO error_fingerprints')){const [fingerprint,subsystem,operation,firstSeen,lastSeen]=a;const existing=this.db.fingerprints.get(fingerprint);if(existing){existing.last_seen_at=lastSeen;existing.occurrence_count+=1;}else this.db.fingerprints.set(fingerprint,{fingerprint,subsystem,operation,first_seen_at:firstSeen,last_seen_at:lastSeen,occurrence_count:1,affected_installations:0});return{meta:{changes:1}};}
     if(s.startsWith('INSERT OR IGNORE INTO error_fingerprint_installations')){const key=`${a[0]}|${a[1]}`;const fresh=!this.db.fingerprintInstallations.has(key);this.db.fingerprintInstallations.add(key);return{meta:{changes:fresh?1:0}};}
-    if(s.startsWith('INSERT INTO error_fingerprints')){const [fingerprint,subsystem,operation,firstSeen,lastSeen]=a;const existing=this.db.fingerprints.get(fingerprint);if(existing){existing.last_seen_at=lastSeen;existing.occurrence_count+=1;existing.affected_installations=[...this.db.fingerprintInstallations].filter(k=>k.startsWith(`${fingerprint}|`)).length;}else this.db.fingerprints.set(fingerprint,{fingerprint,subsystem,operation,first_seen_at:firstSeen,last_seen_at:lastSeen,occurrence_count:1,affected_installations:[...this.db.fingerprintInstallations].filter(k=>k.startsWith(`${fingerprint}|`)).length});return{meta:{changes:1}};}
+    if(s.startsWith('UPDATE error_fingerprints SET affected_installations')){const fingerprint=a[0];const row=this.db.fingerprints.get(fingerprint);if(row)row.affected_installations=[...this.db.fingerprintInstallations].filter(k=>k.startsWith(`${fingerprint}|`)).length;return{meta:{changes:row?1:0}};}
     throw new Error(`Unhandled SQL: ${s}`);
   }
 }
