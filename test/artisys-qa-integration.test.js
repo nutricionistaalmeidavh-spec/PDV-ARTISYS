@@ -24,9 +24,9 @@ test('vendors runtime capabilities used by CI',()=>{
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile gates reporting v2, checkout UX, desktop regressions, post-sale output, paired UX finalization, enterprise depth, backend/UI parity and fiscal E2E',()=>{
+test('PDV release profile gates reporting v2, checkout UX, desktop regressions, post-sale output, paired UX finalization, enterprise depth, backend/UI parity, restaurant module sync and fiscal E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8'];
+  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e'];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
@@ -53,6 +53,7 @@ test('PDV release profile gates reporting v2, checkout UX, desktop regressions, 
   assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');
   assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
   assert.equal(config.flows['fiscal-nfse-p8'],'flows/fiscal-nfse-p8.json');
+  assert.equal(config.flows['restaurant-module-sync-e2e'],'flows/restaurant-module-sync-e2e.json');
 });
 
 test('future QA updates remain explicit and local-first',()=>{
