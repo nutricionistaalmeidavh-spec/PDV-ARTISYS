@@ -19,16 +19,20 @@ test('primeiro inicio apos update pode salvar aceite sem iniciar outra instalaca
   assert.equal(Object.fromEntries(writes)['telemetry.diagnostics'], true);
 });
 
-test('primeiro inicio apos update pode continuar sem compartilhar dados', async () => {
+test('primeiro inicio apos update pode continuar sem compartilhar e limpa fila pendente', async () => {
   const writes = [];
+  let purges = 0;
   const controller = createTelemetryConsentController({
     settings: { set: async (key, value) => writes.push([key, value]), get: () => 0 },
     updater: { install: () => true },
-    now: () => new Date('2026-09-25T21:00:00.000Z')
+    now: () => new Date('2026-09-25T21:00:00.000Z'),
+    onDecline: async () => { purges += 1; }
   });
 
   await controller.decline();
 
   assert.equal(Object.fromEntries(writes)['telemetry.enabled'], false);
   assert.equal(Object.fromEntries(writes)['telemetry.diagnostics'], false);
+  assert.equal(Object.fromEntries(writes)['telemetry.consent_accepted_at'], '');
+  assert.equal(purges, 1);
 });
