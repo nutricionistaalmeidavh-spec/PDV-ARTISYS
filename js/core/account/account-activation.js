@@ -45,7 +45,7 @@ function createAccountService({
   }
 
   async function remote(path, body) {
-    if (!baseUrl || typeof fetchImpl !== 'function') throw new Error('Servico de ativacao indisponivel.');
+    if (!baseUrl || typeof fetchImpl !== 'function') throw new Error('Servico de conta indisponivel.');
     try {
       const response = await fetchImpl(`${baseUrl}${path}`, {
         method:'POST',
@@ -54,11 +54,11 @@ function createAccountService({
       });
       let payload = {};
       try { payload = await response.json(); } catch { payload = {}; }
-      if (!response.ok) throw new Error(payload.error || `Falha de ativacao (${response.status}).`);
+      if (!response.ok) throw new Error(payload.error || `Falha no servico de conta (${response.status}).`);
       return payload;
     } catch (error) {
-      if (/Falha de ativacao|ativacao/i.test(String(error?.message || ''))) throw error;
-      throw new Error('Servico de ativacao indisponivel.');
+      if (/Falha no servico de conta|ativacao|recuperacao|codigo/i.test(String(error?.message || ''))) throw error;
+      throw new Error('Servico de conta indisponivel.');
     }
   }
 
@@ -86,7 +86,30 @@ function createAccountService({
     return activation();
   }
 
-  return { status, activation, requestActivation, verifyActivation };
+  async function requestPasswordRecovery(email) {
+    const accountEmail = normalizeEmail(email);
+    if (!accountEmail) throw new Error('E-mail obrigatorio para recuperacao.');
+    return remote('/v1/password-recovery/request', { email:accountEmail });
+  }
+
+  async function verifyPasswordRecovery({ email, code }={}) {
+    const accountEmail = normalizeEmail(email);
+    const token = String(code || '').trim();
+    if (!accountEmail || !token) throw new Error('E-mail e codigo sao obrigatorios para recuperacao.');
+    const payload = await remote('/v1/password-recovery/verify', { email:accountEmail, code:token });
+    const verifiedEmail = normalizeEmail(payload.accountEmail || payload.account_email || accountEmail);
+    if (!payload.verified || !verifiedEmail) throw new Error('Codigo de recuperacao invalido ou expirado.');
+    return { verified:true, accountEmail:verifiedEmail };
+  }
+
+  return {
+    status,
+    activation,
+    requestActivation,
+    verifyActivation,
+    requestPasswordRecovery,
+    verifyPasswordRecovery
+  };
 }
 
 module.exports = { createAccountService, normalizeEmail };
