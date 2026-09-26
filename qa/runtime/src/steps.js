@@ -29,6 +29,20 @@ async function ensureHomeRouteContext(page, step) {
   await page.locator(step.selector).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
 }
 
+function isModuleToggleStep(step) {
+  return typeof step.selector === 'string' && step.selector.includes('[data-module-toggle=');
+}
+
+async function restoreModuleToggleContext(page, step, deadline) {
+  if (!isModuleToggleStep(step)) return false;
+  const modulesEntry = page.locator('#ops-load-establishment-modules');
+  if (!(await modulesEntry.isVisible().catch(() => false))) return false;
+  await modulesEntry.click();
+  const remainingMs = Math.max(1, deadline - Date.now());
+  await locator(page, step).waitFor({ state:'visible', timeout:Math.min(remainingMs, 5000) }).catch(() => {});
+  return true;
+}
+
 async function setCheckboxState(page, step, checked) {
   let target = locator(page, step);
   const current = await target.isChecked().catch(() => null);
@@ -36,10 +50,15 @@ async function setCheckboxState(page, step, checked) {
   await target.click();
   const timeoutMs = Number(step.timeoutMs ?? 10000);
   const deadline = Date.now() + timeoutMs;
+  let restoredModuleContext = false;
   while (true) {
     target = locator(page, step);
     const next = await target.isChecked().catch(() => null);
     if (next === checked) return;
+    if (next === null && !restoredModuleContext) {
+      restoredModuleContext = await restoreModuleToggleContext(page, step, deadline);
+      if (restoredModuleContext) continue;
+    }
     if (Date.now() >= deadline) {
       throw new Error(`${stepLabel(step, 0)}: checkbox did not reach ${checked ? 'checked' : 'unchecked'} state`);
     }
