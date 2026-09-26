@@ -23,7 +23,7 @@ test('user email is optional, normalized and unique when present', () => {
     });
     assert.equal(user.email, 'admin@example.com');
     const raw = runtime.db.prepare('SELECT email,email_normalized FROM users WHERE id=?').get('user-email-1');
-    assert.deepEqual(raw, { email:'admin@example.com', email_normalized:'admin@example.com' });
+    assert.deepEqual({ ...raw }, { email:'admin@example.com', email_normalized:'admin@example.com' });
 
     assert.throws(() => runtime.catalog.createUser({
       id:'user-email-2', username:'admin2', name:'Admin 2', role:'admin', password:'senha-forte-123', email:'ADMIN@example.com'
