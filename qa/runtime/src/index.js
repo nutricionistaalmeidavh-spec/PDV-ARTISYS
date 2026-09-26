@@ -74,4 +74,5 @@ export { buildQaMatrix, runQaMatrix } from './matrix.js';
 export { runApiSweep } from './api-sweep.js';
 export { runUiSweep } from './ui-sweep.js';
 export { runCrosscutContracts } from './crosscut-runner.js';
+export { buildModuleContractPlan, validateModuleProbeConfig } from './module-contracts.js';
 export { evaluateProductGate, buildProductQaSummary, renderProductQaText, renderProductQaHtml, writeProductQaBundle } from './product-report.js';
