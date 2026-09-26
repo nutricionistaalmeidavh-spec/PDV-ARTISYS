@@ -17,6 +17,7 @@
     "./api-sweep": "./src/api-sweep.js",
     "./ui-sweep": "./src/ui-sweep.js",
     "./crosscut-runner": "./src/crosscut-runner.js",
+    "./module-contracts": "./src/module-contracts.js",
     "./business-packs": "./src/business-packs.js",
     "./desktop": "./src/desktop.js",
     "./network": "./src/network.js",
