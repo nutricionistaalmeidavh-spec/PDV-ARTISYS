@@ -17,6 +17,7 @@ const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
 const { DomainEventDispatcher }=require('./domain-event-dispatcher');
 const { createCatalogService }=require('../domains/catalog/catalog-service');
+const { createAccountService }=require('./account/account-service');
 const { createProductPhotoService }=require('../domains/catalog/product-photo-service');
 const { createCatalogCustomizationService }=require('../domains/catalog/catalog-customization-service');
 const { createKitComboService }=require('../domains/catalog/kit-combo-service');
@@ -81,13 +82,15 @@ const { createPilotService }=require('./pilot/pilot-service');
 function createPdvRuntime({
   dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
   fiscalProviderResolver=async()=>null,nfseProviderResolver=async()=>null,fiscalAutoIssueResolver=null,fiscalArchiveDir=null,fiscalRecoveryDir=null,fiscalPackStoreRoot=null,receiptOptions={},serverVersion='1.0.0',minimumTerminalVersion='1.0.0',capabilities,
-  backupDir=null,backupRetention=30,diagnosticsDir=null,productPhotoDir=null,logRetention=5000,appVersion=serverVersion,readScale=null
+  backupDir=null,backupRetention=30,diagnosticsDir=null,productPhotoDir=null,logRetention=5000,appVersion=serverVersion,readScale=null,
+  installationId='local',accountEndpoint='',requireCommercialActivation=false,accountFetchImpl=globalThis.fetch
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runFiscalMigrations(db,now);runAccountIdentityMigrations(db,now);runNfseMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
+  const account=createAccountService({db,installationId,endpoint:accountEndpoint,requireCommercialActivation,fetchImpl:accountFetchImpl,countUsers:()=>catalog.countUsers(),now});
   const baseFiscalConfiguration=createFiscalConfigurationService({db,now,idFactory});
   const fiscalConfiguration={...baseFiscalConfiguration,saveCompanySettings(input={},actor={}){if(String(input.environment||'').toLowerCase()==='production'){const activation=db.prepare("SELECT enabled FROM fiscal_production_activation WHERE id='default'").get();if(!Boolean(activation?.enabled))throw new Error('Ambiente de producao bloqueado: conclua a ativacao fiscal antes de selecionar producao.');}return baseFiscalConfiguration.saveCompanySettings(input,actor);}};
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
@@ -117,6 +120,6 @@ function createPdvRuntime({
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver,observability:fiscalObservability});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,fiscalProduction,fiscalObservability,fiscalRecovery,nfse,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalRecoveryDir:resolvedFiscalRecoveryDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,fiscalProduction,fiscalObservability,fiscalRecovery,nfse,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,workshop,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalRecoveryDir:resolvedFiscalRecoveryDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
