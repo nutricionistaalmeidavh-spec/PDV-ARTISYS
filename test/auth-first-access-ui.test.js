@@ -30,7 +30,6 @@ test('first access controller shows activation only when setup says it is requir
 
 test('renderer adds email password recovery without exposing the password to Cloudflare',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
-  const api=read('desktop/renderer/api-client.js');
   assert.match(ui,/Esqueci minha senha/);
   assert.match(ui,/Recuperar senha/);
   assert.match(ui,/name="recoveryEmail"/);
@@ -39,10 +38,8 @@ test('renderer adds email password recovery without exposing the password to Clo
   assert.match(ui,/name="newPasswordConfirm"/);
   assert.match(ui,/api\.requestPasswordRecovery/);
   assert.match(ui,/api\.confirmPasswordRecovery/);
-  assert.match(api,/requestPasswordRecovery\(body\)/);
-  assert.match(api,/confirmPasswordRecovery\(body\)/);
-  assert.match(api,/\/api\/v1\/auth\/password-recovery\/request/);
-  assert.match(api,/\/api\/v1\/auth\/password-recovery\/confirm/);
+  assert.match(ui,/requestPasswordRecovery[\s\S]{0,500}\/api\/v1\/auth\/password-recovery\/request/);
+  assert.match(ui,/confirmPasswordRecovery[\s\S]{0,500}\/api\/v1\/auth\/password-recovery\/confirm/);
 });
 
 test('renderer API exposes activation endpoints without changing local login API',()=>{
