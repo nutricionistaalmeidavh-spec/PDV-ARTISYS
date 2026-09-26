@@ -27,10 +27,57 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Install legacy runtime dependencies for Electron 22
         shell: pwsh
-        run: npm install --no-save --no-package-lock --ignore-scripts better-sqlite3@8.7.0 "serialport-legacy@npm:serialport@10.5.0"
+        run: node scripts/prepare-legacy-runtime.cjs
       - name: Build legacy installer
         shell: pwsh
         run: npx electron-builder --config electron-builder.legacy.yml --win --${{ matrix.arch }} --publish never
+      - name: Verify legacy native runtime packaging
+        shell: pwsh
+        run: |
+          $unpacked = Get-ChildItem -Path "dist-legacy" -Directory -Filter "win*-unpacked" | Select-Object -First 1
+          if (-not $unpacked) {
+            throw "Diretorio unpacked do Legacy ${{ matrix.arch }} nao encontrado"
+          }
+
+          $asarUnpacked = Join-Path $unpacked.FullName "resources/app.asar.unpacked"
+          if (-not (Test-Path $asarUnpacked)) {
+            throw "app.asar.unpacked ausente do pacote Legacy ${{ matrix.arch }}"
+          }
+
+          $sqlite = Get-ChildItem -Path $asarUnpacked -Recurse -Filter "better_sqlite3.node" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $sqlite) {
+            throw "better_sqlite3.node ausente do pacote Legacy ${{ matrix.arch }}"
+          }
+
+          $serial = Get-ChildItem -Path $asarUnpacked -Recurse -Filter "*.node" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "serialport-legacy|@serialport" } |
+            Select-Object -First 1
+          if (-not $serial) {
+            throw "binding nativo serialport-legacy ausente do pacote Legacy ${{ matrix.arch }}"
+          }
+
+          $exe = Get-ChildItem -Path $unpacked.FullName -File -Filter "*.exe" |
+            Where-Object { $_.Name -notmatch "uninstall" } |
+            Select-Object -First 1
+          if (-not $exe) {
+            throw "Executavel Legacy unpacked nao encontrado"
+          }
+
+          $sqliteModule = Join-Path $unpacked.FullName "resources/app.asar/node_modules/better-sqlite3"
+          $serialModule = Join-Path $unpacked.FullName "resources/app.asar/node_modules/serialport-legacy"
+          $smoke = "const Database=require(process.argv[1]);const db=new Database(':memory:');db.prepare('SELECT 1 AS ok').get();db.close();const serial=require(process.argv[2]);if(!serial.SerialPort)throw new Error('SerialPort export ausente');"
+          $env:ELECTRON_RUN_AS_NODE = "1"
+          try {
+            & $exe.FullName -e $smoke $sqliteModule $serialModule
+            if ($LASTEXITCODE -ne 0) {
+              throw "Smoke do runtime nativo Legacy falhou com codigo $LASTEXITCODE"
+            }
+          } finally {
+            Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+          }
+
+          Write-Host "SQLite native: $($sqlite.FullName)"
+          Write-Host "Serial native: $($serial.FullName)"
       - uses: actions/upload-artifact@v4
         with:
           name: artisys-pdv-legacy-${{ matrix.arch }}
