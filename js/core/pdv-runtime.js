@@ -10,6 +10,7 @@ const { runEnterpriseDepthMigrations }=require('./database/enterprise-depth-migr
 const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-migrations');
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
 const { runFiscalMigrations }=require('./database/fiscal-migrations');
+const { runAccountIdentityMigrations }=require('./database/account-identity-migrations');
 const { runNfseMigrations }=require('../domains/nfse/nfse-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
@@ -85,7 +86,7 @@ function createPdvRuntime({
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runFiscalMigrations(db,now);runNfseMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runFiscalMigrations(db,now);runAccountIdentityMigrations(db,now);runNfseMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});
   const baseFiscalConfiguration=createFiscalConfigurationService({db,now,idFactory});
   const fiscalConfiguration={...baseFiscalConfiguration,saveCompanySettings(input={},actor={}){if(String(input.environment||'').toLowerCase()==='production'){const activation=db.prepare("SELECT enabled FROM fiscal_production_activation WHERE id='default'").get();if(!Boolean(activation?.enabled))throw new Error('Ambiente de producao bloqueado: conclua a ativacao fiscal antes de selecionar producao.');}return baseFiscalConfiguration.saveCompanySettings(input,actor);}};
