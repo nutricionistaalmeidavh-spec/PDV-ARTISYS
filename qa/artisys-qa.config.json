@@ -191,6 +191,33 @@
       "includeCrosscut": true
     }
   },
+  "crosscut": {
+    "flows": [
+      "restaurant-module-sync-e2e"
+    ],
+    "criticalFlows": [
+      "restaurant-module-sync-e2e"
+    ],
+    "categories": {
+      "restaurant-module-sync-e2e": "state-sync"
+    },
+    "moduleRegistry": "js/core/modules/module-registry.js",
+    "moduleProbeConfig": "qa/crosscut/modules.json",
+    "rendererHealthPolicy": {
+      "blockSeverities": [
+        "high",
+        "critical"
+      ]
+    },
+    "policy": {
+      "failOnCriticalCheck": true,
+      "failOnCriticalFinding": true,
+      "maxHttp5xx": 0,
+      "maxRequestFailures": 0,
+      "maxConsoleErrors": 0,
+      "maxUncoveredCritical": 0
+    }
+  },
   "demos": {
     "quick-30s": {
       "file": "demo/quick-30s.json",
