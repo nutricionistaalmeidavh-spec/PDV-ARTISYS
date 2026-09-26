@@ -44,12 +44,13 @@ async function requestActivation(request,env){
   if(!email||!installationId)return json({error:'Dados de ativacao invalidos.'},400);
   const store=resolveStore(env);const license=await store.findActiveLicense(email);if(!license)return json({accepted:true},202);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'Servico de ativacao indisponivel.'},503);
+  const from=normalizeEmail(env.EMAIL_FROM);if(!from)return json({error:'Servico de ativacao indisponivel.'},503);
   const code=randomCode();const tokenDigest=await digestToken({pepper,email,code});const createdAt=new Date().toISOString();const expiresAt=new Date(Date.now()+TOKEN_TTL_MS).toISOString();
   await store.saveActivationToken({id:newId('token'),accountId:license.accountId||null,licenseId:license.id,installationId,email,tokenDigest,createdAt,expiresAt});
   const delivery={id:newId('email'),accountId:license.accountId||null,email,template:'activation-code',createdAt};
   try{
     if(!env.EMAIL?.send)throw new Error('EMAIL binding ausente.');
-    await env.EMAIL.send({to:email,subject:'Código de ativação ArtiSys',text:`Seu código de ativação ArtiSys é ${code}. Ele expira em 10 minutos.`,code});
+    await env.EMAIL.send({to:email,from,subject:'Código de ativação ArtiSys',text:`Seu código de ativação ArtiSys é ${code}. Ele expira em 10 minutos.`});
     await store.logEmail({...delivery,status:'SENT'});
   }catch(error){await store.logEmail({...delivery,status:'FAILED',error:String(error?.message||error).slice(0,240)});return json({error:'Falha ao enviar codigo de ativacao.'},503);}
   return json({accepted:true},202);
