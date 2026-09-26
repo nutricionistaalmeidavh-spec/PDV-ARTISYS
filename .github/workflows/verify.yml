@@ -29,8 +29,26 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
-      - name: Verify unit integration architecture release and capability gates
-        run: npm run verify:release
+      - name: Check release capability parity
+        run: npm run capability:check:release
+      - name: Check phase 3 capability parity
+        run: npm run capability:check:phase3
+      - name: Check documentation consistency
+        run: npm run docs:check
+      - name: Run unit and integration tests
+        run: npm test
+      - name: Test Cloudflare telemetry
+        run: npm run test:telemetry:cloudflare
+      - name: Lint EventBus
+        run: npm run lint:eventbus
+      - name: Lint core
+        run: npm run lint:core
+      - name: Lint desktop
+        run: npm run lint:desktop
+      - name: Lint commercial media
+        run: npm run lint:commercial-media
+      - name: Run release tests
+        run: npm run test:release
 
   e2e:
     needs: verify
