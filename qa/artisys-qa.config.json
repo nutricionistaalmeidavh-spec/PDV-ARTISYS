@@ -71,7 +71,8 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": false
     },
     "full": {
       "flows": [
@@ -128,7 +129,8 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": true
     },
     "release": {
       "flows": [
@@ -185,7 +187,40 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": true
+    }
+  },
+  "crosscut": {
+    "flows": [
+      "restaurant-module-sync-e2e"
+    ],
+    "criticalFlows": [
+      "restaurant-module-sync-e2e"
+    ],
+    "categories": {
+      "restaurant-module-sync-e2e": "state-sync"
+    },
+    "moduleRegistry": "../js/core/modules/module-registry.js",
+    "moduleProbeConfig": "crosscut/modules.json",
+    "rendererHealthPolicy": {
+      "blockSeverities": [
+        "high",
+        "critical"
+      ]
+    },
+    "policy": {
+      "failOnCriticalCheck": true,
+      "failOnCriticalFinding": true,
+      "maxHttp5xx": 0,
+      "maxRequestFailures": 0,
+      "maxConsoleErrors": 0,
+      "maxUncoveredCritical": 0,
+      "requiredCategories": [
+        "state-sync",
+        "module-contract",
+        "renderer-health"
+      ]
     }
   },
   "demos": {
