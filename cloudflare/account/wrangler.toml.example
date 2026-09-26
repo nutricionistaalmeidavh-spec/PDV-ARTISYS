@@ -1,0 +1,15 @@
+name = "artisys-account"
+main = "src/worker.mjs"
+compatibility_date = "2026-09-25"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "artisys-account"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[send_email]]
+name = "EMAIL"
+
+[vars]
+EMAIL_FROM = "noreply@REPLACE_WITH_ONBOARDED_DOMAIN"

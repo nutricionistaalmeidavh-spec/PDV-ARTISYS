@@ -3,14 +3,13 @@
 (() => {
   const root=window;
   const ApiClient=root.PdvApiClient?.ApiClient;
-  if(!ApiClient||root.PdvRestaurantModuleGate)return;
+  if(!ApiClient||root.PdvModuleGate)return;
 
   const api=new ApiClient();
-  const RESTAURANT_SETTING='modules.RESTAURANT.enabled';
+  const MODULE_SETTING_PATTERN=/^modules\.([A-Z_]+)\.enabled$/;
   const GATE_STYLE_ID='restaurant-module-gate-style';
   const REFRESH_INTERVAL_MS=5000;
-  let restaurantEnabled=false;
-  let stateResolved=false;
+  const moduleStates=new Map();
 
   function ensureGateStyle(){
     if(document.getElementById(GATE_STYLE_ID))return;
@@ -20,60 +19,108 @@
     (document.head||document.documentElement).appendChild(style);
   }
 
-  function applyLauncherState(){
-    ensureGateStyle();
-    document.documentElement?.setAttribute('data-restaurant-module-enabled',restaurantEnabled?'true':'false');
-    document.querySelectorAll('[data-restaurant-route]').forEach(launcher=>{
-      launcher.hidden = !restaurantEnabled;
-      launcher.setAttribute('aria-hidden',restaurantEnabled?'false':'true');
-      if(restaurantEnabled)launcher.removeAttribute('tabindex');
-      else launcher.setAttribute('tabindex','-1');
+  function normalizeId(value){return String(value||'').trim().toUpperCase();}
+  function snapshot(){return Object.freeze(Object.fromEntries(moduleStates.entries()));}
+  function isEnabled(id){return moduleStates.get(normalizeId(id))===true;}
+  function isResolved(id){return moduleStates.has(normalizeId(id));}
+
+  function applyLauncherState(id){
+    const moduleId=normalizeId(id);
+    if(!moduleId||!isResolved(moduleId))return;
+    const enabled=isEnabled(moduleId);
+    if(moduleId==='RESTAURANT'){
+      ensureGateStyle();
+      document.documentElement?.setAttribute('data-restaurant-module-enabled',enabled?'true':'false');
+      document.querySelectorAll('[data-restaurant-route]').forEach(launcher=>{
+        launcher.hidden=!enabled;
+        launcher.setAttribute('aria-hidden',enabled?'false':'true');
+        if(enabled)launcher.removeAttribute('tabindex');
+        else launcher.setAttribute('tabindex','-1');
+      });
+    }
+    document.querySelectorAll(`[data-module-open="${moduleId}"]`).forEach(launcher=>{
+      launcher.hidden=!enabled;
+      launcher.setAttribute('aria-hidden',enabled?'false':'true');
+      if(enabled){launcher.removeAttribute('tabindex');launcher.removeAttribute('aria-disabled');}
+      else{launcher.setAttribute('tabindex','-1');launcher.setAttribute('aria-disabled','true');}
     });
   }
 
-  function setRestaurantEnabled(enabled){
-    restaurantEnabled=Boolean(enabled);
-    stateResolved=true;
-    applyLauncherState();
+  function emitStateChanged(changedIds){
+    if(!changedIds.length)return;
+    root.dispatchEvent(new CustomEvent('artisys:modules-state-changed',{
+      detail:{changedIds:[...changedIds],modules:snapshot()}
+    }));
+  }
+
+  function setEnabled(id,enabled,{emit=true}={}){
+    const moduleId=normalizeId(id);
+    if(!moduleId)return false;
+    const value=Boolean(enabled);
+    const changed=!moduleStates.has(moduleId)||moduleStates.get(moduleId)!==value;
+    moduleStates.set(moduleId,value);
+    applyLauncherState(moduleId);
+    if(changed&&emit)emitStateChanged([moduleId]);
+    return value;
+  }
+
+  function reconcileModules(modules){
+    const changedIds=[];
+    for(const module of Array.isArray(modules)?modules:[]){
+      const moduleId=normalizeId(module?.id);
+      if(!moduleId)continue;
+      const value=Boolean(module?.enabled);
+      if(!moduleStates.has(moduleId)||moduleStates.get(moduleId)!==value)changedIds.push(moduleId);
+      moduleStates.set(moduleId,value);
+      applyLauncherState(moduleId);
+    }
+    emitStateChanged(changedIds);
+    return snapshot();
   }
 
   async function refresh(){
     try{
       const modules=await api.modules();
+      reconcileModules(modules);
+      // Keep the Restaurant lookup explicit for backwards-compatible diagnostics/tests.
       const restaurant=Array.isArray(modules)?modules.find(module=>module.id==='RESTAURANT'):null;
-      setRestaurantEnabled(Boolean(restaurant?.enabled));
+      if(restaurant&&!isResolved('RESTAURANT'))setEnabled('RESTAURANT',Boolean(restaurant?.enabled));
     }catch(_error){
-      if(!stateResolved)setRestaurantEnabled(false);
+      // Restaurant historically fails closed. Unknown optional modules stay unresolved rather than being invented as disabled.
+      if(!isResolved('RESTAURANT'))setEnabled('RESTAURANT',false);
     }
-    return restaurantEnabled;
+    return snapshot();
   }
 
   root.addEventListener('click',event=>{
-    const target=event.target?.closest?.('[data-restaurant-route]');
-    if(!target||restaurantEnabled)return;
+    const target=event.target?.closest?.('[data-restaurant-route],[data-module-open]');
+    if(!target)return;
+    const moduleId=target.matches?.('[data-restaurant-route]')?'RESTAURANT':normalizeId(target.getAttribute('data-module-open'));
+    if(!moduleId||!isResolved(moduleId)||isEnabled(moduleId))return;
     event.preventDefault();
     event.stopImmediatePropagation();
   },true);
 
   const originalSaveSetting=ApiClient.prototype.saveSetting;
-  if(typeof originalSaveSetting==='function'&&!originalSaveSetting.__restaurantModuleGateWrapped){
+  if(typeof originalSaveSetting==='function'&&!originalSaveSetting.__moduleGateWrapped){
     const wrappedSaveSetting=async function(key,value,...args){
       const result=await originalSaveSetting.call(this,key,value,...args);
-      if(String(key)===RESTAURANT_SETTING)setRestaurantEnabled(Boolean(value));
+      const match=String(key||'').match(MODULE_SETTING_PATTERN);
+      if(match)setEnabled(match[1],Boolean(value));
       return result;
     };
-    Object.defineProperty(wrappedSaveSetting,'__restaurantModuleGateWrapped',{value:true});
+    Object.defineProperty(wrappedSaveSetting,'__moduleGateWrapped',{value:true});
     ApiClient.prototype.saveSetting=wrappedSaveSetting;
   }
 
   const originalLogin=ApiClient.prototype.login;
-  if(typeof originalLogin==='function'&&!originalLogin.__restaurantModuleGateWrapped){
+  if(typeof originalLogin==='function'&&!originalLogin.__moduleGateWrapped){
     const wrappedLogin=async function(...args){
       const result=await originalLogin.apply(this,args);
       queueMicrotask(()=>{void refresh();});
       return result;
     };
-    Object.defineProperty(wrappedLogin,'__restaurantModuleGateWrapped',{value:true});
+    Object.defineProperty(wrappedLogin,'__moduleGateWrapped',{value:true});
     ApiClient.prototype.login=wrappedLogin;
   }
 
@@ -81,12 +128,15 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
   if(typeof root.setInterval==='function')root.setInterval(()=>{void refresh();},REFRESH_INTERVAL_MS);
 
+  root.PdvModuleGate=Object.freeze({refresh,setEnabled,isEnabled,snapshot});
   root.PdvRestaurantModuleGate=Object.freeze({
     refresh,
-    setEnabled:setRestaurantEnabled,
-    isEnabled:()=>restaurantEnabled
+    setEnabled:enabled=>setEnabled('RESTAURANT',enabled),
+    isEnabled:()=>isEnabled('RESTAURANT'),
+    snapshot:()=>({enabled:isEnabled('RESTAURANT'),resolved:isResolved('RESTAURANT')})
   });
 
-  applyLauncherState();
+  ensureGateStyle();
+  setEnabled('RESTAURANT',false,{emit:false});
   void refresh();
 })();

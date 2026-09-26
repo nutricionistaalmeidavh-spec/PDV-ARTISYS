@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = requir
 const path = require('node:path');
 const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
-const { randomBytes } = require('node:crypto');
+const { randomBytes, createHash } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
@@ -55,6 +55,7 @@ async function startEmbeddedServer() {
   const backupDir = path.join(app.getPath('userData'), 'backups');
   applyPendingRestore({ dbPath, backupDir });
   installationWasExisting = existsSync(dbPath);
+  const installationId=createHash('sha256').update(path.resolve(dbPath)).digest('hex').slice(0,32);
   runtime = createPdvRuntime({
     dbPath,
     backupDir,
@@ -64,6 +65,9 @@ async function startEmbeddedServer() {
     serverVersion:app.getVersion(),
     fiscalProviderResolver,
     nfseProviderResolver,
+    installationId,
+    accountEndpoint:bootstrapConfig?.accountEndpoint || '',
+    requireCommercialActivation:bootstrapConfig?.requireCommercialActivation === true,
     receiptOptions: {
       storeName: bootstrapConfig?.storeName || process.env.PDV_STORE_NAME || 'Loja Matriz',
       width: Number(process.env.PDV_RECEIPT_WIDTH || 42)
@@ -222,7 +226,7 @@ function registerIpc() {
     if (bootstrapConfig?.profile === 'terminal') {
       headers['x-terminal-id'] = bootstrapConfig.terminalId;
       headers['x-terminal-key'] = bootstrapConfig.terminalKey;
-    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/restaurant/') || rawPath.startsWith('/api/v1/vertical/') || rawPath.startsWith('/api/v1/product-variants')) {
+    } else if (rawPath === '/api/v1/auth/login' || rawPath === '/api/v1/setup/admin' || rawPath.startsWith('/api/v1/setup/activation/') || rawPath.startsWith('/api/v1/restaurant/') || rawPath.startsWith('/api/v1/vertical/') || rawPath.startsWith('/api/v1/product-variants')) {
       headers['x-pdv-token'] = installToken;
     }
     let body;

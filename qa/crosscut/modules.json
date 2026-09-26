@@ -4,59 +4,74 @@
     "RESTAURANT": {
       "critical": true,
       "launcherSelector": "#route-content [data-restaurant-route]",
-      "protectedProbe": {
-        "path": "/api/v1/restaurant/tables",
-        "method": "GET"
-      },
-      "supportsLiveSync": true
+      "protectedProbe": {"path": "/api/v1/restaurant/tables", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"RESTAURANT\"]",
+      "workspaceHeading": "Restaurante"
     },
     "PIZZERIA": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"PIZZERIA\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/pizzeria/products/__qa_missing__", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"PIZZERIA\"]",
+      "workspaceHeading": "Pizzaria"
     },
     "DELIVERY": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"DELIVERY\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/delivery", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"DELIVERY\"]",
+      "workspaceHeading": "Delivery"
     },
     "FAST_FOOD": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"FAST_FOOD\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/fast-food", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"FAST_FOOD\"]",
+      "workspaceHeading": "Fast-food / Lanchonete"
     },
     "MARKET_BAKERY": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"MARKET_BAKERY\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/market/price-weight", "method": "POST", "body": {"productId": "__qa_missing__", "weightKg": 0.1}},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"MARKET_BAKERY\"]",
+      "workspaceHeading": "Mercado / Conveniência / Padaria"
     },
     "RETAIL": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"RETAIL\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/retail/variants?query=__qa__", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"RETAIL\"]",
+      "workspaceHeading": "Varejo"
     },
     "SERVICES": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"SERVICES\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/services/commissions", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"SERVICES\"]",
+      "workspaceHeading": "Serviços"
     },
     "WORKSHOP": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"WORKSHOP\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/workshop/orders/__qa_missing__", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"WORKSHOP\"]",
+      "workspaceHeading": "Oficina"
     },
     "SELF_SERVICE": {
-      "critical": false,
-      "launcherReason": "launcher not mapped to a safe QA selector",
-      "protectedReason": "protected operation not exposed as a safe QA probe",
-      "liveSyncReason": "live sync surface not mapped for QA"
+      "critical": true,
+      "launcherSelector": "[data-module-open=\"SELF_SERVICE\"]",
+      "protectedProbe": {"path": "/api/v1/vertical/self-service/devices/__qa_missing__", "method": "GET"},
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"SELF_SERVICE\"]",
+      "workspaceHeading": "Autoatendimento"
     }
   }
 }

@@ -15,6 +15,11 @@ function normalizeOptional(value) {
   return text || null;
 }
 
+function normalizeEmail(value) {
+  const text = normalizeOptional(value);
+  return text ? text.toLowerCase() : null;
+}
+
 function normalizeCustomerAddress(value = {}) {
   const input = value && typeof value === 'object' ? value : {};
   const postalCode = String(input.postalCode || '').replace(/\D+/g,'') || null;
@@ -98,13 +103,17 @@ function rowToSupplier(row) {
 
 function publicUser(row) {
   if (!row) return null;
-  return { id: row.id, username: row.username, name: row.name, role: row.role, active: Boolean(row.active), createdAt: row.created_at, updatedAt: row.updated_at };
+  const user = { id: row.id, username: row.username, name: row.name, role: row.role, active: Boolean(row.active), createdAt: row.created_at, updatedAt: row.updated_at };
+  if (row.email) user.email = row.email;
+  return user;
 }
 
 function createCatalogService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
   runCustomerAddressMigrations(db);
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
+  const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
+  const hasAccountIdentity=['email','email_normalized','password_changed_at'].every(name=>userColumns.has(name));
 
   function upsertCategory(input = {}, actor = null) {
     const id = String(input.id || idFactory('cat')).trim();
@@ -254,14 +263,21 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const id = String(input.id || idFactory('user')).trim();
     const username = String(input.username || '').trim().toLowerCase();
     const name = String(input.name || '').trim();
+    const email = normalizeEmail(input.email);
     if (!username || !name) throw new Error('Usuario e nome sao obrigatorios.');
     const salt = randomBytes(16).toString('hex');
     const hash = scryptSync(password, salt, 64).toString('hex');
     const timestamp = now();
-    db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?)`)
-      .run(id, username, name, role, hash, salt, booleanInt(input.active), timestamp, timestamp);
-    writeAudit(db, { action: 'user.create', entity: 'user', entityId: id, actor, context: { username, name, role } }, now);
+    if (hasAccountIdentity) {
+      db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,email,email_normalized,password_changed_at,active,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, username, name, role, hash, salt, email, email, timestamp, booleanInt(input.active), timestamp, timestamp);
+    } else {
+      db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`)
+        .run(id, username, name, role, hash, salt, booleanInt(input.active), timestamp, timestamp);
+    }
+    writeAudit(db, { action: 'user.create', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
     return publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(id));
   }
 
@@ -275,18 +291,26 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     if (!['admin', 'manager', 'cashier'].includes(role)) throw new Error('Perfil de usuario invalido.');
     const existing = db.prepare('SELECT * FROM users WHERE id=?').get(id);
     if (!existing) return createUser(input, actor);
+    const email = input.email === undefined ? existing.email : normalizeEmail(input.email);
     const password = String(input.password || '');
     let hash = existing.password_hash;
     let salt = existing.password_salt;
+    let passwordChangedAt = existing.password_changed_at;
+    const timestamp = now();
     if (password) {
       if (password.length < 10) throw new Error('Senha deve possuir pelo menos 10 caracteres.');
       salt = randomBytes(16).toString('hex');
       hash = scryptSync(password, salt, 64).toString('hex');
+      passwordChangedAt = timestamp;
     }
-    const timestamp = now();
-    db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,active=?,updated_at=? WHERE id=?`)
-      .run(username, name, role, hash, salt, booleanInt(input.active), timestamp, id);
-    writeAudit(db, { action: 'user.upsert', entity: 'user', entityId: id, actor, context: { username, name, role } }, now);
+    if (hasAccountIdentity) {
+      db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,email=?,email_normalized=?,password_changed_at=?,active=?,updated_at=? WHERE id=?`)
+        .run(username, name, role, hash, salt, email, email, passwordChangedAt, booleanInt(input.active), timestamp, id);
+    } else {
+      db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,active=?,updated_at=? WHERE id=?`)
+        .run(username, name, role, hash, salt, booleanInt(input.active), timestamp, id);
+    }
+    writeAudit(db, { action: 'user.upsert', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
     return getUser(id);
   }
 
@@ -323,4 +347,4 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   };
 }
 
-module.exports = { normalizeDocument, normalizeCustomerAddress, createCatalogService };
+module.exports = { normalizeDocument, normalizeEmail, normalizeCustomerAddress, createCatalogService };
