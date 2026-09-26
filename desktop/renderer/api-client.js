@@ -38,6 +38,8 @@
     health() { return this.request('/api/v1/health'); }
     setupStatus() { return this.request('/api/v1/setup/status'); }
     setupAdmin(body) { return this.request('/api/v1/setup/admin', { method: 'POST', body }); }
+    requestSetupActivation(email) { return this.request('/api/v1/setup/activation/request', { method:'POST', body:{email} }); }
+    verifySetupActivation(email, code) { return this.request('/api/v1/setup/activation/verify', { method:'POST', body:{email,code} }); }
     async login(body) {
       const result = await this.request('/api/v1/auth/login', { method: 'POST', body });
       this.sessionToken = result.sessionToken;
