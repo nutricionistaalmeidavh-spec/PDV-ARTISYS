@@ -172,7 +172,7 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 Os perfis de QA têm responsabilidades separadas. `qa:quick` mantém o smoke barato; `qa:full` amplia a regressão funcional; `qa:release` executa os fluxos funcionais críticos de publicação. `qa:crosscut` é um gate dedicado de produto para comportamento transversal que cruza telas, módulos ou clientes: sincronização de estado, contratos dos módulos opcionais e saúde do renderer. Ele **não reexecuta** toda a suíte `full`/`release` e complementa — nunca substitui — `qa:release`.
 
-Falhas de rede explicitamente classificadas como esperadas continuam registradas como evidência e não bloqueiam sozinhas o gate. Erros inesperados de renderer/rede, contratos críticos descobertos sem cobertura ou findings críticos bloqueiam o `qa:crosscut`. O bundle consolidado é gravado em `qa-artifacts/product/pdv-artisys/crosscut/` e a cobertura versionada fica em `release/e2e-coverage.json`.
+Falhas de rede explicitamente classificadas como esperadas continuam registradas como evidência e não bloqueiam sozinhas o gate. Erros inesperados de renderer/rede, contratos críticos descobertos sem cobertura ou findings críticos bloqueiam o `qa:crosscut`. O bundle consolidado é gravado sob `qa-artifacts/` em uma pasta por execução no formato `pdv-artisys-<run-id>`, e a cobertura versionada fica em `release/e2e-coverage.json`.
 
 O QA transversal usa apenas o runtime local vendorizado no repositório e a infraestrutura já executada pelo próprio projeto; não adiciona SaaS ou serviço pago obrigatório.
 
