@@ -7,6 +7,7 @@ import { createFrameRecorder } from './video.js';
 import { startConsumerProcess } from './process.js';
 import { ensureDir, sanitizeName, writeJson } from './helpers.js';
 import { loadFlowFile, resolveFlowComposition } from './flow-library.js';
+import { normalizeFirstAccessFlowSteps } from './first-access-flow.js';
 import { prepareDemoProfile, finalizeDemoProfile } from './demo-profile.js';
 import { collectProfileSecretValues, redactSecrets } from './redaction.js';
 
@@ -52,7 +53,9 @@ export async function runQaFlow({
   const stepsLog = [];
   const startedAt = new Date().toISOString();
   const loaded = await loadFlowFile(flowFile);
-  const flow = await resolveFlowComposition(loaded.flow, { rootDir, sourceFile: loaded.file });
+  const composedFlow = await resolveFlowComposition(loaded.flow, { rootDir, sourceFile: loaded.file });
+  const normalizedSteps = normalizeFirstAccessFlowSteps(composedFlow.steps);
+  const flow = normalizedSteps === composedFlow.steps ? composedFlow : { ...composedFlow, steps: normalizedSteps };
   const profileSecretValues = demoProfile ? collectProfileSecretValues(demoProfile, process.env) : [];
   let status = 'passed';
   let failure = null;
