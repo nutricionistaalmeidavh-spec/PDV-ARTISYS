@@ -54,6 +54,19 @@ jobs:
         run: npm run qa:validate
       - name: Run release E2E flows
         run: xvfb-run -a npm run qa:release
+      - name: Run crosscut QA gate
+        run: xvfb-run -a npm run qa:crosscut
+      - name: Upload crosscut QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-artifacts-crosscut-${{ github.run_number }}
+          path: |
+            qa-artifacts
+            qa-report
+            qa-results
+          if-no-files-found: warn
+          retention-days: 7
       - name: Run core checkout E2E at 1366x768
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow core-business-e2e --viewport compactDesktop --output qa-artifacts
       - name: Run checkout UX exceptions at 1366x768
