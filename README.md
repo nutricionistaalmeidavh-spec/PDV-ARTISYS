@@ -73,7 +73,8 @@ Os módulos reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, aud
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
-- health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto.
+- health, logs estruturados, diagnóstico ZIP e checklist persistente de piloto;
+- telemetria opcional e opt-in para fluxos e falhas, com fila SQLite local e backend Cloudflare configurável sem dependência operacional.
 
 ## Arquitetura
 
@@ -121,6 +122,22 @@ O servidor desktop publica a LAN por padrão na porta 4174. `PDV_ENABLE_LAN=fals
 
 A interface móvel local usa `http://IP-DO-SERVIDOR:4174/mobile`. Esse transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet. A interface atual não é declarada PWA instalável.
 
+## Telemetria opcional
+
+A telemetria de produto e diagnóstico fica **desativada por padrão** e pode ser habilitada em `Configurações > Privacidade e diagnóstico`. O core continua funcionando integralmente sem internet ou Cloudflare.
+
+O servidor autoritativo mantém uma fila SQLite limitada e envia eventos em background para um endpoint HTTPS configurável. Terminais LAN não recebem a credencial de ingestão e encaminham apenas eventos UI allowlisted pela API autenticada.
+
+O backend Cloudflare opcional usa **Workers + Analytics Engine + D1**. Para provisionar automaticamente:
+
+```bash
+npm run telemetry:cloudflare:setup
+```
+
+Depois do deploy, configure explicitamente `PDV_TELEMETRY_ENDPOINT` com a URL exibida pelo script. Dados de cliente, CPF/CNPJ, e-mail, telefone, endereço, credenciais, XML/DANFE, dados de cartão, observações e texto livre não fazem parte do contrato de eventos.
+
+Detalhes operacionais: `docs/operations/telemetry.md`.
+
 ## Hardware
 
 A impressão padrão usa `PDV_PRINTER_MODE=electron`. Impressoras térmicas Epson/Star e interfaces seriais são suportadas por drivers locais explícitos. Balança e gaveta serial são opcionais e usam as configurações `PDV_SCALE_*` e `PDV_DRAWER_*`.
@@ -163,6 +180,7 @@ Mudanças relevantes na `main` podem disparar `release-windows`, que executa os 
 - `docs/operations/hardware-printing.md`
 - `docs/operations/import.md`
 - `docs/operations/diagnostics.md`
+- `docs/operations/telemetry.md`
 - `docs/operations/update.md`
 
 ### Arquitetura
@@ -180,7 +198,7 @@ Detalhes de cada fluxo devem permanecer nos documentos específicos; o README se
 
 ## Limitações externas
 
-Venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não dependem de nuvem nem de serviço pago. Hardware, firmware, cabo e driver específicos continuam sendo variáveis externas e precisam ser validados no ambiente real quando aplicável.
+Venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não dependem de nuvem nem de serviço pago. A telemetria Cloudflare é opcional e sua indisponibilidade não altera o funcionamento diário. Hardware, firmware, cabo e driver específicos continuam sendo variáveis externas e precisam ser validados no ambiente real quando aplicável.
 
 Um modelo físico não testado permanece `UNTESTED_MODEL`; famílias de integração validadas automaticamente podem ser `PROTOCOL_VERIFIED`; somente equipamento realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 
