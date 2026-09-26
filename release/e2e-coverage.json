@@ -9,7 +9,7 @@
       "qa/runtime/src/contracts/renderer-health.js"
     ],
     "covers": ["state-sync", "module-contract", "renderer-health"],
-    "artifacts": "qa-artifacts/product/pdv-artisys/crosscut"
+    "artifacts": "qa-artifacts/pdv-artisys-<run-id>"
   },
   "phases": {
     "4": {
