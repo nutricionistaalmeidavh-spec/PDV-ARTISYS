@@ -71,7 +71,8 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": false
     },
     "full": {
       "flows": [
@@ -128,7 +129,8 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": true
     },
     "release": {
       "flows": [
@@ -185,7 +187,8 @@
       ],
       "includeVisual": false,
       "includeDesktop": false,
-      "includeNetwork": false
+      "includeNetwork": false,
+      "includeCrosscut": true
     }
   },
   "demos": {
