@@ -56,9 +56,49 @@ async function expandFlow(flow, options, sourceFile, stack) {
   return { ...structuredClone(flow), steps };
 }
 
+function upgradeLegacyFirstAccessBootstrap(flow) {
+  if (!flow.steps.some(step => typeof step?.selector === 'string' && step.selector.includes('#setup-form'))) return flow;
+
+  const steps = [];
+  let skipLegacyLogin = false;
+  for (const step of flow.steps) {
+    const selector = typeof step?.selector === 'string' ? step.selector : '';
+
+    if (skipLegacyLogin && selector.includes('#login-form')) continue;
+    if (skipLegacyLogin && selector === '#auth-overlay' && step.state === 'hidden') {
+      steps.push(structuredClone(step));
+      skipLegacyLogin = false;
+      continue;
+    }
+
+    if (!selector.includes('#setup-form')) {
+      steps.push(structuredClone(step));
+      continue;
+    }
+
+    const upgraded = {
+      ...structuredClone(step),
+      selector: selector.replaceAll('#setup-form', '#first-access-form'),
+    };
+    steps.push(upgraded);
+
+    if (step.action === 'fill' && /input\[name=['"]password['"]\]/.test(selector)) {
+      steps.push({
+        ...structuredClone(upgraded),
+        selector: "#first-access-form input[name='passwordConfirm']",
+        name: `${step.name || 'setup-admin-password'}-confirm`,
+      });
+    }
+    if (step.action === 'click' && /button\[type=['"]submit['"]\]/.test(selector)) skipLegacyLogin = true;
+  }
+
+  return { ...flow, steps };
+}
+
 export async function resolveFlowComposition(flow, options = {}) {
   validateFlow(flow);
   const sourceFile = options.sourceFile ? path.resolve(options.sourceFile) : null;
   const rootId = flow.id || sourceFile || '<root>';
-  return expandFlow(flow, options, sourceFile, [rootId]);
+  const expanded = await expandFlow(flow, options, sourceFile, [rootId]);
+  return upgradeLegacyFirstAccessBootstrap(expanded);
 }
