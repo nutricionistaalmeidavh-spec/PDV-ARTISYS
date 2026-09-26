@@ -20,6 +20,25 @@ test('expected network failures do not block product gate but unexpected failure
   assert.equal(unexpected.blockers.find(item=>item.type==='request-failure')?.count,1);
 });
 
+test('required crosscut categories are enforced instead of remaining declarative only',()=>{
+  const requiredCategories=['state-sync','module-contract','renderer-health'];
+  const missing=evaluateProductGate({
+    checks:[
+      {name:'state-sync',category:'state-sync',status:'passed',critical:true},
+      {name:'module-contract',category:'module-contract',status:'passed',critical:true},
+    ],
+    policy:{requiredCategories},
+  });
+  assert.equal(missing.allowed,false);
+  assert.deepEqual(missing.blockers.find(item=>item.type==='missing-category')?.items,['renderer-health']);
+
+  const complete=evaluateProductGate({
+    checks:requiredCategories.map(category=>({name:category,category,status:'passed',critical:true})),
+    policy:{requiredCategories},
+  });
+  assert.equal(complete.allowed,true);
+});
+
 test('product summary consumes crosscut checks coverage findings and evidence without false blockers',()=>{
   const summary=buildProductQaSummary({
     systemId:'pdv-artisys',
