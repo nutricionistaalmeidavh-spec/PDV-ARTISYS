@@ -16,7 +16,7 @@ function cleanCheck(input,index){
 }
 function safeArray(value){return Array.isArray(value)?value:[]}
 function isoSlug(value){return String(value||'system').replace(/[^a-z0-9._-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'system'}
-function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]))}
+function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 
 export function evaluateProductGate({
   checks=[],
