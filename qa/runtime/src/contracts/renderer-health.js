@@ -25,7 +25,7 @@ export async function runRendererHealthContract({sweepResult={},policy={}}={}){
   return{
     checks:[{
       name:'renderer-health',
-      category:'renderer',
+      category:'renderer-health',
       status:failed?'failed':'passed',
       critical:true,
       error:failed?'renderer health violations detected':null,
