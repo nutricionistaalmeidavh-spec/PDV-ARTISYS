@@ -21,7 +21,7 @@ function envWithLicense(){
   const store=new MemoryStore();
   store.licenses.push({id:'lic-1',email:'owner@example.com',status:'ACTIVE'});
   const sent=[];
-  return {store,sent,env:{ACCOUNT_STORE:store,ACTIVATION_PEPPER:'test-pepper',EMAIL:{send:async(message)=>{sent.push(message);}}}};
+  return {store,sent,env:{ACCOUNT_STORE:store,ACTIVATION_PEPPER:'test-pepper',EMAIL_FROM:'noreply@example.com',EMAIL:{send:async(message)=>{sent.push(message);}}}};
 }
 
 test('Cloudflare account worker exposes a health endpoint',async()=>{
@@ -34,13 +34,13 @@ test('Cloudflare account worker exposes a health endpoint',async()=>{
 test('activation request is enumeration-safe and only sends email for an active license',async()=>{
   const {handleRequest}=await loadWorker();
   const store=new MemoryStore();const sent=[];
-  const env={ACCOUNT_STORE:store,ACTIVATION_PEPPER:'pepper',EMAIL:{send:async(message)=>sent.push(message)}};
+  const env={ACCOUNT_STORE:store,ACTIVATION_PEPPER:'pepper',EMAIL_FROM:'noreply@example.com',EMAIL:{send:async(message)=>sent.push(message)}};
   let response=await handleRequest(request('/v1/activation/request',{method:'POST',body:JSON.stringify({installationId:'install-1',email:'missing@example.com'})}),env);
   assert.equal(response.status,202);assert.equal(sent.length,0);
 
   store.licenses.push({id:'lic-1',email:'owner@example.com',status:'ACTIVE'});
   response=await handleRequest(request('/v1/activation/request',{method:'POST',body:JSON.stringify({installationId:'install-1',email:' Owner@Example.COM '})}),env);
-  assert.equal(response.status,202);assert.equal(sent.length,1);assert.equal(sent[0].to,'owner@example.com');
+  assert.equal(response.status,202);assert.equal(sent.length,1);assert.equal(sent[0].to,'owner@example.com');assert.equal(sent[0].from,'noreply@example.com');
   assert.equal(store.tokens.length,1);assert.ok(store.tokens[0].tokenDigest);assert.equal('code' in store.tokens[0],false);
   assert.equal(store.delivery.at(-1).status,'SENT');
 });
@@ -50,7 +50,7 @@ test('activation token is expiring, single-use and binds one installation to the
   const {store,sent,env}=envWithLicense();
   let response=await handleRequest(request('/v1/activation/request',{method:'POST',body:JSON.stringify({installationId:'install-1',email:'owner@example.com'})}),env);
   assert.equal(response.status,202);
-  const code=sent[0].code;
+  const code=sent[0].text.match(/\b(\d{6})\b/)?.[1];
   assert.match(code,/^\d{6}$/);
 
   response=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-1',email:'owner@example.com',code})}),env);
