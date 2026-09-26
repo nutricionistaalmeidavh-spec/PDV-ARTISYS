@@ -112,6 +112,8 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   if (!db) throw new TypeError('Database is required.');
   runCustomerAddressMigrations(db);
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
+  const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
+  const hasAccountIdentity=['email','email_normalized','password_changed_at'].every(name=>userColumns.has(name));
 
   function upsertCategory(input = {}, actor = null) {
     const id = String(input.id || idFactory('cat')).trim();
@@ -266,9 +268,15 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const salt = randomBytes(16).toString('hex');
     const hash = scryptSync(password, salt, 64).toString('hex');
     const timestamp = now();
-    db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,email,email_normalized,password_changed_at,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(id, username, name, role, hash, salt, email, email, timestamp, booleanInt(input.active), timestamp, timestamp);
+    if (hasAccountIdentity) {
+      db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,email,email_normalized,password_changed_at,active,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, username, name, role, hash, salt, email, email, timestamp, booleanInt(input.active), timestamp, timestamp);
+    } else {
+      db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?)`)
+        .run(id, username, name, role, hash, salt, booleanInt(input.active), timestamp, timestamp);
+    }
     writeAudit(db, { action: 'user.create', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
     return publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(id));
   }
@@ -295,8 +303,13 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
       hash = scryptSync(password, salt, 64).toString('hex');
       passwordChangedAt = timestamp;
     }
-    db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,email=?,email_normalized=?,password_changed_at=?,active=?,updated_at=? WHERE id=?`)
-      .run(username, name, role, hash, salt, email, email, passwordChangedAt, booleanInt(input.active), timestamp, id);
+    if (hasAccountIdentity) {
+      db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,email=?,email_normalized=?,password_changed_at=?,active=?,updated_at=? WHERE id=?`)
+        .run(username, name, role, hash, salt, email, email, passwordChangedAt, booleanInt(input.active), timestamp, id);
+    } else {
+      db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,active=?,updated_at=? WHERE id=?`)
+        .run(username, name, role, hash, salt, booleanInt(input.active), timestamp, id);
+    }
     writeAudit(db, { action: 'user.upsert', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
     return getUser(id);
   }
