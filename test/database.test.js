@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { openDatabase, withTransaction } = require('../js/core/database/sqlite-database');
 const { runMigrations, CURRENT_SCHEMA_VERSION } = require('../js/core/database/migrations');
+const { runReleaseMigrations, RELEASE_SCHEMA_VERSION } = require('../js/core/database/release-migrations');
 const { SqliteOutboxStore } = require('../js/core/database/outbox-store');
 const { SqliteEffectStore } = require('../js/core/database/effect-store');
 const { sanitizeAuditPayload, writeAudit } = require('../js/core/audit-log');
@@ -33,6 +34,26 @@ test('migrations create the E02 schema idempotently without deleting data', () =
   runMigrations(db);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM categories').get().count, 1);
   assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, CURRENT_SCHEMA_VERSION);
+  db.close();
+});
+
+test('release migration adds optional account identity without breaking legacy users', () => {
+  const db = openDatabase(':memory:');
+  runMigrations(db);
+  db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at)
+    VALUES ('legacy-admin','admin','Administrador','admin','hash','salt',1,'2026-09-01','2026-09-01')`).run();
+
+  runReleaseMigrations(db);
+
+  const columns = new Set(db.prepare('PRAGMA table_info(users)').all().map(row => row.name));
+  for (const name of ['email','email_normalized','email_verified_at','password_changed_at']) assert.equal(columns.has(name), true, name);
+  const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
+  assert.equal(tables.has('installation_activation'), true);
+  const legacy = db.prepare('SELECT username,email,email_normalized FROM users WHERE id=?').get('legacy-admin');
+  assert.deepEqual(legacy, { username:'admin', email:null, email_normalized:null });
+  runReleaseMigrations(db);
+  assert.equal(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version, RELEASE_SCHEMA_VERSION);
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM users WHERE id=?').get('legacy-admin').count, 1);
   db.close();
 });
 
