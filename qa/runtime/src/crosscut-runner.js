@@ -1,0 +1,83 @@
+function safeArray(value){return Array.isArray(value)?value:[];}
+function withContractId(value,contractId){
+  if(value&&typeof value==='object'&&!Array.isArray(value))return{...value,contractId:value.contractId||contractId};
+  return{contractId,value};
+}
+function harnessFailure({id,error}){
+  const message=error?.message||String(error);
+  return{
+    check:{name:id,category:'crosscut',status:'failed',critical:true,error:message},
+    finding:{code:'qa-harness-error',name:id,severity:'critical',contractId:id,message},
+  };
+}
+
+export async function runCrosscutContracts({contracts=[],context={},policy={}}={}){
+  if(!Array.isArray(contracts))throw new TypeError('contracts must be an array');
+  const checks=[];
+  const findings=[];
+  const evidence=[];
+  const consoleErrors=[];
+  const networkErrors=[];
+  const coverage={discovered:contracts.length,covered:0,uncovered:0,uncoveredCritical:0};
+
+  for(const contract of contracts){
+    const id=String(contract?.id||'').trim();
+    const critical=contract?.critical!==false;
+    if(!id||typeof contract?.runContract!=='function'){
+      const invalidId=id||'unnamed-contract';
+      coverage.uncovered++;
+      if(critical)coverage.uncoveredCritical++;
+      const failure=harnessFailure({id:invalidId,error:new TypeError('contract id and runContract are required')});
+      checks.push(failure.check);
+      findings.push(failure.finding);
+      continue;
+    }
+    try{
+      const result=await contract.runContract(context,policy);
+      if(result?.status==='not-applicable'){
+        const reason=String(result?.reason||'').trim();
+        coverage.uncovered++;
+        if(critical)coverage.uncoveredCritical++;
+        if(!reason)throw new Error('not-applicable contract requires an explicit reason');
+        checks.push({name:id,category:'crosscut',status:'not-applicable',critical,details:{reason}});
+        continue;
+      }
+
+      coverage.covered++;
+      const contractChecks=safeArray(result?.checks);
+      if(contractChecks.length){
+        for(const check of contractChecks){
+          checks.push({
+            ...check,
+            name:String(check?.name||id),
+            category:String(check?.category||'crosscut'),
+            status:String(check?.status||'unknown').toLowerCase(),
+            critical:check?.critical==null?critical:Boolean(check.critical),
+            contractId:check?.contractId||id,
+          });
+        }
+      }else{
+        checks.push({name:id,category:'crosscut',status:'passed',critical,contractId:id});
+      }
+      for(const finding of safeArray(result?.findings))findings.push(withContractId(finding,id));
+      for(const item of safeArray(result?.evidence)){
+        if(typeof item==='string')evidence.push({contractId:id,path:item});
+        else evidence.push(withContractId(item,id));
+      }
+      for(const item of safeArray(result?.consoleErrors))consoleErrors.push(withContractId(item,id));
+      for(const item of safeArray(result?.networkErrors))networkErrors.push(withContractId(item,id));
+    }catch(error){
+      if(coverage.covered>0&&checks.some(check=>check.contractId===id)){
+        coverage.covered--;
+      }
+      if(!checks.some(check=>check.name===id&&check.status==='not-applicable'))coverage.uncovered++;
+      if(critical&&!coverage.uncoveredCritical)coverage.uncoveredCritical++;
+      else if(critical&&!checks.some(check=>check.name===id&&check.status==='failed'))coverage.uncoveredCritical++;
+      const failure=harnessFailure({id,error});
+      checks.push(failure.check);
+      findings.push(failure.finding);
+    }
+  }
+
+  return{checks,findings,coverage,evidence,consoleErrors,networkErrors};
+}
