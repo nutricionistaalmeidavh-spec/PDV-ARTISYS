@@ -23,12 +23,28 @@ async function dismissPostSaleBeforeNavigation(page, step) {
 
 async function ensureHomeRouteContext(page, step) {
   if (typeof step.selector !== 'string' || !step.selector.includes('[data-home-route=')) return;
-  const target = page.locator(step.selector);
-  if (await target.isVisible().catch(() => false)) return;
   const homeNav = page.locator("#sidebar-nav [data-route='home']");
   if (!(await homeNav.isVisible().catch(() => false))) return;
   await homeNav.click();
-  await target.waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+  await page.locator(step.selector).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+}
+
+async function setCheckboxState(page, step, checked) {
+  let target = locator(page, step);
+  const current = await target.isChecked().catch(() => null);
+  if (current === checked) return;
+  await target.click();
+  const timeoutMs = Number(step.timeoutMs ?? 10000);
+  const deadline = Date.now() + timeoutMs;
+  while (true) {
+    target = locator(page, step);
+    const next = await target.isChecked().catch(() => null);
+    if (next === checked) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`${stepLabel(step, 0)}: checkbox did not reach ${checked ? 'checked' : 'unchecked'} state`);
+    }
+    await page.waitForTimeout(Math.min(50, Math.max(1, deadline - Date.now())));
+  }
 }
 
 function waitState(step) {
@@ -107,8 +123,8 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
-    case 'check': await locator(page, step).check(); break;
-    case 'uncheck': await locator(page, step).uncheck(); break;
+    case 'check': await setCheckboxState(page, step, true); break;
+    case 'uncheck': await setCheckboxState(page, step, false); break;
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
