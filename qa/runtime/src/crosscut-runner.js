@@ -6,7 +6,7 @@ function withContractId(value,contractId){
 function harnessFailure({id,error}){
   const message=error?.message||String(error);
   return{
-    check:{name:id,category:'crosscut',status:'failed',critical:true,error:message},
+    check:{name:id,category:'crosscut',status:'failed',critical:true,error:message,contractId:id},
     finding:{code:'qa-harness-error',name:id,severity:'critical',contractId:id,message},
   };
 }
@@ -23,27 +23,24 @@ export async function runCrosscutContracts({contracts=[],context={},policy={}}={
   for(const contract of contracts){
     const id=String(contract?.id||'').trim();
     const critical=contract?.critical!==false;
-    if(!id||typeof contract?.runContract!=='function'){
-      const invalidId=id||'unnamed-contract';
-      coverage.uncovered++;
-      if(critical)coverage.uncoveredCritical++;
-      const failure=harnessFailure({id:invalidId,error:new TypeError('contract id and runContract are required')});
-      checks.push(failure.check);
-      findings.push(failure.finding);
-      continue;
-    }
+    const contractId=id||'unnamed-contract';
+    let coverageRecorded=false;
+
     try{
+      if(!id||typeof contract?.runContract!=='function')throw new TypeError('contract id and runContract are required');
       const result=await contract.runContract(context,policy);
       if(result?.status==='not-applicable'){
         const reason=String(result?.reason||'').trim();
+        if(!reason)throw new Error('not-applicable contract requires an explicit reason');
         coverage.uncovered++;
         if(critical)coverage.uncoveredCritical++;
-        if(!reason)throw new Error('not-applicable contract requires an explicit reason');
-        checks.push({name:id,category:'crosscut',status:'not-applicable',critical,details:{reason}});
+        coverageRecorded=true;
+        checks.push({name:id,category:'crosscut',status:'not-applicable',critical,details:{reason},contractId:id});
         continue;
       }
 
       coverage.covered++;
+      coverageRecorded=true;
       const contractChecks=safeArray(result?.checks);
       if(contractChecks.length){
         for(const check of contractChecks){
@@ -67,13 +64,11 @@ export async function runCrosscutContracts({contracts=[],context={},policy={}}={
       for(const item of safeArray(result?.consoleErrors))consoleErrors.push(withContractId(item,id));
       for(const item of safeArray(result?.networkErrors))networkErrors.push(withContractId(item,id));
     }catch(error){
-      if(coverage.covered>0&&checks.some(check=>check.contractId===id)){
-        coverage.covered--;
+      if(!coverageRecorded){
+        coverage.uncovered++;
+        if(critical)coverage.uncoveredCritical++;
       }
-      if(!checks.some(check=>check.name===id&&check.status==='not-applicable'))coverage.uncovered++;
-      if(critical&&!coverage.uncoveredCritical)coverage.uncoveredCritical++;
-      else if(critical&&!checks.some(check=>check.name===id&&check.status==='failed'))coverage.uncoveredCritical++;
-      const failure=harnessFailure({id,error});
+      const failure=harnessFailure({id:contractId,error});
       checks.push(failure.check);
       findings.push(failure.finding);
     }
