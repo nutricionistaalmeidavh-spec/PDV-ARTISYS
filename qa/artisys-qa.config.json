@@ -201,8 +201,8 @@
     "categories": {
       "restaurant-module-sync-e2e": "state-sync"
     },
-    "moduleRegistry": "js/core/modules/module-registry.js",
-    "moduleProbeConfig": "qa/crosscut/modules.json",
+    "moduleRegistry": "../js/core/modules/module-registry.js",
+    "moduleProbeConfig": "crosscut/modules.json",
     "rendererHealthPolicy": {
       "blockSeverities": [
         "high",
