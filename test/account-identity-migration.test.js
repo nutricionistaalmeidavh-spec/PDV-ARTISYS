@@ -22,8 +22,8 @@ test('account identity migration is additive after the existing shared migration
     const activationTable = runtime.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='installation_activation'").get();
     assert.equal(activationTable?.name, 'installation_activation');
 
-    const verticalTable = runtime.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='module_registry'").get();
-    assert.equal(verticalTable?.name, 'module_registry', 'existing v6+ migrations must remain applied');
+    const verticalTable = runtime.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='catalog_option_groups'").get();
+    assert.equal(verticalTable?.name, 'catalog_option_groups', 'existing v6+ migrations must remain applied');
   } finally {
     runtime.close();
   }
