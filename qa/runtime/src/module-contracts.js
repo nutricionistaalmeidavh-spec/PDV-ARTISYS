@@ -35,6 +35,8 @@ export function validateModuleProbeConfig({modules=[],probes={}}={}){
     if(!probe.launcherSelector&&!String(probe.launcherReason||fallbackReason).trim())errors.push(`module ${id} launcher requires an explicit reason`);
     if(!isRecord(probe.protectedProbe)&&!String(probe.protectedReason||fallbackReason).trim())errors.push(`module ${id} protected probe requires an explicit reason`);
     if(probe.supportsLiveSync!==true&&!String(probe.liveSyncReason||fallbackReason).trim())errors.push(`module ${id} live sync requires an explicit reason`);
+    const hasWorkspace=Boolean(String(probe.workspaceSelector||'').trim()&&String(probe.workspaceHeading||'').trim());
+    if(!hasWorkspace&&!String(probe.workspaceReason||fallbackReason).trim())errors.push(`module ${id} workspace requires an explicit reason`);
   }
 
   for(const key of Object.keys(probes)){
@@ -45,6 +47,12 @@ export function validateModuleProbeConfig({modules=[],probes={}}={}){
 }
 
 function unavailable(reason){return{status:'not-applicable',reason:String(reason).trim()};}
+function fullyCovered(contract){
+  return contract.launcher.status==='covered'
+    &&contract.protected.status==='covered'
+    &&contract.liveSync.status==='covered'
+    &&contract.workspace.status==='covered';
+}
 
 export function buildModuleContractPlan({modules=[],probes={}}={}){
   const validation=validateModuleProbeConfig({modules,probes});
@@ -64,12 +72,16 @@ export function buildModuleContractPlan({modules=[],probes={}}={}){
     const liveSync=probe.supportsLiveSync===true
       ?{status:'covered'}
       :unavailable(probe.liveSyncReason||fallbackReason);
+    const workspace=probe.workspaceSelector&&probe.workspaceHeading
+      ?{status:'covered',selector:String(probe.workspaceSelector),heading:String(probe.workspaceHeading)}
+      :unavailable(probe.workspaceReason||fallbackReason);
     const checks=[
       {kind:'registry',moduleId},
       ...dependsOn.map(dependency=>({kind:'dependency',dependency})),
       {kind:'launcher',status:launcher.status},
       {kind:'protected',status:protectedSurface.status},
       {kind:'live-sync',status:liveSync.status},
+      {kind:'workspace',status:workspace.status},
     ];
     return{
       id:`module-${moduleId.toLowerCase().replaceAll('_','-')}`,
@@ -80,15 +92,18 @@ export function buildModuleContractPlan({modules=[],probes={}}={}){
       supportsLiveSync:probe.supportsLiveSync===true,
       launcherSelector:probe.launcherSelector||null,
       protectedProbe:isRecord(probe.protectedProbe)?{...probe.protectedProbe}:null,
+      workspaceSelector:probe.workspaceSelector||null,
+      workspaceHeading:probe.workspaceHeading||null,
       launcher,
       protected:protectedSurface,
       liveSync,
+      workspace,
       checks,
     };
   });
 
-  const covered=contracts.filter(contract=>contract.launcher.status==='covered'||contract.protected.status==='covered'||contract.liveSync.status==='covered').length;
+  const covered=contracts.filter(fullyCovered).length;
   const uncovered=contracts.length-covered;
-  const uncoveredCritical=contracts.filter(contract=>contract.critical&&contract.launcher.status!=='covered'&&contract.protected.status!=='covered'&&contract.liveSync.status!=='covered').length;
+  const uncoveredCritical=contracts.filter(contract=>contract.critical&&!fullyCovered(contract)).length;
   return{contracts,coverage:{discovered:contracts.length,covered,uncovered,uncoveredCritical}};
 }
