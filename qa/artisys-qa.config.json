@@ -215,7 +215,12 @@
       "maxHttp5xx": 0,
       "maxRequestFailures": 0,
       "maxConsoleErrors": 0,
-      "maxUncoveredCritical": 0
+      "maxUncoveredCritical": 0,
+      "requiredCategories": [
+        "state-sync",
+        "module-contract",
+        "renderer-health"
+      ]
     }
   },
   "demos": {
