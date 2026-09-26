@@ -33,7 +33,9 @@ test('Woodpecker publication is manual-only while GitHub Actions owns automatic 
   const github = read('.github/workflows/verify.yml');
   assert.match(github, /push:/);
   assert.match(github, /pull_request:/);
-  assert.match(github, /npm run verify:release/);
+  assert.match(github, /npm run capability:check:release/);
+  assert.match(github, /npm test/);
+  assert.match(github, /npm run test:release/);
   assert.match(github, /npm run qa:release/);
 });
 

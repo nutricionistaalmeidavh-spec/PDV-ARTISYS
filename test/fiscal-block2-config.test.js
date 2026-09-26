@@ -72,8 +72,10 @@ test('P3-P5 migrate additively, persist fiscal configuration and survive restart
   try {
     let runtime = createPdvRuntime({ dbPath });
     assert.ok(runtime.fiscalConfiguration, 'runtime must expose fiscalConfiguration');
-    const version = Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);
-    assert.equal(version, FISCAL_SCHEMA_VERSION);
+    const latestVersion = Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);
+    const fiscalVersion = Number(runtime.db.prepare('SELECT version FROM schema_migrations WHERE version=?').get(FISCAL_SCHEMA_VERSION)?.version);
+    assert.ok(latestVersion >= FISCAL_SCHEMA_VERSION, 'later additive migrations must not invalidate the fiscal schema');
+    assert.equal(fiscalVersion, FISCAL_SCHEMA_VERSION);
     assert.equal(Number(runtime.db.prepare('SELECT COUNT(*) AS count FROM schema_migrations WHERE version=13').get().count), 1,
       'P3-P5 migration v13 must remain applied exactly once');
 

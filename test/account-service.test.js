@@ -58,7 +58,7 @@ test('new configured installation verifies activation remotely and persists only
     assert.equal(calls.length, 2);
 
     const row = ctx.db.prepare('SELECT installation_id,account_email,license_id,activation_source FROM installation_activation WHERE installation_id=?').get('install-1');
-    assert.deepEqual(row, { installation_id:'install-1', account_email:'owner@example.com', license_id:'lic-1', activation_source:'cloudflare-account' });
+    assert.deepEqual({ ...row }, { installation_id:'install-1', account_email:'owner@example.com', license_id:'lic-1', activation_source:'cloudflare-account' });
     const userColumns = ctx.db.prepare('PRAGMA table_info(users)').all().map(column => column.name);
     assert.ok(userColumns.includes('password_hash'));
   } finally { ctx.close(); }

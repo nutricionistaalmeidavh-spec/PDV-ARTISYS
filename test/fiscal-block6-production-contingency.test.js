@@ -53,11 +53,14 @@ function seedObjectiveProductionEvidence(runtime){
   runtime.backups.createBackup('fiscal-production-readiness');
 }
 
-test('P14-P15 schema v17 is additive and production is blocked until readiness activation',()=>{
+test('P14-P15 fiscal schema v17 remains applied and production is blocked until readiness activation',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-b6-production-'));
   try{
     const runtime=setupRuntime(dir);configureHomologation(runtime);
-    const version=Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);assert.equal(version,17);
+    const latestVersion=Number(runtime.db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get().version);
+    const fiscalVersion=Number(runtime.db.prepare('SELECT version FROM schema_migrations WHERE version=17').get()?.version);
+    assert.ok(latestVersion>=17,'later additive migrations must not invalidate fiscal schema v17');
+    assert.equal(fiscalVersion,17);
     assert.ok(runtime.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='fiscal_production_activation'").get());
     assert.ok(runtime.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='fiscal_contingency'").get());
     assert.throws(()=>runtime.fiscalConfiguration.saveCompanySettings({...runtime.fiscalConfiguration.getCompanySettings(),environment:'production'},admin),/producao.*bloquead|ativacao/i);
