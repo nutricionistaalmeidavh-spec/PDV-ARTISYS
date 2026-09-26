@@ -36,6 +36,9 @@ export function evaluateProductGate({
   const requestFailures=unexpectedNetworkErrors.filter(item=>String(item?.type||'').toLowerCase()==='requestfailed'||item?.requestFailed===true);
   const consoleCount=safeArray(consoleErrors).length;
   const uncoveredCritical=Number(coverage?.uncoveredCritical||0);
+  const requiredCategories=safeArray(policy.requiredCategories).map(item=>String(item||'').trim().toLowerCase()).filter(Boolean);
+  const presentCategories=new Set(normalizedChecks.map(item=>String(item.category||'').trim().toLowerCase()).filter(Boolean));
+  const missingCategories=requiredCategories.filter(category=>!presentCategories.has(category));
 
   const rules={
     failOnCriticalCheck:policy.failOnCriticalCheck!==false,
@@ -44,6 +47,7 @@ export function evaluateProductGate({
     maxRequestFailures:Number.isFinite(Number(policy.maxRequestFailures))?Number(policy.maxRequestFailures):0,
     maxConsoleErrors:Number.isFinite(Number(policy.maxConsoleErrors))?Number(policy.maxConsoleErrors):0,
     maxUncoveredCritical:Number.isFinite(Number(policy.maxUncoveredCritical))?Number(policy.maxUncoveredCritical):0,
+    requiredCategories,
   };
   const blockers=[];
   if(rules.failOnCriticalCheck&&criticalFailures.length)blockers.push({type:'critical-check',count:criticalFailures.length,items:criticalFailures.map(item=>item.name)});
@@ -52,6 +56,7 @@ export function evaluateProductGate({
   if(requestFailures.length>rules.maxRequestFailures)blockers.push({type:'request-failure',count:requestFailures.length,allowed:rules.maxRequestFailures});
   if(consoleCount>rules.maxConsoleErrors)blockers.push({type:'console-error',count:consoleCount,allowed:rules.maxConsoleErrors});
   if(uncoveredCritical>rules.maxUncoveredCritical)blockers.push({type:'critical-coverage-gap',count:uncoveredCritical,allowed:rules.maxUncoveredCritical});
+  if(missingCategories.length)blockers.push({type:'missing-category',count:missingCategories.length,items:missingCategories});
 
   const passed=blockers.length===0;
   if(override&&(!overrideReason||String(overrideReason).trim().length<3))throw new Error('overrideReason is required when overriding a failed product gate');
