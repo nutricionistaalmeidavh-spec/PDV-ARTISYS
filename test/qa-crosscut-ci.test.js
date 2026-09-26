@@ -15,9 +15,12 @@ test('root script, CLI and GitHub e2e job expose a dedicated crosscut gate',()=>
   const config=readJson('qa/artisys-qa.config.json');
 
   assert.match(pkg.scripts['qa:crosscut']||'',/artisys-qa\.mjs crosscut/);
-  assert.match(cli,/args\.command === 'crosscut'/);
+  assert.match(cli,/process\.argv\[2\]\s*===\s*['"]crosscut['"]/);
+  assert.match(cli,/runCrosscutProfile/);
   assert.match(workflow,/Run crosscut QA gate[\s\S]*xvfb-run -a npm run qa:crosscut/);
+  assert.match(workflow,/qa-artifacts-crosscut/);
   assert.deepEqual(config.crosscut?.flows,['restaurant-module-sync-e2e']);
+  assert.doesNotMatch(pkg.scripts['qa:crosscut']||'',/qa:(?:full|release)/);
 });
 
 test('runCrosscutProfile executes only configured crosscut flows and builds an independent product gate',async()=>{
