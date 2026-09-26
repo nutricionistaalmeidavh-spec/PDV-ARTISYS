@@ -48,4 +48,4 @@ npm run qa:release
 npm run qa:crosscut
 ```
 
-O bundle agregado de `qa:crosscut` deve ficar limpo em `qa-artifacts/product/pdv-artisys/crosscut/`, e `release/e2e-coverage.json` deve continuar refletindo a evidência versionada. O core de QA permanece local-first/self-hosted e não pode adquirir dependência obrigatória de serviço pago externo.
+O bundle agregado de `qa:crosscut` deve ficar limpo sob `qa-artifacts/` em uma pasta por execução no formato `pdv-artisys-<run-id>`, e `release/e2e-coverage.json` deve continuar refletindo a evidência versionada. O core de QA permanece local-first/self-hosted e não pode adquirir dependência obrigatória de serviço pago externo.
