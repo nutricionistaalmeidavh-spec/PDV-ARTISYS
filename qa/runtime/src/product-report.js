@@ -16,7 +16,7 @@ function cleanCheck(input,index){
 }
 function safeArray(value){return Array.isArray(value)?value:[]}
 function isoSlug(value){return String(value||'system').replace(/[^a-z0-9._-]+/gi,'-').replace(/^-+|-+$/g,'').toLowerCase()||'system'}
-function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
+function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[char]))}
 
 export function evaluateProductGate({
   checks=[],
@@ -31,8 +31,9 @@ export function evaluateProductGate({
   const normalizedChecks=safeArray(checks).map(cleanCheck);
   const criticalFailures=normalizedChecks.filter(item=>item.critical&&item.status==='failed');
   const criticalFindings=safeArray(findings).filter(item=>String(item?.severity||'').toLowerCase()==='critical');
-  const http5xx=safeArray(networkErrors).filter(item=>Number(item?.status)>=500);
-  const requestFailures=safeArray(networkErrors).filter(item=>String(item?.type||'').toLowerCase()==='requestfailed'||item?.requestFailed===true);
+  const unexpectedNetworkErrors=safeArray(networkErrors).filter(item=>item?.expected!==true);
+  const http5xx=unexpectedNetworkErrors.filter(item=>Number(item?.status)>=500);
+  const requestFailures=unexpectedNetworkErrors.filter(item=>String(item?.type||'').toLowerCase()==='requestfailed'||item?.requestFailed===true);
   const consoleCount=safeArray(consoleErrors).length;
   const uncoveredCritical=Number(coverage?.uncoveredCritical||0);
 
