@@ -2,9 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const RELEASE_SCHEMA_VERSION = 6;
+const RELEASE_SCHEMA_VERSION = 5;
 const RELEASE_MIGRATION_NAME = 'pdv_restaurant_e30_e34';
-const ACCOUNT_IDENTITY_MIGRATION_NAME = 'pdv_auth_account_identity_v6';
 
 const RELEASE_SQL = `
   CREATE TABLE IF NOT EXISTS app_settings (
@@ -225,41 +224,9 @@ const RESTAURANT_SQL = `
   CREATE UNIQUE INDEX IF NOT EXISTS uq_active_tablet_per_table ON mobile_devices(table_id) WHERE device_type='TABLET' AND status='ACTIVE';
 `;
 
-function tableColumns(db, tableName) {
-  return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map(row => row.name));
-}
-
-function ensureColumn(db, tableName, columnName, definition) {
-  if (tableColumns(db, tableName).has(columnName)) return;
-  db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
-}
-
-function applyAccountIdentityMigration(db) {
-  ensureColumn(db, 'users', 'email', 'TEXT');
-  ensureColumn(db, 'users', 'email_normalized', 'TEXT');
-  ensureColumn(db, 'users', 'email_verified_at', 'TEXT');
-  ensureColumn(db, 'users', 'password_changed_at', 'TEXT');
-  db.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_normalized
-      ON users(email_normalized)
-      WHERE email_normalized IS NOT NULL AND email_normalized <> '';
-
-    CREATE TABLE IF NOT EXISTS installation_activation (
-      installation_id TEXT PRIMARY KEY,
-      account_email TEXT NOT NULL,
-      license_id TEXT NOT NULL,
-      activated_at TEXT NOT NULL,
-      activation_source TEXT NOT NULL,
-      metadata_json TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_installation_activation_license ON installation_activation(license_id);
-  `);
-}
-
 const RELEASE_MIGRATIONS = Object.freeze([
   { version:4, name:'pdv_release_e22_e29', sql:RELEASE_SQL },
-  { version:5, name:RELEASE_MIGRATION_NAME, sql:RESTAURANT_SQL },
-  { version:6, name:ACCOUNT_IDENTITY_MIGRATION_NAME, apply:applyAccountIdentityMigration }
+  { version:5, name:RELEASE_MIGRATION_NAME, sql:RESTAURANT_SQL }
 ]);
 
 function runReleaseMigrations(db, now = () => new Date().toISOString()) {
@@ -274,8 +241,7 @@ function runReleaseMigrations(db, now = () => new Date().toISOString()) {
   for (const migration of RELEASE_MIGRATIONS) {
     if (current >= migration.version) continue;
     withTransaction(db, () => {
-      if (typeof migration.apply === 'function') migration.apply(db);
-      else db.exec(migration.sql);
+      db.exec(migration.sql);
       db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)').run(migration.version,migration.name,now());
     });
     current = migration.version;
@@ -286,7 +252,6 @@ function runReleaseMigrations(db, now = () => new Date().toISOString()) {
 module.exports = {
   RELEASE_SCHEMA_VERSION,
   RELEASE_MIGRATION_NAME,
-  ACCOUNT_IDENTITY_MIGRATION_NAME,
   RELEASE_SQL,
   RESTAURANT_SQL,
   RELEASE_MIGRATIONS,
