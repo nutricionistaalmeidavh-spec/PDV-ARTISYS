@@ -13,6 +13,7 @@
     "qa:quick": "node qa/runtime/artisys-qa.mjs quick --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
     "qa:full": "node qa/runtime/artisys-qa.mjs full --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
     "qa:release": "node qa/runtime/artisys-qa.mjs release --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
+    "qa:crosscut": "node qa/runtime/artisys-qa.mjs crosscut --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
     "qa:remote": "node qa/runtime/artisys-qa.mjs remote --config qa/artisys-qa.config.json --profile quick --output qa-artifacts",
     "qa:ux:flags": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-flags-e2e --environment ci --viewport desktop --output qa-artifacts",
     "qa:ux:responsive:desktop": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-responsive-evidence --environment ci --viewport desktop --output qa-artifacts",
