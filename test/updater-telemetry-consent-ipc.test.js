@@ -18,7 +18,8 @@ test('controller persiste todas as preferencias antes de instalar a atualizacao'
     'telemetry.enabled': true,
     'telemetry.diagnostics': true,
     'telemetry.consent_version': 1,
-    'telemetry.consent_accepted_at': '2026-09-25T21:00:00.000Z'
+    'telemetry.consent_accepted_at': '2026-09-25T21:00:00.000Z',
+    'telemetry.consent_declined_at': ''
   });
 });
 
