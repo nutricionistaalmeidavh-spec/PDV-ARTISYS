@@ -17,6 +17,18 @@ test('commercial activation is disabled by default and never required without an
   } finally { ctx.close(); }
 });
 
+test('runtime exposes account service but keeps it disabled by default',()=>{
+  const ctx=runtime();
+  try{assert.ok(ctx.account);assert.deepEqual(ctx.account.status(),{configured:false,required:false,activated:false,activation:null});}
+  finally{ctx.close();}
+});
+
+test('runtime can explicitly enable commercial activation for a new installation',()=>{
+  const ctx=createPdvRuntime({installationId:'install-2',accountEndpoint:'https://account.example',requireCommercialActivation:true,accountFetchImpl:async()=>({ok:true,status:200,json:async()=>({})})});
+  try{assert.equal(ctx.account.status().required,true);}
+  finally{ctx.close();}
+});
+
 test('existing local installation bypasses commercial activation even when configured', () => {
   const ctx = runtime();
   try {
