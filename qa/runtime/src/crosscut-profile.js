@@ -57,10 +57,10 @@ export async function generateCrosscutProfile({
   const viewport=resolveViewport(manifest,requestedViewport);
   const runs=[];const checks=[];const evidence=[];const telemetry=[];
 
-  const dispatch=executeFlow||async({flowId})=>{
+  const dispatch=executeFlow||(async({flowId})=>{
     const {file:flowFile}=resolveFlow(manifest,flowId,rootDir);
     return flowRunner({manifest,rootDir,environmentName,environment,flowName:flowId,flowFile,viewport,outputRoot});
-  };
+  });
 
   for(const flowId of flowIds){
     if(!manifest.flows?.[flowId])throw new Error(`Unknown crosscut flow: ${flowId}`);
