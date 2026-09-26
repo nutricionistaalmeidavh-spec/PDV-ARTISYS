@@ -23,6 +23,22 @@ test('root script, CLI and GitHub e2e job expose a dedicated crosscut gate',()=>
   assert.doesNotMatch(pkg.scripts['qa:crosscut']||'',/qa:(?:full|release)/);
 });
 
+test('crosscut manifest asset paths resolve relative to the QA config directory',()=>{
+  const configPath=path.join(root,'qa/artisys-qa.config.json');
+  const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
+  const manifestRoot=path.dirname(configPath);
+
+  for(const key of ['moduleRegistry','moduleProbeConfig']){
+    const relative=config.crosscut?.[key];
+    assert.equal(typeof relative,'string',`${key} must be configured`);
+    assert.equal(
+      fs.existsSync(path.resolve(manifestRoot,relative)),
+      true,
+      `${key} must resolve from qa/artisys-qa.config.json: ${relative}`
+    );
+  }
+});
+
 test('runCrosscutProfile executes only configured crosscut flows and builds an independent product gate',async()=>{
   const calls=[];
   const manifest={
