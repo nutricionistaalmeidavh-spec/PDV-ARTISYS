@@ -37,3 +37,23 @@ test('upgrade v12 -> v13 is additive, idempotent and preserves legacy rows',()=>
     assert.equal(Number(db.prepare('PRAGMA foreign_keys').get().foreign_keys),1);
   }finally{db.close();}
 });
+
+
+test('repairs pre-v13 fiscal_documents when shared schema already advanced',()=>{
+  const db=openDatabase(':memory:');
+  const now=()=> '2026-09-23T23:00:00.000Z';
+  try{
+    runMigrations(db,now);
+    runReleaseMigrations(db,now);
+    runVerticalMigrations(db,now);
+    runKitComboMigrations(db,now);
+    runEnterpriseDepthMigrations(db,now);
+    runSalesEnhancementMigrations(db,now);
+    runCommercialMediaMigrations(db,now);
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(13,?,?)').run('legacy-shared-v13',now());
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(14,?,?)').run('legacy-shared-v14',now());
+    assert.equal(new Set(db.prepare('PRAGMA table_info(fiscal_documents)').all().map(row=>row.name)).has('authorized_at'),false);
+    assert.doesNotThrow(()=>runFiscalMigrations(db,now));
+    assert.equal(new Set(db.prepare('PRAGMA table_info(fiscal_documents)').all().map(row=>row.name)).has('authorized_at'),true);
+  }finally{db.close();}
+});

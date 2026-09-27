@@ -1,7 +1,12 @@
 'use strict';
 const http=require('node:http');
 const { createRouter }=require('./router');
+const { createSetupAccountRouter }=require('./setup-account-router');
 const { createAuthSessionRouter }=require('./auth-session-router');
+const { createPasswordRecoveryRouter }=require('./password-recovery-router');
+const { createReturnApprovalStore }=require('./return-approval-store');
+const { createReturnAuthorizationRouter }=require('./return-authorization-router');
+const { createReceiptRouter }=require('./receipt-router');
 const { createFiscalBlock5Router }=require('./fiscal-block5-router');
 const { createFiscalBlock6Router }=require('./fiscal-block6-router');
 const { createNfseRouter }=require('./nfse-router');
@@ -12,12 +17,22 @@ const { createKitComboRouter }=require('./kit-combo-router');
 const { createProductVariantRouter }=require('./product-variant-router');
 const { createVerticalRouter }=require('./vertical-router');
 const { createEnterpriseDepthRouter }=require('./enterprise-depth-router');
-const { createErpFinanceRouter }=require('./erp-finance-router');
-function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false}={}){
+const { createTelemetryRouter }=require('./telemetry-router');
+const { attachRuntimeTelemetry }=require('../js/core/telemetry/telemetry-runtime');
+const { registerTelemetryEffects }=require('../js/core/telemetry/telemetry-effects');
+const { observeTelemetryResponse }=require('../js/core/telemetry/telemetry-http');
+function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true,returnApprovalStore=null,telemetrySender=null,telemetryEndpoint='',telemetryReleaseId=''}={}){
+  const telemetry=attachRuntimeTelemetry({runtime,httpSender:telemetrySender,defaultEndpoint:telemetryEndpoint,releaseId:telemetryReleaseId});
+  registerTelemetryEffects({bus:runtime.bus,telemetry});
   const sessionStore=new Map();
-  const erpFinanceHandler=createErpFinanceRouter({runtime,sessionStore,bodyLimitBytes,requireTerminalAuth});
+  const approvalStore=returnApprovalStore||createReturnApprovalStore();
+  const setupAccountHandler=createSetupAccountRouter({runtime,installationToken:token,bodyLimitBytes});
   const selfServiceHandler=createSelfServiceMobileRouter({runtime});
   const authSessionHandler=createAuthSessionRouter({runtime,sessionStore,requireTerminalAuth});
+  const passwordRecoveryHandler=createPasswordRecoveryRouter({runtime,sessionStore,bodyLimitBytes});
+  const telemetryHandler=createTelemetryRouter({runtime,sessionStore,requireTerminalAuth});
+  const returnAuthorizationHandler=createReturnAuthorizationRouter({runtime,sessionStore,approvalStore,bodyLimitBytes,requireTerminalAuth});
+  const receiptHandler=createReceiptRouter({runtime,sessionStore,isExistingInstall});
   const restaurantHandler=createRestaurantRouter({runtime,installationToken:token,requireTerminalAuth});
   const finalVerticalHandler=createE48E54Router({runtime,installationToken:token,requireTerminalAuth,sessionStore});
   const kitComboHandler=createKitComboRouter({runtime,installationToken:token,requireTerminalAuth});
@@ -28,8 +43,8 @@ function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimi
   const fiscalBlock6Handler=createFiscalBlock6Router({runtime,sessionStore,bodyLimitBytes:Math.max(bodyLimitBytes,2*1024*1024)});
   const nfseHandler=createNfseRouter({runtime,sessionStore});
   const handler=createRouter({runtime,installationToken:token,bodyLimitBytes,allowedOrigins,requireTerminalAuth,sessionStore});let server=null;
-  async function route(req,res){let handled=await erpFinanceHandler(req,res);if(!handled)handled=await selfServiceHandler(req,res);if(!handled)handled=await authSessionHandler(req,res);if(!handled)handled=await restaurantHandler(req,res);if(!handled)handled=await finalVerticalHandler(req,res);if(!handled)handled=await kitComboHandler(req,res);if(!handled)handled=await productVariantHandler(req,res);if(!handled)handled=await verticalHandler(req,res);if(!handled)handled=await enterpriseDepthHandler(req,res);if(!handled)handled=await nfseHandler(req,res);if(!handled)handled=await fiscalBlock6Handler(req,res);if(!handled)handled=await fiscalBlock5Handler(req,res);if(!handled)await handler(req,res);}
-  async function start(){if(server)throw new Error('Servidor local ja iniciado.');server=http.createServer((req,res)=>{Promise.resolve(route(req,res)).catch(error=>{if(!res.headersSent){res.writeHead(500,{'content-type':'application/json'});res.end(JSON.stringify({error:error.message}));}else res.end();});});await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,resolve);});const address=server.address();return{host:typeof address==='object'&&address?address.address:host,port:typeof address==='object'&&address?address.port:port};}
+  async function route(req,res){let handled=await setupAccountHandler(req,res);if(!handled)handled=await selfServiceHandler(req,res);if(!handled)handled=await passwordRecoveryHandler(req,res);if(!handled)handled=await authSessionHandler(req,res);if(!handled)handled=await telemetryHandler(req,res);if(!handled)handled=await returnAuthorizationHandler(req,res);if(!handled)handled=await receiptHandler(req,res);if(!handled)handled=await restaurantHandler(req,res);if(!handled)handled=await finalVerticalHandler(req,res);if(!handled)handled=await kitComboHandler(req,res);if(!handled)handled=await productVariantHandler(req,res);if(!handled)handled=await verticalHandler(req,res);if(!handled)handled=await enterpriseDepthHandler(req,res);if(!handled)handled=await nfseHandler(req,res);if(!handled)handled=await fiscalBlock6Handler(req,res);if(!handled)handled=await fiscalBlock5Handler(req,res);if(!handled)await handler(req,res);}
+  async function start(){if(server)throw new Error('Servidor local ja iniciado.');server=http.createServer((req,res)=>{let routeError=null;observeTelemetryResponse({request:req,response:res,telemetry,errorProvider:()=>routeError});Promise.resolve(route(req,res)).catch(error=>{routeError=error;if(!res.headersSent){res.writeHead(500,{'content-type':'application/json'});res.end(JSON.stringify({error:error.message}));}else res.end();});});await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,host,resolve);});const address=server.address();return{host:typeof address==='object'&&address?address.address:host,port:typeof address==='object'&&address?address.port:port};}
   async function stop(){if(!server)return;const current=server;server=null;await new Promise((resolve,reject)=>current.close(error=>error?reject(error):resolve()));}
   return{start,stop,get running(){return Boolean(server);}};
 }

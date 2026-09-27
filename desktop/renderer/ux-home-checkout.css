@@ -95,7 +95,7 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
 .customer-block h3 { margin-bottom:7px; font-size:13px; }
 .customer-block .search-field { height:42px; }
 .customer-selected { margin-top:6px; padding:8px; }
-.sale-cart-region { min-height:0; display:flex; flex-direction:column; }
+.sale-cart-region { min-height:0; display:flex; flex-direction:column; flex-shrink:0; }
 .cart-head { padding:9px 12px; }
 .cart-head h3 { font-size:13px; }
 .cart-head .secondary-button { padding:7px 9px; font-size:11px; }

@@ -15,6 +15,11 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
     return { id:row.id,type:row.type,entityType:row.entity_type,entityId:row.entity_id,payload,width:row.width,status:row.status,attempts:row.attempts,lastError:row.last_error,createdAt:row.created_at,updatedAt:row.updated_at,printedAt:row.printed_at };
   }
   function getJob(id) { return mapJob(db.prepare('SELECT * FROM print_jobs WHERE id=?').get(String(id))); }
+  function getOriginalSaleReceipt(saleId) {
+    const id=String(saleId||'').trim();
+    if(!id)return null;
+    return mapJob(db.prepare("SELECT * FROM print_jobs WHERE entity_type='sale' AND entity_id=? AND type='SALE_RECEIPT' ORDER BY created_at ASC,id ASC LIMIT 1").get(id));
+  }
   function queueJob(input = {}) {
     const id=String(input.id||idFactory('print'));
     const existing=getJob(id); if(existing)return existing;
@@ -34,6 +39,17 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
   function markPrinted(id){const job=requireJob(id);if(job.status==='CANCELLED')throw new Error('Trabalho cancelado nao pode ser impresso.');const timestamp=now();db.prepare("UPDATE print_jobs SET status='PRINTED',attempts=attempts+1,last_error=NULL,printed_at=?,updated_at=? WHERE id=?").run(timestamp,timestamp,String(id));return getJob(id);}
   function cancelJob(id){requireJob(id);db.prepare("UPDATE print_jobs SET status='CANCELLED',updated_at=? WHERE id=? AND status<>'PRINTED'").run(now(),String(id));return getJob(id);}
   function reprint(id){const original=requireJob(id);return queueJob({type:'REPRINT',entityType:original.entityType,entityId:original.entityId,payload:{...original.payload,reprintOf:original.id},width:original.width});}
+  function createManualAttempt(saleId){
+    const original=getOriginalSaleReceipt(saleId);
+    if(!original)throw new Error('Comprovante original da venda nao encontrado.');
+    return queueJob({
+      type:'REPRINT',
+      entityType:'sale',
+      entityId:original.entityId,
+      payload:{...original.payload,reprintOf:original.id,manual:true},
+      width:original.width
+    });
+  }
   function listJobs(filters={}){
     const clauses=[];const params=[];
     if(filters.status){const status=String(filters.status).toUpperCase();if(!STATUSES.has(status))throw new Error('Status de impressao invalido.');clauses.push('status=?');params.push(status);}
@@ -47,12 +63,13 @@ function createPrintService({ db, now = () => new Date().toISOString(), idFactor
     const job=requireJob(id);if(job.status!=='PENDING')throw new Error('Trabalho nao esta pendente.');
     if(!printer||typeof printer.print!=='function')throw new Error('Impressora indisponivel.');
     try {
-      const result=await printer.print({id:job.id,text:String(job.payload.text||''),html:job.payload.html?String(job.payload.html):null,format:job.payload.format?String(job.payload.format):null,width:job.width,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null});
+      const paperMm=Number(job.payload.paperMm);
+      const result=await printer.print({id:job.id,text:String(job.payload.text||''),html:job.payload.html?String(job.payload.html):null,format:job.payload.format?String(job.payload.format):null,width:job.width,paperMm:[58,80].includes(paperMm)?paperMm:undefined,printerName:job.payload.printerName,silent:job.payload.silent,logoDataUrl:job.payload.logoDataUrl||null});
       if(result&&result.success===false)throw new Error(result.failureReason||'Falha de impressao.'); return {job:markPrinted(id),result};
     }
     catch(error){markFailed(id,error?.message||String(error));throw error;}
   }
-  return {queueJob,getJob,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,processJob};
+  return {queueJob,getJob,getOriginalSaleReceipt,listJobs,markFailed,retryJob,markPrinted,cancelJob,reprint,createManualAttempt,processJob};
 }
 
 module.exports={createPrintService};

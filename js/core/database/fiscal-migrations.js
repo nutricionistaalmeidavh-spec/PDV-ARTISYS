@@ -253,6 +253,28 @@ function applyV17(db, now) {
 
 function runFiscalMigrations(db, now = () => new Date().toISOString()) {
   if (!db) throw new TypeError('Database is required.');
+  // Older installations can report a newer shared schema version while
+  // fiscal_documents still has the pre-v13 shape. Repair the additive v13
+  // columns before any v15 index references them.
+  ensureColumn(db, 'fiscal_documents', 'authorization_protocol', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'xml_path', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'danfe_path', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'contingency_type', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'authorized_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'rejected_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'sefaz_code', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'sefaz_message', 'TEXT');
+
+  // Repair all additive columns needed by later fiscal indexes/state even when
+  // an older build advanced the shared migration version incorrectly.
+  ensureColumn(db, 'fiscal_documents', 'lifecycle_status', "TEXT NOT NULL DEFAULT 'PENDING' CHECK (lifecycle_status IN ('PENDING','PROCESSING','AUTHORIZED','REJECTED','UNKNOWN','FAILED','CANCELLED'))");
+  ensureColumn(db, 'fiscal_documents', 'attempt_count', 'INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0)');
+  ensureColumn(db, 'fiscal_documents', 'reconcile_required', 'INTEGER NOT NULL DEFAULT 0 CHECK (reconcile_required IN (0,1))');
+  ensureColumn(db, 'fiscal_documents', 'processing_started_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'last_transition_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'last_reconciled_at', 'TEXT');
+  ensureColumn(db, 'fiscal_documents', 'last_reconcile_status', 'TEXT');
+
   let current = Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get()?.version || 0);
   if (current >= FISCAL_SCHEMA_VERSION) return current;
   if (current < 12) throw new Error('Fiscal requer schema v12 antes das migracoes fiscais.');

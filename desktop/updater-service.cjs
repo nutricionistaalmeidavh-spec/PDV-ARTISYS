@@ -1,6 +1,6 @@
 'use strict';
 
-function createUpdaterService({ app, autoUpdater, platform = process.platform, updateUrl = '', onState = null, logger = console }) {
+function createUpdaterService({ app, autoUpdater, platform = process.platform, updateUrl = '', enabled = true, onState = null, logger = console }) {
   if (!app) throw new Error('app is required');
   if (!autoUpdater) throw new Error('autoUpdater is required');
 
@@ -10,7 +10,7 @@ function createUpdaterService({ app, autoUpdater, platform = process.platform, u
     availableVersion: null,
     progress: null,
     error: null,
-    supported: Boolean(app.isPackaged && platform === 'win32')
+    supported: Boolean(enabled && app.isPackaged && platform === 'win32')
   };
 
   autoUpdater.autoDownload = false;

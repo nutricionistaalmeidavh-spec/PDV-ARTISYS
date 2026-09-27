@@ -6,14 +6,18 @@
   const reportsV2 = window.PdvReportsV2;
   if (!content || typeof operational?.showRoute !== 'function') return;
 
-  const STABLE_SIDEBAR_ROUTES = new Set(['inventory', 'finance', 'reports']);
+  const STABLE_OPERATIONAL_ROUTES = new Set(['inventory', 'cash', 'sales', 'returns', 'finance', 'reports', 'settings']);
   let scheduled = false;
   let restoring = false;
 
   function activeOperationalRoute() {
-    const active = document.querySelector('#sidebar-nav [data-route].active');
-    const route = active?.dataset.route || '';
-    return STABLE_SIDEBAR_ROUTES.has(route) ? route : '';
+    const route = document.body.dataset.activeRoute || '';
+    return STABLE_OPERATIONAL_ROUTES.has(route) ? route : '';
+  }
+
+  function hasOwnedSubview(route) {
+    return (route === 'settings' && Boolean(content.querySelector('.vertical-page')))
+      || (route === 'returns' && Boolean(content.querySelector('[data-returns-ui]')));
   }
 
   async function renderCanonicalRoute(route) {
@@ -24,16 +28,10 @@
     await operational.showRoute(route);
   }
 
-  function enhanceExtensions() {
-    if (document.getElementById('ops-finance-form')) void window.PdvErpFinanceUi?.enhanceFinancePage?.();
-    if (document.querySelector('.erp-management-page')) void window.PdvErpFinanceAutomationUi?.enhance?.();
-  }
-
   async function stabilize() {
-    enhanceExtensions();
     if (restoring || content.querySelector('.ops-page')) return;
     const route = activeOperationalRoute();
-    if (!route) return;
+    if (!route || hasOwnedSubview(route)) return;
 
     restoring = true;
     try {

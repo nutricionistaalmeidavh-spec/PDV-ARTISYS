@@ -43,3 +43,8 @@ Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`
 ## E39 — release
 
 A versão de pacote é 1.1.0. A migração de release avança o schema para v5 de forma incremental sobre v4. `npm run verify` e `npm run verify:release` permanecem os gates canônicos; o empacotamento Windows continua em `npm run dist:win`.
+
+
+## Gate do módulo no boundary HTTP
+
+As rotas desktop e mobile específicas de Restaurante autenticam o chamador e, em seguida, exigem `modules.requireEnabled('RESTAURANT')`. Com o módulo desligado, novas operações específicas são rejeitadas com `MODULE_DISABLED`; o serviço interno permanece disponível para drenar efeitos duráveis já persistidos. O renderer reconcilia o estado no foco, retorno de visibilidade e em intervalo local para refletir mudanças feitas por outro terminal.

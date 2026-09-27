@@ -8,6 +8,12 @@ const {resolveBootstrapConfig,validateBootstrapConfig,shouldStartEmbeddedServer,
 
 test('server-terminal is the safe default and owns the local SQLite server',()=>{
  const config=resolveBootstrapConfig({env:{}});assert.equal(config.profile,PROFILE_SERVER_TERMINAL);assert.equal(shouldStartEmbeddedServer(config),true);assert.equal(config.apiBase,null);
+ assert.equal(config.accountEndpoint,null);assert.equal(config.requireCommercialActivation,false);
+});
+
+test('commercial activation is opt-in through environment only',()=>{
+ const config=resolveBootstrapConfig({env:{PDV_ACCOUNT_ENDPOINT:'https://account.example/',PDV_REQUIRE_COMMERCIAL_ACTIVATION:'true'}});
+ assert.equal(config.accountEndpoint,'https://account.example/');assert.equal(config.requireCommercialActivation,true);
 });
 
 test('terminal profile requires a remote LAN API and never owns SQLite',()=>{
@@ -22,7 +28,7 @@ test('terminal profile rejects missing server URL or non-http endpoint',()=>{
 
 test('bootstrap config can be persisted without storing admin credentials',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-bootstrap-'));const configPath=path.join(dir,'deployment.json');try{
-   fs.writeFileSync(configPath,JSON.stringify({profile:'terminal',apiBase:'http://10.0.0.2:4174',terminalId:'PDV-03',terminalName:'Balcao 3',terminalKey:'pair-key',username:'admin',password:'never'}));
-   const config=resolveBootstrapConfig({env:{},configPath});assert.equal(config.profile,'terminal');assert.equal(config.terminalId,'PDV-03');assert.equal('username' in config,false);assert.equal('password' in config,false);
+   fs.writeFileSync(configPath,JSON.stringify({profile:'terminal',apiBase:'http://10.0.0.2:4174',terminalId:'PDV-03',terminalName:'Balcao 3',terminalKey:'pair-key',username:'admin',password:'never',accountEndpoint:'https://must-not-persist.example',requireCommercialActivation:true}));
+   const config=resolveBootstrapConfig({env:{},configPath});assert.equal(config.profile,'terminal');assert.equal(config.terminalId,'PDV-03');assert.equal('username' in config,false);assert.equal('password' in config,false);assert.equal(config.accountEndpoint,null);assert.equal(config.requireCommercialActivation,false);
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 });

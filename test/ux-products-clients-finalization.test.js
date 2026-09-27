@@ -38,6 +38,10 @@ test('paired UX has an executable ON/OFF fallback flow', () => {
     'QA Flag Master Customer',
     'expectValue'
   ]) assert.ok(serialized.includes(marker), `feature flag flow missing ${marker}`);
+
+  const visibleCustomerSelector = '[data-customer-master-row]:not(.catalog-search-hidden)';
+  assert.equal(flow.steps.find(step => step.name === 'flags-on-customer-row-ready')?.selector, visibleCustomerSelector);
+  assert.equal(flow.steps.find(step => step.name === 'flags-on-customer-select')?.selector, visibleCustomerSelector);
 });
 
 test('feature-flag fallback CRUD stays attached to canonical legacy form selectors', () => {

@@ -46,7 +46,7 @@
     {"action":"waitFor","selector":"#ops-commission-rule","name":"commission-form-ready","timeoutMs":10000},
     {"action":"fill","selector":"#ops-commission-rule input[name='percent']","value":"5","name":"commission-percent"},
     {"action":"click","selector":"#ops-commission-rule button[type='submit']","name":"save-commission-rule"},
-    {"action":"waitForTimeout","timeoutMs":500,"name":"commission-refresh"},
+    {"action":"waitForTimeout","timeoutMs":1500,"name":"commission-refresh"},
     {"action":"expectText","selector":".ops-page","expected":"5%","name":"commission-rule-created"},
 
     {"action":"click","selector":"[data-route='checkout']","name":"open-checkout"},

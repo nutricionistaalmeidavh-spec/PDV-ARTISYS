@@ -13,12 +13,14 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     status: () => ipcRenderer.invoke('artisys:photos:status'),
     dataUrl: (input) => ipcRenderer.invoke('artisys:photos:data-url', input),
     pickAndUpload: (input) => ipcRenderer.invoke('artisys:photos:pick-upload', input),
-    remove: (input) => ipcRenderer.invoke('artisys:photos:remove', input)
+    remove: (input) => ipcRenderer.invoke('artisys:photos:remove')
   },
   hardware: {
     status: () => ipcRenderer.invoke('artisys:hardware:status'),
     listSerialPorts: () => ipcRenderer.invoke('artisys:hardware:ports'),
+    listPrinters: () => ipcRenderer.invoke('artisys:hardware:printers'),
     diagnostics: () => ipcRenderer.invoke('artisys:hardware:diagnostics'),
+    configureScale: (input) => ipcRenderer.invoke('artisys:hardware:scale-configure', input),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
     tare: () => ipcRenderer.invoke('artisys:hardware:scale-tare'),
     openDrawer: () => ipcRenderer.invoke('artisys:hardware:drawer-open'),
@@ -26,6 +28,13 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     testPrinter: (text) => ipcRenderer.invoke('artisys:hardware:test-printer', { text }),
     testDrawer: () => ipcRenderer.invoke('artisys:hardware:test-drawer'),
     testScale: () => ipcRenderer.invoke('artisys:hardware:test-scale')
+  },
+  receipts: {
+    printSale: (input) => ipcRenderer.invoke('artisys:receipts:print-sale', input),
+    saveSalePdf: (input) => ipcRenderer.invoke('artisys:receipts:save-pdf', input)
+  },
+  external: {
+    openWhatsapp: (input) => ipcRenderer.invoke('artisys:external:whatsapp', input)
   },
   fiscal: {
     status: () => ipcRenderer.invoke('artisys:fiscal:status'),
@@ -42,6 +51,10 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     check: () => ipcRenderer.invoke('updater:check'),
     download: () => ipcRenderer.invoke('updater:download'),
     install: () => ipcRenderer.invoke('updater:install'),
+    telemetryConsentState: () => ipcRenderer.invoke('updater:telemetry-consent-state'),
+    saveTelemetryConsent: (accepted) => ipcRenderer.invoke('updater:telemetry-consent-save', { accepted: Boolean(accepted) }),
+    acceptTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: true }),
+    declineTelemetryAndInstall: () => ipcRenderer.invoke('updater:telemetry-consent-install', { accepted: false }),
     onState: (handler) => {
       const listener = (_event, state) => handler(state);
       ipcRenderer.on('updater:state', listener);

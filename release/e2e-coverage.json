@@ -1,5 +1,16 @@
 {
   "schemaVersion": 1,
+  "crosscut": {
+    "name": "Regressão transversal do produto",
+    "gate": "qa:crosscut",
+    "evidence": [
+      "qa/flows/restaurant-module-sync-e2e.json",
+      "qa/crosscut/modules.json",
+      "qa/runtime/src/contracts/renderer-health.js"
+    ],
+    "covers": ["state-sync", "module-contract", "renderer-health"],
+    "artifacts": "qa-artifacts/pdv-artisys-<run-id>"
+  },
   "phases": {
     "4": {
       "name": "Núcleo operacional",

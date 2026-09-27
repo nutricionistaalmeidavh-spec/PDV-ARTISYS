@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 function sendJson(res, status, payload) {
   if (res.headersSent) return;
@@ -275,7 +276,7 @@ function createFiscalBlock6Router({ runtime, sessionStore, bodyLimitBytes=2*1024
       }
       return false;
     } catch (error) {
-      sendJson(res, Number(error.statusCode || 400), { error:error.message || 'Falha fiscal.' });
+      sendJson(res, statusForError(error), { error:error.message || 'Falha fiscal.' });
       return true;
     }
   };

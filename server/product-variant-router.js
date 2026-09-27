@@ -1,4 +1,5 @@
 'use strict';
+const {statusForError}=require('./http-error-status');
 
 class ProductVariantHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
@@ -40,7 +41,7 @@ function createProductVariantRouter({runtime,installationToken='',requireTermina
       }
       if(saleItem&&request.method==='DELETE'){json(response,200,runtime.sales.removeItemById(decodeURIComponent(saleItem[1]),decodeURIComponent(saleItem[2])));return true;}
       throw new ProductVariantHttpError(405,'Metodo ou rota nao permitido.');
-    }catch(error){const status=error.statusCode||(/UNIQUE constraint failed/.test(error.message||'')?409:400);try{runtime.logger?.log({level:'warn',subsystem:'product-variant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
+    }catch(error){const status=statusForError(error);try{runtime.logger?.log({level:'warn',subsystem:'product-variant-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.'});return true;}
   };
 }
 

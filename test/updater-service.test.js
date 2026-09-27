@@ -69,12 +69,20 @@ test('updater is unsupported outside packaged Windows', async () => {
   assert.equal((await service.check()).status,'unsupported');
 });
 
+test('updater stays disabled for the isolated legacy runtime', async () => {
+  const autoUpdater = fakeUpdater();
+  const service = createUpdaterService({ app:{getVersion:()=> '1.4.0',isPackaged:true}, autoUpdater, platform:'win32', enabled:false });
+  assert.equal(service.state().supported,false);
+  assert.equal((await service.check()).status,'unsupported');
+  assert.equal(autoUpdater.checkCalls,0);
+});
+
 test('desktop package publishes update metadata for GitHub Releases', () => {
   const root = path.resolve(__dirname, '..');
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const html = fs.readFileSync(path.join(root, 'desktop/renderer/index.html'), 'utf8');
   const preload = fs.readFileSync(path.join(root, 'desktop/preload.cjs'), 'utf8');
-  assert.equal(pkg.version, '1.4.0');
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.main, 'desktop/updater-main.cjs');
   assert.equal(pkg.dependencies['electron-updater'], '^6.6.2');
   assert.deepEqual(pkg.build.publish, [{ provider:'github', owner:'nutricionistaalmeidavh-spec', repo:'PDV-ARTISYS', releaseType:'release' }]);

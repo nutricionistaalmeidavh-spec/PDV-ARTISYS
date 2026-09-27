@@ -38,6 +38,8 @@
     health() { return this.request('/api/v1/health'); }
     setupStatus() { return this.request('/api/v1/setup/status'); }
     setupAdmin(body) { return this.request('/api/v1/setup/admin', { method: 'POST', body }); }
+    requestSetupActivation(email) { return this.request('/api/v1/setup/activation/request', { method:'POST', body:{email} }); }
+    verifySetupActivation(email, code) { return this.request('/api/v1/setup/activation/verify', { method:'POST', body:{email,code} }); }
     async login(body) {
       const result = await this.request('/api/v1/auth/login', { method: 'POST', body });
       this.sessionToken = result.sessionToken;
@@ -46,11 +48,13 @@
     }
     logout() { this.sessionToken = ''; root.sessionStorage?.removeItem('artisys.sessionToken'); }
     currentSession() { return this.request('/api/v1/auth/session'); }
+    authorizeReturn(body) { return this.request('/api/v1/auth/authorize', { method:'POST', body }); }
 
     categories(includeInactive = false) { return this.request(`/api/v1/categories${includeInactive ? '?includeInactive=true' : ''}`); }
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
     products(includeInactive = false) { return this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`); }
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
+    removeProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
     syncProductPhotos(force = false) { return root.artisysDesktop.photos.sync({ force, sessionToken:this.sessionToken }); }
     productPhotoSyncStatus() { return root.artisysDesktop.photos.status(); }
     productPhotoDataUrl(productId, variant = 'thumbnail') { return root.artisysDesktop.photos.dataUrl({ productId, variant, sessionToken:this.sessionToken }); }

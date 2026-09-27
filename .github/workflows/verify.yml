@@ -28,9 +28,27 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-      - name: Verify unit integration architecture release and capability gates
-        run: npm run verify:release
+        run: npm ci --no-audit --no-fund
+      - name: Check release capability parity
+        run: npm run capability:check:release
+      - name: Check phase 3 capability parity
+        run: npm run capability:check:phase3
+      - name: Check documentation consistency
+        run: npm run docs:check
+      - name: Run unit and integration tests
+        run: npm test
+      - name: Test Cloudflare telemetry
+        run: npm run test:telemetry:cloudflare
+      - name: Lint EventBus
+        run: npm run lint:eventbus
+      - name: Lint core
+        run: npm run lint:core
+      - name: Lint desktop
+        run: npm run lint:desktop
+      - name: Lint commercial media
+        run: npm run lint:commercial-media
+      - name: Run release tests
+        run: npm run test:release
 
   e2e:
     needs: verify
@@ -42,7 +60,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install PDV and QA peer dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Ensure Xvfb is available
         shell: bash
         run: |
@@ -54,10 +72,25 @@ jobs:
         run: npm run qa:validate
       - name: Run release E2E flows
         run: xvfb-run -a npm run qa:release
+      - name: Run crosscut QA gate
+        run: xvfb-run -a npm run qa:crosscut
+      - name: Upload crosscut QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-artifacts-crosscut-${{ github.run_number }}
+          path: |
+            qa-artifacts
+            qa-report
+            qa-results
+          if-no-files-found: warn
+          retention-days: 7
       - name: Run core checkout E2E at 1366x768
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow core-business-e2e --viewport compactDesktop --output qa-artifacts
       - name: Run checkout UX exceptions at 1366x768
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow checkout-ux-preservation --viewport compactDesktop --output qa-artifacts
+      - name: Run desktop regressions at 1366x768
+        run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --environment ci --flow desktop-regressions-e2e --viewport compactDesktop --output qa-artifacts
       - name: Run paired UX finalization
         run: xvfb-run -a npm run qa:ux:finalize
       - name: Upload QA evidence
@@ -82,7 +115,7 @@ jobs:
         with:
           node-version: '22'
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
       - name: Ensure Xvfb is available
         shell: bash
         run: |

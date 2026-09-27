@@ -1,0 +1,46 @@
+appId: com.artisys.pdv.legacy
+productName: ArtiSys PDV Legacy
+electronVersion: 22.3.27
+asar: true
+npmRebuild: true
+directories:
+  output: dist-legacy
+files:
+  - desktop/**/*
+  - js/**/*
+  - server/**/*
+  - "!server/fiscal-sidecar/**/*"
+  - release/**/*
+  - vendor/**/*
+  - package.json
+asarUnpack:
+  - node_modules/serialport-legacy/**/*
+  - node_modules/@serialport/**/*
+  - node_modules/better-sqlite3/**/*
+extraResources:
+  - from: server/fiscal-sidecar
+    to: fiscal/sidecar
+    filter: ["**/*"]
+  - from: fiscal-runtime/acbr
+    to: fiscal/acbr
+    filter: ["**/*"]
+  - from: fiscal-runtime/configs
+    to: fiscal/configs
+    filter: ["**/*"]
+  - from: fiscal-runtime/schemas
+    to: fiscal/schemas
+    filter: ["**/*"]
+  - from: fiscal-runtime/manifest.json
+    to: fiscal/manifest.json
+win:
+  target:
+    - target: nsis
+      arch: [x64, ia32]
+  artifactName: ArtiSys-PDV-${version}-Legacy-${arch}-Setup.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  deleteAppDataOnUninstall: false
+publish: null

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeFirstAccessFlowSteps } from './first-access-flow.js';
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const BUILTIN_FLOW_ROOT = path.resolve(MODULE_DIR, '../flows');
@@ -60,5 +61,7 @@ export async function resolveFlowComposition(flow, options = {}) {
   validateFlow(flow);
   const sourceFile = options.sourceFile ? path.resolve(options.sourceFile) : null;
   const rootId = flow.id || sourceFile || '<root>';
-  return expandFlow(flow, options, sourceFile, [rootId]);
+  const expanded = await expandFlow(flow, options, sourceFile, [rootId]);
+  const steps = normalizeFirstAccessFlowSteps(expanded.steps);
+  return steps === expanded.steps ? expanded : { ...expanded, steps };
 }

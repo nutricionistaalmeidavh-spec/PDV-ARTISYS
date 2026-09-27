@@ -8,6 +8,7 @@ const PROFILE_TERMINAL='terminal';
 const PROFILES=new Set([PROFILE_SERVER_TERMINAL,PROFILE_TERMINAL]);
 
 function clean(value){const text=String(value??'').trim();return text||null;}
+function envBoolean(value){return /^(1|true|yes|on)$/i.test(String(value??'').trim());}
 function readPersisted(configPath){
   if(!configPath||!fs.existsSync(configPath))return{};
   try{const raw=JSON.parse(fs.readFileSync(configPath,'utf8'));if(!raw||typeof raw!=='object'||Array.isArray(raw))return{};return raw;}catch{return{};}
@@ -27,6 +28,8 @@ function resolveBootstrapConfig({env=process.env,configPath=null}={}){
     terminalName:clean(env.PDV_TERMINAL_NAME)||stored.terminalName||'Terminal PDV-01',
     terminalKey:clean(env.PDV_TERMINAL_KEY)||null,
     storeName:clean(env.PDV_STORE_NAME)||stored.storeName||'Loja Matriz',
+    accountEndpoint:clean(env.PDV_ACCOUNT_ENDPOINT)||null,
+    requireCommercialActivation:envBoolean(env.PDV_REQUIRE_COMMERCIAL_ACTIVATION),
     configPath:configPath?path.resolve(configPath):null
   };
 }
@@ -40,6 +43,7 @@ function validateBootstrapConfig(config={},options={}){
     if(!clean(config.terminalId))throw new Error('Identificador do terminal obrigatorio.');
     if(requireCredential&&!clean(config.terminalKey))throw new Error('Chave de pareamento do terminal obrigatoria.');
   }
+  if(config.accountEndpoint){let parsed;try{parsed=new URL(config.accountEndpoint);}catch{throw new Error('Endpoint da conta comercial invalido.');}if(parsed.protocol!=='https:'&&parsed.hostname!=='127.0.0.1'&&parsed.hostname!=='localhost')throw new Error('Endpoint da conta comercial deve usar HTTPS.');}
   return config;
 }
 function shouldStartEmbeddedServer(config={}){return config.profile===PROFILE_SERVER_TERMINAL;}

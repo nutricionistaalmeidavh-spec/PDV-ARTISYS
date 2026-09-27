@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolveSecret, stepLabel } from './helpers.js';
 import { isVisualValidationRequested, shouldUpdateVisualBaselines, validateVisualSnapshot } from './visual.js';
 
@@ -11,14 +12,58 @@ function locator(page, step) {
   throw new Error(`Step ${step.action} requires selector, testId, role, text or label`);
 }
 
+async function dismissPostSaleBeforeNavigation(page, step) {
+  const selector = typeof step.selector === 'string' ? step.selector : '';
+  if (!/\[data-(?:home-)?route=/.test(selector)) return;
+  const close = page.locator('#post-sale-close');
+  if (!(await close.isVisible().catch(() => false))) return;
+  await close.click();
+  await close.waitFor({ state:'detached', timeout:step.timeoutMs ?? 10000 });
+}
+
 async function ensureHomeRouteContext(page, step) {
   if (typeof step.selector !== 'string' || !step.selector.includes('[data-home-route=')) return;
-  const target = page.locator(step.selector);
-  if (await target.isVisible().catch(() => false)) return;
   const homeNav = page.locator("#sidebar-nav [data-route='home']");
   if (!(await homeNav.isVisible().catch(() => false))) return;
   await homeNav.click();
-  await target.waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+  await page.locator(step.selector).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 10000 });
+}
+
+function isModuleToggleStep(step) {
+  return typeof step.selector === 'string' && step.selector.includes('[data-module-toggle=');
+}
+
+async function restoreModuleToggleContext(page, step, deadline) {
+  if (!isModuleToggleStep(step)) return false;
+  const modulesEntry = page.locator('#ops-load-establishment-modules');
+  if (!(await modulesEntry.isVisible().catch(() => false))) return false;
+  await modulesEntry.click();
+  const remainingMs = Math.max(1, deadline - Date.now());
+  await locator(page, step).waitFor({ state:'visible', timeout:Math.min(remainingMs, 5000) }).catch(() => {});
+  return true;
+}
+
+async function setCheckboxState(page, step, checked) {
+  let target = locator(page, step);
+  const current = await target.isChecked().catch(() => null);
+  if (current === checked) return;
+  await target.click();
+  const timeoutMs = Number(step.timeoutMs ?? 10000);
+  const deadline = Date.now() + timeoutMs;
+  let restoredModuleContext = false;
+  while (true) {
+    target = locator(page, step);
+    const next = await target.isChecked().catch(() => null);
+    if (next === checked) return;
+    if (next === null && !restoredModuleContext) {
+      restoredModuleContext = await restoreModuleToggleContext(page, step, deadline);
+      if (restoredModuleContext) continue;
+    }
+    if (Date.now() >= deadline) {
+      throw new Error(`${stepLabel(step, 0)}: checkbox did not reach ${checked ? 'checked' : 'unchecked'} state`);
+    }
+    await page.waitForTimeout(Math.min(50, Math.max(1, deadline - Date.now())));
+  }
 }
 
 function waitState(step) {
@@ -33,6 +78,37 @@ function positiveInteger(value, label) {
   return parsed;
 }
 
+function assertQaFilePath(candidate, env, label) {
+  const target = path.resolve(candidate);
+  const root = path.resolve(String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
+  if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
+    throw new Error(`${label}: file assertion must stay inside QA output root ${root}`);
+  }
+  return target;
+}
+
+async function newestMatchingFile(directory, suffix = '') {
+  const names = await readdir(directory);
+  const candidates = [];
+  for (const name of names) {
+    if (suffix && !name.toLowerCase().endsWith(String(suffix).toLowerCase())) continue;
+    const filePath = path.join(directory, name);
+    const info = await stat(filePath).catch(() => null);
+    if (info?.isFile()) candidates.push({ filePath, mtimeMs:info.mtimeMs });
+  }
+  candidates.sort((a,b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0]?.filePath || null;
+}
+
+async function qaRunStartMs(screenshotsDir, runtimeContext) {
+  const explicit = Number(runtimeContext?.runStartedAtMs);
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+  const info = await stat(screenshotsDir);
+  const birth = Number(info.birthtimeMs);
+  if (Number.isFinite(birth) && birth > 0) return birth;
+  return Number(info.ctimeMs || 0);
+}
+
 export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
@@ -43,17 +119,46 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'click': {
+      await dismissPostSaleBeforeNavigation(page, step);
       await ensureHomeRouteContext(page, step);
-      await locator(page, step).click();
+      const target = locator(page, step);
+      const isModalClose = typeof step.selector === 'string' && step.selector.includes('[data-close-modal]');
+      if (isModalClose && !(await target.isVisible().catch(() => false))) break;
+      if (step.selector === "#ops-inventory-form button[type='submit']") {
+        const selectedProduct = await page.locator("#ops-inventory-form select[name='productId'] option:checked").textContent();
+        const quantity = await page.locator("#ops-inventory-form input[name='quantity']").inputValue();
+        const type = await page.locator("#ops-inventory-form select[name='type']").inputValue();
+        await target.click();
+        if (selectedProduct && type !== 'adjustment-out') {
+          const expectedQuantity = Number(quantity).toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+          await page.locator("#ops-inventory-body tr", { hasText: selectedProduct.trim() }).filter({ hasText: expectedQuantity }).waitFor({ state: 'visible', timeout: step.timeoutMs ?? 15000 });
+        } else {
+          await page.locator("#ops-inventory-form").waitFor({ state: 'visible', timeout: step.timeoutMs ?? 15000 });
+        }
+      } else {
+        await target.click();
+      }
       break;
     }
     case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
-    case 'check': await locator(page, step).check(); break;
-    case 'uncheck': await locator(page, step).uncheck(); break;
+    case 'check': await setCheckboxState(page, step, true); break;
+    case 'uncheck': await setCheckboxState(page, step, false); break;
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
+    case 'desktopApiRequest': {
+      const requestPath=String(step.path||'').trim();
+      if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);
+      const result=await page.evaluate(async input=>{
+        if(typeof window.artisysDesktop?.apiRequest!=='function')throw new Error('Desktop API bridge unavailable');
+        const sessionToken=sessionStorage.getItem('artisys.sessionToken')||null;
+        return window.artisysDesktop.apiRequest({path:input.path,method:input.method||'GET',body:input.body,sessionToken});
+      },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
+      if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
+      if(step.expectOk!==false&&!result?.ok)throw new Error(`${label}: desktop API request failed: ${JSON.stringify(result?.payload||null)}`);
+      break;
+    }
     case 'setFeatureFlags': {
       const allowed = new Set(['productsDenseView', 'customersMasterDetailView']);
       const flags = step.flags;
@@ -90,6 +195,49 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       if (actual !== String(step.expected)) throw new Error(`${label}: expected value ${JSON.stringify(String(step.expected))}, got ${JSON.stringify(actual)}`);
       break;
     }
+    case 'expectSameRow': {
+      if (!Array.isArray(step.selectors) || step.selectors.length < 2) throw new Error(`${label}: expectSameRow requires selectors`);
+      const boxes = [];
+      for (const selector of step.selectors) {
+        const target = page.locator(selector).first();
+        await target.waitFor({ state:'visible', timeout:step.timeoutMs ?? 10000 });
+        const box = await target.boundingBox();
+        if (!box) throw new Error(`${label}: could not measure ${selector}`);
+        boxes.push(box);
+      }
+      const tolerancePx = Number(step.tolerancePx ?? 12);
+      const centers = boxes.map(box => box.y + box.height / 2);
+      if (Math.max(...centers) - Math.min(...centers) > tolerancePx) {
+        throw new Error(`${label}: controls are not aligned on the same row`);
+      }
+      break;
+    }
+    case 'expectFile': {
+      let filePath = null;
+      if (step.directory) {
+        const directory = assertQaFilePath(step.directory, env, label);
+        filePath = await newestMatchingFile(directory, step.suffix || '');
+      } else if (step.path) filePath = assertQaFilePath(step.path, env, label);
+      else throw new Error(`${label}: expectFile requires path or directory`);
+      if (!filePath) throw new Error(`${label}: expected file was not found`);
+      const info = await stat(filePath);
+      if (step.createdAfterRunStart) {
+        const startedAt = await qaRunStartMs(screenshotsDir, runtimeContext);
+        if (info.mtimeMs < startedAt) throw new Error(`${label}: file is stale (${new Date(info.mtimeMs).toISOString()} < run start ${new Date(startedAt).toISOString()})`);
+      }
+      const bytes = await readFile(filePath);
+      const minBytes = Number(step.minBytes ?? 1);
+      if (!Number.isFinite(minBytes) || minBytes < 0) throw new TypeError(`${label}: minBytes must be non-negative`);
+      if (bytes.length < minBytes) throw new Error(`${label}: expected at least ${minBytes} bytes, got ${bytes.length}`);
+      if (step.startsWith != null) {
+        const prefix = Buffer.from(String(step.startsWith), 'utf8');
+        if (!bytes.subarray(0, prefix.length).equals(prefix)) throw new Error(`${label}: file does not start with ${JSON.stringify(String(step.startsWith))}`);
+      }
+      if (String(step.startsWith || '') === '%PDF-' && bytes.subarray(0,5).toString('utf8') !== '%PDF-') {
+        throw new Error(`${label}: invalid PDF signature`);
+      }
+      break;
+    }
     case 'expectNoHorizontalOverflow': {
       const tolerancePx = Number(step.tolerancePx ?? 2);
       if (!Number.isFinite(tolerancePx) || tolerancePx < 0) throw new TypeError(`${label}: tolerancePx must be a non-negative number`);
@@ -119,9 +267,17 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'expectText': {
       const expected = step.expected ?? '';
-      const texts = await locator(page, step).allTextContents();
-      if (!texts.some(actual => actual.includes(expected))) {
-        throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+      const target = locator(page, step);
+      const timeoutMs = Number(step.timeoutMs ?? 10000);
+      const deadline = Date.now() + timeoutMs;
+      let texts = [];
+      while (true) {
+        texts = await target.allTextContents();
+        if (texts.some(actual => actual.includes(expected))) break;
+        if (Date.now() >= deadline) {
+          throw new Error(`${label}: expected text ${JSON.stringify(expected)}, got ${JSON.stringify(texts.join(' | '))}`);
+        }
+        await page.waitForTimeout(Math.min(100, Math.max(1, deadline - Date.now())));
       }
       break;
     }

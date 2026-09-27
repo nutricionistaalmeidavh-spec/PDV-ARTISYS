@@ -1,6 +1,6 @@
 'use strict';
 
-const { DatabaseSync } = require('node:sqlite');
+const { DatabaseSync } = require('./sqlite-runtime');
 
 let savepointSequence = 0;
 const managedTransactions = new WeakSet();

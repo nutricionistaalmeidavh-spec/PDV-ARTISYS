@@ -2,7 +2,25 @@
 
 A atualização do executável é separada dos dados do cliente. Banco, backups e configuração ficam no diretório de dados do usuário e não são substituídos pelo instalador.
 
-## Procedimento
+## Atualização automática — Windows moderno
+
+A partir da linha 1.4, o instalador moderno usa `electron-updater`. Ao iniciar, o ArtiSys PDV verifica automaticamente se existe uma versão estável mais nova publicada.
+
+Quando houver atualização:
+
+1. o sistema exibe a nova versão disponível;
+2. o operador escolhe **Baixar agora**;
+3. o download ocorre sem exigir reinstalação manual;
+4. ao concluir, o operador escolhe **Atualizar e reiniciar**;
+5. o aplicativo reinicia já na nova versão.
+
+O download não é automático: a decisão continua com o operador. O banco de dados e os arquivos persistentes do cliente não são apagados pela atualização.
+
+Cada merge relevante na `main` dispara o pipeline Windows. O pipeline resolve uma versão de patch superior à última release publicada, executa `verify:release`, gera e testa o instalador, valida `latest.yml` e o blockmap e só então publica a GitHub Release consumida pelo updater. Alterações apenas em documentação/testes que não afetam o pacote não geram uma release nova.
+
+## Procedimento manual / recuperação
+
+Use instalação manual quando o updater não estiver disponível ou quando for necessário recuperar uma instalação:
 
 1. Encerre vendas e feche o caixa quando operacionalmente possível.
 2. Crie e valide um backup manual.
@@ -11,6 +29,10 @@ A atualização do executável é separada dos dados do cliente. Banco, backups 
 5. Inicie primeiro a máquina **Servidor + Terminal**. As migrations incrementais e não destrutivas são aplicadas automaticamente.
 6. Confira health/schema, abra o sistema e execute um smoke de login, consulta de produtos e venda controlada.
 7. Atualize os terminais clientes para versão compatível e valide o handshake LAN.
+
+## Windows 7/8 Legacy
+
+A linha Legacy não usa atualização automática do Electron. Esses computadores continuam sendo atualizados com o instalador Legacy compatível.
 
 ## Rollback
 

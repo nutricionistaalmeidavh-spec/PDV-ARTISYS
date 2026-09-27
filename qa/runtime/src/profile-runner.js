@@ -3,6 +3,7 @@ import { resolveEnvironment, resolveFlow, resolveViewport } from './manifest.js'
 import { runQaFlow } from './runner.js';
 import { resolveQaProfile } from './profiles.js';
 import { runDesktopSmoke } from './desktop.js';
+import { runCrosscutContracts } from './crosscut-runner.js';
 import { aggregateQaReport, writeQaReport } from './reporting.js';
 import { writeCiQaSummary } from './ci-summary.js';
 import { evaluateReleaseGate } from './release-gate.js';
@@ -28,6 +29,9 @@ export async function runQaProfile({
   onProgress = null,
   flowRunner = runQaFlow,
   desktopRunner = runDesktopSmoke,
+  crosscutContracts = [],
+  crosscutRunner = runCrosscutContracts,
+  crosscutContext = null,
 } = {}) {
   let lastProgress = null;
   const notify = async event => {
@@ -38,6 +42,7 @@ export async function runQaProfile({
   const { name: environmentName, environment } = resolveEnvironment(manifest, requestedEnvironment);
   const viewport = resolveViewport(manifest, requestedViewport);
   const results = [];
+  let crosscut = null;
   const resolvedCiSummaryPath = ciSummaryPath || path.resolve(rootDir, 'artifacts', 'qa-summary.json');
   await notify({ type: 'profile-start', profile: profile.name, total: profile.flows.length });
 
@@ -68,6 +73,55 @@ export async function runQaProfile({
     }
   }
 
+  if (profile.includeCrosscut && Array.isArray(crosscutContracts) && crosscutContracts.length) {
+    await notify({ type: 'crosscut-start', profile: profile.name, total: crosscutContracts.length });
+    try {
+      const context = crosscutContext || { manifest, rootDir, environmentName, environment, viewport, outputRoot, profile };
+      crosscut = await crosscutRunner({
+        contracts: crosscutContracts,
+        context,
+        policy: profile.crosscutPolicy || manifest?.crosscut?.policy || {},
+      });
+      for (const check of crosscut.checks || []) {
+        results.push({
+          check: `crosscut:${check.name}`,
+          category: check.category || 'crosscut',
+          status: check.status || 'unknown',
+          critical: check.critical !== false,
+          error: check.error || null,
+          details: check.details || null,
+        });
+      }
+      const uncoveredCritical = Number(crosscut.coverage?.uncoveredCritical || 0);
+      if (uncoveredCritical > 0) {
+        results.push({
+          check: 'crosscut:critical-coverage',
+          category: 'crosscut',
+          status: 'failed',
+          critical: true,
+          error: `${uncoveredCritical} critical crosscut contract(s) uncovered`,
+          details: crosscut.coverage,
+        });
+      }
+      const criticalFindings = (crosscut.findings || []).filter(item => String(item?.severity || '').toLowerCase() === 'critical');
+      if (criticalFindings.length) {
+        results.push({
+          check: 'crosscut:critical-findings',
+          category: 'crosscut',
+          status: 'failed',
+          critical: true,
+          error: `${criticalFindings.length} critical crosscut finding(s)`,
+          details: criticalFindings,
+        });
+      }
+      await notify({ type: 'crosscut-end', profile: profile.name, status: 'passed', total: crosscutContracts.length });
+    } catch (error) {
+      crosscut = { error: error?.message || String(error) };
+      results.push({ check: 'crosscut:harness', category: 'crosscut', status: 'failed', critical: true, error: crosscut.error });
+      await notify({ type: 'crosscut-end', profile: profile.name, status: 'failed', error: crosscut.error });
+    }
+  }
+
   if (profile.includeDesktop && manifest.desktop?.executable) {
     const executable = path.resolve(rootDir, manifest.desktop.executable);
     await notify({ type: 'desktop-start', profile: profile.name, check: 'desktop-smoke' });
@@ -94,5 +148,5 @@ export async function runQaProfile({
     error.reportFiles = files;
     throw error;
   }
-  return { profile, results, gate, report, ...files };
+  return { profile, results, crosscut, gate, report, ...files };
 }

@@ -1,3 +1,37 @@
+# ArtiSys PDV 1.4.1 — Estabilidade de navegação e instalador corrigido
+
+Patch da linha 1.4 que corrige corridas assíncronas de renderização capazes de redesenhar uma rota antiga sobre a tela atual, apagar campos já preenchidos ou desfazer submódulos válidos de Configurações.
+
+## Correções de estabilidade
+
+- callbacks assíncronos de Produtos só redesenham a tela quando Produtos continua sendo a rota ativa;
+- rotas operacionais usam um marcador compartilhado para impedir commits tardios depois que o operador navegou para outro módulo;
+- Relatórios descarta resultados assíncronos obsoletos antes de substituir a interface;
+- o estabilizador de rota preserva subpáginas válidas de Configurações, incluindo Pizzaria e outros módulos verticais;
+- fechamento de modais permanece centralizado para evitar handlers duplicados e cliques inconsistentes.
+
+## Validação
+
+- suíte `release` validada com **19/19 flows** aprovados e zero falhas;
+- E2E compacto de checkout e exceções UX aprovados;
+- certificação fiscal cumulativa P25 aprovada;
+- builds Legacy para Windows 7/8 validadas em x64 e ia32;
+- instalador Windows x64 moderno continua sujeito ao smoke test do workflow de release antes da publicação.
+
+## Empacotamento
+
+O instalador moderno desta release é:
+
+`ArtiSys-PDV-1.4.1-x64-Setup.exe`
+
+Os instaladores Legacy usam os nomes `ArtiSys-PDV-1.4.1-Legacy-x64-Setup.exe` e `ArtiSys-PDV-1.4.1-Legacy-ia32-Setup.exe`.
+
+## Regras preservadas
+
+O sistema continua **local-first**: SQLite autoritativo no servidor local, terminais/dispositivos pela API LAN, EventBus/outbox para efeitos derivados e `SaleService` como motor canônico de vendas. Não há SaaS, nuvem ou assinatura obrigatória para a operação diária.
+
+---
+
 # ArtiSys PDV 1.3.2 — Observação de venda e cupom não fiscal
 
 Patch local-first sobre a 1.3.1 que adiciona observação vinculada à venda e ao cliente sem alterar o motor canônico de venda, estoque, caixa ou EventBus.
@@ -49,7 +83,7 @@ Patch local-first que reforça a E54 sem exigir compra prévia de periféricos. 
 
 ## Significado comercial da compatibilidade
 
-`PROTOCOL_VERIFIED` significa que a família de integração foi validada automaticamente no software. Não significa que todos os modelos físicos que usam esse protocolo foram testados.
+`PROTOCOL_VERIFIED` significa que a família de integração foi validada automaticamente pelo software. Não significa que todos os modelos físicos que usam esse protocolo foram testados.
 
 `FIELD_VERIFIED` é reservado para fabricante/modelo realmente testado em equipamento físico, com evidência registrada. Um modelo ainda não testado usa `UNTESTED_MODEL`, mesmo quando o protocolo correspondente já está `PROTOCOL_VERIFIED`.
 

@@ -21,7 +21,19 @@ function fakeModules(calls) {
       createRequestResponseSession(options){ calls.push(['request-session', options]); return { run:async()=>1.23456 }; },
       createScaleAdapter(){ return { status:async()=>({available:true,path:'COM3',baudRate:9600,unit:'kg'}), readWeight:async()=>({weight:1.235,unit:'kg'}) }; },
       createDrawerAdapter({ transport }) { return { status:()=>transport.status(), open:async()=>{ calls.push('drawer-open'); return true; } }; },
-      parseNumericWeight(value){ return Number(value); }
+      parseNumericWeight(value){ return Number(value); },
+      createUranoPopSProtocol({ requestCommand=0x04 }={}) {
+        calls.push(['urano-protocol', requestCommand]);
+        return {
+          id:'urano-pop-s',
+          manufacturer:'Urano',
+          model:'US 31/2 POP-S',
+          serial:{baudRate:9600,dataBits:8,stopBits:2,parity:'none'},
+          request:Buffer.from([requestCommand]),
+          requestCommand,
+          parse:()=>1.235
+        };
+      }
     },
     printing: {
       normalizePrinterProfile(profile){ return profile; },
@@ -46,6 +58,31 @@ test('defaults to Electron printing and reports unconfigured scale/drawer', asyn
   assert.equal(status.barcodeScanner.mode,'keyboard-wedge');
 });
 
+test('runtime resolves persisted printer preferences at every print attempt', async () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  const calls=[];const printed=[];const modules=fakeModules(calls);
+  modules.printing.createElectronPrinterDriver=()=>({
+    status:async()=>({available:true,mode:'electron'}),
+    print:async(job,profile)=>{printed.push({job,profile});return {success:true,driver:'electron'};}
+  });
+  let prefs={deviceName:'POS80 Printer',paperMm:80,columns:48,showSystemDialog:true,cut:true,openDrawerAfterPrint:false};
+  const runtime=createPdvHardwareRuntime({BrowserWindow:function(){},env:{},modules,resolvePrinterPreferences:()=>prefs});
+  await runtime.print({text:'primeiro'});
+  prefs={deviceName:'POS58 Printer',paperMm:58,columns:32,showSystemDialog:false,cut:false,openDrawerAfterPrint:true};
+  await runtime.print({text:'segundo'});
+  assert.equal(printed.length,2);
+  assert.equal(printed[0].profile.deviceName,'POS80 Printer');
+  assert.equal(printed[0].profile.width,48);
+  assert.equal(printed[0].profile.silent,false);
+  assert.equal(printed[0].job.paperMm,80);
+  assert.equal(printed[1].profile.deviceName,'POS58 Printer');
+  assert.equal(printed[1].profile.width,32);
+  assert.equal(printed[1].profile.silent,true);
+  assert.equal(printed[1].profile.cut,false);
+  assert.equal(printed[1].profile.openDrawerAfterPrint,true);
+  assert.equal(printed[1].job.paperMm,58);
+});
+
 test('configured scale and drawer use the shared serial module with fragmented-response settling', async () => {
   const { createPdvHardwareRuntime } = require(runtimePath);
   const calls=[];
@@ -63,6 +100,30 @@ test('configured scale and drawer use the shared serial module with fragmented-r
   const sessionCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='request-session');
   assert.ok(sessionCall);
   assert.equal(sessionCall[1].responseIdleMs,30);
+});
+
+test('Urano POP-S scale profile forces documented 9600 8N2 and binary request', async () => {
+  const { createPdvHardwareRuntime } = require(runtimePath);
+  const calls=[];
+  const runtime=createPdvHardwareRuntime({
+    BrowserWindow:function(){},
+    env:{ PDV_SCALE_PORT:'COM7', PDV_SCALE_PROFILE:'urano-pop-s' },
+    modules:fakeModules(calls)
+  });
+
+  const transportCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='serial-transport');
+  assert.deepEqual(transportCall[1],{path:'COM7',baudRate:9600,dataBits:8,stopBits:2,parity:'none'});
+
+  const sessionCall=calls.find(entry=>Array.isArray(entry) && entry[0]==='request-session');
+  assert.equal(Buffer.isBuffer(sessionCall[1].request),true);
+  assert.deepEqual([...sessionCall[1].request],[0x04]);
+
+  const diagnostics=await runtime.diagnostics();
+  assert.equal(diagnostics.configuration.scale.profile,'urano-pop-s');
+  assert.equal(diagnostics.configuration.scale.manufacturer,'Urano');
+  assert.equal(diagnostics.configuration.scale.model,'US 31/2 POP-S');
+  assert.equal(diagnostics.configuration.scale.stopBits,2);
+  assert.equal(diagnostics.configuration.scale.requestCommand,'0x04');
 });
 
 test('thermal mode selects thermal driver without silent fallback', async () => {

@@ -111,7 +111,7 @@
         key:'actions',
         label:'Ações',
         align:'end',
-        render:product => `<div class="products-dense-actions"><button class="secondary-button" type="button" data-product-photo-edit="${esc(product.id)}">${product.photo ? 'Trocar foto' : 'Adicionar foto'}</button>${product.photo ? `<button class="secondary-button" type="button" data-product-photo-remove="${esc(product.id)}">Remover foto</button>` : ''}<button class="secondary-button" type="button" data-edit-product="${esc(product.id)}">Editar</button></div>`
+        render:product => `<div class="products-dense-actions"><button class="secondary-button" type="button" data-product-photo-edit="${esc(product.id)}">${product.photo ? 'Trocar foto' : 'Adicionar foto'}</button>${product.photo ? `<button class="secondary-button" type="button" data-product-photo-remove="${esc(product.id)}">Remover foto</button>` : ''}<button class="secondary-button" type="button" data-edit-product="${esc(product.id)}">Editar</button><button class="danger-button" type="button" data-remove-product="${esc(product.id)}">Excluir</button></div>`
       }
     ];
 

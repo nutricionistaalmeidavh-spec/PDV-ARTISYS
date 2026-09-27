@@ -71,6 +71,23 @@ test('electron printer embeds only safe local PNG logo before receipt text',asyn
   assert.equal(result.success,true);assert.match(loaded,/receipt-logo/);assert.ok(loaded.indexOf('<img')<loaded.indexOf('<pre>cupom'));
 });
 
+test('electron receipt printer applies configured 58 and 80 mm paper width',async()=>{
+  const options=[];
+  class FakeWindow{
+    constructor(){this.webContents={executeJavaScript:async()=>600,print:(value,cb)=>{options.push(value);cb(true,'');}};}
+    async loadURL(){}
+    isDestroyed(){return false;}
+    close(){}
+  }
+  const driver=createElectronPrinterDriver({BrowserWindow:FakeWindow});
+  await driver.print({text:'cupom 58',paperMm:58,width:32},{mode:'electron',width:32});
+  await driver.print({text:'cupom 80',paperMm:80,width:48},{mode:'electron',width:48});
+  assert.equal(options[0].pageSize.width,58000);
+  assert.ok(options[0].pageSize.height>=50000);
+  assert.equal(options[1].pageSize.width,80000);
+  assert.ok(options[1].pageSize.height>=50000);
+});
+
 test('electron printer prints trusted local A4 HTML and rejects active or remote content',async()=>{
   let loaded='';let options=null;class FakeWindow{constructor(){this.webContents={print:(opts,cb)=>{options=opts;cb(true,'');}};}async loadURL(url){loaded=decodeURIComponent(url.slice(url.indexOf(',')+1));}isDestroyed(){return false;}close(){}}
   const driver=createElectronPrinterDriver({BrowserWindow:FakeWindow});
