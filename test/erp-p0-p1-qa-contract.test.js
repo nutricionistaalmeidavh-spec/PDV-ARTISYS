@@ -25,3 +25,12 @@ test('P0/P1 ERP finance flows are real files and release-critical',()=>{
     assert.ok(flow.steps.some(step=>step.action==='capability'),`${name} must exercise a deterministic ERP finance capability`);
   }
 });
+
+test('ERP finance QA adapter authenticates its isolated Electron fixture',()=>{
+  const file=path.join(__dirname,'..','qa','runtime','adapters','erp-finance-ci.mjs');
+  const source=fs.readFileSync(file,'utf8');
+  assert.match(source,/await ensureAuthenticated\(page\)/,'finance setup must authenticate before protected API calls');
+  assert.match(source,/api\.setupStatus\(\)/,'finance QA auth must detect first-access state');
+  assert.match(source,/api\.setupAdmin\(/,'finance QA auth must bootstrap the local admin when needed');
+  assert.match(source,/api\.login\(/,'finance QA auth must establish a session token');
+});
