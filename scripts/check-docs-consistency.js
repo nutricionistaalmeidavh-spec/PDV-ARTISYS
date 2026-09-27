@@ -14,6 +14,8 @@ const contributing = read('CONTRIBUTING.md');
 const capabilities = readJson('release/capabilities.json');
 const limitations = readJson('release/limitations.json');
 const catalogDoc = read('docs/architecture/catalog-parent-variants-kits-combos.md');
+const erpFinanceArchitecture = read('docs/architecture/erp-finance-p0-p3.md');
+const erpFinanceOperations = read('docs/operations/erp-finance.md');
 
 const readmeHeading = readme.split(/\r?\n/, 1)[0].trim();
 if (readmeHeading !== `# ArtiSys PDV ${pkg.version}`) {
@@ -59,6 +61,14 @@ if (!/Regra obrigatória de documentação/.test(contributing) || !/mesma entreg
 if (!/não dependem da ativação do módulo opcional `RETAIL`/.test(catalogDoc)) {
   fail('catalog architecture doc must state that parent/subitem variants are core catalog behavior.');
 }
+
+const financeDocs = `${erpFinanceArchitecture}\n${erpFinanceOperations}`;
+for (const phrase of ['Gestão', 'DRE', 'Fluxo de caixa', 'OFX', 'Conciliação', 'Recorrências', 'Alertas']) {
+  if (!financeDocs.includes(phrase)) fail(`ERP finance documentation is missing ${phrase}.`);
+}
+if (!/confirma[cç][aã]o manual/i.test(financeDocs)) fail('ERP finance docs must require explicit/manual reconciliation confirmation.');
+if (!/não implementa contabilidade por partidas dobradas/i.test(financeDocs)) fail('ERP finance docs must state that double-entry accounting is outside P0-P3.');
+if (!/self-hosted/i.test(financeDocs) || !/sem dependência paga obrigatória/i.test(financeDocs)) fail('ERP finance core must be documented as self-hosted with no mandatory paid dependency.');
 
 function assertReleaseChecklistVersionNeutral() {
   const checklist = read('release/release-checklist.md');
