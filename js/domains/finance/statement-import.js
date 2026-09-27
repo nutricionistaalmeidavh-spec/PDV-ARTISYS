@@ -7,7 +7,7 @@ const {parseOfx}=require('./ofx-parser');
 function createStatementImport({db,finance,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!finance)throw new TypeError('db and finance are required.');
   let domainPromise=null;
-  const domain=()=>domainPromise||(domainPromise=import('@artisys/finance-domain'));
+  const domain=()=>domainPromise||(domainPromise=import('../../../vendor/artisys-finance-domain/src/index.mjs'));
   function account(id){const result=finance.getAccount(String(id||''));if(!result||!result.active)throw new Error('Conta bancaria nao encontrada ou inativa.');return result;}
   function safeSourceName(value){const text=String(value||'').trim();if(!text)throw new Error('Nome do arquivo de extrato obrigatorio.');return text.slice(0,240);}
 
