@@ -39,7 +39,7 @@ async function setup(page,scenario){
     const ofx=({amount='-100.00',fitid=uid('TX'),name='QA FORNECEDOR',days=0,type='DEBIT'}={})=>`<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST><STMTTRN><TRNTYPE>${type}<DTPOSTED>${date(days).replaceAll('-','')}120000[-3:BRT]<TRNAMT>${amount}<FITID>${fitid}<NAME>${name}</STMTTRN></BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
     const state={scenario,nonce:uid('qa'),today:date(0)};
     const account=async suffix=>{const id=uid(`QA-BANK-${suffix}`);await api.createFinanceAccount({id,name:`Banco QA ${suffix}`,type:'BANK'});return id;};
-    const category=async(kind='EXPENSE')=>{const id=uid('QA-CAT');await api.saveFinanceCategory({id,name:`Categoria QA ${state.nonce.slice(-8)}`,kind,dreGroupId:kind==='INCOME'?'OPERATING_REVENUE':'OPERATING_EXPENSE'});return id;};
+    const category=async(kind='EXPENSE')=>{const id=uid('QA-CAT');await api.saveFinanceCategory({id,name:`Categoria QA ${state.nonce.slice(-8)}`,kind,dreGroupId:kind==='INCOME'?'REVENUE':'OPERATING_EXPENSE'});return id;};
     const center=async()=>{const id=uid('QA-CC');await api.saveCostCenter({id,name:`Centro QA ${state.nonce.slice(-8)}`});return id;};
     const entry=async input=>api.createFinanceEntry({dueAt:iso(0),...input});
     if(scenario==='management-base'){
