@@ -1,7 +1,36 @@
 function fail(message, details={}){return{ok:false,message,details};}
 function pass(details={}){return{ok:true,details};}
 
+async function ensureAuthenticated(page){
+  const changed=await page.evaluate(async()=>{
+    const api=new window.PdvApiClient.ApiClient();
+    const config=await api.initialize();
+    try{
+      await api.currentSession();
+      return false;
+    }catch(error){
+      if(Number(error?.status)!==401)throw error;
+    }
+    const credentials={name:'QA Finance',username:'qafinance',password:`Qa-Finance-${Date.now()}-Aa1!`};
+    const setup=await api.setupStatus();
+    if(setup?.needsSetup)await api.setupAdmin(credentials);
+    try{
+      await api.login({username:credentials.username,password:credentials.password,terminalId:config.terminalId});
+    }catch(error){
+      if(!setup?.needsSetup)throw new Error(`ERP finance QA fixture is unauthenticated and cannot reuse an unknown local admin: ${error.message}`);
+      throw error;
+    }
+    return true;
+  });
+  if(changed){
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:15000});
+    await page.locator('#app-topbar').waitFor({state:'visible',timeout:15000});
+  }
+}
+
 async function setup(page,scenario){
+  await ensureAuthenticated(page);
   return page.evaluate(async scenario=>{
     const api=new window.PdvApiClient.ApiClient();await api.initialize();
     const uid=prefix=>`${prefix}-${crypto.randomUUID()}`;
@@ -25,7 +54,7 @@ async function setup(page,scenario){
       state.categoryId=await category('EXPENSE');state.costCenterId=await center();const e=await entry({kind:'PAYABLE',description:`QA Dimensoes ${state.nonce}`,amountCents:9000,categoryId:state.categoryId,costCenterId:state.costCenterId,competencyDate:date(0)});state.entryId=e.id;
     }else if(scenario==='base-idempotency'){
       state.categoryId=uid('QA-IDEMP-CAT');const payload={id:state.categoryId,name:`Categoria Idempotente ${state.nonce.slice(-8)}`,kind:'EXPENSE',dreGroupId:'OPERATING_EXPENSE'};await api.saveFinanceCategory(payload);await api.saveFinanceCategory(payload);
-      state.costCenterId=uid('QA-IDEMP-CC');const cp={id:state.costCenterId,name:`Centro Idempotente ${state.nonce.slice(-8)}`};await api.saveCostCenter(cp);await api.saveCostCenter(cp);
+      state.costCenterId=uid('QA-IDEMP-CC');const cp={id:state.costCenterId,name:`Centro QA ${state.nonce.slice(-8)}`};await api.saveCostCenter(cp);await api.saveCostCenter(cp);
     }else if(scenario==='business-dashboard'){
       const a=await account('DASH');const r=await entry({kind:'RECEIVABLE',description:`QA Dashboard Receita ${state.nonce}`,amountCents:50000,accountId:a});const p=await entry({kind:'PAYABLE',description:`QA Dashboard Despesa ${state.nonce}`,amountCents:15000,accountId:a});await api.settleFinanceEntry(r.id,{amountCents:50000,method:'PIX'});await api.settleFinanceEntry(p.id,{amountCents:15000,method:'PIX'});state.receivableId=r.id;state.payableId=p.id;
     }else if(scenario==='dre'){
