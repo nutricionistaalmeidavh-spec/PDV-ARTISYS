@@ -4,7 +4,7 @@ const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { assertCents } = require('../shared/money');
 
-function createFinanceService({ db, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}` } = {}) {
+function createFinanceService({ db, dimensions = null, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
 
   function mapAccount(row) {
@@ -30,7 +30,8 @@ function createFinanceService({ db, now = () => new Date().toISOString(), idFact
     const settlements=activeSettlements(row.id).map(mapSettlement);
     const settledCents=settlements.reduce((sum,item)=>sum+item.amountCents,0);
     const openCents=Math.max(row.amount_cents-settledCents,0);
-    return {id:row.id,kind:row.kind,description:row.description,category:row.category,accountId:row.account_id,amountCents:row.amount_cents,dueAt:row.due_at,status:row.status,sourceType:row.source_type,sourceId:row.source_id,notes:row.notes,createdAt:row.created_at,updatedAt:row.updated_at,cancelledAt:row.cancelled_at,settledCents,openCents,isOverdue:['OPEN','PARTIAL'].includes(row.status)&&Date.parse(row.due_at)<Date.parse(asOf),settlements};
+    const dims=dimensions?.getEntryDimensions?.(row.id)||null;
+    return {id:row.id,kind:row.kind,description:row.description,category:row.category,categoryId:dims?.categoryId||null,costCenterId:dims?.costCenterId||null,competencyDate:dims?.competencyDate||null,accountId:row.account_id,amountCents:row.amount_cents,dueAt:row.due_at,status:row.status,sourceType:row.source_type,sourceId:row.source_id,notes:row.notes,createdAt:row.created_at,updatedAt:row.updated_at,cancelledAt:row.cancelled_at,settledCents,openCents,isOverdue:['OPEN','PARTIAL'].includes(row.status)&&Date.parse(row.due_at)<Date.parse(asOf),settlements};
   }
   function getEntry(id,{asOf}={}) { return mapEntry(db.prepare('SELECT * FROM financial_entries WHERE id=?').get(String(id)),asOf||now()); }
   function requireEntry(id){const row=db.prepare('SELECT * FROM financial_entries WHERE id=?').get(String(id));if(!row)throw new Error('Lancamento financeiro nao encontrado.');return row;}
@@ -41,12 +42,16 @@ function createFinanceService({ db, now = () => new Date().toISOString(), idFact
     const amountCents=assertCents(input.amountCents,'amountCents');if(amountCents<=0)throw new Error('Valor do lancamento deve ser maior que zero.');
     const dueAt=String(input.dueAt||'').trim();if(!dueAt||!Number.isFinite(Date.parse(dueAt)))throw new Error('Vencimento invalido.');
     if(input.accountId&&!getAccount(input.accountId))throw new Error('Conta financeira nao encontrada.');
+    const hasDimensions=Boolean(input.categoryId||input.costCenterId||input.competencyDate);
+    if(hasDimensions&&!dimensions)throw new Error('Servico de dimensoes financeiras nao configurado.');
+    if(dimensions)dimensions.validateEntryDimensions(input,kind);
     const id=String(input.id||idFactory('fin'));const timestamp=now();
     db.prepare(`INSERT INTO financial_entries
       (id,kind,description,category,account_id,amount_cents,due_at,status,source_type,source_id,notes,created_at,updated_at)
       VALUES (?,?,?,?,?,?,?,'OPEN',?,?,?,?,?)`)
       .run(id,kind,description,input.category||null,input.accountId||null,amountCents,dueAt,input.sourceType||null,input.sourceId||null,input.notes||null,timestamp,timestamp);
-    writeAudit(db,{action:'finance.entry.create',entity:'financial-entry',entityId:id,actor,context:{kind,amountCents,dueAt}},now);
+    if(dimensions&&hasDimensions)dimensions.setEntryDimensions(id,{categoryId:input.categoryId||null,costCenterId:input.costCenterId||null,competencyDate:input.competencyDate||null},actor);
+    writeAudit(db,{action:'finance.entry.create',entity:'financial-entry',entityId:id,actor,context:{kind,amountCents,dueAt,categoryId:input.categoryId||null,costCenterId:input.costCenterId||null,competencyDate:input.competencyDate||null,sourceType:input.sourceType||null,sourceId:input.sourceId||null}},now);
     return getEntry(id);
   }
 
@@ -106,7 +111,7 @@ function createFinanceService({ db, now = () => new Date().toISOString(), idFact
     if(filters.accountId){clauses.push('account_id=?');params.push(String(filters.accountId));}
     if(filters.query){clauses.push('(LOWER(description) LIKE ? OR LOWER(COALESCE(category,\'\')) LIKE ?)');const q=`%${String(filters.query).trim().toLowerCase()}%`;params.push(q,q);}
     const rows=db.prepare(`SELECT * FROM financial_entries${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY due_at,id`).all(...params);
-    return rows.map(row=>mapEntry(row,filters.asOf||now())).filter(entry=>filters.overdue===true?entry.isOverdue:true);
+    return rows.map(row=>mapEntry(row,filters.asOf||now())).filter(entry=>filters.overdue===true?entry.isOverdue:true).filter(entry=>filters.categoryId?entry.categoryId===String(filters.categoryId):true).filter(entry=>filters.costCenterId?entry.costCenterId===String(filters.costCenterId):true);
   }
 
   function getSummary({from=null,to=null,asOf=now()}={}) {

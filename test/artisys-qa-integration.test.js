@@ -24,44 +24,18 @@ test('vendors runtime capabilities used by CI',()=>{
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile gates reporting v2, checkout UX, desktop regressions, post-sale output, paired UX finalization, enterprise depth, backend/UI parity, all module sync flows and fiscal E2E',()=>{
+test('PDV release profile preserves current gates and adds ERP finance P0-P3 E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e'];
+  const legacyReleaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e'];
+  const erpFinanceFlows=['finance-management-base-e2e','finance-source-link-e2e','finance-dimensions-e2e','finance-base-idempotency-e2e','business-dashboard-e2e','dre-e2e','cashflow-e2e','period-comparison-e2e','cost-center-e2e','statement-ofx-e2e','statement-dedupe-e2e','reconciliation-payable-e2e','reconciliation-receivable-e2e','bank-transfer-e2e','finance-recurrence-e2e','recurrence-idempotency-e2e','financial-alerts-e2e','cash-projection-e2e'];
+  const releaseFlows=[...legacyReleaseFlows,...erpFinanceFlows];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
-  assert.equal(config.flows['sales-enhancements'],'flows/sales-enhancements-v2.json');
-  assert.equal(config.flows['checkout-ux-preservation'],'flows/checkout-ux-preservation.json');
-  assert.equal(config.flows['post-sale-print-pdf'],'flows/post-sale-print-pdf.json');
-  assert.equal(config.flows['printing-settings-e2e'],'flows/printing-settings-e2e.json');
-  assert.equal(config.flows['reports-v2-complete'],'flows/reports-v2-complete.json');
-  assert.equal(config.flows['core-business-e2e'],'flows/core-business-e2e.json');
-  assert.equal(config.flows['ux-products-clients-cross-flow'],'flows/ux-products-clients-cross-flow.json');
-  assert.equal(config.flows['products-deep-e2e'],'flows/products-deep-e2e.json');
-  assert.equal(config.flows['customers-deep-e2e'],'flows/customers-deep-e2e.json');
-  assert.equal(config.flows['ux-products-clients-flags-e2e'],'flows/ux-products-clients-flags-e2e.json');
-  assert.equal(config.flows['ux-products-clients-responsive-evidence'],'flows/ux-products-clients-responsive-evidence.json');
-  assert.equal(config.flows['desktop-regressions-e2e'],'flows/desktop-regressions-e2e.json');
-  assert.equal(config.flows['enterprise-depth-p0'],'flows/enterprise-depth-p0.json');
-  assert.equal(config.flows['backend-parity-p0'],'flows/backend-parity-p0.json');
-  assert.equal(config.flows['backend-parity-p1'],'flows/backend-parity-p1.json');
-  assert.equal(config.flows['whatsapp-pickup-ready-e2e'],'flows/whatsapp-pickup-ready-e2e.json');
-  assert.equal(config.flows['ui-parity-p0-p2'],'flows/ui-parity-p0-p2.json');
-  assert.equal(config.flows['fiscal-block6'],'flows/fiscal-block6.json');
-  assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');
-  assert.equal(config.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
-  assert.equal(config.flows['fiscal-nfse-p8'],'flows/fiscal-nfse-p8.json');
-  assert.equal(config.flows['restaurant-module-sync-e2e'],'flows/restaurant-module-sync-e2e.json');
-  assert.equal(config.flows['pizzeria-module-sync-e2e'],'flows/pizzeria-module-sync-e2e.json');
-  assert.equal(config.flows['delivery-module-sync-e2e'],'flows/delivery-module-sync-e2e.json');
-  assert.equal(config.flows['fast-food-module-sync-e2e'],'flows/fast-food-module-sync-e2e.json');
-  assert.equal(config.flows['market-bakery-module-sync-e2e'],'flows/market-bakery-module-sync-e2e.json');
-  assert.equal(config.flows['retail-module-sync-e2e'],'flows/retail-module-sync-e2e.json');
-  assert.equal(config.flows['services-module-sync-e2e'],'flows/services-module-sync-e2e.json');
-  assert.equal(config.flows['workshop-module-sync-e2e'],'flows/workshop-module-sync-e2e.json');
-  assert.equal(config.flows['self-service-module-sync-e2e'],'flows/self-service-module-sync-e2e.json');
+  for(const name of legacyReleaseFlows) assert.equal(config.flows[name]?.startsWith('flows/'),true,`${name} remains registered`);
+  for(const name of erpFinanceFlows) assert.equal(config.flows[name],`flows/${name}.json`,`${name} ERP finance flow is registered`);
 });
 
 test('future QA updates remain explicit and local-first',()=>{

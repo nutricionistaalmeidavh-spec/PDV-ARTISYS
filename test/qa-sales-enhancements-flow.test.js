@@ -29,13 +29,14 @@ test('seller selector synchronizes backend users when checkout is rendered',()=>
   assert.match(source,/replaceChildren/);
 });
 
-test('QA Electron launcher isolates userData from installed PDV database',()=>{
+test('QA Electron launcher isolates userData through QA wrapper',()=>{
   const config=readJson('qa/artisys-qa.config.json');
   assert.equal(config.electron.entry,'desktop/main.cjs');
   const launcher=readText('qa/desktop/main.cjs');
   assert.match(launcher,/ARTISYS_QA/);
   assert.match(launcher,/app\.setPath\(['"]userData['"]/);
   assert.match(launcher,/os\.tmpdir\(\)/);
+  assert.match(launcher,/require\(['"]\.\.\/\.\.\/desktop\/main\.cjs['"]\)/);
   assert.equal(config.environments.ci.env.PDV_ENABLE_LAN,'false');
   assert.equal(config.environments.ci.env.PDV_AUTO_PRINT,'false');
 });
