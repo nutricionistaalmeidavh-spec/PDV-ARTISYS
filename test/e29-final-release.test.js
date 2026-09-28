@@ -92,7 +92,7 @@ test('CI verifies main and automatically packages relevant Windows changes', () 
   assert.match(verify, /branches:\s*\n\s*- main/);
   assert.match(verify, /npm ci/);
   assert.match(verify, /npm run capability:check:release/);
-  assert.match(verify, /npm test/);
+  assert.match(verify, /node --test --experimental-test-coverage test\/\*\.test\.js/);
   assert.match(verify, /npm run test:release/);
   assert.match(windows, /workflow_dispatch/);
   assert.match(windows, /branches:\s*\n\s*- main/);
