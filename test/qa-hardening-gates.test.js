@@ -14,11 +14,17 @@ test('CI reports built-in Node test coverage and preserves the report as evidenc
   assert.match(workflow,/code-coverage-/);
 });
 
-test('critical QA flow contains opt-in visual regression snapshots',()=>{
-  const flow=JSON.parse(read('qa/flows/home.json'));
+test('critical QA has an isolated opt-in visual regression flow',()=>{
+  const flow=JSON.parse(read('qa/flows/visual-critical.json'));
+  assert.ok(flow.steps.some(step=>step.uses==='home.json'));
   const snapshots=flow.steps.filter(step=>step.action==='visualSnapshot');
   assert.ok(snapshots.some(step=>step.snapshot==='classic-home-critical'));
   assert.ok(snapshots.some(step=>step.snapshot==='checkout-critical'));
+
+  const workflow=read('.github/workflows/qa-visual.yml');
+  assert.match(workflow,/ARTISYS_QA_VISUAL/);
+  assert.match(workflow,/ARTISYS_QA_UPDATE_VISUAL_BASELINES/);
+  assert.match(workflow,/visual-critical/);
 });
 
 test('customer bugs have a permanent regression policy and PR checklist',()=>{
