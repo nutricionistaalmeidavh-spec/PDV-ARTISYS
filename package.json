@@ -6,6 +6,7 @@
   "main": "desktop/updater-main.cjs",
   "engines": { "node": ">=22" },
   "scripts": {
+    "build": "node --check cloudflare/account/src/worker.mjs",
     "start:server": "node server/start.js",
     "start:desktop": "electron .",
     "qa:update": "node scripts/sync-artisys-qa.mjs",
