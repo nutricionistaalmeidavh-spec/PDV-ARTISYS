@@ -1,0 +1,13 @@
+{
+  "name": "visual-critical",
+  "description": "Reutiliza o fluxo home e valida visualmente apenas estados críticos estáveis.",
+  "steps": [
+    {"name":"visual-bootstrap","uses":"home.json"},
+    {"action":"click","selector":".brand-mark","name":"visual-open-classic-home"},
+    {"action":"waitFor","selector":"#classic-home-grid","name":"visual-classic-home-ready","timeoutMs":10000},
+    {"action":"visualSnapshot","selector":"#classic-home-grid","snapshot":"classic-home-critical","maxDiffRatio":0.003,"name":"classic-home-visual-regression"},
+    {"action":"click","selector":"#classic-home-grid [data-classic-route='checkout']","name":"visual-open-checkout"},
+    {"action":"waitFor","selector":".checkout-layout","name":"visual-checkout-ready","timeoutMs":10000},
+    {"action":"visualSnapshot","selector":".checkout-layout","snapshot":"checkout-critical","maxDiffRatio":0.003,"name":"checkout-visual-regression"}
+  ]
+}
