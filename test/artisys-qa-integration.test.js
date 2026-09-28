@@ -24,17 +24,17 @@ test('vendors runtime capabilities used by CI',()=>{
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile preserves current gates and adds ERP finance P0-P3 E2E',()=>{
+test('PDV release profile preserves current gates and adds weighted scale plus ERP finance P0-P3 E2E',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  const legacyReleaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e'];
+  const releaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','weighted-scale-e2e','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e','finance-management-base-e2e','finance-source-link-e2e','finance-dimensions-e2e','finance-base-idempotency-e2e','business-dashboard-e2e','dre-e2e','cashflow-e2e','period-comparison-e2e','cost-center-e2e','statement-ofx-e2e','statement-dedupe-e2e','reconciliation-payable-e2e','reconciliation-receivable-e2e','bank-transfer-e2e','finance-recurrence-e2e','recurrence-idempotency-e2e','financial-alerts-e2e','cash-projection-e2e'];
   const erpFinanceFlows=['finance-management-base-e2e','finance-source-link-e2e','finance-dimensions-e2e','finance-base-idempotency-e2e','business-dashboard-e2e','dre-e2e','cashflow-e2e','period-comparison-e2e','cost-center-e2e','statement-ofx-e2e','statement-dedupe-e2e','reconciliation-payable-e2e','reconciliation-receivable-e2e','bank-transfer-e2e','finance-recurrence-e2e','recurrence-idempotency-e2e','financial-alerts-e2e','cash-projection-e2e'];
-  const releaseFlows=[...legacyReleaseFlows,...erpFinanceFlows];
   assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
   assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
   assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
-  for(const name of legacyReleaseFlows) assert.equal(config.flows[name]?.startsWith('flows/'),true,`${name} remains registered`);
+  for(const name of releaseFlows) assert.equal(config.flows[name]?.startsWith('flows/'),true,`${name} remains registered`);
+  assert.equal(config.flows['weighted-scale-e2e'],'flows/weighted-scale-e2e.json','weighted scale E2E flow is registered');
   for(const name of erpFinanceFlows) assert.equal(config.flows[name],`flows/${name}.json`,`${name} ERP finance flow is registered`);
 });
 
