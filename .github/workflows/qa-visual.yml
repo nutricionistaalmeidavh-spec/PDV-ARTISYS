@@ -16,7 +16,7 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: qa-visual-${{ github.ref }}
@@ -29,6 +29,8 @@ jobs:
     steps:
       - name: Checkout PDV
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -81,6 +83,19 @@ jobs:
           ARTISYS_QA_VISUAL: '1'
           ARTISYS_QA_UPDATE_VISUAL_BASELINES: '1'
         run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.visual.config.json --environment ci --flow visual-critical --viewport desktop --output qa-artifacts
+      - name: Commit first visual baselines to this PR branch
+        if: steps.baselines.outputs.present != 'true' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add qa/visual-baselines
+          if git diff --cached --quiet; then
+            echo 'No visual baseline changes to commit.'
+            exit 0
+          fi
+          git commit -m 'qa: bootstrap visual baselines'
+          git push origin "HEAD:${{ github.head_ref }}"
       - name: Upload visual QA evidence
         if: always()
         uses: actions/upload-artifact@v4
