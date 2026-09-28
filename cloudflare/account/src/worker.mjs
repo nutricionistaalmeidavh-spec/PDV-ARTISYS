@@ -61,7 +61,7 @@ class D1AccountStore{
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
 
-function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.DB);}
+function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.artisys||env.DB);}
 function activeInstallation(record,now){if(!record)return false;if(record.status&&record.status!=='ACTIVE')return false;if(record.expiresAt&&record.expiresAt<=now)return false;return true;}
 function recoveryPepper(env){return String(env.RECOVERY_PEPPER||env.ACTIVATION_PEPPER||'').trim();}
 
