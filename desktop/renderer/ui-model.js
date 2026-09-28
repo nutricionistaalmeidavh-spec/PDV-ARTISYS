@@ -93,6 +93,11 @@
     });
   }
 
+  function isWeightedProduct(product) {
+    const unit = String(product?.unit || 'UN').trim().toUpperCase();
+    return unit === 'KG' || unit === 'G';
+  }
+
   function paymentMethodFromUi(value) {
     const key = String(value || '').trim().toLowerCase();
     return ({ cash: 'CASH', money: 'CASH', pix: 'PIX', card: 'CREDIT_CARD', credit: 'CREDIT_CARD', debit: 'DEBIT_CARD', tef: 'CREDIT_CARD', storecredit: 'STORE_CREDIT' })[key] || 'OTHER';
@@ -110,6 +115,7 @@
     calculateMarginPercent,
     normalizeSearch,
     filterProducts,
+    isWeightedProduct,
     paymentMethodFromUi
   };
 });
