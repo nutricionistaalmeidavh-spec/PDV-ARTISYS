@@ -35,8 +35,20 @@ jobs:
         run: npm run capability:check:phase3
       - name: Check documentation consistency
         run: npm run docs:check
-      - name: Run unit and integration tests
-        run: npm test
+      - name: Run unit and integration tests with coverage
+        shell: bash
+        run: |
+          mkdir -p coverage
+          set -o pipefail
+          NODE_V8_COVERAGE=coverage/v8 node --test --experimental-test-coverage test/*.test.js | tee coverage/test-coverage.txt
+      - name: Upload code coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-${{ github.run_number }}
+          path: coverage
+          if-no-files-found: warn
+          retention-days: 14
       - name: Test Cloudflare telemetry
         run: npm run test:telemetry:cloudflare
       - name: Lint EventBus
