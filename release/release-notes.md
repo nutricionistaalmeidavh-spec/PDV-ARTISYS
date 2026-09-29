@@ -24,7 +24,9 @@ O instalador moderno desta release é:
 
 `ArtiSys-PDV-1.4.1-x64-Setup.exe`
 
-Os instaladores Legacy usam os nomes `ArtiSys-PDV-1.4.1-Legacy-x64-Setup.exe` e `ArtiSys-PDV-1.4.1-Legacy-ia32-Setup.exe`.
+Os instaladores Legacy desta release histórica usam os nomes `ArtiSys-PDV-1.4.1-Legacy-x64-Setup.exe` e `ArtiSys-PDV-1.4.1-Legacy-ia32-Setup.exe`.
+
+> **Encerramento da linha Legacy:** os builds Legacy acima pertencem à versão 1.4.1. A partir das versões seguintes, o pipeline e os instaladores Windows 7/8 Legacy foram retirados. Somente o instalador Windows x64 moderno permanece no fluxo oficial de release.
 
 ## Regras preservadas
 
