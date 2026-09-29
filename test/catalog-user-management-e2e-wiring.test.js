@@ -6,19 +6,19 @@ const fs=require('node:fs');
 const path=require('node:path');
 
 const root=path.join(__dirname,'..');
-const config=JSON.parse(fs.readFileSync(path.join(root,'qa/artisys-qa.config.json'),'utf8'));
+const config=JSON.parse(fs.readFileSync(path.join(root,'qa/catalog-user-management.config.json'),'utf8'));
 const flow=JSON.parse(fs.readFileSync(path.join(root,'qa/flows/catalog-user-management-e2e.json'),'utf8'));
+const workflow=fs.readFileSync(path.join(root,'.github/workflows/qa-catalog-user-management.yml'),'utf8');
 
 function hasStep(predicate){return flow.steps.some(predicate);}
 function countSteps(predicate){return flow.steps.filter(predicate).length;}
 
-test('catalog user management E2E is wired as a release-critical flow',()=>{
+test('catalog user management E2E is wired to a dedicated CI gate',()=>{
   assert.equal(config.flows['catalog-user-management-e2e'],'flows/catalog-user-management-e2e.json');
-  for(const profileName of ['full','release']){
-    const profile=config.qaProfiles[profileName];
-    assert.ok(profile.flows.includes('catalog-user-management-e2e'),`${profileName} must run catalog-user-management-e2e`);
-    assert.ok(profile.criticalFlows.includes('catalog-user-management-e2e'),`${profileName} must treat catalog-user-management-e2e as critical`);
-  }
+  assert.equal(config.defaultFlow,'catalog-user-management-e2e');
+  assert.match(workflow,/qa\/catalog-user-management\.config\.json/);
+  assert.match(workflow,/--flow catalog-user-management-e2e/);
+  assert.match(workflow,/pull_request:/);
 });
 
 test('catalog user management E2E exercises create edit password reset deactivate reactivate and logical deletion',()=>{
