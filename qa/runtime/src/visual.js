@@ -32,8 +32,31 @@ export class VisualValidationError extends Error {
   }
 }
 
-async function comparePngs(page, expected, actual, pixelThreshold) {
-  return page.evaluate(async ({ expectedBase64, actualBase64, threshold }) => {
+async function resolveIgnoreRects(page, target, selectors) {
+  if (!Array.isArray(selectors) || !selectors.length || typeof page?.locator !== 'function') return [];
+  const targetBox = target && typeof target.boundingBox === 'function'
+    ? await target.boundingBox().catch(() => null)
+    : null;
+  const originX = targetBox?.x || 0;
+  const originY = targetBox?.y || 0;
+  const rects = [];
+
+  for (const selector of selectors) {
+    if (typeof selector !== 'string' || !selector.trim()) continue;
+    const box = await page.locator(selector).first().boundingBox().catch(() => null);
+    if (!box) continue;
+    rects.push({
+      x: Math.floor(box.x - originX),
+      y: Math.floor(box.y - originY),
+      width: Math.ceil(box.width),
+      height: Math.ceil(box.height),
+    });
+  }
+  return rects;
+}
+
+async function comparePngs(page, expected, actual, pixelThreshold, ignoreRects = []) {
+  return page.evaluate(async ({ expectedBase64, actualBase64, threshold, ignored }) => {
     const decode = async (base64) => {
       const binary = atob(base64);
       const bytes = new Uint8Array(binary.length);
@@ -78,11 +101,18 @@ async function comparePngs(page, expected, actual, pixelThreshold) {
     let diffPixels = 0;
 
     for (let i = 0; i < expectedImage.data.length; i += 4) {
+      const pixel = i / 4;
+      const x = pixel % width;
+      const y = Math.floor(pixel / width);
+      const ignoredPixel = ignored.some(rect => (
+        x >= rect.x && x < rect.x + rect.width
+        && y >= rect.y && y < rect.y + rect.height
+      ));
       const dr = Math.abs(expectedImage.data[i] - actualImage.data[i]);
       const dg = Math.abs(expectedImage.data[i + 1] - actualImage.data[i + 1]);
       const db = Math.abs(expectedImage.data[i + 2] - actualImage.data[i + 2]);
       const da = Math.abs(expectedImage.data[i + 3] - actualImage.data[i + 3]);
-      const changed = Math.max(dr, dg, db, da) > threshold;
+      const changed = !ignoredPixel && Math.max(dr, dg, db, da) > threshold;
 
       if (changed) {
         diffPixels++;
@@ -115,6 +145,7 @@ async function comparePngs(page, expected, actual, pixelThreshold) {
     expectedBase64: expected.toString('base64'),
     actualBase64: actual.toString('base64'),
     threshold: pixelThreshold,
+    ignored: ignoreRects,
   });
 }
 
@@ -135,6 +166,7 @@ export async function validateVisualSnapshot({
   pixelThreshold = 8,
   maxDiffRatio = 0.001,
   screenshotOptions = {},
+  ignoreSelectors = ['.topbar'],
 } = {}) {
   if (!requested) {
     return { status: 'skipped', reason: 'visual-validation-not-requested' };
@@ -156,6 +188,7 @@ export async function validateVisualSnapshot({
     ...(target ? {} : { fullPage }),
     ...screenshotOptions,
   });
+  const ignoreRects = await resolveIgnoreRects(page, target, ignoreSelectors);
 
   await fs.mkdir(path.dirname(baselinePath), { recursive: true });
 
@@ -184,7 +217,7 @@ export async function validateVisualSnapshot({
     return { status: 'baseline-updated', baselinePath, snapshotName };
   }
 
-  const result = await comparePngs(page, expected, actual, pixelThreshold);
+  const result = await comparePngs(page, expected, actual, pixelThreshold, ignoreRects);
   const passed = result.dimensionsMatch && result.diffRatio <= maxDiffRatio;
   if (passed) {
     return {
@@ -196,6 +229,7 @@ export async function validateVisualSnapshot({
       diffRatio: result.diffRatio,
       maxDiffRatio,
       pixelThreshold,
+      ignoredRegions: ignoreRects,
     };
   }
 
@@ -226,5 +260,6 @@ export async function validateVisualSnapshot({
     ...result,
     maxDiffRatio,
     pixelThreshold,
+    ignoredRegions: ignoreRects,
   });
 }

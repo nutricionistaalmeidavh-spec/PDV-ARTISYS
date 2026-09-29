@@ -1,0 +1,86 @@
+name: QA Visual
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'desktop/**'
+      - 'qa/**'
+      - '.github/workflows/qa-visual.yml'
+  workflow_dispatch:
+    inputs:
+      update_baselines:
+        description: Gerar baselines visuais candidatas como artefato para revisão
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout PDV
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PDV dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install QA runtime dependencies
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure Xvfb is available
+        shell: bash
+        run: |
+          if ! command -v xvfb-run >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y xvfb
+          fi
+      - name: Prepare isolated visual QA config
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const source = 'qa/artisys-qa.config.json';
+          const target = 'qa/artisys-qa.visual.config.json';
+          const config = JSON.parse(fs.readFileSync(source, 'utf8'));
+          config.flows['visual-critical'] = 'flows/visual-critical.json';
+          fs.writeFileSync(target, JSON.stringify(config, null, 2) + '\n');
+          NODE
+      - name: Require committed visual baselines
+        if: github.event_name != 'workflow_dispatch' || inputs.update_baselines != true
+        shell: bash
+        run: |
+          test -f qa/visual-baselines/classic-home-critical.png
+          test -f qa/visual-baselines/checkout-critical.png
+      - name: Validate critical visuals against committed baselines
+        if: github.event_name != 'workflow_dispatch' || inputs.update_baselines != true
+        env:
+          ARTISYS_QA_VISUAL: '1'
+        run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.visual.config.json --environment ci --flow visual-critical --viewport desktop --output qa-artifacts
+      - name: Generate candidate visual baselines on demand
+        if: github.event_name == 'workflow_dispatch' && inputs.update_baselines == true
+        env:
+          ARTISYS_QA_VISUAL: '1'
+          ARTISYS_QA_UPDATE_VISUAL_BASELINES: '1'
+        run: xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.visual.config.json --environment ci --flow visual-critical --viewport desktop --output qa-artifacts
+      - name: Upload visual QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-visual-${{ github.run_number }}
+          path: |
+            qa/visual-baselines
+            qa-artifacts
+            qa-report
+            qa-results
+          if-no-files-found: warn
+          retention-days: 14
