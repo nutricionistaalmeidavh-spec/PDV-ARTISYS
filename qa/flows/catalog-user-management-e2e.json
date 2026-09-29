@@ -1,0 +1,40 @@
+{
+  "name":"catalog-user-management-e2e",
+  "steps":[
+    {"action":"click","selector":"[data-route='sellers']","name":"catalog-users-open"},
+    {"action":"waitFor","selector":"#catalog-user-management-users","name":"catalog-users-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"#catalog-user-management-users","expected":"Usuários e vendedores","name":"catalog-users-heading"},
+    {"action":"expectVisible","selector":"#catalog-new-user","name":"catalog-user-create-visible"},
+
+    {"action":"click","selector":"[data-route='customers']","name":"catalog-customer-open"},
+    {"action":"waitFor","selector":"#new-customer","name":"catalog-customer-ready","timeoutMs":10000},
+    {"action":"click","selector":"#new-customer","name":"catalog-customer-new"},
+    {"action":"fill","selector":"#customer-form input[name='name']","value":"QA Cliente Excluir","name":"catalog-customer-name"},
+    {"action":"click","selector":"#customer-form button[type='submit']","name":"catalog-customer-save"},
+    {"action":"waitFor","selector":".data-row:has-text('QA Cliente Excluir') [data-remove-customer]","name":"catalog-customer-remove-ready","timeoutMs":10000},
+    {"action":"click","selector":".data-row:has-text('QA Cliente Excluir') [data-remove-customer]","name":"catalog-customer-remove"},
+    {"action":"waitFor","selector":"#catalog-confirm-remove","name":"catalog-customer-confirm-ready","timeoutMs":10000},
+    {"action":"click","selector":"#catalog-confirm-remove","name":"catalog-customer-confirm"},
+
+    {"action":"click","selector":"[data-route='products']","name":"catalog-category-open"},
+    {"action":"waitFor","selector":"#new-category","name":"catalog-category-ready","timeoutMs":10000},
+    {"action":"click","selector":"#new-category","name":"catalog-category-new"},
+    {"action":"fill","selector":"#category-form input[name='name']","value":"QA Categoria Excluir","name":"catalog-category-name"},
+    {"action":"click","selector":"#category-form button[type='submit']","name":"catalog-category-save"},
+    {"action":"waitFor","selector":"#catalog-category-management .data-row:has-text('QA Categoria Excluir') [data-remove-category]","name":"catalog-category-remove-ready","timeoutMs":10000},
+    {"action":"click","selector":"#catalog-category-management .data-row:has-text('QA Categoria Excluir') [data-remove-category]","name":"catalog-category-remove"},
+    {"action":"waitFor","selector":"#catalog-confirm-remove","name":"catalog-category-confirm-ready","timeoutMs":10000},
+    {"action":"click","selector":"#catalog-confirm-remove","name":"catalog-category-confirm"},
+
+    {"action":"click","selector":"[data-route='inventory']","name":"catalog-supplier-inventory"},
+    {"action":"waitFor","selector":"#enterprise-depth-entry","name":"catalog-supplier-entry-ready","timeoutMs":10000},
+    {"action":"click","selector":"#enterprise-depth-entry [data-open='purchases']","name":"catalog-supplier-purchases"},
+    {"action":"waitFor","selector":"#enterprise-supplier-form","name":"catalog-supplier-ready","timeoutMs":10000},
+    {"action":"fill","selector":"#enterprise-supplier-form input[name='name']","value":"QA Fornecedor Excluir","name":"catalog-supplier-name"},
+    {"action":"click","selector":"#enterprise-supplier-form button[type='submit']","name":"catalog-supplier-save"},
+    {"action":"waitFor","selector":"#catalog-supplier-management .ops-row:has-text('QA Fornecedor Excluir') [data-remove-supplier]","name":"catalog-supplier-remove-ready","timeoutMs":10000},
+    {"action":"click","selector":"#catalog-supplier-management .ops-row:has-text('QA Fornecedor Excluir') [data-remove-supplier]","name":"catalog-supplier-remove"},
+    {"action":"waitFor","selector":"#catalog-confirm-remove","name":"catalog-supplier-confirm-ready","timeoutMs":10000},
+    {"action":"click","selector":"#catalog-confirm-remove","name":"catalog-supplier-confirm"}
+  ]
+}
