@@ -17,9 +17,15 @@ test('root dependency graph is locked for reproducible CI and releases',()=>{
 });
 
 test('root GitHub workflows install the locked graph with npm ci',()=>{
-  for(const rel of ['.github/workflows/verify.yml','.github/workflows/release-windows.yml','.github/workflows/qa-capture.yml','.github/workflows/build-windows-legacy.yml']){
+  for(const rel of ['.github/workflows/verify.yml','.github/workflows/release-windows.yml','.github/workflows/qa-capture.yml']){
     const source=read(rel);
     assert.match(source,/npm ci(?:\s|$)/,`${rel} deve usar npm ci`);
-    if(rel!=='.github/workflows/build-windows-legacy.yml')assert.doesNotMatch(source,/npm install --no-audit --no-fund/,`${rel} nao deve reinstalar grafo flutuante`);
+    assert.doesNotMatch(source,/npm install --no-audit --no-fund/,`${rel} nao deve reinstalar grafo flutuante`);
+  }
+});
+
+test('legacy Windows installer pipeline is retired',()=>{
+  for(const rel of ['.github/workflows/build-windows-legacy.yml','electron-builder.legacy.yml','scripts/prepare-legacy-runtime.cjs']){
+    assert.equal(fs.existsSync(path.join(root,rel)),false,`${rel} nao deve existir em releases futuras`);
   }
 });
