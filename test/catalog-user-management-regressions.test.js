@@ -47,6 +47,8 @@ test('catalog soft delete hides records by default and preserves historical refe
     assert.equal(runtime.sales.getSale('sale1').operatorId,'cashier1');
     assert.equal(runtime.inventory.getBalance('p1'),10);
     assert.equal(runtime.db.prepare('SELECT id FROM suppliers WHERE id=?').get('sup1').id,'sup1');
+    const actions=new Set(runtime.db.prepare("SELECT action FROM audit_log WHERE action LIKE '%.remove'").all().map(row=>row.action));
+    for(const action of ['category.remove','customer.remove','supplier.remove','user.remove'])assert.equal(actions.has(action),true,action);
   }finally{runtime.close();}
 });
 
@@ -117,17 +119,18 @@ test('HTTP RBAC reserves admin promotion and user deactivation to admins',async(
 
 test('desktop wiring exposes complete user management and logical deletion controls',()=>{
   const read=rel=>fs.readFileSync(path.join(__dirname,'..',rel),'utf8');
-  const apiClient=read('desktop/renderer/api-client.js');
-  const enterpriseClient=read('desktop/renderer/enterprise-depth-api-client.js');
+  const managementApi=read('desktop/renderer/catalog-user-management-api.js');
   const html=read('desktop/renderer/index.html');
   const managementUi=read('desktop/renderer/catalog-user-management-ui.js');
-  for(const marker of ['removeCategory(categoryId)','removeCustomer(customerId)','removeUser(userId)'])assert.match(apiClient,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(enterpriseClient,/removeSupplier\(supplierId\)/);
+  for(const marker of ['removeCategory','removeCustomer','removeSupplier','removeUser'])assert.match(managementApi,new RegExp(`p\\.${marker}=`));
+  assert.match(html,/catalog-user-management-api\.js/);
   assert.match(html,/catalog-user-management-ui\.js/);
   assert.match(managementUi,/Usuários e vendedores/);
   assert.match(managementUi,/Nova senha/);
-  assert.match(managementUi,/data-remove-customer=/);
-  assert.match(managementUi,/data-remove-category=/);
-  assert.match(managementUi,/data-remove-supplier=/);
-  assert.match(managementUi,/data-remove-user=/);
+  assert.match(managementUi,/data-remove-customer/);
+  assert.match(managementUi,/data-remove-category/);
+  assert.match(managementUi,/data-remove-supplier/);
+  assert.match(managementUi,/data-remove-user/);
+  assert.doesNotThrow(()=>new Function(managementApi));
+  assert.doesNotThrow(()=>new Function(managementUi));
 });
