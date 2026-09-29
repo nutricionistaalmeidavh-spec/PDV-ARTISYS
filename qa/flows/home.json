@@ -12,7 +12,6 @@
     {"action":"click","selector":"#login-form button[type='submit']","name":"qa-login"},
     {"action":"waitFor","selector":"#auth-overlay","state":"hidden","name":"authenticated","timeoutMs":10000},
     {"action":"waitFor","selector":"#app-topbar","name":"app-ready","timeoutMs":15000},
-    {"action":"desktopApiRequest","path":"/api/v1/vertical/onboarding/complete","method":"POST","body":{"businessName":"QA Home","segment":"GENERIC","moduleIds":[]},"expectedStatus":200,"name":"complete-onboarding"},
     {"action":"waitFor","selector":"#sidebar-nav [data-route='home']","name":"home-nav-ready","timeoutMs":10000},
     {"action":"click","selector":"#sidebar-nav [data-route='home']","name":"open-home"},
     {"action":"waitFor","selector":"#route-content","name":"home-content"},
