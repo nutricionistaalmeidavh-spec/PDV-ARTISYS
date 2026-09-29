@@ -166,7 +166,7 @@ export async function validateVisualSnapshot({
   pixelThreshold = 8,
   maxDiffRatio = 0.001,
   screenshotOptions = {},
-  ignoreSelectors = ['#clock'],
+  ignoreSelectors = ['.topbar'],
 } = {}) {
   if (!requested) {
     return { status: 'skipped', reason: 'visual-validation-not-requested' };
