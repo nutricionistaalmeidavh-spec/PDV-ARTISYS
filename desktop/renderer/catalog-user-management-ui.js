@@ -10,7 +10,7 @@
   let mounting=false;
   let currentUser=null;
 
-  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const roleLabel=role=>({admin:'Administrador',manager:'Gerente',cashier:'Operador / vendedor'})[role]||role;
   const canManageCatalog=()=>['admin','manager'].includes(currentUser?.role);
   const isAdmin=()=>currentUser?.role==='admin';
