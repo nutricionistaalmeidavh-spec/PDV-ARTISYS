@@ -66,7 +66,7 @@
       if(!activeIds.has(id)){row?.remove();return;}
       if(row?.querySelector('[data-remove-customer]'))return;
       const remove=document.createElement('button');remove.type='button';remove.className='danger-button';remove.dataset.removeCustomer=id;remove.textContent='Excluir';button.insertAdjacentElement('afterend',remove);
-      remove.addEventListener('click',()=>confirmCatalogRemoval('cliente',active.find(item=>item.id===id),()=>api.removeCustomer(id),enhanceCustomers));
+      remove.addEventListener('click',()=>confirmCatalogRemoval('cliente',active.find(item=>item.id===id),()=>api.removeCustomer(id),async()=>{row?.remove();}));
     });
   }
 
