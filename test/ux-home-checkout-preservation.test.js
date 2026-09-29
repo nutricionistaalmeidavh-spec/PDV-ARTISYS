@@ -124,7 +124,11 @@ test('release QA covers dynamic Home modules and checkout exception flows',()=>{
   assert.ok(manifest.qaProfiles.release.criticalFlows.includes('checkout-ux-preservation'));
 
   const home=read('qa/flows/home.json');
-  assert.match(home,/#route-content \[data-restaurant-route\]/);
+  assert.doesNotMatch(home,/restaurant-home-launcher/,'generic home QA must not depend on optional restaurant module readiness');
+  const restaurantFlow=JSON.parse(read('qa/flows/restaurant-module-sync-e2e.json'));
+  const restaurantSteps=restaurantFlow.steps.filter(step=>step.selector==='#route-content [data-restaurant-route]');
+  assert.ok(restaurantSteps.some(step=>(step.state||'visible')==='visible'),'restaurant QA must verify visible launcher state');
+  assert.ok(restaurantSteps.some(step=>step.state==='hidden'),'restaurant QA must verify hidden launcher state');
 
   const flow=JSON.parse(read('qa/flows/checkout-ux-preservation.json'));
   const selectors=flow.steps.map(step=>step.selector||'').join('\n');

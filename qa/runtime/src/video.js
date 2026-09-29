@@ -15,6 +15,14 @@ function run(cmd, args, { captureStdout = false } = {}) {
   });
 }
 
+function withTimeout(promise, timeoutMs, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function probeMediaDuration(file) {
   const stdout = await run('ffprobe', [
     '-v', 'error',
@@ -57,37 +65,68 @@ export async function normalizeDemoVideo(inputFile, outputFile, preset, { durati
   return outputFile;
 }
 
-export function createFrameRecorder(page, { dir, fps = 4 } = {}) {
+export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 5000 } = {}) {
   let stopped = false;
-  let index = 0;
+  let disabled = false;
+  let frameCount = 0;
   let task = Promise.resolve();
   let startedAt = 0;
   const intervalMs = Math.max(100, Math.floor(1000 / fps));
+  const boundedCaptureTimeoutMs = Number.isFinite(Number(captureTimeoutMs)) && Number(captureTimeoutMs) > 0
+    ? Math.max(1, Math.floor(Number(captureTimeoutMs)))
+    : 5000;
+
+  async function disable(reason) {
+    if (disabled) return;
+    disabled = true;
+    stopped = true;
+    await fs.writeFile(
+      path.join(dir, 'VIDEO_CAPTURE_DISABLED.txt'),
+      `${reason || 'Video frame capture disabled.'}\n`,
+      'utf8',
+    ).catch(() => {});
+  }
 
   async function capture() {
-    if (stopped) return;
-    const file = path.join(dir, `${String(index++).padStart(6, '0')}.png`);
-    try { await page.screenshot({ path: file }); } catch { /* page may be closing */ }
+    if (stopped || disabled) return false;
+    const file = path.join(dir, `${String(frameCount).padStart(6, '0')}.png`);
+    const timeoutMessage = `Video frame capture timed out after ${boundedCaptureTimeoutMs}ms`;
+    try {
+      await withTimeout(
+        page.screenshot({ path: file, timeout: boundedCaptureTimeoutMs }),
+        boundedCaptureTimeoutMs,
+        timeoutMessage,
+      );
+      frameCount += 1;
+      return true;
+    } catch (error) {
+      const reason = error?.message || String(error);
+      await disable(/timeout|timed out/i.test(reason) ? timeoutMessage : `Video frame capture failed: ${reason}`);
+      return false;
+    }
   }
 
   return {
     async start() {
       await ensureDir(dir);
       startedAt = Date.now();
-      await capture();
+      const initialCaptureSucceeded = await capture();
+      if (!initialCaptureSucceeded || stopped) return;
       task = (async () => {
         while (!stopped) {
           await new Promise(resolve => setTimeout(resolve, intervalMs));
-          await capture();
+          if (stopped) break;
+          const captured = await capture();
+          if (!captured && disabled) break;
         }
       })();
     },
     async stop(outputFile) {
       stopped = true;
       await task;
-      if (index < 2) return null;
+      if (disabled || frameCount < 2) return null;
       const elapsedSec = Math.max((Date.now() - startedAt) / 1000, 0.001);
-      const effectiveFps = Math.max((index - 1) / elapsedSec, 0.01);
+      const effectiveFps = Math.max((frameCount - 1) / elapsedSec, 0.01);
       try {
         await run('ffmpeg', [
           '-y', '-framerate', effectiveFps.toFixed(6), '-i', path.join(dir, '%06d.png'),
