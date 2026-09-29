@@ -18,6 +18,9 @@ concurrency:
   group: verify-pdv-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ARTISYS_QA_FORM_FIXTURE: qa-managed-user-fixture
+
 jobs:
   verify:
     runs-on: ubuntu-latest
