@@ -235,6 +235,7 @@ try {
       viewport,
       outputRoot: args.output ? path.resolve(args.output) : path.resolve('qa-artifacts'),
       ...profileRuntime,
+      onProgress: progressLog,
     });
     progressLog({ type: 'flow-end', flow: flowName, status: 'passed', current: 1, total: 1 });
     console.log(JSON.stringify(result.summary, null, 2));

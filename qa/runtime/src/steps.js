@@ -147,6 +147,19 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'hover': await locator(page, step).hover(); break;
     case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
+    case 'authenticateLocalQa': {
+      const credentials = { username:String(step.username || 'qaadmin'), password:String(resolveSecret({ ...step, value:step.password || 'QaLocalOnly-12345!' }, env)) };
+      await page.locator('#login-form').waitFor({ state:'visible', timeout:step.timeoutMs ?? 15000 });
+      await page.evaluate(input => {
+        const form = document.querySelector('#login-form');
+        if (!form) throw new Error('QA login form unavailable');
+        form.elements.namedItem('username').value = input.username;
+        form.elements.namedItem('password').value = input.password;
+        form.requestSubmit();
+      }, credentials);
+      await page.locator('#auth-overlay').waitFor({ state:'hidden', timeout:step.timeoutMs ?? 15000 });
+      break;
+    }
     case 'desktopApiRequest': {
       const requestPath=String(step.path||'').trim();
       if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);

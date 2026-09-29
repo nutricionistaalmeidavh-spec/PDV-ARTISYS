@@ -74,6 +74,17 @@ async function startEmbeddedServer() {
     }
   });
 
+  if (!app.isPackaged && process.env.ARTISYS_QA === '1' && process.env.ARTISYS_QA_AUTO_ADMIN === '1' && runtime.catalog.countUsers() === 0) {
+    runtime.catalog.createUser({
+      id:'qa-admin',
+      username:'qaadmin',
+      name:'QA Administrador',
+      role:'admin',
+      password:'QaLocalOnly-12345!',
+      active:true
+    });
+  }
+
   localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;

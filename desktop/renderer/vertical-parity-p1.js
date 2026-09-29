@@ -12,8 +12,8 @@
   const page=()=>document.getElementById('route-content')?.querySelector('.page,.ops-page');
   const title=()=>page()?.querySelector('h1')?.textContent?.trim()||'';
   const optionalId=data=>{const id=String(data.get('id')||'').trim();return id?{id}:{};};
-  const showSettings=()=>window.PdvOperationalUi?.showRoute?.('settings');
-  const backButton=()=>'<button class="secondary-button" type="button" id="vertical-back">← Configurações</button>';
+  const showSettings=()=>document.querySelector('#sidebar-nav [data-route="home"]')?.click();
+  const backButton=()=>'<button class="secondary-button" type="button" id="vertical-back">← Início</button>';
 
   function normalizeDeliveryPhone(value){
     let digits=String(value??'').replace(/\D/g,'');

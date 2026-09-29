@@ -11,6 +11,10 @@ test('desktop loads optional module API and workspace extensions',()=>{
   assert.match(html,/vertical-modules\.css/);
   assert.match(html,/vertical-api-client\.js/);
   assert.match(html,/vertical-modules\.js/);
+  assert.match(html,/settings-hub-ui\.css/);
+  assert.match(html,/settings-hub-ui\.js/);
+  const settingsHub=read('desktop/renderer/settings-hub-ui.js');
+  for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Fiscal','Módulos','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
 });
 
 test('vertical UI gates segment cards from enabled module state',()=>{
@@ -36,7 +40,7 @@ test('desktop main authenticates local vertical API calls without exposing insta
   assert.doesNotMatch(preload,/installToken|x-pdv-token/);
 });
 
-test('modules management lives inside settings and cannot block the PDV indefinitely',()=>{
+test('modules are activated in settings and opened from authorized navigation',()=>{
   const source=read('desktop/renderer/vertical-modules.js');
   assert.doesNotMatch(source,/vertical-modules-launcher/);
   assert.doesNotMatch(source,/textContent='M'/);
@@ -45,5 +49,8 @@ test('modules management lives inside settings and cannot block the PDV indefini
   assert.match(source,/MODULE_REQUEST_TIMEOUT_MS/);
   assert.match(source,/withTimeout/);
   assert.match(source,/Tentar novamente/);
-  assert.match(source,/PdvOperationalUi\?\.showRoute\?\.\('settings'\)/);
+  assert.match(source,/button\.dataset\.moduleNav=module\.id/);
+  assert.match(source,/Acesso liberado no menu lateral/);
+  assert.match(source,/#sidebar-nav \[data-route="home"\]/);
+  assert.doesNotMatch(source,/Abrir módulo/);
 });

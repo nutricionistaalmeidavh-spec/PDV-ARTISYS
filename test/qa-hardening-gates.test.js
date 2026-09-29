@@ -16,7 +16,10 @@ test('CI reports built-in Node test coverage and preserves the report as evidenc
 
 test('critical QA has an isolated opt-in visual regression flow',()=>{
   const flow=JSON.parse(read('qa/flows/visual-critical.json'));
-  assert.ok(flow.steps.some(step=>step.uses==='home.json'));
+  assert.ok(flow.steps.some(step=>step.selector==="#first-access-form"));
+  assert.ok(flow.steps.some(step=>step.selector==="#first-access-form input[name='passwordConfirm']"));
+  assert.ok(flow.steps.some(step=>step.path==='/api/v1/vertical/onboarding/complete'));
+  assert.ok(!flow.steps.some(step=>step.uses), 'visual flow must keep its onboarding bootstrap isolated');
   const snapshots=flow.steps.filter(step=>step.action==='visualSnapshot');
   assert.ok(snapshots.some(step=>step.snapshot==='classic-home-critical'));
   assert.ok(snapshots.some(step=>step.snapshot==='checkout-critical'));

@@ -2,7 +2,7 @@
 (() => {
   const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
   const api=new ApiClient();
-  const ROUTES=new Set(['home','checkout','products','customers','inventory','finance','reports','sellers','cash','sales','returns','settings']);
+  const ROUTES=new Set(['home','checkout','products','customers','inventory','finance','reports','management','sellers','cash','sales','returns','settings']);
   let lastRoute='';let queued=false;
   function sessionReady(){return Boolean(window.sessionStorage?.getItem('artisys.sessionToken'));}
   async function send(eventName,payload={}){if(!sessionReady())return;try{await api.request('/api/v1/system/telemetry/events',{method:'POST',body:{eventName,payload}});}catch{/* telemetry nunca gera toast/erro operacional */}}

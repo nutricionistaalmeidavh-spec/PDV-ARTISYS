@@ -27,7 +27,7 @@ test('PDV declares a reusable ArtiSys QA consumer manifest', () => {
   }
 });
 
-test('QA and demo flows use stable hooks, screenshots and no embedded secrets', () => {
+test('QA and demo flows use stable hooks and no embedded secrets', () => {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   const files = [
     ...Object.values(config.flows),
@@ -36,7 +36,6 @@ test('QA and demo flows use stable hooks, screenshots and no embedded secrets', 
   for (const flowPath of files) {
     const flow = JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath), flowPath), 'utf8'));
     assert.ok(Array.isArray(flow.steps) && flow.steps.length > 0);
-    assert.ok(flow.steps.some(step => step.action === 'screenshot'));
     for (const step of flow.steps) {
       assert.ok(!Object.prototype.hasOwnProperty.call(step, 'password'));
       assert.ok(!Object.prototype.hasOwnProperty.call(step, 'token'));

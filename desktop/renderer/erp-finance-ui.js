@@ -7,7 +7,10 @@
   const metric=(label,value,hint='')=>`<article class="ops-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${hint?`<small>${esc(hint)}</small>`:''}</article>`;
   function toast(message,type=''){root.PdvToast?.show?.(message,type)||console[type==='error'?'error':'log'](message);}
   async function renderManagement(filters={}){
-    await api.initialize();const from=filters.from||monthStart(),to=filters.to||today(),basis=filters.basis||'cash';
+    const initialized=await api.initialize();const role=initialized?.user?.role||document.body.dataset.userRole;
+    if(!['admin','manager'].includes(role)){document.body.dataset.activeRoute='management';content.innerHTML='<section class="page"><div class="empty-state"><h1>Acesso restrito</h1><p>A área Gestão está disponível para gerentes e administradores.</p></div></section>';return;}
+    const from=filters.from||monthStart(),to=filters.to||today(),basis=filters.basis||'cash';
+    document.body.dataset.activeRoute='management';
     const previousTo=new Date(`${from}T00:00:00Z`);previousTo.setUTCDate(previousTo.getUTCDate()-1);const previousToText=previousTo.toISOString().slice(0,10);const previousFrom=new Date(previousTo);previousFrom.setUTCMonth(previousFrom.getUTCMonth()-1);previousFrom.setUTCDate(1);
     const [dashboard,dre,cashflow,compare,costCenters,categories]=await Promise.all([
       api.erpDashboard({from,to}),api.erpDre({from,to,basis}),api.erpCashflow({from,to,projectionDays:30}),api.erpCompare({from,to,previousFrom:previousFrom.toISOString().slice(0,10),previousTo:previousToText,basis}),api.costCenters(),api.financeCategories()
@@ -31,6 +34,5 @@
       form.addEventListener('submit',async event=>{const fd=new FormData(form);if(!fd.get('categoryId')&&!fd.get('costCenterId')&&!fd.get('competencyDate'))return;event.preventDefault();event.stopImmediatePropagation();try{const amountText=String(fd.get('amount')||'').trim().replace(/\./g,'').replace(',','.');await api.createFinanceEntry({kind:fd.get('kind'),description:fd.get('description'),category:fd.get('category')||null,categoryId:fd.get('categoryId')||null,costCenterId:fd.get('costCenterId')||null,competencyDate:fd.get('competencyDate')||null,accountId:fd.get('accountId')||null,amountCents:Math.round(Number(amountText)*100),dueAt:new Date(`${fd.get('dueAt')}T12:00:00`).toISOString()});toast('Lançamento criado.','success');await root.PdvOperationalUi?.renderFinance?.();}catch(error){toast(error.message,'error');}},true);
     }catch(error){console.warn('Falha ao carregar dimensoes financeiras',error);}
   }
-  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-route="management"],[data-home-route="management"]');if(!target)return;event.preventDefault();event.stopImmediatePropagation();void renderManagement();},true);
   root.PdvErpFinanceUi=Object.freeze({renderManagement,enhanceFinancePage});
 })();

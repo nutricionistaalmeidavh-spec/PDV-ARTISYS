@@ -61,6 +61,7 @@ export async function runQaFlow({
   let page;
   let electronApp;
   let frameRecorder;
+  let frameRecorderStarted = false;
   let nativeVideo;
   let consumerProcess;
   let videoFile = null;
@@ -95,16 +96,22 @@ export async function runQaFlow({
         args: [entry, ...(manifest.electron.args || [])],
         executablePath,
         cwd: rootDir,
-        env: { ...process.env, ...(manifest.electron.env || {}), ...(environment.env || {}) },
+        env: {
+          ...process.env,
+          ...(manifest.electron.env || {}),
+          ...(environment.env || {}),
+          ...(flow.metadata?.qaAutoAdmin === true ? { ARTISYS_QA_AUTO_ADMIN:'1' } : {}),
+        },
         timeout: manifest.launchTimeoutMs || 30000,
       });
       context = electronApp.context();
+      context.setDefaultTimeout(manifest.actionTimeoutMs || 15000);
+      context.setDefaultNavigationTimeout(manifest.navigationTimeoutMs || 30000);
       await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       page = await electronApp.firstWindow();
       await page.setViewportSize({ width: viewport.width, height: viewport.height }).catch(() => {});
       if (manifest.capture?.video !== false) {
         frameRecorder = createFrameRecorder(page, { dir: path.join(outputDir, '.video-frames'), fps: manifest.capture?.fps || 4 });
-        await frameRecorder.start();
       }
     } else {
       browser = await chromium.launch({ headless: manifest.headless ?? true });
@@ -113,6 +120,8 @@ export async function runQaFlow({
         recordVideo: manifest.capture?.video === false ? undefined : { dir: path.join(outputDir, '.native-video'), size: { width: viewport.width, height: viewport.height } },
         storageState: environment.storageState ? path.resolve(rootDir, environment.storageState) : undefined,
       });
+      context.setDefaultTimeout(manifest.actionTimeoutMs || 15000);
+      context.setDefaultNavigationTimeout(manifest.navigationTimeoutMs || 30000);
       await context.tracing.start({ screenshots: true, snapshots: true, sources: true });
       page = await context.newPage();
       nativeVideo = page.video?.() || null;
@@ -145,6 +154,10 @@ export async function runQaFlow({
         }
         stepsLog.push({ index, action: step.action, name: step.name || null, status: 'passed', durationMs: Date.now() - stepStart });
         await notify({ type: 'step-end', flow: flowName, step: stepName, status: 'passed', current: index + 1, total: flow.steps.length });
+        if (!frameRecorderStarted && frameRecorder && ['authenticated','app-ready'].includes(step.name)) {
+          frameRecorderStarted = true;
+          await frameRecorder.start();
+        }
       } catch (error) {
         stepsLog.push({ index, action: step.action, name: step.name || null, status: 'failed', durationMs: Date.now() - stepStart, error: error.message });
         await notify({ type: 'step-end', flow: flowName, step: stepName, status: 'failed', current: index + 1, total: flow.steps.length, error: error.message });

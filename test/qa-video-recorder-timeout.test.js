@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createFrameRecorder } from '../qa/runtime/src/video.js';
+import fsSync from 'node:fs';
 
 function deadline(promise, timeoutMs = 500) {
   return Promise.race([
@@ -34,4 +35,12 @@ test('frame recorder disables video instead of hanging when screenshot capture s
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
+});
+
+test('Electron QA starts frame recording only after authentication readiness', () => {
+  const source = fsSync.readFileSync(new URL('../qa/runtime/src/runner.js', import.meta.url), 'utf8');
+  const readinessGate = source.indexOf("['authenticated','app-ready'].includes(step.name)");
+  const recorderStart = source.indexOf('frameRecorder.start()');
+  assert.ok(readinessGate >= 0);
+  assert.ok(recorderStart > readinessGate);
 });

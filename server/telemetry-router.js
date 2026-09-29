@@ -2,7 +2,7 @@
 const { validateTelemetryEvent }=require('../js/core/telemetry/telemetry-events');
 const { DIAGNOSTIC_EVENTS }=require('../js/core/telemetry/telemetry-core');
 const UI_EVENTS=new Set(['screen_opened','return_started']);
-const UI_ROUTES=new Set(['home','checkout','products','customers','inventory','finance','reports','sellers','cash','sales','returns','settings']);
+const UI_ROUTES=new Set(['home','checkout','products','customers','inventory','finance','reports','management','sellers','cash','sales','returns','settings']);
 const PRIVACY_SETTINGS=new Set(['telemetry.enabled','telemetry.diagnostics']);
 function bearer(request){const value=String(request.headers?.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
 function sendJson(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}

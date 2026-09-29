@@ -13,7 +13,8 @@
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
     finance: { label: 'Financeiro', icon: 'chart', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
-    sellers: { label: 'Vendedores', icon: 'user' },
+    sellers: { label: 'Equipe e acessos', icon: 'users' },
+    management: { label: 'Gestão', icon: 'chart' },
     cash: { label: 'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
@@ -71,6 +72,7 @@
     };
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.document}</svg>`;
   }
+  window.PdvIcon=icon;
 
   function hydrateStaticIcons() {
     document.querySelectorAll('[data-icon]').forEach((node) => { node.innerHTML = icon(node.dataset.icon); });
@@ -128,8 +130,10 @@
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
     const items = ['home','checkout','products','customers','inventory','finance','reports'];
+    if (['admin','manager'].includes(state.user?.role)) items.push('management','sellers');
     nav.innerHTML = items.map((route) => `<button class="nav-button ${state.route === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
+    window.dispatchEvent(new CustomEvent('artisys:sidebar-rendered'));
   }
 
   function updateTopbar() {
@@ -139,6 +143,7 @@
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
+    document.body.dataset.userRole = state.user?.role || '';
   }
 
   function updateClock() {
@@ -186,12 +191,16 @@
     if (state.route === 'checkout') return renderCheckout();
     if (state.route === 'customers') return renderCustomers();
     if (state.route === 'sellers') return renderSellers();
+    if (state.route === 'management') {
+      if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
+      return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
+    }
     if (state.route === 'products') return renderProducts();
     return renderPlaceholder(state.route);
   }
 
   function renderHome() {
-    const symbols = { checkout: '🛒', customers: '👥', sellers: '●', products: '◇', inventory: '▦', cash: '▤', finance: '$', reports: '▥', sales: '◷', returns: '↩' };
+    const symbols = { checkout: '🛒', customers: '👥', sellers: '●', products: '◇', inventory: '▦', cash: '▤', finance: '$', reports: '▥', management: '⌁', sales: '◷', returns: '↩' };
     content.innerHTML = `<section class="home-grid">${ui.HOME_TILES.map((tile) => `<button type="button" class="home-tile tone-${tile.tone}" data-home-route="${tile.route}" data-symbol="${symbols[tile.key] || '•'}"><span class="tile-icon">${icon(tile.icon, 50)}</span><h2>${escapeHtml(tile.label)}</h2><p>${escapeHtml(tile.description)}</p><span class="shortcut-badge">${tile.shortcut}</span></button>`).join('')}</section>`;
     content.querySelectorAll('[data-home-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.homeRoute)));
   }
@@ -390,18 +399,11 @@
 
   function renderSellers() {
     if (!isRouteActive('sellers')) return;
-    if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Vendedores');
-    const sellers = state.users.filter((user) => ['cashier','manager'].includes(user.role));
-    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Vendedores</h1><p>Operadores, gerentes e permissões de acesso.</p></div><button class="primary-button" id="new-seller">＋ Novo vendedor</button></header><div class="data-card">${sellers.map((user) => `<div class="data-row"><div><strong>${escapeHtml(user.name)}</strong><small>@${escapeHtml(user.username)}</small></div><div><small>Perfil</small><strong>${escapeHtml(roleLabel(user.role))}</strong></div><div><small>Status</small><strong>${user.active ? 'Ativo' : 'Inativo'}</strong></div><button class="secondary-button" data-edit-seller="${user.id}">Editar</button></div>`).join('') || '<div class="empty-state">Nenhum vendedor cadastrado.</div>'}</div></section>`;
-    document.getElementById('new-seller')?.addEventListener('click', () => openSellerForm());
-    content.querySelectorAll('[data-edit-seller]').forEach((button) => button.addEventListener('click', () => openSellerForm(state.users.find((user) => user.id === button.dataset.editSeller))));
+    if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Equipe e acessos');
+    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Equipe e acessos</h1><p>Pessoas, funções, áreas permitidas e comissões em um único lugar.</p></div></header><div class="data-card"><div class="empty-state">Carregando equipe…</div></div></section>`;
   }
 
   function renderPermissionDenied(title) { content.innerHTML = `<section class="page"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>Acesso restrito.</p></div></header><div class="data-card"><div class="empty-state">Seu perfil não possui permissão para gerenciar este cadastro.</div></div></section>`; }
-
-  function openSellerForm(user = null) {
-    openModal(user ? 'Editar vendedor' : 'Novo vendedor', `<form id="seller-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(user?.name || '')}"></div><div class="field"><label>Usuário *</label><input name="username" required value="${escapeHtml(user?.username || '')}"></div><div class="field"><label>Perfil</label><select name="role"><option value="cashier" ${user?.role === 'cashier' ? 'selected' : ''}>Operador</option><option value="manager" ${user?.role === 'manager' ? 'selected' : ''}>Gerente</option></select></div><div class="field wide"><label>${user ? 'Nova senha (deixe em branco para manter)' : 'Senha *'}</label><input name="password" type="password" ${user ? '' : 'required'} minlength="10"></div><label class="field wide"><span><input name="active" type="checkbox" ${user?.active === false ? '' : 'checked'}> Usuário ativo</span></label></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar vendedor</button></div></form>`, { onMount(root) { root.querySelector('#seller-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const saved = await api.saveUser({ id: user?.id, name: formValue(form,'name'), username: formValue(form,'username'), role: formValue(form,'role'), password: formValue(form,'password'), active: form.elements.namedItem('active').checked }); const index = state.users.findIndex((item) => item.id === saved.id); if (index >= 0) state.users[index] = saved; else state.users.push(saved); closeModal(); renderSellers(); showToast('Vendedor salvo.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
-  }
 
   function renderProducts() {
     if (!isRouteActive('products')) return;

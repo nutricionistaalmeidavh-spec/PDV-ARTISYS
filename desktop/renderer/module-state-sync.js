@@ -48,8 +48,7 @@
     const changed=Array.isArray(detail.changedIds)?detail.changedIds:[];
     const activeId=annotateWorkspace();
     if(activeId&&changed.includes(activeId)&&modules[activeId]===false){
-      root.PdvOperationalUi?.showRoute?.('settings');
-      root.setTimeout?.(()=>document.getElementById('ops-load-establishment-modules')?.click(),0);
+      document.querySelector('#sidebar-nav [data-route="home"]')?.click();
       return;
     }
     if(onSettingsPage()&&changed.some(id=>modules[id]===true&&!document.querySelector(`[data-module-open="${id}"]`))){

@@ -128,7 +128,8 @@ test('desktop wiring exposes complete user management and logical deletion contr
   for(const marker of ['removeCategory','removeCustomer','removeSupplier','removeUser'])assert.match(managementApi,new RegExp(`p\\.${marker}=`));
   assert.match(html,/catalog-user-management-api\.js/);
   assert.match(html,/catalog-user-management-ui\.js/);
-  assert.match(managementUi,/Usuários e vendedores/);
+  assert.match(managementUi,/Equipe e acessos/);
+  assert.match(managementUi,/Papéis e permissões/);
   assert.match(managementUi,/Nova senha/);
   assert.match(managementUi,/data-remove-customer/);
   assert.match(managementUi,/data-remove-category/);

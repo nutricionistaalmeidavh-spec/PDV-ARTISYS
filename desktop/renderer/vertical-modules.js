@@ -9,7 +9,8 @@
   const MODULE_LABELS={
     RESTAURANT:'Restaurante',PIZZERIA:'Pizzaria',DELIVERY:'Delivery',FAST_FOOD:'Fast-food / Lanchonete',MARKET_BAKERY:'Mercado / Conveniência / Padaria',RETAIL:'Varejo',SERVICES:'Serviços',WORKSHOP:'Oficina',SELF_SERVICE:'Autoatendimento'
   };
-  const SUPPORTED_WORKSPACES=new Set(['PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RESTAURANT']);
+  const SUPPORTED_WORKSPACES=new Set(['PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RESTAURANT','RETAIL','SERVICES','WORKSHOP','SELF_SERVICE']);
+  const MODULE_ICONS={RESTAURANT:'store',PIZZERIA:'box',DELIVERY:'cart',FAST_FOOD:'cash',MARKET_BAKERY:'store',RETAIL:'box',SERVICES:'users',WORKSHOP:'settings',SELF_SERVICE:'terminal'};
   let modules=[];
   let modulesLoading=false;
   let sanitizeScheduled=false;
@@ -37,6 +38,18 @@
   }
   async function loadModules(){modules=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');return modules;}
 
+  function moduleAllowed(id){const role=document.body.dataset.userRole||'';return ['admin','manager'].includes(role)||!['SELF_SERVICE'].includes(id);}
+  function renderModuleNavigation(){
+    const nav=document.getElementById('sidebar-nav');if(!nav)return;
+    nav.querySelectorAll('[data-module-nav]').forEach(node=>node.remove());
+    document.querySelectorAll('.restaurant-sidebar-entry').forEach(node=>node.remove());
+    if(!document.body.dataset.userRole)return;
+    modules.filter(module=>module.enabled&&SUPPORTED_WORKSPACES.has(module.id)&&moduleAllowed(module.id)).forEach(module=>{
+      const button=document.createElement('button');button.type='button';button.className='nav-button module-nav-button';button.dataset.moduleNav=module.id;button.dataset.moduleOpen=module.id;button.title=MODULE_LABELS[module.id]||module.name;button.setAttribute('aria-label',button.title);button.innerHTML=root.PdvIcon?.(MODULE_ICONS[module.id]||'document',23)||'';nav.appendChild(button);
+    });
+  }
+  async function refreshModuleNavigation(){if(!document.body.dataset.userRole){renderModuleNavigation();return;}try{await loadModules();renderModuleNavigation();}catch(error){console.warn('Module navigation unavailable:',error?.message||error);}}
+
   function settingsPage(){
     const content=document.getElementById('route-content');
     const page=content?.querySelector('.ops-page');
@@ -51,7 +64,7 @@
     const enabled=modules.filter(module=>module.enabled);
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
-    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><h3>Ativação</h3>${modules.map(module=>`<label class="vertical-toggle"><span><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><small>${escapeHtml(module.description||'')}</small></span><input type="checkbox" data-module-toggle="${module.id}" ${module.enabled?'checked':''}></label>`).join('')}</section><section class="vertical-enabled"><h3>Em uso</h3><div class="vertical-card-grid">${enabled.length?enabled.map(module=>`<button type="button" class="vertical-card" data-module-open="${module.id}" ${SUPPORTED_WORKSPACES.has(module.id)?'':'disabled'}><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><span>${SUPPORTED_WORKSPACES.has(module.id)?'Abrir módulo':'Sem tela operacional própria'}</span></button>`).join(''):'<p class="vertical-empty">Nenhum módulo opcional ativado.</p>'}</div></section></div>`;
+    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><h3>Ativação</h3>${modules.map(module=>`<label class="vertical-toggle"><span><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><small>${escapeHtml(module.description||'')}</small></span><input type="checkbox" data-module-toggle="${module.id}" ${module.enabled?'checked':''}></label>`).join('')}</section><section class="vertical-enabled"><h3>Disponíveis na navegação</h3><div class="vertical-card-grid">${enabled.length?enabled.map(module=>`<div class="vertical-card"><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><span>${SUPPORTED_WORKSPACES.has(module.id)?'Acesso liberado no menu lateral':'Sem tela operacional própria'}</span></div>`).join(''):'<p class="vertical-empty">Nenhum módulo opcional ativado.</p>'}</div></section></div>`;
     body.querySelectorAll('[data-module-toggle]').forEach(input=>input.addEventListener('change',async()=>{
       const id=input.dataset.moduleToggle;
       const target=input.checked;
@@ -59,6 +72,7 @@
       try{
         await withTimeout(api.saveSetting(`modules.${id}.enabled`,target,'global'),MODULE_REQUEST_TIMEOUT_MS,'A alteração do módulo demorou demais. Nada foi travado; tente novamente.');
         modules=modules.map(module=>module.id===id?{...module,enabled:target}:module);
+        renderModuleNavigation();
         renderSettingsModules(card);
         notify(`${MODULE_LABELS[id]||id} ${target?'ativado':'desativado'}.`);
       }catch(error){
@@ -67,7 +81,6 @@
         notify(error.message,true);
       }
     }));
-    body.querySelectorAll('[data-module-open]').forEach(button=>button.addEventListener('click',()=>renderWorkspace(button.dataset.moduleOpen)));
   }
 
   async function loadAndRenderSettingsModules(card=settingsModulesCard()){
@@ -100,8 +113,8 @@
     card.querySelector('#ops-load-establishment-modules')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
   }
 
-  function backButton(){return '<button class="secondary-button" type="button" id="vertical-back">← Configurações</button>';}
-  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{root.PdvOperationalUi?.showRoute?.('settings');});}
+  function backButton(){return '<button class="secondary-button" type="button" id="vertical-back">← Início</button>';}
+  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{document.querySelector('#sidebar-nav [data-route="home"]')?.click();});}
   function input(name,label,type='text',extra=''){return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${extra}></label>`;}
   function normalizeNationalPhoneInput(value){
     let digits=String(value??'').replace(/\D/g,'');
@@ -127,7 +140,8 @@
   }
 
   async function renderWorkspace(id){
-    if(!modules.find(module=>module.id===id&&module.enabled)){root.PdvOperationalUi?.showRoute?.('settings');return;}
+    if(!modules.find(module=>module.id===id&&module.enabled)){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
+    document.body.dataset.activeRoute=`module-${id.toLowerCase().replaceAll('_','-')}`;renderModuleNavigation();document.querySelector(`[data-module-nav="${id}"]`)?.classList.add('active');
     if(id==='PIZZERIA')return renderPizzeria();
     if(id==='DELIVERY')return renderDelivery();
     if(id==='FAST_FOOD')return renderFastFood();
@@ -136,7 +150,7 @@
   }
 
   function renderPizzeria(){
-    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Pizzaria</h1><p>Tamanhos, sabores, bordas e preço por política configurável.</p></div>${backButton()}</header><div class="data-card"><form id="pizza-profile-form" class="vertical-form">${input('productId','ID do produto base')}<label class="field"><span>Política para vários sabores</span><select name="pricingPolicy"><option value="HIGHEST_FLAVOR">Maior preço</option><option value="PROPORTIONAL_AVERAGE">Média proporcional</option></select></label><button class="primary-button" type="submit">Salvar perfil</button></form></div><div class="data-card"><h2>Prévia de preço</h2><form id="pizza-price-form" class="vertical-form">${input('productId','ID do produto')}${input('sizeId','ID do tamanho')}${input('flavors','IDs dos sabores (separados por vírgula)')}${input('crustId','ID da borda')}<button class="primary-button" type="submit">Calcular</button></form><pre id="pizza-price-output" class="vertical-output"></pre></div></section>`;bindBack();
+    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Pizzaria</h1><p>Tamanhos, sabores, bordas e preço por política configurável.</p></div>${backButton()}</header><div class="data-card"><form id="pizza-profile-form" class="vertical-form">${input('productId','Produto base')}<label class="field"><span>Política para vários sabores</span><select name="pricingPolicy"><option value="HIGHEST_FLAVOR">Maior preço</option><option value="PROPORTIONAL_AVERAGE">Média proporcional</option></select></label><button class="primary-button" type="submit">Salvar perfil</button></form></div><div class="data-card"><h2>Prévia de preço</h2><form id="pizza-price-form" class="vertical-form">${input('productId','Produto')}${input('sizeId','Tamanho')}${input('flavors','Sabores (separados por vírgula)')}${input('crustId','Borda')}<button class="primary-button" type="submit">Calcular</button></form><pre id="pizza-price-output" class="vertical-output"></pre></div></section>`;bindBack();
     document.getElementById('pizza-profile-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{await withTimeout(api.savePizzeriaProfile({productId:data.get('productId'),pricingPolicy:data.get('pricingPolicy')}));notify('Perfil de pizzaria salvo.');}catch(error){notify(error.message,true);}});
     document.getElementById('pizza-price-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{const result=await withTimeout(api.pricePizza({productId:data.get('productId'),sizeId:data.get('sizeId'),flavorIds:String(data.get('flavors')||'').split(',').map(v=>v.trim()).filter(Boolean),crustId:data.get('crustId')||null}));document.getElementById('pizza-price-output').textContent=`Preço: R$ ${(result.unitPriceCents/100).toFixed(2).replace('.',',')}`;}catch(error){notify(error.message,true);}});
   }
@@ -156,18 +170,24 @@
   }
 
   function renderMarket(){
-    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Mercado / Conveniência / Padaria</h1><p>Itens por peso com entrada manual e balança opcional.</p></div>${backButton()}</header><div class="data-card"><h2>Preço por peso</h2><form id="weight-price-form" class="vertical-form">${input('productId','ID do produto')}${input('grams','Peso em gramas','number','min="1" step="1"')}<button class="primary-button" type="submit">Calcular</button></form><pre id="weight-output" class="vertical-output"></pre></div><div class="data-card"><h2>Ler etiqueta configurada</h2><form id="weight-barcode-form" class="vertical-form">${input('barcode','Código da etiqueta')}<button class="secondary-button" type="submit">Interpretar</button></form><pre id="barcode-output" class="vertical-output"></pre></div></section>`;bindBack();
+    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Mercado / Conveniência / Padaria</h1><p>Itens por peso com entrada manual e balança opcional.</p></div>${backButton()}</header><div class="data-card"><h2>Preço por peso</h2><form id="weight-price-form" class="vertical-form">${input('productId','Produto')}${input('grams','Peso em gramas','number','min="1" step="1"')}<button class="primary-button" type="submit">Calcular</button></form><pre id="weight-output" class="vertical-output"></pre></div><div class="data-card"><h2>Ler etiqueta configurada</h2><form id="weight-barcode-form" class="vertical-form">${input('barcode','Código da etiqueta')}<button class="secondary-button" type="submit">Interpretar</button></form><pre id="barcode-output" class="vertical-output"></pre></div></section>`;bindBack();
     document.getElementById('weight-price-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{const result=await withTimeout(api.priceWeighted({productId:data.get('productId'),grams:Number(data.get('grams'))}));document.getElementById('weight-output').textContent=`Total: R$ ${(result.totalCents/100).toFixed(2).replace('.',',')}`;}catch(error){notify(error.message,true);}});
     document.getElementById('weight-barcode-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{const result=await withTimeout(api.parseWeightBarcode({barcode:data.get('barcode')}));document.getElementById('barcode-output').textContent=`Produto ${result.productCode} · ${result.grams} g`;}catch(error){notify(error.message,true);}});
   }
 
   function renderRestaurantAdvanced(){
-    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Restaurante avançado</h1><p>Divisão de conta e transferência seletiva usam as mesmas vendas canônicas do balcão.</p></div>${backButton()}</header><div class="data-card"><h2>Consultar saldo de comanda</h2><form id="restaurant-balance-form" class="vertical-form">${input('sessionId','ID da comanda')}<button class="primary-button" type="submit">Consultar</button></form><pre id="restaurant-output" class="vertical-output"></pre></div></section>`;bindBack();document.getElementById('restaurant-balance-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{const result=await withTimeout(api.restaurantRemaining(data.get('sessionId')));document.getElementById('restaurant-output').textContent=`Saldo: R$ ${(result.totalCents/100).toFixed(2).replace('.',',')} · ${result.items.length} item(ns)`;}catch(error){notify(error.message,true);}});
+    const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Restaurante avançado</h1><p>Divisão de conta e transferência seletiva usam as mesmas vendas canônicas do balcão.</p></div>${backButton()}</header><div class="data-card"><h2>Consultar saldo de comanda</h2><form id="restaurant-balance-form" class="vertical-form">${input('sessionId','Mesa ou comanda')}<button class="primary-button" type="submit">Consultar</button></form><pre id="restaurant-output" class="vertical-output"></pre></div></section>`;bindBack();document.getElementById('restaurant-balance-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{const result=await withTimeout(api.restaurantRemaining(data.get('sessionId')));document.getElementById('restaurant-output').textContent=`Saldo: R$ ${(result.totalCents/100).toFixed(2).replace('.',',')} · ${result.items.length} item(ns)`;}catch(error){notify(error.message,true);}});
   }
 
   const content=document.getElementById('route-content');
+  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-module-nav]');if(!target)return;const id=target.dataset.moduleNav;if(!SUPPORTED_WORKSPACES.has(id)||['RETAIL','SERVICES','WORKSHOP','SELF_SERVICE'].includes(id))return;event.preventDefault();event.stopImmediatePropagation();void renderWorkspace(id);},true);
+  root.addEventListener('artisys:modules-state-changed',event=>{const state=event.detail?.modules;if(state&&typeof state==='object')modules=modules.map(module=>Object.hasOwn(state,module.id)?{...module,enabled:Boolean(state[module.id])}:module);renderModuleNavigation();});
+  root.addEventListener('artisys:sidebar-rendered',renderModuleNavigation);
+  new MutationObserver(()=>{void refreshModuleNavigation();}).observe(document.body,{attributes:true,attributeFilter:['data-user-role']});
   if(content)new MutationObserver(()=>{mountSettingsModules();scheduleSanitize();}).observe(content,{subtree:true,childList:true});
   document.addEventListener('DOMContentLoaded',()=>{mountSettingsModules();scheduleSanitize();},{once:true});
   mountSettingsModules();
+  void refreshModuleNavigation();
+  root.PdvVerticalModules=Object.freeze({openWorkspace:renderWorkspace,refreshNavigation:refreshModuleNavigation});
   scheduleSanitize();
 })();

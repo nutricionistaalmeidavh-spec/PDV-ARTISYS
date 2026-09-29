@@ -26,9 +26,14 @@ test('root script, CLI and GitHub e2e job expose a dedicated crosscut gate for a
     const file=config.flows[flowId];
     assert.equal(fs.existsSync(path.join(root,'qa',file)),true,`${flowId} file must exist`);
     const flow=readJson(path.join('qa',file));
+    assert.equal(flow.metadata?.qaAutoAdmin,true,`${flowId} must seed only its isolated QA profile`);
+    assert.equal(flow.steps[0]?.uses,'qa-authenticated.json',`${flowId} must use isolated QA authentication`);
     assert.ok(flow.steps.some(step=>step.action==='desktopApiRequest'&&step.expectedStatus===409),`${flowId} must verify backend rejection`);
     assert.ok(flow.steps.some(step=>step.action==='waitFor'&&step.state==='hidden'),`${flowId} must verify launcher removal`);
   }
+  const authenticated=readJson('qa/flows/qa-authenticated.json');
+  assert.equal(authenticated.steps[0]?.action,'authenticateLocalQa');
+  assert.match(readText('qa/runtime/src/steps.js'),/case 'authenticateLocalQa'/);
   assert.doesNotMatch(pkg.scripts['qa:crosscut']||'',/qa:(?:full|release)/);
 });
 

@@ -3,7 +3,7 @@
   "steps":[
     {"action":"click","selector":"[data-home-route='sellers']","name":"catalog-users-open","timeoutMs":10000},
     {"action":"waitFor","selector":"#catalog-user-management-users","name":"catalog-users-ready","timeoutMs":10000},
-    {"action":"expectText","selector":"#catalog-user-management-users","expected":"Usuários e vendedores","name":"catalog-users-heading"},
+    {"action":"expectText","selector":"#catalog-user-management-users","expected":"Pessoas","name":"catalog-users-heading"},
     {"action":"expectVisible","selector":"#catalog-new-user","name":"catalog-user-create-visible"},
     {"action":"click","selector":"#catalog-new-user","name":"catalog-user-create-open"},
     {"action":"waitFor","selector":"#catalog-user-form","name":"catalog-user-create-form","timeoutMs":10000},

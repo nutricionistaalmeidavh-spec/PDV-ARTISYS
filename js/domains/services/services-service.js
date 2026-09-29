@@ -16,6 +16,7 @@ function createServicesService({db,modules,catalog,sales,now=()=>new Date().toIS
 
   function mapService(row){return row&&{id:row.id,productId:row.product_id,name:row.name,durationMinutes:row.duration_minutes,priceCents:row.price_cents,active:Boolean(row.active),createdAt:row.created_at,updatedAt:row.updated_at};}
   function getService(id){gate();const row=db.prepare('SELECT * FROM service_catalog WHERE id=?').get(String(id));if(!row)throw new Error('Servico nao encontrado.');return mapService(row);}
+  function listServices(){gate();return db.prepare('SELECT * FROM service_catalog WHERE active=1 ORDER BY name,id').all().map(mapService);}
   function upsertService(input={},actor={}){
     gate();const id=String(input.id||idFactory('service')).trim();const name=text(input.name,'Nome do servico');const duration=Number(input.durationMinutes);if(!Number.isInteger(duration)||duration<=0||duration>1440)throw new Error('Duracao do servico invalida.');const price=assertCents(Number(input.priceCents??0),'priceCents');if(price<0)throw new Error('Preco do servico invalido.');
     const existing=db.prepare('SELECT product_id FROM service_catalog WHERE id=?').get(id);const productId=existing?.product_id||`__artisys_service_${id}`;const ts=now();
@@ -27,6 +28,7 @@ function createServicesService({db,modules,catalog,sales,now=()=>new Date().toIS
 
   function mapProfessional(row){return row&&{id:row.id,name:row.name,defaultCommissionBps:row.default_commission_bps,active:Boolean(row.active),createdAt:row.created_at,updatedAt:row.updated_at};}
   function getProfessional(id){gate();const row=db.prepare('SELECT * FROM service_professionals WHERE id=?').get(String(id));if(!row)throw new Error('Profissional nao encontrado.');return mapProfessional(row);}
+  function listProfessionals(){gate();return db.prepare('SELECT * FROM service_professionals WHERE active=1 ORDER BY name,id').all().map(mapProfessional);}
   function upsertProfessional(input={},actor={}){
     gate();const id=String(input.id||idFactory('professional')).trim();const name=text(input.name,'Nome do profissional');const commission=bps(input.defaultCommissionBps);const ts=now();
     db.prepare(`INSERT INTO service_professionals(id,name,default_commission_bps,active,created_at,updated_at) VALUES(?,?,?,?,?,?)
@@ -69,7 +71,7 @@ function createServicesService({db,modules,catalog,sales,now=()=>new Date().toIS
     return{rows,totalServiceCents:rows.reduce((sum,row)=>sum+row.serviceTotalCents,0),totalCommissionCents:rows.reduce((sum,row)=>sum+row.commissionCents,0)};
   }
 
-  return{upsertService,getService,upsertProfessional,getProfessional,linkProfessional,scheduleAppointment,getAppointment,updateAppointmentStatus,createSale,commissionReport,APPOINTMENT_TRANSITIONS};
+  return{upsertService,getService,listServices,upsertProfessional,getProfessional,listProfessionals,linkProfessional,scheduleAppointment,getAppointment,updateAppointmentStatus,createSale,commissionReport,APPOINTMENT_TRANSITIONS};
 }
 
 module.exports={createServicesService,APPOINTMENT_TRANSITIONS};

@@ -37,6 +37,13 @@ test('QA Electron launcher isolates userData through QA wrapper',()=>{
   assert.match(launcher,/app\.setPath\(['"]userData['"]/);
   assert.match(launcher,/os\.tmpdir\(\)/);
   assert.match(launcher,/require\(['"]\.\.\/\.\.\/desktop\/main\.cjs['"]\)/);
+  const cli=readText('qa/runtime/src/cli-core.mjs');
+  assert.match(cli,/runQaFlow\([\s\S]*onProgress:\s*progressLog/);
+  const runner=readText('qa/runtime/src/runner.js');
+  assert.match(runner,/setDefaultTimeout\(manifest\.actionTimeoutMs \|\| 15000\)/);
+  assert.match(runner,/flow\.metadata\?\.qaAutoAdmin === true/);
+  const desktopMain=readText('desktop/main.cjs');
+  assert.match(desktopMain,/!app\.isPackaged[\s\S]{0,180}ARTISYS_QA === '1'[\s\S]{0,180}ARTISYS_QA_AUTO_ADMIN === '1'/);
   assert.equal(config.environments.ci.env.PDV_ENABLE_LAN,'false');
   assert.equal(config.environments.ci.env.PDV_AUTO_PRINT,'false');
 });
