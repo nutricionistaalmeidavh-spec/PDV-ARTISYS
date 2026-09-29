@@ -10,7 +10,7 @@
   let mounting=false;
   let currentUser=null;
 
-  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   const roleLabel=role=>({admin:'Administrador',manager:'Gerente',cashier:'Operador / vendedor'})[role]||role;
   const canManageCatalog=()=>['admin','manager'].includes(currentUser?.role);
   const isAdmin=()=>currentUser?.role==='admin';
@@ -20,20 +20,26 @@
   function modal(title,body,onMount){if(!modalRoot)return;modalRoot.classList.remove('hidden');modalRoot.innerHTML=`<section class="modal-card"><header><h2>${esc(title)}</h2><button type="button" class="modal-close" data-catalog-modal-close>×</button></header>${body}</section>`;modalRoot.querySelector('[data-catalog-modal-close]')?.addEventListener('click',closeModal);onMount?.(modalRoot);}
   function heading(){return content.querySelector('.page h1,.ops-page h1')?.textContent?.trim()||'';}
 
-  async function renderUsers(){
+  async function renderUsers({force=false}={}){
     await session();
     if(!['admin','manager'].includes(currentUser?.role))return;
+    const page=content.querySelector('.page');if(!page||heading()!=='Vendedores')return;
+    const existing=page.querySelector('#catalog-user-management-users');
+    if(existing&&!force)return;
+    existing?.remove();
     const users=await api.users(true);
-    content.innerHTML=`<section class="page" id="catalog-user-management-users"><header class="page-head"><div><h1>Usuários e vendedores</h1><p>Crie acessos, altere perfil e senha e controle usuários ativos e inativos.</p></div><button type="button" class="primary-button" id="catalog-new-user">＋ Novo usuário</button></header><div class="data-card">${users.map(user=>{
+    const panel=document.createElement('section');panel.id='catalog-user-management-users';panel.className='data-card';panel.style.marginTop='14px';
+    panel.innerHTML=`<div style="padding:14px"><header class="page-head"><div><h2>Usuários e vendedores</h2><p>Crie acessos, altere perfil e senha e controle usuários ativos e inativos sem remover as funções de vendedores.</p></div><button type="button" class="primary-button" id="catalog-new-user">＋ Novo usuário</button></header><div>${users.map(user=>{
       const managerBlocked=currentUser.role==='manager'&&user.role==='admin';
       const status=user.active?'Ativo':'Inativo';
       const activation=isAdmin()?(user.active?`<button type="button" class="danger-button" data-remove-user="${esc(user.id)}">Desativar</button>`:`<button type="button" class="secondary-button" data-reactivate-user="${esc(user.id)}">Ativar</button>`):'';
       return `<div class="data-row" data-user-row="${esc(user.id)}"><div><strong>${esc(user.name)}</strong><small>@${esc(user.username)}${user.email?` · ${esc(user.email)}`:''}</small></div><div><small>Perfil</small><strong>${esc(roleLabel(user.role))}</strong></div><div><small>Status</small><strong>${status}</strong></div><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="secondary-button" data-edit-user="${esc(user.id)}" ${managerBlocked?'disabled title="Somente administrador pode alterar administradores"':''}>Editar</button>${activation}</div></div>`;
-    }).join('')||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></section>`;
-    document.getElementById('catalog-new-user')?.addEventListener('click',()=>openUserForm());
-    content.querySelectorAll('[data-edit-user]').forEach(button=>button.addEventListener('click',()=>{const user=users.find(item=>item.id===button.dataset.editUser);if(user)openUserForm(user);}));
-    content.querySelectorAll('[data-remove-user]').forEach(button=>button.addEventListener('click',()=>confirmUserDeactivation(users.find(item=>item.id===button.dataset.removeUser))));
-    content.querySelectorAll('[data-reactivate-user]').forEach(button=>button.addEventListener('click',async()=>{const user=users.find(item=>item.id===button.dataset.reactivateUser);if(!user)return;try{await api.saveUser({id:user.id,name:user.name,username:user.username,email:user.email||'',role:user.role,password:'',active:true});toast('Usuário ativado.','success');await renderUsers();}catch(error){toast(error.message,'error');}}));
+    }).join('')||'<div class="empty-state">Nenhum usuário cadastrado.</div>'}</div></div>`;
+    page.appendChild(panel);
+    panel.querySelector('#catalog-new-user')?.addEventListener('click',()=>openUserForm());
+    panel.querySelectorAll('[data-edit-user]').forEach(button=>button.addEventListener('click',()=>{const user=users.find(item=>item.id===button.dataset.editUser);if(user)openUserForm(user);}));
+    panel.querySelectorAll('[data-remove-user]').forEach(button=>button.addEventListener('click',()=>confirmUserDeactivation(users.find(item=>item.id===button.dataset.removeUser))));
+    panel.querySelectorAll('[data-reactivate-user]').forEach(button=>button.addEventListener('click',async()=>{const user=users.find(item=>item.id===button.dataset.reactivateUser);if(!user)return;try{await api.saveUser({id:user.id,name:user.name,username:user.username,email:user.email||'',role:user.role,password:'',active:true});toast('Usuário ativado.','success');await renderUsers({force:true});}catch(error){toast(error.message,'error');}}));
   }
 
   function openUserForm(user=null){
@@ -42,13 +48,13 @@
     const roles=admin?['cashier','manager','admin']:['cashier','manager'];
     modal(editing?'Editar usuário':'Novo usuário',`<form id="catalog-user-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${esc(user?.name||'')}"></div><div class="field"><label>Usuário *</label><input name="username" autocomplete="off" required value="${esc(user?.username||'')}"></div><div class="field"><label>E-mail</label><input name="email" type="email" value="${esc(user?.email||'')}"></div><div class="field"><label>Perfil *</label><select name="role">${roles.map(role=>`<option value="${role}" ${(user?.role||'cashier')===role?'selected':''}>${esc(roleLabel(role))}</option>`).join('')}</select></div><div class="field wide"><label>${editing?'Nova senha (deixe em branco para manter)':'Senha *'}</label><input name="password" type="password" minlength="10" ${editing?'':'required'} autocomplete="new-password"></div>${admin?`<label class="field wide"><span><input name="active" type="checkbox" ${user?.active===false?'':'checked'}> Usuário ativo</span></label>`:''}</div><div class="modal-actions"><button type="button" class="secondary-button" data-catalog-modal-close>Cancelar</button><button type="submit" class="primary-button">Salvar usuário</button></div></form>`,root=>{
       root.querySelectorAll('[data-catalog-modal-close]').forEach(button=>button.addEventListener('click',closeModal));
-      root.querySelector('#catalog-user-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await api.saveUser({id:user?.id,name:String(data.get('name')||''),username:String(data.get('username')||''),email:String(data.get('email')||''),role:String(data.get('role')||''),password:String(data.get('password')||''),active:admin?form.elements.namedItem('active').checked:(user?.active??true)});closeModal();toast(editing?'Usuário atualizado.':'Usuário criado.','success');await renderUsers();}catch(error){toast(error.message,'error');}});
+      root.querySelector('#catalog-user-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const data=new FormData(form);try{await api.saveUser({id:user?.id,name:String(data.get('name')||''),username:String(data.get('username')||''),email:String(data.get('email')||''),role:String(data.get('role')||''),password:String(data.get('password')||''),active:admin?form.elements.namedItem('active').checked:(user?.active??true)});closeModal();toast(editing?'Usuário atualizado.':'Usuário criado.','success');await renderUsers({force:true});}catch(error){toast(error.message,'error');}});
     });
   }
 
   function confirmUserDeactivation(user){
     if(!user)return;
-    modal('Desativar usuário',`<p>Desativar <strong>${esc(user.name)}</strong>? O histórico será preservado e o acesso será encerrado.</p><div class="modal-actions"><button type="button" class="secondary-button" data-catalog-modal-close>Cancelar</button><button type="button" class="danger-button" id="catalog-confirm-remove-user">Desativar</button></div>`,root=>{root.querySelectorAll('[data-catalog-modal-close]').forEach(button=>button.addEventListener('click',closeModal));root.querySelector('#catalog-confirm-remove-user')?.addEventListener('click',async()=>{try{await api.removeUser(user.id);closeModal();toast('Usuário desativado. Histórico preservado.','success');await renderUsers();}catch(error){toast(error.message,'error');}});});
+    modal('Desativar usuário',`<p>Desativar <strong>${esc(user.name)}</strong>? O histórico será preservado e o acesso será encerrado.</p><div class="modal-actions"><button type="button" class="secondary-button" data-catalog-modal-close>Cancelar</button><button type="button" class="danger-button" id="catalog-confirm-remove-user">Desativar</button></div>`,root=>{root.querySelectorAll('[data-catalog-modal-close]').forEach(button=>button.addEventListener('click',closeModal));root.querySelector('#catalog-confirm-remove-user')?.addEventListener('click',async()=>{try{await api.removeUser(user.id);closeModal();toast('Usuário desativado. Histórico preservado.','success');await renderUsers({force:true});}catch(error){toast(error.message,'error');}});});
   }
 
   async function enhanceCustomers(){
