@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "systemId": "pdv-artisys-catalog-user-management",
+  "mode": "electron",
+  "defaultEnvironment": "ci",
+  "defaultFlow": "catalog-user-management-e2e",
+  "defaultViewport": "desktop",
+  "capture": {"video": true, "screenshotEachStep": false, "fps": 8},
+  "electron": {"entry": "desktop/main.cjs", "executablePath": "../node_modules/electron/dist/electron", "args": ["--no-sandbox"]},
+  "environments": {
+    "ci": {"env": {"NODE_ENV": "test", "ARTISYS_QA": "1", "ARTISYS_QA_PDF_DIR": "../qa-artifacts/pdf", "ARTISYS_QA_SIMULATE_PRINTER": "1", "ARTISYS_QA_NO_PRINTERS": "1", "PDV_ENABLE_LAN": "false", "PDV_AUTO_PRINT": "false"}}
+  },
+  "flows": {
+    "catalog-user-management-e2e": "flows/catalog-user-management-e2e.json"
+  }
+}
