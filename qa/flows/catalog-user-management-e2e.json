@@ -1,7 +1,9 @@
 {
   "name":"catalog-user-management-e2e",
   "steps":[
-    {"action":"click","selector":"[data-route='sellers']","name":"catalog-users-open"},
+    {"action":"click","selector":"[data-route='home']","name":"catalog-users-home"},
+    {"action":"waitFor","selector":"[data-home-route='sellers']","name":"catalog-users-home-ready","timeoutMs":10000},
+    {"action":"click","selector":"[data-home-route='sellers']","name":"catalog-users-open"},
     {"action":"waitFor","selector":"#catalog-user-management-users","name":"catalog-users-ready","timeoutMs":10000},
     {"action":"expectText","selector":"#catalog-user-management-users","expected":"Usuários e vendedores","name":"catalog-users-heading"},
     {"action":"expectVisible","selector":"#catalog-new-user","name":"catalog-user-create-visible"},
