@@ -1,0 +1,53 @@
+{
+  "name":"weighted-scale-e2e",
+  "steps":[
+    {"uses":"home.json"},
+
+    {"action":"click","selector":"[data-route='products']","name":"weighted-open-products"},
+    {"action":"waitFor","selector":"#new-product","name":"weighted-products-ready","timeoutMs":10000},
+    {"action":"click","selector":"#new-product","name":"weighted-new-product"},
+    {"action":"fill","selector":"#product-form input[name='name']","value":"Tomate QA","name":"weighted-product-name"},
+    {"action":"fill","selector":"#product-form input[name='sku']","value":"QA-TOMATE-KG","name":"weighted-product-sku"},
+    {"action":"selectOption","selector":"#product-form select[name='unit']","value":"KG","name":"weighted-product-unit"},
+    {"action":"fill","selector":"#product-form input[name='salePrice']","value":"8,99","name":"weighted-product-price"},
+    {"action":"fill","selector":"#product-form input[name='cost']","value":"2,50","name":"weighted-product-cost"},
+    {"action":"uncheck","selector":"#product-form input[name='trackStock']","name":"weighted-product-no-stock-control"},
+    {"action":"click","selector":"#product-form button[type='submit']","name":"weighted-save-product"},
+    {"action":"expectText","selector":".data-card:not([data-kit-combo-admin])","expected":"Tomate QA","name":"weighted-product-created"},
+
+    {"action":"click","selector":"[data-route='checkout']","name":"weighted-open-checkout"},
+    {"action":"waitFor","selector":".checkout-layout","name":"weighted-checkout-ready","timeoutMs":10000},
+    {"action":"waitFor","selector":"[data-scale-checkout-status] [data-scale-state='connected']","name":"weighted-scale-connected","timeoutMs":10000},
+    {"action":"click","selector":".product-card[data-add-product]:has-text('Tomate QA')","name":"weighted-select-tomato"},
+    {"action":"waitFor","selector":"[data-scale-weigh-overlay]","name":"weighted-dialog-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"[data-scale-weigh-dialog]","expected":"Tomate QA","name":"weighted-dialog-product"},
+    {"action":"waitFor","selector":"[data-scale-weigh-overlay][data-weight-ready='true']","name":"weighted-reading-ready","timeoutMs":10000},
+    {"action":"expectText","selector":"[data-scale-weight-value]","expected":"0,742 kg","name":"weighted-reading-value"},
+    {"action":"expectText","selector":"[data-scale-total-value]","expected":"6,67","name":"weighted-calculated-total"},
+    {"action":"expectText","selector":"[data-scale-calculation]","expected":"8,99/kg","name":"weighted-price-basis"},
+    {"action":"screenshot","name":"weighted-scale-modal","fullPage":true},
+
+    {"action":"click","selector":"[data-add-weighted-item]","name":"weighted-add-to-cart"},
+    {"action":"waitFor","selector":"[data-scale-weigh-overlay]","state":"detached","name":"weighted-dialog-closed","timeoutMs":10000},
+    {"action":"waitFor","selector":".cart-line[data-weighted-item='true']","name":"weighted-cart-line-ready","timeoutMs":10000},
+    {"action":"expectText","selector":".cart-line[data-weighted-item='true']","expected":"Tomate QA","name":"weighted-cart-product"},
+    {"action":"expectText","selector":".cart-line[data-weighted-item='true']","expected":"0,742 kg","name":"weighted-cart-weight"},
+    {"action":"expectText","selector":".cart-line[data-weighted-item='true']","expected":"8,99/kg","name":"weighted-cart-price-basis"},
+    {"action":"expectText","selector":".cart-line[data-weighted-item='true'] .line-total","expected":"6,67","name":"weighted-cart-total"},
+    {"action":"waitFor","selector":".cart-line[data-weighted-item='true'] [data-qty-minus]","state":"detached","name":"weighted-no-unit-minus","timeoutMs":10000},
+    {"action":"waitFor","selector":".cart-line[data-weighted-item='true'] [data-qty-plus]","state":"detached","name":"weighted-no-unit-plus","timeoutMs":10000},
+    {"action":"screenshot","name":"weighted-scale-cart","fullPage":true},
+
+    {"action":"click","selector":"#finalize-sale","name":"weighted-finalize-sale"},
+    {"action":"waitFor","selector":"#initial-cash","name":"weighted-cash-open-required","timeoutMs":10000},
+    {"action":"fill","selector":"#initial-cash","value":"0,00","name":"weighted-cash-initial"},
+    {"action":"click","selector":"#confirm-open-cash","name":"weighted-open-cash"},
+    {"action":"waitFor","selector":"#confirm-payment","name":"weighted-payment-ready","timeoutMs":10000},
+    {"action":"expectText","selector":".payment-list","expected":"6,67","name":"weighted-payment-total"},
+    {"action":"screenshot","name":"weighted-scale-before-finalize","fullPage":true},
+    {"action":"click","selector":"#confirm-payment","name":"weighted-confirm-payment"},
+    {"action":"waitForTimeout","timeoutMs":800,"name":"weighted-sale-completed"},
+    {"action":"expectText","selector":".cart-list","expected":"Nenhum item","name":"weighted-cart-empty-after-sale"},
+    {"action":"screenshot","name":"weighted-scale-after-finalize","fullPage":true}
+  ]
+}

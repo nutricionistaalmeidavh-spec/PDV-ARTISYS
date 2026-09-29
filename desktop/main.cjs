@@ -120,7 +120,9 @@ function buildHardwareController() {
   const hardwareEnv = { ...process.env };
   if (storedScale) {
     hardwareEnv.PDV_SCALE_PROFILE = storedScale.profile;
+    hardwareEnv.PDV_SCALE_CONNECTION = storedScale.connection || 'serial';
     hardwareEnv.PDV_SCALE_PORT = storedScale.port;
+    hardwareEnv.PDV_SCALE_BAUD = String(storedScale.baud || 9600);
     if (storedScale.requestCommand) hardwareEnv.PDV_SCALE_URANO_REQUEST = storedScale.requestCommand;
   }
   const hardwareRuntime = createPdvHardwareRuntime({
@@ -131,7 +133,9 @@ function buildHardwareController() {
   return createHardwareController(hardwareRuntime, {
     onScaleConfigured: configuration => hardwareConfigStore?.saveScale({
       profile:configuration.profile,
+      connection:configuration.connection || 'serial',
       port:configuration.port || '',
+      baud:configuration.baud || 9600,
       requestCommand:configuration.requestCommand || undefined
     })
   });
