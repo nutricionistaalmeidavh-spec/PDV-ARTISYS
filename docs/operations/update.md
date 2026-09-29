@@ -30,9 +30,13 @@ Use instalação manual quando o updater não estiver disponível ou quando for 
 6. Confira health/schema, abra o sistema e execute um smoke de login, consulta de produtos e venda controlada.
 7. Atualize os terminais clientes para versão compatível e valide o handshake LAN.
 
-## Windows 7/8 Legacy
+## Windows 7/8 Legacy — descontinuado
 
-A linha Legacy não usa atualização automática do Electron. Esses computadores continuam sendo atualizados com o instalador Legacy compatível.
+A linha de instaladores Windows 7/8 Legacy foi encerrada após a versão 1.4.1. Versões posteriores não geram, validam nem publicam instaladores Legacy x64 ou ia32.
+
+Os artefatos Legacy já publicados permanecem apenas como histórico e não fazem parte do fluxo de release atual. O instalador oficial das novas versões é o Windows x64 moderno, produzido por `npm run dist:win`.
+
+Referências internas a “legacy” usadas para migração, compatibilidade de dados, estados históricos ou exportação não significam manutenção de um instalador Windows Legacy.
 
 ## Rollback
 
