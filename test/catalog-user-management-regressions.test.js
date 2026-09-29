@@ -122,6 +122,9 @@ test('desktop wiring exposes complete user management and logical deletion contr
   const managementApi=read('desktop/renderer/catalog-user-management-api.js');
   const html=read('desktop/renderer/index.html');
   const managementUi=read('desktop/renderer/catalog-user-management-ui.js');
+  const catalogFlow=read('qa/flows/catalog-user-management-e2e.json');
+  const homeFlow=read('qa/flows/home.json');
+  const visualFlow=read('qa/flows/visual-critical.json');
   for(const marker of ['removeCategory','removeCustomer','removeSupplier','removeUser'])assert.match(managementApi,new RegExp(`p\\.${marker}=`));
   assert.match(html,/catalog-user-management-api\.js/);
   assert.match(html,/catalog-user-management-ui\.js/);
@@ -131,6 +134,10 @@ test('desktop wiring exposes complete user management and logical deletion contr
   assert.match(managementUi,/data-remove-category/);
   assert.match(managementUi,/data-remove-supplier/);
   assert.match(managementUi,/data-remove-user/);
+  assert.doesNotMatch(managementUi,/content\.innerHTML=`<section class="page" id="catalog-user-management-users"/,'user management must preserve the existing seller page');
+  assert.doesNotMatch(catalogFlow,/valueFromEnv":"ARTISYS_QA_PDF_DIR"/,'user-management QA must not reuse the PDF directory as a password');
+  assert.doesNotMatch(homeFlow,/vertical\/onboarding\/complete/,'shared home flow must not alter module enablement');
+  assert.match(visualFlow,/vertical\/onboarding\/complete/,'visual bootstrap must own its onboarding setup');
   assert.doesNotThrow(()=>new Function(managementApi));
   assert.doesNotThrow(()=>new Function(managementUi));
 });
