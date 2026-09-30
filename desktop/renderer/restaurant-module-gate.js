@@ -28,6 +28,9 @@
     const moduleId=normalizeId(id);
     if(!moduleId||!isResolved(moduleId))return;
     const enabled=isEnabled(moduleId);
+    if(!enabled&&document.body.dataset.activeRoute===`module-${moduleId.toLowerCase().replaceAll('_','-')}`){
+      document.querySelector('#sidebar-nav [data-route="home"]')?.click();
+    }
     if(moduleId==='RESTAURANT'){
       ensureGateStyle();
       document.documentElement?.setAttribute('data-restaurant-module-enabled',enabled?'true':'false');
@@ -38,7 +41,7 @@
         else launcher.setAttribute('tabindex','-1');
       });
     }
-    document.querySelectorAll(`[data-module-open="${moduleId}"]`).forEach(launcher=>{
+      document.querySelectorAll(`[data-module-open="${moduleId}"], [data-module-nav="${moduleId}"]`).forEach(launcher=>{
       launcher.hidden=!enabled;
       launcher.setAttribute('aria-hidden',enabled?'false':'true');
       if(enabled){launcher.removeAttribute('tabindex');launcher.removeAttribute('aria-disabled');}

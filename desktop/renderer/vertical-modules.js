@@ -38,7 +38,7 @@
   }
   async function loadModules(){modules=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');return modules;}
 
-  function moduleAllowed(id){const role=document.body.dataset.userRole||'';return ['admin','manager'].includes(role)||!['SELF_SERVICE'].includes(id);}
+  function moduleAllowed(id){return Boolean(root.PdvHomeRoleModel?.canAccessModule(document.body.dataset.userRole));}
   function renderModuleNavigation(){
     const nav=document.getElementById('sidebar-nav');if(!nav)return;
     nav.querySelectorAll('[data-module-nav]').forEach(node=>node.remove());
@@ -146,7 +146,7 @@
     if(id==='DELIVERY')return renderDelivery();
     if(id==='FAST_FOOD')return renderFastFood();
     if(id==='MARKET_BAKERY')return renderMarket();
-    if(id==='RESTAURANT')return renderRestaurantAdvanced();
+    if(id==='RESTAURANT')return root.PdvRestaurantUi?.show?.();
   }
 
   function renderPizzeria(){

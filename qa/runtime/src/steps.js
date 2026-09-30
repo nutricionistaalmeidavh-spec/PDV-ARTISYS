@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { resolveSecret, stepLabel } from './helpers.js';
-import { isVisualValidationRequested, shouldUpdateVisualBaselines, validateVisualSnapshot } from './visual.js';
 
 function locator(page, step) {
   if (step.testId) return page.getByTestId(step.testId);
@@ -302,24 +301,6 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'screenshot': {
       await page.screenshot({ path: path.join(screenshotsDir, `${label}.png`), fullPage: step.fullPage ?? false });
-      break;
-    }
-    case 'visualSnapshot': {
-      const requested = isVisualValidationRequested(env.ARTISYS_QA_VISUAL);
-      if (!requested) break;
-      const hasLocator = Boolean(step.testId || step.role || step.text || step.label || step.selector);
-      await validateVisualSnapshot({
-        page,
-        name: step.snapshot || step.name || label,
-        target: hasLocator ? locator(page, step) : null,
-        requested,
-        updateBaseline: shouldUpdateVisualBaselines(env.ARTISYS_QA_UPDATE_VISUAL_BASELINES),
-        baselineDir: step.baselineDir ? path.resolve(step.baselineDir) : path.resolve('qa/visual-baselines'),
-        artifactDir: step.artifactDir ? path.resolve(step.artifactDir) : path.join(path.dirname(screenshotsDir), 'visual'),
-        fullPage: step.fullPage ?? false,
-        pixelThreshold: step.pixelThreshold ?? 8,
-        maxDiffRatio: step.maxDiffRatio ?? 0.001,
-      });
       break;
     }
     case 'capability': {

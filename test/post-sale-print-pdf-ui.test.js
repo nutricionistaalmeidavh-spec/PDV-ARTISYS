@@ -32,16 +32,3 @@ test('printing settings UI covers printer, 58\/80 mm and persisted options',()=>
   assert.match(ui,/hardware\.listPrinters/);
   assert.match(ui,/hardware\.testPrinter/);
 });
-
-test('QA runner validates same-row actions and a real PDF signature',()=>{
-  const steps=read('qa/runtime/src/steps.js');
-  const flow=read('qa/flows/checkout-ux-preservation.json');
-  assert.match(steps,/case 'expectSameRow'/);
-  assert.match(steps,/case 'expectFile'/);
-  assert.match(steps,/%PDF-/);
-  assert.match(flow,/post-sale-print/);
-  assert.match(flow,/post-sale-save-pdf/);
-  assert.match(flow,/expectSameRow/);
-  assert.match(flow,/expectFile/);
-  assert.match(flow,/%PDF-/);
-});

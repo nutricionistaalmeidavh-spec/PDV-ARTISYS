@@ -7,39 +7,11 @@ import { runCrosscutProfile } from '../qa/runtime/src/crosscut-profile.js';
 const root=path.resolve('.');
 const readJson=relative=>JSON.parse(fs.readFileSync(path.join(root,relative),'utf8'));
 const readText=relative=>fs.readFileSync(path.join(root,relative),'utf8');
-const moduleFlows=['restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e'];
-
-test('root script, CLI and GitHub e2e job expose a dedicated crosscut gate for all modules',()=>{
+test('legacy crosscut E2E is not exposed through package scripts or CI',()=>{
   const pkg=readJson('package.json');
-  const cli=readText('qa/runtime/src/cli.mjs');
   const workflow=readText('.github/workflows/verify.yml');
-  const config=readJson('qa/artisys-qa.config.json');
-  assert.match(pkg.scripts['qa:crosscut']||'',/artisys-qa\.mjs crosscut/);
-  assert.match(cli,/process\.argv\[2\]\s*===\s*['"]crosscut['"]/);
-  assert.match(cli,/runCrosscutProfile/);
-  assert.match(workflow,/Run crosscut QA gate[\s\S]*xvfb-run -a npm run qa:crosscut/);
-  assert.match(workflow,/qa-artifacts-crosscut/);
-  assert.deepEqual(config.crosscut?.flows,moduleFlows);
-  assert.deepEqual(config.crosscut?.criticalFlows,moduleFlows);
-  for(const flowId of moduleFlows){
-    assert.equal(config.crosscut.categories[flowId],'state-sync');
-    const file=config.flows[flowId];
-    assert.equal(fs.existsSync(path.join(root,'qa',file)),true,`${flowId} file must exist`);
-    const flow=readJson(path.join('qa',file));
-    assert.equal(flow.metadata?.qaAutoAdmin,true,`${flowId} must seed only its isolated QA profile`);
-    assert.equal(flow.steps[0]?.uses,'qa-authenticated.json',`${flowId} must use isolated QA authentication`);
-    assert.ok(flow.steps.some(step=>step.action==='desktopApiRequest'&&step.expectedStatus===409),`${flowId} must verify backend rejection`);
-    assert.ok(flow.steps.some(step=>step.action==='waitFor'&&step.state==='hidden'),`${flowId} must verify launcher removal`);
-  }
-  const authenticated=readJson('qa/flows/qa-authenticated.json');
-  assert.equal(authenticated.steps[0]?.action,'authenticateLocalQa');
-  assert.match(readText('qa/runtime/src/steps.js'),/case 'authenticateLocalQa'/);
-  assert.doesNotMatch(pkg.scripts['qa:crosscut']||'',/qa:(?:full|release)/);
-});
-
-test('crosscut manifest asset paths resolve relative to the QA config directory',()=>{
-  const configPath=path.join(root,'qa/artisys-qa.config.json');const config=JSON.parse(fs.readFileSync(configPath,'utf8'));const manifestRoot=path.dirname(configPath);
-  for(const key of ['moduleRegistry','moduleProbeConfig']){const relative=config.crosscut?.[key];assert.equal(typeof relative,'string');assert.equal(fs.existsSync(path.resolve(manifestRoot,relative)),true,`${key} must resolve: ${relative}`);}
+  assert.equal(pkg.scripts['qa:crosscut'],undefined);
+  assert.doesNotMatch(workflow,/qa:crosscut|crosscut QA gate|pdv-e2e/);
 });
 
 test('runCrosscutProfile executes only configured crosscut flows and builds an independent product gate',async()=>{

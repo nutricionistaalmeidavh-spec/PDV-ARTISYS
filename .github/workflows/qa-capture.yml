@@ -3,18 +3,6 @@ name: QA Capture
 on:
   workflow_dispatch:
     inputs:
-      mode:
-        description: QA técnico visual ou vídeo de demonstração
-        required: true
-        default: demo
-        type: choice
-        options: [demo, qa]
-      flow:
-        description: Fluxo QA
-        required: true
-        default: smoke
-        type: choice
-        options: [smoke, home]
       demo:
         description: Fluxo de demonstração
         required: true
@@ -27,28 +15,6 @@ on:
         default: reels-9x16
         type: choice
         options: [reels-9x16, landscape-16x9, square-1x1]
-      environment:
-        description: Ambiente
-        required: true
-        default: ci
-        type: choice
-        options: [ci]
-      viewport:
-        description: Viewport do QA
-        required: true
-        default: desktop
-        type: choice
-        options: [desktop, tablet, mobile]
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/qa-request.json'
-  pull_request:
-    paths:
-      - 'qa/**'
-      - 'test/artisys-qa-integration.test.js'
-      - '.github/workflows/qa-capture.yml'
 
 permissions:
   contents: read
@@ -86,49 +52,21 @@ jobs:
         id: capture
         shell: bash
         env:
-          INPUT_MODE: ${{ inputs.mode }}
-          INPUT_FLOW: ${{ inputs.flow }}
           INPUT_DEMO: ${{ inputs.demo }}
           INPUT_PRESET: ${{ inputs.preset }}
-          INPUT_ENVIRONMENT: ${{ inputs.environment }}
-          INPUT_VIEWPORT: ${{ inputs.viewport }}
         run: |
-          MODE="${INPUT_MODE:-demo}"
-          FLOW="${INPUT_FLOW:-smoke}"
           DEMO="${INPUT_DEMO:-quick-30s}"
           PRESET="${INPUT_PRESET:-reels-9x16}"
-          ENVIRONMENT="${INPUT_ENVIRONMENT:-ci}"
-          VIEWPORT="${INPUT_VIEWPORT:-desktop}"
-
-          if [ "$GITHUB_EVENT_NAME" = "push" ] && [ -f .github/qa-request.json ]; then
-            MODE="$(node -p "require('./.github/qa-request.json').mode || 'demo'")"
-            FLOW="$(node -p "require('./.github/qa-request.json').flow || 'smoke'")"
-            DEMO="$(node -p "require('./.github/qa-request.json').demo || 'quick-30s'")"
-            PRESET="$(node -p "require('./.github/qa-request.json').preset || 'reels-9x16'")"
-            ENVIRONMENT="$(node -p "require('./.github/qa-request.json').environment || 'ci'")"
-            VIEWPORT="$(node -p "require('./.github/qa-request.json').viewport || 'desktop'")"
-          fi
 
           rm -rf qa-artifacts
-
-          if [ "$MODE" = "demo" ]; then
-            echo "artifact_name=pdv-demo-${DEMO}-${PRESET}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-            ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
-              xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
-                --config qa/artisys-qa.config.json \
-                --demo "$DEMO" \
-                --preset "$PRESET" \
-                --environment "$ENVIRONMENT" \
-                --output qa-artifacts
-          else
-            echo "artifact_name=pdv-qa-${FLOW}-${VIEWPORT}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-            xvfb-run -a node qa/runtime/artisys-qa.mjs run \
+          echo "artifact_name=pdv-demo-${DEMO}-${PRESET}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
+            xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
               --config qa/artisys-qa.config.json \
-              --flow "$FLOW" \
-              --environment "$ENVIRONMENT" \
-              --viewport "$VIEWPORT" \
+              --demo "$DEMO" \
+              --preset "$PRESET" \
+              --environment ci \
               --output qa-artifacts
-          fi
       - name: Upload screenshots videos traces and logs
         if: always()
         uses: actions/upload-artifact@v4

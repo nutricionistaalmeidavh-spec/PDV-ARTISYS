@@ -23,6 +23,7 @@
   function page(title,subtitle,body,actions=''){return `<section class="ops-page"><header class="ops-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div><div class="ops-head-actions">${actions}</div></header>${body}</section>`;}
   async function ready(){if(!config)config=await api.initialize();return config;}
   function routeActive(route){return document.body.dataset.activeRoute===route;}
+  function canAccess(route){return root.PdvHomeRoleModel?.canAccessRoute(document.body.dataset.userRole,route)===true;}
   function markActive(route){document.body.dataset.activeRoute=route;document.body.classList.remove('theme-home');document.querySelectorAll('[data-route]').forEach(node=>node.classList.toggle('active',node.dataset.route===route));}
 
   async function renderInventory(){
@@ -114,7 +115,7 @@
   }
 
   const renderers={inventory:renderInventory,cash:renderCash,sales:renderSalesHistory,returns:renderReturns,finance:renderFinance,reports:renderReports,settings:renderSettings};
-  async function showRoute(route){if(!renderers[route])return;markActive(route);content.innerHTML=page('Carregando','Consultando o servidor local…','<div class="ops-loader"></div>');try{await renderers[route]();if(routeActive(route))content.focus({preventScroll:true});}catch(error){if(!routeActive(route))return;content.innerHTML=page('Não foi possível carregar','O servidor local recusou ou não concluiu a operação.',`<div class="ops-error">${escapeHtml(error.message)}</div>`);showToast(error.message,'error');}}
+  async function showRoute(route){if(!renderers[route])return;if(!canAccess(route)){markActive('home');root.document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}markActive(route);content.innerHTML=page('Carregando','Consultando o servidor local…','<div class="ops-loader"></div>');try{await renderers[route]();if(routeActive(route))content.focus({preventScroll:true});}catch(error){if(!routeActive(route))return;content.innerHTML=page('Não foi possível carregar','O servidor local recusou ou não concluiu a operação.',`<div class="ops-error">${escapeHtml(error.message)}</div>`);showToast(error.message,'error');}}
 
   root.addEventListener('click',event=>{const target=event.target.closest?.('[data-route],[data-home-route]');if(!target)return;const route=target.dataset.route||target.dataset.homeRoute;if(!OPERATIONAL_ROUTES.has(route))return;event.preventDefault();event.stopImmediatePropagation();void showRoute(route);},true);
   root.addEventListener('keydown',event=>{if(!SHORTCUTS[event.key]||document.querySelector('.checkout-layout'))return;event.preventDefault();event.stopImmediatePropagation();void showRoute(SHORTCUTS[event.key]);},true);

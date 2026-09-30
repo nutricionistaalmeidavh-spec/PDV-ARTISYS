@@ -38,7 +38,7 @@ Alertas incluem contas vencidas/a vencer, baixo saldo configurado e projeção n
 
 ## Recuperação e diagnóstico
 
-Se uma tela for recarregada durante uma operação, consulte novamente a lista antes de repetir uma mutação. Importações e recorrências possuem mecanismos de idempotência específicos. Para investigação, preserve os artefatos do `qa:release`, logs sanitizados e o backup local existente antes de intervenção em produção.
+Se uma tela for recarregada durante uma operação, consulte novamente a lista antes de repetir uma mutação. Importações e recorrências possuem mecanismos de idempotência específicos. Para investigação, preserve logs sanitizados e o backup local existente antes de intervenção em produção.
 
 ## Gate de release
 
@@ -47,8 +47,7 @@ Antes de distribuir uma versão com P0–P3:
 ```bash
 npm run qa:validate
 npm run verify
-npm run qa:release
 npm run verify:release
 ```
 
-Todos os 18 fluxos ERP Financeiro em `qa/artisys-qa.config.json` devem permanecer em `full.criticalFlows` e `release.criticalFlows`.
+Os fluxos E2E antigos de UI foram removidos; a nova suíte será criada do zero com base nos fluxos atuais. `qa:validate` verifica somente a configuração do harness e não equivale à validação funcional visual.

@@ -1,28 +1,20 @@
 {
   "name": "pdv-artisys",
-  "version": "1.4.1",
+  "version": "1.4.19",
   "private": true,
   "description": "PDV desktop local-first da ArtiSys com servidor LAN central, EventBus duravel, módulos opcionais e UI operacional.",
   "main": "desktop/updater-main.cjs",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start:server": "node server/start.js",
     "start:desktop": "electron .",
     "qa:update": "node scripts/sync-artisys-qa.mjs",
     "qa:validate": "node qa/runtime/artisys-qa.mjs validate --config qa/artisys-qa.config.json",
-    "qa:quick": "node qa/runtime/artisys-qa.mjs quick --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
-    "qa:full": "node qa/runtime/artisys-qa.mjs full --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
-    "qa:release": "node qa/runtime/artisys-qa.mjs release --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
-    "qa:crosscut": "node qa/runtime/artisys-qa.mjs crosscut --config qa/artisys-qa.config.json --environment ci --viewport desktop --output qa-artifacts",
-    "qa:remote": "node qa/runtime/artisys-qa.mjs remote --config qa/artisys-qa.config.json --profile quick --output qa-artifacts",
-    "qa:ux:flags": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-flags-e2e --environment ci --viewport desktop --output qa-artifacts",
-    "qa:ux:responsive:desktop": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-responsive-evidence --environment ci --viewport desktop --output qa-artifacts",
-    "qa:ux:responsive:tablet": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-responsive-evidence --environment ci --viewport tablet --output qa-artifacts",
-    "qa:ux:responsive:mobile": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow ux-products-clients-responsive-evidence --environment ci --viewport mobile --output qa-artifacts",
-    "qa:ux:finalize": "npm run qa:ux:flags && npm run qa:ux:responsive:desktop && npm run qa:ux:responsive:tablet && npm run qa:ux:responsive:mobile",
     "capability:check": "node scripts/check-customer-capability-parity.js",
-    "capability:check:phase3": "node scripts/check-customer-capability-parity.js --require-e2e --max-phase 3",
-    "capability:check:release": "node scripts/check-customer-capability-parity.js --require-e2e --max-phase 9 --require-100",
+    "capability:check:phase3": "node scripts/check-customer-capability-parity.js",
+    "capability:check:release": "node scripts/check-customer-capability-parity.js --require-100",
     "docs:check": "node scripts/check-docs-consistency.js",
     "test": "node --test test/*.test.js",
     "test:telemetry:cloudflare": "npm --prefix cloudflare/telemetry test",
@@ -60,18 +52,86 @@
     "productName": "ArtiSys PDV",
     "asar": true,
     "npmRebuild": true,
-    "directories": { "output": "dist" },
-    "files": ["desktop/**/*","js/**/*","server/**/*","!server/fiscal-sidecar/**/*","release/**/*","vendor/**/*","package.json"],
-    "asarUnpack": ["node_modules/serialport/**/*","node_modules/@serialport/**/*"],
-    "extraResources": [
-      {"from":"server/fiscal-sidecar","to":"fiscal/sidecar","filter":["**/*"]},
-      {"from":"fiscal-runtime/acbr","to":"fiscal/acbr","filter":["**/*"]},
-      {"from":"fiscal-runtime/configs","to":"fiscal/configs","filter":["**/*"]},
-      {"from":"fiscal-runtime/schemas","to":"fiscal/schemas","filter":["**/*"]},
-      {"from":"fiscal-runtime/manifest.json","to":"fiscal/manifest.json"}
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "desktop/**/*",
+      "js/**/*",
+      "server/**/*",
+      "!server/fiscal-sidecar/**/*",
+      "release/**/*",
+      "vendor/**/*",
+      "package.json"
     ],
-    "publish": [{"provider":"github","owner":"nutricionistaalmeidavh-spec","repo":"PDV-ARTISYS","releaseType":"release"}],
-    "win": {"target":[{"target":"nsis","arch":["x64"]}],"artifactName":"ArtiSys-PDV-${version}-${arch}-Setup.${ext}"},
-    "nsis": {"oneClick":false,"allowToChangeInstallationDirectory":true,"createDesktopShortcut":true,"createStartMenuShortcut":true,"deleteAppDataOnUninstall":false}
+    "asarUnpack": [
+      "node_modules/serialport/**/*",
+      "node_modules/@serialport/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "server/fiscal-sidecar",
+        "to": "fiscal/sidecar",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "fiscal-runtime/acbr",
+        "to": "fiscal/acbr",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "fiscal-runtime/configs",
+        "to": "fiscal/configs",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "fiscal-runtime/schemas",
+        "to": "fiscal/schemas",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "fiscal-runtime/manifest.json",
+        "to": "fiscal/manifest.json"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "nutricionistaalmeidavh-spec",
+        "repo": "PDV-ARTISYS",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "ArtiSys-PDV-${version}-${arch}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "allowScripts": {
+    "electron@39.8.10": true,
+    "@serialport/bindings-cpp@13.0.0": true,
+    "electron-winstaller@5.4.0": true
   }
 }

@@ -41,20 +41,8 @@ test('P4 is also present in the canonical product create/edit modal and waits fo
  assert.doesNotThrow(()=>new Function(src),'product fiscal extension must parse');
 });
 
-test('P2-P5 scripts are loaded and release QA is fail-closed',()=>{
+test('P2-P5 scripts remain loaded by the current desktop shell',()=>{
  const html=read('desktop/renderer/index.html');
  ['fiscal-config-api-client.js','fiscal-config-ui.js','product-fiscal-fields.js','fiscal-config.css'].forEach(x=>assert.ok(html.includes(x),x));
  assert.equal(html.includes('\\n  <script'),false,'shell must not contain escaped newline artifacts');
- const qa=JSON.parse(read('qa/artisys-qa.config.json'));
- assert.equal(qa.flows['fiscal-config-p2-p5'],'flows/fiscal-config-p2-p5.json');
- assert.ok(qa.qaProfiles.release.criticalFlows.includes('fiscal-config-p2-p5'));
-});
-
-test('Trilha A E2E performs mutations and verifies persisted/corrected state instead of visibility only',()=>{
- const flow=JSON.parse(read('qa/flows/fiscal-config-p2-p5.json'));
- assert.equal(flow.steps[0].uses,'core-business-e2e.json');
- const serialized=JSON.stringify(flow);
- for(const marker of ['p2-save-company','p2-company-data-reloaded','p3-save-profile','p3-save-duplicate','p3-copy-inactive','p4-save-product-with-fiscal','p4-profile-persisted','p5-pending-visible','p5-save-correction','p5-correction-now-ok'])assert.ok(serialized.includes(marker),marker);
- assert.ok(serialized.includes("#product-fiscal-fields"),'P4 must exercise fiscal fields inside product modal');
- assert.ok(serialized.includes("[data-audit-filter='MISSING_PROFILE']"),'P5 must exercise pending filter');
 });

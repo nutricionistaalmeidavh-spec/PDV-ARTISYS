@@ -9,10 +9,12 @@ import { runRendererHealthContract } from '../qa/runtime/src/contracts/renderer-
 
 const manifest=JSON.parse(fs.readFileSync(new URL('../qa/artisys-qa.config.json',import.meta.url),'utf8'));
 
-test('PDV opts full and release into crosscut while quick remains cheap',()=>{
-  assert.equal(resolveQaProfile(manifest,'quick').includeCrosscut,false);
-  assert.equal(resolveQaProfile(manifest,'full').includeCrosscut,true);
-  assert.equal(resolveQaProfile(manifest,'release').includeCrosscut,true);
+test('PDV legacy QA profiles are empty until E2E flows are rebuilt',()=>{
+  for (const name of ['quick','full','release']) {
+    const profile=resolveQaProfile(manifest,name);
+    assert.equal(profile.flows.length,0);
+    assert.equal(profile.includeCrosscut,false);
+  }
 });
 
 test('renderer health fails on unexpected runtime errors but preserves expected network evidence',async()=>{
@@ -70,4 +72,10 @@ test('profile runner appends injected crosscut checks without rerunning function
   assert.equal(flowRuns,1);
   assert.equal(crosscutRuns,1);
   assert.equal(result.results.some(x=>x.check==='crosscut:fixture-contract'&&x.status==='passed'),true);
+});
+
+test('profile runner refuses an empty legacy suite instead of reporting a false pass',async()=>{
+  const rootDir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-empty-qa-profile-'));
+  const manifest={systemId:'fixture',mode:'web',defaultEnvironment:'ci',defaultViewport:'desktop',environments:{ci:{baseURL:'http://local.test'}},flows:{},qaProfiles:{full:{flows:[],criticalFlows:[]}}};
+  await assert.rejects(()=>runQaProfile({manifest,rootDir,profileName:'full'}),/no active flows/);
 });

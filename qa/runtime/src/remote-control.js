@@ -66,7 +66,6 @@ function normalizeRunRequest(body, meta) {
     flow,
     environment: choose(body.environment, meta.environments || [], meta.defaults?.environment, 'environment'),
     viewport: choose(body.viewport, meta.viewports || [], meta.defaults?.viewport, 'viewport'),
-    visual: body.visual === true,
   };
 }
 
@@ -84,7 +83,7 @@ function dashboardHtml() {
 <body><main class="wrap">
 <h1>ArtiSys QA Remote Control</h1><p>Controle opcional do runner local. O GitHub Actions continua independente.</p>
 <section class="card"><label>Token</label><input id="token" type="password" autocomplete="off" placeholder="Token exibido no PC"><button id="connect">Conectar</button><div id="connection" class="muted"></div></section>
-<section class="card" id="controls" hidden><div id="system" class="muted"></div><label>Perfil</label><select id="profile"><option value="">Fluxo individual</option></select><div class="row"><div><label>Fluxo</label><select id="flow"></select></div><div><label>Ambiente</label><select id="environment"></select></div></div><label>Viewport</label><select id="viewport"></select><label><input id="visual" type="checkbox" style="width:auto;min-height:auto"> Validação visual</label><button id="run">Executar testes</button></section>
+<section class="card" id="controls" hidden><div id="system" class="muted"></div><label>Perfil</label><select id="profile"><option value="">Fluxo individual</option></select><div class="row"><div><label>Fluxo</label><select id="flow"></select></div><div><label>Ambiente</label><select id="environment"></select></div></div><label>Viewport</label><select id="viewport"></select><button id="run">Executar testes</button></section>
 <section class="card" id="result" hidden><strong>Status</strong><div id="status" class="status muted">idle</div></section>
 <section class="card" id="historyCard" hidden><strong>Histórico</strong><div id="history" class="history muted"></div></section>
 </main>
@@ -96,7 +95,7 @@ function renderHistory(items){$('history').innerHTML='';for(const item of (items
 async function connect(){token=$('token').value.trim();try{const meta=await call('/api/meta');sessionStorage.setItem('artisysQaToken',token);$('connection').textContent='Conectado';$('controls').hidden=false;$('result').hidden=false;$('system').textContent=meta.systemId;fill('profile',meta.profiles,null,true);fill('flow',meta.flows,meta.defaults?.flow);fill('environment',meta.environments,meta.defaults?.environment);fill('viewport',meta.viewports,meta.defaults?.viewport);await loadHistory();poll()}catch(e){$('connection').textContent=e.message;$('controls').hidden=true}}
 async function loadHistory(){try{renderHistory(await call('/api/history'))}catch{}}
 async function poll(){try{const s=await call('/api/status');$('status').textContent=JSON.stringify(s,null,2);$('status').className='status '+(s.state==='failed'?'err':s.state==='passed'?'ok':'muted');$('run').disabled=s.state==='running';if(s.finishedAt)loadHistory()}catch(e){$('status').textContent=e.message}timer=setTimeout(poll,1200)}
-$('connect').onclick=connect;$('run').onclick=async()=>{try{await call('/api/run',{method:'POST',body:JSON.stringify({profile:$('profile').value||null,flow:$('flow').value,environment:$('environment').value,viewport:$('viewport').value,visual:$('visual').checked})});poll()}catch(e){$('status').textContent=e.message;$('status').className='status err'}};const saved=sessionStorage.getItem('artisysQaToken');if(saved){$('token').value=saved;connect()}
+$('connect').onclick=connect;$('run').onclick=async()=>{try{await call('/api/run',{method:'POST',body:JSON.stringify({profile:$('profile').value||null,flow:$('flow').value,environment:$('environment').value,viewport:$('viewport').value})});poll()}catch(e){$('status').textContent=e.message;$('status').className='status err'}};const saved=sessionStorage.getItem('artisysQaToken');if(saved){$('token').value=saved;connect()}
 </script></body></html>`;
 }
 

@@ -9,12 +9,12 @@ const root = path.resolve(__dirname, '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const readJson = (file) => JSON.parse(read(file));
 
-test('release profile gates publication after build, installer and QA', () => {
+test('release profile validates its QA manifest without running legacy E2E flows', () => {
   const config = readJson('.artisys/release.json');
   assert.equal(config.version, '1.3.4');
   assert.deepEqual(config.requiredSteps, ['deps','lint','test','build','installer','qa']);
   assert.deepEqual(config.requiredStepsByProfile.release, ['security','evidence','publish']);
-  assert.match(config.steps.qa, /qa:full/);
+  assert.equal(config.steps.qa, 'npm run qa:validate');
   assert.match(config.steps.security.command, /security-gate\.ps1/);
   assert.match(config.steps.evidence.command, /release-evidence\.cjs/);
   assert.match(config.steps.publish.command, /publish-github-release\.ps1/);
@@ -35,8 +35,8 @@ test('Woodpecker publication is manual-only while GitHub Actions owns automatic 
   assert.match(github, /pull_request:/);
   assert.match(github, /npm run capability:check:release/);
   assert.match(github, /node --test --experimental-test-coverage test\/\*\.test\.js/);
-  assert.match(github, /npm run test:release/);
-  assert.match(github, /npm run qa:release/);
+  assert.doesNotMatch(github, /npm run test:release/);
+  assert.doesNotMatch(github, /qa:release|qa:full|qa:crosscut|fiscal:certify/);
 });
 
 test('publisher requires updater assets and blocks publication outside tag events', () => {

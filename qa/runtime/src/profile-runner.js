@@ -32,13 +32,16 @@ export async function runQaProfile({
   crosscutContracts = [],
   crosscutRunner = runCrosscutContracts,
   crosscutContext = null,
-} = {}) {
+  } = {}) {
   let lastProgress = null;
   const notify = async event => {
     lastProgress = event;
     try { await onProgress?.(event); } catch {}
   };
   const profile = resolveQaProfile(manifest, profileName);
+  if (profile.flows.length === 0 && !(profile.includeCrosscut && crosscutContracts.length > 0)) {
+    throw new Error(`QA profile ${profile.name} has no active flows; legacy E2E suites are retired pending redesign`);
+  }
   const { name: environmentName, environment } = resolveEnvironment(manifest, requestedEnvironment);
   const viewport = resolveViewport(manifest, requestedViewport);
   const results = [];

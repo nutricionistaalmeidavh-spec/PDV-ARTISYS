@@ -10,12 +10,11 @@ const {validateOperationRegistry}=require('../scripts/check-customer-capability-
 
 function tempRepo(){
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-operation-'));
-  for(const dir of ['js','server','desktop/renderer','qa/flows'])fs.mkdirSync(path.join(root,dir),{recursive:true});
+  for(const dir of ['js','server','desktop/renderer'])fs.mkdirSync(path.join(root,dir),{recursive:true});
   fs.writeFileSync(path.join(root,'js','feature.js'),'function runFeature(){}');
   fs.writeFileSync(path.join(root,'server','feature.js'),'routeFeature();');
   fs.writeFileSync(path.join(root,'desktop','renderer','client.js'),'runFeatureClient();');
   fs.writeFileSync(path.join(root,'desktop','renderer','ui.js'),'<button id="feature-action">Run</button>');
-  fs.writeFileSync(path.join(root,'qa','flows','feature.json'),'feature-action-e2e');
   return root;
 }
 
@@ -28,8 +27,7 @@ test('operation parity fails when one operation layer marker is absent',()=>{
     backend:[{path:'js/feature.js',marker:'runFeature'}],
     api:[{path:'server/feature.js',marker:'routeFeature'}],
     client:[{path:'desktop/renderer/client.js',marker:'runFeatureClient'}],
-    ui:[{path:'desktop/renderer/ui.js',marker:'missing-action'}],
-    e2e:[{path:'qa/flows/feature.json',marker:'feature-action-e2e'}]
+    ui:[{path:'desktop/renderer/ui.js',marker:'missing-action'}]
   }]};
   const result=validateOperationRegistry({root,registry,capabilityRegistry:capabilities,require100:true,required:true});
   assert.equal(result.ok,false);
@@ -37,7 +35,7 @@ test('operation parity fails when one operation layer marker is absent',()=>{
   fs.rmSync(root,{recursive:true,force:true});
 });
 
-test('P1 operation registry has complete backend -> API -> client -> UI -> E2E traceability',()=>{
+test('operation registry has complete backend -> API -> client -> UI traceability',()=>{
   const root=path.resolve(__dirname,'..');
   const capabilityRegistry=JSON.parse(fs.readFileSync(path.join(root,'release','customer-capabilities.json'),'utf8'));
   const registry=JSON.parse(fs.readFileSync(path.join(root,'release','customer-operations.json'),'utf8'));

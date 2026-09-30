@@ -444,7 +444,7 @@ git commit -m "docs: document crosscut QA hardening"
 Esta fundação não implementa ainda os subsistemas independentes abaixo; ela cria os contracts/gate que eles usarão:
 
 1. deterministic pairwise state matrix + fault injection/recovery;
-2. branch coverage por risco + visual regression baselines;
+2. branch coverage por risco;
 3. packaged Windows functional smoke + mutation testing periódico.
 
 Cada um terá plano separado e poderá ser aprovado/revertido independentemente sem desfazer `qa:crosscut`.

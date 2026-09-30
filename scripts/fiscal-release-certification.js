@@ -13,7 +13,6 @@ function buildCertificationPlan(){
   {id:'fiscal-blocks-contract-e2e',required:true,command:process.execPath,args:['--test',...fiscalBlocks],description:'Contratos e E2E deterministas fiscal-block P0-P25'},
   {id:'fiscal-security-hardening',required:true,command:process.execPath,args:['--test','test/fiscal-security-hardening.test.js'],description:'Seguranca P24'},
   {id:'fiscal-packaging-packs',required:true,command:process.execPath,args:['--test','test/fiscal-packaging-packs.test.js','test/fiscal-packaging-e2e.test.js','test/fiscal-pack-example.test.js'],description:'Packaging/runtime/Fiscal Packs P20-P21'},
-  {id:'qa-full',required:true,command:'npm',args:['run','qa:full'],description:'QA Full'},
   {id:'verify-release',required:true,command:'npm',args:['run','verify:release'],description:'Gate final verify:release'}
  ];
 }

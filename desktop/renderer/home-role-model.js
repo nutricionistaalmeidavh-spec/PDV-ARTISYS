@@ -45,6 +45,34 @@
     })
   });
 
+  const ROUTE_ACCESS = Object.freeze({
+    home: Object.freeze(['admin','manager','cashier']),
+    checkout: Object.freeze(['admin','manager','cashier']),
+    cash: Object.freeze(['admin','manager','cashier']),
+    sales: Object.freeze(['admin','manager','cashier']),
+    returns: Object.freeze(['admin','manager','cashier']),
+    customers: Object.freeze(['admin','manager','cashier']),
+    products: Object.freeze(['admin','manager']),
+    inventory: Object.freeze(['admin','manager']),
+    finance: Object.freeze(['admin','manager']),
+    reports: Object.freeze(['admin','manager']),
+    management: Object.freeze(['admin','manager']),
+    sellers: Object.freeze(['admin','manager']),
+    settings: Object.freeze(['admin','manager'])
+  });
+
+  function canAccessRoute(role, route) {
+    return Boolean(ROUTE_ACCESS[route]?.includes(role));
+  }
+
+  function canAccessModule(role) {
+    return ['admin','manager'].includes(role);
+  }
+
+  function routesForRole(role) {
+    return Object.keys(ROUTE_ACCESS).filter(route => canAccessRoute(role, route));
+  }
+
   function homeForRole(role, baseTiles = []) {
     const normalizedRole = Object.hasOwn(PRESETS, role) ? role : 'cashier';
     const preset = PRESETS[normalizedRole];
@@ -62,5 +90,5 @@
     };
   }
 
-  return Object.freeze({ ADMIN_TILES, PRESETS, homeForRole });
+  return Object.freeze({ ADMIN_TILES, PRESETS, ROUTE_ACCESS, canAccessRoute, canAccessModule, routesForRole, homeForRole });
 });

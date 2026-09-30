@@ -14,7 +14,7 @@ As ações F1/F2/F3/F4/F6/F12, alteração de preço autorizada, limpar carrinho
 
 Em monitores com pouca altura, inclusive 1366×768, o painel direito possui rolagem interna própria. Nenhum controle é removido quando o conteúdo ultrapassa a altura disponível: vendedor, cliente, itens, total, formas de pagamento, observação e finalizar permanecem alcançáveis por rolagem dentro do painel. As linhas do carrinho usam uma coluna flexível para produto/preço e uma coluna própria para quantidade/total, evitando sobreposição quando o nome do produto é longo ou quando o botão **Alterar preço** está disponível.
 
-A busca do Balcão, a busca da página **Produtos** e a busca da página **Clientes** preservam o próprio campo enquanto a digitação está em andamento. Isso evita recriar o input entre teclas e mantém a ordem enviada por leitores keyboard-wedge. O gate de QA digita código de barras e documento caractere a caractere e valida o valor final do campo.
+A busca do Balcão, a busca da página **Produtos** e a busca da página **Clientes** preservam o próprio campo enquanto a digitação está em andamento. Isso evita recriar o input entre teclas e mantém a ordem enviada por leitores keyboard-wedge. Testes funcionais automatizados verificam as regras do domínio; os E2Es antigos de UI foram removidos e serão reconstruídos com base nos fluxos atuais.
 
 Vendas podem ser suspensas e retomadas. Cancelamento de venda concluída exige permissão/motivo e gera os efeitos de reversão pelo EventBus/outbox, sem apagar o documento original.
 
@@ -28,4 +28,4 @@ O servidor continua sendo a autoridade final de permissão, quantidade disponív
 
 Devoluções parciais preservam a venda original e registram estoque/caixa como movimentos próprios e idempotentes. Depois de concluir, o histórico da própria venda é recarregado para exibir a devolução e impedir nova devolução acima da quantidade restante.
 
-O fluxo `desktop-regressions-e2e` cobre em desktop compacto 1366×768: ordem de leitura no catálogo, pesquisa de clientes sem reconstrução do input, carrinho sem overflow com nome longo e alteração de preço, e venda concluída seguida de devolução real.
+Os roteiros E2E antigos de UI, incluindo `desktop-regressions-e2e`, foram removidos. A próxima cobertura visual deverá ser criada do zero sobre o produto atual.

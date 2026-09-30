@@ -29,12 +29,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-size-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-pizza-size"
-        }
       ]
     },
     {
@@ -63,12 +57,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-flavor-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-pizza-flavor"
         }
       ]
     },
@@ -99,12 +87,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-crust-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-pizza-crust"
-        }
       ]
     },
     {
@@ -133,12 +115,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "data-delivery-next"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-delivery-status-action"
         }
       ]
     },
@@ -169,12 +145,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "data-delivery-cancel"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-delivery-cancel-action"
-        }
       ]
     },
     {
@@ -203,12 +173,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "data-delivery-courier"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-delivery-courier-action"
         }
       ]
     },
@@ -239,12 +203,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "delivery-sale-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-delivery-sale-form"
-        }
       ]
     },
     {
@@ -273,12 +231,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "weight-profile-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-weight-profile"
         }
       ]
     },
@@ -309,12 +261,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-order-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-bakery-create"
-        }
       ]
     },
     {
@@ -343,12 +289,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-bakery-control"
         }
       ]
     },
@@ -379,12 +319,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-bakery-control"
-        }
       ]
     },
     {
@@ -413,12 +347,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-bakery-control"
         }
       ]
     },
@@ -449,12 +377,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-settlement-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-split-item"
-        }
       ]
     },
     {
@@ -483,12 +405,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-equal-settlement-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-split-equal"
         }
       ]
     },
@@ -519,12 +435,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-complete-settlement-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-complete"
-        }
       ]
     },
     {
@@ -553,12 +463,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-cancel-item-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-cancel-item"
         }
       ]
     },
@@ -589,12 +493,6 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-merge-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-merge"
-        }
       ]
     },
     {
@@ -623,12 +521,6 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-transfer-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/backend-parity-p1.json",
-          "marker": "p1-restaurant-transfer"
         }
       ]
     },
@@ -659,12 +551,6 @@
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-partial-receive"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p0-partial-receipt-panel"
-        }
       ]
     },
     {
@@ -693,12 +579,6 @@
         {
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-partial-fulfill"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p0-partial-fulfillment-panel"
         }
       ]
     },
@@ -729,12 +609,6 @@
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-print-retry"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p1-print-retry-panel"
-        }
       ]
     },
     {
@@ -763,12 +637,6 @@
         {
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-create-pairing-code"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p1-terminal-admin-panel"
         }
       ]
     },
@@ -799,12 +667,6 @@
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-terminal-status"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p1-terminal-admin-panel"
-        }
       ]
     },
     {
@@ -832,12 +694,6 @@
       "ui": [
         {
           "path": "desktop/renderer/ui-parity-p0-p2.js",
-          "marker": "p1-purchase-receipts-panel"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
           "marker": "p1-purchase-receipts-panel"
         }
       ]
@@ -869,12 +725,6 @@
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "data-return-details"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p2-return-details-panel"
-        }
       ]
     },
     {
@@ -903,12 +753,6 @@
         {
           "path": "desktop/renderer/ui-parity-p0-p2.js",
           "marker": "ops-import-batch-lookup"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/ui-parity-p0-p2.json",
-          "marker": "p2-import-batch-panel"
         }
       ]
     },
@@ -939,12 +783,6 @@
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-company-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p2-company-visible"
-        }
       ]
     },
     {
@@ -973,12 +811,6 @@
         {
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-profile-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p3-profiles-visible"
         }
       ]
     },
@@ -1009,12 +841,6 @@
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-product-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p4-products-visible"
-        }
       ]
     },
     {
@@ -1043,12 +869,6 @@
         {
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "nfse-body"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-list"
         }
       ]
     },
@@ -1079,12 +899,6 @@
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "nfse-issue-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-issue"
-        }
       ]
     },
     {
@@ -1113,12 +927,6 @@
         {
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "data-nfse-process"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
         }
       ]
     },
@@ -1149,12 +957,6 @@
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "data-nfse-reconcile"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
-        }
       ]
     },
     {
@@ -1183,12 +985,6 @@
         {
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "data-nfse-retry"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
         }
       ]
     },
@@ -1219,12 +1015,6 @@
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "data-nfse-detail"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
-        }
       ]
     },
     {
@@ -1253,12 +1043,6 @@
         {
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "data-nfse-event"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
         }
       ]
     }

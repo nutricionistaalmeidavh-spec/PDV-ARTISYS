@@ -62,4 +62,4 @@ A especificação de layout/QR Code deve continuar acompanhando o Manual de Espe
 
 ## Evidência esperada para fechamento
 
-O Bloco 5 só deve ser considerado concluído quando `npm run verify:release` e o E2E Electron de release estiverem verdes no commit final da branch. Emissão/cancelamento reais na SEFAZ continuam evidência externa (`BLOCKED_EXTERNAL`) até execução em ambiente de homologação autorizado com certificado e credenciais válidos.
+O E2E Electron de release legado foi removido e não é mais critério de conclusão. A verificação automatizada atual cobre os testes funcionais e gates ainda registrados; a nova cobertura de interface deverá ser desenhada separadamente. Emissão/cancelamento reais na SEFAZ continuam evidência externa (`BLOCKED_EXTERNAL`) até execução em ambiente de homologação autorizado com certificado e credenciais válidos.

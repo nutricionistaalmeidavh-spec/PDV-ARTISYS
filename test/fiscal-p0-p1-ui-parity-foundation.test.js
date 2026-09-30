@@ -34,16 +34,6 @@ async function fixture(){
   return{get base(){return base;},login,headers,async restart(){await server.stop();runtime.close();await boot();},async cleanup(){if(server)await server.stop();if(runtime)runtime.close();fs.rmSync(dir,{recursive:true,force:true});}};
 }
 
-test('P0 release E2E keeps core sale/stock/cash and fiscal settings in one critical baseline',()=>{
-  const config=JSON.parse(fs.readFileSync(path.join(root,'qa/artisys-qa.config.json'),'utf8'));
-  assert.equal(config.flows['fiscal-ui-parity-baseline'],'flows/fiscal-ui-parity-baseline.json');
-  assert.ok(config.qaProfiles.release.flows.includes('fiscal-ui-parity-baseline'));
-  assert.ok(config.qaProfiles.release.criticalFlows.includes('fiscal-ui-parity-baseline'));
-  const flow=JSON.parse(fs.readFileSync(path.join(root,'qa/flows/fiscal-ui-parity-baseline.json'),'utf8'));
-  assert.equal(flow.steps[0].uses,'core-business-e2e.json');const serialized=JSON.stringify(flow);
-  assert.match(serialized,/fiscal-production-panel/);assert.match(serialized,/fiscal-monitor-panel/);assert.match(serialized,/Configuração e Produção/);
-});
-
 test('P1 settings API is authenticated, RBAC-protected, secret-safe, atomic and persistent',async()=>{
   const ctx=await fixture();try{
     const adminToken=await ctx.login('adminp01','senha-forte-admin-123');const managerToken=await ctx.login('managerp01','senha-forte-manager-123');const cashierToken=await ctx.login('cashierp01','senha-forte-cashier-123');

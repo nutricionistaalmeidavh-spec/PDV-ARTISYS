@@ -20,43 +20,39 @@ test('pins synchronized ArtiSys QA runtime',()=>{
 });
 
 test('vendors runtime capabilities used by CI',()=>{
-  for(const relative of ['qa/runtime/src/cli.mjs','qa/runtime/src/profile-runner.js','qa/runtime/src/profiles.js','qa/runtime/src/visual.js','qa/runtime/src/remote-control.js','qa/runtime/src/agent-cli.mjs','qa/runtime/src/telemetry-store.js','qa/runtime/src/release-gate.js','qa/runtime/src/product-report.js']) assert.equal(fs.existsSync(path.join(root,relative)),true,relative);
+  for(const relative of ['qa/runtime/src/cli.mjs','qa/runtime/src/profile-runner.js','qa/runtime/src/profiles.js','qa/runtime/src/remote-control.js','qa/runtime/src/agent-cli.mjs','qa/runtime/src/telemetry-store.js','qa/runtime/src/release-gate.js','qa/runtime/src/product-report.js']) assert.equal(fs.existsSync(path.join(root,relative)),true,relative);
+  assert.equal(fs.existsSync(path.join(root,'qa/runtime/src/visual.js')),false);
   assert.match(readText('qa/runtime/src/profile-runner.js'),/writeCiQaSummary/);
 });
 
-test('PDV release profile preserves current gates and adds ERP finance P0-P3 E2E',()=>{
-  const config=readJson('qa/artisys-qa.config.json');
-  const legacyReleaseFlows=['smoke','home','sales-enhancements','checkout-ux-preservation','post-sale-print-pdf','printing-settings-e2e','reports-v2-complete','core-business-e2e','ux-products-clients-cross-flow','products-deep-e2e','customers-deep-e2e','ux-products-clients-flags-e2e','ux-products-clients-responsive-evidence','desktop-regressions-e2e','enterprise-depth-p0','backend-parity-p0','backend-parity-p1','whatsapp-pickup-ready-e2e','ui-parity-p0-p2','fiscal-block6','fiscal-ui-parity-baseline','fiscal-config-p2-p5','fiscal-nfse-p8','restaurant-module-sync-e2e','pizzeria-module-sync-e2e','delivery-module-sync-e2e','fast-food-module-sync-e2e','market-bakery-module-sync-e2e','retail-module-sync-e2e','services-module-sync-e2e','workshop-module-sync-e2e','self-service-module-sync-e2e'];
-  const erpFinanceFlows=['finance-management-base-e2e','finance-source-link-e2e','finance-dimensions-e2e','finance-base-idempotency-e2e','business-dashboard-e2e','dre-e2e','cashflow-e2e','period-comparison-e2e','cost-center-e2e','statement-ofx-e2e','statement-dedupe-e2e','reconciliation-payable-e2e','reconciliation-receivable-e2e','bank-transfer-e2e','finance-recurrence-e2e','recurrence-idempotency-e2e','financial-alerts-e2e','cash-projection-e2e'];
-  const releaseFlows=[...legacyReleaseFlows,...erpFinanceFlows];
-  assert.deepEqual(config.qaProfiles.quick.flows,['smoke']);
-  assert.deepEqual(config.qaProfiles.full.flows,releaseFlows);
-  assert.deepEqual(config.qaProfiles.full.criticalFlows,releaseFlows);
-  assert.deepEqual(config.qaProfiles.release.flows,releaseFlows);
-  assert.deepEqual(config.qaProfiles.release.criticalFlows,releaseFlows);
-  for(const name of legacyReleaseFlows) assert.equal(config.flows[name]?.startsWith('flows/'),true,`${name} remains registered`);
-  for(const name of erpFinanceFlows) assert.equal(config.flows[name],`flows/${name}.json`,`${name} ERP finance flow is registered`);
+test('legacy flow suites are not exposed as package commands or CI gates',()=>{
+  const pkg=readJson('package.json');
+  const github=readText('.github/workflows/verify.yml');
+  const circle=readText('.circleci/config.yml');
+  for(const script of ['qa:quick','qa:full','qa:release','qa:crosscut','qa:remote','qa:ux:finalize']) assert.equal(pkg.scripts[script],undefined,`${script} should be retired`);
+  assert.equal(typeof pkg.scripts['qa:validate'],'string');
+  assert.doesNotMatch(github,/qa:release|qa:full|qa:crosscut|fiscal:certify/);
+  assert.doesNotMatch(circle,/qa:quick|qa_smoke/);
 });
 
 test('future QA updates remain explicit and local-first',()=>{
   const pkg=readJson('package.json');
   assert.equal(pkg.scripts['qa:update'],'node scripts/sync-artisys-qa.mjs');
-  assert.match(pkg.scripts['qa:quick'],/artisys-qa\.mjs quick/);
-  assert.match(pkg.scripts['qa:full'],/artisys-qa\.mjs full/);
-  assert.match(pkg.scripts['qa:release'],/artisys-qa\.mjs release/);
+  assert.equal(pkg.scripts['qa:validate'],'node qa/runtime/artisys-qa.mjs validate --config qa/artisys-qa.config.json');
   const sync=readText('scripts/sync-artisys-qa.mjs');
   assert.match(sync,/ARTISYS_QA_SOURCE/);
   assert.match(sync,/qa\/artisys-qa\.config\.json/);
 });
 
-test('CircleCI verifies release before quick QA',()=>{
+test('CircleCI verifies release without launching a legacy QA flow',()=>{
   const circle=readText('.circleci/config.yml');
   assert.match(circle,/command: npm run verify:release/);
-  assert.match(circle,/xvfb-run -a npm run qa:quick/);
+  assert.doesNotMatch(circle,/qa:quick|qa_smoke/);
 });
 
-test('GitHub QA capture remains compatible with run and demo commands',()=>{
+test('GitHub QA capture is manual demo-only and cannot run legacy E2E flows',()=>{
   const workflow=readText('.github/workflows/qa-capture.yml');
   assert.match(workflow,/artisys-qa\.mjs demo/);
-  assert.match(workflow,/artisys-qa\.mjs run/);
+  assert.doesNotMatch(workflow,/artisys-qa\.mjs run/);
+  assert.doesNotMatch(workflow,/pull_request:|^  push:/m);
 });

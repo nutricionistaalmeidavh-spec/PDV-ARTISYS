@@ -1,8 +1,0 @@
-{
-  "name":"core-business-e2e",
-  "steps":[
-    {"uses":"core-business-e2e-base.json"},
-    {"uses":"catalog-user-management-e2e.json"},
-    {"action":"screenshot","name":"phase4-core-business-e2e","fullPage":true}
-  ]
-}

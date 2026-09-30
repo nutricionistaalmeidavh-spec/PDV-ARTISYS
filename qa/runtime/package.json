@@ -46,7 +46,6 @@
     "./fixture-registry": "./src/fixture-registry.js",
     "./flow-library": "./src/flow-library.js",
     "./redaction": "./src/redaction.js",
-    "./visual": "./src/visual.js",
     "./remote-control": "./src/remote-control.js",
     "./product-report": "./src/product-report.js"
   },

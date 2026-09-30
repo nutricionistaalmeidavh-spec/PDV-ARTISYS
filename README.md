@@ -160,21 +160,14 @@ Pagamentos são registrados manualmente no PDV. Não há dependência obrigatór
 npm run docs:check
 npm run verify
 npm run verify:release
-npm run qa:quick
-npm run qa:full
-npm run qa:release
-npm run qa:crosscut
+npm run qa:validate
 npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.1-x64-Setup.exe
 ```
 
-`docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre domínio, API, UI, arquitetura, documentação e integrações locais. `verify:release` acrescenta os gates de release, incluindo cenários críticos de concorrência, recovery, segurança e fluxos E2E.
+`docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness. Os antigos fluxos E2E e comparadores visuais foram retirados dos gates enquanto os fluxos de produto são redesenhados; não são evidência de aprovação funcional da versão atual.
 
-Os perfis de QA têm responsabilidades separadas. `qa:quick` mantém o smoke barato; `qa:full` amplia a regressão funcional; `qa:release` executa os fluxos funcionais críticos de publicação. `qa:crosscut` é um gate dedicado de produto para comportamento transversal que cruza telas, módulos ou clientes: sincronização de estado, contratos dos módulos opcionais e saúde do renderer. Ele **não reexecuta** toda a suíte `full`/`release` e complementa — nunca substitui — `qa:release`.
-
-Falhas de rede explicitamente classificadas como esperadas continuam registradas como evidência e não bloqueiam sozinhas o gate. Erros inesperados de renderer/rede, contratos críticos descobertos sem cobertura ou findings críticos bloqueiam o `qa:crosscut`. O bundle consolidado é gravado sob `qa-artifacts/` em uma pasta por execução no formato `pdv-artisys-<run-id>`, e a cobertura versionada fica em `release/e2e-coverage.json`.
-
-O QA transversal usa apenas o runtime local vendorizado no repositório e a infraestrutura já executada pelo próprio projeto; não adiciona SaaS ou serviço pago obrigatório.
+Os arquivos dos fluxos antigos permanecem apenas como referência histórica fora dos gates. Eles não devem ser tratados como testes atuais nem reativados sem atualização para os fluxos e a interface presentes no produto.
 
 Mudanças relevantes na `main` podem disparar `release-windows`, que executa os gates, gera o NSIS x64, valida os artefatos e publica a GitHub Release consumida pelo updater. Alterações somente em documentação/testes não precisam gerar um novo instalador.
 

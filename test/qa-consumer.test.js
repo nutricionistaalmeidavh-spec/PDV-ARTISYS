@@ -12,14 +12,13 @@ test('PDV declares a reusable ArtiSys QA consumer manifest', () => {
   assert.equal(config.systemId, 'pdv-artisys');
   assert.equal(config.mode, 'electron');
   assert.equal(config.defaultEnvironment, 'ci');
-  assert.equal(config.defaultFlow, 'smoke');
+  assert.equal(config.defaultFlow, undefined);
   assert.equal(config.defaultDemo, 'quick-30s');
   assert.equal(config.capture.video, true);
   assert.ok(config.electron.entry.endsWith('desktop/main.cjs'));
   assert.ok(config.electron.executablePath.includes('node_modules/electron'));
-  for (const flow of Object.values(config.flows)) {
-    assert.ok(fs.existsSync(path.resolve(path.dirname(configPath), flow)), `missing flow ${flow}`);
-  }
+  assert.deepEqual(config.flows, {});
+  for (const profile of Object.values(config.qaProfiles)) assert.deepEqual(profile.flows, []);
   for (const [name, demo] of Object.entries(config.demos)) {
     assert.ok(fs.existsSync(path.resolve(path.dirname(configPath), demo.file)), `missing demo ${name}`);
     assert.ok(['reels-9x16', 'landscape-16x9', 'square-1x1'].includes(demo.preset));
@@ -29,10 +28,7 @@ test('PDV declares a reusable ArtiSys QA consumer manifest', () => {
 
 test('QA and demo flows use stable hooks and no embedded secrets', () => {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  const files = [
-    ...Object.values(config.flows),
-    ...Object.values(config.demos).map(demo => demo.file),
-  ];
+  const files = Object.values(config.demos).map(demo => demo.file);
   for (const flowPath of files) {
     const flow = JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath), flowPath), 'utf8'));
     assert.ok(Array.isArray(flow.steps) && flow.steps.length > 0);

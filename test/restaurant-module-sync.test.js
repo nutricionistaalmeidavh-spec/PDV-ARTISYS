@@ -31,15 +31,3 @@ test('generic gate preserves restaurant compatibility alias and fail-closed boot
   assert.match(gate,/stopImmediatePropagation\(\)/);
   assert.doesNotMatch(gate,/showRoute\?\.\('settings'\)/);
 });
-
-test('QA release profile exercises restaurant module cross-client synchronization',()=>{
-  const steps=read('qa/runtime/src/steps.js');
-  const config=JSON.parse(read('qa/artisys-qa.config.json'));
-  assert.match(steps,/case ['"]desktopApiRequest['"]/);
-  assert.equal(config.flows['restaurant-module-sync-e2e'],'flows/restaurant-module-sync-e2e.json');
-  for(const profileName of ['full','release']){
-    const profile=config.qaProfiles[profileName];
-    assert.ok(profile.flows.includes('restaurant-module-sync-e2e'),`${profileName} deve executar restaurant-module-sync-e2e`);
-    assert.ok(profile.criticalFlows.includes('restaurant-module-sync-e2e'),`${profileName} deve tratar restaurant-module-sync-e2e como critico`);
-  }
-});

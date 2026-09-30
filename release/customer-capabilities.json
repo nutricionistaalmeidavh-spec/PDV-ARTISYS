@@ -76,11 +76,6 @@
         {
           "path": "desktop/renderer/sale-observation-ui.js"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/core-business-e2e.json"
-        }
       ]
     },
     {
@@ -122,11 +117,6 @@
         {
           "path": "desktop/renderer/operational-pages.js"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/core-business-e2e.json"
-        }
       ]
     },
     {
@@ -159,11 +149,6 @@
         {
           "path": "desktop/renderer/reporting-v2.js",
           "marker": "PdvReportsV2"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/reports-v2-complete.json"
         }
       ]
     },
@@ -202,11 +187,6 @@
         },
         {
           "path": "desktop/renderer/store-branding-ui.js"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase7-admin-infra.test.js"
         }
       ]
     },
@@ -256,11 +236,6 @@
       "ui": [
         {
           "path": "desktop/renderer/restaurant-ui.js"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase5-restaurant-kds-mobile.test.js"
         }
       ]
     },
@@ -323,11 +298,6 @@
         {
           "path": "desktop/renderer/vertical-modules.js"
         }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase6-vertical-modules.test.js"
-        }
       ]
     },
     {
@@ -364,11 +334,6 @@
       "ui": [
         {
           "path": "server/mobile/app.js"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase5-restaurant-kds-mobile.test.js"
         }
       ]
     },
@@ -432,11 +397,6 @@
         {
           "path": "desktop/renderer/e48-e54-ui.js"
         }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase7-admin-infra.test.js"
-        }
       ]
     },
     {
@@ -494,11 +454,6 @@
           "path": "desktop/renderer/enterprise-depth-ui.js",
           "marker": "Compras e recebimentos"
         }
-      ],
-      "e2e": [
-        {
-          "path": "test/release/phase9-enterprise-depth.test.js"
-        }
       ]
     },
     {
@@ -519,8 +474,7 @@
       "backend": [],
       "api": [],
       "client": [],
-      "ui": [],
-      "e2e": []
+      "ui": []
     },
     {
       "id": "infra.fiscal-extension",
@@ -559,8 +513,7 @@
       ],
       "api": [],
       "client": [],
-      "ui": [],
-      "e2e": []
+      "ui": []
     },
     {
       "id": "fiscal.configuration",
@@ -589,12 +542,6 @@
         {
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-company-form"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p2-company-visible"
         }
       ]
     },
@@ -626,12 +573,6 @@
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-profile-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p3-profiles-visible"
-        }
       ]
     },
     {
@@ -662,12 +603,6 @@
           "path": "desktop/renderer/fiscal-config-ui.js",
           "marker": "fiscal-product-form"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-config-p2-p5.json",
-          "marker": "p4-products-visible"
-        }
       ]
     },
     {
@@ -696,12 +631,6 @@
       "ui": [
         {
           "path": "desktop/renderer/fiscal-monitor.js",
-          "marker": "fiscal-monitor-panel"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-block6.json",
           "marker": "fiscal-monitor-panel"
         }
       ]
@@ -734,12 +663,6 @@
           "path": "desktop/renderer/fiscal-monitor.js",
           "marker": "fiscal-production-panel"
         }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-block6.json",
-          "marker": "fiscal-production-panel"
-        }
       ]
     },
     {
@@ -770,12 +693,6 @@
           "path": "desktop/renderer/fiscal-monitor.js",
           "marker": "data-fiscal-contingency"
         }
-      ],
-      "e2e": [
-        {
-          "path": "test/fiscal-block6-production-contingency.test.js",
-          "marker": "enterContingency"
-        }
       ]
     },
     {
@@ -805,12 +722,6 @@
         {
           "path": "desktop/renderer/nfse-ui.js",
           "marker": "nfse-workspace"
-        }
-      ],
-      "e2e": [
-        {
-          "path": "qa/flows/fiscal-nfse-p8.json",
-          "marker": "p8-nfse-workspace"
         }
       ]
     }

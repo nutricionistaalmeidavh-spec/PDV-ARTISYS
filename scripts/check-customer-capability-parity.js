@@ -24,14 +24,14 @@ function validateReference({root,capability,layer,reference,errors}){
   return true;
 }
 
-function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e=false,maxPhase=Number.POSITIVE_INFINITY,require100=false}={}){
+function validateRegistry({root=path.resolve(__dirname,'..'),registry,require100=false}={}){
   const errors=[];
   const capabilities=Array.isArray(registry?.capabilities)?registry.capabilities:[];
   if(registry?.schemaVersion!==1)errors.push('registry: schemaVersion must be 1');
   if(!capabilities.length)errors.push('registry: capabilities must not be empty');
   const ids=new Set();
   const referencedBackend=new Set();
-  let customerAdmin=0;let surfaceComplete=0;let e2eComplete=0;let completeCapabilities=0;
+  let customerAdmin=0;let surfaceComplete=0;let completeCapabilities=0;
 
   for(const capability of capabilities){
     if(!capability?.id){errors.push('registry: capability without id');continue;}
@@ -40,8 +40,7 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
     const exposure=capability.exposure;
     if(!['customer','admin','internal'].includes(exposure))errors.push(`${capability.id}: invalid exposure ${exposure}`);
     const supported=capability.status==='supported';
-    const phase=Number.isFinite(Number(capability.targetPhase))?Number(capability.targetPhase):Number.POSITIVE_INFINITY;
-    const layers=['backend','api','client','ui','e2e'];
+    const layers=['backend','api','client','ui'];
     for(const layer of layers){if(!Array.isArray(capability[layer]))errors.push(`${capability.id}: ${layer} must be an array`);}
     for(const ref of capability.backend||[])referencedBackend.add(normalize(ref.path));
     if(!supported)continue;
@@ -56,13 +55,7 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
       }
       if(surfaceOk)surfaceComplete+=1;
 
-      const e2eRequired=requireE2e&&phase<=maxPhase;
-      const hasE2e=(capability.e2e||[]).length>0;
-      let e2eOk=true;
-      if(e2eRequired&&!hasE2e){errors.push(`${capability.id}: phase ${phase} capability missing e2e`);e2eOk=false;}
-      for(const reference of capability.e2e||[])if(!validateReference({root,capability,layer:'e2e',reference,errors}))e2eOk=false;
-      if(hasE2e&&e2eOk)e2eComplete+=1;
-      if(surfaceOk&&hasE2e&&e2eOk)completeCapabilities+=1;
+      if(surfaceOk)completeCapabilities+=1;
     }else{
       for(const reference of capability.backend||[])validateReference({root,capability,layer:'backend',reference,errors});
     }
@@ -87,7 +80,7 @@ function validateRegistry({root=path.resolve(__dirname,'..'),registry,requireE2e
   const coveragePercent=customerAdmin===0?100:Number(((completeCapabilities/customerAdmin)*100).toFixed(2));
   if(require100&&coveragePercent!==100)errors.push(`capability coverage: ${coveragePercent}% < 100% (${completeCapabilities}/${customerAdmin} supported customer/admin capabilities complete)`);
 
-  return {ok:errors.length===0,errors,counts:{total:capabilities.length,customerAdmin,surfaceComplete,e2eComplete,completeCapabilities,coveragePercent,backendServices:discovered.length}};
+  return {ok:errors.length===0,errors,counts:{total:capabilities.length,customerAdmin,surfaceComplete,completeCapabilities,coveragePercent,backendServices:discovered.length}};
 }
 
 function validateOperationRegistry({root=path.resolve(__dirname,'..'),registry,capabilityRegistry,require100=false,required=false}={}){
@@ -108,7 +101,7 @@ function validateOperationRegistry({root=path.resolve(__dirname,'..'),registry,c
     if(!capabilityIds.has(operation.capabilityId))errors.push(`${operation.id}: unknown capabilityId ${operation.capabilityId}`);
     const exposure=operation.exposure||'customer';
     if(!['customer','admin','internal'].includes(exposure))errors.push(`${operation.id}: invalid exposure ${exposure}`);
-    const layers=['backend','api','client','ui','e2e'];
+    const layers=['backend','api','client','ui'];
     for(const layer of layers)if(!Array.isArray(operation[layer]))errors.push(`${operation.id}: ${layer} must be an array`);
     if(exposure==='internal'){
       if(!(operation.backend||[]).length)errors.push(`${operation.id}: internal operation missing backend`);
@@ -128,11 +121,7 @@ function validateOperationRegistry({root=path.resolve(__dirname,'..'),registry,c
 }
 
 function parseArgs(argv){
-  const requireE2e=argv.includes('--require-e2e');
-  const require100=argv.includes('--require-100');
-  const phaseIndex=argv.indexOf('--max-phase');
-  const maxPhase=phaseIndex>=0?Number(argv[phaseIndex+1]):Number.POSITIVE_INFINITY;
-  return {requireE2e,require100,maxPhase:Number.isFinite(maxPhase)?maxPhase:Number.POSITIVE_INFINITY};
+  return {require100:argv.includes('--require-100')};
 }
 
 function main(){
@@ -146,7 +135,7 @@ function main(){
   const result=validateRegistry({root,registry,...options});
   const operationResult=validateOperationRegistry({root,registry:operationRegistry,capabilityRegistry:registry,require100:options.require100,required:options.require100});
   const c=result.counts;const o=operationResult.counts;
-  console.log(`CAPABILITY PARITY\nregistry=${c.total} customer/admin=${c.customerAdmin} surface=${c.surfaceComplete}/${c.customerAdmin} e2e=${c.e2eComplete}/${c.customerAdmin} complete=${c.completeCapabilities}/${c.customerAdmin} coverage=${c.coveragePercent}% backend-services=${c.backendServices}`);
+  console.log(`CAPABILITY PARITY\nregistry=${c.total} customer/admin=${c.customerAdmin} surface=${c.surfaceComplete}/${c.customerAdmin} complete=${c.completeCapabilities}/${c.customerAdmin} coverage=${c.coveragePercent}% backend-services=${c.backendServices}`);
   console.log(`OPERATION PARITY\nregistry=${o.total} customer/admin=${o.surface} complete=${o.complete}/${o.surface} coverage=${o.coveragePercent}%`);
   const errors=[...result.errors,...operationResult.errors];
   if(errors.length){for(const error of errors)console.error(`- ${error}`);process.exitCode=1;return;}

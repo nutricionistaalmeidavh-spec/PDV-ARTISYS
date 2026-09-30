@@ -1,9 +1,9 @@
 const PROFILE_NAMES = ['quick', 'full', 'release'];
 
 const DEFAULTS = {
-  quick: { critical: false, includeVisual: false, includeDesktop: false, includeNetwork: false, includeCrosscut: false },
-  full: { critical: false, includeVisual: false, includeDesktop: true, includeNetwork: true, includeCrosscut: false },
-  release: { critical: true, includeVisual: false, includeDesktop: true, includeNetwork: true, includeCrosscut: false },
+  quick: { critical: false, includeDesktop: false, includeNetwork: false, includeCrosscut: false },
+  full: { critical: false, includeDesktop: true, includeNetwork: true, includeCrosscut: false },
+  release: { critical: true, includeDesktop: true, includeNetwork: true, includeCrosscut: false },
 };
 
 function manifestFlows(manifest) {

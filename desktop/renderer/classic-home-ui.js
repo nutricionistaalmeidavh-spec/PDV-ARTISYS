@@ -81,6 +81,10 @@
   function adoptExtraLaunchers(nativeHome, canonicalHome) {
     const extras = [...nativeHome.querySelectorAll(':scope > .home-tile:not([data-home-route])')];
     if (!extras.length) return;
+    if (!roleModel.canAccessModule(document.body.dataset.userRole || 'cashier')) {
+      canonicalHome.querySelector('.classic-home-extras')?.remove();
+      return;
+    }
     let section = canonicalHome.querySelector('.classic-home-extras');
     if (!section) {
       section = document.createElement('section');

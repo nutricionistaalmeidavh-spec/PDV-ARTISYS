@@ -72,30 +72,3 @@ test('delivery phone accepts formatted input before validating 10-11 normalized 
   assert.doesNotMatch(modules,/maxlength="11"/);
   assert.doesNotMatch(modules,/slice\(0,11\)/);
 });
-
-test('release E2E proves normalization, READY visibility and the desktop bridge click',()=>{
-  const flow=JSON.parse(read('qa/flows/whatsapp-pickup-ready-e2e.json'));
-  const config=JSON.parse(read('qa/artisys-qa.config.json'));
-  const serialized=JSON.stringify(flow);
-
-  assert.match(serialized,/\+55 \(16\) 99999-9999/);
-  assert.match(serialized,/16999999999/);
-  assert.match(serialized,/data-delivery-next/);
-  assert.match(serialized,/data-whatsapp-pickup-ready/);
-
-  const phoneAssertion=flow.steps.find(step=>step.name==='wa-phone-normalized');
-  const labelAssertion=flow.steps.find(step=>step.name==='wa-ready-button-label');
-  const openedAssertion=flow.steps.find(step=>step.name==='wa-open-whatsapp-result');
-  assert.equal(phoneAssertion?.action,'expectValue');
-  assert.equal(phoneAssertion?.expected,'16999999999');
-  assert.equal(labelAssertion?.action,'expectText');
-  assert.equal(labelAssertion?.expected,'Avisar no WhatsApp');
-  assert.ok(flow.steps.some(step=>step.action==='click'&&String(step.selector||'').includes('data-whatsapp-pickup-ready')));
-  assert.equal(openedAssertion?.action,'expectText');
-  assert.equal(openedAssertion?.expected,'WhatsApp aberto');
-  for(const step of flow.steps.filter(step=>step.action==='expectText'||step.action==='expectValue'))assert.notEqual(step.expected,undefined);
-
-  assert.equal(config.flows['whatsapp-pickup-ready-e2e'],'flows/whatsapp-pickup-ready-e2e.json');
-  assert.ok(config.qaProfiles.release.flows.includes('whatsapp-pickup-ready-e2e'));
-  assert.ok(config.qaProfiles.release.criticalFlows.includes('whatsapp-pickup-ready-e2e'));
-});

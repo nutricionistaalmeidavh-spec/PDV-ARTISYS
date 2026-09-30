@@ -129,9 +129,11 @@
 
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
-    const items = ['home','checkout','products','customers','inventory','finance','reports'];
-    if (['admin','manager'].includes(state.user?.role)) items.push('management','sellers');
+    const roleModel = window.PdvHomeRoleModel;
+    const items = roleModel?.routesForRole(state.user?.role) || ['home','checkout','products','customers','inventory','finance','reports'];
     nav.innerHTML = items.map((route) => `<button class="nav-button ${state.route === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
+    const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
+    if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
     window.dispatchEvent(new CustomEvent('artisys:sidebar-rendered'));
   }
@@ -176,6 +178,7 @@
 
   async function navigate(route) {
     if (!ROUTES[route]) route = 'home';
+    if (!window.PdvHomeRoleModel?.canAccessRoute(state.user?.role, route)) route = 'home';
     state.route = route;
     document.body.dataset.activeRoute = route;
     document.body.classList.toggle('theme-home', route === 'home');

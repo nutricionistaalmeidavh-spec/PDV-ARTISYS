@@ -56,4 +56,4 @@ Leituras e mutações ERP Financeiro exigem sessão válida e papel `admin` ou `
 
 ## Gates obrigatórios
 
-P0–P3 só é considerado fechado quando passam testes unitários/integração, os **18 E2E Electron release-critical**, `npm run verify`, `npm run qa:release` e `npm run verify:release`. Os E2E cobrem dimensões, idempotência, dashboard, DRE, Fluxo de caixa, comparação, centro de custo, OFX/deduplicação, Conciliação pagar/receber, transferência, Recorrências/idempotência, Alertas e projeção negativa.
+Os fluxos E2E deste plano são legados e não fazem parte dos gates ativos. O estado atual deve ser verificado pelos testes unitários/de integração e `npm run verify:release`; `qa:validate` apenas valida a configuração do harness. Novos fluxos devem ser especificados e implementados a partir da UI atual antes de voltarem a bloquear integração ou release.

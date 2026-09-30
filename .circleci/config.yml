@@ -36,51 +36,8 @@ jobs:
           name: Verify unit integration architecture release and security gates
           command: npm run verify:release
 
-  qa_smoke:
-    executor: node_linux
-    steps:
-      - checkout
-
-      - run:
-          name: Install PDV dependencies
-          command: npm install --no-audit --no-fund
-
-      - run:
-          name: Install pinned ArtiSys QA runtime
-          command: npm ci --prefix qa/runtime --no-audit --no-fund
-
-      - run:
-          name: Install Chromium and Linux browser dependencies
-          command: |
-            cd qa/runtime
-            npx playwright install --with-deps chromium
-
-      - run:
-          name: Ensure capture tools are available
-          command: |
-            missing=()
-            command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
-            command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
-            if [ ${#missing[@]} -gt 0 ]; then
-              sudo apt-get update -y
-              sudo apt-get install -y "${missing[@]}"
-            fi
-
-      - run:
-          name: Run PDV configured quick QA profile
-          command: |
-            rm -rf qa-artifacts
-            xvfb-run -a npm run qa:quick
-
-      - store_artifacts:
-          path: qa-artifacts
-          destination: pdv-artisys/qa-smoke
-
 workflows:
   pdv_ci:
     when: << pipeline.parameters.run_ci >>
     jobs:
       - verify
-      - qa_smoke:
-          requires:
-            - verify

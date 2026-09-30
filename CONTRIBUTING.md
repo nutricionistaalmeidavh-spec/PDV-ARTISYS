@@ -30,22 +30,6 @@ O comando `npm run verify` inclui `npm run docs:check`, que valida invariantes d
 
 Essa regra vale para código, UI, banco, API, módulos, hardware, QA, build/release e infraestrutura.
 
-## QA transversal obrigatório
+## Fluxos E2E legados
 
-O gate `npm run qa:crosscut` cobre riscos de produto que não pertencem a uma única tela ou fluxo funcional: sincronização de estado entre clientes, contratos de módulos opcionais e saúde do renderer. Ele complementa `qa:release`; não é permitido remover, reduzir ou substituir o gate funcional de release para fazer o crosscut passar.
-
-Mudanças que adicionam ou alteram módulo opcional devem manter cobertura em `qa/crosscut/modules.json` para launcher, proteção de rota/mutação e sincronização viva quando aplicável. Uma subcapacidade realmente não aplicável precisa de motivo explícito versionado; ausência silenciosa de cobertura não é aceita.
-
-Mudanças que alteram estado compartilhado entre desktop, LAN, mobile ou outro cliente devem incluir evidência executável de sincronização quando houver comportamento observável entre clientes. Para o Restaurante, a regressão canônica é `qa/flows/restaurant-module-sync-e2e.json`.
-
-Falhas de rede esperadas podem ser classificadas explicitamente e permanecem no bundle de evidência. Falhas inesperadas de rede/renderer, findings críticos e contratos críticos descobertos sem cobertura não podem ser suprimidos silenciosamente e devem bloquear o gate.
-
-Antes de integrar uma alteração transversal no `main`, execute os gates aplicáveis após a última mudança:
-
-```bash
-npm run verify:release
-npm run qa:release
-npm run qa:crosscut
-```
-
-O bundle agregado de `qa:crosscut` deve ficar limpo sob `qa-artifacts/` em uma pasta por execução no formato `pdv-artisys-<run-id>`, e `release/e2e-coverage.json` deve continuar refletindo a evidência versionada. O core de QA permanece local-first/self-hosted e não pode adquirir dependência obrigatória de serviço pago externo.
+Os fluxos automatizados antigos e as comparações visuais foram retirados dos gates ativos por estarem acoplados a versões anteriores da interface. Até a reconstrução de cenários representativos do produto atual, use os testes unitários/de integração e `npm run qa:validate`; a validação do harness não significa aprovação dos fluxos de usuário. Não adicione ou reative um gate E2E amplo sem revisar o fluxo contra a interface atual e demonstrar que ele termina e verifica um resultado útil.

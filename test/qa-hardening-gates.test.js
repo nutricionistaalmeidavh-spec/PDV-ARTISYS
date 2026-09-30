@@ -14,20 +14,19 @@ test('CI reports built-in Node test coverage and preserves the report as evidenc
   assert.match(workflow,/code-coverage-/);
 });
 
-test('critical QA has an isolated opt-in visual regression flow',()=>{
-  const flow=JSON.parse(read('qa/flows/visual-critical.json'));
-  assert.ok(flow.steps.some(step=>step.selector==="#first-access-form"));
-  assert.ok(flow.steps.some(step=>step.selector==="#first-access-form input[name='passwordConfirm']"));
-  assert.ok(flow.steps.some(step=>step.path==='/api/v1/vertical/onboarding/complete'));
-  assert.ok(!flow.steps.some(step=>step.uses), 'visual flow must keep its onboarding bootstrap isolated');
-  const snapshots=flow.steps.filter(step=>step.action==='visualSnapshot');
-  assert.ok(snapshots.some(step=>step.snapshot==='classic-home-critical'));
-  assert.ok(snapshots.some(step=>step.snapshot==='checkout-critical'));
-
-  const workflow=read('.github/workflows/qa-visual.yml');
-  assert.match(workflow,/ARTISYS_QA_VISUAL/);
-  assert.match(workflow,/ARTISYS_QA_UPDATE_VISUAL_BASELINES/);
-  assert.match(workflow,/visual-critical/);
+test('legacy visual comparisons are not active in CI',()=>{
+  const verify=read('.github/workflows/verify.yml');
+  assert.doesNotMatch(verify,/qa:release|qa:full|qa:crosscut|visualSnapshot|visual-baselines/);
+  const runtime=read('qa/runtime/src/steps.js');
+  const cli=read('qa/runtime/src/cli-core.mjs');
+  const remote=read('qa/runtime/src/remote-control.js');
+  assert.doesNotMatch(runtime,/visualSnapshot|validateVisualSnapshot|visual-baselines/);
+  assert.doesNotMatch(cli,/update-visual-baselines|ARTISYS_QA_VISUAL/);
+  assert.doesNotMatch(remote,/Validação visual|visual:/i);
+  assert.equal(fs.existsSync(path.join(root,'.github/workflows/qa-visual.yml')),false);
+  assert.equal(fs.existsSync(path.join(root,'qa/visual-baselines/classic-home-critical.png')),false);
+  assert.equal(fs.existsSync(path.join(root,'qa/visual-baselines/checkout-critical.png')),false);
+  assert.equal(fs.existsSync(path.join(root,'qa/runtime/src/visual.js')),false);
 });
 
 test('customer bugs have a permanent regression policy and PR checklist',()=>{

@@ -192,29 +192,7 @@ Política preferida:
 
 Não usar coverage percentual global como único gate.
 
-### Phase H — Visual Regression
-
-Usar Playwright screenshots com baselines versionados no repositório para telas críticas e viewports estáveis.
-
-Baseline inicial:
-
-- Home
-- Checkout
-- Pagamento/pós-venda
-- Produtos
-- Clientes
-- Caixa
-
-Viewports iniciais:
-
-- 1440x900
-- 1366x768
-
-Tablet/mobile continuam cobertos por flows de responsividade, mas baseline visual pixel-level entra depois para reduzir custo de manutenção.
-
-Visual diff deve ter tolerância configurável e máscara para regiões sabidamente dinâmicas. Mudanças visuais intencionais atualizam baseline no mesmo PR.
-
-### Phase I — Packaged Windows Functional Smoke
+### Phase H — Packaged Windows Functional Smoke
 
 Evoluir o smoke do workflow Windows de “processo permaneceu aberto” para um smoke funcional mínimo no app empacotado.
 
@@ -249,12 +227,12 @@ Mutantes sobreviventes geram relatório; threshold passa a bloquear release some
 
 ## QA Manifest Changes
 
-O manifesto atual define `includeVisual`, `includeDesktop` e `includeNetwork`, mas essas capacidades não devem permanecer flags decorativas.
+O manifesto atual define `includeDesktop` e `includeNetwork`, mas essas capacidades não devem permanecer flags decorativas.
 
 A implementação deve:
 
 - consumir explicitamente `includeNetwork` no profile runner/gate;
-- consumir `includeVisual` quando visual baseline estiver habilitado;
+- não executar comparações visuais por screenshot;
 - preservar `includeDesktop` para smoke do executable quando aplicável;
 - remover overrides `false` de `full`/`release` quando a respectiva capacidade estiver implementada e estável;
 - manter `quick` minimalista.
@@ -267,7 +245,7 @@ Perfis alvo:
 - contratos baratos;
 - sem pairwise pesado;
 - sem mutation;
-- visual somente se change-aware no futuro.
+- sem comparação visual por screenshot.
 
 ### `full`
 
@@ -275,7 +253,7 @@ Perfis alvo:
 - `qa:crosscut`;
 - structural UX sweep;
 - network/console health;
-- selected visual baselines.
+- sem comparação visual por screenshot.
 
 ### `release`
 
@@ -411,7 +389,6 @@ Adiciona:
 - `qa:full`;
 - `qa:crosscut` completo;
 - structural UX sweep;
-- visual critical set;
 - selected pairwise.
 
 ### Release
@@ -434,7 +411,7 @@ Targets iniciais:
 - checks crosscut baratos: executáveis no mesmo orçamento do E2E atual;
 - pairwise e fault injection: fora do caminho rápido de PR;
 - mutation: periódico/manual;
-- screenshots baselines: somente telas/viewports selecionados.
+- capturas de tela, quando necessárias, são evidência diagnóstica e não comparadas a imagens esperadas.
 
 O relatório deve incluir duração por check para permitir posterior otimização baseada em dados.
 
@@ -461,7 +438,6 @@ A arquitetura é considerada implantada quando:
 9. pelo menos um conjunto pairwise determinístico é executável fora do `quick`;
 10. pelo menos um cenário fault/recovery crítico valida idempotência/consistência;
 11. coverage por risco é produzido para domínios selecionados sem substituir capability coverage;
-12. visual regression existe para o conjunto crítico inicial ou fica explicitamente staged se houver blocker técnico reproduzível;
 13. smoke do Windows empacotado valida mais que permanência do processo, ou registra um fallback técnico comprovado;
 14. nenhuma dependência SaaS paga é necessária.
 
@@ -474,7 +450,6 @@ Para reduzir blast radius, implementar na seguinte ordem:
 3. expandir structural UX sweep;
 4. ativar network/console gate;
 5. introduzir coverage por risco;
-6. introduzir visual baseline crítico;
 7. adicionar pairwise runner;
 8. adicionar fault/recovery selecionado;
 9. melhorar packaged Windows smoke;

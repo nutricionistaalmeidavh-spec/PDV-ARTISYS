@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const ui = require('../desktop/renderer/ui-model');
-const { homeForRole } = require('../desktop/renderer/home-role-model');
+const { canAccessRoute, canAccessModule, homeForRole, routesForRole } = require('../desktop/renderer/home-role-model');
 
 const baseTiles = [...ui.HOME_TILES, {
   key:'management', label:'Gestão', description:'Resultado, DRE e fluxo de caixa',
@@ -28,4 +28,17 @@ test('administrator Home starts with the five administration areas', () => {
 
 test('unknown roles receive the restricted cashier Home', () => {
   assert.equal(homeForRole('unknown', baseTiles).role, 'cashier');
+});
+
+test('cashier navigation omits management routes but keeps customer access', () => {
+  assert.deepEqual(routesForRole('cashier'), ['home','checkout','cash','sales','returns','customers']);
+  assert.equal(canAccessRoute('cashier','reports'), false);
+  assert.equal(canAccessRoute('cashier','settings'), false);
+  assert.equal(canAccessRoute('cashier','customers'), true);
+});
+
+test('optional modules are restricted to manager and administrator roles', () => {
+  assert.equal(canAccessModule('cashier'), false);
+  assert.equal(canAccessModule('manager'), true);
+  assert.equal(canAccessModule('admin'), true);
 });

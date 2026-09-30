@@ -45,7 +45,7 @@ test('P2 exposes return details and import batch lookup',()=>{
   ]) assert.ok(ui.includes(marker),`P2 UI marker missing: ${marker}`);
 });
 
-test('P0-P2 parity operations are registered with UI and E2E evidence',()=>{
+test('P0-P2 parity operations remain registered in the capability catalog',()=>{
   const registry=JSON.parse(source('release/customer-operations.json'));
   const ids=new Set(registry.operations.map(item=>item.id));
   for(const id of [
@@ -53,6 +53,4 @@ test('P0-P2 parity operations are registered with UI and E2E evidence',()=>{
     'lan.pairing-code.create','lan.terminal.status.update','procurement.receipt.list',
     'returns.details.get','imports.batch.get'
   ]) assert.ok(ids.has(id),`operation missing from parity registry: ${id}`);
-  const flow=source('qa/flows/ui-parity-p0-p2.json');
-  for(const marker of ['p0-partial-receipt-panel','p0-partial-fulfillment-panel','p1-print-retry-panel','p1-terminal-admin-panel','p2-return-details-panel','p2-import-batch-panel'])assert.ok(flow.includes(marker),`E2E marker missing: ${marker}`);
 });

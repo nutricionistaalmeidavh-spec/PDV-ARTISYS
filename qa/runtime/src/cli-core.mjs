@@ -30,7 +30,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log(`ArtiSys QA\n\nCommands:\n  validate --config qa/artisys-qa.config.json\n  list --config qa/artisys-qa.config.json\n  run --config qa/artisys-qa.config.json [--flow name] [--profile default] [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts] [--visual] [--update-visual-baselines]\n  quick --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts]\n  full --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts] [--visual]\n  release --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts] [--override-release-gate --override-reason reason]\n  remote --config qa/artisys-qa.config.json [--host 127.0.0.1|0.0.0.0] [--port 4173] [--token secret] [--profile default] [--output qa-artifacts]\n  demo --config qa/artisys-qa.config.json [--demo quick-30s] [--profile default] [--preset reels-9x16] [--environment name] [--output qa-artifacts]\n  demo-profile prepare|reset|status --config qa/artisys-qa.config.json [--profile default] [--environment name]`);
+  console.log(`ArtiSys QA\n\nCommands:\n  validate --config qa/artisys-qa.config.json\n  list --config qa/artisys-qa.config.json\n  run --config qa/artisys-qa.config.json [--flow name] [--profile default] [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts]\n  quick --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts]\n  full --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts]\n  release --config qa/artisys-qa.config.json [--environment name] [--viewport desktop|tablet|mobile] [--output qa-artifacts] [--override-release-gate --override-reason reason]\n  remote --config qa/artisys-qa.config.json [--host 127.0.0.1|0.0.0.0] [--port 4173] [--token secret] [--profile default] [--output qa-artifacts]\n  demo --config qa/artisys-qa.config.json [--demo quick-30s] [--profile default] [--preset reels-9x16] [--environment name] [--output qa-artifacts]\n  demo-profile prepare|reset|status --config qa/artisys-qa.config.json [--profile default] [--environment name]`);
 }
 
 function progressLog(event) {
@@ -107,42 +107,34 @@ async function runRemoteServer({ args, manifest, rootDir }) {
     meta,
     getHistory: () => readQaHistory(outputRoot),
     runJob: async request => {
-      const previousVisual = process.env.ARTISYS_QA_VISUAL;
-      if (request.visual) process.env.ARTISYS_QA_VISUAL = '1';
-      else delete process.env.ARTISYS_QA_VISUAL;
-      try {
-        const profileRuntime = await resolveProfileRuntime(manifest, rootDir, args.profile);
-        if (request.profile) {
-          const result = await runQaProfile({
-            manifest,
-            rootDir,
-            profileName: request.profile,
-            environment: request.environment,
-            viewport: request.viewport,
-            outputRoot,
-            ...profileRuntime,
-          });
-          return { profile: result.profile.name, gate: result.gate, counts: result.report.counts, report: result.jsonFile };
-        }
-        const { name: environmentName, environment } = resolveEnvironment(manifest, request.environment);
-        const { name: flowName, file: flowFile } = resolveFlow(manifest, request.flow, rootDir);
-        const viewport = resolveViewport(manifest, request.viewport);
-        const result = await runQaFlow({
+      const profileRuntime = await resolveProfileRuntime(manifest, rootDir, args.profile);
+      if (request.profile) {
+        const result = await runQaProfile({
           manifest,
           rootDir,
-          environmentName,
-          environment,
-          flowName,
-          flowFile,
-          viewport,
+          profileName: request.profile,
+          environment: request.environment,
+          viewport: request.viewport,
           outputRoot,
           ...profileRuntime,
         });
-        return { summary: result.summary, outputDir: result.outputDir };
-      } finally {
-        if (previousVisual == null) delete process.env.ARTISYS_QA_VISUAL;
-        else process.env.ARTISYS_QA_VISUAL = previousVisual;
+        return { profile: result.profile.name, gate: result.gate, counts: result.report.counts, report: result.jsonFile };
       }
+      const { name: environmentName, environment } = resolveEnvironment(manifest, request.environment);
+      const { name: flowName, file: flowFile } = resolveFlow(manifest, request.flow, rootDir);
+      const viewport = resolveViewport(manifest, request.viewport);
+      const result = await runQaFlow({
+        manifest,
+        rootDir,
+        environmentName,
+        environment,
+        flowName,
+        flowFile,
+        viewport,
+        outputRoot,
+        ...profileRuntime,
+      });
+      return { summary: result.summary, outputDir: result.outputDir };
     },
   });
 
@@ -163,12 +155,6 @@ async function runRemoteServer({ args, manifest, rootDir }) {
 }
 
 const args = parseArgs(process.argv.slice(2));
-if (args.visual) process.env.ARTISYS_QA_VISUAL = '1';
-if (args['update-visual-baselines']) {
-  process.env.ARTISYS_QA_VISUAL = '1';
-  process.env.ARTISYS_QA_UPDATE_VISUAL_BASELINES = '1';
-}
-
 if (args.help || args.command === 'help') {
   usage();
   process.exit(0);
