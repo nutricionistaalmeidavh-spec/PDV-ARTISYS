@@ -11,7 +11,7 @@ function read(filePath) {
   try { const value = JSON.parse(fs.readFileSync(filePath, 'utf8')); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; }
   catch { return {}; }
 }
-function normalize(input = {}) {
+function normalize(input = {}, { requireTerminalKey = true } = {}) {
   const mode = MODES.has(input.mode) ? input.mode : 'local';
   const port = Number(input.port || 4174);
   const result = {
@@ -29,21 +29,32 @@ function normalize(input = {}) {
     try { parsed = new URL(result.serverUrl); } catch { throw new Error('Endereço do servidor inválido.'); }
     if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('O servidor deve usar HTTP ou HTTPS.');
     if (mode === 'own-server' && parsed.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(parsed.hostname)) throw new Error('Servidor próprio remoto deve usar HTTPS.');
-    if (!result.terminalKey) throw new Error('Informe a chave de pareamento deste terminal.');
+    if (requireTerminalKey && !result.terminalKey) throw new Error('Informe a chave de pareamento deste terminal.');
   }
   return result;
 }
-function loadDataServerConfig(filePath) { return normalize(read(filePath)); }
+function loadDataServerConfig(filePath) { return normalize(read(filePath), { requireTerminalKey:false }); }
+function persistedConfig(config) {
+  return {
+    selected:Boolean(config.selected),
+    mode:config.mode,
+    host:config.host,
+    port:config.port,
+    serverUrl:config.serverUrl,
+    terminalId:config.terminalId
+  };
+}
 function saveDataServerConfig(filePath, input) {
   const config = normalize({ ...input, selected:true });
+  const persisted = persistedConfig(config);
   fs.mkdirSync(path.dirname(filePath), { recursive:true });
   const temporary = `${filePath}.tmp`;
-  fs.writeFileSync(temporary, `${JSON.stringify(config, null, 2)}\n`, { encoding:'utf8', mode:0o600 });
+  fs.writeFileSync(temporary, `${JSON.stringify(persisted, null, 2)}\n`, { encoding:'utf8', mode:0o600 });
   fs.renameSync(temporary, filePath);
-  return config;
+  return { ...persisted, terminalKey:'' };
 }
 function isHostMode(config) { return config.mode === 'lan-host'; }
 function isExternalMode(config) { return config.mode === 'lan-client' || config.mode === 'own-server'; }
-function publicDataServerConfig(config) { return { ...config, terminalKey: config.terminalKey ? '••••••••' : '' }; }
+function publicDataServerConfig(config, terminalKeyConfigured = Boolean(config?.terminalKey)) { return { ...persistedConfig(config || normalize({}, {requireTerminalKey:false})), terminalKey: terminalKeyConfigured ? '••••••••' : '' }; }
 
 module.exports = { MODES, normalize, loadDataServerConfig, saveDataServerConfig, isHostMode, isExternalMode, publicDataServerConfig };
