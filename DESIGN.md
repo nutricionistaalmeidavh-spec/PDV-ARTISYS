@@ -46,3 +46,15 @@ Typography uses `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe
 
 Optional modules are capabilities of one PDV, not separate applications. Their metadata and visual identity come from the backend module catalog. Group related operational capabilities under one area entry; use the catalog's icon/label and do not add a renderer-only list of module identities. The areas screen may be reorganized without changing the shared sales, cash, inventory, and audit core.
 
+## Restaurante, cardápio público e superfícies móveis
+
+Restaurant has three intentionally different surfaces that share the same canonical table/order/kitchen data:
+
+- **Cliente por QR (`/m/:token`)**: public, touch-first menu for one table. The visual signature is the navy order rail at the bottom; the main content stays editorial and product-led rather than dashboard-like. It never asks for a device credential.
+- **Equipe (`/mobile`)**: credentialed staff surface. Waiter prioritizes the floor/table map and service calls; kitchen uses status lanes for `Novo`, `Em preparo`, and `Pronto`; paired table/kiosk modes remain available.
+- **Desktop Restaurante**: remains the management surface. Public-menu settings and per-table QR controls extend the existing Restaurant page instead of creating a separate product shell.
+
+All three surfaces reuse the ArtiSys blue/navy/ink/muted/line/surface tokens and system typography. Mobile CSS may duplicate the exact token values because it is served independently from the Electron renderer, but it must not introduce a competing theme. Customer product cards expose name, public description, photo, price, availability and safe option labels only. Recipe composition, costs, stock internals, SKU/barcode metadata and credentials are never rendered into the public surface.
+
+The customer path uses 44px-or-larger touch actions, sticky search/category navigation, app-owned dialogs for configuration and cart review, visible focus, reduced-motion support, and local failure messages that preserve the cart. The staff PWA shell is registered only on secure contexts (HTTPS or localhost); ordinary LAN HTTP remains a usable browser surface without claiming installability.
+
