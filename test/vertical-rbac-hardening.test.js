@@ -21,66 +21,15 @@ async function startFixture() {
 async function login(base, username, password) {
   const response = await fetch(`${base}/api/v1/auth/login`, {
     method:'POST',
-    headers:{ 'content-type':'application/json' },
+    headers:{ 'content-type':'application/json', 'x-pdv-token':'local-token' },
     body:JSON.stringify({ username, password, terminalId:'PDV-01' })
   });
   assert.equal(response.status, 200);
   return (await response.json()).sessionToken;
 }
 
-async function request(base, token, path, { method='GET', body }={}) {
-  const headers = { authorization:`Bearer ${token}` };
-  if (body !== undefined) headers['content-type'] = 'application/json';
-  return fetch(`${base}${path}`, { method, headers, body:body === undefined ? undefined : JSON.stringify(body) });
-}
+async function request(base, token, path, { method='GET', body }={}) { const headers={ authorization:`Bearer ${token}` }; if(body!==undefined)headers['content-type']='application/json'; return fetch(`${base}${path}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)}); }
 
-test('vertical module API enforces accessRoles and manageRoles from module registry', async () => {
-  const ctx = await startFixture();
-  try {
-    const admin = await login(ctx.base, 'admin', 'senha-forte-admin');
-    const manager = await login(ctx.base, 'manager', 'senha-forte-manager');
-    const cashier = await login(ctx.base, 'cashier', 'senha-forte-cashier');
+test('vertical module API enforces accessRoles and manageRoles from module registry', async () => { const ctx=await startFixture(); try { const admin=await login(ctx.base,'admin','senha-forte-admin'); const manager=await login(ctx.base,'manager','senha-forte-manager'); const cashier=await login(ctx.base,'cashier','senha-forte-cashier'); let response=await request(ctx.base,admin,'/api/v1/vertical/pizzeria/profile',{method:'POST',body:{productId:'pizza',pricingPolicy:'HIGHEST_FLAVOR'}}); assert.equal(response.status,201); response=await request(ctx.base,manager,'/api/v1/vertical/pizzeria/products/pizza'); assert.equal(response.status,200); response=await request(ctx.base,cashier,'/api/v1/vertical/pizzeria/products/pizza'); assert.equal(response.status,403); response=await request(ctx.base,manager,'/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'size',productId:'pizza',name:'Grande',maxFlavors:2,priceDeltaCents:0}}); assert.equal(response.status,403); response=await request(ctx.base,admin,'/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'size',productId:'pizza',name:'Grande',maxFlavors:2,priceDeltaCents:0}}); assert.equal(response.status,201); } finally { await ctx.server.stop(); ctx.runtime.close(); } });
 
-    let response = await request(ctx.base, admin, '/api/v1/vertical/pizzeria/profile', {
-      method:'POST', body:{ productId:'pizza', pricingPolicy:'HIGHEST_FLAVOR' }
-    });
-    assert.equal(response.status, 201);
-
-    response = await request(ctx.base, manager, '/api/v1/vertical/pizzeria/products/pizza');
-    assert.equal(response.status, 200);
-
-    response = await request(ctx.base, cashier, '/api/v1/vertical/pizzeria/products/pizza');
-    assert.equal(response.status, 403);
-
-    response = await request(ctx.base, manager, '/api/v1/vertical/pizzeria/catalog', {
-      method:'POST', body:{ kind:'size', productId:'pizza', name:'Grande', maxFlavors:2, priceDeltaCents:0 }
-    });
-    assert.equal(response.status, 403);
-
-    response = await request(ctx.base, admin, '/api/v1/vertical/pizzeria/catalog', {
-      method:'POST', body:{ kind:'size', productId:'pizza', name:'Grande', maxFlavors:2, priceDeltaCents:0 }
-    });
-    assert.equal(response.status, 201);
-  } finally {
-    await ctx.server.stop();
-    ctx.runtime.close();
-  }
-});
-
-test('recipe mutation is unavailable to cashier but remains available to manager', async () => {
-  const ctx = await startFixture();
-  try {
-    const manager = await login(ctx.base, 'manager', 'senha-forte-manager');
-    const cashier = await login(ctx.base, 'cashier', 'senha-forte-cashier');
-    const body = { components:[{ productId:'ingredient', quantity:1, unit:'UN' }] };
-
-    let response = await request(ctx.base, cashier, '/api/v1/vertical/recipes/pizza', { method:'PUT', body });
-    assert.equal(response.status, 403);
-
-    response = await request(ctx.base, manager, '/api/v1/vertical/recipes/pizza', { method:'PUT', body });
-    assert.equal(response.status, 200);
-  } finally {
-    await ctx.server.stop();
-    ctx.runtime.close();
-  }
-});
+test('recipe mutation is unavailable to cashier but remains available to manager', async () => { const ctx=await startFixture(); try { const manager=await login(ctx.base,'manager','senha-forte-manager'); const cashier=await login(ctx.base,'cashier','senha-forte-cashier'); const body={components:[{productId:'ingredient',quantity:1,unit:'UN'}]}; let response=await request(ctx.base,cashier,'/api/v1/vertical/recipes/pizza',{method:'PUT',body}); assert.equal(response.status,403); response=await request(ctx.base,manager,'/api/v1/vertical/recipes/pizza',{method:'PUT',body}); assert.equal(response.status,200); } finally { await ctx.server.stop(); ctx.runtime.close(); } });

@@ -15,6 +15,7 @@ function seed(rt){
   rt.catalog.upsertProduct({id:'bread',name:'Pao',salePriceCents:200,costCents:80,trackStock:true},actor());
   rt.inventory.move({productId:'cheese',type:'opening',quantityDelta:50,reason:'seed'},actor());
   rt.inventory.move({productId:'bread',type:'opening',quantityDelta:50,reason:'seed'},actor());
+  rt.cash.openSession({id:'cash-pdv-1',terminalId:'pdv-1',operatorId:'admin-1',initialCashCents:0,actor:actor()});
 }
 
 test('E40-E47 migrations remain present while current schema advances beyond v7',()=>{
