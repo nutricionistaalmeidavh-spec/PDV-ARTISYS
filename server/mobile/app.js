@@ -4,7 +4,7 @@
   const root=document.getElementById('app');const toast=document.getElementById('toast');
   let credential={id:localStorage.getItem('artisys.deviceId')||'',key:localStorage.getItem('artisys.deviceKey')||''};
   let context=null;let selectedTableId='';const cart=new Map();let refreshing=false;
-  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const mutationId=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;
   const labels={ACTIVE:'Ativo',FREE:'Livre',OCCUPIED:'Ocupada',BILL_REQUESTED:'Conta solicitada',CHECKOUT:'Fechamento',OPEN:'Aberto',ACKNOWLEDGED:'Em atendimento',NEW:'Novo',PREPARING:'Em preparo',READY:'Pronto',CANCELLED:'Cancelado',BLOCKED:'Bloqueado'};
