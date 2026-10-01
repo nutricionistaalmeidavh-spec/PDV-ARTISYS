@@ -20,7 +20,7 @@
   const enabled = () => !window.PdvFeatureFlags || window.PdvFeatureFlags.productsDenseView !== false;
   const productsPage = () => {
     const page = content.querySelector('section.page');
-    return page?.querySelector('.page-head h1')?.textContent?.trim() === 'Produtos' ? page : null;
+    return ['Produtos','Cardápio'].includes(page?.querySelector('.page-head h1')?.textContent?.trim()) ? page : null;
   };
 
   async function loadProducts(force = false) {

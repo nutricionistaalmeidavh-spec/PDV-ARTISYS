@@ -7,15 +7,17 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=rel=>fs.readFileSync(path.join(root,rel),'utf8');
 
-const IDS=['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RETAIL','SERVICES','WORKSHOP','SELF_SERVICE'];
-
-test('workspace sync listens to generic module state and marks all module workspaces',()=>{
+test('workspace sync consumes module route identity instead of localized heading maps',()=>{
   const source=read('desktop/renderer/module-state-sync.js');
   assert.match(source,/artisys:modules-state-changed/);
   assert.match(source,/data-module-workspace/);
   assert.match(source,/MutationObserver/);
   assert.match(source,/showRoute\?\.\('settings'\)/);
-  for(const id of IDS)assert.match(source,new RegExp(`${id}:`),`${id} deve ter heading mapeado`);
+  assert.match(source,/activeModuleWorkspace/);
+  assert.match(source,/detail\.catalog/);
+  assert.doesNotMatch(source,/MODULE_HEADINGS|HEADING_TO_ID/);
+  assert.match(source,/data-module-toggle=/);
+  assert.doesNotMatch(source,/data-module-open="\$\{id\}"/);
 });
 
 test('module state sync loads after vertical renderers',()=>{

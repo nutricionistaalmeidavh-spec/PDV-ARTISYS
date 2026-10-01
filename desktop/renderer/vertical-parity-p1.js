@@ -54,7 +54,7 @@
   }
 
   function mountExtraWorkspaceEntries(){
-    for(const id of ['SERVICES','WORKSHOP']){
+    for(const id of ['SERVICES']){
       document.querySelectorAll(`[data-module-open='${id}']`).forEach(button=>{
         if(button.dataset.parityWorkspaceBound==='1')return;
         button.dataset.parityWorkspaceBound='1';

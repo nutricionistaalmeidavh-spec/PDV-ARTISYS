@@ -1,0 +1,26 @@
+.product-support-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px;align-items:stretch}
+.product-support-card{min-width:0;min-height:380px;padding:0;background:linear-gradient(180deg,#fff 0%,#fbfcff 100%);border-color:#dce5f2;box-shadow:0 12px 28px rgba(25,48,82,.08)}
+.product-support-card details{height:100%}
+.product-support-card summary{display:flex;align-items:center;min-height:80px;padding:16px 20px;cursor:pointer;list-style:none;border-bottom:1px solid #e7edf6;background:linear-gradient(110deg,#f3f7ff,#fff)}
+.product-support-card summary::-webkit-details-marker{display:none}
+.product-support-card summary:after{content:'＋';margin-left:auto;color:#5064ef;font-size:22px;font-weight:700}
+.product-support-card details[open] summary:after{content:'−'}
+.product-support-card summary span,.product-support-card summary small{display:block}
+.product-support-card summary strong{font-size:20px;color:#172b4d}
+.product-support-card summary small{margin-top:4px;color:#6f819c}
+.product-support-body{padding:18px 20px}
+.product-support-body>p{margin:0 0 14px;color:#657894}
+.product-support-card .data-row{border-bottom:1px solid #e8edf4}
+.kit-combo-admin{margin:0;padding:0}
+.kit-combo-grid{grid-template-columns:1fr;gap:12px}
+.kit-combo-column{min-height:145px;background:#f5f8fd;border-color:#e1e8f2}
+.food-module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.food-module-card{display:grid;gap:10px;min-height:180px;padding:20px;text-align:left;color:#1c3152;cursor:pointer;background:linear-gradient(145deg,#fff,#f3f7ff);border-color:#dbe5f2;box-shadow:0 10px 24px rgba(26,49,83,.08)}
+.food-module-card>span:first-child{color:#2768d8}
+.pdv-icon-pizza{display:block;object-fit:contain}
+.food-module-card strong{font-size:19px}
+.food-module-card small{color:#6d7e97}
+.food-module-card .secondary-button{justify-self:start}
+.vertical-page .data-card{border-color:#dce5f2;box-shadow:0 9px 24px rgba(25,48,82,.055)}
+.vertical-page>.page-head{padding:18px 22px;margin-bottom:16px;border:1px solid #dce5f2;border-radius:16px;background:linear-gradient(110deg,#edf4ff,#fff)}
+@media(max-width:1050px){.product-support-grid{grid-template-columns:1fr}.product-support-card{min-height:0}}

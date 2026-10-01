@@ -22,6 +22,7 @@ const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs')
 const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
 const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
+const { loadDataServerConfig, saveDataServerConfig, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -40,7 +41,20 @@ let nfseProviderResolver = async () => null;
 let printWorker = null;
 let printWorkerBusy = false;
 let installationWasExisting = true;
+let dataServerConfig = null;
+let dataServerConfigPath = '';
 const installToken = randomBytes(32).toString('hex');
+const API_TIMEOUT_MS = 12000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try { return await fetch(url, { ...options, signal:controller.signal }); }
+  catch (error) {
+    if (error?.name === 'AbortError') throw new Error('O servidor não respondeu dentro do tempo esperado.');
+    throw new Error(`Não foi possível acessar o servidor: ${error?.message || error}`);
+  } finally { clearTimeout(timer); }
+}
 
 function rendererPath(...parts) {
   return path.join(__dirname, 'renderer', ...parts);
@@ -89,17 +103,18 @@ async function startEmbeddedServer() {
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
 
-  if (process.env.PDV_ENABLE_LAN !== 'false') {
-    const lanHost = process.env.PDV_LAN_HOST || '0.0.0.0';
-    const lanPort = Number(process.env.PDV_LAN_PORT || 4174);
+  if (isHostMode(dataServerConfig)) {
+    const lanHost = dataServerConfig.host;
+    const lanPort = dataServerConfig.port;
     if (!Number.isInteger(lanPort) || lanPort < 1 || lanPort > 65535) throw new Error('PDV_LAN_PORT invalida.');
     lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true, isExistingInstall:installationWasExisting });
     try {
       await lanServer.start();
     } catch (error) {
-      console.error('Servidor LAN indisponivel; PDV continuara em modo local.', error);
+      console.error('Servidor LAN configurado, mas indisponível.', error);
       try { await lanServer.stop(); } catch {}
       lanServer = null;
+      throw new Error(`Não foi possível iniciar o PC principal na porta ${lanPort}. Nenhum fallback foi aplicado.`);
     }
   }
 }
@@ -164,7 +179,7 @@ async function receiptApiRequest(rawPath,{method='GET',sessionToken='',body=unde
   };
   let requestBody;
   if(body!==undefined){headers['content-type']='application/json';requestBody=JSON.stringify(body);}
-  const response=await fetch(`${apiBase}${rawPath}`,{method,headers,body:requestBody});
+  const response=await fetchWithTimeout(`${apiBase}${rawPath}`,{method,headers,body:requestBody});
   const text=await response.text();
   let payload=null;
   if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
@@ -224,8 +239,30 @@ function registerIpc() {
     terminalName: bootstrapConfig?.terminalName || 'Terminal PDV-01',
     storeName: bootstrapConfig?.storeName || 'Loja Matriz',
     lanEnabled: Boolean(lanServer),
-    version: app.getVersion()
+    version: app.getVersion(),
+    dataServer: publicDataServerConfig(dataServerConfig)
   }));
+
+  ipcMain.handle('artisys:data-server:state', () => publicDataServerConfig(dataServerConfig));
+  ipcMain.handle('artisys:data-server:save', (_event, input = {}) => {
+    const next = { ...input };
+    if (String(next.terminalKey || '') === '••••••••') next.terminalKey = dataServerConfig.terminalKey;
+    const movingAwayFromLocalData = runtime && isExternalMode({ mode:next.mode });
+    if (movingAwayFromLocalData) {
+      const counts = ['sales', 'products', 'customers'].map(table => Number(runtime.db.prepare(`SELECT COUNT(*) AS total FROM ${table}`).get()?.total || 0));
+      if (counts.some(Boolean)) throw new Error('Esta instalação possui dados locais. Exporte ou migre os dados antes de conectá-la como terminal; a troca não foi aplicada.');
+    }
+    dataServerConfig = saveDataServerConfig(dataServerConfigPath, next);
+    return { config:publicDataServerConfig(dataServerConfig), restartRequired:true };
+  });
+  ipcMain.handle('artisys:data-server:test', async (_event, input = {}) => {
+    const url = String(input.serverUrl || dataServerConfig.serverUrl || '').replace(/\/+$/, '');
+    if (!url) throw new Error('Informe o endereço do servidor.');
+    const response = await fetchWithTimeout(`${url}/api/v1/health`, { headers:{ accept:'application/json' } }, 5000);
+    if (!response.ok) throw new Error(`Servidor respondeu com HTTP ${response.status}.`);
+    return { ok:true };
+  });
+  ipcMain.handle('artisys:data-server:restart', () => { app.relaunch(); app.exit(0); });
 
   ipcMain.handle('artisys:api', async (_event, request = {}) => {
     const method = String(request.method || 'GET').toUpperCase();
@@ -245,7 +282,7 @@ function registerIpc() {
       headers['content-type'] = 'application/json';
       body = JSON.stringify(request.body);
     }
-    const response = await fetch(`${apiBase}${rawPath}`, { method, headers, body });
+    const response = await fetchWithTimeout(`${apiBase}${rawPath}`, { method, headers, body });
     let payload = null;
     const text = await response.text();
     if (text) {
@@ -321,6 +358,14 @@ async function shutdown() {
 }
 
 app.whenReady().then(async () => {
+  dataServerConfigPath = path.join(app.getPath('userData'), 'data-server.json');
+  dataServerConfig = loadDataServerConfig(dataServerConfigPath);
+  // QA runs must be deterministic: choose local storage without opening the
+  // first-run selector (which intentionally restarts the app after saving).
+  // This is restricted to the automated QA process and never affects installs.
+  if (process.env.ARTISYS_QA === '1' && process.env.ARTISYS_QA_AUTO_LOCAL === '1' && !dataServerConfig.selected) {
+    dataServerConfig = saveDataServerConfig(dataServerConfigPath, { mode:'local', host:'127.0.0.1', port:4174, terminalId:'PDV-01' });
+  }
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
@@ -343,7 +388,7 @@ app.whenReady().then(async () => {
   });
   nfseProviderResolver = createNfseProviderResolver({credentialStore:fiscalCredentialStore,env:process.env});
 
-  if (shouldStartEmbeddedServer(bootstrapConfig)) {
+  if (!isExternalMode(dataServerConfig) && shouldStartEmbeddedServer(bootstrapConfig)) {
     const fiscalRuntimePaths = resolveFiscalRuntimePaths({ app, processObj:process, dirname:__dirname });
     fiscalSidecar = createFiscalSidecarRuntime({
       env:process.env,
@@ -358,7 +403,8 @@ app.whenReady().then(async () => {
     }
     await startEmbeddedServer();
   } else {
-    apiBase = bootstrapConfig.apiBase.replace(/\/+$/, '');
+    apiBase = isExternalMode(dataServerConfig) ? dataServerConfig.serverUrl : bootstrapConfig.apiBase.replace(/\/+$/, '');
+    if (isExternalMode(dataServerConfig)) bootstrapConfig = { ...bootstrapConfig, profile:'terminal', terminalId:dataServerConfig.terminalId, terminalKey:dataServerConfig.terminalKey, apiBase };
   }
 
   registerIpc();

@@ -11,7 +11,7 @@ function createModuleService({db,settings,now=()=>new Date().toISOString()}={}){
   function isEnabled(id){const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);return Boolean(settings.get(key(moduleId),{defaultValue:Boolean(definition.defaultEnabled)}));}
   function list(){return MODULES.map(def=>({...def,enabled:isEnabled(def.id)}));}
   function setEnabled(id,enabled,actor={}){
-    const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);if(!['admin','system'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para alterar modulo.');
+    const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);if(String(actor?.role||'')!=='system'&&!definition.manageRoles.includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para alterar modulo.');
     const target=Boolean(enabled);
     if(target){
       const missing=(definition.dependsOn||[]).filter(dependency=>!isEnabled(dependency));

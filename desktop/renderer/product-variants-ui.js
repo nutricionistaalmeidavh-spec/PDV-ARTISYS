@@ -181,7 +181,7 @@
     enhancing=true;
     try{
       if(content?.querySelector('.checkout-layout'))await enhanceCheckout();
-      else if(content?.querySelector('.page h1')?.textContent?.trim()==='Produtos')await enhanceProducts();
+      else if(['Produtos','Cardápio'].includes(content?.querySelector('.page h1')?.textContent?.trim()))await enhanceProducts();
     }catch(error){
       console.warn('Variações de produto indisponíveis; mantendo catálogo base.',error?.message||error);
     }finally{

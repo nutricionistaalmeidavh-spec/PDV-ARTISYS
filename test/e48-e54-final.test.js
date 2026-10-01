@@ -25,9 +25,10 @@ test('E48-E54 advance vertical schema to v8 and expose final modular services',(
   const rt=setup();
   try{
     assert.equal(VERTICAL_SCHEMA_VERSION,8);
-    for(const name of ['retail','services','workshop','selfService','onboarding','mobileAccess','hardwareCompatibility']){
+    for(const name of ['retail','services','selfService','onboarding','mobileAccess','hardwareCompatibility']){
       assert.ok(rt[name],`runtime.${name} deve existir`);
     }
+    assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
   }finally{rt.close();}
 });
 
@@ -70,31 +71,6 @@ test('E49 services schedules locally, blocks professional overlap and creates ca
     const report=rt.services.commissionReport();
     assert.equal(report.totalCommissionCents,1000);
     assert.equal(report.rows[0].professionalId,'pro-ana');
-  }finally{rt.close();}
-});
-
-test('E50 workshop requires Services, records approval and closes ready work order into canonical sale',()=>{
-  const rt=setup();
-  try{
-    assert.throws(()=>rt.modules.setEnabled('WORKSHOP',true,admin),/SERVICES/);
-    rt.modules.setEnabled('SERVICES',true,admin);
-    rt.modules.setEnabled('WORKSHOP',true,admin);
-    rt.catalog.upsertProduct({id:'filter',name:'Filtro de óleo',salePriceCents:3000,costCents:1500,trackStock:false},admin);
-    const labor=rt.services.upsertService({id:'svc-oil',name:'Troca de óleo',durationMinutes:45,priceCents:7000},admin);
-    const asset=rt.workshop.upsertAsset({id:'veh-1',customerId:'cust-1',kind:'VEHICLE',identifier:'ABC1D23',make:'Honda',model:'Civic'},admin);
-    const order=rt.workshop.openWorkOrder({id:'wo-1',customerId:'cust-1',assetId:asset.id,complaint:'Revisão'},admin);
-    rt.workshop.addItem(order.id,{kind:'PART',productId:'filter',quantity:1},admin);
-    rt.workshop.addItem(order.id,{kind:'LABOR',serviceId:labor.id,quantity:1},admin);
-    rt.workshop.updateStatus(order.id,'DIAGNOSIS',{diagnosis:'Troca necessária'},admin);
-    rt.workshop.updateStatus(order.id,'QUOTED',{},admin);
-    assert.throws(()=>rt.workshop.updateStatus(order.id,'APPROVED',{},admin),/aprova/i);
-    rt.workshop.updateStatus(order.id,'APPROVED',{approvalNote:'Cliente aprovou no balcão'},admin);
-    rt.workshop.updateStatus(order.id,'IN_PROGRESS',{},admin);
-    rt.workshop.updateStatus(order.id,'READY',{},admin);
-    const sale=rt.workshop.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
-    assert.equal(sale.totalCents,10000);
-    assert.equal(rt.workshop.getWorkOrder(order.id).status,'CLOSED');
-    assert.equal(rt.workshop.getWorkOrder(order.id).saleId,sale.id);
   }finally{rt.close();}
 });
 

@@ -6,11 +6,16 @@
   if(!ApiClient)return;
   const api=new ApiClient();
   const MODULE_REQUEST_TIMEOUT_MS=5000;
-  const MODULE_LABELS={
-    RESTAURANT:'Restaurante',PIZZERIA:'Pizzaria',DELIVERY:'Delivery',FAST_FOOD:'Fast-food / Lanchonete',MARKET_BAKERY:'Mercado / Conveniência / Padaria',RETAIL:'Varejo',SERVICES:'Serviços',WORKSHOP:'Oficina',SELF_SERVICE:'Autoatendimento'
+  const ROUTE_RENDERERS={
+    RESTAURANT:()=>root.PdvRestaurantUi?.show?.(),
+    PIZZERIA:renderPizzeria,
+    DELIVERY:renderDelivery,
+    FAST_FOOD:renderFastFood,
+    MARKET_BAKERY:renderMarket,
+    RETAIL:()=>root.PdvFinalModules?.render?.('RETAIL'),
+    SERVICES:()=>root.PdvFinalModules?.render?.('SERVICES'),
+    SELF_SERVICE:()=>root.PdvFinalModules?.render?.('SELF_SERVICE')
   };
-  const SUPPORTED_WORKSPACES=new Set(['PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RESTAURANT','RETAIL','SERVICES','WORKSHOP','SELF_SERVICE']);
-  const MODULE_ICONS={RESTAURANT:'store',PIZZERIA:'box',DELIVERY:'cart',FAST_FOOD:'cash',MARKET_BAKERY:'store',RETAIL:'box',SERVICES:'users',WORKSHOP:'settings',SELF_SERVICE:'terminal'};
   let modules=[];
   let modulesLoading=false;
   let sanitizeScheduled=false;
@@ -36,19 +41,34 @@
       ]);
     }finally{if(timer)clearTimeout(timer);}
   }
-  async function loadModules(){modules=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');return modules;}
+  async function loadModules(){const catalog=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');root.PdvModuleGate?.reconcile?.(catalog);mergeModuleCatalog(catalog);return modules;}
 
-  function moduleAllowed(id){return Boolean(root.PdvHomeRoleModel?.canAccessModule(document.body.dataset.userRole));}
+  function moduleAllowed(module){const role=document.body.dataset.userRole;return Boolean(module&&Array.isArray(module.accessRoles)&&module.accessRoles.includes(role)&&typeof ROUTE_RENDERERS[module.routeId]==='function');}
+  const labelFor=module=>module?.name||module?.id||'';
+  const areaFor=module=>module?.area&&typeof module.area==='object'?module.area:null;
+  const moduleForRoute=routeId=>modules.find(module=>module.routeId===routeId)||null;
+  const areaForRoute=routeId=>modules.find(module=>areaFor(module)?.routeId===routeId)?.area||null;
+  const modulesInArea=areaId=>modules.filter(module=>areaFor(module)?.id===areaId);
+  function mergeModuleCatalog(catalog){if(!Array.isArray(catalog))return false;modules=catalog.map(module=>({...module}));return true;}
   function renderModuleNavigation(){
     const nav=document.getElementById('sidebar-nav');if(!nav)return;
     nav.querySelectorAll('[data-module-nav]').forEach(node=>node.remove());
     document.querySelectorAll('.restaurant-sidebar-entry').forEach(node=>node.remove());
     if(!document.body.dataset.userRole)return;
-    modules.filter(module=>module.enabled&&SUPPORTED_WORKSPACES.has(module.id)&&moduleAllowed(module.id)).forEach(module=>{
-      const button=document.createElement('button');button.type='button';button.className='nav-button module-nav-button';button.dataset.moduleNav=module.id;button.dataset.moduleOpen=module.id;button.title=MODULE_LABELS[module.id]||module.name;button.setAttribute('aria-label',button.title);button.innerHTML=root.PdvIcon?.(MODULE_ICONS[module.id]||'document',23)||'';nav.appendChild(button);
-    });
+    const role=document.body.dataset.userRole;const destinations=new Map();
+    for(const module of modules){
+      if(!module.enabled||!moduleAllowed(module))continue;
+      const area=areaFor(module);if(!area)continue;
+      const grouped=area.navigation==='group';const target=grouped?area.routeId:module.routeId;
+      if(!target)continue;
+      if(grouped){const current=destinations.get(target)||{target,label:area.label,icon:area.icon,modules:[]};current.modules.push(module);destinations.set(target,current);}
+      else destinations.set(target,{target,label:labelFor(module),icon:module.icon,modules:[module]});
+    }
+    for(const item of destinations.values()){
+      const button=document.createElement('button');button.type='button';button.className='nav-button module-nav-button';button.dataset.moduleNav=item.target;button.dataset.moduleOpen=item.target;button.title=item.label;button.setAttribute('aria-label',item.label);button.dataset.userRole=role||'';button.innerHTML=root.PdvIcon?.(item.icon||'document',23)||'';nav.appendChild(button);
+    }
   }
-  async function refreshModuleNavigation(){if(!document.body.dataset.userRole){renderModuleNavigation();return;}try{await loadModules();renderModuleNavigation();}catch(error){console.warn('Module navigation unavailable:',error?.message||error);}}
+  function refreshModuleNavigation(){renderModuleNavigation();}
 
   function settingsPage(){
     const content=document.getElementById('route-content');
@@ -61,22 +81,33 @@
 
   function renderSettingsModules(card=settingsModulesCard()){
     if(!card||!card.isConnected)return;
-    const enabled=modules.filter(module=>module.enabled);
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
-    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><h3>Ativação</h3>${modules.map(module=>`<label class="vertical-toggle"><span><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><small>${escapeHtml(module.description||'')}</small></span><input type="checkbox" data-module-toggle="${module.id}" ${module.enabled?'checked':''}></label>`).join('')}</section><section class="vertical-enabled"><h3>Disponíveis na navegação</h3><div class="vertical-card-grid">${enabled.length?enabled.map(module=>`<div class="vertical-card"><strong>${escapeHtml(MODULE_LABELS[module.id]||module.name)}</strong><span>${SUPPORTED_WORKSPACES.has(module.id)?'Acesso liberado no menu lateral':'Sem tela operacional própria'}</span></div>`).join(''):'<p class="vertical-empty">Nenhum módulo opcional ativado.</p>'}</div></section></div>`;
+    const role=document.body.dataset.userRole;
+    const groups=new Map();
+    for(const module of modules){const area=areaFor(module);if(!area)continue;const group=groups.get(area.id)||{area,modules:[]};group.modules.push(module);groups.set(area.id,group);}
+    const renderToggle=module=>{const canManage=Array.isArray(module.manageRoles)&&module.manageRoles.includes(role);return `<label class="vertical-toggle"><span><strong>${escapeHtml(labelFor(module))}</strong><small>${escapeHtml(module.description||'')}${canManage?'':' · Somente administrador pode alterar'}</small></span><input type="checkbox" role="switch" aria-label="Ativar ${escapeHtml(labelFor(module))}" aria-checked="${module.enabled?'true':'false'}" data-module-toggle="${escapeHtml(module.id)}" ${module.enabled?'checked':''} ${canManage?'':'disabled'}></label>`;};
+    const activationGroups=[...groups.values()].map(({area,modules:areaModules})=>`<section class="module-family"><div class="module-family-head"><div><h4>${escapeHtml(area.label)}</h4><p>${escapeHtml(area.description||'Recursos que pertencem a esta área do sistema.')}${area.navigation==='group'?' · uma única entrada no menu, com operações internas':''}</p></div><span class="ops-badge">${areaModules.filter(module=>module.enabled).length} de ${areaModules.length} ativas</span></div>${areaModules.map(renderToggle).join('')}</section>`).join('');
+    const navigationCards=[...groups.values()].flatMap(({area,modules:areaModules})=>{
+      const available=areaModules.filter(module=>module.enabled&&moduleAllowed(module));if(!available.length)return[];
+      if(area.navigation==='group')return [`<div class="vertical-card"><strong>${escapeHtml(area.label)}</strong><span>Uma entrada no menu lateral · ${available.map(module=>escapeHtml(labelFor(module))).join(' · ')}</span></div>`];
+      return available.map(module=>`<div class="vertical-card"><strong>${escapeHtml(labelFor(module))}</strong><span>Acesso liberado no menu lateral</span></div>`);
+    });
+    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Ativar recursos</h3><p>A ativação define o que o estabelecimento usa; os recursos compatíveis compartilham a mesma área de trabalho.</p></div>${activationGroups||'<p class="vertical-empty">Nenhum recurso configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu é montado a partir do mesmo catálogo e das permissões do perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
     body.querySelectorAll('[data-module-toggle]').forEach(input=>input.addEventListener('change',async()=>{
       const id=input.dataset.moduleToggle;
       const target=input.checked;
+      input.setAttribute('aria-checked',String(target));
       input.disabled=true;
       try{
         await withTimeout(api.saveSetting(`modules.${id}.enabled`,target,'global'),MODULE_REQUEST_TIMEOUT_MS,'A alteração do módulo demorou demais. Nada foi travado; tente novamente.');
         modules=modules.map(module=>module.id===id?{...module,enabled:target}:module);
         renderModuleNavigation();
         renderSettingsModules(card);
-        notify(`${MODULE_LABELS[id]||id} ${target?'ativado':'desativado'}.`);
+        notify(`${labelFor(modules.find(module=>module.id===id))||id} ${target?'ativado':'desativado'}.`);
       }catch(error){
         input.checked=!target;
+        input.setAttribute('aria-checked',String(!target));
         input.disabled=false;
         notify(error.message,true);
       }
@@ -107,14 +138,14 @@
     const card=document.createElement('section');
     card.className='ops-card';
     card.id='ops-establishment-modules-card';
-    card.innerHTML=`<div class="ops-card-head"><div><h2>Módulos do estabelecimento</h2><p class="ops-muted">Ative somente os módulos usados nesta operação. Esta área é carregada separadamente para não bloquear caixa, vendas ou o restante das configurações.</p></div><span class="vertical-rule">Pagamentos manuais · Documentos NÃO FISCAL</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar módulos</button></div></div>`;
+    card.innerHTML=`<div class="ops-card-head"><div><h2>Módulos do estabelecimento</h2><p class="ops-muted">Configure áreas e recursos do mesmo PDV. As opções alteram a navegação; vendas, estoque e caixa continuam compartilhados.</p></div><span class="vertical-rule">Núcleo local · operação compartilhada</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar módulos</button></div></div>`;
     const firstGrid=page.querySelector('.ops-grid');
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
     card.querySelector('#ops-load-establishment-modules')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
   }
 
   function backButton(){return '<button class="secondary-button" type="button" id="vertical-back">← Início</button>';}
-  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{document.querySelector('#sidebar-nav [data-route="home"]')?.click();});}
+  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{const current=moduleForRoute(document.body.dataset.activeModuleWorkspace);const area=areaFor(current);if(area?.navigation==='group'){void renderWorkspace(area.routeId);return;}document.querySelector('#sidebar-nav [data-route="home"]')?.click();});}
   function input(name,label,type='text',extra=''){return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${extra}></label>`;}
   function normalizeNationalPhoneInput(value){
     let digits=String(value??'').replace(/\D/g,'');
@@ -140,13 +171,29 @@
   }
 
   async function renderWorkspace(id){
-    if(!modules.find(module=>module.id===id&&module.enabled)){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
-    document.body.dataset.activeRoute=`module-${id.toLowerCase().replaceAll('_','-')}`;renderModuleNavigation();document.querySelector(`[data-module-nav="${id}"]`)?.classList.add('active');
-    if(id==='PIZZERIA')return renderPizzeria();
-    if(id==='DELIVERY')return renderDelivery();
-    if(id==='FAST_FOOD')return renderFastFood();
-    if(id==='MARKET_BAKERY')return renderMarket();
-    if(id==='RESTAURANT')return root.PdvRestaurantUi?.show?.();
+    const area=areaForRoute(id);
+    if(area?.navigation==='group'){
+      const available=modulesInArea(area.id).filter(module=>module.enabled&&moduleAllowed(module));
+      if(!available.length){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
+      document.body.dataset.activeRoute=`module-${String(area.routeId).toLowerCase().replaceAll('_','-')}`;delete document.body.dataset.activeModuleWorkspace;renderModuleNavigation();document.querySelector(`[data-module-nav="${area.routeId}"]`)?.classList.add('active');renderAreaHub(area,available);return;
+    }
+    const module=moduleForRoute(id);
+    if(!module?.enabled||!moduleAllowed(module)){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
+    document.body.dataset.activeRoute=`module-${String(module.routeId).toLowerCase().replaceAll('_','-')}`;document.body.dataset.activeModuleWorkspace=module.routeId;renderModuleNavigation();const areaRoute=areaFor(module)?.navigation==='group'?areaFor(module).routeId:module.routeId;document.querySelector(`[data-module-nav="${areaRoute}"]`)?.classList.add('active');
+    try {
+      return await ROUTE_RENDERERS[module.routeId]();
+    } catch(error) {
+      const content=document.getElementById('route-content');
+      if(content)content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Não foi possível abrir esta área</h1><p>O restante do sistema continua disponível.</p></div>${backButton()}</header><div class="data-card ops-error" role="alert">${escapeHtml(error?.message||'Falha inesperada ao carregar a tela.')}</div><button class="secondary-button" type="button" id="module-retry">Tentar novamente</button></section>`;
+      bindBack();document.getElementById('module-retry')?.addEventListener('click',()=>void renderWorkspace(module.routeId));
+      notify('A tela não abriu. O sistema continua disponível; tente novamente.',true);
+    }
+  }
+
+  function renderAreaHub(area,available){
+    const content=document.getElementById('route-content');
+    content.innerHTML=`<section class="page vertical-page" data-module-area="${escapeHtml(area.id)}"><header class="page-head"><div><h1>${escapeHtml(area.label)}</h1><p>${escapeHtml(area.description||'Operações disponíveis para este estabelecimento.')}. Os recursos abaixo usam o mesmo catálogo, estoque e caixa do ArtiSys.</p></div>${backButton()}</header><div class="food-module-grid">${available.map(module=>`<button type="button" class="data-card food-module-card" data-food-open="${escapeHtml(module.routeId)}"><span>${root.PdvIcon?.(module.icon,28)||''}</span><strong>${escapeHtml(labelFor(module))}</strong><small>${escapeHtml(module.description||'Recurso desta área de trabalho')}</small><span class="secondary-button">Abrir</span></button>`).join('')}</div></section>`;
+    bindBack();content.querySelectorAll('[data-food-open]').forEach(button=>button.addEventListener('click',()=>void renderWorkspace(button.dataset.foodOpen)));
   }
 
   function renderPizzeria(){
@@ -180,14 +227,14 @@
   }
 
   const content=document.getElementById('route-content');
-  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-module-nav]');if(!target)return;const id=target.dataset.moduleNav;if(!SUPPORTED_WORKSPACES.has(id)||['RETAIL','SERVICES','WORKSHOP','SELF_SERVICE'].includes(id))return;event.preventDefault();event.stopImmediatePropagation();void renderWorkspace(id);},true);
-  root.addEventListener('artisys:modules-state-changed',event=>{const state=event.detail?.modules;if(state&&typeof state==='object')modules=modules.map(module=>Object.hasOwn(state,module.id)?{...module,enabled:Boolean(state[module.id])}:module);renderModuleNavigation();});
-  root.addEventListener('artisys:sidebar-rendered',renderModuleNavigation);
+  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-module-nav]');if(!target)return;const id=target.dataset.moduleNav;if(!areaForRoute(id)&&!moduleForRoute(id))return;event.preventDefault();event.stopImmediatePropagation();void renderWorkspace(id);},true);
+  root.addEventListener('artisys:modules-state-changed',event=>{if(!mergeModuleCatalog(event.detail?.catalog))return;renderModuleNavigation();const card=settingsModulesCard();if(card?.querySelector('[data-module-toggle]'))renderSettingsModules(card);});
+  root.addEventListener('artisys:sidebar-rendered',()=>{void refreshModuleNavigation();});
   new MutationObserver(()=>{void refreshModuleNavigation();}).observe(document.body,{attributes:true,attributeFilter:['data-user-role']});
   if(content)new MutationObserver(()=>{mountSettingsModules();scheduleSanitize();}).observe(content,{subtree:true,childList:true});
   document.addEventListener('DOMContentLoaded',()=>{mountSettingsModules();scheduleSanitize();},{once:true});
   mountSettingsModules();
   void refreshModuleNavigation();
-  root.PdvVerticalModules=Object.freeze({openWorkspace:renderWorkspace,refreshNavigation:refreshModuleNavigation});
+  root.PdvVerticalModules=Object.freeze({openWorkspace:renderWorkspace,refreshNavigation:refreshModuleNavigation,renderSettingsModules});
   scheduleSanitize();
 })();

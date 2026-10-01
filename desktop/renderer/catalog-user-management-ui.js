@@ -80,16 +80,18 @@
   }
 
   async function enhanceProducts(){
-    await session();const root=content.querySelector('.page');if(!root||heading()!=='Produtos')return;
+    await session();const root=content.querySelector('.page');if(!root||!['Produtos','Cardápio'].includes(heading()))return;
     if(!canManageCatalog()){
       root.querySelector('#new-product')?.remove();root.querySelector('#new-category')?.remove();
       root.querySelectorAll('[data-edit-product],[data-remove-product]').forEach(button=>button.remove());return;
     }
     if(root.querySelector('#catalog-category-management'))return;
-    const categories=await api.categories();
-    const card=document.createElement('section');card.id='catalog-category-management';card.className='data-card';card.style.marginTop='14px';
-    card.innerHTML=`<div style="padding:14px"><div class="page-head" style="margin-bottom:10px"><div><h2 style="margin:0">Categorias</h2><p>Exclusão lógica mantém os produtos e o histórico vinculados.</p></div></div>${categories.map(category=>`<div class="data-row"><div><strong>${esc(category.name)}</strong><small>${esc(category.id)}</small></div><div></div><div></div><button type="button" class="danger-button" data-remove-category="${esc(category.id)}">Excluir</button></div>`).join('')||'<div class="empty-state">Nenhuma categoria ativa.</div>'}</div>`;
-    root.appendChild(card);
+    const [categories,products]=await Promise.all([api.categories(),api.products()]);
+    let supportGrid=root.querySelector('.product-support-grid');
+    if(!supportGrid){supportGrid=document.createElement('div');supportGrid.className='product-support-grid';root.appendChild(supportGrid);}
+    const card=document.createElement('section');card.id='catalog-category-management';card.className='data-card product-support-card';
+    card.innerHTML=`<details open><summary><span><strong>Categorias</strong><small>${categories.length} categorias ativas</small></span></summary><div class="product-support-body"><p>Produtos de cada categoria e seu histórico permanecem vinculados.</p>${categories.map(category=>{const linked=products.filter(product=>product.categoryId===category.id);return `<div class="data-row"><div><strong>${esc(category.name)}</strong><small>${linked.length?`${linked.length} produto(s): ${linked.slice(0,4).map(product=>esc(product.name)).join(', ')}${linked.length>4?'…':''}`:'Nenhum produto associado'}</small></div><div></div><div></div><button type="button" class="danger-button" data-remove-category="${esc(category.id)}">Excluir</button></div>`;}).join('')||'<div class="empty-state">Nenhuma categoria ativa.</div>'}</div></details>`;
+    supportGrid.appendChild(card);
     card.querySelectorAll('[data-remove-category]').forEach(button=>button.addEventListener('click',()=>{const category=categories.find(item=>item.id===button.dataset.removeCategory);confirmCatalogRemoval('categoria',category,()=>api.removeCategory(category.id),async()=>{card.remove();await enhanceProducts();});}));
   }
 
@@ -114,7 +116,7 @@
       await session();const title=heading();
       if(title==='Equipe e acessos')await renderUsers();
       else if(title==='Clientes')await enhanceCustomers();
-      else if(title==='Produtos')await enhanceProducts();
+      else if(['Produtos','Cardápio'].includes(title))await enhanceProducts();
       else if(title==='Compras e recebimentos')await enhanceSuppliers();
     }catch(error){console.warn('Catalog/user management UI unavailable:',error?.message||error);}finally{mounting=false;}
   }

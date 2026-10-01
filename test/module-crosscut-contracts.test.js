@@ -13,9 +13,9 @@ function probes(){
 
 test('builds fully covered crosscut contracts for all real optional modules',()=>{
   const plan=buildModuleContractPlan({modules:MODULES,probes:probes()});
-  assert.equal(MODULES.length,9);
-  assert.equal(plan.contracts.length,9);
-  assert.deepEqual(plan.coverage,{discovered:9,covered:9,uncovered:0,uncoveredCritical:0});
+  assert.equal(MODULES.length,8);
+  assert.equal(plan.contracts.length,8);
+  assert.deepEqual(plan.coverage,{discovered:8,covered:8,uncovered:0,uncoveredCritical:0});
 
   const expected={
     RESTAURANT:{launcher:'#route-content [data-restaurant-route]',path:'/api/v1/restaurant/tables',heading:'Restaurante'},
@@ -25,7 +25,6 @@ test('builds fully covered crosscut contracts for all real optional modules',()=
     MARKET_BAKERY:{launcher:'[data-module-open="MARKET_BAKERY"]',path:'/api/v1/vertical/market/price-weight',heading:'Mercado / Conveniência / Padaria'},
     RETAIL:{launcher:'[data-module-open="RETAIL"]',path:'/api/v1/vertical/retail/variants?query=__qa__',heading:'Varejo'},
     SERVICES:{launcher:'[data-module-open="SERVICES"]',path:'/api/v1/vertical/services/commissions',heading:'Serviços'},
-    WORKSHOP:{launcher:'[data-module-open="WORKSHOP"]',path:'/api/v1/vertical/workshop/orders/__qa_missing__',heading:'Oficina'},
     SELF_SERVICE:{launcher:'[data-module-open="SELF_SERVICE"]',path:'/api/v1/vertical/self-service/devices/__qa_missing__',heading:'Autoatendimento'}
   };
 
@@ -42,9 +41,6 @@ test('builds fully covered crosscut contracts for all real optional modules',()=
     assert.equal(contract.workspaceHeading,item.heading);
   }
 
-  const workshop=plan.contracts.find(item=>item.moduleId==='WORKSHOP');
-  assert.deepEqual(workshop.dependsOn,['SERVICES']);
-  assert.ok(workshop.checks.some(check=>check.kind==='dependency'&&check.dependency==='SERVICES'));
 });
 
 test('validates unknown probes and missing module dependencies',()=>{
@@ -56,11 +52,11 @@ test('validates unknown probes and missing module dependencies',()=>{
   assert.ok(unknown.errors.includes('unknown module probe: NOT_A_MODULE'));
 
   const missingDependency=validateModuleProbeConfig({
-    modules:[{id:'WORKSHOP',dependsOn:['SERVICES'],defaultEnabled:false}],
+    modules:[{id:'SAMPLE',dependsOn:['MISSING'],defaultEnabled:false}],
     probes:{}
   });
   assert.equal(missingDependency.ok,false);
-  assert.ok(missingDependency.errors.includes('unknown dependency for WORKSHOP: SERVICES'));
+  assert.ok(missingDependency.errors.includes('unknown dependency for SAMPLE: MISSING'));
 });
 
 test('requires explicit reasons for unmapped QA subcapabilities',()=>{

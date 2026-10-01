@@ -11,7 +11,6 @@ const SEGMENTS=Object.freeze({
   BAKERY:['MARKET_BAKERY'],
   RETAIL:['RETAIL'],
   SERVICES:['SERVICES'],
-  WORKSHOP:['SERVICES','WORKSHOP'],
   GENERIC:[]
 });
 

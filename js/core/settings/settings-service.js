@@ -88,6 +88,11 @@ function createSettingsService({db,now=()=>new Date().toISOString()}={}) {
 
   function mayWrite(key,scope,actor) {
     const role=String(actor?.role||'');
+    const moduleSetting=String(key).match(MODULE_SETTING);
+    if(moduleSetting){
+      const definition=getModuleDefinition(moduleSetting[1]);
+      if(definition)return role==='system'||definition.manageRoles.includes(role);
+    }
     if(['admin','manager','system'].includes(role)) return true;
     return role==='cashier' && key.startsWith('ui.') && scope===`user:${String(actor?.userId||'')}`;
   }

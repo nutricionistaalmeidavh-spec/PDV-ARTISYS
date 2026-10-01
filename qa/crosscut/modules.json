@@ -57,14 +57,6 @@
       "workspaceSelector": "[data-module-workspace=\"SERVICES\"]",
       "workspaceHeading": "Serviços"
     },
-    "WORKSHOP": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"WORKSHOP\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/workshop/orders/__qa_missing__", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"WORKSHOP\"]",
-      "workspaceHeading": "Oficina"
-    },
     "SELF_SERVICE": {
       "critical": true,
       "launcherSelector": "[data-module-open=\"SELF_SERVICE\"]",

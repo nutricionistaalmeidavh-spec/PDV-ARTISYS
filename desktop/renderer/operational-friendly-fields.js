@@ -5,9 +5,9 @@
   if(!ApiClient||!content)return;
   const api=new ApiClient();const cache=new Map();let scheduled=false;
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  const loaders={productId:()=>api.products(),customerId:()=>api.customers(),operatorId:()=>api.users(),sellerId:()=>api.sellers(),serviceId:()=>api.request('/api/v1/vertical/services/catalog'),professionalId:()=>api.request('/api/v1/vertical/services/professionals'),assetId:()=>api.request('/api/v1/vertical/workshop/assets'),orderId:()=>api.request('/api/v1/vertical/workshop/orders')};
-  const labels={productId:'Produto',customerId:'Cliente',operatorId:'Operador',sellerId:'Vendedor',serviceId:'Serviço',professionalId:'Profissional',sessionId:'Mesa ou comanda',orderId:'Pedido ou ordem de serviço',assetId:'Veículo ou equipamento',referenceId:'Produto ou serviço'};
-  const display=(name,row)=>name==='productId'?`${row.name}${row.sku?` · ${row.sku}`:''}`:name==='customerId'?`${row.name}${row.document?` · ${row.document}`:''}`:name==='assetId'?`${row.identifier}${row.make?` · ${row.make} ${row.model||''}`:''}`:name==='orderId'?`${row.status} · ${row.complaint||'Sem descrição'}`:row.name||row.username||row.id;
+  const loaders={productId:()=>api.products(),customerId:()=>api.customers(),operatorId:()=>api.users(),sellerId:()=>api.sellers(),serviceId:()=>api.request('/api/v1/vertical/services/catalog'),professionalId:()=>api.request('/api/v1/vertical/services/professionals'),orderId:()=>api.delivery()};
+  const labels={productId:'Produto',customerId:'Cliente',operatorId:'Operador',sellerId:'Vendedor',serviceId:'Serviço',professionalId:'Profissional',sessionId:'Mesa ou comanda',orderId:'Pedido',referenceId:'Produto ou serviço'};
+  const display=(name,row)=>name==='productId'?`${row.name}${row.sku?` · ${row.sku}`:''}`:name==='customerId'?`${row.name}${row.document?` · ${row.document}`:''}`:row.name||row.customerName||row.username||row.id;
   const rows=name=>{if(!cache.has(name))cache.set(name,loaders[name]().catch(()=>[]));return cache.get(name);};
   async function replaceWithSelect(input,name){
     if(input.dataset.friendlyField||!loaders[name]||input.type==='hidden')return;input.dataset.friendlyField='loading';

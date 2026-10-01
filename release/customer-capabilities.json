@@ -1,7 +1,9 @@
 {
   "schemaVersion": 1,
   "description": "Fonte de verdade para rastrear capacidades do backend ate a superficie do cliente. Infraestrutura interna e explicitamente classificada como internal.",
-  "backendIgnore": [],
+  "backendIgnore": [
+    "js/domains/workshop/workshop-service.js"
+  ],
   "capabilities": [
     {
       "id": "core.catalog-sales",
@@ -252,7 +254,6 @@
         "optional-market-bakery-weighted-items-and-orders",
         "optional-retail-variants-sku-barcode-and-variant-stock",
         "optional-services-local-scheduling-professionals-and-commission",
-        "optional-workshop-assets-work-orders-parts-and-labor",
         "optional-self-service-paired-device-ordering"
       ],
       "backend": [
@@ -273,9 +274,6 @@
         },
         {
           "path": "js/domains/services/services-service.js"
-        },
-        {
-          "path": "js/domains/workshop/workshop-service.js"
         },
         {
           "path": "js/domains/self-service/self-service.js"

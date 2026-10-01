@@ -74,13 +74,13 @@ test('E42 modules persist enablement, validate ids and expose capabilities',()=>
 
 test('E42 direct module settings enforce boolean type, dependencies and admin permission',()=>{
   const rt=runtime();seed(rt);const admin=actor();
-  assert.throws(()=>rt.settings.set('modules.WORKSHOP.enabled',true,{scope:'global',actor:admin}),/SERVICES/);
+  assert.throws(()=>rt.settings.set('modules.WORKSHOP.enabled',true,{scope:'global',actor:admin}),/desconhecido/i);
   assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled','true',{scope:'global',actor:admin}),/booleano/i);
   assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled',true,{scope:'global',actor:{userId:'cashier',role:'cashier'}}),/Permissao insuficiente/);
+  assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled',true,{scope:'global',actor:{userId:'manager',role:'manager'}}),/Permissao insuficiente/);
   rt.settings.set('modules.SERVICES.enabled',true,{scope:'global',actor:admin});
-  rt.settings.set('modules.WORKSHOP.enabled',true,{scope:'global',actor:admin});
-  assert.equal(rt.modules.isEnabled('WORKSHOP'),true);
-  assert.throws(()=>rt.settings.set('modules.SERVICES.enabled',false,{scope:'global',actor:admin}),/WORKSHOP/);
+  assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
+  rt.settings.set('modules.SERVICES.enabled',false,{scope:'global',actor:admin});
   const audit=rt.db.prepare("SELECT action FROM audit_log WHERE entity_id='SERVICES' ORDER BY created_at DESC LIMIT 1").get();
   assert.equal(audit.action,'module.toggle');
   rt.close();

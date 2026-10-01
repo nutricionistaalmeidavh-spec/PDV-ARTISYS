@@ -18,6 +18,8 @@
       "env": {
         "NODE_ENV": "test",
         "ARTISYS_QA": "1",
+        "ARTISYS_QA_AUTO_ADMIN": "1",
+        "ARTISYS_QA_AUTO_LOCAL": "1",
         "ARTISYS_QA_PDF_DIR": "../qa-artifacts/pdf",
         "ARTISYS_QA_SIMULATE_PRINTER": "1",
         "ARTISYS_QA_NO_PRINTERS": "1",
@@ -29,7 +31,8 @@
   "demoProfiles": {
     "erp-finance-ci": { "adapter": "runtime/adapters/erp-finance-ci.mjs" }
   },
-  "flows": {},
+  "defaultFlow": "all-pages-audit",
+  "flows": {"all-pages-audit": "flows/all-pages-audit.json"},
   "qaProfiles": {
     "quick": { "flows": [], "criticalFlows": [] },
     "full": { "flows": [], "criticalFlows": [] },

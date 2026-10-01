@@ -23,7 +23,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
 
   return async function e48e54Router(request,response){
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
-    const prefixes=['/api/v1/vertical/retail','/api/v1/vertical/services','/api/v1/vertical/workshop','/api/v1/vertical/self-service','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
+    const prefixes=['/api/v1/vertical/retail','/api/v1/vertical/services','/api/v1/vertical/self-service','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
     if(!prefixes.some(prefix=>pathname.startsWith(prefix)))return false;
     try{
       const p=principal(request);const actor=p.actor;
@@ -46,21 +46,6 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       const appointmentSale=pathname.match(/^\/api\/v1\/vertical\/services\/appointments\/([^/]+)\/sale$/);
       if(request.method==='POST'&&appointmentSale){const data=await body(request);json(response,201,runtime.services.createSale(decodeURIComponent(appointmentSale[1]),{...data,terminalId:data.terminalId||p.terminalId},actor));return true;}
       if(request.method==='GET'&&pathname==='/api/v1/vertical/services/commissions'){json(response,200,runtime.services.commissionReport({from:url.searchParams.get('from')||null,to:url.searchParams.get('to')||null,professionalId:url.searchParams.get('professionalId')||null}));return true;}
-
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/workshop/assets'){json(response,200,runtime.workshop.listAssets());return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/workshop/assets'){json(response,201,runtime.workshop.upsertAsset(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/workshop/orders'){json(response,200,runtime.workshop.listWorkOrders());return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/workshop/orders'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.workshop.openWorkOrder(data,actor));json(response,result.statusCode,result.payload);return true;}
-      const workOrder=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)$/);
-      if(request.method==='GET'&&workOrder){json(response,200,runtime.workshop.getWorkOrder(decodeURIComponent(workOrder[1])));return true;}
-      const workItems=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)\/items$/);
-      if(request.method==='POST'&&workItems){json(response,201,runtime.workshop.addItem(decodeURIComponent(workItems[1]),await body(request),actor));return true;}
-      const workStatus=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)\/status$/);
-      if(request.method==='PATCH'&&workStatus){const data=await body(request);json(response,200,runtime.workshop.updateStatus(decodeURIComponent(workStatus[1]),data.status,data,actor));return true;}
-      const workCancel=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&workCancel){const data=await body(request);json(response,200,runtime.workshop.cancel(decodeURIComponent(workCancel[1]),data.reason,actor));return true;}
-      const workSale=pathname.match(/^\/api\/v1\/vertical\/workshop\/orders\/([^/]+)\/sale$/);
-      if(request.method==='POST'&&workSale){const data=await body(request);json(response,201,runtime.workshop.createSale(decodeURIComponent(workSale[1]),{...data,terminalId:data.terminalId||p.terminalId},actor));return true;}
 
       const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
       if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}

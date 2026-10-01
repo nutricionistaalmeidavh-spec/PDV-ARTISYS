@@ -7,17 +7,10 @@
 
   const api=new ApiClient();
   const MODULE_SETTING_PATTERN=/^modules\.([A-Z_]+)\.enabled$/;
-  const GATE_STYLE_ID='restaurant-module-gate-style';
   const REFRESH_INTERVAL_MS=5000;
   const moduleStates=new Map();
-
-  function ensureGateStyle(){
-    if(document.getElementById(GATE_STYLE_ID))return;
-    const style=document.createElement('style');
-    style.id=GATE_STYLE_ID;
-    style.textContent='html[data-restaurant-module-enabled="false"] [data-restaurant-route]{display:none !important}';
-    (document.head||document.documentElement).appendChild(style);
-  }
+  let moduleCatalog=[];
+  let refreshInFlight=null;
 
   function normalizeId(value){return String(value||'').trim().toUpperCase();}
   function snapshot(){return Object.freeze(Object.fromEntries(moduleStates.entries()));}
@@ -28,20 +21,15 @@
     const moduleId=normalizeId(id);
     if(!moduleId||!isResolved(moduleId))return;
     const enabled=isEnabled(moduleId);
-    if(!enabled&&document.body.dataset.activeRoute===`module-${moduleId.toLowerCase().replaceAll('_','-')}`){
-      document.querySelector('#sidebar-nav [data-route="home"]')?.click();
+    const currentRoute=document.body.dataset.activeModuleWorkspace;
+    if(!enabled&&currentRoute===moduleId){
+      const current=moduleCatalog.find(module=>module.id===moduleId);
+      const area=current?.area;
+      const areaStillAvailable=area?.navigation==='group'&&moduleCatalog.some(module=>module.area?.id===area.id&&module.enabled&&module.accessRoles?.includes(document.body.dataset.userRole));
+      if(areaStillAvailable)root.PdvVerticalModules?.openWorkspace?.(area.routeId);
+      else document.querySelector('#sidebar-nav [data-route="home"]')?.click();
     }
-    if(moduleId==='RESTAURANT'){
-      ensureGateStyle();
-      document.documentElement?.setAttribute('data-restaurant-module-enabled',enabled?'true':'false');
-      document.querySelectorAll('[data-restaurant-route]').forEach(launcher=>{
-        launcher.hidden=!enabled;
-        launcher.setAttribute('aria-hidden',enabled?'false':'true');
-        if(enabled)launcher.removeAttribute('tabindex');
-        else launcher.setAttribute('tabindex','-1');
-      });
-    }
-      document.querySelectorAll(`[data-module-open="${moduleId}"], [data-module-nav="${moduleId}"]`).forEach(launcher=>{
+    document.querySelectorAll(`[data-module-open="${moduleId}"], [data-module-nav="${moduleId}"]`).forEach(launcher=>{
       launcher.hidden=!enabled;
       launcher.setAttribute('aria-hidden',enabled?'false':'true');
       if(enabled){launcher.removeAttribute('tabindex');launcher.removeAttribute('aria-disabled');}
@@ -52,7 +40,7 @@
   function emitStateChanged(changedIds){
     if(!changedIds.length)return;
     root.dispatchEvent(new CustomEvent('artisys:modules-state-changed',{
-      detail:{changedIds:[...changedIds],modules:snapshot()}
+      detail:{changedIds:[...changedIds],modules:snapshot(),catalog:moduleCatalog.map(module=>({...module}))}
     }));
   }
 
@@ -62,6 +50,7 @@
     const value=Boolean(enabled);
     const changed=!moduleStates.has(moduleId)||moduleStates.get(moduleId)!==value;
     moduleStates.set(moduleId,value);
+    moduleCatalog=moduleCatalog.map(module=>module.id===moduleId?{...module,enabled:value}:module);
     applyLauncherState(moduleId);
     if(changed&&emit)emitStateChanged([moduleId]);
     return value;
@@ -69,7 +58,8 @@
 
   function reconcileModules(modules){
     const changedIds=[];
-    for(const module of Array.isArray(modules)?modules:[]){
+    moduleCatalog=(Array.isArray(modules)?modules:[]).map(module=>({...module,enabled:Boolean(module?.enabled)}));
+    for(const module of moduleCatalog){
       const moduleId=normalizeId(module?.id);
       if(!moduleId)continue;
       const value=Boolean(module?.enabled);
@@ -82,23 +72,23 @@
   }
 
   async function refresh(){
-    try{
-      const modules=await api.modules();
-      reconcileModules(modules);
-      // Keep the Restaurant lookup explicit for backwards-compatible diagnostics/tests.
-      const restaurant=Array.isArray(modules)?modules.find(module=>module.id==='RESTAURANT'):null;
-      if(restaurant&&!isResolved('RESTAURANT'))setEnabled('RESTAURANT',Boolean(restaurant?.enabled));
-    }catch(_error){
-      // Restaurant historically fails closed. Unknown optional modules stay unresolved rather than being invented as disabled.
-      if(!isResolved('RESTAURANT'))setEnabled('RESTAURANT',false);
-    }
-    return snapshot();
+    if(refreshInFlight)return refreshInFlight;
+    refreshInFlight=(async()=>{
+      try{
+        const modules=await api.modules();
+        reconcileModules(modules);
+      }catch(_error){
+        // Keep the last authoritative catalog; a failed refresh never fabricates module state.
+      }
+      return snapshot();
+    })();
+    try{return await refreshInFlight;}finally{refreshInFlight=null;}
   }
 
   root.addEventListener('click',event=>{
-    const target=event.target?.closest?.('[data-restaurant-route],[data-module-open]');
+    const target=event.target?.closest?.('[data-module-open]');
     if(!target)return;
-    const moduleId=target.matches?.('[data-restaurant-route]')?'RESTAURANT':normalizeId(target.getAttribute('data-module-open'));
+    const moduleId=normalizeId(target.getAttribute('data-module-open'));
     if(!moduleId||!isResolved(moduleId)||isEnabled(moduleId))return;
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -131,15 +121,6 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
   if(typeof root.setInterval==='function')root.setInterval(()=>{void refresh();},REFRESH_INTERVAL_MS);
 
-  root.PdvModuleGate=Object.freeze({refresh,setEnabled,isEnabled,snapshot});
-  root.PdvRestaurantModuleGate=Object.freeze({
-    refresh,
-    setEnabled:enabled=>setEnabled('RESTAURANT',enabled),
-    isEnabled:()=>isEnabled('RESTAURANT'),
-    snapshot:()=>({enabled:isEnabled('RESTAURANT'),resolved:isResolved('RESTAURANT')})
-  });
-
-  ensureGateStyle();
-  setEnabled('RESTAURANT',false,{emit:false});
+  root.PdvModuleGate=Object.freeze({refresh,reconcile:reconcileModules,setEnabled,isEnabled,snapshot,catalog:()=>moduleCatalog.map(module=>({...module}))});
   void refresh();
 })();

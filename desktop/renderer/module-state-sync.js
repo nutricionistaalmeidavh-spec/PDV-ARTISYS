@@ -4,29 +4,16 @@
   const root=window;
   if(root.PdvModuleStateSync)return;
 
-  const MODULE_HEADINGS=Object.freeze({
-    RESTAURANT:'Restaurante',
-    PIZZERIA:'Pizzaria',
-    DELIVERY:'Delivery',
-    FAST_FOOD:'Fast-food / Lanchonete',
-    MARKET_BAKERY:'Mercado / Conveniência / Padaria',
-    RETAIL:'Varejo',
-    SERVICES:'Serviços',
-    WORKSHOP:'Oficina',
-    SELF_SERVICE:'Autoatendimento'
-  });
-  const HEADING_TO_ID=new Map(Object.entries(MODULE_HEADINGS).map(([id,heading])=>[heading,id]));
   let settingsRefreshScheduled=false;
 
   function routeContent(){return document.getElementById('route-content');}
   function annotateWorkspace(){
     const content=routeContent();
     if(!content)return null;
-    const heading=content.querySelector('h1')?.textContent?.trim();
-    const moduleId=HEADING_TO_ID.get(heading)||null;
-    if(!moduleId)return null;
     const workspace=content.querySelector('.vertical-page,.restaurant-page,.page')||content.firstElementChild;
-    workspace?.setAttribute('data-module-workspace',moduleId);
+    const moduleId=document.body.dataset.activeModuleWorkspace||null;
+    if(moduleId)workspace?.setAttribute('data-module-workspace',moduleId);
+    else workspace?.removeAttribute('data-module-workspace');
     return moduleId;
   }
   function onSettingsPage(){
@@ -44,14 +31,10 @@
   }
   function handleStateChange(event){
     const detail=event?.detail||{};
-    const modules=detail.modules&&typeof detail.modules==='object'?detail.modules:{};
+    const modules=Array.isArray(detail.catalog)?detail.catalog:[];
     const changed=Array.isArray(detail.changedIds)?detail.changedIds:[];
-    const activeId=annotateWorkspace();
-    if(activeId&&changed.includes(activeId)&&modules[activeId]===false){
-      document.querySelector('#sidebar-nav [data-route="home"]')?.click();
-      return;
-    }
-    if(onSettingsPage()&&changed.some(id=>modules[id]===true&&!document.querySelector(`[data-module-open="${id}"]`))){
+    annotateWorkspace();
+    if(onSettingsPage()&&changed.some(id=>modules.some(module=>module.id===id)&&!document.querySelector(`[data-module-toggle="${id}"]`))){
       reloadSettingsModules();
     }
   }

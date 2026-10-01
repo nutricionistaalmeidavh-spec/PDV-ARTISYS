@@ -9,7 +9,7 @@
     { key: 'checkout', label: 'Balcão', description: 'Iniciar nova venda', shortcut: 'F2', route: 'checkout', tone: 'blue', icon: 'cart' },
     { key: 'customers', label: 'Cliente', description: 'Cadastrar e consultar clientes', shortcut: 'F3', route: 'customers', tone: 'green', icon: 'users' },
     { key: 'sellers', label: 'Vendedor', description: 'Gerenciar vendedores', shortcut: 'F4', route: 'sellers', tone: 'orange', icon: 'user' },
-    { key: 'products', label: 'Produtos', description: 'Cadastrar e consultar produtos', shortcut: 'F5', route: 'products', tone: 'purple', icon: 'box' },
+    { key: 'products', label: 'Cardápio', description: 'Cadastrar itens e organizar o que pode ser pedido', shortcut: 'F5', route: 'products', tone: 'purple', icon: 'document' },
     { key: 'inventory', label: 'Estoque', description: 'Entradas, saídas e inventário', shortcut: 'F6', route: 'inventory', tone: 'teal', icon: 'cubes' },
     { key: 'cash', label: 'Caixa', description: 'Abertura, fechamento e sangria', shortcut: 'F7', route: 'cash', tone: 'red', icon: 'cash' },
     { key: 'finance', label: 'Financeiro', description: 'Contas a pagar e receber', shortcut: 'F8', route: 'finance', tone: 'emerald', icon: 'money' },

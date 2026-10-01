@@ -19,15 +19,19 @@ test('module gate reconciles every optional module changed by another client',()
   assert.match(gate,/addEventListener\(['"]focus['"][\s\S]*refresh\(/);
   assert.match(gate,/visibilitychange[\s\S]*refresh\(/);
   assert.match(gate,/setInterval[\s\S]*refresh\(/);
+  assert.match(gate,/let refreshInFlight=null/);
+  assert.match(gate,/if\(refreshInFlight\)return refreshInFlight/);
 });
 
-test('generic gate preserves restaurant compatibility alias and fail-closed bootstrap',()=>{
+test('generic gate publishes the canonical catalog without a restaurant-only alias or fabricated fallback',()=>{
   const gate=read('desktop/renderer/restaurant-module-gate.js');
-  assert.match(gate,/PdvRestaurantModuleGate/);
-  assert.match(gate,/RESTAURANT/);
+  assert.doesNotMatch(gate,/PdvRestaurantModuleGate/);
+  assert.doesNotMatch(gate,/data-restaurant-route/);
   assert.match(gate,/isEnabled/);
   assert.match(gate,/snapshot/);
   assert.match(gate,/setEnabled/);
+  assert.match(gate,/catalog:.*moduleCatalog/);
+  assert.match(gate,/moduleCatalog\.map\(module=>\(\{\.\.\.module\}\)\)/);
   assert.match(gate,/stopImmediatePropagation\(\)/);
-  assert.doesNotMatch(gate,/showRoute\?\.\('settings'\)/);
+  assert.match(gate,/never fabricates module state/);
 });

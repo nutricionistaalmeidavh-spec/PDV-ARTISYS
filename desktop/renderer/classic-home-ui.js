@@ -35,7 +35,8 @@
       device:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 17h6"/>',
       shield:'<path d="M12 2 4 5v6c0 5 3.5 9 8 11 4.5-2 8-6 8-11V5z"/><path d="m9 12 2 2 4-5"/>',
       database:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
-      modules:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>'
+      modules:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>',
+      management:'<path d="M4 20V9l8-5 8 5v11"/><path d="M8 20v-6h8v6M3 20h18M8 9h.01M12 9h.01M16 9h.01"/>'
     };
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.document}</svg>`;
   }
@@ -79,21 +80,7 @@
   }
 
   function adoptExtraLaunchers(nativeHome, canonicalHome) {
-    const extras = [...nativeHome.querySelectorAll(':scope > .home-tile:not([data-home-route])')];
-    if (!extras.length) return;
-    if (!roleModel.canAccessModule(document.body.dataset.userRole || 'cashier')) {
-      canonicalHome.querySelector('.classic-home-extras')?.remove();
-      return;
-    }
-    let section = canonicalHome.querySelector('.classic-home-extras');
-    if (!section) {
-      section = document.createElement('section');
-      section.className = 'classic-home-section classic-home-extras';
-      section.innerHTML = '<h2>Módulos do estabelecimento</h2><div class="classic-home-tiles" data-home-extra-host></div>';
-      canonicalHome.appendChild(section);
-    }
-    const host = section.querySelector('[data-home-extra-host]');
-    extras.forEach((launcher) => host.appendChild(launcher));
+    canonicalHome.querySelector('.classic-home-extras')?.remove();
   }
 
   function renderCanonicalHome() {
@@ -122,7 +109,7 @@
       <div><span class="classic-home-eyebrow">Início · ${escapeHtml(view.label)}</span><h1>${escapeHtml(view.title)}</h1><p>${escapeHtml(view.subtitle)}</p></div>
       ${operatorName ? `<span class="classic-home-operator">${escapeHtml(operatorName)}</span>` : ''}
     </header>${view.sections.map((section) => `<section class="classic-home-section" data-home-section="${escapeHtml(section.key)}">
-      <h2>${escapeHtml(section.label)}</h2><div class="classic-home-tiles">${section.tiles.map(tileMarkup).join('')}</div>
+      ${section.label?`<h2>${escapeHtml(section.label)}</h2>`:''}<div class="classic-home-tiles">${section.tiles.map(tileMarkup).join('')}</div>
     </section>`).join('')}`;
 
     canonical.querySelectorAll('[data-home-key]').forEach((button) => {

@@ -17,17 +17,17 @@ test('nova mesa usa modal interno em vez de prompt incompatível com Electron',(
   assert.match(source,/\/api\/v1\/restaurant\/tables/);
 });
 
-test('launcher do restaurante obedece ao gate generico e some quando desativado',()=>{
+test('restaurante entra somente pelo catálogo de módulos, sem launcher oculto na Home',()=>{
   const gatePath=path.join(root,'desktop/renderer/restaurant-module-gate.js');
   assert.equal(fs.existsSync(gatePath),true,'restaurant-module-gate.js deve existir');
   const gate=fs.readFileSync(gatePath,'utf8');
   const html=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
   assert.match(gate,/api\.modules\(\)/);
   assert.match(gate,/PdvModuleGate/);
-  assert.match(gate,/\[data-restaurant-route\]/);
-  assert.match(gate,/launcher\.hidden=!enabled/);
+  assert.doesNotMatch(gate,/data-restaurant-route/);
+  assert.doesNotMatch(source,/data-restaurant-route|ensureLauncher/);
   assert.match(gate,/ApiClient\.prototype\.saveSetting/);
-  assert.match(gate,/PdvRestaurantModuleGate/);
+  assert.doesNotMatch(gate,/PdvRestaurantModuleGate/);
   assert.ok(html.indexOf('./restaurant-module-gate.js')<html.indexOf('./restaurant-ui.js'),'gate deve carregar antes de restaurant-ui.js');
 });
 

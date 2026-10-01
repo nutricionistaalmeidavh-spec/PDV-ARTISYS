@@ -5,6 +5,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('artisysDesktop', {
   getConfig: () => ipcRenderer.invoke('artisys:config'),
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
+  dataServer: {
+    state: () => ipcRenderer.invoke('artisys:data-server:state'),
+    save: (input) => ipcRenderer.invoke('artisys:data-server:save', input),
+    test: (input) => ipcRenderer.invoke('artisys:data-server:test', input),
+    restart: () => ipcRenderer.invoke('artisys:data-server:restart')
+  },
   imports: {
     pickFile: () => ipcRenderer.invoke('artisys:imports:pick')
   },

@@ -8,17 +8,20 @@
   const ROUTES = {
     home: { label: 'Início', icon: 'home' },
     checkout: { label: 'Balcão', icon: 'cart' },
-    products: { label: 'Produtos', icon: 'box' },
+    products: { label: 'Cardápio', icon: 'document' },
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
     finance: { label: 'Financeiro', icon: 'chart', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
     sellers: { label: 'Equipe e acessos', icon: 'users' },
-    management: { label: 'Gestão', icon: 'chart' },
+    management: { label: 'Gestão', icon: 'management' },
     cash: { label: 'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
+    ,catalog: { label: 'Cardápio e estoque', icon: 'document' }
+    ,'post-sale': { label: 'Vendas e devoluções', icon: 'history' }
+    ,'financial-management': { label: 'Gestão financeira', icon: 'management' }
   };
 
   const state = {
@@ -54,6 +57,7 @@
   }
 
   function icon(name, size = 22) {
+    if (name === 'pizza') return `<img class="pdv-icon-pizza" src="./icons/pizza.svg" width="${size}" height="${size}" alt="" aria-hidden="true">`;
     const paths = {
       home: '<path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
       cart: '<path d="M3 4h2l2 11h10l3-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/>',
@@ -62,6 +66,7 @@
       user: '<circle cx="12" cy="7" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
       cubes: '<path d="m12 2 5 3-5 3-5-3zM7 10l5 3-5 3-5-3zM17 10l5 3-5 3-5-3z"/><path d="M12 8v5M7 16v5M17 16v5"/>',
       chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20V7"/>',
+      management: '<path d="M4 20V9l8-5 8 5v11"/><path d="M8 20v-6h8v6M3 20h18M8 9h.01M12 9h.01M16 9h.01"/>',
       document: '<path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 13h6M9 17h6"/>',
       cash: '<path d="M5 8h14v11H5zM8 8V5h8v3M8 12h8M9 16h6"/>',
       history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v6l4 2"/>',
@@ -110,7 +115,11 @@
     const footer = document.getElementById('footer-status');
     status?.classList.toggle('offline', !state.online);
     footer?.classList.toggle('offline', !state.online);
-    if (status) status.querySelector('span').textContent = state.online ? 'Rede Local' : 'Servidor indisponível';
+    if (status) {
+      const mode=state.config?.dataServer?.mode;
+      const connectedLabel=mode==='local'?'Neste computador':mode==='lan-host'?'PC principal':'Servidor conectado';
+      status.querySelector('span').textContent = state.online ? connectedLabel : 'Servidor indisponível';
+    }
   }
 
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
@@ -199,7 +208,25 @@
       return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
     }
     if (state.route === 'products') return renderProducts();
+    if (state.route === 'catalog') return renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
+      {route:'products',label:'Cardápio',description:'Itens, preços, categorias e fichas técnicas.',icon:'document',tone:'purple'},
+      {route:'inventory',label:'Estoque',description:'Acompanhar saldos, mínimos e movimentações.',icon:'cubes',tone:'teal'}
+    ]);
+    if (state.route === 'post-sale') return renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
+      {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
+      {route:'returns',label:'Devoluções',description:'Registrar e acompanhar trocas e devoluções.',icon:'return',tone:'pink'}
+    ]);
+    if (state.route === 'financial-management') return renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
+      {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
+      {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
+      {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
+    ]);
     return renderPlaceholder(state.route);
+  }
+
+  function renderFlowHub(title, subtitle, cards) {
+    content.innerHTML=`<section class="page flow-hub-page"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${cards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
+    content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
 
   function renderHome() {
@@ -412,7 +439,8 @@
     if (!isRouteActive('products')) return;
     const products = ui.filterProducts(state.products, state.productQuery, state.categoryId);
     const sync=state.photoSyncStatus||{};const syncLabel=sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
-    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Produtos</h1><p>Catálogo, preços, fotos, custo, margem e estoque mínimo.</p></div><div style="display:flex;gap:8px"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo produto</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar por nome, SKU ou código de barras" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.sku || 'Sem SKU')} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço / custo</small><strong>${ui.formatCents(product.salePriceCents)} / ${ui.formatCents(product.costCents)}</strong></div><div><small>Estoque</small><strong>${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}</strong></div><div style="display:flex;gap:6px"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Editar</button><button class="danger-button" data-remove-product="${product.id}">Excluir</button></div></div>`).join('') || '<div class="empty-state">Nenhum produto cadastrado.</div>'}</div></section>`;
+    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Cardápio</h1><p>Itens, preços, fotos, categorias e fichas técnicas. Estoque e insumos ficam separados.</p></div><div style="display:flex;gap:8px"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo item</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar item por nome, SKU ou código de barras" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${escapeHtml(product.sku || 'Sem SKU')} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço / custo</small><strong>${ui.formatCents(product.salePriceCents)} / ${ui.formatCents(product.costCents)}</strong></div><div><small>Estoque</small><strong>${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}</strong></div><div style="display:flex;gap:6px"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Editar</button><button class="danger-button" data-remove-product="${product.id}">Excluir</button></div></div>`).join('') || '<div class="empty-state">Nenhum item cadastrado no cardápio.</div>'}</div></section>`;
+    void mountMenuFichasCard();
     document.getElementById('new-product')?.addEventListener('click', () => openProductForm()); document.getElementById('new-category')?.addEventListener('click', openCategoryForm);
     document.getElementById('product-page-search')?.addEventListener('input', (event) => { state.productQuery = event.target.value; renderProducts(); document.getElementById('product-page-search')?.focus(); });
     document.getElementById('product-category-filter')?.addEventListener('change', (event) => { state.categoryId = event.target.value; renderProducts(); });
@@ -461,7 +489,39 @@ function openCategoryForm() {
   }
 
   function openProductForm(product = null) {
-    openModal(product ? 'Editar produto' : 'Novo produto', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>SKU / código</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select></div><div class="field"><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar estoque</span></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Produto ativo</span></label></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar produto</button></div></form>`, { wide: true, onMount(root) { const updateMargin = () => { root.querySelector('#product-margin').value = `${ui.calculateMarginPercent(centsFromInput(root.querySelector('#product-price').value), centsFromInput(root.querySelector('#product-cost').value)).toFixed(2)}%`; }; root.querySelector('#product-price').addEventListener('input', updateMargin); root.querySelector('#product-cost').addEventListener('input', updateMargin); root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const saved = await api.saveProduct({ id: product?.id, name: formValue(form,'name'), sku: formValue(form,'sku'), barcode: formValue(form,'barcode'), categoryId: formValue(form,'categoryId'), unit: formValue(form,'unit'), salePriceCents: centsFromInput(formValue(form,'salePrice')), costCents: centsFromInput(formValue(form,'cost')), minimumStock: Number(formValue(form,'minimumStock') || 0), trackStock: form.elements.namedItem('trackStock').checked, active: form.elements.namedItem('active').checked }); const index = state.products.findIndex((item) => item.id === saved.id); if (index >= 0) state.products[index] = saved; else state.products.push(saved); state.products.sort((a,b) => a.name.localeCompare(b.name,'pt-BR')); closeModal(); if (isRouteActive('products')) renderProducts(); showToast('Produto salvo.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
+    openModal(product ? 'Editar item do Cardápio' : 'Novo item do Cardápio', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria do Cardápio</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade de venda</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select></div><div class="field"><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Usar estoque para alertas e baixa</span></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Disponível no Cardápio</span><small>Você decide quando ocultar; falta de insumo não desativa automaticamente.</small></label></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar item</button></div></form>`, { wide: true, onMount(root) { const updateMargin = () => { root.querySelector('#product-margin').value = `${ui.calculateMarginPercent(centsFromInput(root.querySelector('#product-price').value), centsFromInput(root.querySelector('#product-cost').value)).toFixed(2)}%`; }; root.querySelector('#product-price').addEventListener('input', updateMargin); root.querySelector('#product-cost').addEventListener('input', updateMargin); root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const saved = await api.saveProduct({ id: product?.id, name: formValue(form,'name'), sku: formValue(form,'sku'), barcode: formValue(form,'barcode'), categoryId: formValue(form,'categoryId'), unit: formValue(form,'unit'), salePriceCents: centsFromInput(formValue(form,'salePrice')), costCents: centsFromInput(formValue(form,'cost')), minimumStock: Number(formValue(form,'minimumStock') || 0), trackStock: form.elements.namedItem('trackStock').checked, active: form.elements.namedItem('active').checked }); const index = state.products.findIndex((item) => item.id === saved.id); if (index >= 0) state.products[index] = saved; else state.products.push(saved); state.products.sort((a,b) => a.name.localeCompare(b.name,'pt-BR')); closeModal(); if (isRouteActive('products')) renderProducts(); showToast('Item do Cardápio salvo.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
+  }
+
+  async function mountMenuFichasCard() {
+    if (!isRouteActive('products')) return;
+    const page = content.querySelector('section.page');
+    if (!page || page.querySelector('[data-menu-fichas-card]')) return;
+    const card = document.createElement('section');
+    card.className = 'data-card'; card.dataset.menuFichasCard = '1';
+    card.innerHTML = '<h2>Fichas técnicas no Cardápio</h2><p>Escolha quais fichas cadastradas ficam disponíveis para o cliente. Esta seleção não altera os insumos do Estoque.</p><div class="empty-state">Carregando fichas…</div>';
+    page.appendChild(card);
+    try {
+      const products = await api.products(true);
+      const recipes = await Promise.all(products.map(async product => ({ product, recipe: await api.recipe(product.id).catch(() => null) })));
+      const withRecipes = recipes.filter(item => item.recipe);
+      card.innerHTML = `<h2>Fichas técnicas no Cardápio</h2><p>Escolha quais fichas cadastradas ficam disponíveis para o cliente. Esta seleção não altera os insumos do Estoque.</p>${withRecipes.length ? `<div class="data-card">${withRecipes.map(({product,recipe}) => `<label class="data-row"><span><strong>${escapeHtml(product.name)}</strong><small>${recipe.components.length} insumo(s) · ${product.active === false ? 'oculta' : 'disponível'}</small></span><input type="checkbox" data-menu-ficha="${escapeHtml(product.id)}" ${product.active === false ? '' : 'checked'}></label>`).join('')}</div>` : '<div class="empty-state">Nenhuma ficha técnica cadastrada. Crie a ficha pelo fluxo de Estoque.</div>'}`;
+      card.querySelectorAll('[data-menu-ficha]').forEach(input => input.addEventListener('change', async () => { const product = products.find(item => item.id === input.dataset.menuFicha); if (!product) return; try { const saved = await api.saveProduct({ ...product, active: input.checked }); const index = state.products.findIndex(item => item.id === saved.id); if (index >= 0) state.products[index] = saved; showToast(input.checked ? 'Ficha publicada no Cardápio.' : 'Ficha retirada do Cardápio.', 'success'); } catch (error) { input.checked = !input.checked; showToast(error.message, 'error'); } }));
+    } catch (error) { card.innerHTML = '<h2>Fichas técnicas no Cardápio</h2><div class="empty-state">Não foi possível carregar as fichas agora.</div>'; }
+  }
+
+  async function mountRecipeEditor(root, product) {
+    const host = root.querySelector('#recipe-editor-content');
+    if (!host) return;
+    try {
+      const [recipe, stockItems] = await Promise.all([api.recipe(product.id).catch(() => null), api.products(true)]);
+      const rows = (recipe?.components || []).map((item) => ({ productId: item.productId, quantity: item.quantity, unit: item.unit || 'UN', lossPercent: item.lossPercent || 0, conversionFactor: item.conversionFactor || 1 }));
+      const options = stockItems.filter((item) => item.id !== product.id).map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.sku || 'insumo')}</option>`).join('');
+      const renderRows = () => { host.querySelector('#recipe-rows').innerHTML = rows.length ? rows.map((row, index) => `<div class="field-grid recipe-row" data-recipe-row="${index}"><div class="field wide"><label>Insumo do estoque</label><select data-recipe-product><option value="">Selecione</option>${options}</select></div><div class="field"><label>Quantidade</label><input data-recipe-quantity type="number" min="0.0001" step="0.001" value="${row.quantity || 1}"></div><div class="field"><label>Unidade</label><input data-recipe-unit value="${escapeHtml(row.unit || 'UN')}"></div><button type="button" class="danger-button" data-recipe-remove>Remover</button></div>`).join('') : '<div class="empty-state">Nenhum insumo informado. O item continua disponível no Cardápio.</div>'; host.querySelectorAll('[data-recipe-row]').forEach((node, index) => { node.querySelector('[data-recipe-product]').value = rows[index].productId || ''; node.querySelector('[data-recipe-remove]').addEventListener('click', () => { rows.splice(index, 1); renderRows(); }); }); };
+      host.innerHTML = `<p><small>A ficha técnica orienta o consumo e os alertas. Ela não apaga nem oculta itens do Cardápio.</small></p><div id="recipe-rows"></div><div class="modal-actions"><button type="button" class="secondary-button" id="recipe-add">＋ Adicionar insumo</button><button type="button" class="primary-button" id="recipe-save">Salvar ficha técnica</button><span id="recipe-status"></span></div>`;
+      host.querySelector('#recipe-add').addEventListener('click', () => { rows.push({ productId: '', quantity: 1, unit: 'UN' }); renderRows(); });
+      host.querySelector('#recipe-save').addEventListener('click', async () => { try { const payload = Array.from(host.querySelectorAll('[data-recipe-row]')).map((node) => ({ productId: node.querySelector('[data-recipe-product]').value, quantity: Number(node.querySelector('[data-recipe-quantity]').value || 0), unit: node.querySelector('[data-recipe-unit]').value || 'UN' })).filter((item) => item.productId && item.quantity > 0); await api.saveRecipe(product.id, { components: payload }); host.querySelector('#recipe-status').textContent = 'Ficha técnica salva.'; showToast('Ficha técnica salva. O item continua no Cardápio.', 'success'); } catch (error) { showToast(error.message, 'error'); } });
+      renderRows();
+    } catch (error) { host.innerHTML = `<div class="empty-state">Não foi possível carregar a ficha técnica agora. O Cardápio continua disponível.</div>`; }
   }
 
   function showSetup() {
@@ -474,6 +534,16 @@ function openCategoryForm() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
     authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; } catch (error) { showToast(error.message, 'error'); } });
+  }
+
+  function showDataServerChoice() {
+    authOverlay.classList.remove('hidden');
+    authOverlay.innerHTML = `<section class="auth-card" style="max-width:620px"><div class="auth-logo">A</div><h1>Onde os dados serão salvos?</h1><p>Escolha conscientemente como esta instalação vai funcionar. O modo pode ser alterado depois em Configurações → Dados e servidor.</p><form id="data-server-form"><div class="field"><label>Modo de funcionamento</label><select name="mode"><option value="local">Somente neste computador</option><option value="lan-host">PC principal da rede local</option><option value="lan-client">Terminal conectado a um PC principal</option><option value="own-server">Servidor próprio pela internet</option></select></div><div data-server-host hidden><div class="field"><label>Porta da rede local</label><input name="port" type="number" min="1" max="65535" value="4174"></div><p><small>Outros aparelhos poderão acessar este computador somente depois da sua confirmação.</small></p></div><div data-server-client hidden><div class="field"><label>Endereço do servidor</label><input name="serverUrl" placeholder="http://192.168.0.10:4174"></div><div class="field"><label>Identificação deste terminal</label><input name="terminalId" value="PDV-01"></div><div class="field"><label>Chave de pareamento</label><input name="terminalKey" type="password" autocomplete="off"></div><button class="secondary-button" type="button" data-test-server>Testar conexão</button></div><button class="primary-button" type="submit">Salvar escolha e continuar</button></form></section>`;
+    const form = authOverlay.querySelector('#data-server-form');
+    const update = () => { const mode=form.elements.mode.value; form.querySelector('[data-server-host]').hidden=mode!=='lan-host'; form.querySelector('[data-server-client]').hidden=!['lan-client','own-server'].includes(mode); form.elements.serverUrl.placeholder=mode==='own-server'?'https://pdv.suaempresa.com':'http://192.168.0.10:4174'; };
+    form.elements.mode.addEventListener('change', update); update();
+    form.querySelector('[data-test-server]').addEventListener('click', async()=>{try{await window.artisysDesktop.dataServer.test({serverUrl:form.elements.serverUrl.value});showToast('Servidor encontrado.','success');}catch(error){showToast(error.message,'error');}});
+    form.addEventListener('submit',async(event)=>{event.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await window.artisysDesktop.dataServer.save({mode:form.elements.mode.value,port:Number(form.elements.port.value),serverUrl:form.elements.serverUrl.value,terminalId:form.elements.terminalId.value,terminalKey:form.elements.terminalKey.value});await window.artisysDesktop.dataServer.restart();}catch(error){button.disabled=false;showToast(error.message,'error');}});
   }
 
   async function restorePersistedSession() {
@@ -520,6 +590,9 @@ function openCategoryForm() {
     try {
       state.config = await api.initialize();
       updateTopbar();
+      if (!state.config.dataServer?.selected) {
+        renderSidebar(); document.body.dataset.activeRoute = 'home'; renderHome(); showDataServerChoice(); return;
+      }
       await api.health();
       setOnline(true);
       const setup = await api.setupStatus();
@@ -538,7 +611,7 @@ function openCategoryForm() {
       renderSidebar();
       document.body.dataset.activeRoute = 'home';
       renderHome();
-      showToast(`Falha ao iniciar servidor local: ${error.message}`, 'error');
+      showToast(`Não foi possível conectar ao servidor configurado: ${error.message}`, 'error');
     }
   }
 

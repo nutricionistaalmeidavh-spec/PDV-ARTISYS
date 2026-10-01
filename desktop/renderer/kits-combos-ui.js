@@ -69,17 +69,19 @@
   function comboLine(combo){const mode=combo.selectionMode==='ANY_SELECTED'?'misturando selecionados':'do mesmo produto';const products=(combo.products||[]).map(item=>item.productName).join(', ');const validity=combo.startsAt||combo.endsAt?` · ${combo.startsAt?new Date(combo.startsAt).toLocaleDateString('pt-BR'):'agora'} até ${combo.endsAt?new Date(combo.endsAt).toLocaleDateString('pt-BR'):'sem fim'}`:'';return `<div class="kit-combo-item"><div><strong>${esc(combo.name)} · ${combo.requiredQuantity} por ${money(combo.bundlePriceCents)}</strong><small>${esc(mode)} · ${esc(products||'Sem produtos')}${esc(validity)}</small><small>${combo.maxApplicationsPerSale?`Máx. ${combo.maxApplicationsPerSale}/venda · `:''}${combo.allowManualDiscount?'aceita desconto manual':'não acumula desconto manual'}</small><small class="kit-combo-status ${combo.active?'active':'inactive'}">${combo.active?'Ativo':'Inativo'}</small></div><button class="secondary-button" type="button" data-edit-combo="${esc(combo.id)}">Editar</button></div>`;}
 
   async function refreshProductsAdmin(){
-    const page=content?.querySelector('section.page');const heading=page?.querySelector('.page-head h1');if(!page||heading?.textContent.trim()!=='Produtos')return;
+    const page=content?.querySelector('section.page');const heading=page?.querySelector('.page-head h1');if(!page||!['Produtos','Cardápio'].includes(heading?.textContent.trim()))return;
     page.querySelector('[data-kit-combo-admin]')?.remove();
     const [kits,combos]=await Promise.all([api.kits(true),api.promotionalCombos(true)]);if(!page.isConnected)return;
-    const section=document.createElement('section');section.className='data-card kit-combo-admin';section.dataset.kitComboAdmin='1';section.innerHTML=`<div class="kit-combo-admin-head"><div><h2>Kits e combos</h2><p>Preço, quantidade, produtos, validade e regras definidos pelo usuário.</p></div></div><div class="kit-combo-grid"><div class="kit-combo-column"><h3>Kits</h3><div class="kit-combo-list">${kits.map(kitLine).join('')||'<div class="kit-combo-empty">Nenhum kit cadastrado.</div>'}</div></div><div class="kit-combo-column"><h3>Combos promocionais</h3><div class="kit-combo-list">${combos.map(comboLine).join('')||'<div class="kit-combo-empty">Nenhum combo cadastrado.</div>'}</div></div></div>`;
-    page.appendChild(section);
+    const section=document.createElement('section');section.className='data-card kit-combo-admin product-support-card';section.dataset.kitComboAdmin='1';section.innerHTML=`<details open><summary><span><strong>Kits e combos</strong><small>Combos promocionais e kits montados</small></span></summary><div class="product-support-body"><p>Preço, quantidade, produtos, validade e regras definidos pelo usuário.</p><div class="kit-combo-grid"><div class="kit-combo-column"><h3>Kits</h3><div class="kit-combo-list">${kits.map(kitLine).join('')||'<div class="kit-combo-empty">Nenhum kit cadastrado.</div>'}</div></div><div class="kit-combo-column"><h3>Combos promocionais</h3><div class="kit-combo-list">${combos.map(comboLine).join('')||'<div class="kit-combo-empty">Nenhum combo cadastrado.</div>'}</div></div></div></div></details>`;
+    let supportGrid=page.querySelector('.product-support-grid');
+    if(!supportGrid){supportGrid=document.createElement('div');supportGrid.className='product-support-grid';page.appendChild(supportGrid);}
+    supportGrid.appendChild(section);
     section.querySelectorAll('[data-edit-kit]').forEach(button=>button.addEventListener('click',()=>showKitModal(kits.find(item=>item.id===button.dataset.editKit))));
     section.querySelectorAll('[data-edit-combo]').forEach(button=>button.addEventListener('click',()=>showComboModal(combos.find(item=>item.id===button.dataset.editCombo))));
   }
 
   async function mountProducts(){
-    if(mounting||!content)return;const page=content.querySelector('section.page');const heading=page?.querySelector('.page-head h1');if(!page||heading?.textContent.trim()!=='Produtos'||page.dataset.kitComboMounted==='1')return;
+    if(mounting||!content)return;const page=content.querySelector('section.page');const heading=page?.querySelector('.page-head h1');if(!page||!['Produtos','Cardápio'].includes(heading?.textContent.trim())||page.dataset.kitComboMounted==='1')return;
     mounting=true;page.dataset.kitComboMounted='1';
     try{
       const header=page.querySelector('.page-head');const actions=header?.children?.[1]||header;

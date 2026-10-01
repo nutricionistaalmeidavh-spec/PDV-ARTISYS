@@ -30,7 +30,7 @@ test('commercial desktop extension sanitizes legacy TEF wording to manual credit
   assert.match(source,/sanitizeLegacyPaymentCopy/);
   assert.match(source,/Cartão crédito \/ TEF/);
   assert.match(source,/Cartão crédito/);
-  assert.match(source,/NÃO FISCAL/);
+  assert.match(read('docs/superpowers/specs/2026-09-10-e40-e54-modular-verticals-design.md'),/NÃO FISCAL/);
 });
 
 test('desktop main authenticates local vertical API calls without exposing install token to renderer',()=>{
@@ -49,8 +49,33 @@ test('modules are activated in settings and opened from authorized navigation',(
   assert.match(source,/MODULE_REQUEST_TIMEOUT_MS/);
   assert.match(source,/withTimeout/);
   assert.match(source,/Tentar novamente/);
-  assert.match(source,/button\.dataset\.moduleNav=module\.id/);
+  assert.match(source,/button\.dataset\.moduleNav=item\.target/);
   assert.match(source,/Acesso liberado no menu lateral/);
   assert.match(source,/#sidebar-nav \[data-route="home"\]/);
   assert.doesNotMatch(source,/Abrir módulo/);
+});
+
+test('food extensions share a distinct navigation group and one settings destination card',()=>{
+  const source=read('desktop/renderer/vertical-modules.js');
+  const registry=read('js/core/modules/module-registry.js');
+  assert.match(registry,/FOOD:Object\.freeze\(\{id:'FOOD',label:'Alimentação'/);
+  assert.match(registry,/navigation:'group'/);
+  assert.match(source,/area\.navigation==='group'/);
+  assert.match(source,/dataset\.moduleNav=item\.target/);
+  assert.match(source,/areaModules\.map\(renderToggle\)/);
+  assert.doesNotMatch(source,/const FOOD_MODULES|const MODULE_LABELS|const MODULE_ICONS/);
+});
+
+test('settings expose server choices with explicit effects and accessible module switches',()=>{
+  const settings=read('desktop/renderer/settings-hub-ui.js');
+  const modules=read('desktop/renderer/vertical-modules.js');
+  const settingsCss=read('desktop/renderer/settings-hub-ui.css');
+  assert.match(settings,/settings-mode-summary/);
+  assert.match(settings,/Apenas meu caixa · dados neste computador/);
+  assert.match(settings,/A troca para servidor externo não migra dados locais automaticamente/);
+  assert.match(settings,/data-server-option/);
+  assert.match(modules,/role="switch" aria-label="Ativar/);
+  assert.match(modules,/aria-checked/);
+  assert.match(settingsCss,/\.ops-page\[data-settings-page="true"\]/);
+  assert.doesNotMatch(settingsCss,/#classic-home-grid|\.home-tile/);
 });
