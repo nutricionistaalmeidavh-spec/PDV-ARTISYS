@@ -1,15 +1,24 @@
 'use strict';
 
+const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
+const {createPublicOrderingRouter}=require('./public-ordering-router');
+const {createMobileAssetsRouter}=require('./mobile-assets-router');
+
 class SelfServiceHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
 async function body(request,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of request){size+=chunk.length;if(size>limit)throw new SelfServiceHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new SelfServiceHttpError(400,'JSON invalido.');}}
 
 function createSelfServiceMobileRouter({runtime}={}){
   if(!runtime)throw new TypeError('runtime is required.');
+  if(!runtime.publicOrdering)runtime.publicOrdering=createPublicOrderingService({db:runtime.db,modules:runtime.modules,catalog:runtime.catalog,catalogCustomization:runtime.catalogCustomization,restaurant:runtime.restaurant,productPhotos:runtime.productPhotos});
+  const publicOrderingRouter=createPublicOrderingRouter({runtime});
+  const mobileAssetsRouter=createMobileAssetsRouter();
   function declaredDevice(request){const id=String(request.headers['x-device-id']||'').trim();return id?runtime.mobileDevices.getDevice(id):null;}
   function principal(request){const id=String(request.headers['x-device-id']||'').trim();const key=String(request.headers['x-device-key']||'');const auth=runtime.mobileDevices.authenticate(id,key);if(!auth.ok)throw new SelfServiceHttpError(401,'Dispositivo nao autorizado.');if(auth.device.deviceType!=='SELF_SERVICE')throw new SelfServiceHttpError(403,'Dispositivo sem permissao para autoatendimento.');return{device:auth.device,actor:{userId:null,role:'mobile-self-service',terminalId:null}};}
   async function mutate(request,pathname,statusCode,handler){const mutationId=String(request.headers['x-mutation-id']||'').trim();if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};return runtime.mutations.execute({mutationId,method:request.method,path:pathname},async()=>({statusCode,payload:await handler(mutationId)}));}
   return async function selfServiceMobileRouter(request,response){
+    if(await mobileAssetsRouter(request,response))return true;
+    if(await publicOrderingRouter(request,response))return true;
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
     const explicit=pathname.startsWith('/api/v1/mobile/self-service/');
     const contextPath=request.method==='GET'&&pathname==='/api/v1/mobile/context';
