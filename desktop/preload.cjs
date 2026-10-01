@@ -2,13 +2,27 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+function dataServerTestInput(input = {}) {
+  const enriched={...input};
+  try {
+    const form=document?.getElementById?.('data-server-form');
+    if(form){
+      enriched.mode=form.elements?.mode?.value||enriched.mode;
+      enriched.serverUrl=form.elements?.serverUrl?.value||enriched.serverUrl;
+      enriched.terminalId=form.elements?.terminalId?.value||enriched.terminalId;
+      enriched.terminalKey=form.elements?.terminalKey?.value||enriched.terminalKey;
+    }
+  } catch { /* renderer DOM is optional for non-UI callers */ }
+  return enriched;
+}
+
 contextBridge.exposeInMainWorld('artisysDesktop', {
   getConfig: () => ipcRenderer.invoke('artisys:config'),
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
   dataServer: {
     state: () => ipcRenderer.invoke('artisys:data-server:state'),
     save: (input) => ipcRenderer.invoke('artisys:data-server:save', input),
-    test: (input) => ipcRenderer.invoke('artisys:data-server:test', input),
+    test: (input) => ipcRenderer.invoke('artisys:data-server:test', dataServerTestInput(input)),
     restart: () => ipcRenderer.invoke('artisys:data-server:restart')
   },
   imports: {
