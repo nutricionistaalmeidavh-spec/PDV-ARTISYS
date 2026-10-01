@@ -1,4 +1,4 @@
-# ArtiSys PDV 1.4.1
+# ArtiSys PDV 1.4.23
 
 PDV desktop da ArtiSys para operação **local-first**, self-hosted e em rede LAN. O funcionamento diário não depende de SaaS, nuvem ou internet: venda, estoque, caixa, impressão, módulos operacionais e persistência permanecem no ambiente do estabelecimento.
 
@@ -18,6 +18,8 @@ As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional**
 - caixa com abertura, suprimento, sangria, reversões e fechamento com divergência;
 - histórico de vendas e cancelamentos;
 - devoluções parciais e totais com seleção de itens, quantidades, reembolso, controle do saldo devolvível e autorização conforme perfil;
+- venda e devolução preservam a sessão de caixa original para que retries assíncronos não movimentem uma sessão posterior;
+- desconto da venda é alocado por item e a devolução usa o valor líquido efetivamente realizado;
 - observação interna vinculada à venda/cliente e impressão opcional no comprovante não fiscal;
 - relatórios operacionais e exportação CSV.
 
@@ -27,6 +29,7 @@ As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional**
 - **Produto pai e subitens** no catálogo comum, com SKU, código de barras, preço, custo, atributos e estoque próprios por variação;
 - **Kits e combos promocionais** configuráveis, com snapshots históricos para preservar baixa e reversão corretas;
 - ficha técnica versionada e consumo de ingredientes pelo ledger de estoque;
+- a venda congela o snapshot efetivo de consumo de estoque, evitando que uma edição posterior da ficha técnica altere baixa, cancelamento ou devolução de uma venda antiga;
 - estoque por ledger imutável, inventário e alertas de mínimo;
 - estoque por local, com físico, reservado e disponível;
 - reservas e transferências com estado em trânsito;
@@ -61,12 +64,15 @@ O núcleo básico do PDV não é desativável. Em `Configurações > Módulos`, 
 - Oficina;
 - Autoatendimento.
 
-Os módulos reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, auditoria e eventos. Um módulo desativado deixa de aparecer como fluxo operacional e não aceita novas mutações específicas.
+Os módulos reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, auditoria e eventos. Um módulo desativado deixa de aparecer como fluxo operacional e não aceita novas mutações específicas. As permissões `accessRoles` e `manageRoles` do catálogo de módulos também são aplicadas na API vertical, não apenas na navegação da interface.
 
 ### LAN, dispositivos e dados
 
 - servidor local autoritativo;
 - terminais pareados usando API LAN, sem acesso direto ao SQLite;
+- a credencial de pareamento do terminal é mantida no armazenamento seguro do sistema operacional e não em `data-server.json`;
+- o teste de servidor valida tanto disponibilidade quanto autenticação do terminal antes da troca;
+- a troca de uma instalação local para servidor externo é bloqueada quando há dados operacionais locais sem migração;
 - interface móvel self-hosted em `/mobile`;
 - dispositivos de garçom, tablet de mesa, KDS e autoatendimento com credenciais próprias;
 - QR de acesso local em `http://IP-DO-SERVIDOR:4174/mobile`;
@@ -94,14 +100,14 @@ Desktop / mobile LAN / atalhos / código de barras
 
 Em rede existe um único servidor autoritativo. Terminais e dispositivos móveis não recebem caminho do SQLite e não acessam o banco por SMB; usam somente a API local na LAN. O renderer Electron não possui acesso Node, SQL, filesystem ou serial genérico.
 
-O `SaleService` permanece como fluxo canônico de venda. Estoque, caixa, impressão, auditoria e efeitos de domínio são compartilhados entre o Balcão e os módulos verticais.
+O `SaleService` permanece como fluxo canônico de venda. Estoque, caixa, impressão, auditoria e efeitos de domínio são compartilhados entre o Balcão e os módulos verticais. Eventos duráveis carregam as referências e snapshots históricos necessários para que retries não reconstruam a venda usando estado atual mutável.
 
 Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Módulos reutilizáveis são vendorizados e fixados por commit em `vendor/artisys-modules.lock.json`, preservando build reproduzível sem depender de registry privado.
 
 ## Requisitos e desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.4.1.
+- Windows x64 é o alvo de empacotamento comercial 1.4.23.
 
 ```bash
 npm install
@@ -150,7 +156,7 @@ A E54.1 mantém simulação automatizada de impressora, balança, gaveta, leitor
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.4.1 opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
+A versão comercial 1.4.23 opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -162,7 +168,7 @@ npm run verify
 npm run verify:release
 npm run qa:validate
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.1-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.23-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness. Os antigos fluxos E2E e comparadores visuais foram retirados dos gates enquanto os fluxos de produto são redesenhados; não são evidência de aprovação funcional da versão atual.
