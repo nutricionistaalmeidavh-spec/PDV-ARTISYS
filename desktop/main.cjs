@@ -23,6 +23,7 @@ const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
 const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
 const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
 const { loadDataServerConfig, saveDataServerConfig, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
+const { migrateLegacyDataServerCredential, saveDataServerSelection, testDataServerTarget } = require('./data-server-runtime.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -62,6 +63,11 @@ function rendererPath(...parts) {
 
 function currentPrintingPreferences() {
   return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting });
+}
+
+function terminalCredentialConfigured() {
+  try { return Boolean(terminalCredentialStore?.status?.().configured); }
+  catch { return false; }
 }
 
 async function startEmbeddedServer() {
@@ -240,28 +246,27 @@ function registerIpc() {
     storeName: bootstrapConfig?.storeName || 'Loja Matriz',
     lanEnabled: Boolean(lanServer),
     version: app.getVersion(),
-    dataServer: publicDataServerConfig(dataServerConfig)
+    dataServer: publicDataServerConfig(dataServerConfig,terminalCredentialConfigured())
   }));
 
-  ipcMain.handle('artisys:data-server:state', () => publicDataServerConfig(dataServerConfig));
+  ipcMain.handle('artisys:data-server:state', () => publicDataServerConfig(dataServerConfig,terminalCredentialConfigured()));
   ipcMain.handle('artisys:data-server:save', (_event, input = {}) => {
-    const next = { ...input };
-    if (String(next.terminalKey || '') === '••••••••') next.terminalKey = dataServerConfig.terminalKey;
-    const movingAwayFromLocalData = runtime && isExternalMode({ mode:next.mode });
-    if (movingAwayFromLocalData) {
-      const counts = ['sales', 'products', 'customers'].map(table => Number(runtime.db.prepare(`SELECT COUNT(*) AS total FROM ${table}`).get()?.total || 0));
-      if (counts.some(Boolean)) throw new Error('Esta instalação possui dados locais. Exporte ou migre os dados antes de conectá-la como terminal; a troca não foi aplicada.');
-    }
-    dataServerConfig = saveDataServerConfig(dataServerConfigPath, next);
-    return { config:publicDataServerConfig(dataServerConfig), restartRequired:true };
+    dataServerConfig = saveDataServerSelection({
+      db:runtime?.db||null,
+      filePath:dataServerConfigPath,
+      input,
+      currentConfig:dataServerConfig,
+      credentialStore:terminalCredentialStore
+    });
+    return { config:publicDataServerConfig(dataServerConfig,terminalCredentialConfigured()), restartRequired:true };
   });
-  ipcMain.handle('artisys:data-server:test', async (_event, input = {}) => {
-    const url = String(input.serverUrl || dataServerConfig.serverUrl || '').replace(/\/+$/, '');
-    if (!url) throw new Error('Informe o endereço do servidor.');
-    const response = await fetchWithTimeout(`${url}/api/v1/health`, { headers:{ accept:'application/json' } }, 5000);
-    if (!response.ok) throw new Error(`Servidor respondeu com HTTP ${response.status}.`);
-    return { ok:true };
-  });
+  ipcMain.handle('artisys:data-server:test', async (_event, input = {}) => testDataServerTarget({
+    input,
+    currentConfig:dataServerConfig,
+    credentialStore:terminalCredentialStore,
+    fetchImpl:(url,options)=>fetchWithTimeout(url,options,5000),
+    timeoutMs:5000
+  }));
   ipcMain.handle('artisys:data-server:restart', () => { app.relaunch(); app.exit(0); });
 
   ipcMain.handle('artisys:api', async (_event, request = {}) => {
@@ -369,6 +374,7 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  dataServerConfig = migrateLegacyDataServerCredential({ config:dataServerConfig, filePath:dataServerConfigPath, credentialStore:terminalCredentialStore });
   hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
   if (publicBootstrap.profile === 'terminal') {
     const bootstrapSecret = String(process.env.PDV_TERMINAL_KEY || '').trim();
@@ -404,7 +410,12 @@ app.whenReady().then(async () => {
     await startEmbeddedServer();
   } else {
     apiBase = isExternalMode(dataServerConfig) ? dataServerConfig.serverUrl : bootstrapConfig.apiBase.replace(/\/+$/, '');
-    if (isExternalMode(dataServerConfig)) bootstrapConfig = { ...bootstrapConfig, profile:'terminal', terminalId:dataServerConfig.terminalId, terminalKey:dataServerConfig.terminalKey, apiBase };
+    if (isExternalMode(dataServerConfig)) {
+      const terminalKey=terminalCredentialStore.load();
+      if(!terminalKey)throw new Error('Credencial segura deste terminal não está configurada. Configure novamente o servidor de dados.');
+      bootstrapConfig = { ...bootstrapConfig, profile:'terminal', terminalId:dataServerConfig.terminalId, terminalKey, apiBase };
+      validateBootstrapConfig(bootstrapConfig);
+    }
   }
 
   registerIpc();
