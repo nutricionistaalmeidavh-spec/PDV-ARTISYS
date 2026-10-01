@@ -223,21 +223,51 @@
         },
         {
           "path": "js/domains/restaurant/restaurant-reporting-service.js"
+        },
+        {
+          "path": "js/domains/restaurant/public-ordering-service.js"
         }
       ],
       "api": [
         {
           "path": "server/restaurant-router.js"
+        },
+        {
+          "path": "server/public-ordering-router.js"
+        },
+        {
+          "path": "server/self-service-mobile-router.js"
+        },
+        {
+          "path": "server/e48-e54-router.js"
         }
       ],
       "client": [
         {
           "path": "desktop/renderer/restaurant-ui.js"
+        },
+        {
+          "path": "desktop/renderer/restaurant-public-ordering-ui.js"
+        },
+        {
+          "path": "server/customer-menu/app.js"
+        },
+        {
+          "path": "server/mobile/app.js"
         }
       ],
       "ui": [
         {
           "path": "desktop/renderer/restaurant-ui.js"
+        },
+        {
+          "path": "desktop/renderer/restaurant-public-ordering-ui.js"
+        },
+        {
+          "path": "server/customer-menu/index.html"
+        },
+        {
+          "path": "server/mobile/index.html"
         }
       ]
     },
