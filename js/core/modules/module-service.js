@@ -24,8 +24,22 @@ function createModuleService({db,settings,now=()=>new Date().toISOString()}={}){
     return{...definition,enabled:target};
   }
   function requireEnabled(id){const moduleId=normalize(id);if(!isEnabled(moduleId))throw new ModuleDisabledError(moduleId);return true;}
+  function requireAccess(id,actor={}){
+    const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);requireEnabled(moduleId);
+    const role=String(actor?.role||'');
+    if(role==='system')return true;
+    if(!definition.accessRoles.includes(role))throw new Error(`Permissao insuficiente para acessar modulo ${moduleId}.`);
+    return true;
+  }
+  function requireManage(id,actor={}){
+    const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);requireEnabled(moduleId);
+    const role=String(actor?.role||'');
+    if(role==='system')return true;
+    if(!definition.manageRoles.includes(role))throw new Error(`Permissao insuficiente para configurar modulo ${moduleId}.`);
+    return true;
+  }
   function enabledIds(){return list().filter(m=>m.enabled).map(m=>m.id);}
-  return{list,isEnabled,setEnabled,requireEnabled,enabledIds};
+  return{list,isEnabled,setEnabled,requireEnabled,requireAccess,requireManage,enabledIds};
 }
 
 module.exports={createModuleService,ModuleDisabledError};

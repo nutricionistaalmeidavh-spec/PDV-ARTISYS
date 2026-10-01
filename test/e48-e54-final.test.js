@@ -18,6 +18,7 @@ function setup(){
   });
   rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
   rt.catalog.upsertCustomer({id:'cust-1',name:'Cliente Teste',phone:'16999999999'},admin);
+  rt.cash.openSession({id:'cash-PDV-01',terminalId:'PDV-01',operatorId:'admin',initialCashCents:0,actor:admin});
   return rt;
 }
 
@@ -126,17 +127,10 @@ test('E53 mobile access generates local HTTP QR material without claiming HTTPS 
 test('E54 hardware evidence separates protocol verification from untested physical models',()=>{
   const rt=setup();
   try{
-    const untested=rt.hardwareCompatibility.recordEvidence({
-      manufacturer:'Epson',model:'TM-T20',kind:'PRINTER',connection:'USB',driver:'Windows',configuration:{mode:'electron'},
-      os:'Windows 11 x64',testedAt:'2026-09-11T12:00:00.000Z',status:'UNTESTED_MODEL',result:'Equipamento físico não disponível neste ambiente.',limitations:'Necessita teste físico.'
-    },admin);
+    const untested=rt.hardwareCompatibility.recordEvidence({manufacturer:'Epson',model:'TM-T20',kind:'PRINTER',connection:'USB',driver:'Windows',configuration:{mode:'electron'},os:'Windows 11 x64',testedAt:'2026-09-11T12:00:00.000Z',status:'UNTESTED_MODEL',result:'Equipamento físico não disponível neste ambiente.',limitations:'Necessita teste físico.'},admin);
     assert.equal(untested.status,'UNTESTED_MODEL');
-    assert.throws(()=>rt.hardwareCompatibility.recordEvidence({
-      manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.'
-    },admin),/evidencia/i);
-    const protocol=rt.hardwareCompatibility.recordEvidence({
-      manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.',evidence:'CI:test/e54-1-hardware-simulation.test.js'
-    },admin);
+    assert.throws(()=>rt.hardwareCompatibility.recordEvidence({manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.'},admin),/evidencia/i);
+    const protocol=rt.hardwareCompatibility.recordEvidence({manufacturer:'Protocol',model:'ESC/POS',kind:'PRINTER',connection:'SIMULATED',os:'CI',testedAt:'2026-09-11T12:00:00.000Z',status:'PROTOCOL_VERIFIED',result:'Contrato automatizado passou.',evidence:'CI:test/e54-1-hardware-simulation.test.js'},admin);
     assert.equal(protocol.status,'PROTOCOL_VERIFIED');
     assert.equal(rt.hardwareCompatibility.listEvidence({status:'PROTOCOL_VERIFIED'}).length,1);
     const matrix=JSON.parse(fs.readFileSync(path.join(__dirname,'..','release','hardware-compatibility.json'),'utf8'));

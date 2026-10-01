@@ -11,7 +11,7 @@ function registerReturnEffects({ bus, inventoryService, cashService, effectStore
   });
   const cashCompleted = createIdempotentDomainEffect({
     effectKey:'cash.return-completed', effectStore,
-    handler:async event => cashService.recordReturnRefunds({ terminalId:event.payload.terminalId, saleId:event.payload.saleId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'return' })
+    handler:async event => cashService.recordReturnRefunds({ cashSessionId:event.payload.cashSessionId||null, terminalId:event.payload.terminalId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'return', occurredAt:event.occurredAt })
   });
   const inventoryCancelled = createIdempotentDomainEffect({
     effectKey:'inventory.return-cancelled', effectStore,
@@ -19,7 +19,7 @@ function registerReturnEffects({ bus, inventoryService, cashService, effectStore
   });
   const cashCancelled = createIdempotentDomainEffect({
     effectKey:'cash.return-cancelled', effectStore,
-    handler:async event => cashService.recordReturnRefunds({ terminalId:event.payload.terminalId, saleId:event.payload.saleId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'cancel' })
+    handler:async event => cashService.recordReturnRefunds({ cashSessionId:event.payload.cashSessionId||null, terminalId:event.payload.terminalId, returnId:event.aggregateId, refunds:event.payload.refunds || [], direction:'cancel', occurredAt:event.occurredAt })
   });
   return [
     bus.subscribe('return.completed', inventoryCompleted),
