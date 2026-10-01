@@ -14,6 +14,10 @@ function expandStockItems(items=[],recipeService=null) {
   for(const item of items||[]) {
     const quantity=roundQuantity(Number(item?.quantity||0));
     if(quantity<=0)continue;
+    if(Array.isArray(item?.stockItems)&&item.stockItems.length) {
+      for(const component of item.stockItems) aggregate(totals,component.productId,component.quantity);
+      continue;
+    }
     const snapshot=item?.configuration?.kit?.components;
     if(Array.isArray(snapshot)&&snapshot.length) {
       for(const component of snapshot) aggregate(totals,component.productId,quantity*Number(component.quantity||0));
