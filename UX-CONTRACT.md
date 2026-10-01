@@ -41,3 +41,23 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Home and other specifically approved screens are protected from incidental redesign.
 - User-facing error states state what failed, what remains usable, and the next safe action.
 
+## Restaurante: ordering público por QR
+
+- Public ordering requires both `RESTAURANT` and `SELF_SERVICE` to be enabled. Each table has an opaque, locally generated QR token; the token identifies only that table and never grants administrative access.
+- `/m/:token` is a public customer surface. It does not use `x-device-id`, `x-device-key`, operator login, or desktop session credentials.
+- The public product projection contains only customer-safe fields: product/category name, public description, sale price, availability, photo presence, and sanitized option/variant/combo labels and price deltas. Never serialize cost, recipe/ficha técnica, SKU, barcode, stock quantity, user, credential, or filesystem fields into this response.
+- Public descriptions are independent metadata. A recipe may inform a human-authored menu description, but the system does not expose or automatically publish recipe lines.
+- The browser never owns the authoritative price. It may show an estimate from safe deltas, but submission sends product/selection identifiers; the local server runs canonical configuration pricing and persists the resulting snapshot/price.
+- If `autoOpenTable` is enabled, the first confirmed QR order may open the table session. If disabled, orders are rejected until a session exists; a waiter call may establish an empty service session so staff can attend the table.
+- Public mutations use mutation IDs. Order success is shown only after the server confirms persistence; on failure the cart remains intact and the UI identifies what is still usable.
+- Public orders enter the existing `restaurant.addOrder()` path and the existing event dispatch to kitchen. No second order store or kitchen queue is allowed.
+- Rotating a table QR invalidates the previous token. The desktop UI uses an app-owned confirmation step before rotation.
+
+## Restaurante: equipe móvel e PWA
+
+- `/mobile` is staff-only and continues to use paired device credentials. Customer QR users must never be directed to the device login screen.
+- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. Kitchen mode prioritizes `Novo → Em preparo → Pronto` production lanes. Paired table and self-service kiosk modes retain their existing device contracts.
+- Staff mutations disable the initiating control while pending and use pessimistic confirmation. Background refresh is single-flight and must not erase a local in-progress cart.
+- Manifest/service worker registration occurs only in secure contexts (HTTPS or localhost). LAN HTTP remains supported as an ordinary web application and is not labelled installable PWA.
+- Service-worker caching is limited to the staff application shell. `/api/` requests remain network-authoritative and are never satisfied from an offline cache.
+
