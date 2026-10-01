@@ -57,8 +57,30 @@
     return totals;
   }
 
+  function returnedCentsByItem() {
+    const totals = new Map();
+    for (const ret of state.saleReturns) {
+      if (String(ret.status || '').toUpperCase() !== 'COMPLETED') continue;
+      for (const item of ret.items || []) {
+        const key = String(item.saleItemId || '');
+        totals.set(key,(totals.get(key) || 0) + Number(item.totalCents || 0));
+      }
+    }
+    return totals;
+  }
+
   function availableQuantity(item, returned) {
     return Math.max(0, Number((Number(item.quantity || 0) - Number(returned || 0)).toFixed(3)));
+  }
+
+  function returnAmountFor(item, quantity, returnedQuantity = 0, returnedCents = 0) {
+    const originalQuantity = Number(item?.quantity || 0);
+    if (!Number.isFinite(quantity) || quantity <= 0 || originalQuantity <= 0) return 0;
+    const lineNetCents = Number(item.netTotalCents ?? item.totalCents ?? Math.round(Number(item.unitPriceCents || 0) * originalQuantity));
+    const available = availableQuantity(item,returnedQuantity);
+    const remainingCents = Math.max(lineNetCents - Number(returnedCents || 0),0);
+    if (quantity >= available) return remainingCents;
+    return Math.min(remainingCents,Math.max(0,Math.round((lineNetCents * quantity) / originalQuantity)));
   }
 
   function renderSales() {
@@ -76,13 +98,16 @@
   function selectedReturnTotal() {
     const page = currentPage();
     if (!page || !state.sale) return 0;
+    const returnedQuantity = returnedQuantityByItem();
+    const returnedCents = returnedCentsByItem();
     return [...page.querySelectorAll('[data-return-item]')].reduce((sum,row) => {
       const checkbox = row.querySelector('[data-return-check]');
       if (!checkbox?.checked) return sum;
       const quantity = Number(row.querySelector('[data-return-qty]')?.value || 0);
       const item = (state.sale.items || []).find(entry => String(entry.id) === String(row.dataset.returnItem));
       if (!item || !Number.isFinite(quantity) || quantity <= 0) return sum;
-      return sum + Math.round(Number(item.unitPriceCents || 0) * quantity);
+      const key=String(item.id);
+      return sum + returnAmountFor(item,quantity,returnedQuantity.get(key)||0,returnedCents.get(key)||0);
     },0);
   }
 
@@ -125,18 +150,21 @@
     }
 
     const returned = returnedQuantityByItem();
+    const returnedCents = returnedCentsByItem();
     const originalMethod = VALID_REFUNDS.includes(String(state.sale.payments?.[0]?.method || '').toUpperCase())
       ? String(state.sale.payments[0].method).toUpperCase()
       : 'CASH';
     const operable = canOperate();
     const itemRows = (state.sale.items || []).map(item => {
-      const already = returned.get(String(item.id)) || 0;
+      const key=String(item.id);
+      const already = returned.get(key) || 0;
       const available = availableQuantity(item,already);
+      const remainingCents=Math.max(Number(item.netTotalCents ?? item.totalCents ?? 0)-Number(returnedCents.get(key)||0),0);
       return `<div class="return-item-row" data-return-item="${escapeHtml(item.id)}">
         <label class="return-item-check"><input type="checkbox" data-return-check ${available <= 0 || !operable ? 'disabled' : ''}><span><strong>${escapeHtml(item.productName || 'Item')}</strong><small>Vendido ${Number(item.quantity || 0).toLocaleString('pt-BR',{maximumFractionDigits:3})} · já devolvido ${Number(already).toLocaleString('pt-BR',{maximumFractionDigits:3})}</small></span></label>
         <label><small>Quantidade</small><input data-return-qty type="number" min="0.001" step="0.001" max="${available}" value="${available > 0 ? Math.min(1,available) : 0}" ${available <= 0 || !operable ? 'disabled' : ''}></label>
         <span><small>Disponível</small><strong>${Number(available).toLocaleString('pt-BR',{maximumFractionDigits:3})}</strong></span>
-        <span><small>Unitário</small><strong>${money(item.unitPriceCents)}</strong></span>
+        <span><small>Líquido restante</small><strong>${money(remainingCents)}</strong></span>
       </div>`;
     }).join('') || '<div class="empty-state">A venda não possui itens devolvíveis.</div>';
 
@@ -153,9 +181,9 @@
       <section class="return-refund-grid">
         <label class="field wide"><span>Motivo *</span><textarea id="return-reason" rows="3" placeholder="Ex.: produto devolvido pelo cliente" ${operable ? '' : 'disabled'}></textarea></label>
         <label class="field"><span>Forma de reembolso</span><select id="return-refund-method" ${operable ? '' : 'disabled'}>${VALID_REFUNDS.map(method => `<option value="${method}" ${method === originalMethod ? 'selected' : ''}>${refundLabel(method)}</option>`).join('')}</select></label>
-        <div class="return-draft-total"><small>Total a devolver</small><strong data-return-draft-total>${money(0)}</strong></div>
+        <div class="return-draft-total"><small>Total líquido a devolver</small><strong data-return-draft-total>${money(0)}</strong></div>
       </section>
-      <div class="return-submit-row"><span>O servidor valida a quantidade ainda disponível e registra estoque/caixa sem alterar a venda original.</span><button type="button" class="primary-button" id="confirm-return" disabled>Confirmar devolução</button></div>
+      <div class="return-submit-row"><span>O servidor usa o valor líquido pago e o consumo histórico da venda; a venda original permanece imutável.</span><button type="button" class="primary-button" id="confirm-return" disabled>Confirmar devolução</button></div>
       <section class="return-history"><h3>Histórico desta venda</h3>${history}</section>`;
 
     root.querySelectorAll('[data-return-check], [data-return-qty]').forEach(node => node.addEventListener('input',refreshDraftTotal));
