@@ -73,9 +73,11 @@ Os módulos reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, aud
 - a credencial de pareamento do terminal é mantida no armazenamento seguro do sistema operacional e não em `data-server.json`;
 - o teste de servidor valida tanto disponibilidade quanto autenticação do terminal antes da troca;
 - a troca de uma instalação local para servidor externo é bloqueada quando há dados operacionais locais sem migração;
-- interface móvel self-hosted em `/mobile`;
-- dispositivos de garçom, tablet de mesa, KDS e autoatendimento com credenciais próprias;
-- QR de acesso local em `http://IP-DO-SERVIDOR:4174/mobile`;
+- interface móvel da equipe self-hosted em `/mobile`;
+- cardápio público por mesa em `/m/:token`, aberto por QR sem credencial de dispositivo;
+- dispositivos de garçom, tablet de mesa, KDS e quiosque de autoatendimento com credenciais próprias;
+- QR individual por mesa com token opaco e possibilidade de rotação/revogação;
+- pedido do QR reaproveitando a mesma comanda, `restaurant.addOrder()` e despacho para cozinha;
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
@@ -126,7 +128,7 @@ O padrão é `server-terminal`. Para um terminal cliente, configure `PDV_DEPLOYM
 
 O servidor desktop publica a LAN por padrão na porta 4174. `PDV_ENABLE_LAN=false` desabilita esse listener; `PDV_LAN_HOST` e `PDV_LAN_PORT` ajustam bind e porta.
 
-A interface móvel local usa `http://IP-DO-SERVIDOR:4174/mobile`. Esse transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet. A interface atual não é declarada PWA instalável.
+A superfície da equipe usa `http://IP-DO-SERVIDOR:4174/mobile`; o cardápio do cliente usa o QR individual da mesa e abre `http://IP-DO-SERVIDOR:4174/m/:token`. Esse transporte HTTP é destinado somente a LAN confiável e não é apresentado como HTTPS ou exposição segura à internet. Em HTTPS ou localhost, a superfície da equipe registra manifest/service worker e pode operar como PWA conforme o suporte do navegador; em HTTP LAN continua sendo uma aplicação web comum.
 
 ## Telemetria opcional
 
