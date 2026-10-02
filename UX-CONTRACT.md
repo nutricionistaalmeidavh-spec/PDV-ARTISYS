@@ -93,3 +93,14 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - O orçamento de `MutationObserver` do renderer não pode aumentar silenciosamente. Observers legados permanecem somente durante migrações progressivas já documentadas e devem ser substituídos por lifecycle/owners explícitos quando a superfície for migrada.
 - O gate de UI atual executa `all-pages-audit` em Electron a 1366×768, verifica overflow horizontal e affordances críticas e publica screenshots/trace. Ele é smoke estrutural/visual e não substitui testes transacionais específicos.
 
+
+
+## P3/P4 — lifecycle sem observers em Shell e Configurações
+
+- Home clássica reage a `route:mounted`, `route:updated` e `user:changed`; não observa mais `#route-content` nem atributos do `body`.
+- Preservação de scroll reage a `route:before`/`route:mounted` e mantém a intenção de retorno por `data-scroll-restore`/back.
+- Primeiro acesso reage a `auth:rendered`; `app.js` publica auth somente depois de ligar os formulários canônicos.
+- Observação de venda reage ao lifecycle do Balcão e ao update semântico `sales/sale-detail`.
+- Admin, configuração fiscal, monitor fiscal e NFS-e montam exclusivamente pela rota `settings`, anunciam a própria extensão e não observam mutações de DOM.
+- O Settings Hub não possui mais observer de compatibilidade: extensões de Configurações devem publicar `route:updated('settings')` após inserir sua superfície.
+- Orçamento máximo de `MutationObserver` no renderer após P3/P4: **14**. Nenhum novo observer pode ser incluído sem reduzir ou atualizar explicitamente esse contrato.
