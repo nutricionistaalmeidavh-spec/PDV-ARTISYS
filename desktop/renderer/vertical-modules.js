@@ -8,6 +8,7 @@
   const MODULE_REQUEST_TIMEOUT_MS=5000;
   const ROUTE_RENDERERS={
     FOOD:renderFoodWorkspace,
+    WHOLESALE:()=>root.PdvWholesaleUi?.show?.(),
     SERVICES:()=>root.PdvFinalModules?.render?.('SERVICES')
   };
   let modules=[];
@@ -87,7 +88,7 @@
       if(area.navigation==='group')return [`<div class="vertical-card"><strong>${escapeHtml(area.label)}</strong><span>Uma entrada no menu lateral · ${available.map(module=>escapeHtml(labelFor(module))).join(' · ')}</span></div>`];
       return available.map(module=>`<div class="vertical-card"><strong>${escapeHtml(labelFor(module))}</strong><span>Acesso liberado no menu lateral</span></div>`);
     });
-    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Áreas opcionais</h3><p>Alimentação reúne mesa, balcão rápido, pizza, entrega e autoatendimento em uma única área. Serviços permanece separado porque possui agenda e profissionais.</p></div>${activationGroups||'<p class="vertical-empty">Nenhuma área configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu mostra somente as áreas habilitadas e permitidas para o perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
+    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Áreas opcionais</h3><p>Alimentação reúne os canais de atendimento. Atacado adiciona pedidos com preço por quantidade. Serviços permanece separado porque possui agenda e profissionais.</p></div>${activationGroups||'<p class="vertical-empty">Nenhuma área configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu mostra somente as áreas habilitadas e permitidas para o perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
     body.querySelectorAll('[data-module-toggle]').forEach(input=>input.addEventListener('change',async()=>{
       const id=input.dataset.moduleToggle;
       const target=input.checked;
