@@ -62,5 +62,9 @@ test('desktop exposes structured customer address and delivery instructions',()=
   const index=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
   for(const label of ['CEP','Logradouro','Número','Bairro','Cidade','UF','Referência'])assert.match(deliveryUi,new RegExp(label));
   for(const marker of ['deliveryAddress','deliveryInstructions','Endereço de entrega','Instruções de entrega'])assert.match(deliveryUi,new RegExp(marker));
+  assert.match(deliveryUi,/PdvUiLifecycle/);
+  assert.match(deliveryUi,/modal:mounted/);
+  assert.match(deliveryUi,/enterprise-orders/);
+  assert.doesNotMatch(deliveryUi,/new MutationObserver/);
   assert.match(index,/delivery-address-ui\.js/);
 });
