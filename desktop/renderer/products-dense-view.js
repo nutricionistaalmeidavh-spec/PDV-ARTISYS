@@ -5,11 +5,11 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.PdvProductsDenseView = api;
 })(typeof window !== 'undefined' ? window : globalThis, function factory() {
-  const PRODUCTS_UX_LEVEL = 3;
+  const PRODUCTS_UX_LEVEL = 4;
   const PRODUCTS_UX_GUARDS = Object.freeze({
-    reversible: true,
-    progressiveEnhancement: true,
-    legacyHandlersPreserved: true,
+    canonicalRenderer: true,
+    lifecycleOwned: true,
+    legacyFallbackRemoved: true,
     parityGuarded: true,
     crossFlowGuarded: true,
     releaseRegressionGuarded: true

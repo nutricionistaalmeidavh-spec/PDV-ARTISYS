@@ -7,6 +7,8 @@
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
   const toastRoot=document.getElementById('toast-root');
+  const lifecycle=window.PdvUiLifecycle;
+  if(!lifecycle)return;
   let config=null;
   let products=[];
   let variants=[];
@@ -50,6 +52,7 @@
   function variantMatches(variant,query){const q=String(query||'').trim().toLowerCase();if(!q)return false;const product=parent(variant.productId);return[variant.name,variant.sku,variant.barcode,product?.name,attrsText(variant.attributes)].some(value=>String(value||'').toLowerCase().includes(q));}
   function exactVariant(query){const q=String(query||'').trim().toLowerCase();return variants.find(variant=>variant.active!==false&&[variant.sku,variant.barcode].some(value=>String(value||'').toLowerCase()===q));}
   function baseProductCard(){
+    const canonical=content?.querySelector('#products-list');if(canonical)return canonical;
     const preferred=content?.querySelector('.page .toolbar + .data-card');
     if(preferred?.querySelector('[data-edit-product]'))return preferred;
     return [...(content?.querySelectorAll('.page .data-card')||[])].find(card=>card.querySelector('[data-edit-product]'))||null;
@@ -218,6 +221,8 @@
     }
   },true);
 
-  new MutationObserver(scheduleEnhance).observe(content,{childList:true});
-  scheduleEnhance();
+  const onRouteChange=({route})=>{if(route==='products'||route==='checkout')scheduleEnhance();};
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  if(['products','checkout'].includes(document.body.dataset.activeRoute||''))scheduleEnhance();
 })();

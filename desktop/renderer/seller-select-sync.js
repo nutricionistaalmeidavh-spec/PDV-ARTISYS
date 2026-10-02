@@ -3,7 +3,8 @@
 (() => {
   const ApiClient = window.PdvApiClient?.ApiClient;
   const routeContent = document.getElementById('route-content');
-  if (!ApiClient || !routeContent) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!ApiClient || !routeContent || !lifecycle) return;
 
   const api = new ApiClient();
   let activeRequest = null;
@@ -50,13 +51,15 @@
     await activeRequest;
   }
 
-  const observer = new MutationObserver(() => {
+  const onRouteChange = ({ route }) => {
+    if (route !== 'checkout') return;
     const select = document.getElementById('seller-select');
     if (select !== observedSelect) void synchronizeSellerSelect();
-  });
-  observer.observe(routeContent, { childList: true, subtree: true });
+  };
+  lifecycle.on('route:mounted', onRouteChange);
+  lifecycle.on('route:updated', onRouteChange);
 
-  void synchronizeSellerSelect();
+  if (document.body.dataset.activeRoute === 'checkout') void synchronizeSellerSelect();
 
   window.PdvSellerSelectSync = Object.freeze({
     refresh: synchronizeSellerSelect

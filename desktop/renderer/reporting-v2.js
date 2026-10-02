@@ -359,22 +359,7 @@
   }));
   }
 
-  root.addEventListener('click',event => {
-    const target = event.target.closest?.('[data-route],[data-home-route]');
-    if (!target) return;
-    const route = target.dataset.route || target.dataset.homeRoute;
-    if (route !== 'reports') return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void renderReportsV2();
-  },true);
-
-  root.addEventListener('keydown',event => {
-    if (event.key !== 'F9') return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void renderReportsV2();
-  },true);
-
   root.PdvReportsV2 = Object.freeze({ render:renderReportsV2 });
+  if (!root.PdvRouteRegistry) throw new Error('PdvRouteRegistry must load before reporting-v2.js.');
+  root.PdvRouteRegistry.register('reports', { owner:'reporting-v2', render:() => renderReportsV2() });
 })();

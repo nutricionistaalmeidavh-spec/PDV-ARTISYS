@@ -2,7 +2,8 @@
 
 (() => {
   const content=document.getElementById('route-content');
-  if(!content)return;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!content||!lifecycle)return;
   const categories=[
     ['company','Empresa','Dados da empresa e implantação'],
     ['team','Equipe e permissões','Pessoas, papéis e acessos'],
@@ -16,6 +17,8 @@
   let active='company';let scheduled=false;
   const page=()=>{const node=content.querySelector('.ops-page');return node?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'?node:null;};
   const categoryFor=card=>{
+    const declared=String(card.dataset.settingsCategory||'');
+    if(categories.some(([id])=>id===declared))return declared;
     if(card.id==='settings-team-access')return'team';
     if(card.id==='settings-data-server')return'units';
     if(card.id==='ops-establishment-modules-card')return'modules';
@@ -74,5 +77,8 @@
   }
   function mount(){scheduled=false;const root=page();if(!root)return;const hub=ensureHub(root);apply(root,hub);}
   const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(mount);};
-  new MutationObserver(schedule).observe(content,{childList:true,subtree:true});schedule();
+  const onRouteChange=({route})=>{if(route==='settings')schedule();};
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  if(document.body.dataset.activeRoute==='settings')schedule();
 })();

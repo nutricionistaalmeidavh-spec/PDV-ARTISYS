@@ -56,4 +56,4 @@ Leituras e mutações ERP Financeiro exigem sessão válida e papel `admin` ou `
 
 ## Gates obrigatórios
 
-Os fluxos E2E deste plano são legados e não fazem parte dos gates ativos. O estado atual deve ser verificado pelos testes unitários/de integração e `npm run verify:release`; `qa:validate` apenas valida a configuração do harness. Novos fluxos devem ser especificados e implementados a partir da UI atual antes de voltarem a bloquear integração ou release.
+Os fluxos E2E históricos deste plano continuam legados. O gate atual de UI é `npm run qa:e2e:p0`, baseado em `all-pages-audit` e executado no Electron em 1366×768; `qa:validate` apenas valida a configuração do harness. Cenários transacionais adicionais devem ser especificados a partir da UI atual antes de ampliarem o gate.

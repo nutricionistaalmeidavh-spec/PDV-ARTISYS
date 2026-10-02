@@ -2,7 +2,8 @@
 
 (() => {
   const ApiClient = window.PdvApiClient?.ApiClient;
-  if (!ApiClient) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!ApiClient || !lifecycle) return;
 
   const MAX_INTERNAL = 500;
   const MAX_PRINTED = 120;
@@ -26,7 +27,6 @@
   ApiClient.prototype.saleDetails = async function saleDetailsWithObservation(id) {
     const result = await originalSaleDetails.call(this, id);
     lastSaleDetails = result;
-    queueMicrotask(mountHistoryObservation);
     return result;
   };
 
@@ -106,13 +106,12 @@
     refresh();
   }
 
-  function mount() {
-    mountCheckoutObservation();
-    mountHistoryObservation();
-  }
-
-  const observer = new MutationObserver(mount);
-  observer.observe(document.documentElement, { childList:true, subtree:true });
-  document.addEventListener('DOMContentLoaded', mount, { once:true });
-  mount();
+  const onRouteChange = ({ route, surface }) => {
+    if (route === 'checkout') mountCheckoutObservation();
+    if (route === 'sales' && (!surface || surface === 'sale-detail')) mountHistoryObservation();
+  };
+  lifecycle.on('route:mounted', onRouteChange);
+  lifecycle.on('route:updated', onRouteChange);
+  const currentRoute=document.body.dataset.activeRoute||'';
+  if(currentRoute)onRouteChange({route:currentRoute});
 })();

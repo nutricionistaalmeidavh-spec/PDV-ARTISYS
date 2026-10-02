@@ -5,7 +5,8 @@
   const content = document.getElementById('route-content');
   const PdvProductsDenseView = window.PdvProductsDenseView;
   const ArtisysUxComponents = window.ArtisysUxComponents;
-  if (!ApiClient || !content || !PdvProductsDenseView || !ArtisysUxComponents) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!ApiClient || !content || !PdvProductsDenseView || !ArtisysUxComponents || !lifecycle) return;
 
   const api = new ApiClient();
   let stockFilter = '';
@@ -17,7 +18,6 @@
   let productsById = new Map();
   let productsLoadedAt = 0;
 
-  const enabled = () => !window.PdvFeatureFlags || window.PdvFeatureFlags.productsDenseView !== false;
   const productsPage = () => {
     const page = content.querySelector('section.page');
     return ['Produtos','Cardápio'].includes(page?.querySelector('.page-head h1')?.textContent?.trim()) ? page : null;
@@ -32,7 +32,7 @@
   }
 
   function baseProductCard(page) {
-    return page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-product]')) || null;
+    return page.querySelector('#products-list') || page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-product]')) || null;
   }
 
   function ensureHeader(card) {
@@ -150,28 +150,6 @@
     }
   }
 
-  function restoreLegacy(page) {
-    page.removeAttribute('data-products-view');
-    page.classList.remove('products-dense-page');
-    page.querySelector('[data-products-dense-header]')?.remove();
-    page.querySelector('#products-stock-filter')?.remove();
-    page.querySelector('[data-products-search-shortcut]')?.remove();
-    page.querySelector('[data-products-filter-empty]')?.remove();
-    page.querySelector('.toolbar')?.classList.remove('products-dense-toolbar');
-    page.querySelector('.search-field')?.classList.remove('products-dense-search');
-    page.querySelector('#product-category-filter')?.classList.remove('products-dense-filter');
-    page.querySelectorAll('[data-dense-status-cell]').forEach(node => node.remove());
-    page.querySelectorAll('.products-dense-row').forEach(row => {
-      row.classList.remove('products-dense-row');
-      row.hidden = false;
-      delete row.dataset.denseProductId;
-      delete row.dataset.denseStockStatus;
-      row.children[0]?.removeAttribute('data-product-title');
-      row.children[2]?.removeAttribute('data-product-stock-cell');
-    });
-    baseProductCard(page)?.classList.remove('products-dense-table');
-  }
-
   async function decorateProducts(page = productsPage(), { forceProducts = false } = {}) {
     if (!page) return;
     if (decorating) {
@@ -179,11 +157,6 @@
       rerunForceProducts = rerunForceProducts || forceProducts;
       return;
     }
-    if (!enabled()) {
-      restoreLegacy(page);
-      return;
-    }
-
     decorating = true;
     try {
       page.dataset.productsView = 'dense';
@@ -195,7 +168,7 @@
       ensureHeader(card);
 
       const map = await loadProducts(forceProducts);
-      if (!page.isConnected || !enabled()) return;
+      if (!page.isConnected) return;
       const visibleProducts = [];
       for (const row of card.querySelectorAll('.data-row')) {
         const edit = row.querySelector('[data-edit-product]');
@@ -232,7 +205,6 @@
   }
 
   document.addEventListener('keydown', event => {
-    if (!enabled()) return;
     if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
     const page = productsPage();
     if (!page) return;
@@ -244,13 +216,19 @@
   });
 
   document.addEventListener('click', event => {
-    if (!enabled()) return;
     if (event.target.closest('[data-product-photo-edit], [data-product-photo-remove], [data-edit-product], #new-product, #new-category, #sync-product-photos')) {
       productsLoadedAt = 0;
     }
   }, true);
 
-  const observer = new MutationObserver(() => scheduleDecorate());
-  observer.observe(content, { childList:true, subtree:true });
-  scheduleDecorate({ forceProducts:true });
+  const onRouteMounted = ({ route }) => {
+    if (route === 'products') scheduleDecorate({ forceProducts:true });
+  };
+  const onRouteUpdated = ({ route, surface }) => {
+    if (route === 'products') scheduleDecorate({ forceProducts:surface === 'products' });
+  };
+  lifecycle.on('route:mounted', onRouteMounted);
+  lifecycle.on('route:updated', onRouteUpdated);
+  if (document.body.dataset.activeRoute === 'products') scheduleDecorate({ forceProducts:true });
+  window.PdvProductsDenseController = Object.freeze({ render:decorateProducts, refresh:() => scheduleDecorate({ forceProducts:true }) });
 })();

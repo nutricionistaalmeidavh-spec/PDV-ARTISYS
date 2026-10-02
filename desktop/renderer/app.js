@@ -4,6 +4,8 @@
   const ui = window.PdvUiModel;
   const { ApiClient } = window.PdvApiClient;
   const api = new ApiClient();
+  const routeRegistry = window.PdvRouteRegistry;
+  if (!routeRegistry) throw new Error('PdvRouteRegistry must load before app.js.');
 
   const ROUTES = {
     home: { label: 'Início', icon: 'home' },
@@ -173,6 +175,7 @@
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
     document.body.dataset.userRole = state.user?.role || '';
+    window.PdvUiLifecycle?.emit('user:changed', { role:state.user?.role || '', userId:state.user?.id || '' });
   }
 
   function updateClock() {
@@ -213,32 +216,11 @@
     if (route === 'checkout') {
       try { await restoreCheckoutState(); } catch (error) { showToast(error.message, 'error'); }
     }
-    renderRoute(); content.focus({ preventScroll: true });
+    await renderRoute(); content.focus({ preventScroll: true });
   }
 
-  function renderRoute() {
-    if (state.route === 'home') return renderHome();
-    if (state.route === 'checkout') return renderCheckout();
-    if (state.route === 'customers') return renderCustomers();
-    if (state.route === 'sellers') return renderSellers();
-    if (state.route === 'management') {
-      if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
-      return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
-    }
-    if (state.route === 'products') return renderProducts();
-    if (state.route === 'catalog') return renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
-      {route:'products',label:'Cardápio',description:'Itens disponíveis para venda, preços e categorias.',icon:'document',tone:'purple'},
-      {route:'inventory',label:'Estoque',description:'Produtos, insumos, fichas técnicas, saldos e movimentações.',icon:'cubes',tone:'teal'}
-    ]);
-    if (state.route === 'post-sale') return renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
-      {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
-      {route:'returns',label:'Devoluções',description:'Registrar e acompanhar trocas e devoluções.',icon:'return',tone:'pink'}
-    ]);
-    if (state.route === 'financial-management') return renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
-      {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
-      {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
-      {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
-    ]);
+  async function renderRoute() {
+    if (routeRegistry.has(state.route)) return routeRegistry.render(state.route, { state });
     return renderPlaceholder(state.route);
   }
 
@@ -272,6 +254,7 @@
     content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     hydrateProductPhotos();
     bindCheckoutEvents();
+    routeRegistry.updated('checkout', { surface:'checkout' });
   }
 
   function productCard(product) {
@@ -432,13 +415,31 @@
     try { const result = await api.completeSale(state.sale.id, state.paymentDraft); const completed = result.sale; closeModal(); state.sale = null; state.selectedProductId = null; state.discountPercent = 0; state.paymentDraft = []; state.products = await api.products(); showToast(`Venda ${completed.saleNumber} finalizada. Troco: ${ui.formatCents(completed.changeCents)}`, 'success'); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
+  function customersListHtml() {
+    const query = ui.normalizeSearch(state.customerQuery);
+    const customers = state.customers.filter((customer) => !query || ui.normalizeSearch(`${customer.name} ${customer.document || ''} ${customer.phone || ''}`).includes(query));
+    return customers.map((customer) => `<div class="data-row"><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><div><small>Telefone</small><strong>${escapeHtml(customer.phone || '—')}</strong></div><div><small>Limite</small><strong>${ui.formatCents(customer.creditLimitCents)}</strong></div><button class="secondary-button" data-edit-customer="${customer.id}">Editar</button></div>`).join('') || '<div class="empty-state">Nenhum cliente cadastrado.</div>';
+  }
+
+  function bindCustomerRows(root = content) {
+    root.querySelectorAll('[data-edit-customer]').forEach((button) => button.addEventListener('click', () => openCustomerForm(state.customers.find((customer) => customer.id === button.dataset.editCustomer))));
+  }
+
+  function renderCustomersList() {
+    const list = document.getElementById('customers-list');
+    if (!list) return;
+    list.innerHTML = customersListHtml();
+    bindCustomerRows(list);
+    routeRegistry.updated('customers', { surface:'customers-list' });
+  }
+
   function renderCustomers() {
     if (!isRouteActive('customers')) return;
-    const query = ui.normalizeSearch(state.customerQuery); const customers = state.customers.filter((customer) => !query || ui.normalizeSearch(`${customer.name} ${customer.document || ''} ${customer.phone || ''}`).includes(query));
-    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Clientes</h1><p>Cadastro, consulta e limite de crédito.</p></div><button class="primary-button" id="new-customer">＋ Novo cliente</button></header><div class="toolbar"><label class="search-field">⌕<input id="customer-page-search" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${escapeHtml(state.customerQuery)}"></label></div><div class="data-card">${customers.map((customer) => `<div class="data-row"><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><div><small>Telefone</small><strong>${escapeHtml(customer.phone || '—')}</strong></div><div><small>Limite</small><strong>${ui.formatCents(customer.creditLimitCents)}</strong></div><button class="secondary-button" data-edit-customer="${customer.id}">Editar</button></div>`).join('') || '<div class="empty-state">Nenhum cliente cadastrado.</div>'}</div></section>`;
+    content.innerHTML = `<section class="page" data-customers-canonical="true"><header class="page-head"><div><h1>Clientes</h1><p>Cadastro, consulta e limite de crédito.</p></div><button class="primary-button" id="new-customer">＋ Novo cliente</button></header><div class="toolbar"><label class="search-field">⌕<input id="customer-page-search" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${escapeHtml(state.customerQuery)}"></label></div><div class="data-card" id="customers-list">${customersListHtml()}</div></section>`;
     document.getElementById('new-customer')?.addEventListener('click', () => openCustomerForm());
-    document.getElementById('customer-page-search')?.addEventListener('input', (event) => { state.customerQuery = event.target.value; renderCustomers(); document.getElementById('customer-page-search')?.focus(); });
-    content.querySelectorAll('[data-edit-customer]').forEach((button) => button.addEventListener('click', () => openCustomerForm(state.customers.find((customer) => customer.id === button.dataset.editCustomer))));
+    document.getElementById('customer-page-search')?.addEventListener('input', (event) => { state.customerQuery = event.target.value; renderCustomersList(); });
+    bindCustomerRows();
+    routeRegistry.updated('customers', { surface:'customers' });
   }
 
   function openCustomerForm(customer = null) {
@@ -466,21 +467,38 @@
     return { label:'Insumos OK', detail:`Até ${Number(product.recipeCapacity || 0)} porção(ões)` };
   }
 
+  function productsListHtml() {
+    const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
+    return products.map((product) => { const status=recipeStatusMeta(product); return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Ver origem</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button></div></div>`; }).join('') || '<div class="empty-state">Nenhum item no Cardápio. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
+  }
+
+  function bindProductRows(root = content) {
+    root.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
+    root.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
+    root.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openMenuSourceDetails(state.products.find((product) => product.id === button.dataset.editProduct))));
+    root.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
+  }
+
+  function renderProductsList() {
+    const list = document.getElementById('products-list');
+    if (!list) return;
+    list.innerHTML = productsListHtml();
+    bindProductRows(list);
+    routeRegistry.updated('products', { surface:'products-list' });
+  }
+
   function renderProducts() {
     if (!isRouteActive('products')) return;
-    const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
     const sync=state.photoSyncStatus||{};
     const syncLabel=sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
-    content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Cardápio</h1><p>Itens disponíveis para venda, preços e categorias. Produtos e fichas são cadastrados no Estoque.</p></div><div class="menu-head-actions"><details class="products-secondary-actions" data-products-secondary-actions><summary class="secondary-button">Mais ações</summary><div class="products-secondary-actions-menu" data-products-secondary-actions-menu><button class="products-secondary-action" id="sync-product-photos" type="button">↻ Sincronizar fotos</button><button class="products-secondary-action" id="new-category" type="button">+ Categoria</button></div></details><button class="primary-button" id="new-product">+ Novo item</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar item do Cardápio" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card">${products.map((product) => { const status=recipeStatusMeta(product); return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Ver origem</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button></div></div>`; }).join('') || '<div class="empty-state">Nenhum item no Cardápio. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>'}</div></section>`;
+    content.innerHTML = `<section class="page" data-products-canonical="true"><header class="page-head"><div><h1>Cardápio</h1><p>Itens disponíveis para venda, preços e categorias. Produtos e fichas são cadastrados no Estoque.</p></div><div class="menu-head-actions"><details class="products-secondary-actions" data-products-secondary-actions><summary class="secondary-button">Mais ações</summary><div class="products-secondary-actions-menu" data-products-secondary-actions-menu><button class="products-secondary-action" id="sync-product-photos" type="button">↻ Sincronizar fotos</button><button class="products-secondary-action" id="new-category" type="button">+ Categoria</button></div></details><button class="primary-button" id="new-product">+ Novo item</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar item do Cardápio" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card" id="products-list">${productsListHtml()}</div></section>`;
     document.getElementById('new-product')?.addEventListener('click', openMenuItemSelector);
     document.getElementById('new-category')?.addEventListener('click', openCategoryForm);
-    document.getElementById('product-page-search')?.addEventListener('input', (event) => { state.productQuery = event.target.value; renderProducts(); document.getElementById('product-page-search')?.focus(); });
-    document.getElementById('product-category-filter')?.addEventListener('change', (event) => { state.categoryId = event.target.value; renderProducts(); });
+    document.getElementById('product-page-search')?.addEventListener('input', (event) => { state.productQuery = event.target.value; renderProductsList(); });
+    document.getElementById('product-category-filter')?.addEventListener('change', (event) => { state.categoryId = event.target.value; renderProductsList(); });
     document.getElementById('sync-product-photos')?.addEventListener('click',()=>syncProductPhotos(true));
-    content.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
-    content.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
-    content.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openMenuSourceDetails(state.products.find((product) => product.id === button.dataset.editProduct))));
-    content.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
+    bindProductRows();
+    routeRegistry.updated('products', { surface:'products' });
   }
   function openMenuItemSelector() {
     openModal('Adicionar item ao Cardápio', '<div id="menu-source-picker"><div class="empty-state">Carregando produtos de venda direta e Fichas Técnicas…</div></div>', { wide:true, onMount(root){ void hydrateMenuSourcePicker(root); } });
@@ -616,17 +634,20 @@ function openCategoryForm() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Configurar ArtiSys PDV</h1><p>Crie o primeiro administrador desta instalação local.</p><form id="setup-form"><div class="field"><label>Nome</label><input name="name" required value="Administrador"></div><div class="field"><label>Usuário</label><input name="username" required value="admin"></div><div class="field"><label>Senha</label><input name="password" type="password" minlength="10" required></div><button class="primary-button" type="submit">Criar administrador</button></form></section>`;
     authOverlay.querySelector('#setup-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { await api.setupAdmin({ name: formValue(form,'name'), username: formValue(form,'username'), password: formValue(form,'password') }); showLogin('Administrador criado. Entre com seus dados.'); } catch (error) { showToast(error.message, 'error'); } });
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'setup' });
   }
 
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
   }
 
   function showDataServerChoice() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card" style="max-width:620px"><div class="auth-logo">A</div><h1>Onde os dados serão salvos?</h1><p>Escolha conscientemente como esta instalação vai funcionar. O modo pode ser alterado depois em Configurações → Dados e servidor.</p><form id="data-server-form"><div class="field"><label>Modo de funcionamento</label><select name="mode"><option value="local">Somente neste computador</option><option value="lan-host">PC principal da rede local</option><option value="lan-client">Terminal conectado a um PC principal</option><option value="own-server">Servidor próprio pela internet</option></select></div><div data-server-host hidden><div class="field"><label>Porta da rede local</label><input name="port" type="number" min="1" max="65535" value="4174"></div><p><small>Outros aparelhos poderão acessar este computador somente depois da sua confirmação.</small></p></div><div data-server-client hidden><div class="field"><label>Endereço do servidor</label><input name="serverUrl" placeholder="http://192.168.0.10:4174"></div><div class="field"><label>Identificação deste terminal</label><input name="terminalId" value="PDV-01"></div><div class="field"><label>Chave de pareamento</label><input name="terminalKey" type="password" autocomplete="off"></div><button class="secondary-button" type="button" data-test-server>Testar conexão</button></div><button class="primary-button" type="submit">Salvar escolha e continuar</button></form></section>`;
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'data-server' });
     const form = authOverlay.querySelector('#data-server-form');
     const update = () => { const mode=form.elements.mode.value; form.querySelector('[data-server-host]').hidden=mode!=='lan-host'; form.querySelector('[data-server-client]').hidden=!['lan-client','own-server'].includes(mode); form.elements.serverUrl.placeholder=mode==='own-server'?'https://pdv.suaempresa.com':'http://192.168.0.10:4174'; };
     form.elements.mode.addEventListener('change', update); update();
@@ -703,5 +724,35 @@ function openCategoryForm() {
     }
   }
 
+  function registerBaseRoutes() {
+    const ownedRoutes = {
+      home: () => renderHome(),
+      checkout: () => renderCheckout(),
+      customers: () => renderCustomers(),
+      sellers: () => renderSellers(),
+      management: () => {
+        if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
+        return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
+      },
+      products: () => renderProducts(),
+      catalog: () => renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
+        {route:'products',label:'Cardápio',description:'Itens disponíveis para venda, preços e categorias.',icon:'document',tone:'purple'},
+        {route:'inventory',label:'Estoque',description:'Produtos, insumos, fichas técnicas, saldos e movimentações.',icon:'cubes',tone:'teal'}
+      ]),
+      'post-sale': () => renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
+        {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
+        {route:'returns',label:'Devoluções',description:'Registrar e acompanhar trocas e devoluções.',icon:'return',tone:'pink'}
+      ]),
+      'financial-management': () => renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
+        {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
+        {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
+        {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
+      ])
+    };
+    for (const [route, render] of Object.entries(ownedRoutes)) routeRegistry.register(route, { owner:'app', render });
+  }
+
+  registerBaseRoutes();
+  window.PdvAppNavigation = Object.freeze({ navigate });
   void boot();
 })();

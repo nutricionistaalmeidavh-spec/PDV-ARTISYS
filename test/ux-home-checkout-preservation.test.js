@@ -19,6 +19,9 @@ test('checkout enhancement keeps the existing checkout controls in place', () =>
   const js = read('desktop/renderer/ux-home-checkout.js');
   assert.match(js, /function enhanceCheckout\(\)/);
   assert.match(js, /\.checkout-layout:not\(\[data-ux-checkout-preserved\]\)/);
+  assert.match(js, /PdvUiLifecycle/);
+  assert.match(js, /route:updated/);
+  assert.doesNotMatch(js, /MutationObserver/);
   assert.doesNotMatch(js, /appendChild\(finalize\)/);
 });
 

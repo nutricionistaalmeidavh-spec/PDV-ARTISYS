@@ -6,8 +6,9 @@
   if (!ApiClient) return;
 
   const api = new ApiClient();
+  const lifecycle = root.PdvUiLifecycle;
+  if (!lifecycle) return;
   let latestCompletedSale = null;
-  let settingsObserver = null;
   let settingsInjectionQueued = false;
 
   function escapeHtml(value) {
@@ -168,6 +169,7 @@
     const card = document.createElement('section');
     card.className = 'ops-card printing-settings-card';
     card.id = 'printing-settings-card';
+    card.dataset.settingsCategory = 'printing';
     card.innerHTML = '<h2>Impressão do comprovante</h2><div class="ops-loader">Carregando impressoras e preferências…</div>';
     const queueCard = Array.from(host.querySelectorAll('.ops-card')).find(node => node.querySelector('h2')?.textContent?.includes('Fila de impressão'));
     if (queueCard) host.insertBefore(card, queueCard); else host.appendChild(card);
@@ -236,6 +238,7 @@
     } catch (error) {
       card.innerHTML = `<h2>Impressão do comprovante</h2><div class="ops-error">${escapeHtml(error?.message || 'Não foi possível carregar as configurações de impressão.')}</div>`;
     }
+    root.PdvRouteRegistry?.updated('settings', { surface:'settings-extension', extension:'printing' });
   }
 
   function queueSettingsInjection() {
@@ -244,17 +247,11 @@
     setTimeout(() => { void injectPrintingSettings(); }, 0);
   }
 
-  const content = document.getElementById('route-content');
-  if (content) {
-    settingsObserver = new MutationObserver(queueSettingsInjection);
-    settingsObserver.observe(content, { childList:true, subtree:true });
-  }
-  root.addEventListener('click', event => {
-    const routeTarget = event.target.closest?.('[data-route],[data-home-route]');
-    if (routeTarget && !event.target.closest?.('#post-sale-receipt-root')) closePostSaleModal();
-    if (event.target.closest?.('[data-route="settings"],[data-home-route="settings"]')) queueSettingsInjection();
-  }, true);
-  queueSettingsInjection();
+  lifecycle.on('route:before', () => closePostSaleModal());
+  const onSettingsRoute = ({ route }) => { if (route === 'settings') queueSettingsInjection(); };
+  lifecycle.on('route:mounted', onSettingsRoute);
+  lifecycle.on('route:updated', onSettingsRoute);
+  if (document.body.dataset.activeRoute === 'settings') queueSettingsInjection();
 
   root.PdvPostSaleReceiptUi = Object.freeze({ showPostSaleModal, injectPrintingSettings, closePostSaleModal });
 })();

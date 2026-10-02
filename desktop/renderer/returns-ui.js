@@ -346,14 +346,7 @@
     await loadSales();
   }
 
-  const observer = new MutationObserver(() => {
-    if (document.body.dataset.activeRoute === 'returns' && !currentPage()) void mountReturns();
-  });
-  observer.observe(content,{childList:true,subtree:true});
-
-  document.addEventListener('click',event => {
-    if (event.target?.closest?.('[data-home-route="returns"], [data-route="returns"]')) queueMicrotask(() => void mountReturns());
-  },true);
-
-  if (document.body.dataset.activeRoute === 'returns') void mountReturns();
+  if (!root.PdvRouteRegistry) throw new Error('PdvRouteRegistry must load before returns-ui.js.');
+  root.PdvReturnsUi = Object.freeze({ render:mountReturns });
+  root.PdvRouteRegistry.register('returns', { owner:'returns-ui', render:() => mountReturns() });
 })();

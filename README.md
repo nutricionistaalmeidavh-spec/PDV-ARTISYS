@@ -169,13 +169,16 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run qa:validate
+npm run qa:e2e:p0
 npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.23-x64-Setup.exe
 ```
 
-`docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness. Os antigos fluxos E2E e comparadores visuais foram retirados dos gates enquanto os fluxos de produto são redesenhados; não são evidência de aprovação funcional da versão atual.
+`docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
 
-Os arquivos dos fluxos antigos permanecem apenas como referência histórica fora dos gates. Eles não devem ser tratados como testes atuais nem reativados sem atualização para os fluxos e a interface presentes no produto.
+O gate atual de UI é `npm run qa:e2e:p0`: ele executa o fluxo `all-pages-audit` no Electron real em 1366×768, percorre as superfícies principais, valida controles críticos e overflow horizontal e mantém screenshots/trace como evidência do CI. Esse smoke atual não substitui E2E transacional profundo de cada domínio nem comparação visual pixel a pixel.
+
+Os fluxos legados anteriores continuam aposentados. Novos cenários E2E devem partir da interface atual e verificar um resultado operacional útil antes de entrarem no gate.
 
 Mudanças relevantes na `main` podem disparar `release-windows`, que executa os gates, gera o NSIS x64, valida os artefatos e publica a GitHub Release consumida pelo updater. Alterações somente em documentação/testes não precisam gerar um novo instalador.
 

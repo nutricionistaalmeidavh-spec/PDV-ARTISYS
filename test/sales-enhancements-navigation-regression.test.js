@@ -11,5 +11,6 @@ test('current navigation no longer depends on removed sales-enhancements legacy 
   assert.match(app, /home:\s*\{ label: 'Início'/);
   assert.match(app, /sellers:\s*\{ label: 'Equipe e acessos'/);
   assert.match(app, /state\.route = route;\s*document\.body\.dataset\.activeRoute = route;/);
-  assert.match(app, /if \(state\.route === 'sellers'\) return renderSellers\(\);/);
+  assert.match(app, /routeRegistry\.render\(state\.route, \{ state \}\)/);
+  assert.match(app, /sellers:\s*\(\) => renderSellers\(\)/);
 });

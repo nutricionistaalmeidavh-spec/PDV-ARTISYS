@@ -25,7 +25,9 @@ test('reporting v2 and seller synchronization are wired into desktop shell',()=>
   assert.match(html,/reporting-v2-legacy-export\.js/);
   assert.doesNotThrow(()=>new Function(sellerSync));
   assert.match(sellerSync,/api\.sellers\(\)/);
-  assert.match(sellerSync,/MutationObserver/);
+  assert.match(sellerSync,/PdvUiLifecycle/);
+  assert.match(sellerSync,/route:updated/);
+  assert.doesNotMatch(sellerSync,/MutationObserver/);
 });
 
 test('styles define visual tokens and checkout split layout',()=>{

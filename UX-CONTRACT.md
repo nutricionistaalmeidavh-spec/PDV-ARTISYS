@@ -83,3 +83,24 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Relatórios comerciais oferecem atalhos de período, abas acessíveis por teclado e drill-down das linhas de cliente, produto e meio de pagamento para as vendas de origem.
 - A tabela principal de produtos prioriza quantidade líquida, receita líquida, custo, margem e margem percentual. O CSV continua preservando o detalhamento analítico completo.
 - Alterações P1/P2 permanecem restritas às áreas Financeiro, Gestão/DRE e Relatórios; páginas já aprovadas fora desse escopo não devem sofrer redesign incidental.
+
+## Ownership de rotas e lifecycle do renderer
+
+- `desktop/renderer/route-registry.js` é o owner canônico da resolução de rotas internas do desktop. Cada route ID possui exatamente um renderer registrado; um segundo owner para a mesma rota é erro de contrato.
+- `desktop/renderer/ui-lifecycle.js` publica `route:before`, `route:mounted`, `route:updated`, `route:unmounted` e `route:error`. Extensões novas devem reagir a lifecycle/eventos semânticos em vez de observar o DOM para descobrir mudanças provocadas pelo próprio ArtiSys.
+- `app.js` possui Home, Balcão, Clientes, Equipe, Gestão, Cardápio e os hubs agrupadores. `operational-pages.js` possui Estoque, Caixa, Últimas vendas, Financeiro e Configurações. `reporting-v2.js` possui Relatórios. `returns-ui.js` possui Devoluções.
+- O antigo watchdog `operational-route-stability.js` não faz parte da arquitetura atual. Uma rota não deve ser recriada em resposta a `MutationObserver`; conflitos de ownership devem falhar nos testes/registro.
+- O orçamento de `MutationObserver` do renderer não pode aumentar silenciosamente. Observers legados permanecem somente durante migrações progressivas já documentadas e devem ser substituídos por lifecycle/owners explícitos quando a superfície for migrada.
+- O gate de UI atual executa `all-pages-audit` em Electron a 1366×768, verifica overflow horizontal e affordances críticas e publica screenshots/trace. Ele é smoke estrutural/visual e não substitui testes transacionais específicos.
+
+
+
+## P3/P4 — lifecycle sem observers em Shell e Configurações
+
+- Home clássica reage a `route:mounted`, `route:updated` e `user:changed`; não observa mais `#route-content` nem atributos do `body`.
+- Preservação de scroll reage a `route:before`/`route:mounted` e mantém a intenção de retorno por `data-scroll-restore`/back.
+- Primeiro acesso reage a `auth:rendered`; `app.js` publica auth somente depois de ligar os formulários canônicos.
+- Observação de venda reage ao lifecycle do Balcão e ao update semântico `sales/sale-detail`.
+- Admin, configuração fiscal, monitor fiscal e NFS-e montam exclusivamente pela rota `settings`, anunciam a própria extensão e não observam mutações de DOM.
+- O Settings Hub não possui mais observer de compatibilidade: extensões de Configurações devem publicar `route:updated('settings')` após inserir sua superfície.
+- Orçamento máximo de `MutationObserver` no renderer após P3/P4: **14**. Nenhum novo observer pode ser incluído sem reduzir ou atualizar explicitamente esse contrato.

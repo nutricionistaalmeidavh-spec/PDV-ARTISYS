@@ -1,7 +1,7 @@
 'use strict';
 
 (() => {
-  const root=window;const {ApiClient}=root.PdvApiClient;const api=new ApiClient();const content=document.getElementById('route-content');let rendering=false;
+  const root=window;const {ApiClient}=root.PdvApiClient;const api=new ApiClient();const content=document.getElementById('route-content');const lifecycle=root.PdvUiLifecycle;const routeRegistry=root.PdvRouteRegistry;if(!content||!lifecycle||!routeRegistry)return;let rendering=false;
   const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
   const when=value=>value?new Date(value).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'—';
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
@@ -48,7 +48,8 @@
         <div class="ops-card-head"><div><h2>Fiscal · Documentos</h2><p class="ops-muted">Monitor local de NFC-e/NF-e. Estados incertos exigem reconciliação antes de reenvio; contingência não apaga o estado fiscal original.</p></div><div class="ops-row-actions"><select id="fiscal-status-filter" class="ops-input compact"><option value="">Todos</option>${['PENDING','PROCESSING','AUTHORIZED','REJECTED','UNKNOWN','FAILED','CANCELLED'].map(s=>`<option>${s}</option>`).join('')}</select><button id="fiscal-refresh" class="ops-secondary">Atualizar</button></div></div>
         <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Venda</th><th>Documento</th><th>Estado</th><th>Chave</th><th>Tentativas</th><th>Atualização</th><th>Ações</th></tr></thead><tbody id="fiscal-monitor-body">${rows(docs)}</tbody></table></div>
         <div id="fiscal-monitor-detail"></div>`;
-      page.appendChild(panel);wire(panel);
+      panel.dataset.settingsCategory='fiscal';page.appendChild(panel);wire(panel);
+      routeRegistry.updated('settings',{surface:'settings-extension',extension:'fiscal-monitor'});
     }catch(error){console.warn('Fiscal monitor unavailable:',error?.message||error);retryMount();}finally{rendering=false;}
   }
   function rows(docs){return docs.map(doc=>`<tr><td>${esc(doc.saleId)}</td><td><strong>${esc((doc.documentType||'').toUpperCase())}</strong><small>${esc(doc.number||'—')} · série ${esc(doc.series||'—')}</small></td><td>${badge(doc.lifecycleStatus)}${doc.contingency?`<small>Contingência: ${esc(doc.contingency.status)}</small>`:''}</td><td>${esc(doc.accessKey?`${doc.accessKey.slice(0,8)}…${doc.accessKey.slice(-6)}`:(doc.contingency?.accessKey?`${doc.contingency.accessKey.slice(0,8)}…${doc.contingency.accessKey.slice(-6)}`:'—'))}</td><td>${esc(doc.attemptCount)}</td><td>${when(doc.updatedAt)}</td><td>${actions(doc)}</td></tr>`).join('')||'<tr><td colspan="7">Nenhum documento fiscal registrado.</td></tr>';}
@@ -81,5 +82,7 @@
   }
   function wire(panel){panel.querySelector('#fiscal-refresh')?.addEventListener('click',()=>refresh(panel).catch(error=>toast(error.message,'error')));panel.querySelector('#fiscal-status-filter')?.addEventListener('change',()=>refresh(panel).catch(error=>toast(error.message,'error')));wireRows(panel);}
 
-  const observer=new MutationObserver(()=>{if(!content||content.querySelector('#fiscal-monitor-panel'))return;void mount();});observer.observe(content,{childList:true,subtree:false});void mount();
+  const onSettings=({route})=>{if(route==='settings'&&!content.querySelector('#fiscal-monitor-panel'))void mount();};
+  lifecycle.on('route:mounted',onSettings);lifecycle.on('route:updated',onSettings);
+  if(document.body.dataset.activeRoute==='settings')void mount();
 })();

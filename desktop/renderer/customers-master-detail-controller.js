@@ -6,7 +6,8 @@
   const PdvCustomersMasterDetail = window.PdvCustomersMasterDetail;
   const ArtisysUxComponents = window.ArtisysUxComponents;
   const ui = window.PdvUiModel;
-  if (!ApiClient || !content || !PdvCustomersMasterDetail || !ArtisysUxComponents) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!ApiClient || !content || !PdvCustomersMasterDetail || !ArtisysUxComponents || !lifecycle) return;
 
   const api = new ApiClient();
   const HISTORY_PAGE_SIZE = 25;
@@ -18,7 +19,6 @@
   let scheduled = false;
   let decorating = false;
 
-  const enabled = () => !window.PdvFeatureFlags || window.PdvFeatureFlags.customersMasterDetailView !== false;
   const customersPage = () => {
     const page = content.querySelector('section.page');
     return page?.querySelector('.page-head h1')?.textContent?.trim() === 'Clientes' ? page : null;
@@ -86,7 +86,7 @@
   }
 
   function baseCustomerCard(page) {
-    return page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-customer]')) || null;
+    return page.querySelector('#customers-list') || page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-customer]')) || null;
   }
 
   function ensureToolbar(page) {
@@ -238,39 +238,8 @@
     renderPanel(page);
   }
 
-  function restoreLegacy(page) {
-    page.removeAttribute('data-customers-view');
-    page.classList.remove('customers-master-page');
-    page.querySelector('[data-customers-master-header]')?.remove();
-    page.querySelector('[data-customers-search-shortcut]')?.remove();
-    page.querySelector('.toolbar')?.classList.remove('customers-master-toolbar');
-    page.querySelector('.search-field')?.classList.remove('customers-master-search');
-    const card = baseCustomerCard(page);
-    card?.querySelectorAll('[data-customer-last-sale]').forEach(node => node.remove());
-    card?.querySelectorAll('[data-customer-credit-available]').forEach(node => node.remove());
-    card?.querySelectorAll('.customers-master-credit').forEach(node => node.classList.remove('customers-master-credit'));
-    card?.querySelectorAll('[data-customer-master-row]').forEach(row => {
-      row.classList.remove('customers-master-row');
-      row.removeAttribute('data-customer-master-row');
-      row.removeAttribute('data-customer-id');
-      row.removeAttribute('aria-selected');
-      row.removeAttribute('tabindex');
-    });
-    card?.classList.remove('customers-master-list');
-    const layout = page.querySelector('[data-customers-master-layout]');
-    if (layout && card) {
-      layout.parentNode.insertBefore(card, layout);
-      layout.remove();
-    } else layout?.remove();
-  }
-
   async function decorateCustomers(page = customersPage(), { forceData = false } = {}) {
     if (!page || decorating) return;
-    if (!enabled()) {
-      restoreLegacy(page);
-      return;
-    }
-
     decorating = true;
     try {
       page.dataset.customersView = 'master-detail';
@@ -281,7 +250,7 @@
       ensureHeader(card);
       ensureLayout(page, card);
       await loadData(forceData);
-      if (!page.isConnected || !enabled()) return;
+      if (!page.isConnected) return;
       decorateRows(card);
       renderPanel(page);
     } catch (error) {
@@ -302,7 +271,6 @@
   }
 
   document.addEventListener('keydown', event => {
-    if (!enabled()) return;
     if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
     const page = customersPage();
     if (!page) return;
@@ -314,7 +282,6 @@
   });
 
   document.addEventListener('click', async event => {
-    if (!enabled()) return;
     const page = customersPage();
     if (!page) return;
 
@@ -356,7 +323,7 @@
   }, true);
 
   document.addEventListener('keydown', event => {
-    if (!enabled() || !['Enter', ' '].includes(event.key)) return;
+    if (!['Enter', ' '].includes(event.key)) return;
     const row = event.target.closest?.('[data-customer-master-row]');
     if (!row || event.target.closest('button, input, select, textarea, a')) return;
     event.preventDefault();
@@ -364,7 +331,14 @@
     if (page) selectCustomer(page, row.dataset.customerId);
   });
 
-  const observer = new MutationObserver(() => scheduleDecorate());
-  observer.observe(content, { childList:true, subtree:true });
-  scheduleDecorate({ forceData:true });
+  const onRouteMounted = ({ route }) => {
+    if (route === 'customers') scheduleDecorate({ forceData:true });
+  };
+  const onRouteUpdated = ({ route, surface }) => {
+    if (route === 'customers') scheduleDecorate({ forceData:surface === 'customers' });
+  };
+  lifecycle.on('route:mounted', onRouteMounted);
+  lifecycle.on('route:updated', onRouteUpdated);
+  if (document.body.dataset.activeRoute === 'customers') scheduleDecorate({ forceData:true });
+  window.PdvCustomersMasterDetailController = Object.freeze({ render:decorateCustomers, refresh:() => scheduleDecorate({ forceData:true }) });
 })();

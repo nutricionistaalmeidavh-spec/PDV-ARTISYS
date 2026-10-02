@@ -31,4 +31,7 @@ test('printing settings UI covers printer, 58\/80 mm and persisted options',()=>
   assert.match(ui,/printing-auto-print/);
   assert.match(ui,/hardware\.listPrinters/);
   assert.match(ui,/hardware\.testPrinter/);
+  assert.match(ui,/PdvUiLifecycle/);
+  assert.match(ui,/route:updated/);
+  assert.doesNotMatch(ui,/MutationObserver/);
 });

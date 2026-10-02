@@ -30,6 +30,8 @@ O comando `npm run verify` inclui `npm run docs:check`, que valida invariantes d
 
 Essa regra vale para código, UI, banco, API, módulos, hardware, QA, build/release e infraestrutura.
 
-## Fluxos E2E legados
+## QA E2E atual e fluxos legados
 
-Os fluxos automatizados antigos e as comparações visuais foram retirados dos gates ativos por estarem acoplados a versões anteriores da interface. Até a reconstrução de cenários representativos do produto atual, use os testes unitários/de integração e `npm run qa:validate`; a validação do harness não significa aprovação dos fluxos de usuário. Não adicione ou reative um gate E2E amplo sem revisar o fluxo contra a interface atual e demonstrar que ele termina e verifica um resultado útil.
+Os fluxos automatizados antigos e as comparações visuais acopladas às versões anteriores da interface continuam aposentados. `npm run qa:validate` valida somente o manifesto do harness.
+
+O fluxo atual `all-pages-audit` é executado por `npm run qa:e2e:p0` em 1366×768 e faz parte do GitHub Actions. Ele deve permanecer alinhado à UI corrente, verificar superfícies/controles úteis e guardar screenshots/trace. Não trate esse smoke como cobertura transacional completa: fluxos novos só entram no gate depois de revisão contra a interface atual e de verificarem um resultado operacional útil.

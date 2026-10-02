@@ -12,7 +12,11 @@ function read(file){return fs.readFileSync(path.join(root,file),'utf8');}
 test('P10 monitor fiscal is loaded by desktop settings and keeps actions state-aware',()=>{
   const html=read('desktop/renderer/index.html');const ui=read('desktop/renderer/fiscal-monitor.js');
   assert.match(html,/fiscal-monitor\.js/);assert.match(ui,/Fiscal · Documentos/);assert.match(ui,/UNKNOWN/);assert.match(ui,/Reconciliar/);assert.match(ui,/Cancelar/);assert.match(ui,/DANFE/);assert.match(ui,/XML cancelamento/);
-  assert.match(ui,/querySelector\('#fiscal-monitor-panel'\)/,'observer must guard duplicate mount before mutating settings DOM');
+  assert.match(ui,/PdvUiLifecycle|const lifecycle=root\.PdvUiLifecycle/,'fiscal monitor must consume semantic UI lifecycle');
+  assert.match(ui,/route:mounted/);
+  assert.match(ui,/route:updated/);
+  assert.doesNotMatch(ui,/new MutationObserver\b/);
+  assert.match(ui,/querySelector\('#fiscal-monitor-panel'\)/,'duplicate mount guard must remain before mutating settings DOM');
   execFileSync(process.execPath,['--check',path.join(root,'desktop/renderer/fiscal-monitor.js')],{stdio:'pipe'});
 });
 

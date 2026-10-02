@@ -1,30 +1,396 @@
 {
   "name": "all-pages-audit",
   "title": "ArtiSys PDV — auditoria de páginas",
-  "metadata": {"qaAutoAdmin": true},
+  "metadata": {
+    "qaAutoAdmin": true
+  },
   "steps": [
-    {"action":"waitFor","selector":"#auth-overlay","name":"bootstrap","timeoutMs":15000},
-    {"action":"fill","selector":"#login-form input[name='username']","value":"qaadmin","name":"usuario-qa"},
-    {"action":"fill","selector":"#login-form input[name='password']","value":"QaLocalOnly-12345!","name":"senha-qa"},
-    {"action":"click","selector":"#login-form button[type='submit']","name":"entrar","holdMs":300},
-    {"action":"waitFor","selector":"#auth-overlay","name":"autenticado","state":"hidden","timeoutMs":15000},
-    {"action":"click","selector":"button[data-route='home']:not(.brand-mark):not(.sidebar-back)","name":"abrir-home","holdMs":500},
-    {"action":"screenshot","name":"home","fullPage":true},
-    {"action":"click","selector":"button[data-route='checkout']","name":"balcao","holdMs":1000},
-    {"action":"screenshot","name":"balcao","fullPage":true},
-    {"action":"click","selector":"button[data-route='cash']","name":"caixa","holdMs":1000},
-    {"action":"screenshot","name":"caixa","fullPage":true},
-    {"action":"click","selector":"button[data-route='catalog']","name":"produtos-estoque","holdMs":1000},
-    {"action":"screenshot","name":"produtos-estoque","fullPage":true},
-    {"action":"click","selector":"button[data-route='post-sale']","name":"vendas-devolucoes","holdMs":1000},
-    {"action":"screenshot","name":"vendas-devolucoes","fullPage":true},
-    {"action":"click","selector":"button[data-route='financial-management']","name":"gestao-financeira","holdMs":1000},
-    {"action":"screenshot","name":"gestao-financeira","fullPage":true},
-    {"action":"click","selector":"button[data-route='sellers']","name":"equipe","holdMs":1000},
-    {"action":"screenshot","name":"equipe","fullPage":true},
-    {"action":"click","selector":"button[data-route='settings']","name":"configuracoes","holdMs":1000},
-    {"action":"screenshot","name":"configuracoes","fullPage":true},
-    {"action":"click","selector":"button[data-route='home']:not(.brand-mark):not(.sidebar-back)","name":"voltar-home","holdMs":600},
-    {"action":"screenshot","name":"home-final","fullPage":true}
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "bootstrap",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='username']",
+      "value": "qaadmin",
+      "name": "usuario-qa"
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='password']",
+      "value": "QaLocalOnly-12345!",
+      "name": "senha-qa"
+    },
+    {
+      "action": "click",
+      "selector": "#login-form button[type='submit']",
+      "name": "entrar",
+      "holdMs": 300
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "autenticado",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='home']:not(.brand-mark):not(.sidebar-back)",
+      "name": "abrir-home",
+      "holdMs": 500
+    },
+    {
+      "action": "screenshot",
+      "name": "home",
+      "fullPage": true
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#classic-home-grid",
+      "name": "home-classica-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "home-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "balcao",
+      "holdMs": 1000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".checkout-layout[data-ux-checkout-preserved='true']",
+      "name": "balcao-layout-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-sale-observation='true']",
+      "name": "balcao-observacao-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#seller-select",
+      "name": "balcao-vendedor-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "balcao",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "balcao-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "caixa",
+      "holdMs": 1000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ops-page",
+      "name": "caixa-superficie-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "caixa",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "caixa-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ops-page",
+      "name": "caixa-superficie-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "produtos-estoque",
+      "holdMs": 1000
+    },
+    {
+      "action": "screenshot",
+      "name": "produtos-estoque",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "produtos-estoque-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='products']",
+      "name": "abrir-produtos-p2",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-products-canonical='true'][data-products-view='dense']",
+      "name": "produtos-p2-canonico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#product-page-search",
+      "name": "produtos-busca-canonica",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "produtos-p2-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='customers']",
+      "name": "abrir-clientes-p2",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-customers-canonical='true'][data-customers-view='master-detail']",
+      "name": "clientes-p2-canonico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#customer-page-search",
+      "name": "clientes-busca-canonica",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "clientes-p2-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='post-sale']",
+      "name": "vendas-devolucoes",
+      "holdMs": 1000
+    },
+    {
+      "action": "screenshot",
+      "name": "vendas-devolucoes",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "vendas-devolucoes-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='financial-management']",
+      "name": "gestao-financeira",
+      "holdMs": 1000
+    },
+    {
+      "action": "screenshot",
+      "name": "gestao-financeira",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "gestao-financeira-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='sellers']",
+      "name": "equipe",
+      "holdMs": 1000
+    },
+    {
+      "action": "screenshot",
+      "name": "equipe",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "equipe-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='settings']",
+      "name": "configuracoes",
+      "holdMs": 1000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#settings-hub",
+      "name": "configuracoes-hub-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#printing-settings-card",
+      "name": "configuracoes-impressao-injetada",
+      "state": "attached",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#telemetry-settings-card",
+      "name": "configuracoes-telemetria-injetada",
+      "state": "attached",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#ops-admin-control-center",
+      "name": "configuracoes-admin-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#fiscal-config-workspace",
+      "name": "configuracoes-fiscal-config-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#fiscal-monitor-panel",
+      "name": "configuracoes-monitor-fiscal-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#nfse-workspace",
+      "name": "configuracoes-nfse-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "#settings-hub button[data-settings-category='fiscal']",
+      "name": "abrir-configuracoes-fiscal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#fiscal-config-workspace",
+      "name": "fiscal-config-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#fiscal-monitor-panel",
+      "name": "monitor-fiscal-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#nfse-workspace",
+      "name": "nfse-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#settings-hub button[data-settings-category='company']",
+      "name": "voltar-configuracoes-empresa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#ops-store-receipt-card",
+      "name": "configuracoes-loja-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ops-page",
+      "name": "configuracoes-superficie-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "configuracoes",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "configuracoes-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ops-page",
+      "name": "configuracoes-superficie-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='home']:not(.brand-mark):not(.sidebar-back)",
+      "name": "voltar-home",
+      "holdMs": 600
+    },
+    {
+      "action": "screenshot",
+      "name": "home-final",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "home-final-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    }
   ]
 }

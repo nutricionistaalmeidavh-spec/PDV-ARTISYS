@@ -6,6 +6,8 @@
   if(typeof ApiClient!=='function')return;
   const api=new ApiClient();
   const content=document.getElementById('route-content');
+  const lifecycle=root.PdvUiLifecycle;
+  if(!lifecycle)return;
   const toastRoot=document.getElementById('toast-root');
   const SUPPORTED_IMAGE_TYPES=new Set(['image/png','image/jpeg','image/webp']);
   const MAX_SOURCE_BYTES=4*1024*1024;
@@ -72,10 +74,12 @@
       const card=document.createElement('section');
       card.className='ops-card';
       card.id='ops-store-receipt-card';
+      card.dataset.settingsCategory='company';
       card.innerHTML=`<div class="ops-card-head"><div><h2>Dados da loja e cupom não fiscal</h2><p class="ops-muted">Nome, endereço, telefone e logo são salvos localmente e usados nos próximos cupons. A logo é convertida para PNG no próprio computador.</p></div></div><form id="ops-store-receipt-form" class="ops-form"><label>Nome da loja/empresa<input name="storeName" class="ops-input" maxlength="80" value="${escapeHtml(values['store.name']||cfg?.storeName||'')}" placeholder="Ex.: Mercado Central"></label><label>Endereço<input name="address" class="ops-input" maxlength="160" value="${escapeHtml(values['store.address']||'')}" placeholder="Rua, número, bairro, cidade"></label><label>Telefone<input name="phone" class="ops-input" maxlength="60" value="${escapeHtml(values['store.phone']||'')}" placeholder="(00) 00000-0000"></label><label>Logo da empresa<input id="ops-store-logo" class="ops-input" type="file" accept="image/png,image/jpeg,image/webp"></label><div id="ops-store-logo-preview">${previewMarkup(currentLogo)}</div><div class="ops-actions"><button class="ops-primary" type="submit">Salvar dados da loja</button><button id="ops-store-logo-remove" class="ops-secondary" type="button" ${currentLogo?'':'disabled'}>Remover logo</button></div><p class="ops-muted">Sem serviço externo e sem custo adicional. Se algum campo ficar vazio, ele não aparece no cupom.</p></form>`;
       const firstGrid=page.querySelector('.ops-grid');
       if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
       page.dataset.storeBrandingMounted='true';
+      root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'store-branding'});
 
       const fileInput=card.querySelector('#ops-store-logo');
       const preview=card.querySelector('#ops-store-logo-preview');
@@ -103,7 +107,8 @@
     finally{mounting=false;}
   }
 
-  const observer=new MutationObserver(()=>{void mount();});
-  if(content)observer.observe(content,{childList:true,subtree:true});
-  void mount();
+  const onRouteChange=({route})=>{if(route==='settings')void mount();};
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  if(document.body.dataset.activeRoute==='settings')void mount();
 })();
