@@ -41,7 +41,7 @@
     header = document.createElement('div');
     header.className = 'products-dense-header';
     header.dataset.productsDenseHeader = '1';
-    header.innerHTML = '<span>Produto / SKU</span><span>Preço / custo</span><span>Estoque</span><span>Status</span><span>Ações</span>';
+    header.innerHTML = '<span>Produto / SKU</span><span>Preço</span><span>Estoque / ficha</span><span>Status</span><span>Ações</span>';
     card.prepend(header);
     return header;
   }
@@ -71,8 +71,8 @@
       stock = document.createElement('select');
       stock.id = 'products-stock-filter';
       stock.className = 'secondary-button products-dense-filter';
-      stock.setAttribute('aria-label', 'Filtrar produtos por situação de estoque');
-      stock.innerHTML = '<option value="">Estoque: todos</option><option value="normal">Normal</option><option value="low">Baixo</option><option value="out">Sem estoque</option><option value="uncontrolled">Sem controle</option>';
+      stock.setAttribute('aria-label', 'Filtrar itens por situação de estoque ou ficha técnica');
+      stock.innerHTML = '<option value="">Situação: todas</option><option value="normal">Estoque normal</option><option value="low">Estoque baixo</option><option value="out">Sem estoque</option><option value="recipe-ok">Ficha: insumos OK</option><option value="recipe-low">Ficha: insumo baixo</option><option value="recipe-out">Ficha: indisponível</option>';
       stock.value = stockFilter;
       stock.addEventListener('change', event => {
         stockFilter = event.currentTarget.value;
@@ -143,8 +143,8 @@
       const empty = document.createElement('div');
       empty.dataset.productsFilterEmpty = '1';
       empty.innerHTML = ArtisysUxComponents.EmptyState({
-        title:'Nenhum produto neste filtro de estoque',
-        description:'Selecione outra situação de estoque ou limpe o filtro.'
+        title:'Nenhum item nesta situação',
+        description:'Selecione outra situação de estoque ou ficha técnica, ou limpe o filtro.'
       });
       card.appendChild(empty);
     }
