@@ -32,7 +32,9 @@
   s.querySelector('#fiscal-product-form')?.addEventListener('submit',async e=>{e.preventDefault();try{const d=obj(e.currentTarget);if(!d.productId||!d.profileId)throw new Error('Selecione produto e perfil tributário.');await api.saveProductFiscal(d.productId,{profileId:d.profileId,gtin:d.gtin||null,overrides:{}});selectedAuditProductId=d.productId;toast('Tributação do produto salva.','success');await refresh();}catch(x){toast(x.message,'error');}});
   s.querySelectorAll('[data-audit-filter]').forEach(b=>b.onclick=()=>{auditFilter=b.dataset.auditFilter;render();});s.querySelectorAll('[data-audit-configure]').forEach(b=>b.onclick=()=>{selectedAuditProductId=b.dataset.auditConfigure;tab='products';render();});
  }
- function render(){if(!mounted?.isConnected)return;const old=mounted.querySelector('#fiscal-config-workspace'),h=document.createElement('div');h.innerHTML=html();const fresh=h.firstElementChild;if(old)old.replaceWith(fresh);else mounted.appendChild(fresh);wire(fresh);}
- async function mount(){const page=content.querySelector('.ops-page'),head=content.querySelector('.ops-head h1');if(!page||!head||head.textContent.trim()!=='Configurações')return;if(page===mounted&&page.querySelector('#fiscal-config-workspace'))return;mounted=page;await refresh();}
- new MutationObserver(()=>mount()).observe(content,{childList:true,subtree:true});mount();
+ function render(){if(!mounted?.isConnected)return;const old=mounted.querySelector('#fiscal-config-workspace'),h=document.createElement('div');h.innerHTML=html();const fresh=h.firstElementChild;fresh.dataset.settingsCategory='fiscal';if(old)old.replaceWith(fresh);else mounted.appendChild(fresh);wire(fresh);}
+ async function mount(){const page=content.querySelector('.ops-page'),head=content.querySelector('.ops-head h1');if(!page||!head||head.textContent.trim()!=='Configurações')return;if(page===mounted&&page.querySelector('#fiscal-config-workspace'))return;mounted=page;await refresh();routeRegistry.updated('settings',{surface:'settings-extension',extension:'fiscal-config'});}
+ const onSettings=({route})=>{if(route==='settings')void mount();};
+ lifecycle.on('route:mounted',onSettings);lifecycle.on('route:updated',onSettings);
+ if(document.body.dataset.activeRoute==='settings')void mount();
 })();
