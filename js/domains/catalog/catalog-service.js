@@ -114,17 +114,10 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   if (!db) throw new TypeError('Database is required.');
   runCustomerAddressMigrations(db);
   const productColumns=new Set(db.prepare('PRAGMA table_info(products)').all().map(column=>column.name));
-  if(!productColumns.has('usage_type')){
-    db.exec("ALTER TABLE products ADD COLUMN usage_type TEXT NOT NULL DEFAULT 'DIRECT' CHECK(usage_type IN ('INGREDIENT','DIRECT','BOTH'))");
-    const hasRecipeComponents=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='recipe_components'").get());
-    if(hasRecipeComponents){
-      db.exec("UPDATE products SET usage_type='INGREDIENT' WHERE track_stock=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
-      db.exec("UPDATE products SET usage_type='BOTH' WHERE track_stock=1 AND menu_enabled=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
-    }
-  }
+  const tableExists=name=>Boolean(db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?").get(name));
   if(!productColumns.has('menu_enabled')){
     db.exec('ALTER TABLE products ADD COLUMN menu_enabled INTEGER NOT NULL DEFAULT 0 CHECK(menu_enabled IN (0,1))');
-    const tableExists=name=>Boolean(db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?").get(name));
+    productColumns.add('menu_enabled');
     const hasRecipes=tableExists('product_recipes');
     const hasRecipeComponents=tableExists('recipe_components');
     const hasVariants=tableExists('product_variants');
@@ -135,6 +128,14 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     if(hasRecipes)sourceRules.push("EXISTS (SELECT 1 FROM product_recipes pr WHERE pr.product_id=products.id AND pr.active=1)");
     if(hasVariants)sourceRules.push("EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id=products.id AND pv.active=1)");
     db.exec(`UPDATE products SET menu_enabled=1 WHERE active=1 AND (${sourceRules.join(' OR ')})`);
+  }
+  if(!productColumns.has('usage_type')){
+    db.exec("ALTER TABLE products ADD COLUMN usage_type TEXT NOT NULL DEFAULT 'DIRECT' CHECK(usage_type IN ('INGREDIENT','DIRECT','BOTH'))");
+    productColumns.add('usage_type');
+    if(tableExists('recipe_components')){
+      db.exec("UPDATE products SET usage_type='INGREDIENT' WHERE track_stock=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
+      db.exec("UPDATE products SET usage_type='BOTH' WHERE track_stock=1 AND menu_enabled=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
+    }
   }
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
   const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
@@ -197,15 +198,38 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     return getProduct(id);
   }
 
+  function enrichProduct(product){
+    if(!product)return null;
+    if(!tableExists('product_recipes')||!tableExists('recipe_components'))return product;
+    const activeRecipe=db.prepare('SELECT id FROM product_recipes WHERE product_id=? AND active=1 ORDER BY version DESC LIMIT 1').get(product.id);
+    if(!activeRecipe)return{...product,prepared:false,recipeStockStatus:null,recipeCapacity:null};
+    const components=db.prepare(`SELECT rc.quantity,rc.conversion_factor AS conversionFactor,rc.loss_percent AS lossPercent,
+      COALESCE(b.quantity,0) AS stockQuantity,COALESCE(p.minimum_stock,0) AS minimumStock
+      FROM recipe_components rc
+      JOIN products p ON p.id=rc.ingredient_product_id
+      LEFT JOIN inventory_balances b ON b.product_id=rc.ingredient_product_id
+      WHERE rc.recipe_id=?`).all(activeRecipe.id);
+    let capacity=Infinity;let low=false;let out=false;
+    for(const component of components){
+      const required=Number(component.quantity||0)*Number(component.conversionFactor||1)*(1+Number(component.lossPercent||0)/100);
+      const stock=Number(component.stockQuantity||0);
+      const possible=required>0?Math.floor(stock/required):Infinity;
+      capacity=Math.min(capacity,possible);
+      if(stock<=0||possible<=0)out=true;
+      else if(stock<=Number(component.minimumStock||0)||possible<=1)low=true;
+    }
+    return{...product,prepared:true,recipeStockStatus:out?'OUT':low?'LOW':'OK',recipeCapacity:Number.isFinite(capacity)?Math.max(0,capacity):0};
+  }
+
   function getProduct(id) {
-    return rowToProduct(db.prepare(`${productSelect('WHERE p.id=?')}`).get(String(id)));
+    return enrichProduct(rowToProduct(db.prepare(`${productSelect('WHERE p.id=?')}`).get(String(id))));
   }
 
   function listProducts({ includeInactive = false } = {}) {
     const sql = includeInactive
       ? `${productSelect()} ORDER BY p.name,p.id`
       : `${productSelect('WHERE p.active=1')} ORDER BY p.name,p.id`;
-    return db.prepare(sql).all().map(rowToProduct);
+    return db.prepare(sql).all().map(rowToProduct).map(enrichProduct);
   }
 
   function removeProduct(id, actor = null) {
