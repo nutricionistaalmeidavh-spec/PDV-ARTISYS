@@ -1,0 +1,403 @@
+{
+  "name": "product-design-post-fixes-audit",
+  "title": "Product Design — pós-correções Estoque, Ficha Técnica e Cardápio",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "bootstrap",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "authenticated",
+      "username": "qaadmin",
+      "password": "QaLocalOnly-12345!"
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-pao",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-bread-v2",
+        "name": "Pão brioche",
+        "sku": "PAO-BR-V2",
+        "unit": "UN",
+        "salePriceCents": 0,
+        "costCents": 120,
+        "trackStock": true,
+        "minimumStock": 5,
+        "usageType": "INGREDIENT",
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-carne",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-meat-v2",
+        "name": "Carne 180g",
+        "sku": "CARNE-180-V2",
+        "unit": "KG",
+        "salePriceCents": 0,
+        "costCents": 3600,
+        "trackStock": true,
+        "minimumStock": 3,
+        "usageType": "INGREDIENT",
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-coca",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-coke-v2",
+        "name": "Coca-Cola 350ml",
+        "sku": "COCA-350-V2",
+        "unit": "UN",
+        "salePriceCents": 700,
+        "costCents": 350,
+        "trackStock": true,
+        "minimumStock": 6,
+        "usageType": "DIRECT",
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-xtudo",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-xtudo-v2",
+        "name": "X-Tudo",
+        "sku": "XT-V2",
+        "unit": "UN",
+        "salePriceCents": 2790,
+        "costCents": 0,
+        "trackStock": false,
+        "minimumStock": 0,
+        "usageType": "DIRECT",
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-ficha-xtudo",
+      "path": "/api/v1/vertical/recipes/qa-xtudo-v2",
+      "method": "PUT",
+      "body": {
+        "yieldQuantity": 10,
+        "yieldUnit": "UN",
+        "portionQuantity": 1,
+        "prepTimeMinutes": 12,
+        "preparationNotes": "Montar pão, carne e complementos; finalizar e servir imediatamente.",
+        "notes": "Ficha interna de QA.",
+        "components": [
+          {
+            "productId": "qa-bread-v2",
+            "quantity": 10,
+            "unit": "UN",
+            "conversionFactor": 1,
+            "lossPercent": 0
+          },
+          {
+            "productId": "qa-meat-v2",
+            "quantity": 1.8,
+            "unit": "KG",
+            "conversionFactor": 1,
+            "lossPercent": 5
+          }
+        ]
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "saldo-pao",
+      "path": "/api/v1/inventory/movements",
+      "method": "POST",
+      "body": {
+        "productId": "qa-bread-v2",
+        "type": "opening",
+        "quantityDelta": 30,
+        "reason": "QA Product Design v2"
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "saldo-carne",
+      "path": "/api/v1/inventory/movements",
+      "method": "POST",
+      "body": {
+        "productId": "qa-meat-v2",
+        "type": "opening",
+        "quantityDelta": 20,
+        "reason": "QA Product Design v2"
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "saldo-coca",
+      "path": "/api/v1/inventory/movements",
+      "method": "POST",
+      "body": {
+        "productId": "qa-coke-v2",
+        "type": "opening",
+        "quantityDelta": 48,
+        "reason": "QA Product Design v2"
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-hub",
+      "holdMs": 400
+    },
+    {
+      "action": "screenshot",
+      "name": "01-hub-cardapio-estoque",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-flow-route='inventory']",
+      "name": "abrir-estoque",
+      "holdMs": 700
+    },
+    {
+      "action": "waitFor",
+      "selector": "#inventory-master-actions",
+      "name": "estoque-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "02-estoque-com-ficha",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#inventory-new-product",
+      "name": "abrir-novo-produto"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#product-form",
+      "name": "produto-form-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "03-produto-tipo-venda-direta",
+      "fullPage": false
+    },
+    {
+      "action": "selectOption",
+      "selector": "#product-usage-type",
+      "name": "produto-selecionar-insumo",
+      "value": "INGREDIENT"
+    },
+    {
+      "action": "screenshot",
+      "name": "04-produto-tipo-insumo",
+      "fullPage": false
+    },
+    {
+      "action": "press",
+      "selector": "#modal-root .modal-card",
+      "name": "fechar-produto-com-esc",
+      "key": "Escape"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "produto-modal-fechado",
+      "state": "hidden",
+      "timeoutMs": 5000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-edit-recipe='qa-xtudo-v2']",
+      "name": "editar-ficha-existente",
+      "holdMs": 400
+    },
+    {
+      "action": "waitFor",
+      "selector": "#recipe-product-form",
+      "name": "ficha-pronta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "05-ficha-tecnica-topo",
+      "fullPage": false
+    },
+    {
+      "action": "fill",
+      "selector": "textarea[name='preparationNotes']",
+      "name": "focar-modo-preparo",
+      "value": "Montar pão, carne e complementos; finalizar e servir imediatamente."
+    },
+    {
+      "action": "screenshot",
+      "name": "06-ficha-tecnica-preparo-custos",
+      "fullPage": false
+    },
+    {
+      "action": "press",
+      "selector": "#modal-root .modal-card",
+      "name": "fechar-ficha-com-esc",
+      "key": "Escape"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "ficha-modal-fechado",
+      "state": "hidden",
+      "timeoutMs": 5000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "voltar-hub",
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "[data-flow-route='products']",
+      "name": "abrir-cardapio",
+      "holdMs": 800
+    },
+    {
+      "action": "waitFor",
+      "selector": "#new-product",
+      "name": "cardapio-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "07-cardapio-vazio",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#new-product",
+      "name": "abrir-seletor"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#menu-source-picker",
+      "name": "seletor-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#menu-source-picker",
+      "name": "insumos-ocultos",
+      "expected": "insumo(s) puro(s) oculto(s)"
+    },
+    {
+      "action": "screenshot",
+      "name": "08-seletor-sem-insumos-puros",
+      "fullPage": false
+    },
+    {
+      "action": "click",
+      "selector": "button[data-add-menu-source='qa-coke-v2']",
+      "name": "adicionar-coca",
+      "holdMs": 500
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "seletor-fechado-coca",
+      "state": "hidden",
+      "timeoutMs": 5000
+    },
+    {
+      "action": "click",
+      "selector": "#new-product",
+      "name": "abrir-seletor-xtudo"
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-add-menu-source='qa-xtudo-v2']",
+      "name": "xtudo-disponivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-add-menu-source='qa-xtudo-v2']",
+      "name": "adicionar-xtudo",
+      "holdMs": 600
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "seletor-fechado-xtudo",
+      "state": "hidden",
+      "timeoutMs": 5000
+    },
+    {
+      "action": "screenshot",
+      "name": "09-cardapio-status-insumos",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-edit-product='qa-xtudo-v2']",
+      "name": "ver-origem-xtudo"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root .modal-card",
+      "name": "origem-pronta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "10-origem-ficha-completa",
+      "fullPage": false
+    },
+    {
+      "action": "press",
+      "selector": "#modal-root .modal-card",
+      "name": "fechar-origem-com-esc",
+      "key": "Escape"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "origem-modal-fechado",
+      "state": "hidden",
+      "timeoutMs": 5000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "abrir-balcao",
+      "holdMs": 1000
+    },
+    {
+      "action": "screenshot",
+      "name": "11-balcao-cardapio-curado",
+      "fullPage": true
+    }
+  ]
+}
