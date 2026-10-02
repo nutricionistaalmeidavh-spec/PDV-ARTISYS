@@ -71,6 +71,7 @@ function rowToProduct(row) {
     costCents: row.cost_cents,
     trackStock: Boolean(row.track_stock),
     minimumStock: row.minimum_stock,
+    menuEnabled: Boolean(row.menu_enabled),
     stockQuantity: Number(row.stock_quantity ?? 0),
     photo: row.photo_thumbnail_sha256 ? { version:row.photo_version, thumbnailSha256:row.photo_thumbnail_sha256, originalSha256:row.photo_original_sha256, updatedAt:row.photo_updated_at } : null,
     active: Boolean(row.active),
@@ -111,6 +112,21 @@ function publicUser(row) {
 function createCatalogService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
   runCustomerAddressMigrations(db);
+  const productColumns=new Set(db.prepare('PRAGMA table_info(products)').all().map(column=>column.name));
+  if(!productColumns.has('menu_enabled')){
+    db.exec('ALTER TABLE products ADD COLUMN menu_enabled INTEGER NOT NULL DEFAULT 0 CHECK(menu_enabled IN (0,1))');
+    const tableExists=name=>Boolean(db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?").get(name));
+    const hasRecipes=tableExists('product_recipes');
+    const hasRecipeComponents=tableExists('recipe_components');
+    const hasVariants=tableExists('product_variants');
+    const directStock=hasRecipeComponents
+      ? "(track_stock=1 AND NOT EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id))"
+      : "track_stock=1";
+    const sourceRules=[directStock];
+    if(hasRecipes)sourceRules.push("EXISTS (SELECT 1 FROM product_recipes pr WHERE pr.product_id=products.id AND pr.active=1)");
+    if(hasVariants)sourceRules.push("EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id=products.id AND pv.active=1)");
+    db.exec(`UPDATE products SET menu_enabled=1 WHERE active=1 AND (${sourceRules.join(' OR ')})`);
+  }
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
   const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
   const hasAccountIdentity=['email','email_normalized','password_changed_at'].every(name=>userColumns.has(name));
@@ -152,15 +168,17 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     if (salePriceCents < 0 || costCents < 0) throw new Error('Valores do produto nao podem ser negativos.');
     const minimumStock = Number(input.minimumStock ?? 0);
     if (!Number.isFinite(minimumStock) || minimumStock < 0) throw new Error('Estoque minimo invalido.');
+    const existingProduct = db.prepare('SELECT menu_enabled FROM products WHERE id=?').get(id);
+    const menuEnabled = input.menuEnabled === undefined ? Boolean(existingProduct?.menu_enabled) : Boolean(input.menuEnabled);
     const timestamp = now();
     db.prepare(`INSERT INTO products
-      (id,sku,barcode,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+      (id,sku,barcode,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,menu_enabled,active,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET sku=excluded.sku,barcode=excluded.barcode,name=excluded.name,category_id=excluded.category_id,
         unit=excluded.unit,sale_price_cents=excluded.sale_price_cents,cost_cents=excluded.cost_cents,track_stock=excluded.track_stock,
-        minimum_stock=excluded.minimum_stock,active=excluded.active,updated_at=excluded.updated_at`)
+        minimum_stock=excluded.minimum_stock,menu_enabled=excluded.menu_enabled,active=excluded.active,updated_at=excluded.updated_at`)
       .run(id, normalizeOptional(input.sku), normalizeOptional(input.barcode), name, normalizeOptional(input.categoryId), String(input.unit || 'UN').trim().toUpperCase(),
-        salePriceCents, costCents, booleanInt(input.trackStock), Number(minimumStock.toFixed(3)), booleanInt(input.active), timestamp, timestamp);
+        salePriceCents, costCents, booleanInt(input.trackStock), Number(minimumStock.toFixed(3)), menuEnabled?1:0, booleanInt(input.active), timestamp, timestamp);
     db.prepare('INSERT OR IGNORE INTO inventory_balances (product_id,quantity,updated_at) VALUES (?,0,?)').run(id, timestamp);
     writeAudit(db, { action: 'product.upsert', entity: 'product', entityId: id, actor, context: { sku: input.sku, barcode: input.barcode, name } }, now);
     return getProduct(id);
@@ -182,7 +200,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     if (!product) throw new Error('Produto nao encontrado.');
     if (!product.active) return product;
     const timestamp = now();
-    db.prepare('UPDATE products SET active=0,updated_at=? WHERE id=?').run(timestamp, product.id);
+    db.prepare('UPDATE products SET active=0,menu_enabled=0,updated_at=? WHERE id=?').run(timestamp, product.id);
     writeAudit(db, { action: 'product.remove', entity: 'product', entityId: product.id, actor, context: { name: product.name, mode: 'soft-delete' } }, now);
     return getProduct(product.id);
   }

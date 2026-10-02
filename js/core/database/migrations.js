@@ -44,6 +44,7 @@ const MIGRATIONS = [
         cost_cents INTEGER NOT NULL DEFAULT 0 CHECK (cost_cents >= 0),
         track_stock INTEGER NOT NULL DEFAULT 1 CHECK (track_stock IN (0,1)),
         minimum_stock REAL NOT NULL DEFAULT 0 CHECK (minimum_stock >= 0),
+        menu_enabled INTEGER NOT NULL DEFAULT 0 CHECK (menu_enabled IN (0,1)),
         active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0,1)),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,

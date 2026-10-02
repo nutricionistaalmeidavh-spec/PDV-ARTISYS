@@ -80,7 +80,7 @@ test('E51 self-service uses paired device and creates pickup order without elect
   try{
     rt.modules.setEnabled('FAST_FOOD',true,admin);
     rt.modules.setEnabled('SELF_SERVICE',true,admin);
-    rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false},admin);
+    rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false,menuEnabled:true},admin);
     const device=rt.mobileDevices.createDevice({id:'totem-1',name:'Totem 1',deviceType:'SELF_SERVICE'},admin);
     rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'admin'},admin);
     const context=rt.selfService.context(device.id);
