@@ -27,6 +27,17 @@ function createAvailabilitySaleService({db,baseSales,logistics,stockRequirements
     return withTransaction(db,()=>{
       const sale=baseSales.getSale(id);if(!sale)throw new Error('Venda nao encontrada.');const locationId=locationFor(id);
       const linkedFulfillment=pendingOrderFulfillment(id);const source=input.reservationSource||(linkedFulfillment?{type:'sales-order',id:linkedFulfillment.order_id}:null);
+      if(linkedFulfillment){
+        const order=db.prepare('SELECT commercial_policy_snapshot_json FROM sales_orders WHERE id=?').get(linkedFulfillment.order_id);
+        let policy=null;try{policy=order?.commercial_policy_snapshot_json?JSON.parse(order.commercial_policy_snapshot_json):null;}catch{}
+        const allowed=new Set(Array.isArray(policy?.allowedPaymentMethods)?policy.allowedPaymentMethods:[]);
+        if(allowed.size){
+          for(const payment of input.payments||[]){
+            const method=String(payment?.method||'').trim().toUpperCase();
+            if(method&&!allowed.has(method))throw new Error(`Forma de pagamento ${method} nao permitida para este pedido de Atacado.`);
+          }
+        }
+      }
       for(const [productId,quantity] of requirements(sale.items)){const tracked=db.prepare('SELECT track_stock AS tracked,name FROM products WHERE id=?').get(productId);if(!tracked?.tracked)continue;const availability=logistics.getAvailability(productId,locationId,{excludeSourceType:source?.type||null,excludeSourceId:source?.id||null});if(quantity>availability.availableQuantity)throw new Error(`Estoque disponivel insuficiente para ${tracked.name}. Disponivel: ${availability.availableQuantity}.`);}
       if(source?.type&&source?.id)logistics.bindSourceReservationsToSale(source.type,source.id,id);
       const completed=enrich(baseSales.completeSale(id,{...input,reservationSource:source}));
