@@ -7,6 +7,8 @@
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
   const toastRoot=document.getElementById('toast-root');
+  const lifecycle=window.PdvUiLifecycle;
+  if(!lifecycle)return;
   let config=null;
   let products=[];
   let variants=[];
