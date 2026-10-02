@@ -157,6 +157,21 @@
     }
   }
 
+  function modalFocusableElements() {
+    return [...modalRoot.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter(node=>!node.hidden&&node.getAttribute('aria-hidden')!=='true'&&node.getClientRects().length);
+  }
+
+  function modalKeyboardHandler(event) {
+    if(event.key==='Escape'){event.preventDefault();closeModal();return;}
+    if(event.key!=='Tab')return;
+    const focusable=modalFocusableElements();
+    if(!focusable.length){event.preventDefault();modalRoot.querySelector('.modal-card')?.focus();return;}
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+    else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+  }
+
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
     modalRoot._returnFocus = document.activeElement;
     modalRoot.classList.remove('hidden');
