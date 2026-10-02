@@ -209,29 +209,6 @@
     bindBack();content.querySelectorAll('[data-food-open]').forEach(button=>button.addEventListener('click',()=>void renderWorkspace(button.dataset.foodOpen)));
   }
 
-  function renderFood(){
-    delete document.body.dataset.activeFoodCapability;
-    const content=document.getElementById('route-content');
-    if(!content)return;
-    content.innerHTML=`<section class="page vertical-page" data-module-area="FOOD"><header class="page-head"><div><h1>Alimentação</h1><p>Uma única área para operação de alimentação. Produção/KDS é infraestrutura compartilhada; escolha apenas o fluxo que deseja abrir.</p></div>${backButton()}</header><div class="food-module-grid">${FOOD_CAPABILITIES.map(capability=>`<button type="button" class="data-card food-module-card" data-food-capability="${escapeHtml(capability.id)}"><span>${root.PdvIcon?.(capability.icon,28)||''}</span><strong>${escapeHtml(capability.label)}</strong><small>${escapeHtml(capability.description)}</small><span class="secondary-button">Abrir</span></button>`).join('')}</div></section>`;
-    bindBack();
-    content.querySelectorAll('[data-food-capability]').forEach(button=>button.addEventListener('click',()=>openFoodCapability(button.dataset.foodCapability)));
-  }
-
-  async function openFoodCapability(id){
-    const capability=FOOD_CAPABILITIES.find(item=>item.id===id);
-    if(!capability)return;
-    document.body.dataset.activeFoodCapability=capability.id;
-    try{
-      await capability.render?.();
-    }catch(error){
-      const content=document.getElementById('route-content');
-      if(content)content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Não foi possível abrir ${escapeHtml(capability.label)}</h1><p>A área Alimentação continua disponível.</p></div>${backButton()}</header><div class="data-card ops-error" role="alert">${escapeHtml(error?.message||'Falha inesperada ao carregar a tela.')}</div></section>`;
-      bindBack();
-      notify('A operação não abriu. Tente novamente.',true);
-    }
-  }
-
   function renderPizzeria(){
     const content=document.getElementById('route-content');content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Personalização de pizza</h1><p>Tamanhos, sabores, bordas e política de preço dentro do módulo Alimentação.</p></div>${backButton()}</header><div class="data-card"><form id="pizza-profile-form" class="vertical-form">${input('productId','Produto base')}<label class="field"><span>Política para vários sabores</span><select name="pricingPolicy"><option value="HIGHEST_FLAVOR">Maior preço</option><option value="PROPORTIONAL_AVERAGE">Média proporcional</option></select></label><button class="primary-button" type="submit">Salvar perfil</button></form></div><div class="data-card"><h2>Prévia de preço</h2><form id="pizza-price-form" class="vertical-form">${input('productId','Produto')}${input('sizeId','Tamanho')}${input('flavors','Sabores (separados por vírgula)')}${input('crustId','Borda')}<button class="primary-button" type="submit">Calcular</button></form><pre id="pizza-price-output" class="vertical-output"></pre></div></section>`;bindBack();
     document.getElementById('pizza-profile-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);try{await withTimeout(api.savePizzeriaProfile({productId:data.get('productId'),pricingPolicy:data.get('pricingPolicy')}));notify('Personalização de pizza salva.');}catch(error){notify(error.message,true);}});
