@@ -105,6 +105,12 @@
     else{if(discount)discount.disabled=false;existingHint?.remove();}
   }
 
-  const observer=new MutationObserver(()=>{void mountProducts();mountPromotionRow();});if(content)observer.observe(content,{childList:true,subtree:true});
-  void mountProducts();mountPromotionRow();
+  const onRouteChange=({route})=>{
+    if(route==='products')void mountProducts();
+    if(route==='checkout')mountPromotionRow();
+  };
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  const currentRoute=document.body.dataset.activeRoute||'';
+  if(currentRoute)onRouteChange({route:currentRoute});
 })();
