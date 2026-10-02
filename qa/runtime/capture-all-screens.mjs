@@ -39,14 +39,16 @@ const app=await electron.launch({
 });
 const page=await app.firstWindow();
 await page.setViewportSize({width:1440,height:900}).catch(()=>{});
-page.setDefaultTimeout(15000);
+page.setDefaultTimeout(5000);
 
 async function shotDesktop(name){
+  console.log('[capture:desktop]',name);
   const file=path.join(desktopDir,Math.max(1,manifest.desktop.length+1).toString().padStart(2,'0')+'-'+safeName(name)+'.png');
   await page.screenshot({path:file,fullPage:true});
   manifest.desktop.push({name,file:path.relative(out,file)});
 }
 async function shotMobile(p,name){
+  console.log('[capture:mobile]',name);
   const file=path.join(mobileDir,Math.max(1,manifest.mobile.length+1).toString().padStart(2,'0')+'-'+safeName(name)+'.png');
   await p.screenshot({path:file,fullPage:true});
   manifest.mobile.push({name,file:path.relative(out,file)});
@@ -58,6 +60,7 @@ async function visibleClick(selector){
   return false;
 }
 async function captureDesktop(name,fn){
+  console.log('[capture:start]',name);
   try{if(fn)await fn();await sleep(450);await shotDesktop(name);}
   catch(error){manifest.errors.push({screen:name,error:String(error?.message||error)});try{await shotDesktop(name+'-erro');}catch{}}
 }
