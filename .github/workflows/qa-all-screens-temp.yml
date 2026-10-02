@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: qa-all-screens-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   capture-all:
     runs-on: ubuntu-latest
