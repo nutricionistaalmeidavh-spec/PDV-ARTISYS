@@ -8,6 +8,26 @@ const { roundQuantity }=require('./inventory-rules');
 function createRecipeService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('Database is required.');
 
+  function ensureRecipeColumns(){
+    const table=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_recipes'").get());
+    if(!table)return;
+    const columns=new Set(db.prepare('PRAGMA table_info(product_recipes)').all().map(column=>column.name));
+    const additions=[
+      ['yield_quantity',"REAL NOT NULL DEFAULT 1 CHECK(yield_quantity>0)"],
+      ['yield_unit',"TEXT NOT NULL DEFAULT 'UN'"],
+      ['portion_quantity',"REAL NOT NULL DEFAULT 1 CHECK(portion_quantity>0)"],
+      ['prep_time_minutes',"INTEGER NOT NULL DEFAULT 0 CHECK(prep_time_minutes>=0)"],
+      ['preparation_notes','TEXT'],
+      ['notes','TEXT']
+    ];
+    for(const [name,definition] of additions){
+      if(columns.has(name))continue;
+      db.exec(`ALTER TABLE product_recipes ADD COLUMN ${name} ${definition}`);
+      columns.add(name);
+    }
+  }
+  ensureRecipeColumns();
+
   function requireProduct(productId){const row=db.prepare('SELECT * FROM products WHERE id=?').get(String(productId));if(!row)throw new Error(`Produto ${productId} nao encontrado no catalogo.`);return row;}
 
   function getRecipe(productId){
