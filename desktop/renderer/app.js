@@ -129,13 +129,41 @@
     }
   }
 
+  function modalFocusableElements() {
+    return [...modalRoot.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter(node=>!node.hidden&&node.getAttribute('aria-hidden')!=='true'&&node.getClientRects().length);
+  }
+
+  function modalKeyboardHandler(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable=modalFocusableElements();
+    if (!focusable.length) {
+      event.preventDefault();
+      modalRoot.querySelector('.modal-card')?.focus();
+      return;
+    }
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if (event.shiftKey&&document.activeElement===first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey&&document.activeElement===last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
     modalRoot._returnFocus = document.activeElement;
     modalRoot.classList.remove('hidden');
-    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="pdv-modal-title"><header class="modal-head"><h2 id="pdv-modal-title">${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal aria-label="Fechar">×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
+    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="pdv-modal-title" tabindex="-1"><header class="modal-head"><h2 id="pdv-modal-title">${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal aria-label="Fechar">×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
     modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
     modalRoot.onclick = modalBackdropClose;
-    modalRoot.onkeydown = (event) => { if (event.key === 'Escape') { event.preventDefault(); closeModal(); } };
+    modalRoot.onkeydown = modalKeyboardHandler;
     if (onMount) onMount(modalRoot);
     window.PdvUiLifecycle?.emit('modal:mounted', { title, root:modalRoot });
     queueMicrotask(() => {
