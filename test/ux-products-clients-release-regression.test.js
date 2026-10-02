@@ -16,8 +16,10 @@ function includesAll(source, markers, label) {
 
 test('paired UX maturity advances together to cross-flow + release-regression guarded level', () => {
   assert.equal(products.PRODUCTS_UX_LEVEL, customers.CUSTOMERS_UX_LEVEL);
-  assert.ok(products.PRODUCTS_UX_LEVEL >= 3, 'Products UX level must advance for Entregas 7/8');
+  assert.ok(products.PRODUCTS_UX_LEVEL >= 4, 'Products/Customers must remain at canonical P2 maturity');
   assert.deepEqual(products.PRODUCTS_UX_GUARDS, customers.CUSTOMERS_UX_GUARDS);
+  assert.equal(products.PRODUCTS_UX_GUARDS.canonicalRenderer, true);
+  assert.equal(products.PRODUCTS_UX_GUARDS.lifecycleOwned, true);
   assert.equal(products.PRODUCTS_UX_GUARDS.crossFlowGuarded, true);
   assert.equal(products.PRODUCTS_UX_GUARDS.releaseRegressionGuarded, true);
 });
