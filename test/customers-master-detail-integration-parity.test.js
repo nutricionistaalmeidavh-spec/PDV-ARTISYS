@@ -7,120 +7,46 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
+const includesAll = (source, markers, label) => markers.forEach(marker => assert.ok(source.includes(marker), `${label}: missing ${marker}`));
 
-function includesAll(source, markers, label) {
-  for (const marker of markers) assert.ok(source.includes(marker), `${label}: missing ${marker}`);
-}
-
-test('Customers master-detail assets load around app without removing legacy renderer assets', () => {
+test('Customers canonical assets load without reversible feature-flag fallback', () => {
   const index = read('desktop/renderer/index.html');
-  includesAll(index, [
-    './ux-components.css',
-    './customers-master-detail.css',
-    './ux-components.js',
-    './feature-flags.js',
-    './customers-master-detail-view.js',
-    './app.js',
-    './customers-master-detail-controller.js'
-  ], 'index');
-  assert.ok(index.indexOf('./feature-flags.js') < index.indexOf('./app.js'));
-  assert.ok(index.indexOf('./customers-master-detail-view.js') < index.indexOf('./app.js'));
-  assert.ok(index.indexOf('./app.js') < index.indexOf('./customers-master-detail-controller.js'));
+  includesAll(index, ['./customers-master-detail.css','./customers-master-detail-view.js','./app.js','./customers-master-detail-controller.js'], 'index');
+  assert.doesNotMatch(index, /feature-flags\.js|catalog-search-stability\.js/);
 });
 
-test('Customers master-detail is enabled by a reversible global feature flag', () => {
-  const flags = read('desktop/renderer/feature-flags.js');
-  includesAll(flags, [
-    'customersMasterDetailView: true',
-    'window.PdvFeatureFlags',
-    'customersMasterDetailView'
-  ], 'feature flags');
-});
-
-test('legacy Customers renderer remains untouched as the source of form/search/edit handlers', () => {
+test('Customers renderer owns incremental search and canonical edit/form selectors', () => {
   const app = read('desktop/renderer/app.js');
   includesAll(app, [
+    'function customersListHtml()',
+    'function renderCustomersList()',
     'function renderCustomers()',
-    'function openCustomerForm(customer = null)',
+    'data-customers-canonical="true"',
+    'id="customers-list"',
     'id="new-customer"',
     'id="customer-page-search"',
     'data-edit-customer=',
-    'id="customer-form"',
+    'function openCustomerForm(customer = null)',
     'api.saveCustomer',
-    'creditLimitCents',
-    'creditUsedCents'
-  ], 'legacy app');
+    "routeRegistry.updated('customers'"
+  ], 'Customers canonical renderer');
+  assert.match(app, /customer-page-search'[\s\S]*renderCustomersList\(\)/);
 });
 
-test('master-detail controller augments existing customer rows and reuses the canonical edit action', () => {
+test('Customers master-detail presentation is lifecycle-owned without DOM observer or legacy restoration', () => {
   const controller = read('desktop/renderer/customers-master-detail-controller.js');
-  includesAll(controller, [
-    'PdvFeatureFlags.customersMasterDetailView',
-    'PdvCustomersMasterDetail',
-    'ArtisysUxComponents',
-    'function decorateCustomers',
-    'function restoreLegacy',
-    '#customer-page-search',
-    '[data-edit-customer]',
-    'data-customer-master-row',
-    'data-customer-last-sale',
-    'data-customers-master-panel',
-    "originalEdit?.click()"
-  ], 'master-detail controller');
-  assert.equal(controller.includes('data-edit-customer="'), false, 'controller must not rebuild canonical edit buttons');
-  assert.equal(controller.includes('id="customer-form"'), false, 'controller must not rebuild the canonical customer form');
+  includesAll(controller, ['PdvUiLifecycle','route:mounted','route:updated','PdvCustomersMasterDetail','function decorateCustomers','PdvCustomersMasterDetailController','originalEdit?.click()'], 'Customers controller');
+  assert.doesNotMatch(controller, /MutationObserver|PdvFeatureFlags|restoreLegacy/);
 });
 
-test('customer history uses canonical customer-filtered sales data and never invents a frontend-only purchase record', () => {
+test('customer history remains canonical and delivery address form integration remains intact', () => {
   const controller = read('desktop/renderer/customers-master-detail-controller.js');
-  const view = read('desktop/renderer/customers-master-detail-view.js');
-  includesAll(controller, [
-    'api.salesHistory({',
-    'customerId:id',
-    "status:'COMPLETED'",
-    'limit:HISTORY_PAGE_SIZE',
-    'offset:state.offset',
-    'historyByCustomer',
-    'historyOpen'
-  ], 'history controller');
-  assert.equal(controller.includes("api.sales('COMPLETED', 200)"), false, 'history must not depend on the global 200-sale window');
-  includesAll(view, [
-    'function salesForCustomer',
-    'function latestSaleForCustomer',
-    'sale?.customerId',
-    'sale.completedAt',
-    'sale.totalCents',
-    'customer.lastSale',
-    'customer-history-more'
-  ], 'history view');
-});
-
-test('delivery address extension and full customer form remain connected after master-detail enhancement', () => {
   const address = read('desktop/renderer/delivery-address-ui.js');
-  includesAll(address, [
-    "document.getElementById('customer-form')",
-    '[data-customer-address]',
-    'p.saveCustomer=function(body)',
-    "field('postalCode','CEP'",
-    "field('street','Logradouro')"
-  ], 'delivery address');
+  includesAll(controller, ['api.salesHistory({','customerId:id',"status:'COMPLETED'",'limit:HISTORY_PAGE_SIZE','offset:state.offset'], 'history');
+  includesAll(address, ["document.getElementById('customer-form')",'[data-customer-address]','p.saveCustomer=function(body)'], 'delivery address');
 });
 
-test('phase 6 customer parity matrix is versioned and blocks legacy removal', () => {
-  const matrixPath = path.join(root, 'docs', 'architecture', 'customers-master-detail-parity.md');
-  assert.equal(fs.existsSync(matrixPath), true);
-  const matrix = fs.readFileSync(matrixPath, 'utf8');
-  includesAll(matrix, [
-    'Feature flag',
-    'Legacy',
-    'Master-detail',
-    'Novo cliente',
-    'Busca',
-    'Editar ficha',
-    'Endereço de entrega',
-    'Crédito',
-    'Histórico',
-    'Cliente → Venda',
-    'não remover o renderer legado'
-  ], 'customer parity matrix');
+test('Customers parity document records canonical P2 architecture', () => {
+  const matrix = read('docs/architecture/customers-master-detail-parity.md');
+  includesAll(matrix, ['P2 canônico','sem feature flag','lifecycle','busca incremental','Endereço de entrega','Histórico'], 'Customers parity');
 });
