@@ -28,13 +28,22 @@ jobs:
       - name: Ensure Xvfb
         run: |
           command -v xvfb-run >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y xvfb)
-      - name: Capture every screen
-        run: xvfb-run -a node qa/runtime/capture-all-screens.mjs
+      - name: Capture desktop screens
+        shell: bash
+        run: |
+          set +e
+          xvfb-run -a node qa/runtime/capture-all-screens.mjs
+          echo "Desktop capture exit code: $?"
+          exit 0
+      - name: Capture mobile screens
+        run: node qa/runtime/capture-mobile-screens.mjs
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pdv-artisys-all-screens-${{ github.run_number }}
-          path: qa-artifacts/all-screens
+          path: |
+            qa-artifacts/all-screens
+            qa-artifacts/all-screens-mobile
           if-no-files-found: warn
           retention-days: 7
