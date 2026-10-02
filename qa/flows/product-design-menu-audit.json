@@ -374,8 +374,29 @@
     },
     {
       "action": "click",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close",
       "name": "fechar-origem"
+    },
+    {
+      "action": "waitForTimeout",
+      "name": "esperar-fechamento-origem",
+      "timeoutMs": 350
+    },
+    {
+      "action": "screenshot",
+      "name": "08b-cardapio-apos-fechar-origem",
+      "fullPage": false
+    },
+    {
+      "action": "reload",
+      "name": "recarregar-apos-origem"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "sessao-restaurada-3",
+      "state": "hidden",
+      "timeoutMs": 15000
     },
     {
       "action": "click",
