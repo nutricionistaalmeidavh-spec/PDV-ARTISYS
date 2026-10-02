@@ -188,7 +188,7 @@
     },
     {
       "action": "waitFor",
-      "selector": ".restaurant-order-items:has-text('QA Prato Executivo')",
+      "selector": "#restaurant-detail .restaurant-order-items:has-text('QA Prato Executivo')",
       "name": "pedido-lancado",
       "timeoutMs": 10000,
       "state": "visible"
@@ -213,7 +213,7 @@
     },
     {
       "action": "waitFor",
-      "selector": ".restaurant-status.PREPARING",
+      "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.PREPARING",
       "name": "kds-status-preparando",
       "state": "visible",
       "timeoutMs": 10000
@@ -238,7 +238,7 @@
     },
     {
       "action": "waitFor",
-      "selector": ".restaurant-status.READY",
+      "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.READY",
       "name": "kds-status-pronto",
       "state": "visible",
       "timeoutMs": 10000
