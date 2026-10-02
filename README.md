@@ -57,7 +57,9 @@ O núcleo comercial do PDV não é desativável. Produtos, variantes, ficha téc
 Em `Configurações > Áreas`, o estabelecimento ativa somente fluxos que realmente mudam a operação:
 
 - **Alimentação** — inclui automaticamente Pedidos e Produção/KDS. Mesa/comanda, balcão com senha, entrega/retirada, autoatendimento e personalizações de produto são capacidades do mesmo fluxo de Alimentação, não módulos independentes;
-- **Serviços** — agenda, profissionais e comissões.
+- **Atacado** — pedidos B2B com cliente obrigatório, preço por quantidade, política comercial, crédito reutilizado do cadastro de Clientes e previsão de entrega/retirada, sempre faturados no mesmo Balcão/Caixa.
+
+O antigo vertical de **Serviços** não faz parte do produto ativo. Suas tabelas legadas permanecem preservadas apenas para compatibilidade de dados; profissionais e comissões usam Equipe e o motor canônico de comissões do Core.
 
 As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, auditoria e eventos. Uma área desativada deixa de aceitar novas mutações específicas. As permissões `accessRoles` e `manageRoles` do catálogo também são aplicadas na API, não apenas na navegação da interface.
 
