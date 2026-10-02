@@ -13,7 +13,7 @@ function fixture({persistent=false}={}){
   const dir=persistent?fs.mkdtempSync(path.join(os.tmpdir(),'pdv-restaurant-')):null;
   const runtime=createPdvRuntime({dbPath:dir?path.join(dir,'pdv.sqlite'):':memory:',now,idFactory,appVersion:'1.1.0',serverVersion:'1.1.0'});
   const user=runtime.catalog.createUser({id:'u1',username:'operador',name:'Operador',role:'cashier',password:'senha-forte-123'});
-  const product=runtime.catalog.upsertProduct({id:'p1',name:'Prato executivo',sku:'PRATO1',salePriceCents:2590,costCents:1000,trackStock:false});
+  const product=runtime.catalog.upsertProduct({id:'p1',name:'Prato executivo',sku:'PRATO1',salePriceCents:2590,costCents:1000,trackStock:false,menuEnabled:true});
   const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',seats:4});
   const station=runtime.kitchen.upsertStation({id:'k1',name:'Cozinha',printEnabled:true});
   runtime.kitchen.assignProduct(product.id,station.id);
