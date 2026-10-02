@@ -1,6 +1,8 @@
 'use strict';
 (() => {
-  const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  const routeRegistry=window.PdvRouteRegistry;
+  if(!ApiClient||!routeRegistry)return;
   const api=new ApiClient();
   const content=()=>document.getElementById('route-content');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23,6 +25,7 @@
       page.querySelector('[data-reload]')?.addEventListener('click',()=>void load());
       async function load(){try{const rows=await api.purchaseOrders();const target=page.querySelector('[data-list]');target.innerHTML=rows.length?rows.map(o=>`<article class="ops-row"><div><strong>${esc(o.orderNumber||o.id)}</strong><small>${esc(o.supplierName||o.supplierId)} · ${esc(o.status)} · ${money(o.totalCents)}</small></div><div class="ops-actions">${o.status==='DRAFT'?actionButton('Enviar','submit-po',o.id):''}${['ORDERED','PARTIALLY_RECEIVED'].includes(o.status)?actionButton('Receber pendente','receive-po',o.id):''}</div></article>`).join(''):'<p class="ops-muted">Nenhum pedido de compra.</p>';target.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',async()=>{try{const id=btn.dataset.id;if(btn.dataset.action==='submit-po')await api.submitPurchaseOrder(id);else{const order=rows.find(x=>x.id===id);const items=order.items.filter(i=>i.pendingQuantity>0).map(i=>({productId:i.productId,quantity:i.pendingQuantity}));await api.receivePurchaseOrder(id,{items});}toast('Operação concluída.');await load();}catch(err){toast(err.message,true);}}));}catch(err){page.querySelector('[data-list]').innerHTML=`<div class="ops-error">${esc(err.message)}</div>`;}}
       await load();
+      routeRegistry.updated('inventory',{surface:'enterprise-purchases'});
     }catch(err){shell('Compras e recebimentos','Não foi possível carregar o fluxo.',`<div class="ops-error">${esc(err.message)}</div>`);}
   }
 
@@ -36,6 +39,7 @@
       page.querySelector('[data-reload]')?.addEventListener('click',()=>void load());
       async function load(){try{const [rows,reservations]=await Promise.all([api.stockTransfers(),api.stockReservations({status:'ACTIVE'})]);page.querySelector('[data-list]').innerHTML=rows.length?rows.map(t=>`<article class="ops-row"><div><strong>${esc(t.id)}</strong><small>${esc(t.fromLocationName||t.fromLocationId)} → ${esc(t.toLocationName||t.toLocationId)} · ${esc(t.status)}</small></div><div class="ops-actions">${t.status==='DRAFT'?actionButton('Despachar','dispatch',t.id):''}${t.status==='IN_TRANSIT'?actionButton('Receber','receive',t.id):''}${t.status==='DRAFT'?actionButton('Cancelar','cancel',t.id):''}</div></article>`).join(''):'<p class="ops-muted">Nenhuma transferência.</p>';page.querySelector('[data-reservations]').innerHTML=reservations.length?reservations.map(r=>`<div class="ops-row"><span>${esc(r.productName||r.productId)} · ${esc(r.locationId)}</span><strong>${r.remainingQuantity}</strong><small>${esc(r.sourceType)} ${esc(r.sourceId)}</small></div>`).join(''):'<p class="ops-muted">Sem reservas ativas.</p>';page.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',async()=>{try{if(btn.dataset.action==='dispatch')await api.dispatchStockTransfer(btn.dataset.id);if(btn.dataset.action==='receive')await api.receiveStockTransfer(btn.dataset.id);if(btn.dataset.action==='cancel')await api.cancelStockTransfer(btn.dataset.id,'Cancelado pelo usuário');toast('Transferência atualizada.');await load();}catch(err){toast(err.message,true);}}));}catch(err){page.querySelector('[data-list]').innerHTML=`<div class="ops-error">${esc(err.message)}</div>`;}}
       await load();
+      routeRegistry.updated('inventory',{surface:'enterprise-logistics'});
     }catch(err){shell('Logística de estoque','Não foi possível carregar o fluxo.',`<div class="ops-error">${esc(err.message)}</div>`);}
   }
 
@@ -48,6 +52,7 @@
       page.querySelector('[data-reload]')?.addEventListener('click',()=>void load());
       async function load(){try{const rows=await api.salesOrders();page.querySelector('[data-list]').innerHTML=rows.length?rows.map(o=>`<article class="ops-row"><div><strong>${esc(o.id)}</strong><small>${esc(o.customerName||o.customerId)} · ${esc(o.fulfillmentType)} · ${esc(o.status)} · ${money(o.totalCents)}</small></div><div class="ops-actions">${o.status==='QUOTED'?actionButton('Confirmar','confirm',o.id):''}${['CONFIRMED','PARTIALLY_FULFILLED'].includes(o.status)?actionButton('Atender pendente','fulfill',o.id):''}${!['FULFILLED','CANCELLED'].includes(o.status)?actionButton('Cancelar','cancel',o.id):''}</div></article>`).join(''):'<p class="ops-muted">Nenhum pedido.</p>';page.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',async()=>{try{const order=rows.find(x=>x.id===btn.dataset.id);if(btn.dataset.action==='confirm')await api.confirmSalesOrder(order.id);if(btn.dataset.action==='cancel')await api.cancelSalesOrder(order.id,'Cancelado pelo usuário');if(btn.dataset.action==='fulfill'){const operatorId=order.createdBy;if(!operatorId)throw new Error('Operador do pedido não identificado.');const terminalId=api.config?.terminalId||'PDV-01';const items=order.items.filter(i=>i.pendingQuantity>0).map(i=>({productId:i.productId,quantity:i.pendingQuantity}));const total=order.items.filter(i=>i.pendingQuantity>0).reduce((s,i)=>s+Math.round(i.pendingQuantity*i.unitPriceCents),0);const method=page.querySelector('#enterprise-fulfillment-method')?.value||'PIX';await api.fulfillSalesOrder(order.id,{items,payments:[{method,amountCents:total}],terminalId,operatorId,sellerId:operatorId});}toast('Pedido atualizado.');await load();}catch(err){toast(err.message,true);}}));}catch(err){page.querySelector('[data-list]').innerHTML=`<div class="ops-error">${esc(err.message)}</div>`;}}
       await load();
+      routeRegistry.updated('inventory',{surface:'enterprise-orders'});
     }catch(err){shell('Orçamentos e pedidos','Não foi possível carregar o fluxo.',`<div class="ops-error">${esc(err.message)}</div>`);}
   }
 
