@@ -201,7 +201,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   function enrichProduct(product){
     if(!product)return null;
     if(!tableExists('product_recipes')||!tableExists('recipe_components'))return product;
-    const activeRecipe=db.prepare('SELECT id FROM product_recipes WHERE product_id=? AND active=1 ORDER BY version DESC LIMIT 1').get(product.id);
+    const activeRecipe=db.prepare('SELECT * FROM product_recipes WHERE product_id=? AND active=1 ORDER BY version DESC LIMIT 1').get(product.id);
     if(!activeRecipe)return{...product,prepared:false,recipeStockStatus:null,recipeCapacity:null};
     const components=db.prepare(`SELECT rc.quantity,rc.conversion_factor AS conversionFactor,rc.loss_percent AS lossPercent,
       COALESCE(b.quantity,0) AS stockQuantity,COALESCE(p.minimum_stock,0) AS minimumStock
@@ -210,8 +210,9 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
       LEFT JOIN inventory_balances b ON b.product_id=rc.ingredient_product_id
       WHERE rc.recipe_id=?`).all(activeRecipe.id);
     let capacity=Infinity;let low=false;let out=false;
+    const portionsPerBatch=Math.max(Number(activeRecipe.yield_quantity||1)/Math.max(Number(activeRecipe.portion_quantity||1),0.000001),0.000001);
     for(const component of components){
-      const required=Number(component.quantity||0)*Number(component.conversionFactor||1)*(1+Number(component.lossPercent||0)/100);
+      const required=Number(component.quantity||0)*Number(component.conversionFactor||1)*(1+Number(component.lossPercent||0)/100)/portionsPerBatch;
       const stock=Number(component.stockQuantity||0);
       const possible=required>0?Math.floor(stock/required):Infinity;
       capacity=Math.min(capacity,possible);
