@@ -123,8 +123,11 @@
 
   const scheduleMount=()=>queueMicrotask(()=>void mount());
   lifecycle.on('route:mounted',scheduleMount);
-  lifecycle.on('route:updated',scheduleMount);
-  lifecycle.on('surface:mounted',scheduleMount);
+  lifecycle.on('route:updated',({route,surface})=>{
+    if(route==='customers'&&surface==='customers-list')scheduleMount();
+    if(route==='inventory'&&surface==='enterprise-purchases')scheduleMount();
+  });
+  lifecycle.on('surface:mounted',({surface})=>{if(surface==='module-workspace')scheduleMount();});
   lifecycle.on('user:changed',()=>{currentUser=null;scheduleMount();});
   void mount();
 })();
