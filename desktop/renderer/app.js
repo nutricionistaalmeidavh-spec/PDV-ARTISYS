@@ -137,6 +137,7 @@
     modalRoot.onclick = modalBackdropClose;
     modalRoot.onkeydown = (event) => { if (event.key === 'Escape') { event.preventDefault(); closeModal(); } };
     if (onMount) onMount(modalRoot);
+    window.PdvUiLifecycle?.emit('modal:mounted', { title, root:modalRoot });
     queueMicrotask(() => {
       const target = modalRoot.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
       target?.focus({ preventScroll:true });
@@ -150,6 +151,7 @@
     modalRoot.onclick = null;
     modalRoot.onkeydown = null;
     modalRoot._returnFocus = null;
+    window.PdvUiLifecycle?.emit('modal:closed', {});
     returnFocus?.focus?.({ preventScroll:true });
   }
   window.PdvModal = Object.freeze({ open: openModal, close: closeModal });
