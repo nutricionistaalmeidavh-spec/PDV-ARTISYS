@@ -90,7 +90,10 @@
         "inventory-ledger-and-low-stock",
         "cash-open-supply-withdraw-close",
         "sales-history-returns-and-reversals",
-        "finance-payables-receivables"
+        "finance-payables-receivables",
+        "finance-entry-management-dimensions",
+        "finance-bank-reconciliation-and-own-account-transfers",
+        "finance-recurring-rules-and-alerts"
       ],
       "backend": [
         {
@@ -104,21 +107,45 @@
         },
         {
           "path": "js/domains/finance/finance-service.js"
+        },
+        {
+          "path": "js/domains/finance/finance-dimensions.js"
+        },
+        {
+          "path": "js/domains/finance/statement-import.js"
+        },
+        {
+          "path": "js/domains/finance/reconciliation.js"
+        },
+        {
+          "path": "js/domains/finance/recurrence.js"
+        },
+        {
+          "path": "js/domains/finance/finance-alerts.js"
         }
       ],
       "api": [
         {
           "path": "server/router.js"
+        },
+        {
+          "path": "server/erp-finance-router.js"
         }
       ],
       "client": [
         {
           "path": "desktop/renderer/api-client.js"
+        },
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js"
         }
       ],
       "ui": [
         {
           "path": "desktop/renderer/operational-pages.js"
+        },
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js"
         }
       ]
     },
