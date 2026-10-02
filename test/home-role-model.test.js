@@ -11,42 +11,35 @@ const baseTiles = [...ui.HOME_TILES, {
 }];
 const keys = (role) => homeForRole(role, baseTiles).sections.flatMap((section) => section.tiles.map((tile) => tile.key));
 
-test('cashier Home exposes only the four daily operation entries', () => {
-  assert.deepEqual(keys('cashier'), ['checkout','cash','sales','returns']);
+test('cashier Home exposes only four top-level daily workflows', () => {
+  assert.deepEqual(keys('cashier'), ['checkout','cash','post-sale','catalog']);
 });
 
-test('manager Home prioritizes management and keeps operational access', () => {
-  const routes = keys('manager');
-  assert.deepEqual(routes.slice(0, 2), ['financial-management','inventory']);
-  assert.ok(routes.includes('cash'));
-  assert.ok(routes.includes('products'));
-});
-
-test('administrator Home keeps only the eight primary operation and management cards', () => {
-  assert.deepEqual(keys('admin'), ['financial-management','inventory','checkout','cash','sales','returns','products','customers']);
+test('manager and administrator Home use the same five top-level workflow hubs', () => {
+  const expected=['checkout','cash','post-sale','catalog','financial-management'];
+  assert.deepEqual(keys('manager'), expected);
+  assert.deepEqual(keys('admin'), expected);
 });
 
 test('unknown roles receive the restricted cashier Home', () => {
   assert.equal(homeForRole('unknown', baseTiles).role, 'cashier');
 });
 
-test('cashier navigation combines post-sale while keeping customer access', () => {
-  assert.deepEqual(routesForRole('cashier'), ['home','checkout','cash','post-sale','customers']);
+test('cashier navigation keeps customer access through Cadastros without exposing management routes', () => {
+  assert.deepEqual(routesForRole('cashier'), ['home','checkout','cash','post-sale','catalog']);
+  assert.equal(canAccessRoute('cashier','catalog'), true);
+  assert.equal(canAccessRoute('cashier','customers'), true);
+  assert.equal(canAccessRoute('cashier','products'), false);
   assert.equal(canAccessRoute('cashier','reports'), false);
   assert.equal(canAccessRoute('cashier','settings'), false);
-  assert.equal(canAccessRoute('cashier','customers'), true);
 });
 
-test('manager navigation combines products with stock and sales with returns', () => {
-  const routes=routesForRole('manager');
-  assert.ok(routes.includes('catalog'));
-  assert.ok(routes.includes('post-sale'));
-  assert.equal(routes.includes('products'),false);
-  assert.equal(routes.includes('inventory'),false);
-  assert.equal(routes.includes('sales'),false);
-  assert.equal(routes.includes('returns'),false);
-  assert.ok(routes.includes('financial-management'));
-  assert.equal(routes.includes('finance'),false);
-  assert.equal(routes.includes('reports'),false);
-  assert.equal(routes.includes('management'),false);
+test('manager navigation contains only top-level hubs, not their child routes', () => {
+  assert.deepEqual(routesForRole('manager'), ['home','checkout','cash','post-sale','catalog','financial-management']);
+  for(const child of ['products','inventory','customers','sellers','sales','returns','finance','reports','management']){
+    assert.equal(routesForRole('manager').includes(child),false,child);
+  }
+  assert.equal(canAccessRoute('manager','products'),true);
+  assert.equal(canAccessRoute('manager','inventory'),true);
+  assert.equal(canAccessRoute('manager','sellers'),true);
 });
