@@ -21,17 +21,19 @@ function createFinanceService({ db, dimensions = null, now = () => new Date().to
   }
   function listAccounts({includeInactive=false}={}) { return db.prepare(`SELECT * FROM financial_accounts${includeInactive?'':' WHERE active=1'} ORDER BY name,id`).all().map(mapAccount); }
 
-  function activeSettlements(entryId) {
-    return db.prepare('SELECT * FROM financial_settlements WHERE entry_id=? AND reversed_at IS NULL ORDER BY created_at,id').all(String(entryId));
+  function settlementRows(entryId,{includeReversed=false}={}) {
+    return db.prepare(`SELECT * FROM financial_settlements WHERE entry_id=?${includeReversed?'':' AND reversed_at IS NULL'} ORDER BY created_at,id`).all(String(entryId));
   }
+  function activeSettlements(entryId) { return settlementRows(entryId); }
   function mapSettlement(row) { return row&&{id:row.id,entryId:row.entry_id,amountCents:row.amount_cents,method:row.method,note:row.note,createdAt:row.created_at,reversedAt:row.reversed_at}; }
   function mapEntry(row, asOf = now()) {
     if(!row)return null;
-    const settlements=activeSettlements(row.id).map(mapSettlement);
+    const settlementHistory=settlementRows(row.id,{includeReversed:true}).map(mapSettlement);
+    const settlements=settlementHistory.filter(item=>!item.reversedAt);
     const settledCents=settlements.reduce((sum,item)=>sum+item.amountCents,0);
     const openCents=Math.max(row.amount_cents-settledCents,0);
     const dims=dimensions?.getEntryDimensions?.(row.id)||null;
-    return {id:row.id,kind:row.kind,description:row.description,category:row.category,categoryId:dims?.categoryId||null,costCenterId:dims?.costCenterId||null,competencyDate:dims?.competencyDate||null,accountId:row.account_id,amountCents:row.amount_cents,dueAt:row.due_at,status:row.status,sourceType:row.source_type,sourceId:row.source_id,notes:row.notes,createdAt:row.created_at,updatedAt:row.updated_at,cancelledAt:row.cancelled_at,settledCents,openCents,isOverdue:['OPEN','PARTIAL'].includes(row.status)&&Date.parse(row.due_at)<Date.parse(asOf),settlements};
+    return {id:row.id,kind:row.kind,description:row.description,category:row.category,categoryId:dims?.categoryId||null,costCenterId:dims?.costCenterId||null,competencyDate:dims?.competencyDate||null,accountId:row.account_id,amountCents:row.amount_cents,dueAt:row.due_at,status:row.status,sourceType:row.source_type,sourceId:row.source_id,notes:row.notes,createdAt:row.created_at,updatedAt:row.updated_at,cancelledAt:row.cancelled_at,settledCents,openCents,isOverdue:['OPEN','PARTIAL'].includes(row.status)&&Date.parse(row.due_at)<Date.parse(asOf),settlements,settlementHistory};
   }
   function getEntry(id,{asOf}={}) { return mapEntry(db.prepare('SELECT * FROM financial_entries WHERE id=?').get(String(id)),asOf||now()); }
   function requireEntry(id){const row=db.prepare('SELECT * FROM financial_entries WHERE id=?').get(String(id));if(!row)throw new Error('Lancamento financeiro nao encontrado.');return row;}
@@ -111,7 +113,8 @@ function createFinanceService({ db, dimensions = null, now = () => new Date().to
     if(filters.accountId){clauses.push('account_id=?');params.push(String(filters.accountId));}
     if(filters.query){clauses.push('(LOWER(description) LIKE ? OR LOWER(COALESCE(category,\'\')) LIKE ?)');const q=`%${String(filters.query).trim().toLowerCase()}%`;params.push(q,q);}
     const rows=db.prepare(`SELECT * FROM financial_entries${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY due_at,id`).all(...params);
-    return rows.map(row=>mapEntry(row,filters.asOf||now())).filter(entry=>filters.overdue===true?entry.isOverdue:true).filter(entry=>filters.categoryId?entry.categoryId===String(filters.categoryId):true).filter(entry=>filters.costCenterId?entry.costCenterId===String(filters.costCenterId):true);
+    const overdue=filters.overdue===true||String(filters.overdue||'').toLowerCase()==='true';
+    return rows.map(row=>mapEntry(row,filters.asOf||now())).filter(entry=>overdue?entry.isOverdue:true).filter(entry=>filters.categoryId?entry.categoryId===String(filters.categoryId):true).filter(entry=>filters.costCenterId?entry.costCenterId===String(filters.costCenterId):true);
   }
 
   function getSummary({from=null,to=null,asOf=now()}={}) {
