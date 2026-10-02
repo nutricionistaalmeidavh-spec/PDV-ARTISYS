@@ -71,6 +71,7 @@ function rowToProduct(row) {
     costCents: row.cost_cents,
     trackStock: Boolean(row.track_stock),
     minimumStock: row.minimum_stock,
+    usageType: row.usage_type || 'DIRECT',
     menuEnabled: Boolean(row.menu_enabled),
     stockQuantity: Number(row.stock_quantity ?? 0),
     photo: row.photo_thumbnail_sha256 ? { version:row.photo_version, thumbnailSha256:row.photo_thumbnail_sha256, originalSha256:row.photo_original_sha256, updatedAt:row.photo_updated_at } : null,
@@ -113,6 +114,14 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   if (!db) throw new TypeError('Database is required.');
   runCustomerAddressMigrations(db);
   const productColumns=new Set(db.prepare('PRAGMA table_info(products)').all().map(column=>column.name));
+  if(!productColumns.has('usage_type')){
+    db.exec("ALTER TABLE products ADD COLUMN usage_type TEXT NOT NULL DEFAULT 'DIRECT' CHECK(usage_type IN ('INGREDIENT','DIRECT','BOTH'))");
+    const hasRecipeComponents=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='recipe_components'").get());
+    if(hasRecipeComponents){
+      db.exec("UPDATE products SET usage_type='INGREDIENT' WHERE track_stock=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
+      db.exec("UPDATE products SET usage_type='BOTH' WHERE track_stock=1 AND menu_enabled=1 AND EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id)");
+    }
+  }
   if(!productColumns.has('menu_enabled')){
     db.exec('ALTER TABLE products ADD COLUMN menu_enabled INTEGER NOT NULL DEFAULT 0 CHECK(menu_enabled IN (0,1))');
     const tableExists=name=>Boolean(db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?").get(name));
@@ -168,17 +177,21 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     if (salePriceCents < 0 || costCents < 0) throw new Error('Valores do produto nao podem ser negativos.');
     const minimumStock = Number(input.minimumStock ?? 0);
     if (!Number.isFinite(minimumStock) || minimumStock < 0) throw new Error('Estoque minimo invalido.');
-    const existingProduct = db.prepare('SELECT menu_enabled FROM products WHERE id=?').get(id);
+    const existingProduct = db.prepare('SELECT menu_enabled,usage_type FROM products WHERE id=?').get(id);
+    const usageType = String(input.usageType || existingProduct?.usage_type || 'DIRECT').trim().toUpperCase();
+    if(!['INGREDIENT','DIRECT','BOTH'].includes(usageType)) throw new Error('Tipo de uso do produto invalido.');
     const menuEnabled = input.menuEnabled === undefined ? Boolean(existingProduct?.menu_enabled) : Boolean(input.menuEnabled);
+    const hasActiveRecipe=Boolean(db.prepare('SELECT 1 FROM product_recipes WHERE product_id=? AND active=1').get(id));
+    if(menuEnabled && !hasActiveRecipe && !['DIRECT','BOTH'].includes(usageType)) throw new Error('Insumo puro nao pode ser publicado diretamente no Cardapio.');
     const timestamp = now();
     db.prepare(`INSERT INTO products
-      (id,sku,barcode,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,menu_enabled,active,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      (id,sku,barcode,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,usage_type,menu_enabled,active,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET sku=excluded.sku,barcode=excluded.barcode,name=excluded.name,category_id=excluded.category_id,
         unit=excluded.unit,sale_price_cents=excluded.sale_price_cents,cost_cents=excluded.cost_cents,track_stock=excluded.track_stock,
-        minimum_stock=excluded.minimum_stock,menu_enabled=excluded.menu_enabled,active=excluded.active,updated_at=excluded.updated_at`)
+        minimum_stock=excluded.minimum_stock,usage_type=excluded.usage_type,menu_enabled=excluded.menu_enabled,active=excluded.active,updated_at=excluded.updated_at`)
       .run(id, normalizeOptional(input.sku), normalizeOptional(input.barcode), name, normalizeOptional(input.categoryId), String(input.unit || 'UN').trim().toUpperCase(),
-        salePriceCents, costCents, booleanInt(input.trackStock), Number(minimumStock.toFixed(3)), menuEnabled?1:0, booleanInt(input.active), timestamp, timestamp);
+        salePriceCents, costCents, booleanInt(input.trackStock), Number(minimumStock.toFixed(3)), usageType, menuEnabled?1:0, booleanInt(input.active), timestamp, timestamp);
     db.prepare('INSERT OR IGNORE INTO inventory_balances (product_id,quantity,updated_at) VALUES (?,0,?)').run(id, timestamp);
     writeAudit(db, { action: 'product.upsert', entity: 'product', entityId: id, actor, context: { sku: input.sku, barcode: input.barcode, name } }, now);
     return getProduct(id);
