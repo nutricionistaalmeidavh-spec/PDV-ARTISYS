@@ -1,69 +1,27 @@
 {
   "schemaVersion": 1,
   "probes": {
-    "RESTAURANT": {
+    "FOOD": {
       "critical": true,
-      "launcherSelector": "#route-content [data-restaurant-route]",
-      "protectedProbe": {"path": "/api/v1/restaurant/tables", "method": "GET"},
+      "launcherSelector": "#sidebar-nav [data-module-nav=\"FOOD\"]",
+      "protectedProbe": {
+        "path": "/api/v1/restaurant/tables",
+        "method": "GET"
+      },
       "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"RESTAURANT\"]",
-      "workspaceHeading": "Restaurante"
-    },
-    "PIZZERIA": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"PIZZERIA\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/pizzeria/products/__qa_missing__", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"PIZZERIA\"]",
-      "workspaceHeading": "Pizzaria"
-    },
-    "DELIVERY": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"DELIVERY\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/delivery", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"DELIVERY\"]",
-      "workspaceHeading": "Delivery"
-    },
-    "FAST_FOOD": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"FAST_FOOD\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/fast-food", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"FAST_FOOD\"]",
-      "workspaceHeading": "Fast-food / Lanchonete"
-    },
-    "MARKET_BAKERY": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"MARKET_BAKERY\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/market/price-weight", "method": "POST", "body": {"productId": "__qa_missing__", "weightKg": 0.1}},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"MARKET_BAKERY\"]",
-      "workspaceHeading": "Mercado / Conveniência / Padaria"
-    },
-    "RETAIL": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"RETAIL\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/retail/variants?query=__qa__", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"RETAIL\"]",
-      "workspaceHeading": "Varejo"
+      "workspaceSelector": "[data-module-workspace=\"FOOD\"]",
+      "workspaceHeading": "Alimentação"
     },
     "SERVICES": {
       "critical": true,
-      "launcherSelector": "[data-module-open=\"SERVICES\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/services/commissions", "method": "GET"},
+      "launcherSelector": "[data-module-nav=\"SERVICES\"]",
+      "protectedProbe": {
+        "path": "/api/v1/vertical/services/commissions",
+        "method": "GET"
+      },
       "supportsLiveSync": true,
       "workspaceSelector": "[data-module-workspace=\"SERVICES\"]",
       "workspaceHeading": "Serviços"
-    },
-    "SELF_SERVICE": {
-      "critical": true,
-      "launcherSelector": "[data-module-open=\"SELF_SERVICE\"]",
-      "protectedProbe": {"path": "/api/v1/vertical/self-service/devices/__qa_missing__", "method": "GET"},
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"SELF_SERVICE\"]",
-      "workspaceHeading": "Autoatendimento"
     }
   }
 }
