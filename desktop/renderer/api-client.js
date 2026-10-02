@@ -87,6 +87,8 @@
     cashSessions(filters = {}) { return this.request(`/api/v1/cash/sessions${this.params(filters)}`); }
     cashMovements(sessionId) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/movements`); }
 
+    checkoutDocuments(query = '') { return this.request(`/api/v1/checkout/documents${this.params({query:query||undefined})}`); }
+    openCheckoutDocument(type, id) { return this.request(`/api/v1/checkout/documents/${String(type||'').toLowerCase()}/${encodeURIComponent(id)}/open`, { method:'POST', body:{} }); }
     sales(status = '', limit = 50) { return this.request(`/api/v1/sales${this.params({status,limit})}`); }
     salesHistory(filters = {}) { return this.request(`/api/v1/sales/history${this.params(filters)}`); }
     sale(id) { return this.request(`/api/v1/sales/${encodeURIComponent(id)}`); }
