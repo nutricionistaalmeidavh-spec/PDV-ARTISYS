@@ -18,6 +18,9 @@ test('first access UI creates administrator and signs in without a second creden
   assert.match(ui,/await api\.setupAdmin[\s\S]{0,1200}await api\.login/);
   assert.match(ui,/window\.location\.reload\(\)/);
   assert.doesNotMatch(ui,/Administrador criado\. Entre com seus dados\./);
+  assert.match(ui,/PdvUiLifecycle/);
+  assert.match(ui,/auth:rendered/);
+  assert.doesNotMatch(ui,/new MutationObserver\b/);
 });
 
 test('first access controller shows activation only when setup says it is required',()=>{
