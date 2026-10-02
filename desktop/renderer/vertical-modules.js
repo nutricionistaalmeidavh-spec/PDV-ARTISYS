@@ -9,8 +9,7 @@
   const MODULE_REQUEST_TIMEOUT_MS=5000;
   const ROUTE_RENDERERS={
     FOOD:renderFoodWorkspace,
-    WHOLESALE:()=>root.PdvWholesaleUi?.show?.(),
-    SERVICES:()=>root.PdvFinalModules?.render?.('SERVICES')
+    WHOLESALE:()=>root.PdvWholesaleUi?.show?.()
   };
   let modules=[];
   const loadingSettingsCards=new WeakSet();
@@ -82,8 +81,7 @@
     const role=document.body.dataset.userRole;
     const impactCopy={
       FOOD:'Adiciona Alimentação ao menu com pedidos, Produção/KDS e canais de atendimento. Cardápio, estoque e caixa continuam compartilhados.',
-      WHOLESALE:'Adiciona Atacado ao menu para políticas B2B e pedidos. O Balcão continua sendo o caixa e também aplica preço por quantidade em vendas avulsas.',
-      SERVICES:'Adiciona Serviços ao menu com agenda, profissionais e comissões, reutilizando clientes, catálogo e caixa.'
+      WHOLESALE:'Adiciona Atacado ao menu para políticas B2B e pedidos. O Balcão continua sendo o caixa e também aplica preço por quantidade em vendas avulsas.'
     };
     const coreItems=[
       ['Balcão e Caixa','Venda, pagamento e faturamento de comandas e pedidos.'],
