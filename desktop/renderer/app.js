@@ -122,16 +122,62 @@
     }
   }
 
+  let modalReturnFocus = null;
+
+  function modalFocusableElements() {
+    return [...modalRoot.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter((node) => !node.hidden && node.getAttribute('aria-hidden') !== 'true' && node.getClientRects().length);
+  }
+
+  function modalKeyboardHandler(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = modalFocusableElements();
+    if (!focusable.length) {
+      event.preventDefault();
+      modalRoot.querySelector('.modal-card')?.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
+    if (modalRoot.classList.contains('hidden') && document.activeElement instanceof HTMLElement) modalReturnFocus = document.activeElement;
     modalRoot.classList.remove('hidden');
-    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}"><header class="modal-head"><h2>${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal>×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
+    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="pdv-modal-title" tabindex="-1"><header class="modal-head"><h2 id="pdv-modal-title">${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal aria-label="Fechar">×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
     modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
-    modalRoot.addEventListener('click', modalBackdropClose, { once: true });
+    modalRoot.addEventListener('click', modalBackdropClose);
+    modalRoot.addEventListener('keydown', modalKeyboardHandler);
     if (onMount) onMount(modalRoot);
+    if (!modalRoot.contains(document.activeElement)) {
+      const first = modalFocusableElements()[0];
+      (first || modalRoot.querySelector('.modal-card'))?.focus();
+    }
   }
 
   function modalBackdropClose(event) { if (event.target === modalRoot) closeModal(); }
-  function closeModal() { modalRoot.classList.add('hidden'); modalRoot.innerHTML = ''; }
+  function closeModal() {
+    if (modalRoot.classList.contains('hidden')) return;
+    modalRoot.removeEventListener('click', modalBackdropClose);
+    modalRoot.removeEventListener('keydown', modalKeyboardHandler);
+    modalRoot.classList.add('hidden');
+    modalRoot.innerHTML = '';
+    const returnFocus = modalReturnFocus;
+    modalReturnFocus = null;
+    if (returnFocus?.isConnected) returnFocus.focus();
+  }
   window.PdvModal = Object.freeze({ open: openModal, close: closeModal });
   function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
   function isRouteActive(route) { return document.body.dataset.activeRoute === route; }
