@@ -9,8 +9,8 @@
   const modal = root.PdvModal;
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
-  const OPERATIONAL_ROUTES = new Set(['inventory','cash','sales','returns','finance','reports','settings']);
-  const SHORTCUTS = Object.freeze({ F6:'inventory',F7:'cash',F8:'finance',F9:'reports',F10:'sales',F11:'returns' });
+  const routeRegistry = root.PdvRouteRegistry;
+  if (!routeRegistry) throw new Error('PdvRouteRegistry must load before operational-pages.js.');
   let config = null;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
@@ -268,10 +268,9 @@
     content.querySelectorAll('[data-print-retry]').forEach(button=>button.addEventListener('click',async()=>{try{await api.retryPrint(button.dataset.printRetry);showToast('Impressão devolvida à fila.','success');await renderSettings();}catch(error){showToast(error.message,'error');}}));
   }
 
-  const renderers={inventory:renderInventory,cash:renderCash,sales:renderSalesHistory,returns:renderReturns,finance:renderFinance,reports:renderReports,settings:renderSettings};
+  const renderers={inventory:renderInventory,cash:renderCash,sales:renderSalesHistory,finance:renderFinance,settings:renderSettings};
   async function showRoute(route){if(!renderers[route])return;if(!canAccess(route)){markActive('home');root.document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}markActive(route);content.innerHTML=page('Carregando','Consultando o servidor local…','<div class="ops-loader"></div>');try{await renderers[route]();if(routeActive(route))content.focus({preventScroll:true});}catch(error){if(!routeActive(route))return;content.innerHTML=page('Não foi possível carregar','O servidor local recusou ou não concluiu a operação.',`<div class="ops-error">${escapeHtml(error.message)}</div>`);showToast(error.message,'error');}}
 
-  root.addEventListener('click',event=>{const target=event.target.closest?.('[data-route],[data-home-route]');if(!target)return;const route=target.dataset.route||target.dataset.homeRoute;if(!OPERATIONAL_ROUTES.has(route))return;event.preventDefault();event.stopImmediatePropagation();void showRoute(route);},true);
-  root.addEventListener('keydown',event=>{if(!SHORTCUTS[event.key]||document.querySelector('.checkout-layout'))return;event.preventDefault();event.stopImmediatePropagation();void showRoute(SHORTCUTS[event.key]);},true);
+  for(const route of Object.keys(renderers)) routeRegistry.register(route,{owner:'operational-pages',render:()=>showRoute(route)});
   root.PdvOperationalUi=Object.freeze({showRoute,renderInventory,renderCash,renderSalesHistory,renderReturns,renderFinance,renderReports,renderSettings});
 })();
