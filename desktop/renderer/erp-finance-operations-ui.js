@@ -5,7 +5,6 @@
   const {ApiClient}=root.PdvApiClient;
   const api=new ApiClient();
   const routeRegistry=root.PdvRouteRegistry;
-  const ux=root.ArtisysUxComponents;
   const content=document.getElementById('route-content');
   if(!routeRegistry)throw new Error('PdvRouteRegistry must load before erp-finance-operations-ui.js.');
 
@@ -54,6 +53,7 @@
 
   async function reviewSuggestion(transactionId,action='accept'){
     try{
+      const ux=root.ArtisysUxComponents;
       const suggestions=await api.reconciliationSuggestions(transactionId);
       const choice=suggestions[0];
       if(!choice){toast('Nenhuma sugestão disponível para esta movimentação.','error');return;}
@@ -85,6 +85,7 @@
 
   async function manualReconciliation(transaction){
     try{
+      const ux=root.ArtisysUxComponents;
       if(!ux?.openFormDialog){toast('Diálogo de conciliação indisponível.','error');return;}
       const expectedKind=transaction.direction==='debit'?'PAYABLE':'RECEIVABLE';
       const entries=(await api.financeEntries({kind:expectedKind})).filter(entry=>entry.status!=='CANCELLED'&&Number(entry.openCents)>0);
@@ -112,6 +113,7 @@
   }
 
   async function confirmTransfer(pair,accountsById){
+    const ux=root.ArtisysUxComponents;
     if(!ux?.openFormDialog){toast('Diálogo financeiro indisponível.','error');return;}
     const from=accountsById.get(String(pair.fromAccountId))?.name||pair.fromAccountId;
     const to=accountsById.get(String(pair.toAccountId))?.name||pair.toAccountId;
@@ -172,7 +174,9 @@
   }
 
   async function setRecurrenceStatus(rule,status){
+    const ux=root.ArtisysUxComponents;
     const labels={ACTIVE:'retomada',PAUSED:'pausada',ENDED:'encerrada'};
+    try{
     if(status==='ENDED'&&ux?.openFormDialog){
       const result=await ux.openFormDialog({
         title:'Encerrar recorrência',
@@ -189,6 +193,7 @@
     }
     toast(`Recorrência ${labels[status]||'atualizada'}.`,'success');
     await renderRecurrences();
+    }catch(error){toast(error.message||String(error),'error');}
   }
 
   async function renderRecurrences(){
@@ -222,6 +227,7 @@
     });
 
     document.getElementById('erp-generate-recurrences')?.addEventListener('click',async()=>{
+      const ux=root.ArtisysUxComponents;
       if(!ux?.openFormDialog){toast('Diálogo financeiro indisponível.','error');return;}
       const result=await ux.openFormDialog({
         title:'Gerar lançamentos pendentes',
