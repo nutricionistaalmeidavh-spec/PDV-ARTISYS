@@ -48,6 +48,12 @@
       "fullPage": true
     },
     {
+      "action": "expectVisible",
+      "selector": "#classic-home-grid",
+      "name": "home-classica-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "home-sem-overflow",
@@ -64,6 +70,12 @@
       "action": "expectVisible",
       "selector": ".checkout-layout[data-ux-checkout-preserved='true']",
       "name": "balcao-layout-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-sale-observation='true']",
+      "name": "balcao-observacao-lifecycle",
       "timeoutMs": 10000
     },
     {
@@ -272,6 +284,64 @@
       "selector": "#telemetry-settings-card",
       "name": "configuracoes-telemetria-injetada",
       "state": "attached",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#ops-admin-control-center",
+      "name": "configuracoes-admin-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#fiscal-config-workspace",
+      "name": "configuracoes-fiscal-config-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#fiscal-monitor-panel",
+      "name": "configuracoes-monitor-fiscal-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#nfse-workspace",
+      "name": "configuracoes-nfse-lifecycle",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-settings-category='fiscal']",
+      "name": "abrir-configuracoes-fiscal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#fiscal-config-workspace",
+      "name": "fiscal-config-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#fiscal-monitor-panel",
+      "name": "monitor-fiscal-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#nfse-workspace",
+      "name": "nfse-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-settings-category='company']",
+      "name": "voltar-configuracoes-empresa",
       "timeoutMs": 10000
     },
     {
