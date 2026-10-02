@@ -80,10 +80,11 @@ test('E42 direct module settings enforce boolean type and admin permission',()=>
   assert.throws(()=>rt.settings.set('modules.FOOD.enabled','true',{scope:'global',actor:admin}),/booleano/i);
   assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'cashier',role:'cashier'}}),/Permissao insuficiente/);
   assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'manager',role:'manager'}}),/Permissao insuficiente/);
-  rt.settings.set('modules.SERVICES.enabled',true,{scope:'global',actor:admin});
-  assert.deepEqual(rt.modules.list().map(module=>module.id),['FOOD','WHOLESALE','SERVICES']);
-  rt.settings.set('modules.SERVICES.enabled',false,{scope:'global',actor:admin});
-  const audit=rt.db.prepare("SELECT action FROM audit_log WHERE entity_id='SERVICES' ORDER BY created_at DESC LIMIT 1").get();
+  rt.settings.set('modules.WHOLESALE.enabled',true,{scope:'global',actor:admin});
+  assert.deepEqual(rt.modules.list().map(module=>module.id),['FOOD','WHOLESALE']);
+  rt.settings.set('modules.WHOLESALE.enabled',false,{scope:'global',actor:admin});
+  assert.throws(()=>rt.settings.set('modules.SERVICES.enabled',true,{scope:'global',actor:admin}),/desconhecido/i);
+  const audit=rt.db.prepare("SELECT action FROM audit_log WHERE entity_id='WHOLESALE' ORDER BY created_at DESC LIMIT 1").get();
   assert.equal(audit.action,'module.toggle');
   rt.close();
 });
