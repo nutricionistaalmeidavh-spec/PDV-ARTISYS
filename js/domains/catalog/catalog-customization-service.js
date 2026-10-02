@@ -47,7 +47,7 @@ function createCatalogCustomizationService({db,now=()=>new Date().toISOString(),
   }
 
   function upsertVariant(input={},actor=null){
-    const product=requireProduct(input.productId);const id=String(input.id||idFactory('variant'));const name=requiredText(input.name,'Nome da variacao');
+    const product=requireProduct(input.productId);const id=String(input.id||idFactory('variant'));const existing=db.prepare('SELECT id,product_id FROM product_variants WHERE id=?').get(id);const editsExisting=Boolean(existing&&String(existing.product_id)===String(product.id));const recipeTable=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_recipes'").get());const hasRecipe=recipeTable&&Boolean(db.prepare('SELECT 1 FROM product_recipes WHERE product_id=? AND active=1').get(product.id));if(hasRecipe&&!editsExisting)throw new Error('Produto preparado com Ficha Tecnica nao aceita variacao de estoque. Use opcoes/adicionais da receita.');const name=requiredText(input.name,'Nome da variacao');
     const delta=assertCents(Number(input.priceDeltaCents??0),'priceDeltaCents');const cost=input.costCents==null?null:assertCents(Number(input.costCents),'costCents');const ts=now();
     const sku=String(input.sku||'').trim()||null;const barcode=String(input.barcode||'').trim()||null;const attributes=cleanAttributes(input.attributes);
     db.prepare(`INSERT INTO product_variants(id,product_id,name,sku,barcode,price_delta_cents,cost_cents,active,created_at,updated_at,attributes_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)

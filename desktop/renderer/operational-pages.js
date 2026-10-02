@@ -15,6 +15,7 @@
   function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
   function money(value){return ui?.formatCents ? ui.formatCents(value) : (Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
   function qty(value){return Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
+  function countLabel(value,singular,plural=`${singular}s`){const count=Number(value||0);return `${qty(count)} ${count===1?singular:plural}`;}
   function when(value){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?escapeHtml(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
   function centsInput(value){const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const n=Number(text);return Number.isFinite(n)?Math.round(n*100):0;}
   function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
@@ -29,9 +30,10 @@
 
   async function renderInventory(){
     await ready();
-    const [balances,low,movements]=await Promise.all([api.inventoryBalances(),api.inventoryLowStock(),api.inventoryMovements()]);
+    const [balances,low,movements,products]=await Promise.all([api.inventoryBalances(),api.inventoryLowStock(),api.inventoryMovements(),api.products(true)]);
     const totalCost=balances.reduce((sum,item)=>sum+Math.round(Number(item.costCents||0)*Number(item.quantity||0)),0);
-    const body=`<div class="ops-metrics">${metric('SKUs controlados',String(balances.length))}${metric('Estoque baixo',String(low.length),low.length?'Requer atenção':'Dentro do mínimo')}${metric('Valor em custo',money(totalCost))}</div>
+    const stockSkuCount=products.filter(product=>product.active!==false&&product.trackStock).length;
+    const body=`<div class="ops-metrics">${metric('SKUs de estoque',String(stockSkuCount),'Itens com saldo próprio')}${metric('Estoque baixo',String(low.length),low.length?'Requer atenção':'Dentro do mínimo')}${metric('Valor em custo',money(totalCost))}</div>
       <section class="ops-card" id="inventory-master-actions"><div class="ops-card-head"><div><h2>Cadastro mestre</h2><p>Cadastre produtos como insumo, venda direta ou ambos; as fichas técnicas definem os itens preparados.</p></div><div class="ops-actions"><button class="ops-secondary" type="button" id="inventory-new-product">+ Produto / insumo</button><button class="ops-primary" type="button" id="inventory-new-recipe">+ Ficha Técnica</button></div></div><p class="ops-muted">Nada é colocado no Cardápio automaticamente. Depois, em Cardápio → Novo item, escolha um produto do Estoque ou uma Ficha Técnica.</p></section>
       <section class="ops-card" id="inventory-recipes-card"><div class="ops-card-head"><div><h2>Fichas técnicas</h2><p>Produtos preparados compostos por insumos reais do Estoque. A ficha técnica é interna e nunca é exibida ao cliente.</p></div><button class="ops-secondary" type="button" data-route="products">Abrir Cardápio</button></div><div class="ops-empty">Carregando fichas técnicas…</div></section>
       <div class="ops-grid two"><section class="ops-card"><div class="ops-card-head"><h2>Posição de estoque</h2><input id="ops-inventory-search" class="ops-input compact" placeholder="Filtrar produto"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Situação</th></tr></thead><tbody id="ops-inventory-body">${balances.map(item=>`<tr data-search="${escapeHtml(`${item.name} ${item.sku||''} ${item.barcode||''}`.toLowerCase())}"><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.sku||'—')}</td><td>${qty(item.quantity)} ${escapeHtml(item.unit||'')}</td><td>${qty(item.minimumStock)}</td><td>${item.lowStock?badge('BAIXO'):badge('OK')}</td></tr>`).join('')||`<tr><td colspan="5">${empty('Nenhum produto controlado.')}</td></tr>`}</tbody></table></div></section>
@@ -43,7 +45,6 @@
     document.getElementById('inventory-new-product')?.addEventListener('click',()=>root.PdvCatalogAdmin?.openStockProductForm?.());
     document.getElementById('inventory-new-recipe')?.addEventListener('click',()=>root.PdvCatalogAdmin?.openRecipeForm?.());
     void (async()=>{try{
-      const products=await api.products(true);
       const rows=await Promise.all(products.map(async product=>({product,recipe:await api.recipe(product.id).catch(()=>null)})));
       const card=document.getElementById('inventory-recipes-card');
       if(card){
