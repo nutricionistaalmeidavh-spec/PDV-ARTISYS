@@ -113,6 +113,7 @@ test('mesa preserva operador de abertura e garcom responsavel separadamente',()=
     assert.equal(reassigned.waiterId,user.id);
     assert.ok(runtime.db.prepare("SELECT 1 FROM audit_log WHERE action='restaurant.waiter.assign' AND entity_id=?").get(session.id));
     assert.ok(runtime.db.prepare("SELECT 1 FROM schema_migrations WHERE version=20 AND name='restaurant_waiter_assignment_v20'").get());
+    assert.ok(runtime.db.prepare("SELECT 1 FROM schema_migrations WHERE version=21 AND name='restaurant_session_context_v21'").get());
   }finally{ctx.close();}
 });
 
