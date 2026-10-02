@@ -91,11 +91,11 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
     return{from:fromDate,to:toDate,projectionDays:days,horizon,realizedInflowCents:realized.inflowCents,realizedOutflowCents:realized.outflowCents,realizedDeltaCents:realized.inflowCents-realized.outflowCents,projectedReceivableCents,projectedPayableCents,projectedDeltaCents:projectedReceivableCents-projectedPayableCents,projectedClosingDeltaCents:(realized.inflowCents-realized.outflowCents)+(projectedReceivableCents-projectedPayableCents)};
   }
 
-  function dashboard({from,to}={}){
-    const current=dre({basis:'cash',from,to});const financeSummary=finance.getSummary({from:`${businessDate(from)}T00:00:00.000Z`,to:`${businessDate(to)}T23:59:59.999Z`,asOf:now()});
+  function dashboard({from,to,basis='cash'}={}){
+    const current=dre({basis,from,to});const financeSummary=finance.getSummary({from:`${businessDate(from)}T00:00:00.000Z`,to:`${businessDate(to)}T23:59:59.999Z`,asOf:now()});
     const projections={};for(const days of [7,30,90])projections[String(days)]=cashflow({from:to,to,projectionDays:days});
     const grossBase=current.revenueCents;const marginPercent=grossBase?Number((((current.revenueCents-current.costCents)/grossBase)*100).toFixed(2)):0;
-    return{from:businessDate(from),to:businessDate(to),revenueCents:current.revenueCents,costCents:current.costCents,expenseCents:current.expenseCents,resultCents:current.resultCents,marginPercent,...financeSummary,projections};
+    return{basis:current.basis,from:businessDate(from),to:businessDate(to),revenueCents:current.revenueCents,costCents:current.costCents,expenseCents:current.expenseCents,resultCents:current.resultCents,marginPercent,...financeSummary,projections};
   }
 
   function compare({from,to,previousFrom,previousTo,basis='cash'}={}){
