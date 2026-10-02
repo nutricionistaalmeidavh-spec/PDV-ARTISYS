@@ -102,11 +102,66 @@ async function verify(page,state){
   },state);
 }
 
+
+async function setupRestaurant(page){
+  return page.evaluate(async()=>{
+    const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)throw new Error('PdvApiClient indisponivel.');
+    const api=new ApiClient();
+    const auth=await api.currentSession();
+    const config=await api.initialize();
+    const operatorId=auth.user.id;
+    await api.setModule('FOOD',true);
+    const products=[
+      {id:'qa-restaurant-product-1',name:'QA Prato Executivo',sku:'QA-REST-1',salePriceCents:2590,costCents:1000,trackStock:false,menuEnabled:true,usageType:'DIRECT'},
+      {id:'qa-restaurant-product-2',name:'QA Suco Natural',sku:'QA-REST-2',salePriceCents:890,costCents:300,trackStock:false,menuEnabled:true,usageType:'DIRECT'}
+    ];
+    for(const product of products)await api.saveProduct(product);
+    await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-1',label:'QA Mesa 01',seats:4}});
+    await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-2',label:'QA Mesa 02',seats:4}});
+    const station=await api.request('/api/v1/restaurant/kitchen/stations',{method:'POST',body:{id:'qa-restaurant-station',name:'QA Cozinha'}});
+    for(const product of products)await api.request('/api/v1/restaurant/kitchen/assignments',{method:'POST',body:{productId:product.id,stationId:station.id||'qa-restaurant-station'}});
+    let cash=null;try{cash=await api.openCash(config.terminalId);}catch{}
+    if(!cash)cash=await api.createCash({terminalId:config.terminalId,operatorId,initialCashCents:0});
+    return{operatorId,terminalId:config.terminalId,tableId:'qa-restaurant-table-1',secondTableId:'qa-restaurant-table-2',productIds:products.map(p=>p.id),cashId:cash?.id||null};
+  });
+}
+
+async function finishRestaurant(page,state){
+  return page.evaluate(async state=>{
+    const api=new window.PdvApiClient.ApiClient();
+    const tables=await api.request('/api/v1/restaurant/tables');
+    const table=tables.find(item=>item.id===state.tableId);
+    if(!table?.sessionId)throw new Error('Mesa QA sem sessao para finalizar.');
+    const session=await api.request('/api/v1/restaurant/sessions/'+encodeURIComponent(table.sessionId));
+    if(!session.checkoutSaleId)throw new Error('Comanda QA nao foi levada ao caixa.');
+    const sale=await api.sale(session.checkoutSaleId);
+    if(sale.status==='OPEN')await api.completeSale(sale.id,[{method:'CASH',amountCents:sale.totalCents}]);
+    return{...state,sessionId:session.id,saleId:sale.id};
+  },state);
+}
+
+async function assertRestaurant(page,state){
+  return page.evaluate(async state=>{
+    const api=new window.PdvApiClient.ApiClient();
+    const tables=await api.request('/api/v1/restaurant/tables');
+    const table=tables.find(item=>item.id===state.tableId);
+    if(!table)throw new Error('Mesa QA nao encontrada.');
+    if(table.status!=='FREE')throw new Error('Mesa QA deveria estar livre apos o fechamento, status='+table.status);
+    if(!state.saleId)throw new Error('Venda QA nao registrada no contexto.');
+    const sale=await api.sale(state.saleId);
+    if(sale.status!=='COMPLETED')throw new Error('Venda QA deveria estar concluida, status='+sale.status);
+    return{tableStatus:table.status,saleStatus:sale.status};
+  },state);
+}
+
 export default {
   capabilities:{
     'finance.setup':async({page,step,runtimeContext})=>{const state=await setup(page,step.scenario);runtimeContext.erpFinanceState=state;},
     'finance.assert':async({page,runtimeContext})=>{const result=await verify(page,runtimeContext.erpFinanceState||{});if(!result.ok)throw new Error(`${result.message}: ${JSON.stringify(result.details||{})}`);},
     'finance.openManagement':async({page})=>{await page.evaluate(()=>window.PdvErpFinanceUi.renderManagement());await page.locator('.erp-management-page').waitFor({state:'visible',timeout:15000});},
-    'finance.openFinance':async({page})=>{await page.locator("[data-route='finance']").click();await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});}
+    'finance.openFinance':async({page})=>{await page.locator("[data-route='finance']").click();await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});},
+    'restaurant.setup':async({page,runtimeContext})=>{runtimeContext.restaurantState=await setupRestaurant(page);},
+    'restaurant.finish':async({page,runtimeContext})=>{runtimeContext.restaurantState=await finishRestaurant(page,runtimeContext.restaurantState||{});},
+    'restaurant.assert':async({page,runtimeContext})=>{runtimeContext.restaurantResult=await assertRestaurant(page,runtimeContext.restaurantState||{});}
   }
 };
