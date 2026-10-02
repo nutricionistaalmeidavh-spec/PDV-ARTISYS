@@ -316,7 +316,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-settings-category='fiscal']",
+      "selector": "#settings-hub button[data-settings-category='fiscal']",
       "name": "abrir-configuracoes-fiscal",
       "timeoutMs": 10000
     },
@@ -340,7 +340,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-settings-category='company']",
+      "selector": "#settings-hub button[data-settings-category='company']",
       "name": "voltar-configuracoes-empresa",
       "timeoutMs": 10000
     },
