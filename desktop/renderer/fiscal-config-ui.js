@@ -1,6 +1,6 @@
 'use strict';
 (()=>{
- const root=window,content=document.getElementById('route-content');if(!content||!root.FiscalConfigApi)return;
+ const root=window,content=document.getElementById('route-content'),lifecycle=root.PdvUiLifecycle,routeRegistry=root.PdvRouteRegistry;if(!content||!root.FiscalConfigApi||!lifecycle||!routeRegistry)return;
  const {FiscalConfigClient}=root.FiscalConfigApi,api=new FiscalConfigClient();
  let mounted=null,tab='company',profileQuery='',auditFilter='all',selectedAuditProductId='';
  let state={settings:null,profiles:[],products:[],coverage:null,auditItems:[]};
