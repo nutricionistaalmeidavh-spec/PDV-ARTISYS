@@ -287,7 +287,8 @@
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}</small>`;
     const priceButton = ['admin','manager'].includes(state.user?.role) ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
     const quantityControl=weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
-    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} <button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button></div></div>`;
+    const remove=weight?`<button type="button" data-remove-weighted="${item.id}" style="border:0;background:transparent;color:#e22;font-size:18px" aria-label="Remover pesagem">×</button>`:`<button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button>`;
+    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
   }
 
   function bindCheckoutEvents() {
@@ -300,6 +301,7 @@
     content.querySelectorAll('[data-qty-minus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyMinus, -1)));
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
     content.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.remove)));
+    content.querySelectorAll('[data-remove-weighted]').forEach((button) => button.addEventListener('click', () => removeWeightedItem(button.dataset.removeWeighted)));
     content.querySelectorAll('[data-price-item]').forEach((button) => button.addEventListener('click', () => openPriceOverride(button.dataset.priceItem)));
     document.getElementById('seller-select')?.addEventListener('change', setSelectedSeller);
     document.getElementById('new-sale')?.addEventListener('click', newSale);
@@ -361,14 +363,22 @@
     try { state.sale = await api.updateSaleItem(state.sale.id, productId, next); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
+  async function removeWeightedItem(itemId) {
+    if(!state.sale)return;
+    try{state.sale=await api.removeWeightedSaleItem(state.sale.id,itemId);state.selectedProductId=null;renderCheckout();}catch(error){showToast(error.message,'error');}
+  }
+
   async function removeProduct(productId) {
     if (!state.sale) return;
+    const weighted=state.sale.items.filter(item=>item.productId===productId&&item.configuration?.weight);
+    if(weighted.length===1)return removeWeightedItem(weighted[0].id);
+    if(weighted.length>1)return showToast('Há mais de uma pesagem deste produto. Remova a linha desejada pelo × do carrinho.','error');
     try { state.sale = await api.removeSaleItem(state.sale.id, productId); if (state.selectedProductId === productId) state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   async function clearCart() {
     if (!state.sale?.items?.length) return;
-    try { for (const item of [...state.sale.items]) state.sale = await api.removeSaleItem(state.sale.id, item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    try { for (const item of [...state.sale.items]) state.sale = item.configuration?.weight ? await api.removeWeightedSaleItem(state.sale.id,item.id) : await api.removeSaleItem(state.sale.id,item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   async function applyDiscountFromInput() {
