@@ -31,10 +31,10 @@ async function call(router,url,options){
   return {status:res.statusCode,payload:res.body?JSON.parse(res.body):null};
 }
 
-test('restaurant desktop mutations are rejected when RESTAURANT module is disabled',async t=>{
+test('restaurant desktop mutations are rejected when FOOD module is disabled',async t=>{
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
-  runtime.modules.setEnabled('RESTAURANT',false,{role:'admin',userId:'admin-1'});
+  runtime.modules.setEnabled('FOOD',false,{role:'admin',userId:'admin-1'});
   const router=createRestaurantRouter({runtime});
 
   const result=await call(router,'/api/v1/restaurant/tables',{
@@ -44,15 +44,15 @@ test('restaurant desktop mutations are rejected when RESTAURANT module is disabl
 
   assert.equal(result.status,409);
   assert.equal(result.payload?.code,'MODULE_DISABLED');
-  assert.match(result.payload?.error||'',/RESTAURANT.*desativado/i);
+  assert.match(result.payload?.error||'',/FOOD.*desativado/i);
   assert.equal(runtime.restaurant.listTables().length,0);
 });
 
-test('restaurant mobile mutations are rejected when RESTAURANT module is disabled',async t=>{
+test('restaurant mobile mutations are rejected when FOOD module is disabled',async t=>{
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
   const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{role:'admin'});
-  runtime.modules.setEnabled('RESTAURANT',false,{role:'admin',userId:'admin-1'});
+  runtime.modules.setEnabled('FOOD',false,{role:'admin',userId:'admin-1'});
   const router=createRestaurantRouter({runtime});
 
   const result=await call(router,'/api/v1/mobile/orders',{
@@ -63,5 +63,5 @@ test('restaurant mobile mutations are rejected when RESTAURANT module is disable
 
   assert.equal(result.status,409);
   assert.equal(result.payload?.code,'MODULE_DISABLED');
-  assert.match(result.payload?.error||'',/RESTAURANT.*desativado/i);
+  assert.match(result.payload?.error||'',/FOOD.*desativado/i);
 });
