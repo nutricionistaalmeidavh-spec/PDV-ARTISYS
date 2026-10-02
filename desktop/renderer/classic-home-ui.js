@@ -5,7 +5,8 @@
   const brandButton = document.querySelector('.brand-mark');
   const ui = window.PdvUiModel;
   const roleModel = window.PdvHomeRoleModel;
-  if (!content || !brandButton || !ui?.HOME_TILES || !roleModel?.homeForRole) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!content || !brandButton || !ui?.HOME_TILES || !roleModel?.homeForRole || !lifecycle) return;
 
   const symbols = {
     checkout:'🛒', customers:'👥', sellers:'●', products:'◇', inventory:'▦', cash:'▤',
@@ -133,7 +134,9 @@
 
   brandButton.title = 'Início';
   brandButton.setAttribute('aria-label', 'Ir para início');
-  new MutationObserver(schedule).observe(content, { childList:true, subtree:true });
-  new MutationObserver(schedule).observe(document.body, { attributes:true, attributeFilter:['data-active-route','data-user-role'] });
-  schedule();
+  const onRouteChange = ({ route }) => { if (route === 'home') schedule(); else setHomeShell(false); };
+  lifecycle.on('route:mounted', onRouteChange);
+  lifecycle.on('route:updated', onRouteChange);
+  lifecycle.on('user:changed', () => { if (document.body.dataset.activeRoute === 'home') schedule(); });
+  if (document.body.dataset.activeRoute === 'home') schedule();
 })();
