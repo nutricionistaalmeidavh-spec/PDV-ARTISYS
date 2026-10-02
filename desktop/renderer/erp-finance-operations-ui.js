@@ -130,10 +130,11 @@
   async function renderBanks(){
     const route='finance-banks';
     if(!await requireAccess(route))return;
-    const [accounts,transactions,transfers]=await Promise.all([
+    const [accounts,transactions,transfers,batches]=await Promise.all([
       api.financeAccounts(),
       api.statementTransactions({matchStatus:'UNMATCHED'}),
-      api.transferSuggestions()
+      api.transferSuggestions(),
+      api.statementBatches()
     ]);
     if(!routeActive(route))return;
     const bankAccounts=accounts.filter(account=>account.active!==false&&(account.type==='BANK'||account.type==='CARD'));
@@ -145,7 +146,9 @@
       <section class="ops-card"><div class="ops-card-head"><div><h2>Movimentações pendentes</h2><p>${transactions.length} movimentação(ões) aguardando conciliação.</p></div></div>
         <div id="erp-reconciliation-list">${transactions.map(tx=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(tx.description)}</strong><small>${dateLabel(tx.date)} · ${tx.direction==='debit'?'Saída':'Entrada'} · ${money(tx.amountCents)}</small></div><div class="ops-actions"><button class="ops-link" type="button" data-reconcile-accept="${esc(tx.id)}">Conciliar</button><button class="ops-link" type="button" data-reconcile-manual="${esc(tx.id)}">Conciliar manualmente</button><button class="ops-link danger" type="button" data-reconcile-reject="${esc(tx.id)}">Ignorar sugestão</button></div></div>`).join('')||'<div class="ops-empty">Nenhuma movimentação pendente.</div>'}</div></section>
       <section class="ops-card"><div class="ops-card-head"><div><h2>Transferências entre suas contas</h2><p>Confirme pares identificados para que não sejam tratados como receita ou despesa.</p></div></div>
-        <div id="erp-transfer-suggestions">${transfers.map((pair,index)=>{const from=accountsById.get(String(pair.fromAccountId))?.name||pair.fromAccountId;const to=accountsById.get(String(pair.toAccountId))?.name||pair.toAccountId;return`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(from)} → ${esc(to)}</strong><small>${money(pair.amountCents)} · diferença de ${Number(pair.dateDistance||0)} dia(s)</small></div><button class="ops-secondary" type="button" data-transfer-index="${index}">Confirmar transferência</button></div>`;}).join('')||'<div class="ops-empty">Nenhuma transferência provável encontrada.</div>'}</div></section>`);
+        <div id="erp-transfer-suggestions">${transfers.map((pair,index)=>{const from=accountsById.get(String(pair.fromAccountId))?.name||pair.fromAccountId;const to=accountsById.get(String(pair.toAccountId))?.name||pair.toAccountId;return`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(from)} → ${esc(to)}</strong><small>${money(pair.amountCents)} · diferença de ${Number(pair.dateDistance||0)} dia(s)</small></div><button class="ops-secondary" type="button" data-transfer-index="${index}">Confirmar transferência</button></div>`;}).join('')||'<div class="ops-empty">Nenhuma transferência provável encontrada.</div>'}</div></section>
+      <section class="ops-card"><div class="ops-card-head"><div><h2>Extratos importados</h2><p>${batches.length} lote(s) registrados.</p></div></div>
+        <div id="erp-statement-history">${batches.map(batch=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(batch.sourceName||'Extrato OFX')}</strong><small>${esc(accountsById.get(String(batch.accountId))?.name||batch.accountId)} · ${dateLabel(batch.createdAt)} · ${Number(batch.inserted||0)} importadas · ${Number(batch.duplicates||0)} duplicadas</small></div><button class="ops-secondary" type="button" data-statement-batch="${esc(batch.id)}">Ver detalhes</button></div>`).join('')||'<div class="ops-empty">Nenhum extrato importado.</div>'}</div></section>`);
     bindNavigation(content);
 
     document.getElementById('erp-pick-ofx')?.addEventListener('click',async()=>{
@@ -169,6 +172,15 @@
     }));
     content.querySelectorAll('[data-transfer-index]').forEach(button=>button.addEventListener('click',()=>{
       const pair=transfers[Number(button.dataset.transferIndex)];if(pair)void confirmTransfer(pair,accountsById);
+    }));
+    content.querySelectorAll('[data-statement-batch]').forEach(button=>button.addEventListener('click',async()=>{
+      try{
+        const batch=await api.statementBatch(button.dataset.statementBatch);
+        const modal=root.PdvModal;
+        if(!modal?.open){toast('Detalhes do extrato indisponíveis.','error');return;}
+        const rows=(batch.transactions||[]).map(tx=>`<tr><td>${dateLabel(tx.date)}</td><td>${esc(tx.description)}</td><td>${tx.direction==='debit'?'Saída':'Entrada'}</td><td>${money(tx.amountCents)}</td><td>${esc(tx.matchStatus||'UNMATCHED')}</td></tr>`).join('');
+        modal.open(batch.sourceName||'Extrato importado',`<div class="ops-details"><div><dt>Conta</dt><dd>${esc(accountsById.get(String(batch.accountId))?.name||batch.accountId)}</dd></div><div><dt>Importadas</dt><dd>${Number(batch.inserted||0)}</dd></div><div><dt>Duplicadas</dt><dd>${Number(batch.duplicates||0)}</dd></div><div><dt>Data</dt><dd>${dateLabel(batch.createdAt)}</dd></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Situação</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Nenhuma movimentação neste lote.</td></tr>'}</tbody></table></div>`,{wide:true});
+      }catch(error){toast(error.message||String(error),'error');}
     }));
     routeRegistry.updated(route,{surface:'finance-banks'});
   }
@@ -253,13 +265,17 @@
   async function renderAlerts(){
     const route='finance-alerts';
     if(!await requireAccess(route))return;
-    const alerts=await api.financeAlerts();
+    const alerts=await api.financeAlerts(true);
+    const activeAlerts=alerts.filter(alert=>!alert.hiddenAt);
+    const hiddenAlerts=alerts.filter(alert=>Boolean(alert.hiddenAt));
     if(!routeActive(route))return;
     content.innerHTML=page(route,'Acompanhe vencimentos, saldo operacional e projeções que exigem atenção.',
-      `<section class="ops-card"><div class="ops-card-head"><div><h2>Alertas ativos</h2><p>${alerts.length} alerta(s)</p></div></div><div id="erp-finance-alerts">${alerts.map(alert=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(alert.message)}</strong><small>${alert.amountCents!=null?money(alert.amountCents):''}${alert.dueDate?` · ${dateLabel(alert.dueDate)}`:''}</small></div><div class="ops-actions"><button class="ops-link" type="button" data-alert-read="${esc(alert.key)}">Marcar como lido</button><button class="ops-link" type="button" data-alert-hide="${esc(alert.key)}">Ocultar</button></div></div>`).join('')||'<div class="ops-empty">Nenhum alerta financeiro ativo.</div>'}</div></section>`);
+      `<div class="ops-grid two"><section class="ops-card"><div class="ops-card-head"><div><h2>Alertas ativos</h2><p>${activeAlerts.length} alerta(s)</p></div></div><div id="erp-finance-alerts">${activeAlerts.map(alert=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(alert.message)}</strong><small>${alert.amountCents!=null?money(alert.amountCents):''}${alert.dueDate?` · ${dateLabel(alert.dueDate)}`:''}${alert.readAt?' · Lido':''}</small></div><div class="ops-actions"><button class="ops-link" type="button" data-alert-read="${esc(alert.key)}">Marcar como lido</button><button class="ops-link" type="button" data-alert-hide="${esc(alert.key)}">Ocultar</button></div></div>`).join('')||'<div class="ops-empty">Nenhum alerta financeiro ativo.</div>'}</div></section>
+      <section class="ops-card"><div class="ops-card-head"><div><h2>Alertas ocultos</h2><p>${hiddenAlerts.length} alerta(s)</p></div></div><div id="erp-finance-alerts-hidden">${hiddenAlerts.map(alert=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${esc(alert.message)}</strong><small>${alert.amountCents!=null?money(alert.amountCents):''}${alert.hiddenAt?` · ocultado em ${dateLabel(alert.hiddenAt)}`:''}</small></div><button class="ops-secondary" type="button" data-alert-unhide="${esc(alert.key)}">Restaurar</button></div>`).join('')||'<div class="ops-empty">Nenhum alerta oculto.</div>'}</div></section></div>`);
     bindNavigation(content);
     content.querySelectorAll('[data-alert-read]').forEach(button=>button.addEventListener('click',async()=>{try{await api.markFinanceAlertRead(button.dataset.alertRead);toast('Alerta marcado como lido.','success');await renderAlerts();}catch(error){toast(error.message||String(error),'error');}}));
     content.querySelectorAll('[data-alert-hide]').forEach(button=>button.addEventListener('click',async()=>{try{await api.hideFinanceAlert(button.dataset.alertHide);toast('Alerta ocultado.','success');await renderAlerts();}catch(error){toast(error.message||String(error),'error');}}));
+    content.querySelectorAll('[data-alert-unhide]').forEach(button=>button.addEventListener('click',async()=>{try{await api.unhideFinanceAlert(button.dataset.alertUnhide);toast('Alerta restaurado.','success');await renderAlerts();}catch(error){toast(error.message||String(error),'error');}}));
     routeRegistry.updated(route,{surface:'finance-alerts'});
   }
 
