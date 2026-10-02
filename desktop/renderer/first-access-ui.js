@@ -4,7 +4,8 @@
   const { ApiClient } = window.PdvApiClient || {};
   const overlay = document.getElementById('auth-overlay');
   const toastRoot = document.getElementById('toast-root');
-  if (!ApiClient || !overlay) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!ApiClient || !overlay || !lifecycle) return;
 
   if (!ApiClient.prototype.requestPasswordRecovery) {
     ApiClient.prototype.requestPasswordRecovery = function requestPasswordRecovery(body) {
@@ -189,7 +190,6 @@
     }
   }
 
-  const observer = new MutationObserver(() => { void syncAuthOverlay(); });
-  observer.observe(overlay, { childList:true, subtree:true });
+  lifecycle.on('auth:rendered', () => { void syncAuthOverlay(); });
   void syncAuthOverlay();
 })();
