@@ -1,6 +1,7 @@
 const TOKEN_TTL_MS=10*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
 const RECOVERY_RESEND_MS=60*1000;
+const ADMIN_ACTIVATION_TTL_MS=30*24*60*60*1000;
 const RECOVERY_MAX_ATTEMPTS=5;
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
@@ -32,16 +33,32 @@ class D1AccountStore{
       WHERE a.email_normalized=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? ORDER BY t.created_at DESC LIMIT 1`).bind(email,digest,now).first();
     return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,expiresAt:row.expires_at,usedAt:row.used_at}:null;
   }
+  async provisionLicense({email,expiresAt=null,codeDigest,codeExpiresAt,createdAt}){
+    let account=await this.findAccount(email);
+    if(!account){account={id:newId('account'),email};await this.db.prepare('INSERT INTO accounts(id,email_normalized,created_at) VALUES(?,?,?)').bind(account.id,email,createdAt).run();}
+    await this.db.prepare("UPDATE licenses SET status='CANCELLED' WHERE account_id=? AND status='ACTIVE'").bind(account.id).run();
+    const licenseId=newId('license');
+    await this.db.prepare(`INSERT INTO licenses(id,account_id,status,created_at,expires_at,metadata_json) VALUES(?,?,'ACTIVE',?,?,?)`).bind(licenseId,account.id,createdAt,expiresAt,JSON.stringify({source:'admin-panel'})).run();
+    await this.saveActivationToken({id:newId('token'),accountId:account.id,licenseId,installationId:'PENDING',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
+    return {accountId:account.id,licenseId};
+  }
+  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
+  async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
+  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){
+    const row=await this.db.prepare(`SELECT i.account_id,a.email_normalized AS email,l.status,l.expires_at FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(installationId).first();
+    if(!row||row.email!==email||row.status!=='ACTIVE'||(row.expires_at&&row.expires_at<=createdAt))return null;
+    await this.saveRecoveryToken({id:newId('recovery'),accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:row.account_id};
+  }
   async consumeActivationToken(id,usedAt){await this.db.prepare('UPDATE activation_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(usedAt,id).run();}
   async saveRecoveryToken(token){
-    await this.db.prepare(`INSERT INTO password_recovery_tokens(id,account_id,email_normalized,token_digest,attempts,expires_at,used_at,created_at)
-      VALUES(?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.email,token.tokenDigest,token.expiresAt,token.createdAt).run();
+    await this.db.prepare(`INSERT INTO password_recovery_tokens(id,account_id,email_normalized,installation_id,token_digest,attempts,expires_at,used_at,created_at)
+      VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.email,token.installationId||null,token.tokenDigest,token.expiresAt,token.createdAt).run();
   }
-  async findRecoveryToken({email,digest,now}){
-    const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,attempts,expires_at,used_at,created_at
-      FROM password_recovery_tokens WHERE email_normalized=? AND token_digest=? AND used_at IS NULL AND expires_at>? AND attempts<?
-      ORDER BY created_at DESC LIMIT 1`).bind(email,digest,now,RECOVERY_MAX_ATTEMPTS).first();
-    return row?{id:row.id,accountId:row.account_id,email:row.email,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
+  async findRecoveryToken({email,installationId,digest,now}){
+    const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,installation_id,attempts,expires_at,used_at,created_at
+      FROM password_recovery_tokens WHERE email_normalized=? AND installation_id=? AND token_digest=? AND used_at IS NULL AND expires_at>? AND attempts<?
+      ORDER BY created_at DESC LIMIT 1`).bind(email,installationId,digest,now,RECOVERY_MAX_ATTEMPTS).first();
+    return row?{id:row.id,accountId:row.account_id,email:row.email,installationId:row.installation_id,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
   }
   async findLatestRecoveryToken({email,now}){
     const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,attempts,expires_at,used_at,created_at
@@ -87,7 +104,7 @@ async function verifyActivation(request,env){
   if(!email||!installationId||!/^\d{6}$/.test(code))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'Servico de ativacao indisponivel.'},503);
   const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});const token=await store.findActivationToken({email,digest,now});
-  if(!token||token.installationId!==installationId)return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  if(!token||(token.installationId!=='PENDING'&&token.installationId!==installationId))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   const license=await store.findActiveLicense(email);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
   await store.consumeActivationToken(token.id,now);
   await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,status:'ACTIVE',activatedAt:now});
@@ -95,36 +112,47 @@ async function verifyActivation(request,env){
 }
 
 async function requestPasswordRecovery(request,env){
-  const body=await readBody(request);const email=normalizeEmail(body.email);
-  if(!email)return json({accepted:true},202);
-  const store=resolveStore(env);const account=await store.findAccount(email);if(!account)return json({accepted:true},202);
-  const pepper=recoveryPepper(env);const from=normalizeEmail(env.EMAIL_FROM);
-  if(!pepper||!from)return json({error:'Servico de recuperacao indisponivel.'},503);
-  const nowMs=Date.now();const createdAt=new Date(nowMs).toISOString();
-  const recent=await store.findLatestRecoveryToken({email,now:createdAt});
-  if(recent?.createdAt&&nowMs-Date.parse(recent.createdAt)<RECOVERY_RESEND_MS)return json({accepted:true},202);
-
-  const code=randomCode();const tokenDigest=await digestToken({pepper,email,code});const expiresAt=new Date(nowMs+RECOVERY_TTL_MS).toISOString();
-  await store.saveRecoveryToken({id:newId('recovery'),accountId:account.id,email,tokenDigest,attempts:0,createdAt,expiresAt});
-  const delivery={id:newId('email'),accountId:account.id,email,template:'password-recovery-code',createdAt};
-  try{
-    if(!env.EMAIL?.send)throw new Error('EMAIL binding ausente.');
-    await env.EMAIL.send({to:email,from,subject:'Recuperação de senha ArtiSys',text:`Seu código de recuperação ArtiSys é ${code}. Ele expira em 15 minutos. Se você não solicitou esta alteração, ignore este e-mail.`});
-    await store.logEmail({...delivery,status:'SENT'});
-  }catch(error){await store.logEmail({...delivery,status:'FAILED',error:String(error?.message||error).slice(0,240)});return json({error:'Falha ao enviar codigo de recuperacao.'},503);}
-  return json({accepted:true},202);
+  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
+  if(!email||!installationId)return json({accepted:true},202);
+  const record=await resolveStore(env).findInstallation(installationId);const now=new Date().toISOString();
+  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
+  return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
 }
 
 async function verifyPasswordRecovery(request,env){
-  const body=await readBody(request);const email=normalizeEmail(body.email);const code=String(body.code||'').trim();
-  if(!email||!/^\d{6}$/.test(code))return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
+  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
+  if(!email||!installationId||!/^[0-9]{6}$/.test(code))return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   const pepper=recoveryPepper(env);if(!pepper)return json({error:'Servico de recuperacao indisponivel.'},503);
   const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
-  const token=await store.findRecoveryToken({email,digest,now});
-  if(!token){const latest=await store.findLatestRecoveryToken({email,now});if(latest)await store.incrementRecoveryAttempts(latest.id);return json({error:'Codigo de recuperacao invalido ou expirado.'},400);}
-  if(Number(token.attempts||0)>=RECOVERY_MAX_ATTEMPTS)return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
+  const token=await store.findRecoveryToken({email,installationId,digest,now});
+  if(!token){return json({error:'Codigo de recuperacao invalido ou expirado.'},400);}
   await store.consumeRecoveryToken(token.id,now);
-  return json({verified:true,accountEmail:email});
+  return json({verified:true,accountEmail:email,installationId});
+}
+
+function adminAuthorized(request,env){const expected=String(env.ADMIN_TOKEN||'').trim();const provided=String(request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();return Boolean(expected)&&provided===expected;}
+function adminHtml(){return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ArtiSys Licencas</title><style>body{font:15px system-ui;background:#f5f6f8;color:#18181b;margin:0}.wrap{max-width:980px;margin:32px auto;padding:0 16px}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:20px;margin:16px 0}input,select,button{padding:10px;border:1px solid #bbb;border-radius:8px;margin:4px}button{cursor:pointer;font-weight:600}.code{font-size:32px;letter-spacing:6px;font-weight:800}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #eee;text-align:left}.muted{color:#666}</style><div class="wrap"><h1>Painel de Licencas ArtiSys</h1><div class="card"><label>Token administrativo <input id="token" type="password"></label><button onclick="load()">Entrar</button></div><div class="card"><h2>Liberar licenca</h2><input id="email" type="email" placeholder="cliente@empresa.com"><input id="expires" type="date"><button onclick="release()">Liberar</button><div id="released"></div></div><div class="card"><h2>Licencas</h2><div id="list" class="muted">Informe o token.</div></div></div><script>const h=()=>({'content-type':'application/json','authorization':'Bearer '+document.querySelector('#token').value});async function api(p,o={}){const r=await fetch(p,{...o,headers:{...h(),...(o.headers||{})}});const j=await r.json();if(!r.ok)throw Error(j.error||'Falha');return j}async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<table><tr><th>E-mail</th><th>Status</th><th>Instalacao</th><th>Acoes</th></tr>'+j.licenses.map(x=>'<tr><td>'+x.email+'</td><td>'+x.status+'</td><td>'+(x.installation_id||'-')+'</td><td><button onclick="recovery(\''+(x.installation_id||'')+'\',\''+x.email+'\')">Recuperacao</button><button onclick="status(\''+x.id+'\',\'SUSPENDED\')">Suspender</button><button onclick="status(\''+x.id+'\',\'CANCELLED\')">Cancelar</button></td></tr>').join('')+'</table>'}catch(e){alert(e.message)}}async function release(){try{const email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,expiresAt})});document.querySelector('#released').innerHTML='<p>Codigo de ativacao:</p><div class="code">'+j.code+'</div><p>Valido ate '+j.codeExpiresAt+'</p>';load()}catch(e){alert(e.message)}}async function recovery(installationId,email){if(!installationId)return alert('Licenca ainda nao possui instalacao ativada.');try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Codigo de recuperacao: '+j.code+' (15 min)')}catch(e){alert(e.message)}}async function status(id,status){try{await api('/v1/admin/licenses/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});load()}catch(e){alert(e.message)}}</script></html>`;}
+async function adminRoute(request,env,url){
+  if(request.method==='GET'&&url.pathname==='/admin')return new Response(adminHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+  if(!url.pathname.startsWith('/v1/admin/'))return null;
+  if(!adminAuthorized(request,env))return json({error:'Nao autorizado.'},401);
+  const store=resolveStore(env);
+  if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
+  if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
+    const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
+    const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
+    let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
+    const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.now()+ADMIN_ACTIVATION_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
+    const provisioned=await store.provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,code,codeExpiresAt,expiresAt},201);
+  }
+  if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
+  if(request.method==='POST'&&url.pathname==='/v1/admin/recovery'){
+    const body=await readBody(request),email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);if(!email||!installationId)return json({error:'E-mail ou instalacao invalidos.'},400);
+    const pepper=recoveryPepper(env);if(!pepper)return json({error:'RECOVERY_PEPPER ausente.'},503);
+    const code=randomCode(),createdAt=new Date().toISOString(),expiresAt=new Date(Date.now()+RECOVERY_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
+    const result=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});if(!result)return json({error:'Instalacao ativa nao encontrada para este e-mail.'},404);return json({email,installationId,code,expiresAt},201);
+  }
+  return json({error:'Rota administrativa nao encontrada.'},404);
 }
 
 async function licenseStatus(url,env){
@@ -135,6 +163,7 @@ async function licenseStatus(url,env){
 
 export async function handleRequest(request,env={}){
   const url=new URL(request.url);try{
+    const adminResponse=await adminRoute(request,env,url);if(adminResponse)return adminResponse;
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
