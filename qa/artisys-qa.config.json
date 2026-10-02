@@ -9,7 +9,7 @@
   "demoCaptureViewport": { "width": 1440, "height": 900 },
   "capture": { "video": true, "screenshotEachStep": false, "fps": 8 },
   "electron": {
-    "entry": "../desktop/main.cjs",
+    "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
     "args": ["--no-sandbox"]
   },
