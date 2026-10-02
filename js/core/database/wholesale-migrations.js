@@ -35,6 +35,11 @@ function runWholesaleMigrations(db,now=()=>new Date().toISOString()){
     CREATE INDEX IF NOT EXISTS idx_wholesale_tiers_product_quantity ON wholesale_price_tiers(product_id,active,min_quantity DESC);
     `);
     if(!hasColumn(db,'sales_orders','origin'))db.exec("ALTER TABLE sales_orders ADD COLUMN origin TEXT NOT NULL DEFAULT 'STANDARD'");
+    if(!hasColumn(db,'sales_orders','order_number')){
+      db.exec("ALTER TABLE sales_orders ADD COLUMN order_number TEXT");
+      db.exec("UPDATE sales_orders SET order_number='P-'||printf('%06d',rowid) WHERE order_number IS NULL");
+      db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_orders_order_number ON sales_orders(order_number)");
+    }
     if(!hasColumn(db,'sales_order_items','pricing_snapshot_json'))db.exec('ALTER TABLE sales_order_items ADD COLUMN pricing_snapshot_json TEXT');
     db.exec('CREATE INDEX IF NOT EXISTS idx_sales_orders_origin_status ON sales_orders(origin,status,created_at)');
     const ts=now();
