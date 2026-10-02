@@ -63,22 +63,24 @@ test('E41 recipe expands completed sale into ingredient stock movements idempote
 
 test('E42 modules persist enablement, validate ids and expose capabilities',()=>{
   const rt=runtime();seed(rt);
-  assert.equal(rt.modules.isEnabled('PIZZERIA'),false);
-  rt.modules.setEnabled('PIZZERIA',true,actor());
-  assert.equal(rt.modules.isEnabled('PIZZERIA'),true);
-  assert.equal(rt.modules.list().find(m=>m.id==='PIZZERIA').enabled,true);
-  assert.throws(()=>rt.modules.requireEnabled('DELIVERY'),/Modulo DELIVERY desativado/);
-  assert.throws(()=>rt.modules.setEnabled('UNKNOWN',true,actor()),/Modulo desconhecido/);
-  assert.ok(rt.db.prepare("SELECT 1 FROM audit_log WHERE action='module.toggle' AND entity_id='PIZZERIA'").get());
+  assert.equal(rt.modules.isEnabled('FOOD'),true);
+  assert.equal(rt.modules.isEnabled('SERVICES'),false);
+  rt.modules.setEnabled('SERVICES',true,actor());
+  assert.equal(rt.modules.isEnabled('SERVICES'),true);
+  assert.equal(rt.modules.list().find(m=>m.id==='SERVICES').enabled,true);
+  rt.modules.setEnabled('FOOD',false,actor());
+  assert.throws(()=>rt.modules.requireEnabled('FOOD'),/Modulo FOOD desativado/);
+  assert.throws(()=>rt.modules.setEnabled('PIZZERIA',true,actor()),/Modulo desconhecido/);
+  assert.ok(rt.db.prepare("SELECT 1 FROM audit_log WHERE action='module.toggle' AND entity_id='SERVICES'").get());
   rt.close();
 });
 
 test('E42 direct module settings enforce boolean type, dependencies and admin permission',()=>{
   const rt=runtime();seed(rt);const admin=actor();
   assert.throws(()=>rt.settings.set('modules.WORKSHOP.enabled',true,{scope:'global',actor:admin}),/desconhecido/i);
-  assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled','true',{scope:'global',actor:admin}),/booleano/i);
-  assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled',true,{scope:'global',actor:{userId:'cashier',role:'cashier'}}),/Permissao insuficiente/);
-  assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled',true,{scope:'global',actor:{userId:'manager',role:'manager'}}),/Permissao insuficiente/);
+  assert.throws(()=>rt.settings.set('modules.FOOD.enabled','true',{scope:'global',actor:admin}),/booleano/i);
+  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',true,{scope:'global',actor:{userId:'cashier',role:'cashier'}}),/Permissao insuficiente/);
+  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',true,{scope:'global',actor:{userId:'manager',role:'manager'}}),/Permissao insuficiente/);
   rt.settings.set('modules.SERVICES.enabled',true,{scope:'global',actor:admin});
   assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
   rt.settings.set('modules.SERVICES.enabled',false,{scope:'global',actor:admin});
