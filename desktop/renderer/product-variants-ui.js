@@ -218,6 +218,8 @@
     }
   },true);
 
-  new MutationObserver(scheduleEnhance).observe(content,{childList:true});
-  scheduleEnhance();
+  const onRouteChange=({route})=>{if(route==='products'||route==='checkout')scheduleEnhance();};
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  if(['products','checkout'].includes(document.body.dataset.activeRoute||''))scheduleEnhance();
 })();
