@@ -26,10 +26,24 @@
   }
 
   function bindNavigation(scope=document){
-    scope.querySelectorAll('[data-finance-route]').forEach(button=>button.addEventListener('click',()=>{
-      const route=button.dataset.financeRoute;
-      if(route&&route!==document.body.dataset.activeRoute)void root.PdvAppNavigation?.navigate?.(route);
-    }));
+    const buttons=[...scope.querySelectorAll('[data-finance-route]')];
+    const focusAt=index=>buttons[Math.max(0,Math.min(buttons.length-1,index))]?.focus?.({preventScroll:true});
+    buttons.forEach((button,index)=>{
+      button.addEventListener('click',()=>{
+        const route=button.dataset.financeRoute;
+        if(route&&route!==document.body.dataset.activeRoute)void root.PdvAppNavigation?.navigate?.(route);
+      });
+      button.addEventListener('keydown',event=>{
+        let next=null;
+        if(event.key==='ArrowRight')next=(index+1)%buttons.length;
+        else if(event.key==='ArrowLeft')next=(index-1+buttons.length)%buttons.length;
+        else if(event.key==='Home')next=0;
+        else if(event.key==='End')next=buttons.length-1;
+        if(next===null)return;
+        event.preventDefault();
+        focusAt(next);
+      });
+    });
   }
 
   function canAccess(){
