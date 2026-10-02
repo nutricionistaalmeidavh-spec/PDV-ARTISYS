@@ -26,7 +26,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout 120s xvfb-run -a node qa/runtime/capture-missing-desktop.mjs
+          timeout 120s xvfb-run -a node qa/runtime/capture-missing-desktop-rest.mjs
           code=$?
           echo "capture exit code: $code"
           exit 0
@@ -34,7 +34,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pdv-artisys-missing-desktop-${{ github.run_number }}
-          path: qa-artifacts/missing-desktop
+          name: pdv-artisys-missing-desktop-rest-${{ github.run_number }}
+          path: qa-artifacts/missing-desktop-rest
           if-no-files-found: error
           retention-days: 7
