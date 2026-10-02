@@ -148,7 +148,18 @@
     },
     {
       "action": "click",
-      "selector": "button[data-route='inventory']",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-hub-cardapio-estoque",
+      "holdMs": 500
+    },
+    {
+      "action": "screenshot",
+      "name": "00-hub-cardapio-estoque",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-flow-route='inventory']",
       "name": "abrir-estoque",
       "holdMs": 700
     },
@@ -207,7 +218,13 @@
     },
     {
       "action": "click",
-      "selector": "button[data-route='products']",
+      "selector": "button[data-route='catalog']",
+      "name": "voltar-hub-cardapio-estoque",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-flow-route='products']",
       "name": "abrir-cardapio",
       "holdMs": 900
     },
