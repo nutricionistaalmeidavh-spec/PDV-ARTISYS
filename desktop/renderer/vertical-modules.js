@@ -13,7 +13,7 @@
     SERVICES:()=>root.PdvFinalModules?.render?.('SERVICES')
   };
   let modules=[];
-  let modulesLoading=false;
+  const loadingSettingsCards=new WeakSet();
   let sanitizeScheduled=false;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));}
@@ -119,10 +119,10 @@
   }
 
   async function loadAndRenderSettingsModules(card=settingsModulesCard()){
-    if(!card||modulesLoading)return;
+    if(!card||loadingSettingsCards.has(card))return;
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
-    modulesLoading=true;
+    loadingSettingsCards.add(card);
     body.innerHTML='<div class="ops-loader"></div><p class="ops-muted">Carregando áreas do estabelecimento…</p>';
     try{
       await loadModules();
@@ -133,7 +133,7 @@
         body.querySelector('[data-modules-retry]')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
       }
       notify(error.message,true);
-    }finally{modulesLoading=false;}
+    }finally{loadingSettingsCards.delete(card);}
   }
 
   function mountSettingsModules(){
