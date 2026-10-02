@@ -633,15 +633,15 @@ function openCategoryForm() {
   function showSetup() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Configurar ArtiSys PDV</h1><p>Crie o primeiro administrador desta instalação local.</p><form id="setup-form"><div class="field"><label>Nome</label><input name="name" required value="Administrador"></div><div class="field"><label>Usuário</label><input name="username" required value="admin"></div><div class="field"><label>Senha</label><input name="password" type="password" minlength="10" required></div><button class="primary-button" type="submit">Criar administrador</button></form></section>`;
-    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'setup' });
     authOverlay.querySelector('#setup-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { await api.setupAdmin({ name: formValue(form,'name'), username: formValue(form,'username'), password: formValue(form,'password') }); showLogin('Administrador criado. Entre com seus dados.'); } catch (error) { showToast(error.message, 'error'); } });
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'setup' });
   }
 
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
     authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
   }
 
   function showDataServerChoice() {
