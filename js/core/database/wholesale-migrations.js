@@ -41,6 +41,18 @@ function runWholesaleMigrations(db,now=()=>new Date().toISOString()){
       db.exec("CREATE UNIQUE INDEX IF NOT EXISTS uq_sales_orders_order_number ON sales_orders(order_number)");
     }
     if(!hasColumn(db,'sales_order_items','pricing_snapshot_json'))db.exec('ALTER TABLE sales_order_items ADD COLUMN pricing_snapshot_json TEXT');
+    if(!hasColumn(db,'sales_orders','commercial_policy_snapshot_json'))db.exec('ALTER TABLE sales_orders ADD COLUMN commercial_policy_snapshot_json TEXT');
+    db.exec(`CREATE TABLE IF NOT EXISTS wholesale_customer_policies (
+      customer_id TEXT PRIMARY KEY,
+      minimum_order_cents INTEGER NOT NULL DEFAULT 0 CHECK(minimum_order_cents >= 0),
+      allowed_payment_methods_json TEXT NOT NULL DEFAULT '["CASH","PIX","DEBIT_CARD","CREDIT_CARD","STORE_CREDIT"]',
+      active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY(customer_id) REFERENCES customers(id),
+      FOREIGN KEY(created_by) REFERENCES users(id)
+    )`);
     db.exec('CREATE INDEX IF NOT EXISTS idx_sales_orders_origin_status ON sales_orders(origin,status,created_at)');
     const ts=now();
     db.prepare('INSERT INTO wholesale_schema_migrations(version,name,applied_at) VALUES(?,?,?)').run(WHOLESALE_SCHEMA_VERSION,WHOLESALE_MIGRATION_NAME,ts);
