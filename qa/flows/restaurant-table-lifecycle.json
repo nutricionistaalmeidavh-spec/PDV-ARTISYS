@@ -47,10 +47,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "[data-module-area='FOOD']",
       "name": "alimentacao-visivel",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -64,10 +65,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "[data-restaurant-view='operation']",
       "name": "salao-visivel",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -81,10 +83,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "#restaurant-open-table-form",
       "name": "modal-abrir-atendimento",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -98,10 +101,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "#restaurant-waiter-form",
       "name": "comanda-aberta",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -151,10 +155,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": ".restaurant-draft-line:has-text('QA Suco Natural')",
       "name": "carrinho-multiplo",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -168,16 +173,18 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": ".restaurant-order-items:has-text('QA Prato Executivo')",
       "name": "pedido-lancado",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "[data-ticket-status][data-next='PREPARING']",
       "name": "kds-novo",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -191,10 +198,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "[data-ticket-status][data-next='READY']",
       "name": "kds-preparando",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -224,22 +232,25 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "#restaurant-transfer-item-form",
       "name": "transferencia-sem-id",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "#restaurant-cancel-item-form",
       "name": "cancelamento-sem-id",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "#restaurant-merge-form",
       "name": "juncao-sem-id",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -264,10 +275,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": ".checkout-layout",
       "name": "checkout-comanda",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -291,10 +303,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-status.FREE",
       "name": "mesa-liberada",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
@@ -308,10 +321,11 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": ".restaurant-settings-intro",
       "name": "configuracao-separada",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "state": "visible"
     },
     {
       "action": "screenshot",
