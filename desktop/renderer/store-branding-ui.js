@@ -78,6 +78,7 @@
       const firstGrid=page.querySelector('.ops-grid');
       if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
       page.dataset.storeBrandingMounted='true';
+      root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'store-branding'});
 
       const fileInput=card.querySelector('#ops-store-logo');
       const preview=card.querySelector('#ops-store-logo-preview');
