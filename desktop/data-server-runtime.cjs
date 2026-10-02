@@ -13,7 +13,7 @@ const BUSINESS_DATA_TABLES=Object.freeze([
   'cash_sessions','cash_movements',
   'financial_accounts','financial_entries','financial_settlements',
   'product_recipes','recipe_components',
-  'sales_orders','sales_order_items',
+  'sales_orders','sales_order_items','wholesale_price_tiers',
   'product_kits','product_kit_components','promotional_combos','promotional_combo_products',
   'restaurant_tables','restaurant_sessions','restaurant_orders','restaurant_order_items','restaurant_settlements',
   'delivery_orders','fast_food_orders','bakery_orders',

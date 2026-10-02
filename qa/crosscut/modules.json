@@ -12,6 +12,17 @@
       "workspaceSelector": "[data-module-workspace=\"FOOD\"]",
       "workspaceHeading": "Alimentação"
     },
+    "WHOLESALE": {
+      "critical": true,
+      "launcherSelector": "[data-module-nav=\"WHOLESALE\"]",
+      "protectedProbe": {
+        "path": "/api/v1/wholesale/tiers",
+        "method": "GET"
+      },
+      "supportsLiveSync": true,
+      "workspaceSelector": "[data-module-workspace=\"WHOLESALE\"]",
+      "workspaceHeading": "Atacado"
+    },
     "SERVICES": {
       "critical": true,
       "launcherSelector": "[data-module-nav=\"SERVICES\"]",
