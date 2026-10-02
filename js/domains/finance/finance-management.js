@@ -24,23 +24,11 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
     return{nature:row?.nature||(kind==='RECEIVABLE'?'REVENUE':'EXPENSE'),groupId:row?.group_id||null,groupName:row?.group_name||null,sortOrder:Number(row?.sort_order??900),categoryId:row?.category_id||null,categoryName:row?.category_name||null,costCenterId:row?.cost_center_id||null,costCenterName:row?.cost_center_name||null,competencyDate:row?.competency_date||null};
   }
 
-  function salesSummary(from,to,basis='accrual'){
-    if(!reports||typeof reports.buildSalesSummary!=='function')return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[],deferredSalesCents:0};
+  function salesSummary(from,to){
+    if(!reports||typeof reports.buildSalesSummary!=='function')return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};
     const {fromIso,toIso}=rangeIso(from,to);
-    try{
-      const summary=reports.buildSalesSummary({from:fromIso,to:toIso})||{};
-      if(basis!=='cash')return{...summary,deferredSalesCents:0};
-      const saleIds=Array.isArray(summary.saleIds)?summary.saleIds.map(String):[];
-      if(!saleIds.length)return{...summary,deferredSalesCents:0};
-      const placeholders=saleIds.map(()=>'?').join(',');
-      const deferred=cents(db.prepare(`SELECT COALESCE(SUM(amount_cents),0) AS total FROM payments WHERE method='STORE_CREDIT' AND sale_id IN (${placeholders})`).get(...saleIds)?.total);
-      const netSales=cents(summary.netSalesCents);
-      const deferredSalesCents=Math.min(Math.max(deferred,0),Math.max(netSales,0));
-      const realizedSalesCents=netSales-deferredSalesCents;
-      const ratio=netSales>0?Math.max(0,Math.min(1,realizedSalesCents/netSales)):1;
-      const estimatedCostCents=Math.round(cents(summary.estimatedCostCents)*ratio);
-      return{...summary,netSalesCents:realizedSalesCents,estimatedCostCents,estimatedMarginCents:realizedSalesCents-estimatedCostCents,deferredSalesCents};
-    }catch{return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[],deferredSalesCents:0};}
+    try{return reports.buildSalesSummary({from:fromIso,to:toIso})||{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};}
+    catch{return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};}
   }
 
   function financialDreRows({basis,from,to}){
@@ -62,8 +50,8 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
 
   function dre({basis='cash',from,to}={}){
     const rows=financialDreRows({basis,from,to});
-    const sales=salesSummary(from,to,basis);
-    const result={basis,from:businessDate(from),to:businessDate(to),revenueCents:cents(sales.netSalesCents),costCents:cents(sales.estimatedCostCents),expenseCents:0,otherResultCents:0,resultCents:0,deferredSalesCents:cents(sales.deferredSalesCents),groups:[],financialRows:rows.length};
+    const sales=salesSummary(from,to);
+    const result={basis,from:businessDate(from),to:businessDate(to),revenueCents:cents(sales.netSalesCents),costCents:cents(sales.estimatedCostCents),expenseCents:0,otherResultCents:0,resultCents:0,groups:[],financialRows:rows.length};
     const groups=new Map();
     const addGroup=(key,name,nature,amount,{sortOrder=900,entryId=null,saleIds=[]}={})=>{
       const current=groups.get(key)||{id:key,name:name||key,nature,sortOrder:Number(sortOrder??900),amountCents:0,entryIds:[],saleIds:[]};
@@ -103,7 +91,7 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
   function cashflow({from,to,projectionDays=30}={}){
     const fromDate=businessDate(from,'Data inicial');const toDate=businessDate(to,'Data final');if(fromDate>toDate)throw new Error('Data inicial nao pode ser posterior a data final.');
     const days=Number(projectionDays);if(!Number.isInteger(days)||days<0||days>3660)throw new Error('Periodo de projecao invalido.');
-    const realized=activeSettlementTotals(fromDate,toDate);const sales=salesSummary(fromDate,toDate,'cash');
+    const realized=activeSettlementTotals(fromDate,toDate);const sales=salesSummary(fromDate,toDate);
     realized.inflowCents+=cents(sales.netSalesCents);
     const horizon=addDays(toDate,days);
     const open=finance.listEntries({asOf:`${toDate}T23:59:59.999Z`}).filter(entry=>entry.status!=='CANCELLED'&&entry.openCents>0&&String(entry.dueAt||'').slice(0,10)>=toDate&&String(entry.dueAt||'').slice(0,10)<=horizon);
