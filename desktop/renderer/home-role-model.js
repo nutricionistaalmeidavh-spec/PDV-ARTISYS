@@ -5,7 +5,9 @@
   if (typeof module === 'object' && module.exports) module.exports = model;
   if (root) root.PdvHomeRoleModel = model;
 })(typeof window !== 'undefined' ? window : null, () => {
-  const ADMIN_TILES = Object.freeze({
+  const HUB_TILES = Object.freeze({
+    catalog: Object.freeze({ key:'catalog', label:'Cadastros', description:'Clientes, cardápio, estoque e equipe em um só lugar', route:'catalog', tone:'purple', icon:'document' }),
+    'post-sale': Object.freeze({ key:'post-sale', label:'Vendas e devoluções', description:'Histórico, comprovantes, trocas e devoluções', route:'post-sale', tone:'slate', icon:'history' }),
     'financial-management': Object.freeze({ key:'financial-management', label:'Gestão financeira', description:'DRE, relatórios e contas a pagar e receber', route:'financial-management', tone:'rose', icon:'management' })
   });
 
@@ -15,7 +17,7 @@
       title: 'Início',
       subtitle: 'Acesso rápido à operação do caixa.',
       sections: Object.freeze([
-        Object.freeze({ key:'cashier-primary', label:'', routes:Object.freeze(['checkout','cash','sales','returns']) })
+        Object.freeze({ key:'cashier-primary', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog']) })
       ])
     }),
     manager: Object.freeze({
@@ -23,7 +25,7 @@
       title: 'Início',
       subtitle: 'Operação e visão do negócio em um só lugar.',
       sections: Object.freeze([
-        Object.freeze({ key:'manager-main', label:'', routes:Object.freeze(['financial-management','inventory','checkout','cash','sales','returns','products','customers']) })
+        Object.freeze({ key:'manager-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management']) })
       ])
     }),
     admin: Object.freeze({
@@ -31,7 +33,7 @@
       title: 'Início',
       subtitle: 'Atalhos principais da operação e da gestão.',
       sections: Object.freeze([
-        Object.freeze({ key:'admin-main', label:'', routes:Object.freeze(['financial-management','inventory','checkout','cash','sales','returns','products','customers']) })
+        Object.freeze({ key:'admin-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management']) })
       ])
     })
   });
@@ -50,7 +52,7 @@
     management: Object.freeze(['admin','manager']),
     sellers: Object.freeze(['admin','manager']),
     settings: Object.freeze(['admin','manager'])
-    ,catalog: Object.freeze(['admin','manager'])
+    ,catalog: Object.freeze(['admin','manager','cashier'])
     ,'post-sale': Object.freeze(['admin','manager','cashier'])
     ,'financial-management': Object.freeze(['admin','manager'])
   });
@@ -61,8 +63,8 @@
 
   function routesForRole(role) {
     const menu = role === 'cashier'
-      ? ['home','checkout','cash','post-sale','customers']
-      : ['home','checkout','cash','post-sale','customers','catalog','financial-management','sellers'];
+      ? ['home','checkout','cash','post-sale','catalog']
+      : ['home','checkout','cash','post-sale','catalog','financial-management'];
     return menu.filter(route => canAccessRoute(role, route));
   }
 
@@ -70,7 +72,7 @@
     const normalizedRole = Object.hasOwn(PRESETS, role) ? role : 'cashier';
     const preset = PRESETS[normalizedRole];
     const tiles = new Map(baseTiles.map((tile) => [tile.route, tile]));
-    Object.entries(ADMIN_TILES).forEach(([key, tile]) => tiles.set(key, tile));
+    Object.entries(HUB_TILES).forEach(([key, tile]) => tiles.set(key, tile));
     return {
       role: normalizedRole,
       label: preset.label,
@@ -83,5 +85,5 @@
     };
   }
 
-  return Object.freeze({ ADMIN_TILES, PRESETS, ROUTE_ACCESS, canAccessRoute, routesForRole, homeForRole });
+  return Object.freeze({ HUB_TILES, PRESETS, ROUTE_ACCESS, canAccessRoute, routesForRole, homeForRole });
 });
