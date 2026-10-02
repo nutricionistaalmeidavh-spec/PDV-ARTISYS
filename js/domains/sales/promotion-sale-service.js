@@ -14,7 +14,7 @@ function variantIdSql(column = 'configuration_json') {
   )`;
 }
 
-function createPromotionSaleService({ db, baseSales, promotionService, now = () => new Date().toISOString() } = {}) {
+function createPromotionSaleService({ db, baseSales, promotionService, commercialPricingService = null, now = () => new Date().toISOString() } = {}) {
   if(!db || !baseSales || !promotionService) throw new TypeError('db, baseSales and promotionService are required.');
 
   const saleColumns=new Set(db.prepare('PRAGMA table_info(sales)').all().map(column=>column.name));
@@ -91,7 +91,21 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     db.prepare('UPDATE sales SET observation=?,print_observation=?,updated_at=? WHERE id=?').run(data.observation||null,data.printObservation?1:0,now(),String(saleId));
   }
 
+  function applyQuantityPricing(saleId) {
+    if(!commercialPricingService)return;
+    const sale=baseSales.getSale(saleId);if(!sale)return;
+    const update=db.prepare('UPDATE sale_items SET catalog_unit_price_cents=?,unit_price_cents=?,total_cents=?,allocated_discount_cents=0,net_total_cents=NULL,updated_at=? WHERE id=?');
+    for(const item of sale.items||[]){
+      if(item.priceOverrideReason||item.configuration)continue;
+      const resolved=commercialPricingService.resolveUnitPrice({productId:item.productId,quantity:item.quantity,customerId:sale.customerId||null,channel:'POS'});
+      if(Number(item.unitPriceCents)!==Number(resolved.unitPriceCents)||Number(item.catalogUnitPriceCents??resolved.baseUnitPriceCents)!==Number(resolved.baseUnitPriceCents)){
+        update.run(resolved.baseUnitPriceCents,resolved.unitPriceCents,Math.round(Number(item.quantity)*Number(resolved.unitPriceCents)),now(),item.id);
+      }
+    }
+  }
+
   function reprice(saleId, manualOverride) {
+    applyQuantityPricing(saleId);
     const sale=baseSales.getSale(saleId); if(!sale) throw new Error('Venda nao encontrada.');
     const previous=readState(sale);
     let requested=manualOverride===undefined?previous.manualDiscountCents:assertCents(Number(manualOverride),'discountCents');
@@ -151,7 +165,7 @@ function createPromotionSaleService({ db, baseSales, promotionService, now = () 
     writeState(sale.id,{manualDiscountCents:0,promotionDiscountCents:0,promotions:[],blocksManualDiscount:false});
     return enrich(sale);
   }
-  function setCustomer(id,customerId){return enrich(baseSales.setCustomer(id,customerId));}
+  function setCustomer(id,customerId){baseSales.setCustomer(id,customerId);return reprice(id);}
   function setSeller(id,sellerId,actor=null){return enrich(baseSales.setSeller(id,sellerId,actor));}
   function addItem(id,input={}){
     const kit=kitSnapshot(input.productId);
