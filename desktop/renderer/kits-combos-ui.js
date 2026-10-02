@@ -84,8 +84,8 @@
     if(mounting||!content)return;const page=content.querySelector('section.page');const heading=page?.querySelector('.page-head h1');if(!page||!['Produtos','Cardápio'].includes(heading?.textContent.trim())||page.dataset.kitComboMounted==='1')return;
     mounting=true;page.dataset.kitComboMounted='1';
     try{
-      const header=page.querySelector('.page-head');const actions=header?.children?.[1]||header;
-      if(actions&&!actions.querySelector('[data-new-kit]')){const kitButton=document.createElement('button');kitButton.className='secondary-button';kitButton.type='button';kitButton.dataset.newKit='1';kitButton.textContent='+ Kit';kitButton.addEventListener('click',()=>showKitModal());const comboButton=document.createElement('button');comboButton.className='secondary-button';comboButton.type='button';comboButton.dataset.newCombo='1';comboButton.textContent='+ Combo';comboButton.addEventListener('click',()=>showComboModal());actions.prepend(comboButton);actions.prepend(kitButton);}
+      const header=page.querySelector('.page-head');const actions=header?.children?.[1]||header;const secondaryMenu=actions?.querySelector('[data-products-secondary-actions-menu]')||actions;
+      if(secondaryMenu&&!secondaryMenu.querySelector('[data-new-kit]')){const grouped=secondaryMenu!==actions;const kitButton=document.createElement('button');kitButton.className=grouped?'products-secondary-action':'secondary-button';kitButton.type='button';kitButton.dataset.newKit='1';kitButton.textContent='+ Kit';kitButton.addEventListener('click',()=>showKitModal());const comboButton=document.createElement('button');comboButton.className=grouped?'products-secondary-action':'secondary-button';comboButton.type='button';comboButton.dataset.newCombo='1';comboButton.textContent='+ Combo';comboButton.addEventListener('click',()=>showComboModal());secondaryMenu.prepend(comboButton);secondaryMenu.prepend(kitButton);}
       await refreshProductsAdmin();
     }catch(error){page.dataset.kitComboMounted='';console.warn('Kits/combos UI indisponível:',error?.message||error);}finally{mounting=false;}
   }
