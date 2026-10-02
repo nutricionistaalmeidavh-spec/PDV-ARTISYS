@@ -192,8 +192,41 @@
     },
     {
       "action": "click",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close",
       "name": "fechar-produto"
+    },
+    {
+      "action": "waitForTimeout",
+      "name": "esperar-fechamento-produto",
+      "timeoutMs": 350
+    },
+    {
+      "action": "screenshot",
+      "name": "02b-estoque-apos-fechar-produto",
+      "fullPage": false
+    },
+    {
+      "action": "reload",
+      "name": "recarregar-apos-produto"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "sessao-restaurada-1",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "hub-para-ficha",
+      "holdMs": 400
+    },
+    {
+      "action": "click",
+      "selector": "[data-flow-route='inventory']",
+      "name": "estoque-para-ficha",
+      "holdMs": 700
     },
     {
       "action": "click",
@@ -213,14 +246,35 @@
     },
     {
       "action": "click",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close",
       "name": "fechar-ficha"
+    },
+    {
+      "action": "waitForTimeout",
+      "name": "esperar-fechamento-ficha",
+      "timeoutMs": 350
+    },
+    {
+      "action": "screenshot",
+      "name": "03b-estoque-apos-fechar-ficha",
+      "fullPage": false
+    },
+    {
+      "action": "reload",
+      "name": "recarregar-apos-ficha"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "sessao-restaurada-2",
+      "state": "hidden",
+      "timeoutMs": 15000
     },
     {
       "action": "click",
       "selector": "button[data-route='catalog']",
-      "name": "voltar-hub-cardapio-estoque",
-      "holdMs": 500
+      "name": "hub-para-cardapio",
+      "holdMs": 400
     },
     {
       "action": "click",
