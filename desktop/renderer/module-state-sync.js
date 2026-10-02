@@ -3,6 +3,9 @@
 (() => {
   const root=window;
   if(root.PdvModuleStateSync)return;
+  const lifecycle=root.PdvUiLifecycle;
+  const routeRegistry=root.PdvRouteRegistry;
+  if(!lifecycle||!routeRegistry)return;
 
   let settingsRefreshScheduled=false;
 
@@ -23,7 +26,7 @@
   function reloadSettingsModules(){
     if(settingsRefreshScheduled||!onSettingsPage())return;
     settingsRefreshScheduled=true;
-    root.PdvOperationalUi?.showRoute?.('settings');
+    void routeRegistry.render('settings');
     root.setTimeout?.(()=>{
       settingsRefreshScheduled=false;
       document.getElementById('ops-load-establishment-modules')?.click();
@@ -40,8 +43,9 @@
   }
 
   root.addEventListener('artisys:modules-state-changed',handleStateChange);
-  const content=routeContent();
-  if(content&&typeof MutationObserver==='function')new MutationObserver(()=>annotateWorkspace()).observe(content,{childList:true,subtree:true});
+  lifecycle.on('route:mounted',()=>annotateWorkspace());
+  lifecycle.on('route:updated',()=>annotateWorkspace());
+  lifecycle.on('surface:mounted',()=>annotateWorkspace());
   annotateWorkspace();
   root.PdvModuleStateSync=Object.freeze({annotateWorkspace,reloadSettingsModules});
 })();
