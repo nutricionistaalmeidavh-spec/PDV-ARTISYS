@@ -9,8 +9,6 @@ function parseJson(value,fallback={}){try{return value?JSON.parse(value):fallbac
 
 function createRetailService({db,modules,sales,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules||!sales)throw new TypeError('db, modules and sales are required.');
-  const gate=()=>modules.requireEnabled('RETAIL');
-
   function variantRow(id,{includeInactive=false}={}){
     const row=db.prepare(`SELECT v.*,p.name AS product_name,p.sale_price_cents AS base_price_cents,p.active AS product_active,p.track_stock AS parent_track_stock
       FROM product_variants v JOIN products p ON p.id=v.product_id WHERE v.id=?`).get(String(id));
@@ -70,11 +68,11 @@ function createRetailService({db,modules,sales,now=()=>new Date().toISOString(),
     return sale;
   }
 
-  function getVariantStock(variantId){gate();return getProductVariantStock(variantId);}
-  function setVariantStock(variantId,quantity,actor={}){gate();return setProductVariantStock(variantId,quantity,actor);}
-  function searchVariants(query=''){gate();return listProductVariants({query});}
+  function getVariantStock(variantId){return getProductVariantStock(variantId);}
+  function setVariantStock(variantId,quantity,actor={}){return setProductVariantStock(variantId,quantity,actor);}
+  function searchVariants(query=''){return listProductVariants({query});}
   function addVariantToSale(saleId,input={},actor={}){
-    gate();const row=variantRow(input.variantId);if(row.parent_track_stock)throw new Error('Produto com estoque por variante deve manter o estoque do produto pai desativado.');const variant=mapVariant(row);const quantity=roundQuantity(Number(input.quantity??1));if(quantity<=0)throw new Error('Quantidade da variacao invalida.');
+    const row=variantRow(input.variantId);if(row.parent_track_stock)throw new Error('Produto com estoque por variante deve manter o estoque do produto pai desativado.');const variant=mapVariant(row);const quantity=roundQuantity(Number(input.quantity??1));if(quantity<=0)throw new Error('Quantidade da variacao invalida.');
     if(quantity>variant.quantity)throw new Error(`Estoque insuficiente para ${variant.productName} - ${variant.name}.`);
     const snapshot={version:1,retailVariant:{id:variant.variantId,name:variant.name,sku:variant.sku,barcode:variant.barcode,attributes:variant.attributes,costCents:variant.costCents}};
     const sale=sales.addItem(String(saleId),{productId:variant.productId,quantity,unitPriceCents:variant.unitPriceCents,configurationSnapshot:snapshot,forceSeparateLine:true});
