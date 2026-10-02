@@ -137,6 +137,20 @@
       "timeoutMs": 10000
     },
     {
+      "action": "waitFor",
+      "selector": ".restaurant-draft-line:has-text('QA Prato Executivo')",
+      "name": "prato-no-carrinho",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-add-draft-form select[name='productId']",
+      "name": "compositor-pronto-segundo-item",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
       "action": "selectOption",
       "selector": "#restaurant-add-draft-form select[name='productId']",
       "value": "qa-restaurant-product-2",
@@ -199,6 +213,13 @@
     },
     {
       "action": "waitFor",
+      "selector": ".restaurant-status.PREPARING",
+      "name": "kds-status-preparando",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
       "selector": "[data-ticket-status][data-next='READY']",
       "name": "kds-preparando",
       "timeoutMs": 10000,
@@ -213,6 +234,13 @@
       "action": "click",
       "selector": "[data-ticket-status][data-next='READY']",
       "name": "marcar-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-status.READY",
+      "name": "kds-status-pronto",
+      "state": "visible",
       "timeoutMs": 10000
     },
     {
@@ -261,6 +289,13 @@
       "action": "click",
       "selector": "[data-bill]",
       "name": "solicitar-conta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-status.BILL_REQUESTED",
+      "name": "mesa-conta-solicitada",
+      "state": "visible",
       "timeoutMs": 10000
     },
     {
