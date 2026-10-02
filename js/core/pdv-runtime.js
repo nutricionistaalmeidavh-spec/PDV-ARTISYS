@@ -33,6 +33,7 @@ const { createSaleService }=require('../domains/sales/sale-service');
 const { createAvailabilitySaleService }=require('../domains/sales/availability-sale-service');
 const { createCommissionService }=require('../domains/sales/commission-service');
 const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
+const { createCommercialPricingService }=require('../domains/sales/commercial-pricing-service');
 const { createSalesOrderService }=require('../domains/orders/sales-order-service');
 const { createWholesaleService }=require('../domains/wholesale/wholesale-service');
 const { createCashService }=require('../domains/cash/cash-service');
@@ -103,13 +104,13 @@ function createPdvRuntime({
   const inventory=createInventoryService({db,now,idFactory});
   const logistics=createInventoryLogisticsService({db,inventory,now,idFactory});
   const recipes=createRecipeService({db,now,idFactory});const kitsCombos=createKitComboService({db,catalog,recipes,now,idFactory});
-  const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,now,idFactory});
+  const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,now,idFactory});const commercialPricing=createCommercialPricingService({db,modules,now,idFactory});
   const resolveStockRequirements=items=>expandStockItems(items,recipes);
   const coreSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:resolveStockRequirements,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
   const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:resolveStockRequirements,now});
-  const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,now});
+  const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,commercialPricingService:commercialPricing,now});
   const orders=createSalesOrderService({db,sales,logistics,now,idFactory});
-  const wholesale=createWholesaleService({db,modules,orders,now,idFactory});
+  const wholesale=createWholesaleService({modules,orders,pricing:commercialPricing,now});
   const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
   const finance=createFinanceService({db,now,idFactory});
   const procurement=createProcurementService({db,inventory,finance,now,idFactory});
@@ -126,6 +127,6 @@ function createPdvRuntime({
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   registerFiscalEffects({bus,effectStore,fiscalService:fiscal,providerResolver:fiscalProviderResolver,observability:fiscalObservability});if(typeof fiscalAutoIssueResolver==='function')registerFiscalAutoIssueEffect({bus,effectStore,fiscalService:fiscal,saleService:sales,resolveConfiguration:fiscalAutoIssueResolver});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,fiscalProduction,fiscalObservability,fiscalRecovery,nfse,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalRecoveryDir:resolvedFiscalRecoveryDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,fiscal,fiscalConfiguration,fiscalProduction,fiscalObservability,fiscalRecovery,nfse,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,services,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,fiscalArchiveDir:resolvedFiscalArchiveDir,fiscalRecoveryDir:resolvedFiscalRecoveryDir,fiscalPackStoreRoot:resolvedFiscalPackStoreRoot,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
