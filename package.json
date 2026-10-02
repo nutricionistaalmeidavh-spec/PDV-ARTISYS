@@ -12,7 +12,7 @@
     "start:desktop": "electron .",
     "qa:update": "node scripts/sync-artisys-qa.mjs",
     "qa:validate": "node qa/runtime/artisys-qa.mjs validate --config qa/artisys-qa.config.json",
-    "qa:e2e:p0": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow all-pages-audit --environment ci --viewport compactDesktop --output qa-artifacts",
+    "qa:e2e:p0": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow all-pages-audit --environment ci --viewport compactDesktop --output qa-artifacts/all-pages && node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow restaurant-table-lifecycle --environment ci --viewport compactDesktop --output qa-artifacts/restaurant-table-lifecycle",
     "capability:check": "node scripts/check-customer-capability-parity.js",
     "capability:check:phase3": "node scripts/check-customer-capability-parity.js",
     "capability:check:release": "node scripts/check-customer-capability-parity.js --require-100",
