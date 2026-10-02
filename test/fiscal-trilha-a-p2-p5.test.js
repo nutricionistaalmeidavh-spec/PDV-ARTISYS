@@ -36,7 +36,7 @@ test('P4 is also present in the canonical product create/edit modal and waits fo
  assert.ok(src.includes('waitForCatalogSave'),'P4 must wait for canonical product save');
  assert.ok(src.includes('waitAndMount'),'P4 must tolerate asynchronous product modal creation');
  assert.ok(src.includes('for(let attempt=0;attempt<80'),'P4 mount must retry while canonical modal is opening');
- assert.ok(src.includes("node.textContent.trim()==='Produto salvo.'"),'P4 must observe a fresh successful catalog save');
+ assert.ok(src.includes("'Produto salvo no Estoque.'"),'P4 must observe a fresh successful stock-product save');
  assert.ok(src.indexOf('await waitForCatalogSave')<src.indexOf('await api.saveProductFiscal'),'tax binding cannot run before catalog save succeeds');
  assert.doesNotThrow(()=>new Function(src),'product fiscal extension must parse');
 });
