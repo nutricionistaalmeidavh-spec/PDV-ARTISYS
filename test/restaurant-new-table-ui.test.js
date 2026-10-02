@@ -37,3 +37,29 @@ test('launcher stale do restaurante nao abre configuracoes quando modulo esta de
   assert.match(gate,/isEnabled\(moduleId\)/);
   assert.doesNotMatch(gate,/showRoute\?\.\('settings'\)/);
 });
+
+test('fluxo de mesas exige abertura explicita, garcom e compositor antes da cozinha',()=>{
+  assert.match(source,/id="restaurant-open-table-form"/);
+  assert.match(source,/name="waiterId"/);
+  assert.match(source,/Garçom responsável/);
+  assert.match(source,/id="restaurant-add-draft-form"/);
+  assert.match(source,/Adicionar ao pedido/);
+  assert.match(source,/data-send-order/);
+  assert.match(source,/Enviar .* item\(ns\) para a cozinha/);
+});
+
+test('acoes avancadas ficam dentro da comanda sem exigir IDs tecnicos do operador',()=>{
+  assert.match(source,/id="restaurant-split-form"/);
+  assert.match(source,/id="restaurant-transfer-item-form"/);
+  assert.match(source,/id="restaurant-cancel-item-form"/);
+  assert.match(source,/id="restaurant-merge-form"/);
+  assert.match(source,/Conta e movimentações/);
+  assert.doesNotMatch(source,/ID da comanda|ID do item|ID da divisão/);
+});
+
+test('operacao e configuracao do restaurante sao superficies distintas',()=>{
+  assert.match(source,/data-restaurant-view-target="operation"/);
+  assert.match(source,/data-restaurant-view-target="settings"/);
+  assert.match(source,/Configuração do restaurante/);
+  assert.match(source,/data-new-table/);
+});
