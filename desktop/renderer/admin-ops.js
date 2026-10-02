@@ -5,6 +5,9 @@
   const {ApiClient}=root.PdvApiClient;
   const api=new ApiClient();
   const content=document.getElementById('route-content');
+  const lifecycle=root.PdvUiLifecycle;
+  const routeRegistry=root.PdvRouteRegistry;
+  if(!content||!lifecycle||!routeRegistry)return;
   let rendering=false;
   const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
   const statusLabels={NOT_STARTED:'Pendente',IN_PROGRESS:'Em andamento',READY:'Pronto',BLOCKED:'Bloqueio interno',BLOCKED_EXTERNAL:'Aguardando serviço externo'};
@@ -47,6 +50,7 @@
         <div class="ops-grid two"><section class="ops-card"><div class="ops-card-head"><h2>Diagnóstico e saúde</h2><button id="ops-create-diagnostics" class="ops-secondary">Gerar diagnóstico ZIP</button></div><dl class="ops-details"><div><dt>Banco</dt><dd>${badge(data.health?.database?.ok?'OK':'ATENÇÃO')}</dd></div><div><dt>Terminais</dt><dd>${esc(data.health?.terminals?.total??'—')}</dd></div><div><dt>Impressões pendentes</dt><dd>${esc(data.health?.printing?.pending??'—')}</dd></div><div><dt>Fiscal pendente/falho</dt><dd>${esc((data.health?.fiscal?.pending??0)+(data.health?.fiscal?.failed??0))}</dd></div></dl></section>
           <section class="ops-card"><h2>Eventos recentes de suporte</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Subsistema/Ação</th><th>Mensagem</th></tr></thead><tbody>${data.logs.slice(0,10).map(row=>`<tr><td>${when(row.createdAt)}</td><td>${esc(row.subsystem)}</td><td>${esc(row.message)}</td></tr>`).join('')}${data.audit.slice(0,10).map(row=>`<tr><td>${when(row.createdAt)}</td><td>${esc(row.action)}</td><td>${esc(`${row.entity}${row.entityId?` · ${row.entityId}`:''}`)}</td></tr>`).join('')||'<tr><td colspan="3">Sem eventos recentes.</td></tr>'}</tbody></table></div></section></div>`;
       content.querySelector('.ops-page')?.appendChild(panel);wire(panel);
+      routeRegistry.updated('settings',{surface:'settings-extension',extension:'admin-ops'});
     }catch(error){console.warn('Admin control center unavailable:',error?.message||error);}finally{rendering=false;}
   }
 
@@ -62,5 +66,8 @@
     panel.querySelector('#ops-create-diagnostics')?.addEventListener('click',async()=>{try{const result=await api.createDiagnostics();toast(`Diagnóstico gerado: ${result.fileName}`,'success');}catch(error){toast(error.message,'error');}});
   }
 
-  const observer=new MutationObserver(()=>{void mount();});if(content)observer.observe(content,{childList:true,subtree:false});void mount();
+  const onSettings=({route})=>{if(route==='settings')void mount();};
+  lifecycle.on('route:mounted',onSettings);
+  lifecycle.on('route:updated',onSettings);
+  if(document.body.dataset.activeRoute==='settings')void mount();
 })();
