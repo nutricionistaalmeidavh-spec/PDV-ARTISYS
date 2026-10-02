@@ -22,7 +22,7 @@ test('vertical UI exposes one Alimentação module with operational capabilities
   assert.match(source,/FOOD:renderFoodWorkspace/);
   for(const id of ['PIZZERIA','DELIVERY','FAST_FOOD','SELF_SERVICE'])assert.match(source,new RegExp(`data-food-capability="${id}"`));
   assert.match(source,/Produção \/ KDS/);
-  assert.match(source,/Incluído automaticamente/);
+  assert.match(source,/Incluído ao ativar/);
   assert.doesNotMatch(source,/MARKET_BAKERY:renderMarket/);
   assert.doesNotMatch(source,/RETAIL:\(\)=>/);
   assert.match(source,/modules\(\)/);
