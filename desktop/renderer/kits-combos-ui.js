@@ -1,7 +1,9 @@
 'use strict';
 
 (() => {
-  const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!lifecycle)return;
   const api=new ApiClient();
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
