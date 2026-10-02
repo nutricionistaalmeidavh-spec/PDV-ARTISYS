@@ -169,6 +169,7 @@
     const card = document.createElement('section');
     card.className = 'ops-card printing-settings-card';
     card.id = 'printing-settings-card';
+    card.dataset.settingsCategory = 'printing';
     card.innerHTML = '<h2>Impressão do comprovante</h2><div class="ops-loader">Carregando impressoras e preferências…</div>';
     const queueCard = Array.from(host.querySelectorAll('.ops-card')).find(node => node.querySelector('h2')?.textContent?.includes('Fila de impressão'));
     if (queueCard) host.insertBefore(card, queueCard); else host.appendChild(card);
