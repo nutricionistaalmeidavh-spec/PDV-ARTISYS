@@ -281,9 +281,9 @@
     const views = {
       overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash),commissions:commissionsView(commissions,sellers,products,rules)
     };
-    const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
+    const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" id="report-tab-${key}" role="tab" aria-selected="${state.view===key?'true':'false'}" aria-controls="report-v2-body" tabindex="${state.view===key?'0':'-1'}" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
 
-    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo, caixa físico e comissões.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers,inventory))}</span></div>${filterForm(sellers,inventory)}<nav class="report-v2-tabs" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body">${views[state.view] || views.overview}</div></section>`;
+    content.innerHTML = `<section class="ops-page report-v2-page"><header class="ops-head"><div><h1>Relatórios comerciais</h1><p>Vendas, clientes, produtos, pagamentos, estoque mínimo, caixa físico e comissões.</p></div><div class="ops-head-actions report-v2-actions"><button id="report-open-management" class="ops-secondary" type="button">Abrir Gestão</button><button id="report-export" class="ops-secondary" type="button">Exportar CSV</button><button id="report-print" class="ops-primary" type="button">Imprimir / Salvar PDF</button></div></header><div class="report-print-meta"><strong>${escapeHtml(VIEW_LABELS[state.view])}</strong><span>${escapeHtml(printMeta(sellers,inventory))}</span></div>${filterForm(sellers,inventory)}<nav class="report-v2-tabs" role="tablist" aria-label="Tipos de relatório">${tabs}</nav><div id="report-v2-body" role="tabpanel" aria-labelledby="report-tab-${escapeHtml(state.view)}" tabindex="0">${views[state.view] || views.overview}</div></section>`;
 
     document.getElementById('report-v2-filter')?.addEventListener('submit',event => {
       event.preventDefault();
@@ -293,11 +293,36 @@
       if (fromDate > toDate) { showToast('A data inicial não pode ser posterior à data final.','error'); return; }
       void renderReportsV2({ fromDate,toDate,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? String(form.get('sellerId') || '') : state.sellerId,customerId:'',productId:'',paymentMethod:'' });
     });
-    content.querySelectorAll('[data-report-view]').forEach(button => button.addEventListener('click',() => void renderReportsV2({view:button.dataset.reportView,customerId:'',productId:'',paymentMethod:''})));
+    const tabButtons=Array.from(content.querySelectorAll('[data-report-view]'));
+    tabButtons.forEach((button,index) => {
+      button.addEventListener('click',() => void renderReportsV2({view:button.dataset.reportView,customerId:'',productId:'',paymentMethod:''}));
+      button.addEventListener('keydown',event=>{
+        if(!['ArrowRight','ArrowLeft','Home','End'].includes(event.key))return;
+        event.preventDefault();
+        let nextIndex=index;
+        if(event.key==='ArrowRight')nextIndex=(index+1)%tabButtons.length;
+        else if(event.key==='ArrowLeft')nextIndex=(index-1+tabButtons.length)%tabButtons.length;
+        else if(event.key==='Home')nextIndex=0;
+        else if(event.key==='End')nextIndex=tabButtons.length-1;
+        tabButtons[nextIndex]?.focus();
+      });
+    });
     document.getElementById('report-customer-filter')?.addEventListener('change',event => void renderReportsV2({customerId:event.target.value}));
     document.getElementById('report-product-filter')?.addEventListener('change',event => void renderReportsV2({productId:event.target.value}));
     document.getElementById('report-payment-filter')?.addEventListener('change',event => void renderReportsV2({paymentMethod:event.target.value}));
     document.getElementById('report-location-filter')?.addEventListener('change',event => void renderReportsV2({locationId:event.target.value}));
+    content.querySelectorAll('[data-report-period]').forEach(button=>button.addEventListener('click',()=>{
+      const period=presetPeriod(button.dataset.reportPeriod);
+      void renderReportsV2({...period,customerId:'',productId:'',paymentMethod:''});
+    }));
+    content.querySelectorAll('[data-report-drilldown]').forEach(button=>button.addEventListener('click',()=>{
+      const type=button.dataset.reportDrilldown,id=button.dataset.drilldownId||'';
+      if(type==='customer')void openSalesDrilldown('Vendas do cliente',{customerId:id});
+      else if(type==='product')void openSalesDrilldown('Vendas do produto',{productId:id});
+      else if(type==='payment')void openSalesDrilldown('Vendas por meio de pagamento',{paymentMethod:id});
+      else void openSalesDrilldown('Vendas do período');
+    }));
+    document.getElementById('report-open-management')?.addEventListener('click',navigateManagement);
     document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash,commissions); downloadCsv(csv.name,csv.headers,csv.rows); });
     document.getElementById('report-print')?.addEventListener('click',() => root.print());
 
