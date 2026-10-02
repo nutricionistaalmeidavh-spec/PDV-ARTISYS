@@ -485,6 +485,60 @@
       ]
     },
     {
+      "id": "wholesale.operations",
+      "exposure": "customer",
+      "status": "supported",
+      "targetPhase": 9,
+      "declaredCapabilities": [
+        "wholesale-quantity-pricing-and-b2b-orders",
+        "checkout-open-commands-and-orders-without-reentry"
+      ],
+      "backend": [
+        {
+          "path": "js/domains/sales/commercial-pricing-service.js",
+          "marker": "resolveUnitPrice"
+        },
+        {
+          "path": "js/domains/wholesale/wholesale-service.js",
+          "marker": "createQuote"
+        },
+        {
+          "path": "js/domains/orders/sales-order-service.js",
+          "marker": "prepareCheckout"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/wholesale-router.js",
+          "marker": "/api/v1/wholesale/orders"
+        },
+        {
+          "path": "server/checkout-document-router.js",
+          "marker": "/api/v1/checkout/documents"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/wholesale-api-client.js",
+          "marker": "createWholesaleQuote"
+        },
+        {
+          "path": "desktop/renderer/api-client.js",
+          "marker": "checkoutDocuments"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/wholesale-ui.js",
+          "marker": "data-module-workspace=\"WHOLESALE\""
+        },
+        {
+          "path": "desktop/renderer/app.js",
+          "marker": "Comandas e pedidos"
+        }
+      ]
+    },
+    {
       "id": "infra.local-first",
       "exposure": "internal",
       "status": "supported",
