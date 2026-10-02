@@ -3,7 +3,7 @@
 const { writeAudit }=require('../js/core/audit-log');
 const { normalizeEmail }=require('../js/core/account/account-activation');
 
-const GENERIC_MESSAGE='Se este e-mail estiver cadastrado, enviaremos um codigo de recuperacao.';
+const GENERIC_MESSAGE='Se os dados estiverem vinculados a esta instalacao, solicite o codigo de recuperacao ao administrador ArtiSys.';
 
 function sendJson(response,statusCode,payload){
   response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -44,7 +44,7 @@ function createPasswordRecoveryRouter({runtime,sessionStore=new Map(),bodyLimitB
 
     try{
       if(request.method==='POST'&&pathname==='/api/v1/auth/password-recovery/request'){
-        if(!accountConfigured()){sendJson(response,409,{error:'Recuperacao por e-mail nao configurada.'});return true;}
+        if(!accountConfigured()){sendJson(response,409,{error:'Recuperacao de senha nao configurada.'});return true;}
         const body=await readJson(request,bodyLimitBytes);
         const email=normalizeEmail(body.email);
         if(!email||!/^\S+@\S+\.\S+$/.test(email)){sendJson(response,400,{error:'E-mail invalido.'});return true;}
