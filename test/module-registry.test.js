@@ -6,8 +6,8 @@ const {AREAS,MODULES,getModuleDefinition,getAreaDefinition}=require('../js/core/
 const {createModuleService}=require('../js/core/modules/module-service');
 
 test('module registry exposes only flows that materially change the operation',()=>{
-  assert.deepEqual(Object.keys(AREAS),['FOOD','WHOLESALE','SERVICES']);
-  assert.deepEqual(MODULES.map(module=>module.id),['FOOD','WHOLESALE','SERVICES']);
+  assert.deepEqual(Object.keys(AREAS),['FOOD','WHOLESALE']);
+  assert.deepEqual(MODULES.map(module=>module.id),['FOOD','WHOLESALE']);
   assert.equal(new Set(MODULES.map(module=>module.id)).size,MODULES.length);
   for(const module of MODULES){
     assert.ok(module.name&&module.description&&module.routeId&&module.icon);
@@ -20,7 +20,7 @@ test('module registry exposes only flows that materially change the operation',(
   assert.equal(getModuleDefinition('FOOD').name,'Alimentação');
   assert.equal(getModuleDefinition('WHOLESALE').name,'Atacado');
   assert.equal(getModuleDefinition('WHOLESALE').defaultEnabled,false);
-  for(const legacy of ['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RETAIL','SELF_SERVICE','WORKSHOP'])assert.equal(getModuleDefinition(legacy),null);
+  for(const legacy of ['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','RETAIL','SELF_SERVICE','SERVICES','WORKSHOP'])assert.equal(getModuleDefinition(legacy),null);
 });
 
 test('module service returns the same route/access metadata used to build navigation',()=>{
