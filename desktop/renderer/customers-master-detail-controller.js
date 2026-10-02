@@ -86,7 +86,7 @@
   }
 
   function baseCustomerCard(page) {
-    return page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-customer]')) || null;
+    return page.querySelector('#customers-list') || page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-customer]')) || null;
   }
 
   function ensureToolbar(page) {
