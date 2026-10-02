@@ -11,8 +11,10 @@ test('workspace sync consumes module route identity instead of localized heading
   const source=read('desktop/renderer/module-state-sync.js');
   assert.match(source,/artisys:modules-state-changed/);
   assert.match(source,/data-module-workspace/);
-  assert.match(source,/MutationObserver/);
-  assert.match(source,/showRoute\?\.\('settings'\)/);
+  assert.match(source,/PdvUiLifecycle/);
+  assert.match(source,/surface:mounted/);
+  assert.doesNotMatch(source,/MutationObserver/);
+  assert.match(source,/routeRegistry\.render\('settings'\)/);
   assert.match(source,/activeModuleWorkspace/);
   assert.match(source,/detail\.catalog/);
   assert.doesNotMatch(source,/MODULE_HEADINGS|HEADING_TO_ID/);

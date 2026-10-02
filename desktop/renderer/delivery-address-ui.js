@@ -1,7 +1,8 @@
 'use strict';
 (() => {
   const ApiClient=window.PdvApiClient?.ApiClient;
-  if(!ApiClient)return;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!lifecycle)return;
   const api=new ApiClient();
   const p=ApiClient.prototype;
   let editingCustomerId=null;
@@ -97,11 +98,15 @@
   }
 
   function scheduleDecorate(){clearTimeout(decorateTimer);decorateTimer=setTimeout(()=>void decorateOrders(),50);}
-  const observer=new MutationObserver(()=>{
+  lifecycle.on('modal:mounted',()=>{
     const customerForm=document.getElementById('customer-form');if(customerForm)void enhanceCustomerForm(customerForm);
+  });
+  lifecycle.on('route:updated',({route,surface})=>{
+    if(route!=='inventory'||surface!=='enterprise-orders')return;
     const orderForm=document.getElementById('enterprise-order-form');if(orderForm)void enhanceOrderForm(orderForm);
     scheduleDecorate();
   });
-  observer.observe(document.body,{childList:true,subtree:true});
+  const customerForm=document.getElementById('customer-form');if(customerForm)void enhanceCustomerForm(customerForm);
+  const orderForm=document.getElementById('enterprise-order-form');if(orderForm)void enhanceOrderForm(orderForm);
   scheduleDecorate();
 })();

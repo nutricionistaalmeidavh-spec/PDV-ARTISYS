@@ -1,7 +1,9 @@
 'use strict';
 
 (() => {
-  const ApiClient=window.PdvApiClient?.ApiClient;if(!ApiClient)return;
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!lifecycle)return;
   const api=new ApiClient();
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
@@ -105,6 +107,12 @@
     else{if(discount)discount.disabled=false;existingHint?.remove();}
   }
 
-  const observer=new MutationObserver(()=>{void mountProducts();mountPromotionRow();});if(content)observer.observe(content,{childList:true,subtree:true});
-  void mountProducts();mountPromotionRow();
+  const onRouteChange=({route})=>{
+    if(route==='products')void mountProducts();
+    if(route==='checkout')mountPromotionRow();
+  };
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  const currentRoute=document.body.dataset.activeRoute||'';
+  if(currentRoute)onRouteChange({route:currentRoute});
 })();

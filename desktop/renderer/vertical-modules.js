@@ -5,6 +5,7 @@
   const ApiClient=root.PdvApiClient?.ApiClient;
   if(!ApiClient)return;
   const api=new ApiClient();
+  const lifecycle=root.PdvUiLifecycle;
   const MODULE_REQUEST_TIMEOUT_MS=5000;
   const ROUTE_RENDERERS={
     RESTAURANT:()=>root.PdvRestaurantUi?.show?.(),
@@ -177,13 +178,15 @@
     if(area?.navigation==='group'){
       const available=modulesInArea(area.id).filter(module=>module.enabled&&moduleAllowed(module));
       if(!available.length){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
-      document.body.dataset.activeRoute=`module-${String(area.routeId).toLowerCase().replaceAll('_','-')}`;delete document.body.dataset.activeModuleWorkspace;renderModuleNavigation();document.querySelector(`[data-module-nav="${area.routeId}"]`)?.classList.add('active');renderAreaHub(area,available);return;
+      document.body.dataset.activeRoute=`module-${String(area.routeId).toLowerCase().replaceAll('_','-')}`;delete document.body.dataset.activeModuleWorkspace;renderModuleNavigation();document.querySelector(`[data-module-nav="${area.routeId}"]`)?.classList.add('active');renderAreaHub(area,available);lifecycle?.emit('surface:mounted',{surface:'module-area',areaId:area.id,routeId:area.routeId});return;
     }
     const module=moduleForRoute(id);
     if(!module?.enabled||!moduleAllowed(module)){document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
     document.body.dataset.activeRoute=`module-${String(module.routeId).toLowerCase().replaceAll('_','-')}`;document.body.dataset.activeModuleWorkspace=module.routeId;renderModuleNavigation();const areaRoute=areaFor(module)?.navigation==='group'?areaFor(module).routeId:module.routeId;document.querySelector(`[data-module-nav="${areaRoute}"]`)?.classList.add('active');
     try {
-      return await ROUTE_RENDERERS[module.routeId]();
+      const result=await ROUTE_RENDERERS[module.routeId]();
+      lifecycle?.emit('surface:mounted',{surface:'module-workspace',moduleId:module.id,routeId:module.routeId});
+      return result;
     } catch(error) {
       const content=document.getElementById('route-content');
       if(content)content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Não foi possível abrir esta área</h1><p>O restante do sistema continua disponível.</p></div>${backButton()}</header><div class="data-card ops-error" role="alert">${escapeHtml(error?.message||'Falha inesperada ao carregar a tela.')}</div><button class="secondary-button" type="button" id="module-retry">Tentar novamente</button></section>`;

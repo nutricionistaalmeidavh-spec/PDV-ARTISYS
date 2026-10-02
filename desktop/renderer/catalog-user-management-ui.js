@@ -5,10 +5,12 @@
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
   const toastRoot=document.getElementById('toast-root');
-  if(!ApiClient||!content)return;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!content||!lifecycle)return;
   const api=new ApiClient();
   let mounting=false;
   let currentUser=null;
+  const removedCustomerIds=new Set();
 
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const roleLabel=role=>({admin:'Administrador',manager:'Gerente',cashier:'Operador / vendedor'})[role]||role;
@@ -67,15 +69,17 @@
       root.querySelectorAll('[data-edit-customer]').forEach(button=>button.remove());
       return;
     }
-    if(root.dataset.catalogDeletionEnhanced==='1')return;
     root.dataset.catalogDeletionEnhanced='1';
-    const active=await api.customers();const activeIds=new Set(active.map(item=>item.id));
     root.querySelectorAll('[data-edit-customer]').forEach(button=>{
-      const id=button.dataset.editCustomer;const row=button.closest('.data-row');
-      if(!activeIds.has(id)){row?.remove();return;}
+      const id=String(button.dataset.editCustomer||'');const row=button.closest('.data-row');
+      if(removedCustomerIds.has(id)){row?.remove();return;}
       if(row?.querySelector('[data-remove-customer]'))return;
       const remove=document.createElement('button');remove.type='button';remove.className='danger-button';remove.dataset.removeCustomer=id;remove.textContent='Excluir';button.insertAdjacentElement('afterend',remove);
-      remove.addEventListener('click',()=>confirmCatalogRemoval('cliente',active.find(item=>item.id===id),()=>api.removeCustomer(id),async()=>{row?.remove();}));
+      remove.addEventListener('click',async()=>{
+        let customer=null;try{customer=(await api.customers()).find(item=>String(item.id)===id)||null;}catch{}
+        if(!customer)return toast('Não foi possível carregar o cliente para exclusão.','error');
+        confirmCatalogRemoval('cliente',customer,async()=>{const result=await api.removeCustomer(id);removedCustomerIds.add(id);return result;},async()=>{row?.remove();});
+      });
     });
   }
 
@@ -121,5 +125,13 @@
     }catch(error){console.warn('Catalog/user management UI unavailable:',error?.message||error);}finally{mounting=false;}
   }
 
-  const observer=new MutationObserver(()=>queueMicrotask(()=>void mount()));observer.observe(content,{childList:true,subtree:true});void mount();
+  const scheduleMount=()=>queueMicrotask(()=>void mount());
+  lifecycle.on('route:mounted',scheduleMount);
+  lifecycle.on('route:updated',({route,surface})=>{
+    if(route==='customers'&&surface==='customers-list')scheduleMount();
+    if(route==='inventory'&&surface==='enterprise-purchases')scheduleMount();
+  });
+  lifecycle.on('surface:mounted',({surface})=>{if(surface==='module-workspace')scheduleMount();});
+  lifecycle.on('user:changed',()=>{currentUser=null;scheduleMount();});
+  void mount();
 })();

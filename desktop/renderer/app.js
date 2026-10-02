@@ -137,6 +137,7 @@
     modalRoot.onclick = modalBackdropClose;
     modalRoot.onkeydown = (event) => { if (event.key === 'Escape') { event.preventDefault(); closeModal(); } };
     if (onMount) onMount(modalRoot);
+    window.PdvUiLifecycle?.emit('modal:mounted', { title, root:modalRoot });
     queueMicrotask(() => {
       const target = modalRoot.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])');
       target?.focus({ preventScroll:true });
@@ -150,6 +151,7 @@
     modalRoot.onclick = null;
     modalRoot.onkeydown = null;
     modalRoot._returnFocus = null;
+    window.PdvUiLifecycle?.emit('modal:closed', {});
     returnFocus?.focus?.({ preventScroll:true });
   }
   window.PdvModal = Object.freeze({ open: openModal, close: closeModal });
@@ -487,10 +489,20 @@
     routeRegistry.updated('products', { surface:'products-list' });
   }
 
+  function productPhotoSyncLabel() {
+    const sync=state.photoSyncStatus||{};
+    return sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
+  }
+
+  function updateProductPhotoSyncStatus() {
+    if (!isRouteActive('products')) return;
+    const label=content.querySelector('[data-products-canonical="true"] .toolbar small');
+    if(label) label.textContent=productPhotoSyncLabel();
+  }
+
   function renderProducts() {
     if (!isRouteActive('products')) return;
-    const sync=state.photoSyncStatus||{};
-    const syncLabel=sync.running?`Sincronizando · ${sync.pending||0} pendentes`:sync.failed?`${sync.failed} falha(s) · tentar novamente`:sync.lastCompletedAt?`Última sincronização ${new Date(sync.lastCompletedAt).toLocaleString('pt-BR')}`:'Fotos ainda não sincronizadas';
+    const syncLabel=productPhotoSyncLabel();
     content.innerHTML = `<section class="page" data-products-canonical="true"><header class="page-head"><div><h1>Cardápio</h1><p>Itens disponíveis para venda, preços e categorias. Produtos e fichas são cadastrados no Estoque.</p></div><div class="menu-head-actions"><details class="products-secondary-actions" data-products-secondary-actions><summary class="secondary-button">Mais ações</summary><div class="products-secondary-actions-menu" data-products-secondary-actions-menu><button class="products-secondary-action" id="sync-product-photos" type="button">↻ Sincronizar fotos</button><button class="products-secondary-action" id="new-category" type="button">+ Categoria</button></div></details><button class="primary-button" id="new-product">+ Novo item</button></div></header><div class="toolbar"><label class="search-field">⌕<input id="product-page-search" placeholder="Buscar item do Cardápio" value="${escapeHtml(state.productQuery)}"></label><select id="product-category-filter" class="secondary-button"><option value="">Todas categorias</option>${state.categories.map((category) => `<option value="${category.id}" ${state.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select><small>${escapeHtml(syncLabel)}</small></div><div class="data-card" id="products-list">${productsListHtml()}</div></section>`;
     document.getElementById('new-product')?.addEventListener('click', openMenuItemSelector);
     document.getElementById('new-category')?.addEventListener('click', openCategoryForm);
@@ -553,8 +565,8 @@
   } });
 }
 
-function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))renderProducts();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
-  async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);renderProducts();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
+function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))updateProductPhotoSyncStatus();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
+  async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);updateProductPhotoSyncStatus();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
   async function uploadProductPhoto(productId){try{const saved=await api.uploadProductPhoto(productId);if(!saved)return;state.products=await api.products();renderProducts();showToast('Foto e miniatura salvas no computador principal.','success');}catch(error){showToast(error.message,'error');}}
   async function removeProductPhoto(productId){
   openModal('Remover foto do produto', `<p>Remover a foto deste produto?</p><p>O arquivo ficará protegido por 30 dias.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product-photo">Remover foto</button></div>`, { onMount(root) {

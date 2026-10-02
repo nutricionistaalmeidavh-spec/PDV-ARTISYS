@@ -169,6 +169,20 @@
       "timeoutMs": 10000
     },
     {
+      "action": "waitFor",
+      "selector": "#catalog-category-management",
+      "name": "produtos-categorias-p5",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-kit-combo-admin]",
+      "name": "produtos-kits-combos-p5",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
       "action": "expectVisible",
       "selector": "#product-page-search",
       "name": "produtos-busca-canonica",
@@ -200,10 +214,110 @@
       "timeoutMs": 10000
     },
     {
+      "action": "click",
+      "selector": "#new-customer",
+      "name": "abrir-novo-cliente-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#customer-form [data-customer-address]",
+      "name": "cliente-endereco-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-form input[name='name']",
+      "value": "QA P5 Cliente Busca Incremental",
+      "name": "cliente-regressao-nome-p5"
+    },
+    {
+      "action": "click",
+      "selector": "#customer-form button[type='submit']",
+      "name": "salvar-cliente-regressao-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "modal-cliente-regressao-fechado-p5",
+      "state": "hidden",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".data-row:has-text('QA P5 Cliente Busca Incremental') [data-edit-customer]",
+      "name": "cliente-regressao-criado-p5",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-page-search",
+      "value": "QA P5 Cliente Busca Incremental",
+      "name": "cliente-regressao-buscar-p5"
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".data-row:has-text('QA P5 Cliente Busca Incremental') [data-remove-customer]",
+      "name": "cliente-regressao-excluir-preservado-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-page-search",
+      "value": "",
+      "name": "cliente-regressao-limpar-busca-p5"
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "clientes-p2-sem-overflow",
       "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-hub-catalogo-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-estoque-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='inventory']",
+      "name": "entrar-estoque-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#enterprise-depth-entry",
+      "name": "estoque-operacao-avancada-p5",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "#enterprise-depth-entry [data-open='purchases']",
+      "name": "abrir-compras-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#catalog-supplier-management",
+      "name": "compras-fornecedores-p5",
+      "state": "attached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-enterprise-back]",
+      "name": "voltar-estoque-p5",
       "timeoutMs": 10000
     },
     {
@@ -247,6 +361,13 @@
       "selector": "button[data-route='sellers']",
       "name": "equipe",
       "holdMs": 1000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#catalog-user-management-users",
+      "name": "equipe-gestao-p5",
+      "state": "attached",
+      "timeoutMs": 15000
     },
     {
       "action": "screenshot",
