@@ -23,7 +23,8 @@ test('first access UI creates administrator and signs in without a second creden
 test('first access controller shows activation only when setup says it is required',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
   assert.match(ui,/setup\.activation\?\.required/);
-  assert.match(ui,/requestSetupActivation\(email\)/);
+  assert.doesNotMatch(ui,/requestSetupActivation\(email\)/);
+  assert.match(ui,/Ativar e definir senha/);
   assert.match(ui,/verifySetupActivation\(email, code\)/);
   assert.match(ui,/Dados operacionais e senhas permanecem neste computador/);
 });
