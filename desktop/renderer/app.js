@@ -14,6 +14,9 @@
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
     finance: { label: 'Financeiro', icon: 'chart', phase: 'E16' },
+    'finance-banks': { label: 'Bancos e conciliação', icon: 'chart', phase: 'E16' },
+    'finance-recurrences': { label: 'Recorrências', icon: 'history', phase: 'E16' },
+    'finance-alerts': { label: 'Alertas financeiros', icon: 'management', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
     sellers: { label: 'Equipe e acessos', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
@@ -191,7 +194,21 @@
     const nav = document.getElementById('sidebar-nav');
     const roleModel = window.PdvHomeRoleModel;
     const items = roleModel?.routesForRole(state.user?.role) || ['home','checkout','products','customers','inventory','finance','reports'];
-    nav.innerHTML = items.map((route) => `<button class="nav-button ${state.route === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
+    const parentRoute = {
+      finance:'financial-management',
+      'finance-banks':'financial-management',
+      'finance-recurrences':'financial-management',
+      'finance-alerts':'financial-management',
+      management:'financial-management',
+      reports:'financial-management',
+      sales:'post-sale',
+      returns:'post-sale',
+      products:'catalog',
+      customers:'catalog',
+      inventory:'catalog',
+      sellers:'catalog'
+    }[state.route] || state.route;
+    nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
     if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
@@ -914,7 +931,7 @@ function openCategoryForm() {
       ]),
       'financial-management': () => renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
         {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
-        {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
+        {route:'finance',label:'Financeiro',description:'Lançamentos, bancos, conciliação, recorrências e alertas.',icon:'chart',tone:'green'},
         {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
       ])
     };
