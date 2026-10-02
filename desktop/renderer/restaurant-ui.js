@@ -7,6 +7,7 @@
   let data={tables:[],requests:[],stations:[],tickets:[],devices:[],users:[],products:[],report:{}};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const qty=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
   const stamp=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
   function toast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
   function status(value){const labels={ACTIVE:'Ativo',INACTIVE:'Inativo',FREE:'Livre',OCCUPIED:'Ocupada',BILL_REQUESTED:'Pediu a conta',CHECKOUT:'Fechamento',OPEN:'Aberto',CLOSED:'Encerrado',NEW:'Novo',PREPARING:'Em preparo',READY:'Pronto',CANCELLED:'Cancelado',PENDING:'Pendente'};return `<span class="restaurant-status ${esc(value)}">${esc(labels[value]||value)}</span>`;}
