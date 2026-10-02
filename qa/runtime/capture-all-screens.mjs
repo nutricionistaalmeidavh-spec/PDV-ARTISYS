@@ -79,9 +79,11 @@ async function goHome(){
   if(!await visibleClick("#sidebar-nav [data-route='home']"))await visibleClick("[data-route='home']");
   await sleep(250);
 }
-async function goHomeTile(route){
-  await goHome();
-  if(!await visibleClick("[data-classic-route='"+route+"']")&&!await visibleClick("[data-home-route='"+route+"']"))throw new Error('Home tile não encontrado: '+route);
+async function goDirect(route){
+  if(['products','inventory'].includes(route)){await goHub('catalog',route);return;}
+  if(['sales','returns'].includes(route)){await goHub('post-sale',route);return;}
+  if(['management','finance','reports'].includes(route)){await goHub('financial-management',route);return;}
+  await goSidebar(route);
 }
 async function goSidebar(route){
   if(!await visibleClick("#sidebar-nav [data-route='"+route+"']")&&!await visibleClick("[data-route='"+route+"']"))throw new Error('Rota não encontrada: '+route);
@@ -153,24 +155,24 @@ await page.evaluate(async()=>{
 await sleep(500);
 
 await captureDesktop('inicio',goHome);
-await captureDesktop('balcao',()=>goHomeTile('checkout'));
-await captureDesktop('clientes',()=>goHomeTile('customers'));
-await captureDesktop('cliente-novo',async()=>{await goHomeTile('customers');await visibleClick('#new-customer');await page.locator('#customer-form').waitFor({state:'visible'});});
+await captureDesktop('balcao',()=>goDirect('checkout'));
+await captureDesktop('clientes',()=>goDirect('customers'));
+await captureDesktop('cliente-novo',async()=>{await goDirect('customers');await visibleClick('#new-customer');await page.locator('#customer-form').waitFor({state:'visible'});});
 await closeModal();
-await captureDesktop('cliente-editar',async()=>{await goHomeTile('customers');const edit=page.locator('[data-edit-customer]').first();if(await edit.count()){await edit.click();await page.locator('#customer-form').waitFor({state:'visible'});}else throw new Error('Cliente de demonstração não encontrado');});
+await captureDesktop('cliente-editar',async()=>{await goDirect('customers');const edit=page.locator('[data-edit-customer]').first();if(await edit.count()){await edit.click();await page.locator('#customer-form').waitFor({state:'visible'});}else throw new Error('Cliente de demonstração não encontrado');});
 await closeModal();
-await captureDesktop('cardapio',()=>goHomeTile('products'));
-await captureDesktop('cardapio-novo-item',async()=>{await goHomeTile('products');await visibleClick('#new-product');await page.locator('#product-form').waitFor({state:'visible'});});
+await captureDesktop('cardapio',()=>goDirect('products'));
+await captureDesktop('cardapio-novo-item',async()=>{await goDirect('products');await visibleClick('#new-product');await page.locator('#product-form').waitFor({state:'visible'});});
 await closeModal();
-await captureDesktop('cardapio-editar-item',async()=>{await goHomeTile('products');const edit=page.locator('[data-edit-product]').first();if(await edit.count()){await edit.click();await page.locator('#product-form').waitFor({state:'visible'});}else throw new Error('Produto de demonstração não encontrado');});
+await captureDesktop('cardapio-editar-item',async()=>{await goDirect('products');const edit=page.locator('[data-edit-product]').first();if(await edit.count()){await edit.click();await page.locator('#product-form').waitFor({state:'visible'});}else throw new Error('Produto de demonstração não encontrado');});
 await closeModal();
-await captureDesktop('cardapio-nova-categoria',async()=>{await goHomeTile('products');await visibleClick('#new-category');await page.locator('#category-form').waitFor({state:'visible'});});
+await captureDesktop('cardapio-nova-categoria',async()=>{await goDirect('products');await visibleClick('#new-category');await page.locator('#category-form').waitFor({state:'visible'});});
 await closeModal();
-await captureDesktop('estoque',()=>goHomeTile('inventory'));
+await captureDesktop('estoque',()=>goDirect('inventory'));
 for(const [key,name] of [['purchases','estoque-compras'],['logistics','estoque-logistica'],['orders','estoque-pedidos']]){
-  await captureDesktop(name,async()=>{await goHomeTile('inventory');await page.locator('#enterprise-depth-entry').waitFor({state:'visible'});await visibleClick("#enterprise-depth-entry [data-open='"+key+"']");});
+  await captureDesktop(name,async()=>{await goDirect('inventory');await page.locator('#enterprise-depth-entry').waitFor({state:'visible'});await visibleClick("#enterprise-depth-entry [data-open='"+key+"']");});
 }
-await captureDesktop('caixa',()=>goHomeTile('cash'));
+await captureDesktop('caixa',()=>goDirect('cash'));
 await captureDesktop('hub-vendas-devolucoes',()=>goSidebar('post-sale'));
 await captureDesktop('ultimas-vendas',()=>goHub('post-sale','sales'));
 await captureDesktop('devolucoes',()=>goHub('post-sale','returns'));
