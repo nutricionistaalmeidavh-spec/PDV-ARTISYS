@@ -106,7 +106,7 @@ function createPdvRuntime({
   const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,now,idFactory});
   const resolveStockRequirements=items=>expandStockItems(items,recipes);
   const coreSales=createSaleService({db,outbox,now,idFactory,stockRequirementsResolver:resolveStockRequirements,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
-  const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:resolveStockRequirements});
+  const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:resolveStockRequirements,now});
   const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,now});
   const orders=createSalesOrderService({db,sales,logistics,now,idFactory});
   const wholesale=createWholesaleService({db,modules,orders,now,idFactory});
