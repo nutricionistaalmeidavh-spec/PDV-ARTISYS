@@ -77,31 +77,19 @@
   function renderActivation() {
     rendering = true;
     overlay.classList.remove('hidden');
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Ativar instalação</h1><p>Esta instalação foi configurada para ativação comercial. Dados operacionais e senhas permanecem neste computador.</p><form id="activation-request-form"><div class="field"><label>E-mail da conta</label><input name="email" type="email" autocomplete="email" required></div><button class="primary-button" type="submit">Enviar código</button></form></section>`;
-    const requestForm = overlay.querySelector('#activation-request-form');
-    requestForm?.addEventListener('submit', async (event) => {
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Ativar instalação</h1><p>Informe o e-mail liberado e o código de ativação fornecido pela ArtiSys. Dados operacionais e senhas permanecem neste computador.</p><form id="activation-verify-form"><div class="field"><label>E-mail da conta</label><input name="email" type="email" autocomplete="email" required></div><div class="field"><label>Código de ativação</label><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><button class="primary-button" type="submit">Ativar e definir senha</button></form></section>`;
+    const form = overlay.querySelector('#activation-verify-form');
+    form?.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const email = String(new FormData(requestForm).get('email') || '').trim();
-      const button = requestForm.querySelector('button[type="submit"]');
+      const values = new FormData(form);
+      const email = String(values.get('email') || '').trim();
+      const code = String(values.get('code') || '').trim();
+      const button = form.querySelector('button[type="submit"]');
       if (button) button.disabled = true;
       try {
-        await api.requestSetupActivation(email);
-        overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Confirmar ativação</h1><p>Informe o código enviado para <strong>${escapeHtml(email)}</strong>.</p><form id="activation-verify-form"><div class="field"><label>Código</label><input name="code" inputmode="numeric" autocomplete="one-time-code" required></div><button class="primary-button" type="submit">Confirmar ativação</button></form></section>`;
-        const verifyForm = overlay.querySelector('#activation-verify-form');
-        verifyForm?.addEventListener('submit', async (verifyEvent) => {
-          verifyEvent.preventDefault();
-          const code = String(new FormData(verifyForm).get('code') || '').trim();
-          const verifyButton = verifyForm.querySelector('button[type="submit"]');
-          if (verifyButton) verifyButton.disabled = true;
-          try {
-            await api.verifySetupActivation(email, code);
-            setupCache = null;
-            renderFirstAccess(email);
-          } catch (error) {
-            if (verifyButton) verifyButton.disabled = false;
-            showToast(error.message, 'error');
-          }
-        });
+        await api.verifySetupActivation(email, code);
+        setupCache = null;
+        renderFirstAccess(email);
       } catch (error) {
         if (button) button.disabled = false;
         showToast(error.message, 'error');
@@ -113,7 +101,7 @@
   function renderRecoveryRequest() {
     rendering = true;
     overlay.classList.remove('hidden');
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe o e-mail vinculado ao administrador desta instalação.</p><form id="password-recovery-request-form"><div class="field"><label>E-mail</label><input name="recoveryEmail" type="email" autocomplete="email" required></div><button class="primary-button" type="submit">Enviar código</button><button class="secondary-button" type="button" data-back-login>Voltar</button></form></section>`;
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe o e-mail vinculado ao administrador desta instalação.</p><form id="password-recovery-request-form"><div class="field"><label>E-mail</label><input name="recoveryEmail" type="email" autocomplete="email" required></div><button class="primary-button" type="submit">Solicitar recuperação</button><button class="secondary-button" type="button" data-back-login>Voltar</button></form></section>`;
     overlay.querySelector('[data-back-login]')?.addEventListener('click', () => window.location.reload());
     const form = overlay.querySelector('#password-recovery-request-form');
     form?.addEventListener('submit', async (event) => {
@@ -123,7 +111,7 @@
       if (button) button.disabled = true;
       try {
         const result = await api.requestPasswordRecovery({ email });
-        showToast(result?.message || 'Se o e-mail estiver cadastrado, o código será enviado.', 'success');
+        showToast(result?.message || 'Solicite o código de recuperação ao administrador ArtiSys.', 'success');
         renderRecoveryConfirm(email);
       } catch (error) {
         if (button) button.disabled = false;
@@ -135,7 +123,7 @@
 
   function renderRecoveryConfirm(email) {
     rendering = true;
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe o código recebido por e-mail e crie uma nova senha local.</p><form id="password-recovery-confirm-form"><div class="field"><label>Código</label><input name="recoveryCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><div class="field"><label>Nova senha</label><input name="newPassword" type="password" autocomplete="new-password" minlength="10" required></div><div class="field"><label>Confirmar nova senha</label><input name="newPasswordConfirm" type="password" autocomplete="new-password" minlength="10" required></div><button class="primary-button" type="submit">Alterar senha</button><button class="secondary-button" type="button" data-resend>Enviar novo código</button></form></section>`;
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe o código de recuperação fornecido pelo administrador ArtiSys e crie uma nova senha local.</p><form id="password-recovery-confirm-form"><div class="field"><label>Código</label><input name="recoveryCode" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><div class="field"><label>Nova senha</label><input name="newPassword" type="password" autocomplete="new-password" minlength="10" required></div><div class="field"><label>Confirmar nova senha</label><input name="newPasswordConfirm" type="password" autocomplete="new-password" minlength="10" required></div><button class="primary-button" type="submit">Alterar senha</button><button class="secondary-button" type="button" data-resend>Solicitar outro código</button></form></section>`;
     overlay.querySelector('[data-resend]')?.addEventListener('click', renderRecoveryRequest);
     const form = overlay.querySelector('#password-recovery-confirm-form');
     form?.addEventListener('submit', async (event) => {
