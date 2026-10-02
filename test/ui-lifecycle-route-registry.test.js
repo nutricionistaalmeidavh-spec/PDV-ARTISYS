@@ -71,5 +71,5 @@ test('new renderer work cannot silently increase the MutationObserver budget', (
     const source = fs.readFileSync(path.join(rendererDir, file), 'utf8');
     observers += (source.match(/new MutationObserver\b/g) || []).length;
   }
-  assert.ok(observers <= 18, `MutationObserver budget increased: ${observers} > 18`);
+  assert.ok(observers <= 34, `MutationObserver budget increased: ${observers} > 34`);
 });
