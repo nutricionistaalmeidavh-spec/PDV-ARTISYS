@@ -110,7 +110,7 @@ function createPdvRuntime({
   const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:resolveStockRequirements,now});
   const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,commercialPricingService:commercialPricing,now});
   const orders=createSalesOrderService({db,sales,logistics,now,idFactory});
-  const wholesale=createWholesaleService({modules,orders,pricing:commercialPricing,now});
+  const wholesale=createWholesaleService({db,modules,orders,pricing:commercialPricing,now});
   const returns=createReturnService({db,outbox,now,idFactory,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
   const finance=createFinanceService({db,now,idFactory});
   const procurement=createProcurementService({db,inventory,finance,now,idFactory});
