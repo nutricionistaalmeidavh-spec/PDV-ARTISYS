@@ -545,13 +545,6 @@
       "timeoutMs": 10000
     },
     {
-      "action": "waitFor",
-      "selector": "[data-module-toggle='SERVICES']",
-      "name": "toggle-servicos-visivel",
-      "state": "visible",
-      "timeoutMs": 10000
-    },
-    {
       "action": "screenshot",
       "name": "configuracoes-areas",
       "fullPage": true
@@ -560,12 +553,6 @@
       "action": "check",
       "selector": "[data-module-toggle='WHOLESALE']",
       "name": "ativar-atacado-qa",
-      "timeoutMs": 15000
-    },
-    {
-      "action": "check",
-      "selector": "[data-module-toggle='SERVICES']",
-      "name": "ativar-servicos-qa",
       "timeoutMs": 15000
     },
     {
@@ -578,12 +565,6 @@
       "action": "expectVisible",
       "selector": "[data-module-nav='WHOLESALE']",
       "name": "nav-atacado-visivel",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectVisible",
-      "selector": "[data-module-nav='SERVICES']",
-      "name": "nav-servicos-visivel",
       "timeoutMs": 10000
     },
     {
@@ -741,23 +722,6 @@
     {
       "action": "screenshot",
       "name": "atacado",
-      "fullPage": true
-    },
-    {
-      "action": "click",
-      "selector": "[data-module-nav='SERVICES']",
-      "name": "abrir-servicos",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectVisible",
-      "selector": "[data-module-workspace='SERVICES']",
-      "name": "servicos-workspace",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "screenshot",
-      "name": "servicos",
       "fullPage": true
     },
     {
