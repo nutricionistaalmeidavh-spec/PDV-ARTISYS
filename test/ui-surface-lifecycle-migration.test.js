@@ -23,13 +23,12 @@ test('checkout and settings enhancements consume semantic lifecycle instead of D
   }
 });
 
-test('settings hub keeps one bounded compatibility observer only while Settings is active', () => {
+test('settings hub is fully lifecycle-owned after P4 extensions migrate', () => {
   const source = read('desktop/renderer/settings-hub-ui.js');
   assert.match(source, /PdvUiLifecycle/);
-  assert.match(source, /legacyObserver=new MutationObserver\(schedule\)/);
-  assert.match(source, /legacyObserver\.observe\(content,\{childList:true,subtree:true\}\)/);
-  assert.match(source, /stopLegacyObserver/);
-  assert.match(source, /route:before/);
+  assert.match(source, /route:mounted/);
+  assert.match(source, /route:updated/);
+  assert.doesNotMatch(source, /MutationObserver|legacyObserver/);
 });
 
 test('canonical renderers publish checkout and settings update signals', () => {
