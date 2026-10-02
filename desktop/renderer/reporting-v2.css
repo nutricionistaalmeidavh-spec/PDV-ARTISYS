@@ -14,3 +14,12 @@
   .ops-table-wrap{overflow:visible!important}.ops-table{width:100%!important;min-width:0!important;border-collapse:collapse!important;font-size:7.7pt!important}.ops-table th,.ops-table td{color:#000!important;background:#fff!important;border-bottom:1px solid #bbb!important;padding:4px!important;white-space:normal!important}.ops-table thead{display:table-header-group}.ops-table tr{break-inside:avoid}
   .ops-muted,.ops-card p,.ops-metric small{color:#333!important}
 }
+
+.report-v2-period-presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.report-v2-period-presets .ops-secondary{min-height:36px;padding:7px 10px}
+.report-v2-tab:focus-visible{outline:2px solid var(--artisys-blue,#0b6cff);outline-offset:2px}
+.report-v2-tab[aria-selected="true"]{font-weight:700;border-color:currentColor;background:rgba(11,108,255,.06)}
+.report-v2-trace-actions{display:flex;justify-content:flex-end;margin:-4px 0 18px}
+.report-v2-products-table td:first-child{min-width:220px}
+.report-v2-products-table td:first-child small{white-space:normal}
+@media(max-width:700px){.report-v2-period-presets{display:grid;grid-template-columns:1fr 1fr}.report-v2-trace-actions{justify-content:stretch}.report-v2-trace-actions button{width:100%}}
