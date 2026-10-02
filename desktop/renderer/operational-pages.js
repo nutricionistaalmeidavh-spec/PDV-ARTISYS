@@ -6,6 +6,7 @@
   const api = new ApiClient();
   const ui = root.PdvUiModel;
   const ux = root.ArtisysUxComponents;
+  const modal = root.PdvModal;
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
   const OPERATIONAL_ROUTES = new Set(['inventory','cash','sales','returns','finance','reports','settings']);
@@ -20,6 +21,14 @@
   function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
   function empty(message){return `<div class="ops-empty">${escapeHtml(message)}</div>`;}
   function badge(value){const normalized=String(value||'').toLowerCase();return `<span class="ops-badge status-${escapeHtml(normalized)}">${escapeHtml(value||'—')}</span>`;}
+  const FINANCE_KIND_LABELS=Object.freeze({PAYABLE:'Conta a pagar',RECEIVABLE:'Conta a receber'});
+  const FINANCE_STATUS_LABELS=Object.freeze({OPEN:'Em aberto',PARTIAL:'Parcial',SETTLED:'Liquidado',CANCELLED:'Cancelado',OVERDUE:'Vencido'});
+  const FINANCE_METHOD_LABELS=Object.freeze({CASH:'Dinheiro',DINHEIRO:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',CARTAO:'Cartão',TRANSFERENCIA:'Transferência',BOLETO:'Boleto',MANUAL:'Manual',BANK_RECONCILIATION:'Conciliação bancária'});
+  function financeKindLabel(value){return FINANCE_KIND_LABELS[String(value||'').toUpperCase()]||String(value||'—');}
+  function financeStatusCode(row){return row?.isOverdue&&row?.status!=='SETTLED'&&row?.status!=='CANCELLED'?'OVERDUE':String(row?.status||'OPEN').toUpperCase();}
+  function financeStatusBadge(row){const code=financeStatusCode(row);return `<span class="ops-badge status-${escapeHtml(code.toLowerCase())}">${escapeHtml(FINANCE_STATUS_LABELS[code]||code)}</span>`;}
+  function financeMethodLabel(value){const code=String(value||'').toUpperCase();return FINANCE_METHOD_LABELS[code]||value||'Não informado';}
+  function dateOnly(value){if(!value)return '—';const text=String(value).slice(0,10);const date=new Date(`${text}T00:00:00.000Z`);return Number.isNaN(date.getTime())?escapeHtml(text):date.toLocaleDateString('pt-BR',{timeZone:'UTC'});}
   function metric(label,value,hint=''){return `<article class="ops-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${hint?`<small>${escapeHtml(hint)}</small>`:''}</article>`;}
   function page(title,subtitle,body,actions=''){return `<section class="ops-page"><header class="ops-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div><div class="ops-head-actions">${actions}</div></header>${body}</section>`;}
   async function ready(){if(!config)config=await api.initialize();return config;}
