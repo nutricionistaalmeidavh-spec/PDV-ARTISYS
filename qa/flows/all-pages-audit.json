@@ -227,8 +227,15 @@
     },
     {
       "action": "click",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close[data-close-modal]",
       "name": "fechar-novo-cliente-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "modal-novo-cliente-fechado-p5",
+      "state": "hidden",
       "timeoutMs": 10000
     },
     {
