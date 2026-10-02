@@ -122,11 +122,11 @@
       rows:products,
       empty:{
         title:'Nenhum produto encontrado',
-        description:query || categoryId || stockFilter ? 'Revise a busca ou os filtros aplicados.' : 'Cadastre o primeiro produto para começar.'
+        description:query || categoryId || stockFilter ? 'Revise a busca ou os filtros aplicados.' : 'Adicione um produto do Estoque ou uma Ficha Técnica.'
       }
     });
 
-    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Cardápio</h1><p>Itens, preços, categorias e fichas técnicas; os insumos permanecem no Estoque.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo item</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
+    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Cardápio</h1><p>Escolha itens já cadastrados no Estoque ou Fichas Técnicas prontas. O Cardápio não cria produto-base.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo item</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
   }
 
   return Object.freeze({
