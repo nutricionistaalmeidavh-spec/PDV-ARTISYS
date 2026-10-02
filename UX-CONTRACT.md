@@ -79,7 +79,6 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Todo lançamento financeiro permite abrir detalhes e consultar o histórico completo de baixas, inclusive baixas estornadas. Estorno exige motivo e preserva a baixa original no histórico.
 - Filtros do Financeiro podem combinar busca, tipo, situação, vencimento, categoria e centro de custo. Valores técnicos como `PAYABLE`, `RECEIVABLE`, `OPEN`, `PARTIAL`, `SETTLED` e naturezas DRE não aparecem como rótulo normal para o usuário.
 - Grupos da DRE são os agrupadores apresentados na Gestão; categorias vinculadas ao mesmo grupo são consolidadas e a ordem configurada do grupo é respeitada. Cada grupo preserva referências aos lançamentos ou vendas que compõem o valor.
-- Na base Caixa, vendas registradas em `STORE_CREDIT` não são reconhecidas como receita recebida enquanto não houver recebimento financeiro efetivo. O valor ainda a prazo deve ser identificável no contexto da DRE.
 - A DRE pode ser exportada em CSV sem alterar seu cálculo e permite navegar para sua composição. Gestão e Relatórios possuem navegação explícita entre si sem duplicar regras de cálculo.
 - Relatórios comerciais oferecem atalhos de período, abas acessíveis por teclado e drill-down das linhas de cliente, produto e meio de pagamento para as vendas de origem.
 - A tabela principal de produtos prioriza quantidade líquida, receita líquida, custo, margem e margem percentual. O CSV continua preservando o detalhamento analítico completo.
