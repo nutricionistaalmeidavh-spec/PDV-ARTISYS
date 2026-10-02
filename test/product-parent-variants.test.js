@@ -8,7 +8,7 @@ const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 
-test('parent product variants work without enabling the optional RETAIL module',()=>{
+test('parent product variants work as a Core capability without any retail module',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-parent-variants-'));
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
