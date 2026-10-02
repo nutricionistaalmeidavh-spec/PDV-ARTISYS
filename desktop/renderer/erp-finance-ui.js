@@ -68,14 +68,5 @@
     document.getElementById('erp-cost-center-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);const name=String(form.get('name')||'').trim();if(!name){toast('Informe o nome do centro de custo.','error');return;}try{await api.saveCostCenter({name});toast('Centro de custo criado.','success');await renderManagement({from,to,basis});}catch(error){toast(error.message,'error');}});
   }
 
-  async function enhanceFinancePage(){
-    const form=document.getElementById('ops-finance-form');
-    if(!form||form.dataset.erpEnhanced)return;
-    const category=form.querySelector('[name="categoryId"]');
-    const costCenter=form.querySelector('[name="costCenterId"]');
-    const competency=form.querySelector('[name="competencyDate"]');
-    if(!category||!costCenter||!competency)return;
-    form.dataset.erpEnhanced='1';
-  }
-  root.PdvErpFinanceUi=Object.freeze({renderManagement,enhanceFinancePage});
+  root.PdvErpFinanceUi=Object.freeze({renderManagement});
 })();

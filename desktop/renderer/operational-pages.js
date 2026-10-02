@@ -12,6 +12,8 @@
   const routeRegistry = root.PdvRouteRegistry;
   if (!routeRegistry) throw new Error('PdvRouteRegistry must load before operational-pages.js.');
   let config = null;
+  const EMPTY_FINANCE_FILTERS=Object.freeze({query:'',kind:'',status:'',fromDate:'',toDate:'',categoryId:'',costCenterId:''});
+  let financeFilterState={...EMPTY_FINANCE_FILTERS};
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
   function money(value){return ui?.formatCents ? ui.formatCents(value) : (Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
@@ -97,9 +99,8 @@
     document.getElementById('ops-return-form')?.addEventListener('submit',async event=>{event.preventDefault();if(!loadedSale){showToast('Carregue a venda antes de concluir.','error');return;}const form=new FormData(event.currentTarget);const items=[];let total=0;content.querySelectorAll('[data-return-item]:checked').forEach(check=>{const id=check.dataset.returnItem;const quantity=Number(content.querySelector(`[data-return-qty="${CSS.escape(id)}"]`)?.value||0);if(quantity>0){items.push({saleItemId:id,quantity});total+=Math.round(Number(check.dataset.price||0)*quantity);}});if(!items.length){showToast('Selecione ao menos um item.','error');return;}try{await api.createReturn({saleId:loadedSale.id,items,refunds:[{method:form.get('method'),amountCents:total}],reason:form.get('reason')});showToast('Devolução concluída.','success');await renderReturns();}catch(error){showToast(error.message,'error');}});
   }
 
-  async function renderFinance(filters={}){
-    await ready();
-    const state={
+  function normalizeFinanceFilters(filters={}){
+    return{
       query:String(filters.query||''),
       kind:String(filters.kind||''),
       status:String(filters.status||''),
@@ -108,6 +109,17 @@
       categoryId:String(filters.categoryId||''),
       costCenterId:String(filters.costCenterId||'')
     };
+  }
+  function restoreFinanceFilterFocus(name){
+    if(!name)return;
+    const form=document.getElementById('ops-finance-filter');
+    form?.elements?.namedItem?.(name)?.focus?.({preventScroll:true});
+  }
+
+  async function renderFinance(filters=null){
+    await ready();
+    const state=normalizeFinanceFilters(filters===null?financeFilterState:filters);
+    financeFilterState={...state};
     const entryFilters={};
     if(state.query)entryFilters.query=state.query;
     if(state.kind)entryFilters.kind=state.kind;
@@ -124,10 +136,11 @@
     const categoryById=new Map(categories.map(row=>[String(row.id),row]));
     const centerById=new Map(centers.map(row=>[String(row.id),row]));
     const received=Number(summary.receivableSettledCents||0),paid=Number(summary.payableSettledCents||0);
+    const activeFilterCount=Object.values(state).filter(Boolean).length;
     const todayDate=new Date().toISOString().slice(0,10);
     const filterOptions=(rows,selected)=>rows.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===selected?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
     const body=`<div class="ops-metrics">${metric('A pagar',money(summary.payableOpenCents||0),`Vencido ${money(summary.overduePayableCents||0)}`)}${metric('A receber',money(summary.receivableOpenCents||0),`Vencido ${money(summary.overdueReceivableCents||0)}`)}${metric('Recebido',money(received))}${metric('Pago',money(paid))}${metric('Fluxo realizado',money(received-paid),'Recebido menos pago')}</div>
-      <section class="ops-card ops-finance-filter-card"><form id="ops-finance-filter" class="ops-finance-filter" novalidate>
+      <section class="ops-card ops-finance-filter-card"><form id="ops-finance-filter" class="ops-finance-filter" aria-label="Filtrar lançamentos financeiros" novalidate>
         <label>Buscar<input name="query" class="ops-input" type="search" value="${escapeHtml(state.query)}" placeholder="Descrição do lançamento"></label>
         <label>Tipo<select name="kind" class="ops-input"><option value="">Todos</option><option value="PAYABLE" ${state.kind==='PAYABLE'?'selected':''}>Conta a pagar</option><option value="RECEIVABLE" ${state.kind==='RECEIVABLE'?'selected':''}>Conta a receber</option></select></label>
         <label>Situação<select name="status" class="ops-input"><option value="">Todas</option><option value="OPEN" ${state.status==='OPEN'?'selected':''}>Em aberto</option><option value="PARTIAL" ${state.status==='PARTIAL'?'selected':''}>Parcial</option><option value="SETTLED" ${state.status==='SETTLED'?'selected':''}>Liquidado</option><option value="OVERDUE" ${state.status==='OVERDUE'?'selected':''}>Vencido</option><option value="CANCELLED" ${state.status==='CANCELLED'?'selected':''}>Cancelado</option></select></label>
@@ -148,18 +161,25 @@
         <label>Vencimento<input name="dueAt" type="date" class="ops-input" required></label>
         <button class="ops-primary" type="submit">Criar lançamento</button>
       </form></section>
-      <section class="ops-card grow"><div class="ops-card-head"><div><h2>Lançamentos</h2><p>${entries.length} registro${entries.length===1?'':'s'} no recorte atual</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vencimento</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Em aberto</th><th>Status</th><th></th></tr></thead><tbody>${entries.map(row=>`<tr><td>${dateOnly(row.dueAt)}</td><td><strong>${escapeHtml(row.description)}</strong><small>${escapeHtml(categoryById.get(String(row.categoryId))?.name||row.category||'Sem categoria')}</small></td><td>${escapeHtml(financeKindLabel(row.kind))}</td><td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${financeStatusBadge(row)}</td><td><div class="ops-row-actions"><button class="ops-link" data-finance-detail="${escapeHtml(row.id)}">Detalhes</button>${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${escapeHtml(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-finance-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="7">${empty('Nenhum lançamento financeiro neste recorte.')}</td></tr>`}</tbody></table></div></section></div>`;
+      <section class="ops-card grow"><div class="ops-card-head"><div><h2>Lançamentos</h2><p id="ops-finance-results-summary" aria-live="polite">${entries.length} registro${entries.length===1?'':'s'} no recorte atual${activeFilterCount?` · ${activeFilterCount} filtro${activeFilterCount===1?'':'s'} ativo${activeFilterCount===1?'':'s'}`:''}</p></div></div><div class="ops-table-wrap"><table class="ops-table" aria-describedby="ops-finance-results-summary"><caption class="ops-sr-only">Lançamentos financeiros</caption><thead><tr><th scope="col">Vencimento</th><th scope="col">Descrição</th><th scope="col">Tipo</th><th scope="col">Valor</th><th scope="col">Em aberto</th><th scope="col">Status</th><th scope="col"><span class="ops-sr-only">Ações</span></th></tr></thead><tbody>${entries.map(row=>`<tr><td>${dateOnly(row.dueAt)}</td><td><strong>${escapeHtml(row.description)}</strong><small>${escapeHtml(categoryById.get(String(row.categoryId))?.name||row.category||'Sem categoria')}</small></td><td>${escapeHtml(financeKindLabel(row.kind))}</td><td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${financeStatusBadge(row)}</td><td><div class="ops-row-actions"><button class="ops-link" data-finance-detail="${escapeHtml(row.id)}">Detalhes</button>${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${escapeHtml(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-finance-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="7">${empty('Nenhum lançamento financeiro neste recorte.')}</td></tr>`}</tbody></table></div></section></div>`;
     if(!routeActive('finance'))return;
-    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais, histórico e rastreabilidade.',body);
+    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais, histórico e rastreabilidade.',`${root.PdvFinanceOperationsUi?.navigation?.('finance')||''}${body}`);
+    root.PdvFinanceOperationsUi?.bindNavigation?.(content);
 
     const renderWithState=next=>renderFinance({...state,...next});
-    document.getElementById('ops-finance-filter')?.addEventListener('submit',event=>{
-      event.preventDefault();const form=new FormData(event.currentTarget);
+    document.getElementById('ops-finance-filter')?.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const focusName=String(document.activeElement?.name||'query');
+      const form=new FormData(event.currentTarget);
       const fromDate=String(form.get('fromDate')||''),toDate=String(form.get('toDate')||'');
       if(fromDate&&toDate&&fromDate>toDate){showToast('A data inicial não pode ser posterior à data final.','error');return;}
-      void renderFinance({query:form.get('query'),kind:form.get('kind'),status:form.get('status'),fromDate,toDate,categoryId:form.get('categoryId'),costCenterId:form.get('costCenterId')});
+      await renderFinance({query:form.get('query'),kind:form.get('kind'),status:form.get('status'),fromDate,toDate,categoryId:form.get('categoryId'),costCenterId:form.get('costCenterId')});
+      restoreFinanceFilterFocus(focusName);
     });
-    document.getElementById('ops-finance-filter-clear')?.addEventListener('click',()=>void renderFinance({}));
+    document.getElementById('ops-finance-filter-clear')?.addEventListener('click',async()=>{
+      await renderFinance({...EMPTY_FINANCE_FILTERS});
+      restoreFinanceFilterFocus('query');
+    });
 
     document.getElementById('ops-finance-form')?.addEventListener('submit',async event=>{
       event.preventDefault();const form=new FormData(event.currentTarget);
@@ -187,6 +207,26 @@
       if(result.confirmed){showToast('Baixa estornada.','success');await renderWithState({});}
     }
 
+    async function editFinanceDimensions(entry){
+      if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
+      modal?.close?.();
+      const competencyValue=String(entry.competencyDate||entry.dueAt||'').slice(0,10);
+      const result=await ux.openFormDialog({
+        title:'Editar classificação',
+        description:`${entry.description} · a classificação alimenta DRE e análises gerenciais.`,
+        confirmLabel:'Salvar classificação',
+        body:`<label>Categoria gerencial<select name="categoryId" class="ops-input"><option value="">Sem categoria</option>${categories.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===String(entry.categoryId||'')?'selected':''}>${escapeHtml(row.name)}</option>`).join('')}</select></label>
+          <label>Centro de custo<select name="costCenterId" class="ops-input"><option value="">Sem centro</option>${centers.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===String(entry.costCenterId||'')?'selected':''}>${escapeHtml(row.name)}</option>`).join('')}</select></label>
+          <label>Competência<input name="competencyDate" type="date" class="ops-input" value="${escapeHtml(competencyValue)}"></label>`,
+        onConfirm:data=>api.updateFinanceDimensions(entry.id,{
+          categoryId:data.categoryId||null,
+          costCenterId:data.costCenterId||null,
+          competencyDate:data.competencyDate||null
+        })
+      });
+      if(result.confirmed){showToast('Classificação atualizada.','success');await renderWithState({});}
+    }
+
     async function openFinanceDetail(entryId){
       if(!modal?.open){showToast('Detalhes indisponíveis.','error');return;}
       try{
@@ -194,8 +234,9 @@
         const category=categoryById.get(String(entry.categoryId)),center=centerById.get(String(entry.costCenterId));
         const history=entry.settlementHistory||entry.settlements||[];
         const historyHtml=history.length?history.slice().reverse().map(item=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${money(item.amountCents)} · ${escapeHtml(financeMethodLabel(item.method))}</strong><small>${when(item.createdAt)}${item.note?` · ${escapeHtml(item.note)}`:''}${item.reversedAt?` · Estornada em ${when(item.reversedAt)}`:''}</small></div>${!item.reversedAt?`<button class="ops-secondary" type="button" data-finance-reverse="${escapeHtml(item.id)}">Estornar</button>`:`<span class="ops-badge status-cancelled">Estornada</span>`}</div>`).join(''):'<div class="ops-empty">Nenhuma baixa registrada.</div>';
-        const body=`<div class="ops-details"><div><dt>Tipo</dt><dd>${escapeHtml(financeKindLabel(entry.kind))}</dd></div><div><dt>Situação</dt><dd>${escapeHtml(FINANCE_STATUS_LABELS[financeStatusCode(entry)]||financeStatusCode(entry))}</dd></div><div><dt>Valor</dt><dd>${money(entry.amountCents)}</dd></div><div><dt>Em aberto</dt><dd>${money(entry.openCents)}</dd></div><div><dt>Vencimento</dt><dd>${dateOnly(entry.dueAt)}</dd></div><div><dt>Competência</dt><dd>${dateOnly(entry.competencyDate)}</dd></div><div><dt>Categoria</dt><dd>${escapeHtml(category?.name||entry.category||'Sem categoria')}</dd></div><div><dt>Centro de custo</dt><dd>${escapeHtml(center?.name||'Sem centro')}</dd></div><div><dt>Origem</dt><dd>${escapeHtml([entry.sourceType,entry.sourceId].filter(Boolean).join(' · ')||'Lançamento manual')}</dd></div></div><h3>Histórico de baixas</h3><div id="ops-finance-settlement-history">${historyHtml}</div>`;
+        const body=`<div class="ops-details"><div><dt>Tipo</dt><dd>${escapeHtml(financeKindLabel(entry.kind))}</dd></div><div><dt>Situação</dt><dd>${escapeHtml(FINANCE_STATUS_LABELS[financeStatusCode(entry)]||financeStatusCode(entry))}</dd></div><div><dt>Valor</dt><dd>${money(entry.amountCents)}</dd></div><div><dt>Em aberto</dt><dd>${money(entry.openCents)}</dd></div><div><dt>Vencimento</dt><dd>${dateOnly(entry.dueAt)}</dd></div><div><dt>Competência</dt><dd>${dateOnly(entry.competencyDate)}</dd></div><div><dt>Categoria</dt><dd>${escapeHtml(category?.name||entry.category||'Sem categoria')}</dd></div><div><dt>Centro de custo</dt><dd>${escapeHtml(center?.name||'Sem centro')}</dd></div><div><dt>Origem</dt><dd>${escapeHtml([entry.sourceType,entry.sourceId].filter(Boolean).join(' · ')||'Lançamento manual')}</dd></div></div><div class="ops-actions"><button class="ops-secondary" type="button" data-finance-classify>Editar classificação</button></div><h3>Histórico de baixas</h3><div id="ops-finance-settlement-history">${historyHtml}</div>`;
         modal.open(entry.description,body,{wide:true,onMount(modalRoot){
+          modalRoot.querySelector('[data-finance-classify]')?.addEventListener('click',()=>void editFinanceDimensions(entry));
           modalRoot.querySelectorAll('[data-finance-reverse]').forEach(button=>button.addEventListener('click',()=>{
             const settlement=history.find(item=>String(item.id)===String(button.dataset.financeReverse));
             if(settlement)void reverseSettlement(entry,settlement);
