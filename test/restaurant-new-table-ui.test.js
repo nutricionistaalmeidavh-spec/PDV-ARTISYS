@@ -63,3 +63,21 @@ test('operacao e configuracao do restaurante sao superficies distintas',()=>{
   assert.match(source,/Configuração do restaurante/);
   assert.match(source,/data-new-table/);
 });
+
+
+test('abertura e comanda expõem pessoas cliente e estado de produção no salão',()=>{
+  assert.match(source,/name="partySize"/);
+  assert.match(source,/name="customerId"/);
+  assert.match(source,/productionStatus/);
+  assert.match(source,/readyItems/);
+  assert.match(source,/restaurant-session-details-form/);
+});
+
+test('desktop usa o compositor compartilhado em vez de estado de carrinho próprio',()=>{
+  const html=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
+  const shared=fs.readFileSync(path.join(root,'shared/order-composer.js'),'utf8');
+  assert.match(html,/shared\/order-composer\.js/);
+  assert.match(source,/PdvOrderComposer/);
+  assert.match(shared,/createCart/);
+  assert.match(shared,/toOrderItems/);
+});
