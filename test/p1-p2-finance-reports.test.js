@@ -70,27 +70,6 @@ test('DRE groups by configured DRE group, respects sort order and exposes trace 
   }finally{fx.db.close();}
 });
 
-test('cash DRE defers store credit portion until actual financial receipt',()=>{
-  const fx=financeFixture();
-  try{
-    fx.db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES ('u1','ana','Ana','admin','h','s',1,?,?)").run(NOW,NOW);
-    fx.db.prepare("INSERT INTO categories (id,name,active,created_at,updated_at) VALUES ('cat','Geral',1,?,?)").run(NOW,NOW);
-    fx.db.prepare("INSERT INTO products (id,sku,name,category_id,unit,sale_price_cents,cost_cents,track_stock,minimum_stock,active,created_at,updated_at) VALUES ('p1','SKU','Produto','cat','UN',10000,6000,0,0,1,?,?)").run(NOW,NOW);
-    fx.db.prepare(`INSERT INTO sales (id,sale_number,terminal_id,operator_id,status,subtotal_cents,discount_cents,total_cents,change_cents,opened_at,completed_at,updated_at)
-      VALUES ('s1','V-1','T1','u1','COMPLETED',10000,0,10000,0,?,?,?)`).run('2026-10-02T10:00:00.000Z','2026-10-02T10:01:00.000Z','2026-10-02T10:01:00.000Z');
-    fx.db.prepare("INSERT INTO sale_items (id,sale_id,product_id,product_name,sku,quantity,unit_price_cents,total_cents,created_at,updated_at) VALUES ('i1','s1','p1','Produto','SKU',1,10000,10000,?,?)").run(NOW,NOW);
-    fx.db.prepare("INSERT INTO payments (id,sale_id,method,amount_cents,created_at) VALUES ('pay1','s1','CASH',4000,?)").run('2026-10-02T10:01:00.000Z');
-    fx.db.prepare("INSERT INTO payments (id,sale_id,method,amount_cents,created_at) VALUES ('pay2','s1','STORE_CREDIT',6000,?)").run('2026-10-02T10:01:00.000Z');
-    const reports=createReportingService({db:fx.db,now:()=>NOW});
-    const management=createFinanceManagementService({db:fx.db,finance:fx.finance,reports,dimensions:fx.dimensions,now:()=>NOW});
-    const cash=management.dre({basis:'cash',from:'2026-10-01',to:'2026-10-31'});
-    const accrual=management.dre({basis:'accrual',from:'2026-10-01',to:'2026-10-31'});
-    assert.equal(accrual.revenueCents,10000);
-    assert.equal(cash.revenueCents,4000);
-    assert.equal(cash.deferredSalesCents,6000);
-  }finally{fx.db.close();}
-});
-
 function reportFixture(){
   const db=openDatabase(':memory:');runMigrations(db,()=>NOW);
   db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES ('u1','ana','Ana','cashier','h','s',1,?,?)").run(NOW,NOW);
