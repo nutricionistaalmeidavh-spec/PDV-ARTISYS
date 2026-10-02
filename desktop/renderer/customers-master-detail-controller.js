@@ -331,11 +331,14 @@
     if (page) selectCustomer(page, row.dataset.customerId);
   });
 
-  const onRouteChange = ({ route }) => {
+  const onRouteMounted = ({ route }) => {
     if (route === 'customers') scheduleDecorate({ forceData:true });
   };
-  lifecycle.on('route:mounted', onRouteChange);
-  lifecycle.on('route:updated', onRouteChange);
+  const onRouteUpdated = ({ route, surface }) => {
+    if (route === 'customers') scheduleDecorate({ forceData:surface === 'customers' });
+  };
+  lifecycle.on('route:mounted', onRouteMounted);
+  lifecycle.on('route:updated', onRouteUpdated);
   if (document.body.dataset.activeRoute === 'customers') scheduleDecorate({ forceData:true });
   window.PdvCustomersMasterDetailController = Object.freeze({ render:decorateCustomers, refresh:() => scheduleDecorate({ forceData:true }) });
 })();
