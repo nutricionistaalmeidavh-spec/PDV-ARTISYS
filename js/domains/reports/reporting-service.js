@@ -420,6 +420,47 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     return result;
   }
 
+  function buildSalesDetails(filters = {}) {
+    const saleIds = Array.isArray(filters.saleIds)
+      ? new Set(filters.saleIds.map(String))
+      : new Set(String(filters.saleIds || '').split(',').map(value=>value.trim()).filter(Boolean));
+    let rows = completedSales(filters);
+    if (saleIds.size) rows = rows.filter(row=>saleIds.has(String(row.id)));
+    if (filters.customerId) {
+      const customerId=String(filters.customerId);
+      rows=rows.filter(row=>customerId==='__WALK_IN__'?!row.customer_id:String(row.customer_id||'')===customerId);
+    }
+    if (filters.productId) {
+      const productId=String(filters.productId);
+      const hasProduct=db.prepare('SELECT 1 FROM sale_items WHERE sale_id=? AND product_id=? LIMIT 1');
+      rows=rows.filter(row=>Boolean(hasProduct.get(row.id,productId)));
+    }
+    if (filters.paymentMethod) {
+      const method=String(filters.paymentMethod).toUpperCase();
+      const hasPayment=db.prepare('SELECT 1 FROM payments WHERE sale_id=? AND method=? LIMIT 1');
+      rows=rows.filter(row=>Boolean(hasPayment.get(row.id,method)));
+    }
+    const itemQuery=db.prepare(`SELECT id,product_id AS productId,product_name AS productName,sku,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents
+      FROM sale_items WHERE sale_id=? ORDER BY created_at,id`);
+    const paymentQuery=db.prepare('SELECT id,method,amount_cents AS amountCents,created_at AS createdAt FROM payments WHERE sale_id=? ORDER BY created_at,id');
+    return rows.map(row=>({
+      saleId:row.id,
+      saleNumber:row.sale_number,
+      completedAt:row.completed_at,
+      customerId:row.customer_id||null,
+      customerName:row.customer_name||'Consumidor não identificado',
+      sellerId:row.resolved_seller_id||row.operator_id||null,
+      sellerName:row.seller_name||row.operator_name||'Não identificado',
+      operatorId:row.operator_id||null,
+      operatorName:row.operator_name||'Não identificado',
+      totalCents:Number(row.total_cents||0),
+      subtotalCents:Number(row.subtotal_cents||0),
+      discountCents:Number(row.discount_cents||0),
+      items:itemQuery.all(row.id).map(item=>({...item,quantity:roundQty(item.quantity),unitPriceCents:Number(item.unitPriceCents||0),totalCents:Number(item.totalCents||0)})),
+      payments:paymentQuery.all(row.id).map(payment=>({...payment,amountCents:Number(payment.amountCents||0)}))
+    }));
+  }
+
   function exportSalesCsv(filters = {}) {
     const rows = [...completedSales(filters),...cancelledSales(filters)].sort((a,b) => String(a.completed_at || a.cancelled_at).localeCompare(String(b.completed_at || b.cancelled_at)) || a.id.localeCompare(b.id));
     const lines = ['venda;data;operador;status;total_centavos;formas_pagamento;cliente;vendedor_garcom;motivo_cancelamento'];
@@ -430,7 +471,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     return `${lines.join('\n')}\n`;
   }
 
-  return { buildSalesSummary,buildInventorySummary,buildCashSummary,buildFinanceSummary,exportSalesCsv };
+  return { buildSalesSummary,buildSalesDetails,buildInventorySummary,buildCashSummary,buildFinanceSummary,exportSalesCsv };
 }
 
 module.exports = { createReportingService,csvCell };
