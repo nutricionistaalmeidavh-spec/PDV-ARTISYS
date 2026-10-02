@@ -4,7 +4,7 @@
   --navy: #081a35;
   --navy-2: #102a52;
   --ink: #10172f;
-  --muted: #71809f;
+  --muted: #62718d;
   --line: #dfe6f1;
   --surface: #ffffff;
   --surface-soft: #f6f8fc;
@@ -110,7 +110,7 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
 .page-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
 .page-head h1 { margin: 0 0 4px; font-size: 31px; }
 .page-head p { margin: 0; color: var(--muted); }
-.primary-button, .secondary-button, .danger-button { border: 0; border-radius: 11px; padding: 12px 18px; font-weight: 750; }
+.primary-button, .secondary-button, .danger-button { min-height: 44px; border: 0; border-radius: 11px; padding: 12px 18px; font-weight: 750; }
 .primary-button { background: var(--artisys-blue); color: white; box-shadow: 0 7px 18px rgba(11,108,255,.24); }
 .secondary-button { background: #eef4fb; color: #1c355f; }
 .danger-button { background: #fff0f2; color: var(--danger); }
@@ -194,10 +194,11 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
 .finalize-button { margin: 0 12px 13px; border: 0; border-radius: 9px; min-height: 55px; background: linear-gradient(135deg, #0a7df2, #0969e9); color: white; font-size: 18px; font-weight: 800; }
 .overlay { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(6,19,40,.58); backdrop-filter: blur(5px); }
 .modal-card, .auth-card { width: min(650px, calc(100vw - 40px)); max-height: calc(100vh - 50px); overflow: auto; border-radius: 18px; background: white; box-shadow: 0 28px 70px rgba(0,0,0,.25); padding: 24px; }
+.modal-card.modal-wide { width: min(1040px, calc(100vw - 48px)); }
 .auth-card { width: 420px; }
 .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
 .modal-head h2 { margin: 0; }
-.modal-close { border: 0; background: #eef2f7; width: 34px; height: 34px; border-radius: 9px; }
+.modal-close { border: 0; background: #eef2f7; width: 44px; height: 44px; border-radius: 11px; font-size: 22px; line-height: 1; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
 .auth-logo { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(145deg, #0a6cff, #12335f); color: white; display: grid; place-items: center; font-size: 29px; font-weight: 900; margin-bottom: 18px; }
 .auth-card h1 { margin: 0 0 8px; }
@@ -220,4 +221,76 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
   .checkout-layout { grid-template-columns: minmax(0, 1.45fr) 360px; }
   .product-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .topbar-context .context-pill:nth-of-type(2) { display: none; }
+}
+
+
+/* Cardápio / ficha técnica — clareza, alvos e foco */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(11,108,255,.38);
+  outline-offset: 2px;
+}
+.menu-head-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.menu-source-help { margin:0 0 16px; color:#53627f; line-height:1.5; }
+.menu-source-note { margin:10px 0 0; padding:9px 11px; border-radius:9px; background:#f5f8fc; color:#53627f; font-size:12px; }
+#menu-source-groups { display:grid; gap:16px; margin-top:16px; }
+.menu-source-group { overflow:hidden; border:1px solid var(--line); border-radius:14px; background:#fff; }
+.menu-source-group h3 { margin:0; padding:13px 16px; border-bottom:1px solid #e8edf4; background:#f7f9fc; font-size:15px; }
+.menu-source-row {
+  width:100%; min-height:64px; display:grid; grid-template-columns:minmax(0,1fr) auto;
+  gap:18px; align-items:center; padding:13px 16px; border:0; border-bottom:1px solid #edf1f6;
+  background:#fff; color:var(--ink); text-align:left;
+}
+.menu-source-row:last-child { border-bottom:0; }
+.menu-source-row:hover:not(:disabled) { background:#f6f9ff; }
+.menu-source-row:disabled { cursor:default; opacity:.68; background:#fafbfd; }
+.menu-source-copy { min-width:0; display:grid; gap:4px; }
+.menu-source-copy small { color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.menu-source-action { min-width:112px; padding:9px 12px; border-radius:9px; background:#eaf3ff; color:#075fc6; text-align:center; font-weight:800; }
+.menu-source-row:disabled .menu-source-action { background:#eef1f5; color:#68758a; }
+
+.recipe-section { margin-top:16px; padding:17px; border:1px solid #e1e7f0; border-radius:14px; background:#fff; }
+.recipe-section:first-child { margin-top:0; }
+.recipe-section h3 { margin:0 0 13px; font-size:17px; }
+.recipe-section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:12px; }
+.recipe-section-head h3 { margin:0; }
+.recipe-section-head p { margin:5px 0 0; color:#5f6f89; line-height:1.45; }
+.recipe-component-row {
+  display:grid; grid-template-columns:minmax(220px,2fr) minmax(90px,.65fr) minmax(82px,.55fr) minmax(105px,.72fr) minmax(90px,.6fr) minmax(92px,.62fr) auto;
+  gap:10px; align-items:end; padding:12px 0; border-top:1px solid #edf1f6;
+}
+.recipe-component-row:first-child { border-top:0; }
+.recipe-component-product { min-width:0; }
+.recipe-line-cost { display:grid; gap:5px; align-self:end; padding-bottom:10px; }
+.recipe-line-cost small { color:#53627f; font-size:12px; font-weight:700; }
+.recipe-line-cost strong { white-space:nowrap; }
+.recipe-remove { align-self:end; margin-bottom:0; }
+.recipe-summary-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.recipe-summary-grid article { min-width:0; padding:13px; border:1px solid #e3e9f2; border-radius:11px; background:#f8fafc; }
+.recipe-summary-grid small { display:block; color:#61708a; font-size:11px; font-weight:750; }
+.recipe-summary-grid strong { display:block; margin-top:5px; overflow-wrap:anywhere; font-size:16px; }
+.recipe-notes { margin-top:14px; padding:13px 15px; border-radius:11px; background:#f7f9fc; }
+.recipe-notes p { margin:6px 0 0; color:#53627f; white-space:pre-wrap; line-height:1.5; }
+.recipe-detail-components .data-row { grid-template-columns:minmax(0,1.4fr) minmax(130px,.7fr) minmax(130px,.7fr); }
+.field small { color:#60708a; line-height:1.35; }
+
+@media (max-width: 980px) {
+  .recipe-component-row { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .recipe-component-product { grid-column:1/-1; }
+  .recipe-line-cost,.recipe-remove { align-self:end; }
+  .recipe-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 680px) {
+  .modal-card.modal-wide { width:min(100% - 20px, 1040px); padding:18px; }
+  .recipe-component-row,.recipe-summary-grid { grid-template-columns:1fr; }
+  .recipe-component-product { grid-column:auto; }
+  .recipe-section-head { flex-direction:column; }
+  .menu-source-row { grid-template-columns:1fr; }
+  .menu-source-action { width:100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
 }
