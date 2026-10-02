@@ -112,6 +112,7 @@
     financeAccounts(includeInactive = false) { return this.request(`/api/v1/finance/accounts${includeInactive ? '?includeInactive=true' : ''}`); }
     createFinanceAccount(body) { return this.request('/api/v1/finance/accounts', { method:'POST', body }); }
     financeEntries(filters = {}) { return this.request(`/api/v1/finance/entries${this.params(filters)}`); }
+    financeEntry(id) { return this.request(`/api/v1/finance/entries/${encodeURIComponent(id)}`); }
     createFinanceEntry(body) { return this.request('/api/v1/finance/entries', { method:'POST', body }); }
     financeSummary(filters = {}) { return this.request(`/api/v1/finance/summary${this.params(filters)}`); }
     settleFinanceEntry(id, body) { return this.request(`/api/v1/finance/entries/${encodeURIComponent(id)}/settle`, { method:'POST', body }); }
@@ -119,6 +120,7 @@
     reverseFinanceSettlement(id, reason) { return this.request(`/api/v1/finance/settlements/${encodeURIComponent(id)}/reverse`, { method:'POST', body:{reason} }); }
 
     reportSales(filters = {}) { return this.request(`/api/v1/reports/sales${this.params(filters)}`); }
+    reportSalesDetails(filters = {}) { return this.request(`/api/v1/reports/sales/details${this.params(filters)}`); }
     reportInventory() { return this.request('/api/v1/reports/inventory'); }
     reportCash(filters = {}) { return this.request(`/api/v1/reports/cash${this.params(filters)}`); }
     reportFinance(filters = {}) { return this.request(`/api/v1/reports/finance${this.params(filters)}`); }
