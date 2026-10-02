@@ -14,7 +14,7 @@
     ['privacy','Privacidade e telemetria','Consentimento e diagnóstico anônimo'],
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
   ];
-  let active='company';let scheduled=false;let legacyObserver=null;
+  let active='company';let scheduled=false;
   const page=()=>{const node=content.querySelector('.ops-page');return node?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'?node:null;};
   const categoryFor=card=>{
     const declared=String(card.dataset.settingsCategory||'');
@@ -77,11 +77,8 @@
   }
   function mount(){scheduled=false;const root=page();if(!root)return;const hub=ensureHub(root);apply(root,hub);}
   const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(mount);};
-  const startLegacyObserver=()=>{if(legacyObserver)return;legacyObserver=new MutationObserver(schedule);legacyObserver.observe(content,{childList:true,subtree:true});};
-  const stopLegacyObserver=()=>{legacyObserver?.disconnect();legacyObserver=null;};
-  const onRouteChange=({route})=>{if(route==='settings'){startLegacyObserver();schedule();}else stopLegacyObserver();};
-  lifecycle.on('route:before',({route})=>{if(route!=='settings')stopLegacyObserver();});
+  const onRouteChange=({route})=>{if(route==='settings')schedule();};
   lifecycle.on('route:mounted',onRouteChange);
   lifecycle.on('route:updated',onRouteChange);
-  if(document.body.dataset.activeRoute==='settings'){startLegacyObserver();schedule();}
+  if(document.body.dataset.activeRoute==='settings')schedule();
 })();
