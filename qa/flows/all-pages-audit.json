@@ -617,7 +617,8 @@
             "productId": "qa-wholesale-product",
             "quantity": 12
           }
-        ]
+        ],
+        "expectedAt": "2026-10-08T17:00:00.000Z"
       }
     },
     {
