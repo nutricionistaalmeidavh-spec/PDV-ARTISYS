@@ -1190,6 +1190,64 @@
           "marker": "erp-generate-recurrences"
         }
       ]
+    },
+    {
+      "id": "finance.statement.history",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/statement-import.js",
+          "marker": "function listBatches"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/statements/:id"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "statementBatch=function"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "data-statement-batch"
+        }
+      ]
+    },
+    {
+      "id": "finance.alert.restore",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/finance-alerts.js",
+          "marker": "const unhide"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/alerts/:key/unhide"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "unhideFinanceAlert"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "data-alert-unhide"
+        }
+      ]
     }
   ]
 }
