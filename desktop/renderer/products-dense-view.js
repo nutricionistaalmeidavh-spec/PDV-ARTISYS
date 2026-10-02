@@ -18,6 +18,11 @@
 
   function productStatus(product = {}) {
     if (product.active === false) return { key:'inactive', label:'Inativo', tone:'muted' };
+    if (product.prepared) {
+      if (product.recipeStockStatus === 'OUT') return { key:'recipe-out', label:'Indisponível por insumo', tone:'danger' };
+      if (product.recipeStockStatus === 'LOW') return { key:'recipe-low', label:'Insumo baixo', tone:'warning' };
+      return { key:'recipe-ok', label:'Insumos OK', tone:'success' };
+    }
     if (product.trackStock === false) return { key:'uncontrolled', label:'Sem controle', tone:'info' };
     const stock = Number(product.stockQuantity || 0);
     const minimum = Math.max(Number(product.minimumStock || 0), 0);
@@ -68,7 +73,10 @@
             { value:'normal', label:'Normal' },
             { value:'low', label:'Baixo' },
             { value:'out', label:'Sem estoque' },
-            { value:'uncontrolled', label:'Sem controle' }
+            { value:'uncontrolled', label:'Sem controle' },
+            { value:'recipe-ok', label:'Ficha: insumos OK' },
+            { value:'recipe-low', label:'Ficha: insumo baixo' },
+            { value:'recipe-out', label:'Ficha: indisponível' }
           ]
         }
       ],
@@ -91,16 +99,13 @@
         key:'price',
         label:'Preço',
         align:'end',
-        render:product => {
-          const margin = Number(calculateMarginPercent(product.salePriceCents || 0, product.costCents || 0));
-          return `<div class="products-dense-price"><strong>${esc(formatCents(product.salePriceCents || 0))}</strong><small>Custo ${esc(formatCents(product.costCents || 0))} · Margem ${Number.isFinite(margin) ? margin.toFixed(2) : '0.00'}%</small></div>`;
-        }
+        render:product => `<div class="products-dense-price"><strong>${esc(formatCents(product.salePriceCents || 0))}</strong><small>Preço de venda</small></div>`
       },
       {
         key:'stock',
         label:'Estoque',
         align:'end',
-        render:product => `<div data-product-stock-cell><strong>${esc(quantityLabel(product.stockQuantity))} ${esc(product.unit || 'UN')}</strong><small>${product.trackStock === false ? 'Sem controle de estoque' : `Mín. ${esc(quantityLabel(product.minimumStock || 0))}`}</small></div>`
+        render:product => product.prepared ? `<div data-product-stock-cell><strong>Até ${esc(quantityLabel(product.recipeCapacity || 0))} porção(ões)</strong><small>Consumo pela ficha técnica</small></div>` : `<div data-product-stock-cell><strong>${esc(quantityLabel(product.stockQuantity))} ${esc(product.unit || 'UN')}</strong><small>${product.trackStock === false ? 'Venda sem saldo próprio' : `Mín. ${esc(quantityLabel(product.minimumStock || 0))}`}</small></div>`
       },
       {
         key:'status',
@@ -126,7 +131,7 @@
       }
     });
 
-    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Cardápio</h1><p>Escolha itens já cadastrados no Estoque ou Fichas Técnicas prontas. O Cardápio não cria produto-base.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos agora</button><button class="secondary-button" id="new-category">＋ Categoria</button><button class="primary-button" id="new-product">＋ Novo item</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
+    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Cardápio</h1><p>Itens disponíveis para venda, preços e categorias. Produtos e fichas são cadastrados no Estoque.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="sync-product-photos">↻ Sincronizar fotos</button><button class="secondary-button" id="new-category">+ Categoria</button><button class="primary-button" id="new-product">+ Novo item</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
   }
 
   return Object.freeze({

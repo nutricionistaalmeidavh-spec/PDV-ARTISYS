@@ -3,7 +3,7 @@
 .product-support-card details{height:100%}
 .product-support-card summary{display:flex;align-items:center;min-height:80px;padding:16px 20px;cursor:pointer;list-style:none;border-bottom:1px solid #e7edf6;background:linear-gradient(110deg,#f3f7ff,#fff)}
 .product-support-card summary::-webkit-details-marker{display:none}
-.product-support-card summary:after{content:'＋';margin-left:auto;color:#5064ef;font-size:22px;font-weight:700}
+.product-support-card summary:after{content:'+';margin-left:auto;color:#5064ef;font-size:22px;font-weight:700}
 .product-support-card details[open] summary:after{content:'−'}
 .product-support-card summary span,.product-support-card summary small{display:block}
 .product-support-card summary strong{font-size:20px;color:#172b4d}

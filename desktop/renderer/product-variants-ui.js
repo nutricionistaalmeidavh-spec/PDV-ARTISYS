@@ -75,7 +75,7 @@
       const title=row.querySelector('div:first-child strong');
       if(title&&list.length){const badge=document.createElement('span');badge.className='variant-parent-badge';badge.textContent=`Produto pai · ${activeList.length} variação${activeList.length===1?'':'ões'} ativa${activeList.length===1?'':'s'}`;title.insertAdjacentElement('afterend',badge);}
       const stockCell=row.querySelector('[data-product-stock-cell]')||row.children[2];if(stockCell&&list.length){const stockValue=stockCell.querySelector('strong');if(stockValue)stockValue.textContent=`${qty(totalStock)} ${product?.unit||'UN'}`;const label=document.createElement('small');label.className='variant-parent-stock';label.textContent='Estoque controlado nos subitens';stockCell.appendChild(label);}
-      const add=document.createElement('button');add.type='button';add.className='secondary-button variant-add-button';add.dataset.newProductVariant=productId;add.textContent='＋ Variação';edit.insertAdjacentElement('beforebegin',add);
+      const add=document.createElement('button');add.type='button';add.className='secondary-button variant-add-button';add.dataset.newProductVariant=productId;add.textContent='+ Variação';edit.insertAdjacentElement('beforebegin',add);
       let anchor=row;for(const variant of list){const wrapper=document.createElement('div');wrapper.innerHTML=variantRowHtml(variant);const child=wrapper.firstElementChild;anchor.insertAdjacentElement('afterend',child);anchor=child;}
     }
     const query=content.querySelector('#product-page-search')?.value||'';
@@ -126,7 +126,7 @@
     try{const sale=await currentOpenSale({create:true});await api.request(`/api/v1/product-variants/sales/${encodeURIComponent(sale.id)}/items`,{method:'POST',body:{variantId,quantity:1}});sessionStorage.setItem('artisys.productVariantSaleId',sale.id);selectedVariantItemId=null;closeModal();refreshCurrentRoute();toast('Variação adicionada.','success');}catch(error){toast(error.message,'error');}
   }
 
-  function directVariantCard(variant){const product=parent(variant.productId);return `<button type="button" class="product-card variant-product-card" data-direct-product-variant="${esc(variant.variantId)}"><div><div class="product-visual"><span>${esc(String(variant.name||'?').slice(0,2).toUpperCase())}</span></div><h3>${esc(product?.name||variant.productName)} — ${esc(variant.name)}</h3><small>${esc(variant.sku||variant.barcode||'Sem código')} · estoque ${qty(variant.quantity)}</small></div><strong>${money(variant.unitPriceCents)}<span class="add-cart">＋</span></strong></button>`;}
+  function directVariantCard(variant){const product=parent(variant.productId);return `<button type="button" class="product-card variant-product-card" data-direct-product-variant="${esc(variant.variantId)}"><div><div class="product-visual"><span>${esc(String(variant.name||'?').slice(0,2).toUpperCase())}</span></div><h3>${esc(product?.name||variant.productName)} — ${esc(variant.name)}</h3><small>${esc(variant.sku||variant.barcode||'Sem código')} · estoque ${qty(variant.quantity)}</small></div><strong>${money(variant.unitPriceCents)}<span class="add-cart">+</span></strong></button>`;}
 
   async function decorateCart(){
     const sale=await currentOpenSale({create:false});if(!sale)return;
