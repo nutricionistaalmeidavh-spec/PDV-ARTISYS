@@ -17,6 +17,8 @@
   let active='company';let scheduled=false;let legacyObserver=null;
   const page=()=>{const node=content.querySelector('.ops-page');return node?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'?node:null;};
   const categoryFor=card=>{
+    const declared=String(card.dataset.settingsCategory||'');
+    if(categories.some(([id])=>id===declared))return declared;
     if(card.id==='settings-team-access')return'team';
     if(card.id==='settings-data-server')return'units';
     if(card.id==='ops-establishment-modules-card')return'modules';
