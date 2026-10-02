@@ -253,6 +253,7 @@
     content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     hydrateProductPhotos();
     bindCheckoutEvents();
+    routeRegistry.updated('checkout', { surface:'checkout' });
   }
 
   function productCard(product) {
