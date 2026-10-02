@@ -5,6 +5,10 @@ on:
       - qa/all-screens-20261001
 permissions:
   contents: read
+
+concurrency:
+  group: qa-missing-desktop-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   capture-missing:
     runs-on: ubuntu-latest
