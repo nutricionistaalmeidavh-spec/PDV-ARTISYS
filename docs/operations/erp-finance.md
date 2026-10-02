@@ -50,4 +50,4 @@ npm run verify
 npm run verify:release
 ```
 
-Os fluxos E2E legados de UI continuam aposentados. O smoke atual `npm run qa:e2e:p0` executa `all-pages-audit` no Electron em 1366×768 e valida superfícies críticas/overflow com screenshots e trace; `qa:validate` continua verificando somente a configuração do harness.
+Os fluxos E2E legados de UI continuam aposentados. O gate atual `npm run qa:e2e:p0` executa `all-pages-audit` e o cenário transacional `restaurant-table-lifecycle` no Electron em 1366×768, com screenshots e trace; `qa:validate` continua verificando somente a configuração do harness.
