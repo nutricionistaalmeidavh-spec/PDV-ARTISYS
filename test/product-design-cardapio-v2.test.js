@@ -99,7 +99,7 @@ test('Cardapio UI exposes the corrected source model and complete technical shee
   assert.match(dense,/Indisponível por insumo/);
   assert.match(dense,/Insumo baixo/);
   assert.match(dense,/Insumos OK/);
-  assert.doesNotMatch(dense,/Sem controle/);
+  assert.ok(dense.indexOf("if (product.prepared)") < dense.indexOf("if (product.trackStock === false)"));
   assert.match(controller,/Ficha: insumos OK/);
   assert.match(styles,/\.modal-close[^}]*width: 44px/);
   assert.match(styles,/button:focus-visible/);
