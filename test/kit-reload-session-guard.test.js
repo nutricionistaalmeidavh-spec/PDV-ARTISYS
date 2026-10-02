@@ -20,6 +20,10 @@ test('kit reload keeps authentication overlay blocking until session restoration
   assert.ok(html.indexOf('./kits-combos-ui.js') < html.indexOf('./reload-transition-ui.js'));
 
   assert.match(kits, /setTimeout\(\(\)=>window\.location\.reload\(\),250\)/);
+  assert.match(kits, /PdvUiLifecycle/);
+  assert.match(kits, /route:mounted/);
+  assert.match(kits, /route:updated/);
+  assert.doesNotMatch(kits, /new MutationObserver/);
   assert.match(guard, /event\.target\?\.id !== 'kc-kit-form'/);
   assert.match(guard, /overlay\.classList\.remove\('hidden'\)/);
   assert.match(guard, /\.toast\.error/);
