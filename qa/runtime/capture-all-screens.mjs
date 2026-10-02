@@ -78,7 +78,7 @@ async function goHome(){
 }
 async function goHomeTile(route){
   await goHome();
-  if(!await visibleClick("[data-home-route='"+route+"']"))throw new Error('Home tile não encontrado: '+route);
+  if(!await visibleClick("[data-classic-route='"+route+"']")&&!await visibleClick("[data-home-route='"+route+"']"))throw new Error('Home tile não encontrado: '+route);
 }
 async function goSidebar(route){
   if(!await visibleClick("#sidebar-nav [data-route='"+route+"']")&&!await visibleClick("[data-route='"+route+"']"))throw new Error('Rota não encontrada: '+route);
@@ -141,14 +141,25 @@ if(table?.id)qr=await tryApi('/api/v1/vertical/self-service/public-ordering/tabl
 await page.reload({waitUntil:'domcontentloaded'});
 await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:15000}).catch(()=>{});
 await sleep(1400);
+await page.evaluate(async()=>{
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  if(!ApiClient)return;
+  const catalog=await new ApiClient().modules();
+  window.dispatchEvent(new CustomEvent('artisys:modules-state-changed',{detail:{catalog}}));
+});
+await sleep(500);
 
 await captureDesktop('inicio',goHome);
 await captureDesktop('balcao',()=>goHomeTile('checkout'));
 await captureDesktop('clientes',()=>goHomeTile('customers'));
 await captureDesktop('cliente-novo',async()=>{await goHomeTile('customers');await visibleClick('#new-customer');await page.locator('#customer-form').waitFor({state:'visible'});});
 await closeModal();
+await captureDesktop('cliente-editar',async()=>{await goHomeTile('customers');const edit=page.locator('[data-edit-customer]').first();if(await edit.count()){await edit.click();await page.locator('#customer-form').waitFor({state:'visible'});}else throw new Error('Cliente de demonstração não encontrado');});
+await closeModal();
 await captureDesktop('cardapio',()=>goHomeTile('products'));
 await captureDesktop('cardapio-novo-item',async()=>{await goHomeTile('products');await visibleClick('#new-product');await page.locator('#product-form').waitFor({state:'visible'});});
+await closeModal();
+await captureDesktop('cardapio-editar-item',async()=>{await goHomeTile('products');const edit=page.locator('[data-edit-product]').first();if(await edit.count()){await edit.click();await page.locator('#product-form').waitFor({state:'visible'});}else throw new Error('Produto de demonstração não encontrado');});
 await closeModal();
 await captureDesktop('cardapio-nova-categoria',async()=>{await goHomeTile('products');await visibleClick('#new-category');await page.locator('#category-form').waitFor({state:'visible'});});
 await closeModal();
@@ -175,17 +186,25 @@ await captureDesktop('configuracoes-modulos-expandido',async()=>{await goSidebar
 await captureDesktop('acesso-mobile-qr',async()=>{await goSidebar('settings');await page.locator("[data-settings-category='modules']").click();if(await page.locator('#ops-load-establishment-modules').isVisible())await page.locator('#ops-load-establishment-modules').click();await page.locator('#e53-access-card').click();});
 await captureDesktop('perifericos-diagnostico',async()=>{await goSidebar('settings');await page.locator("[data-settings-category='modules']").click();if(await page.locator('#ops-load-establishment-modules').isVisible())await page.locator('#ops-load-establishment-modules').click();await page.locator('#e54-hardware-card').click();});
 
-async function foodHub(){if(!await visibleClick("[data-module-nav='FOOD']"))throw new Error('Área Alimentação não encontrada');await page.locator('[data-module-area="FOOD"]').waitFor({state:'visible'});}
+async function openModule(id){
+  await page.evaluate(async moduleId=>{
+    if(!window.PdvVerticalModules?.openWorkspace)throw new Error('PdvVerticalModules indisponível');
+    await window.PdvVerticalModules.openWorkspace(moduleId);
+  },id);
+  await sleep(350);
+}
+async function foodHub(){await openModule('FOOD');await page.locator('[data-module-area="FOOD"]').waitFor({state:'visible'});}
 await captureDesktop('alimentacao-hub',foodHub);
 for(const [moduleId,name] of [['RESTAURANT','restaurante'],['PIZZERIA','pizzaria'],['DELIVERY','delivery'],['FAST_FOOD','fast-food'],['MARKET_BAKERY','mercado-padaria'],['SELF_SERVICE','autoatendimento']]){
-  await captureDesktop(name,async()=>{await foodHub();await page.locator("[data-food-open='"+moduleId+"']").click();});
+  await captureDesktop(name,()=>openModule(moduleId));
   if(moduleId==='RESTAURANT'){
-    await captureDesktop('restaurante-nova-mesa',async()=>{await foodHub();await page.locator("[data-food-open='RESTAURANT']").click();await page.locator('[data-new-table]').click();await page.locator('#restaurant-new-table-form').waitFor({state:'visible'});});
+    await captureDesktop('restaurante-comanda',async()=>{await openModule('RESTAURANT');const occupied=page.locator('.restaurant-table').filter({hasText:'Mesa 01'}).first();await occupied.click();await page.locator('#restaurant-detail .restaurant-card').waitFor({state:'visible'});});
+    await captureDesktop('restaurante-nova-mesa',async()=>{await openModule('RESTAURANT');await page.locator('[data-new-table]').click();await page.locator('#restaurant-new-table-form').waitFor({state:'visible'});});
     await visibleClick('[data-close-new-table]');
   }
 }
-await captureDesktop('varejo',async()=>{if(!await visibleClick("[data-module-nav='RETAIL']"))throw new Error('Varejo não encontrado');});
-await captureDesktop('servicos',async()=>{if(!await visibleClick("[data-module-nav='SERVICES']"))throw new Error('Serviços não encontrado');});
+await captureDesktop('varejo',()=>openModule('RETAIL'));
+await captureDesktop('servicos',()=>openModule('SERVICES'));
 
 await app.close().catch(()=>{});
 
