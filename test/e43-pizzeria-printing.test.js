@@ -13,7 +13,7 @@ test('E43 configured pizza reaches KDS and non-fiscal prints with size flavors a
   try{
     rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'1234567890'},admin);
     rt.catalog.upsertProduct({id:'pizza',name:'Pizza',salePriceCents:3000,trackStock:false},admin);
-    rt.modules.setEnabled('PIZZERIA',true,admin);
+    rt.modules.setEnabled('FOOD',true,admin);
     rt.pizzeria.upsertProfile({productId:'pizza',pricingPolicy:'HIGHEST_FLAVOR'},admin);
     rt.pizzeria.upsertSize({id:'g',productId:'pizza',name:'Grande',maxFlavors:2,priceDeltaCents:500},admin);
     rt.pizzeria.upsertFlavor({id:'cal',productId:'pizza',name:'Calabresa',priceDeltaCents:400},admin);
