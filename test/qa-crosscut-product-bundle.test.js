@@ -7,7 +7,7 @@ test('crosscut product bundle preserves aggregate evidence and blocks critical f
     systemId:'pdv-artisys',
     profile:'crosscut',
     checks:[
-      {name:'module:RESTAURANT',category:'module-contract',status:'passed',critical:true},
+      {name:'module:FOOD',category:'module-contract',status:'passed',critical:true},
       {name:'renderer-health',category:'renderer-health',status:'passed',critical:true},
     ],
     coverage:{discovered:9,covered:9,uncovered:0,uncoveredCritical:0},
@@ -16,7 +16,7 @@ test('crosscut product bundle preserves aggregate evidence and blocks critical f
     findings:[{code:'interactive-overlap',name:'overlap in critical action',severity:'critical'}],
     evidence:[
       {type:'qa-flow',flowId:'restaurant-module-sync-e2e',path:'qa-artifacts/restaurant-module-sync-e2e'},
-      {type:'module-contract',moduleId:'RESTAURANT',path:'qa-artifacts/module-restaurant.json'},
+      {type:'module-contract',moduleId:'FOOD',path:'qa-artifacts/module-food.json'},
     ],
   });
 

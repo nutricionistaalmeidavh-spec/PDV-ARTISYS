@@ -13,19 +13,13 @@ function probes(){
 
 test('builds fully covered crosscut contracts for all real optional modules',()=>{
   const plan=buildModuleContractPlan({modules:MODULES,probes:probes()});
-  assert.equal(MODULES.length,8);
-  assert.equal(plan.contracts.length,8);
-  assert.deepEqual(plan.coverage,{discovered:8,covered:8,uncovered:0,uncoveredCritical:0});
+  assert.equal(MODULES.length,2);
+  assert.equal(plan.contracts.length,2);
+  assert.deepEqual(plan.coverage,{discovered:2,covered:2,uncovered:0,uncoveredCritical:0});
 
   const expected={
-    RESTAURANT:{launcher:'#route-content [data-restaurant-route]',path:'/api/v1/restaurant/tables',heading:'Restaurante'},
-    PIZZERIA:{launcher:'[data-module-open="PIZZERIA"]',path:'/api/v1/vertical/pizzeria/products/__qa_missing__',heading:'Pizzaria'},
-    DELIVERY:{launcher:'[data-module-open="DELIVERY"]',path:'/api/v1/vertical/delivery',heading:'Delivery'},
-    FAST_FOOD:{launcher:'[data-module-open="FAST_FOOD"]',path:'/api/v1/vertical/fast-food',heading:'Fast-food / Lanchonete'},
-    MARKET_BAKERY:{launcher:'[data-module-open="MARKET_BAKERY"]',path:'/api/v1/vertical/market/price-weight',heading:'Mercado / Conveniência / Padaria'},
-    RETAIL:{launcher:'[data-module-open="RETAIL"]',path:'/api/v1/vertical/retail/variants?query=__qa__',heading:'Varejo'},
-    SERVICES:{launcher:'[data-module-open="SERVICES"]',path:'/api/v1/vertical/services/commissions',heading:'Serviços'},
-    SELF_SERVICE:{launcher:'[data-module-open="SELF_SERVICE"]',path:'/api/v1/vertical/self-service/devices/__qa_missing__',heading:'Autoatendimento'}
+    FOOD:{launcher:'#sidebar-nav [data-module-nav="FOOD"]',path:'/api/v1/restaurant/tables',heading:'Alimentação'},
+    SERVICES:{launcher:'[data-module-nav="SERVICES"]',path:'/api/v1/vertical/services/commissions',heading:'Serviços'}
   };
 
   for(const contract of plan.contracts){

@@ -261,7 +261,9 @@
 
   function productCard(product) {
     const visual=product.photo?`<img data-product-photo="${product.id}" alt="Foto de ${escapeHtml(product.name)}"><span class="photo-placeholder">${escapeHtml(initials(product.name))}</span>`:`<span>${escapeHtml(initials(product.name))}</span>`;
-    return `<button type="button" class="product-card" data-add-product="${product.id}"><div><div class="product-visual">${visual}</div><h3>${escapeHtml(product.name)}</h3><small>Cód. ${escapeHtml(product.sku || product.barcode || product.id.slice(0, 8))}</small></div><strong>${ui.formatCents(product.salePriceCents)}<span class="add-cart">+</span></strong></button>`;
+    const weighted=['KG','G'].includes(String(product.unit||'').toUpperCase());
+    const price=`${ui.formatCents(product.salePriceCents)}${weighted?` / ${escapeHtml(String(product.unit||'KG').toLowerCase())}`:''}`;
+    return `<button type="button" class="product-card" data-add-product="${product.id}"><div><div class="product-visual">${visual}</div><h3>${escapeHtml(product.name)}</h3><small>${weighted?'Venda por peso · ':''}Cód. ${escapeHtml(product.sku || product.barcode || product.id.slice(0, 8))}</small></div><strong>${price}<span class="add-cart">+</span></strong></button>`;
   }
 
   function hydrateProductPhotos() {
@@ -282,9 +284,13 @@
 
   function cartLine(item) {
     const changed = item.catalogUnitPriceCents != null && item.catalogUnitPriceCents !== item.unitPriceCents;
-    const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}</small>`;
+    const weight=item.configuration?.weight||null;
+    const weightLabel=weight?`${quantityLabel(Number(weight.grams||0))} g · ${escapeHtml(String(weight.source||'MANUAL')==='SCALE'?'balança':String(weight.source||'MANUAL')==='BARCODE'?'etiqueta':'manual')}`:null;
+    const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}</small>`;
     const priceButton = ['admin','manager'].includes(state.user?.role) ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
-    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div><div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div><div class="line-total">${ui.formatCents(item.totalCents)} <button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button></div></div>`;
+    const quantityControl=weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
+    const remove=weight?`<button type="button" data-remove-weighted="${item.id}" style="border:0;background:transparent;color:#e22;font-size:18px" aria-label="Remover pesagem">×</button>`:`<button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button>`;
+    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
   }
 
   function bindCheckoutEvents() {
@@ -297,6 +303,7 @@
     content.querySelectorAll('[data-qty-minus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyMinus, -1)));
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
     content.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.remove)));
+    content.querySelectorAll('[data-remove-weighted]').forEach((button) => button.addEventListener('click', () => removeWeightedItem(button.dataset.removeWeighted)));
     content.querySelectorAll('[data-price-item]').forEach((button) => button.addEventListener('click', () => openPriceOverride(button.dataset.priceItem)));
     document.getElementById('seller-select')?.addEventListener('change', setSelectedSeller);
     document.getElementById('new-sale')?.addEventListener('click', newSale);
@@ -338,7 +345,18 @@
   }
 
   async function addProduct(productId) {
+    const product=state.products.find(item=>item.id===productId);
+    if(product&&['KG','G'].includes(String(product.unit||'').toUpperCase()))return openWeightedProduct(product);
     try { const sale = await ensureSale(); state.sale = await api.addSaleItem(sale.id, productId, 1); state.selectedProductId = productId; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+  }
+
+  function openWeightedProduct(product) {
+    const unit=String(product.unit||'KG').toUpperCase();
+    openModal(`Adicionar ${product.name} por peso`, `<form id="weighted-product-form"><p>Preço: <strong>${ui.formatCents(product.salePriceCents)} / ${escapeHtml(unit.toLowerCase())}</strong>. Informe o peso ou leia da balança configurada.</p><div class="field"><label>Peso em gramas *</label><input name="grams" type="number" min="0.001" step="0.001" required></div><div class="modal-actions"><button type="button" class="secondary-button" id="weighted-read-scale">Ler balança</button><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Adicionar à venda</button></div><p id="weighted-product-status"></p></form>`, { onMount(root) {
+      const form=root.querySelector('#weighted-product-form');const grams=form.elements.namedItem('grams');const status=root.querySelector('#weighted-product-status');
+      root.querySelector('#weighted-read-scale')?.addEventListener('click',async()=>{try{status.textContent='Lendo balança…';const reading=await window.artisysDesktop.hardware.readWeight();const kg=String(reading?.unit||'kg').toLowerCase()==='g'?Number(reading.weight)/1000:Number(reading.weight);const value=kg*1000;if(!Number.isFinite(value)||value<=0)throw new Error('Peso inválido.');grams.value=String(Math.round(value*1000)/1000);status.textContent=`Peso lido: ${quantityLabel(value)} g`;}catch(error){status.textContent=error.message;showToast(error.message,'error');}});
+      form.addEventListener('submit',async event=>{event.preventDefault();const value=Number(grams.value);if(!Number.isFinite(value)||value<=0)return showToast('Informe um peso válido.','error');try{const sale=await ensureSale();state.sale=await api.addWeightedSaleItem(sale.id,{productId:product.id,grams:value,source:status.textContent.startsWith('Peso lido:')?'SCALE':'MANUAL'});state.selectedProductId=product.id;closeModal();renderCheckout();}catch(error){showToast(error.message,'error');}});
+    } });
   }
 
   async function changeQuantity(productId, delta) {
@@ -347,14 +365,22 @@
     try { state.sale = await api.updateSaleItem(state.sale.id, productId, next); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
+  async function removeWeightedItem(itemId) {
+    if(!state.sale)return;
+    try{state.sale=await api.removeWeightedSaleItem(state.sale.id,itemId);state.selectedProductId=null;renderCheckout();}catch(error){showToast(error.message,'error');}
+  }
+
   async function removeProduct(productId) {
     if (!state.sale) return;
+    const weighted=state.sale.items.filter(item=>item.productId===productId&&item.configuration?.weight);
+    if(weighted.length===1)return removeWeightedItem(weighted[0].id);
+    if(weighted.length>1)return showToast('Há mais de uma pesagem deste produto. Remova a linha desejada pelo × do carrinho.','error');
     try { state.sale = await api.removeSaleItem(state.sale.id, productId); if (state.selectedProductId === productId) state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   async function clearCart() {
     if (!state.sale?.items?.length) return;
-    try { for (const item of [...state.sale.items]) state.sale = await api.removeSaleItem(state.sale.id, item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    try { for (const item of [...state.sale.items]) state.sale = item.configuration?.weight ? await api.removeWeightedSaleItem(state.sale.id,item.id) : await api.removeSaleItem(state.sale.id,item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   async function applyDiscountFromInput() {
@@ -587,7 +613,7 @@ function openCategoryForm() {
   }
 
   function openProductForm(product = null) {
-    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
+    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
       const usage=root.querySelector('#product-usage-type');
       const price=root.querySelector('#product-price');
       const cost=root.querySelector('#product-cost');

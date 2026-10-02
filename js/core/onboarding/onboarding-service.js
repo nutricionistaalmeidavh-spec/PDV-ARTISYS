@@ -4,14 +4,15 @@ const {writeAudit}=require('../audit-log');
 const {MODULES,getModuleDefinition}=require('../modules/module-registry');
 
 const SEGMENTS=Object.freeze({
-  RESTAURANT:['RESTAURANT'],
-  PIZZERIA:['RESTAURANT','PIZZERIA','DELIVERY'],
-  FAST_FOOD:['FAST_FOOD'],
-  MARKET:['MARKET_BAKERY'],
-  BAKERY:['MARKET_BAKERY'],
-  RETAIL:['RETAIL'],
+  FOOD:['FOOD'],
   SERVICES:['SERVICES'],
-  GENERIC:[]
+  GENERIC:[],
+  RESTAURANT:['FOOD'],
+  PIZZERIA:['FOOD'],
+  FAST_FOOD:['FOOD'],
+  BAKERY:['FOOD'],
+  MARKET:[],
+  RETAIL:[]
 });
 
 function createOnboardingService({db,modules,now=()=>new Date().toISOString()}={}){

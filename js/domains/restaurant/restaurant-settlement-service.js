@@ -9,7 +9,7 @@ const SERVICE_PRODUCT_ID='__artisys_service_charge__';
 
 function createRestaurantSettlementService({db,modules,sales,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules||!sales)throw new TypeError('db, modules and sales are required.');
-  const gate=()=>modules.requireEnabled('RESTAURANT');
+  const gate=()=>modules.requireEnabled('FOOD');
   function requireSession(id){gate();const row=db.prepare("SELECT * FROM table_sessions WHERE id=? AND status IN('OPEN','CHECKOUT')").get(String(id));if(!row)throw new Error('Comanda ativa nao encontrada.');return row;}
   function getRemainingBalance(sessionId){
     const session=requireSession(sessionId);

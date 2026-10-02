@@ -33,10 +33,9 @@ test('E48-E54 advance vertical schema to v8 and expose final modular services',(
   }finally{rt.close();}
 });
 
-test('E48 retail reuses E40 variant and keeps stock per variant through canonical sale',async()=>{
+test('E48 Core variants reuse E40 data and keep stock per variant through canonical sale',async()=>{
   const rt=setup();
   try{
-    rt.modules.setEnabled('RETAIL',true,admin);
     rt.catalog.upsertProduct({id:'shirt',name:'Camiseta',salePriceCents:10000,costCents:3500,trackStock:false},admin);
     rt.catalogCustomization.upsertVariant({id:'shirt-red-m',productId:'shirt',name:'Vermelha M',sku:'CAM-VM',barcode:'789100000001',priceDeltaCents:1000,costCents:4000},admin);
     rt.retail.setVariantStock('shirt-red-m',5,admin);
@@ -78,8 +77,7 @@ test('E49 services schedules locally, blocks professional overlap and creates ca
 test('E51 self-service uses paired device and creates pickup order without electronic payment integration',()=>{
   const rt=setup();
   try{
-    rt.modules.setEnabled('FAST_FOOD',true,admin);
-    rt.modules.setEnabled('SELF_SERVICE',true,admin);
+    rt.modules.setEnabled('FOOD',true,admin);
     rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false,menuEnabled:true},admin);
     const device=rt.mobileDevices.createDevice({id:'totem-1',name:'Totem 1',deviceType:'SELF_SERVICE'},admin);
     rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'admin'},admin);
@@ -98,16 +96,16 @@ test('E51 self-service uses paired device and creates pickup order without elect
 test('E52 onboarding recommends editable module sets and persists completion',()=>{
   const rt=setup();
   try{
-    const recommended=rt.onboarding.recommend('PIZZERIA');
-    assert.ok(recommended.moduleIds.includes('PIZZERIA'));
-    assert.ok(recommended.moduleIds.includes('DELIVERY'));
-    const state=rt.onboarding.complete({businessName:'Pizzaria Teste',segment:'PIZZERIA',moduleIds:['PIZZERIA','DELIVERY']},admin);
+    const recommended=rt.onboarding.recommend('FOOD');
+    assert.deepEqual(recommended.moduleIds,['FOOD']);
+    const legacy=rt.onboarding.recommend('PIZZERIA');
+    assert.deepEqual(legacy.moduleIds,['FOOD']);
+    const state=rt.onboarding.complete({businessName:'Alimentação Teste',segment:'FOOD',moduleIds:['FOOD']},admin);
     assert.equal(state.completed,true);
-    assert.equal(state.businessName,'Pizzaria Teste');
-    assert.equal(rt.modules.isEnabled('PIZZERIA'),true);
-    assert.equal(rt.modules.isEnabled('DELIVERY'),true);
-    assert.equal(rt.modules.isEnabled('RETAIL'),false);
-    assert.equal(rt.onboarding.getState().segment,'PIZZERIA');
+    assert.equal(state.businessName,'Alimentação Teste');
+    assert.equal(rt.modules.isEnabled('FOOD'),true);
+    assert.equal(rt.modules.isEnabled('SERVICES'),false);
+    assert.equal(rt.onboarding.getState().segment,'FOOD');
   }finally{rt.close();}
 });
 

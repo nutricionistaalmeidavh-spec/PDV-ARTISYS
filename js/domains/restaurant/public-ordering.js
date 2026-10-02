@@ -33,7 +33,7 @@ function createPublicOrderingService({db,modules,catalog,catalogCustomization,re
   `);
   db.prepare(`INSERT OR IGNORE INTO restaurant_public_ordering_config(id,auto_open_table,updated_at) VALUES('default',1,?)`).run(now());
 
-  const gate=()=>{modules.requireEnabled('RESTAURANT');modules.requireEnabled('SELF_SERVICE');};
+  const gate=()=>modules.requireEnabled('FOOD');
   const publicActor=()=>({userId:null,role:PUBLIC_ROLE,terminalId:null});
 
   function getConfig(){gate();const row=db.prepare("SELECT * FROM restaurant_public_ordering_config WHERE id='default'").get();return{autoOpenTable:Boolean(row?.auto_open_table),updatedAt:row?.updated_at||null};}

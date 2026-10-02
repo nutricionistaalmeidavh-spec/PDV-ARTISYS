@@ -17,7 +17,7 @@ function setup(){let seq=0;const rt=createPdvRuntime({dbPath:':memory:',idFactor
 
 test('E45 delivery creates one canonical open sale and routes configured items to shared KDS',()=>{
   const rt=setup();try{
-    rt.modules.setEnabled('DELIVERY',true,admin);
+    rt.modules.setEnabled('FOOD',true,admin);
     const order=rt.delivery.create({customerName:'Ana',fulfillmentType:'PICKUP',paymentMethod:'PIX'},admin);
     const sale=rt.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin',items:[{productId:'burger',quantity:1,configurationSnapshot:{version:1,options:[{id:'extra',name:'Queijo extra'}]}}]},admin);
     assert.equal(sale.status,'OPEN');
@@ -33,7 +33,7 @@ test('E45 delivery creates one canonical open sale and routes configured items t
 
 test('E46 fast-food can create a canonical configured sale and route it to shared KDS',()=>{
   const rt=setup();try{
-    rt.modules.setEnabled('FAST_FOOD',true,admin);
+    rt.modules.setEnabled('FOOD',true,admin);
     const order=rt.fastFood.create({terminalId:'PDV-01',operatorId:'admin',items:[{productId:'burger',quantity:1,unitPriceCents:2300,configurationSnapshot:{version:1,options:[{id:'bacon',name:'Bacon'}]}}]},admin);
     assert.ok(order.saleId);
     const sale=rt.sales.getSale(order.saleId);
@@ -47,9 +47,9 @@ test('E46 fast-food can create a canonical configured sale and route it to share
   }finally{rt.close();}
 });
 
-test('E47 weighted item enters canonical sale using gram-derived quantity and immutable weight snapshot',()=>{
+test('E47 weighted Core item enters canonical sale without Alimentação enabled',()=>{
   const rt=setup();try{
-    rt.modules.setEnabled('MARKET_BAKERY',true,admin);
+    rt.modules.setEnabled('FOOD',false,admin);
     const sale=rt.sales.openSale({id:'sale-weight',saleNumber:'W1',terminalId:'PDV-01',operatorId:'admin'},admin);
     const updated=rt.marketBakery.addWeightedItemToSale(sale.id,{productId:'ham',grams:250,source:'MANUAL'},admin);
     assert.equal(updated.totalCents,1000);

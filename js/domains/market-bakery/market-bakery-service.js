@@ -8,7 +8,7 @@ const BAKERY_TRANSITIONS={OPEN:['READY','CANCELLED'],READY:['PICKED_UP','CANCELL
 
 function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,readScale=null}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
-  const gate=()=>modules.requireEnabled('MARKET_BAKERY');
+  const foodGate=()=>modules.requireEnabled('FOOD');
 
   function product(id){
     const row=db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(String(id));
@@ -17,7 +17,6 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function priceWeightedItem({productId,grams}={}){
-    gate();
     const p=product(productId);
     const g=Number(grams);
     if(!Number.isFinite(g)||g<=0)throw new Error('Peso em gramas invalido.');
@@ -29,7 +28,6 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function addWeightedItemToSale(saleId,input={},actor={}){
-    gate();
     if(!sales)throw new Error('Motor canonico de vendas indisponivel para item por peso.');
     const priced=priceWeightedItem(input);
     const source=String(input.source||'MANUAL').toUpperCase();
@@ -47,7 +45,6 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   async function resolveWeight({manualGrams=null}={}){
-    gate();
     if(manualGrams!=null){
       const grams=Number(manualGrams);
       if(!Number.isFinite(grams)||grams<=0)throw new Error('Peso manual invalido.');
@@ -61,7 +58,6 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function upsertWeightBarcodeProfile(input={},actor={}){
-    gate();
     const id=String(input.id||idFactory('weight-profile'));
     const name=String(input.name||'').trim();
     const prefix=String(input.prefix||'');
@@ -83,7 +79,6 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function parseWeightBarcode(barcode,{profileId=null}={}){
-    gate();
     const code=String(barcode||'').trim();
     const rows=profileId
       ?db.prepare('SELECT * FROM weight_barcode_profiles WHERE id=? AND active=1').all(String(profileId))
@@ -104,14 +99,14 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function getBakeryOrder(id){
-    gate();
+    foodGate();
     const row=db.prepare('SELECT * FROM bakery_orders WHERE id=?').get(String(id));
     if(!row)throw new Error('Encomenda de padaria nao encontrada.');
     return mapBakery(row);
   }
 
   function createBakeryOrder(input={},actor={}){
-    gate();
+    foodGate();
     const name=String(input.customerName||'').trim();
     if(!name)throw new Error('Nome do cliente obrigatorio.');
     const items=Array.isArray(input.items)?input.items:[];
@@ -134,7 +129,7 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function updateBakeryOrderStatus(id,status,actor={}){
-    gate();
+    foodGate();
     const order=getBakeryOrder(id);
     const next=String(status||'').toUpperCase();
     if(!(BAKERY_TRANSITIONS[order.status]||[]).includes(next))throw new Error(`Transicao de encomenda invalida: ${order.status} -> ${next}.`);
@@ -144,7 +139,7 @@ function createMarketBakeryService({db,modules,sales=null,now=()=>new Date().toI
   }
 
   function cancelBakeryOrder(id,reason,actor={}){
-    gate();
+    foodGate();
     const order=getBakeryOrder(id);
     if(!BAKERY_TRANSITIONS[order.status]?.includes('CANCELLED'))throw new Error('Encomenda nao pode ser cancelada no status atual.');
     const text=String(reason||'').trim();
