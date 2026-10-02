@@ -52,7 +52,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const principal=mobilePrincipal(request);
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
-      const device=principal.device;const products=runtime.catalog.listProducts().map(p=>({id:p.id,name:p.name,categoryId:p.categoryId,categoryName:p.categoryName,salePriceCents:p.salePriceCents,unit:p.unit}));
+      const device=principal.device;const products=runtime.catalog.listProducts().filter(p=>p.menuEnabled).map(p=>({id:p.id,name:p.name,categoryId:p.categoryId,categoryName:p.categoryName,salePriceCents:p.salePriceCents,unit:p.unit}));
       if(device.deviceType==='TABLET'){
         const table=runtime.restaurant.getTable(device.tableId);const session=table?runtime.restaurant.currentSession(table.id):null;
         json(response,200,{device,table,session,products});return true;
