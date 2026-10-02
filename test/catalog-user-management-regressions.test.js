@@ -133,6 +133,12 @@ test('desktop wiring exposes complete user management and logical deletion contr
   assert.match(managementUi,/data-remove-supplier/);
   assert.match(managementUi,/data-remove-user/);
   assert.doesNotMatch(managementUi,/content\.innerHTML=`<section class="page" id="catalog-user-management-users"/,'user management must preserve the existing seller page');
+  assert.match(managementUi,/PdvUiLifecycle/);
+  assert.match(managementUi,/route:mounted/);
+  assert.match(managementUi,/route:updated/);
+  assert.match(managementUi,/surface:mounted/);
+  assert.doesNotMatch(managementUi,/new MutationObserver/);
+  assert.doesNotMatch(managementUi,/if\(root\.dataset\.catalogDeletionEnhanced==='1'\)return/);
   assert.doesNotThrow(()=>new Function(managementApi));
   assert.doesNotThrow(()=>new Function(managementUi));
 });
