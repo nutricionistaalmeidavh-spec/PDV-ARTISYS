@@ -175,6 +175,7 @@
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
     document.body.dataset.userRole = state.user?.role || '';
+    window.PdvUiLifecycle?.emit('user:changed', { role:state.user?.role || '', userId:state.user?.id || '' });
   }
 
   function updateClock() {
@@ -632,18 +633,21 @@ function openCategoryForm() {
   function showSetup() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Configurar ArtiSys PDV</h1><p>Crie o primeiro administrador desta instalação local.</p><form id="setup-form"><div class="field"><label>Nome</label><input name="name" required value="Administrador"></div><div class="field"><label>Usuário</label><input name="username" required value="admin"></div><div class="field"><label>Senha</label><input name="password" type="password" minlength="10" required></div><button class="primary-button" type="submit">Criar administrador</button></form></section>`;
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'setup' });
     authOverlay.querySelector('#setup-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { await api.setupAdmin({ name: formValue(form,'name'), username: formValue(form,'username'), password: formValue(form,'password') }); showLogin('Administrador criado. Entre com seus dados.'); } catch (error) { showToast(error.message, 'error'); } });
   }
 
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; } catch (error) { showToast(error.message, 'error'); } });
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
   }
 
   function showDataServerChoice() {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card" style="max-width:620px"><div class="auth-logo">A</div><h1>Onde os dados serão salvos?</h1><p>Escolha conscientemente como esta instalação vai funcionar. O modo pode ser alterado depois em Configurações → Dados e servidor.</p><form id="data-server-form"><div class="field"><label>Modo de funcionamento</label><select name="mode"><option value="local">Somente neste computador</option><option value="lan-host">PC principal da rede local</option><option value="lan-client">Terminal conectado a um PC principal</option><option value="own-server">Servidor próprio pela internet</option></select></div><div data-server-host hidden><div class="field"><label>Porta da rede local</label><input name="port" type="number" min="1" max="65535" value="4174"></div><p><small>Outros aparelhos poderão acessar este computador somente depois da sua confirmação.</small></p></div><div data-server-client hidden><div class="field"><label>Endereço do servidor</label><input name="serverUrl" placeholder="http://192.168.0.10:4174"></div><div class="field"><label>Identificação deste terminal</label><input name="terminalId" value="PDV-01"></div><div class="field"><label>Chave de pareamento</label><input name="terminalKey" type="password" autocomplete="off"></div><button class="secondary-button" type="button" data-test-server>Testar conexão</button></div><button class="primary-button" type="submit">Salvar escolha e continuar</button></form></section>`;
+    window.PdvUiLifecycle?.emit('auth:rendered', { surface:'data-server' });
     const form = authOverlay.querySelector('#data-server-form');
     const update = () => { const mode=form.elements.mode.value; form.querySelector('[data-server-host]').hidden=mode!=='lan-host'; form.querySelector('[data-server-client]').hidden=!['lan-client','own-server'].includes(mode); form.elements.serverUrl.placeholder=mode==='own-server'?'https://pdv.suaempresa.com':'http://192.168.0.10:4174'; };
     form.elements.mode.addEventListener('change', update); update();
