@@ -14,7 +14,7 @@ test('desktop loads optional module API and workspace extensions',()=>{
   assert.match(html,/settings-hub-ui\.css/);
   assert.match(html,/settings-hub-ui\.js/);
   const settingsHub=read('desktop/renderer/settings-hub-ui.js');
-  for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Fiscal','Módulos','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
+  for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Fiscal','Áreas','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
 });
 
 test('vertical UI exposes one Alimentação module with operational capabilities',()=>{
@@ -44,7 +44,7 @@ test('desktop main authenticates local vertical API calls without exposing insta
   assert.doesNotMatch(preload,/installToken|x-pdv-token/);
 });
 
-test('modules are activated in settings and opened from authorized navigation',()=>{
+test('business areas are activated in settings and opened from authorized navigation',()=>{
   const source=read('desktop/renderer/vertical-modules.js');
   assert.doesNotMatch(source,/vertical-modules-launcher/);
   assert.doesNotMatch(source,/textContent='M'/);
@@ -55,6 +55,8 @@ test('modules are activated in settings and opened from authorized navigation',(
   assert.match(source,/Tentar novamente/);
   assert.match(source,/button\.dataset\.moduleNav=item\.target/);
   assert.match(source,/Acesso liberado no menu lateral/);
+  assert.match(source,/Áreas do estabelecimento/);
+  assert.match(source,/Peso, variantes, ficha técnica/);
   assert.match(source,/#sidebar-nav \[data-route="home"\]/);
   assert.doesNotMatch(source,/Abrir módulo/);
 });
