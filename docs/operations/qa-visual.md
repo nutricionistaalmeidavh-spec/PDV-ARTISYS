@@ -1,7 +1,12 @@
-# Capturas manuais de demonstração
+# QA visual e capturas de demonstração
 
-As jornadas E2E antigas de interface e as comparações com baseline visual foram removidas. Não há atualmente um gate de screenshots que aprove ou reprove alterações de interface.
+As jornadas E2E antigas e os baselines pixel a pixel continuam removidos. O gate atual usa a interface Electron corrente e mantém screenshots/trace como evidência operacional, sem comparação visual por baseline.
 
-O workflow **Actions > QA Capture > Run workflow** é destinado somente a Demo Flows: gravações manuais de apresentação configuradas em `qa/demo/` e registradas em `qa/artisys-qa.config.json`. Essas capturas não são testes funcionais nem evidência de aprovação de QA.
+`npm run qa:e2e:p0` executa dois fluxos no CI:
 
-Para criar uma apresentação, adicione um roteiro sintético, seguro e não destrutivo em `qa/demo/`, registre-o em `demos` e atualize as opções do workflow se necessário. Para QA visual futuro, desenhe novos cenários sobre a interface atual em uma entrega separada; não restaure os fluxos ou baselines antigos em bloco.
+- `all-pages-audit`: smoke das superfícies principais, controles críticos e overflow;
+- `restaurant-table-lifecycle`: jornada transacional de Alimentação/Mesas, cobrindo abertura de atendimento, responsável, pedido, KDS, conta, checkout e liberação da mesa.
+
+O workflow **Actions > QA Capture > Run workflow** continua destinado somente a Demo Flows: gravações manuais de apresentação configuradas em `qa/demo/` e registradas em `qa/artisys-qa.config.json`. Essas demos não substituem o gate funcional.
+
+Novos cenários devem partir da UI atual, usar dados isolados de QA e verificar um resultado operacional útil. Não restaure fluxos ou baselines antigos em bloco.
