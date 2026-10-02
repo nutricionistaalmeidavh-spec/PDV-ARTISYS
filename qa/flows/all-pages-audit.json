@@ -12,22 +12,9 @@
       "timeoutMs": 15000
     },
     {
-      "action": "fill",
-      "selector": "#login-form input[name='username']",
-      "value": "qaadmin",
-      "name": "usuario-qa"
-    },
-    {
-      "action": "fill",
-      "selector": "#login-form input[name='password']",
-      "value": "QaLocalOnly-12345!",
-      "name": "senha-qa"
-    },
-    {
-      "action": "click",
-      "selector": "#login-form button[type='submit']",
+      "action": "authenticateLocalQa",
       "name": "entrar",
-      "holdMs": 300
+      "timeoutMs": 15000
     },
     {
       "action": "waitFor",
@@ -357,6 +344,30 @@
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "vendas-devolucoes-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='returns']",
+      "name": "devolucao",
+      "holdMs": 700
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-returns-ui]",
+      "name": "devolucao-ui",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "devolucao",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "devolucao-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
     },
@@ -842,6 +853,33 @@
       "selector": ".checkout-layout",
       "expected": "Produto QA Atacado",
       "name": "pedido-carregado-sem-redigitacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-checkout-document-context]",
+      "name": "pedido-contexto-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-checkout-document-context]",
+      "expected": "P-000001",
+      "name": "pedido-contexto-numero",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-checkout-document-context]",
+      "expected": "Mercado QA",
+      "name": "pedido-contexto-cliente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-checkout-document-context]",
+      "expected": "Retirada",
+      "name": "pedido-contexto-atendimento",
       "timeoutMs": 10000
     },
     {
