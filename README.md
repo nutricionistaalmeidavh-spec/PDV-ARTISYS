@@ -50,21 +50,16 @@ Detalhes de catálogo: `docs/architecture/catalog-parent-variants-kits-combos.md
 
 O saldo legado é migrado para `MAIN — Estoque principal`. `inventory_balances` permanece como projeção agregada de compatibilidade, enquanto as operações novas usam saldos por local.
 
-### Módulos opcionais
+### Áreas opcionais
 
-O núcleo básico do PDV não é desativável. Em `Configurações > Módulos`, o estabelecimento pode ativar somente os fluxos que utiliza:
+O núcleo comercial do PDV não é desativável. Produtos, variantes, ficha técnica, venda por peso, estoque, caixa, financeiro e relatórios pertencem ao Core e não dependem de uma vertical comercial.
 
-- Restaurante;
-- Pizzaria;
-- Delivery;
-- Fast-food / Lanchonete;
-- Mercado / Conveniência / Padaria;
-- Varejo;
-- Serviços;
-- Oficina;
-- Autoatendimento.
+Em `Configurações > Áreas`, o estabelecimento ativa somente fluxos que realmente mudam a operação:
 
-Os módulos reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, auditoria e eventos. Um módulo desativado deixa de aparecer como fluxo operacional e não aceita novas mutações específicas. As permissões `accessRoles` e `manageRoles` do catálogo de módulos também são aplicadas na API vertical, não apenas na navegação da interface.
+- **Alimentação** — inclui automaticamente Pedidos e Produção/KDS. Mesa/comanda, balcão com senha, entrega/retirada, autoatendimento e personalizações de produto são capacidades do mesmo fluxo de Alimentação, não módulos independentes;
+- **Serviços** — agenda, profissionais e comissões.
+
+As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, auditoria e eventos. Uma área desativada deixa de aceitar novas mutações específicas. As permissões `accessRoles` e `manageRoles` do catálogo também são aplicadas na API, não apenas na navegação da interface.
 
 ### LAN, dispositivos e dados
 
