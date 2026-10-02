@@ -182,7 +182,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const usageType = String(input.usageType || existingProduct?.usage_type || 'DIRECT').trim().toUpperCase();
     if(!['INGREDIENT','DIRECT','BOTH'].includes(usageType)) throw new Error('Tipo de uso do produto invalido.');
     const menuEnabled = input.menuEnabled === undefined ? Boolean(existingProduct?.menu_enabled) : Boolean(input.menuEnabled);
-    const hasActiveRecipe=Boolean(db.prepare('SELECT 1 FROM product_recipes WHERE product_id=? AND active=1').get(id));
+    const hasActiveRecipe=tableExists('product_recipes')&&Boolean(db.prepare('SELECT 1 FROM product_recipes WHERE product_id=? AND active=1').get(id));
     if(menuEnabled && !hasActiveRecipe && !['DIRECT','BOTH'].includes(usageType)) throw new Error('Insumo puro nao pode ser publicado diretamente no Cardapio.');
     const timestamp = now();
     db.prepare(`INSERT INTO products
