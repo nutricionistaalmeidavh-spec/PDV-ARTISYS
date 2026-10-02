@@ -38,7 +38,7 @@ test('Financeiro P3 remains usable on narrow screens without hiding actions',()=
   assert.match(css,/\.ops-sr-only\{/);
   assert.match(css,/\.finance-subnav\{[^}]*overflow-x:auto/s);
   assert.match(css,/@media\(max-width:720px\)\{[^}]*\.finance-operations-page \.ops-detail-row\{[^}]*flex-direction:column/s);
-  assert.match(css,/\.finance-operations-page \.ops-actions\{[^}]*width:100%/s);
+  assert.match(css,/\.finance-operations-page \.ops-detail-row>\.ops-actions\{[^}]*width:100%/s);
 });
 
 test('Financeiro P3 keeps sensitive actions on ArtiSys dialogs and observer-free',()=>{
