@@ -246,8 +246,14 @@
     },
     {
       "action": "click",
-      "selector": "button[data-flow-route='inventory']",
+      "selector": "button[data-route='catalog']",
       "name": "abrir-estoque-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='inventory']",
+      "name": "entrar-estoque-p5",
       "timeoutMs": 10000
     },
     {
