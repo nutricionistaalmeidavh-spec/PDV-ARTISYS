@@ -44,7 +44,9 @@ function createSalesOrderService({db,sales,logistics,now=()=>new Date().toISOStr
     const normalized=input.items.map(item=>{const productId=text(item.productId);if(seen.has(productId))throw new Error('Produto duplicado no pedido.');seen.add(productId);const p=db.prepare('SELECT id,sale_price_cents FROM products WHERE id=? AND active=1').get(productId);if(!p)throw new Error(`Produto ${productId} nao encontrado ou inativo.`);const quantity=roundQuantity(item.quantity);if(quantity<=0)throw new Error('Quantidade do pedido deve ser maior que zero.');const unitPriceCents=item.unitPriceCents==null?Number(p.sale_price_cents):assertCents(Number(item.unitPriceCents),'unitPriceCents');if(unitPriceCents<0)throw new Error('Preco unitario nao pode ser negativo.');const pricingSnapshot=item.pricingSnapshot&&typeof item.pricingSnapshot==='object'?item.pricingSnapshot:null;return{productId,quantity,unitPriceCents,pricingSnapshot};});
     const id=text(input.id||idFactory('order')),ts=now();
     return withTransaction(db,()=>{
-      db.prepare(`INSERT INTO sales_orders(id,customer_id,location_id,fulfillment_type,status,expected_at,notes,delivery_address_json,delivery_instructions,created_by,created_at,updated_at,quoted_at,origin) VALUES(?,?,?,?,'QUOTED',?,?,?,?,?,?,?,?,?)`).run(id,customerId,locationId,fulfillmentType,input.expectedAt||null,input.notes||null,deliveryAddress?JSON.stringify(deliveryAddress):null,deliveryInstructions,actor?.userId||null,ts,ts,ts,origin);
+      const nextNumber=Number(db.prepare("SELECT COALESCE(MAX(CAST(SUBSTR(order_number,3) AS INTEGER)),0)+1 AS n FROM sales_orders WHERE order_number LIKE 'P-%'").get()?.n||1);
+      const orderNumber=text(input.orderNumber||`P-${String(nextNumber).padStart(6,'0')}`);
+      db.prepare(`INSERT INTO sales_orders(id,customer_id,location_id,fulfillment_type,status,expected_at,notes,delivery_address_json,delivery_instructions,created_by,created_at,updated_at,quoted_at,origin,order_number) VALUES(?,?,?,?,'QUOTED',?,?,?,?,?,?,?,?,?,?)`).run(id,customerId,locationId,fulfillmentType,input.expectedAt||null,input.notes||null,deliveryAddress?JSON.stringify(deliveryAddress):null,deliveryInstructions,actor?.userId||null,ts,ts,ts,origin,orderNumber);
       const ins=db.prepare('INSERT INTO sales_order_items(id,order_id,product_id,quantity,unit_price_cents,fulfilled_quantity,created_at,updated_at,pricing_snapshot_json) VALUES(?,?,?,?,?,0,?,?,?)');for(const item of normalized)ins.run(idFactory('oi'),id,item.productId,item.quantity,item.unitPriceCents,ts,ts,item.pricingSnapshot?JSON.stringify(item.pricingSnapshot):null);
       writeAudit(db,{action:'sales-order.quote',entity:'sales-order',entityId:id,actor,context:{customerId,locationId,fulfillmentType,origin,hasDeliveryAddress:Boolean(deliveryAddress)}},now);
       return getOrder(id);
@@ -54,6 +56,32 @@ function createSalesOrderService({db,sales,logistics,now=()=>new Date().toISOStr
   function confirmOrder(id,actor=null){requireRole(actor);return withTransaction(db,()=>{const row=requireOrder(id);if(row.status==='CONFIRMED'||row.status==='PARTIALLY_FULFILLED'||row.status==='FULFILLED')return getOrder(id);if(!['DRAFT','QUOTED'].includes(row.status))throw new Error(`Pedido nao pode ser confirmado no status ${row.status}.`);const order=getOrder(id);for(const item of order.items){const tracked=db.prepare('SELECT track_stock AS tracked FROM products WHERE id=?').get(item.productId);if(tracked?.tracked)logistics.createReservation({productId:item.productId,locationId:order.locationId,quantity:item.pendingQuantity,sourceType:'sales-order',sourceId:order.id},actor);}const ts=now();db.prepare("UPDATE sales_orders SET status='CONFIRMED',confirmed_at=?,updated_at=? WHERE id=?").run(ts,ts,row.id);writeAudit(db,{action:'sales-order.confirm',entity:'sales-order',entityId:row.id,actor,context:{}},now);return getOrder(row.id);});}
 
   function cancelOrder(id,{reason=''}={},actor=null){requireManager(actor);const why=text(reason);if(!why)throw new Error('Informe o motivo do cancelamento.');return withTransaction(db,()=>{const row=requireOrder(id);if(row.status==='CANCELLED')return getOrder(id);if(row.status==='FULFILLED')throw new Error('Pedido atendido nao pode ser cancelado.');logistics.releaseSourceReservations('sales-order',row.id,actor);const ts=now();db.prepare("UPDATE sales_orders SET status='CANCELLED',cancelled_at=?,cancel_reason=?,updated_at=? WHERE id=?").run(ts,why,ts,row.id);writeAudit(db,{action:'sales-order.cancel',entity:'sales-order',entityId:row.id,actor,context:{reason:why}},now);return getOrder(row.id);});}
+
+  function prepareCheckout(id,input={},actor=null){
+    requireRole(actor);
+    return withTransaction(db,()=>{
+      const row=requireOrder(id);
+      if(!['CONFIRMED','PARTIALLY_FULFILLED'].includes(row.status))throw new Error(`Pedido nao pode ir ao caixa no status ${row.status}.`);
+      const existing=db.prepare("SELECT * FROM sales_order_fulfillments WHERE order_id=? AND status='PENDING' AND sale_id IS NOT NULL ORDER BY created_at DESC LIMIT 1").get(row.id);
+      if(existing){
+        const current=sales.getSale(existing.sale_id);
+        if(current&&['OPEN','SUSPENDED'].includes(current.status))return{order:getOrder(row.id),fulfillment:mapFulfillment(existing),sale:current};
+      }
+      const order=getOrder(row.id);
+      const pending=order.items.filter(item=>item.pendingQuantity>0);
+      if(!pending.length)throw new Error('Pedido nao possui itens pendentes.');
+      const terminalId=text(input.terminalId),operatorId=text(input.operatorId),sellerId=text(input.sellerId||operatorId);
+      if(!terminalId||!operatorId)throw new Error('Terminal e operador obrigatorios para levar o pedido ao caixa.');
+      const fulfillmentId=text(input.id||idFactory('fulfill')),key=text(input.idempotencyKey||`checkout:${row.id}:${fulfillmentId}`),ts=now();
+      const sale=sales.openSale({terminalId,operatorId,sellerId,customerId:row.customer_id,stockLocationId:row.location_id},actor);
+      for(const item of pending)sales.addItem(sale.id,{productId:item.productId,quantity:item.pendingQuantity,unitPriceCents:item.unitPriceCents,forceSeparateLine:true,configurationSnapshot:{sourceDocument:{type:'SALES_ORDER',id:row.id,orderNumber:order.orderNumber,orderItemId:item.id},pricingSnapshot:item.pricingSnapshot||null}});
+      db.prepare(`INSERT INTO sales_order_fulfillments(id,order_id,idempotency_key,status,terminal_id,operator_id,seller_id,sale_id,created_at) VALUES(?,?,?,'PENDING',?,?,?,?,?)`).run(fulfillmentId,row.id,key,terminalId,operatorId,sellerId||null,sale.id,ts);
+      const ins=db.prepare('INSERT INTO sales_order_fulfillment_items(id,fulfillment_id,order_item_id,product_id,quantity,unit_price_cents,created_at) VALUES(?,?,?,?,?,?,?)');
+      for(const item of pending)ins.run(idFactory('fui'),fulfillmentId,item.id,item.productId,item.pendingQuantity,item.unitPriceCents,ts);
+      writeAudit(db,{action:'sales-order.checkout.prepare',entity:'sales-order',entityId:row.id,actor,context:{fulfillmentId,saleId:sale.id,orderNumber:order.orderNumber}},now);
+      return{order:getOrder(row.id),fulfillment:mapFulfillment(db.prepare('SELECT * FROM sales_order_fulfillments WHERE id=?').get(fulfillmentId)),sale:sales.getSale(sale.id)};
+    });
+  }
 
   function fulfillOrder(id,input={},actor=null){
     requireRole(actor);const key=text(input.idempotencyKey);if(!key)throw new Error('Chave de idempotencia obrigatoria no atendimento.');const existing=db.prepare('SELECT * FROM sales_order_fulfillments WHERE idempotency_key=?').get(key);if(existing)return mapFulfillment(existing);
@@ -65,6 +93,6 @@ function createSalesOrderService({db,sales,logistics,now=()=>new Date().toISOStr
 
   function listOrders(filters={}){const clauses=[];const params=[];if(filters.status){clauses.push('status=?');params.push(String(filters.status).toUpperCase());}if(filters.customerId){clauses.push('customer_id=?');params.push(String(filters.customerId));}if(filters.locationId){clauses.push('location_id=?');params.push(String(filters.locationId));}if(filters.origin){clauses.push('origin=?');params.push(String(filters.origin).toUpperCase());}return db.prepare(`SELECT * FROM sales_orders${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY created_at DESC,id DESC`).all(...params).map(mapOrder);}
   function listFulfillments(orderId){return db.prepare('SELECT * FROM sales_order_fulfillments WHERE order_id=? ORDER BY created_at,id').all(String(orderId)).map(mapFulfillment);}
-  return{createQuote,confirmOrder,cancelOrder,fulfillOrder,getOrder,listOrders,listFulfillments};
+  return{createQuote,confirmOrder,cancelOrder,prepareCheckout,fulfillOrder,getOrder,listOrders,listFulfillments};
 }
 module.exports={createSalesOrderService};
