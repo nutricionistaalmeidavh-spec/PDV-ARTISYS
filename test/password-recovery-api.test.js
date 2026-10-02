@@ -36,7 +36,7 @@ test('password recovery is enumeration-safe, changes only the local password and
 
     let response=await fetch(`${ctx.base}/api/v1/auth/password-recovery/request`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:' Owner@Example.COM '})});
     assert.equal(response.status,202);
-    assert.deepEqual(await response.json(),{accepted:true,message:'Se este e-mail estiver cadastrado, enviaremos um codigo de recuperacao.'});
+    assert.deepEqual(await response.json(),{accepted:true,message:'Se os dados estiverem vinculados a esta instalacao, solicite o codigo de recuperacao ao administrador ArtiSys.'});
     assert.equal(ctx.calls.at(-1).body.email,'owner@example.com');
 
     response=await fetch(`${ctx.base}/api/v1/auth/password-recovery/confirm`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'owner@example.com',code:'654321',password:'senha-nova-456'})});
@@ -70,6 +70,6 @@ test('recovery request keeps unknown local e-mail indistinguishable',async()=>{
   try{
     const response=await fetch(`${ctx.base}/api/v1/auth/password-recovery/request`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'missing@example.com'})});
     assert.equal(response.status,202);
-    assert.deepEqual(await response.json(),{accepted:true,message:'Se este e-mail estiver cadastrado, enviaremos um codigo de recuperacao.'});
+    assert.deepEqual(await response.json(),{accepted:true,message:'Se os dados estiverem vinculados a esta instalacao, solicite o codigo de recuperacao ao administrador ArtiSys.'});
   }finally{await ctx.close();}
 });
