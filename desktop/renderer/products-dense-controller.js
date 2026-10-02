@@ -32,7 +32,7 @@
   }
 
   function baseProductCard(page) {
-    return page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-product]')) || null;
+    return page.querySelector('#products-list') || page.querySelector('.toolbar + .data-card') || [...page.querySelectorAll('.data-card')].find(card => card.querySelector('[data-edit-product]')) || null;
   }
 
   function ensureHeader(card) {
