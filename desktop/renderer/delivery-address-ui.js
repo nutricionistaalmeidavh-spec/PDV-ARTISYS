@@ -1,7 +1,8 @@
 'use strict';
 (() => {
   const ApiClient=window.PdvApiClient?.ApiClient;
-  if(!ApiClient)return;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!lifecycle)return;
   const api=new ApiClient();
   const p=ApiClient.prototype;
   let editingCustomerId=null;
