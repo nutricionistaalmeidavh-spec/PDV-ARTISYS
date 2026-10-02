@@ -491,7 +491,8 @@
       "targetPhase": 9,
       "declaredCapabilities": [
         "wholesale-quantity-pricing-and-b2b-orders",
-        "checkout-open-commands-and-orders-without-reentry"
+        "checkout-open-commands-and-orders-without-reentry",
+        "wholesale-customer-policy-minimum-order-payment-credit"
       ],
       "backend": [
         {
@@ -505,6 +506,10 @@
         {
           "path": "js/domains/orders/sales-order-service.js",
           "marker": "prepareCheckout"
+        },
+        {
+          "path": "js/domains/wholesale/wholesale-service.js",
+          "marker": "saveCustomerPolicy"
         }
       ],
       "api": [
