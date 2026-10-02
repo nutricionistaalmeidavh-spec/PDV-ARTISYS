@@ -31,6 +31,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   }
 
   function requireRestaurantEnabled(){runtime.modules?.requireEnabled('RESTAURANT');}
+  function requireMenuItems(items=[]){
+    for(const item of Array.isArray(items)?items:[]){
+      const product=runtime.catalog.getProduct(String(item?.productId||''));
+      if(!product||product.active===false||!product.menuEnabled)throw new RestaurantHttpError(400,'Item fora do Cardapio.');
+    }
+    return Array.isArray(items)?items:[];
+  }
 
   async function mutate(request,pathname,statusCode,handler){
     const mutationId=String(request.headers['x-mutation-id']||'').trim();
@@ -76,7 +83,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
         const session=runtime.restaurant.currentSession(p.device.tableId);if(!session)throw new RestaurantHttpError(409,'Mesa sem comanda aberta.');sessionId=session.id;
       }
       if(!sessionId)throw new RestaurantHttpError(400,'Comanda obrigatoria.');
-      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:data.items||[],note:data.note||'',source:p.device.deviceType==='TABLET'?'TABLET':'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
+      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:requireMenuItems(data.items||[]),note:data.note||'',source:p.device.deviceType==='TABLET'?'TABLET':'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
       json(response,result.statusCode,result.payload);return true;
     }
     if(request.method==='POST'&&pathname==='/api/v1/mobile/service'){
@@ -102,7 +109,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
     if(request.method==='GET'&&sessionGet){const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
-    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:data.items||[],note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:requireMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&transfer){const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(transfer[1]),data.targetTableId,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const checkout=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/checkout$/);
