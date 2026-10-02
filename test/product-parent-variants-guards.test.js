@@ -34,10 +34,12 @@ test('existing parent stock must be resolved before enabling child-stock control
   }finally{runtime.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('variant UI observes only canonical route replacements and locks parent stock control',()=>{
+test('variant UI follows canonical Products/Checkout lifecycle and locks parent stock control',()=>{
   const script=fs.readFileSync(path.join(__dirname,'../desktop/renderer/product-variants-ui.js'),'utf8');
-  assert.match(script,/MutationObserver\(scheduleEnhance\)\.observe\(content,\{childList:true\}\)/);
-  assert.doesNotMatch(script,/subtree:true/);
+  assert.match(script,/PdvUiLifecycle/);
+  assert.match(script,/route:mounted/);
+  assert.match(script,/route:updated/);
+  assert.doesNotMatch(script,/MutationObserver/);
   assert.match(script,/data-parent-has-variants/);
   assert.match(script,/checkbox\.disabled=true/);
 });
