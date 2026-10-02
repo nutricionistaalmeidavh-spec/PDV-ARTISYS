@@ -1045,6 +1045,151 @@
           "marker": "data-nfse-event"
         }
       ]
+    },
+    {
+      "id": "finance.entry.dimensions.update",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/finance-dimensions.js",
+          "marker": "function setEntryDimensions"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/entries/:id/dimensions"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "updateFinanceDimensions"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/operational-pages.js",
+          "marker": "data-finance-classify"
+        }
+      ]
+    },
+    {
+      "id": "finance.reconciliation.manual",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/reconciliation.js",
+          "marker": "function confirm(input"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/reconciliation/:transactionId/manual"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "manualReconciliation"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "data-reconcile-manual"
+        }
+      ]
+    },
+    {
+      "id": "finance.transfer.confirm",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/reconciliation.js",
+          "marker": "function confirmTransfer"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/transfers/confirm"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "confirmFinanceTransfer"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "data-transfer-index"
+        }
+      ]
+    },
+    {
+      "id": "finance.recurrence.status",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/recurrence.js",
+          "marker": "function setRuleStatus"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/recurrences/:id/status"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "setRecurrenceStatus"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "data-recurrence-action=\"pause\""
+        }
+      ]
+    },
+    {
+      "id": "finance.recurrence.generate",
+      "capabilityId": "core.operations",
+      "exposure": "customer",
+      "backend": [
+        {
+          "path": "js/domains/finance/recurrence.js",
+          "marker": "function generateDue"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/erp-finance-router.js",
+          "marker": "/api/v1/erp-finance/recurrences/generate"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/erp-finance-api-client.js",
+          "marker": "generateRecurrences"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/erp-finance-operations-ui.js",
+          "marker": "erp-generate-recurrences"
+        }
+      ]
     }
   ]
 }
