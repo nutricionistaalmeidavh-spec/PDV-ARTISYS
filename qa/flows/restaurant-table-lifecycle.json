@@ -95,6 +95,18 @@
       "fullPage": true
     },
     {
+      "action": "fill",
+      "selector": "#restaurant-open-table-form input[name='partySize']",
+      "value": "3",
+      "name": "pessoas-atendimento"
+    },
+    {
+      "action": "selectOption",
+      "selector": "#restaurant-open-table-form select[name='customerId']",
+      "value": "qa-restaurant-customer",
+      "name": "cliente-atendimento"
+    },
+    {
       "action": "click",
       "selector": "#restaurant-open-table-form button[type='submit']",
       "name": "abrir-atendimento",
@@ -106,6 +118,20 @@
       "name": "comanda-aberta",
       "timeoutMs": 10000,
       "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-session-details-form input[name='partySize']",
+      "name": "detalhes-pessoas-visiveis",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1']:has-text('QA Cliente Mesa')",
+      "name": "card-cliente-pessoas",
+      "state": "visible",
+      "timeoutMs": 10000
     },
     {
       "action": "screenshot",
@@ -201,6 +227,13 @@
       "state": "visible"
     },
     {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.NEW",
+      "name": "card-producao-novo",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
       "name": "06-pedido-enviado-kds-novo",
       "fullPage": true
@@ -215,6 +248,13 @@
       "action": "waitFor",
       "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.PREPARING",
       "name": "kds-status-preparando",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.PREPARING",
+      "name": "card-producao-preparando",
       "state": "visible",
       "timeoutMs": 10000
     },
@@ -240,6 +280,13 @@
       "action": "waitFor",
       "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.READY",
       "name": "kds-status-pronto",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.READY",
+      "name": "card-producao-pronto",
       "state": "visible",
       "timeoutMs": 10000
     },
