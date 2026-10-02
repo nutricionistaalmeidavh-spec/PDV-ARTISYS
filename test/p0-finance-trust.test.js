@@ -3,6 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const vm=require('node:vm');
 const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {runErpFinanceMigrations}=require('../js/core/database/erp-finance-migrations');
@@ -83,6 +84,8 @@ test('P0 renderer contract avoids native finance prompts and requires reconcilia
   const operational=fs.readFileSync(path.join(renderer,'operational-pages.js'),'utf8');
   const management=fs.readFileSync(path.join(renderer,'erp-finance-ui.js'),'utf8');
   const automation=fs.readFileSync(path.join(renderer,'erp-finance-automation-ui.js'),'utf8');
+  const ux=fs.readFileSync(path.join(renderer,'ux-components.js'),'utf8');
+  for(const [name,source] of [['operational-pages.js',operational],['erp-finance-ui.js',management],['erp-finance-automation-ui.js',automation],['ux-components.js',ux]]) assert.doesNotThrow(()=>new vm.Script(source,{filename:name}));
   const start=operational.indexOf('async function renderFinance');
   const end=operational.indexOf('async function renderReports',start);
   const financeSection=operational.slice(start,end);
