@@ -61,3 +61,13 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Manifest/service worker registration occurs only in secure contexts (HTTPS or localhost). LAN HTTP remains supported as an ordinary web application and is not labelled installable PWA.
 - Service-worker caching is limited to the staff application shell. `/api/` requests remain network-authoritative and are never satisfied from an offline cache.
 
+
+
+## Financeiro e Gestão: confiança P0
+
+- Na área Gestão, os KPIs de receita, resultado e margem usam a mesma base selecionada na DRE: `cash` para Caixa e `accrual` para Competência. Uma tela não pode misturar bases sem identificação explícita.
+- A comparação com o período anterior usa o intervalo imediatamente precedente com a mesma quantidade inclusiva de dias do período atual. A interface mostra as datas efetivamente comparadas.
+- Baixa e cancelamento de lançamentos financeiros usam diálogo próprio do ArtiSys. Não usar `prompt()`, `confirm()` ou `alert()` nesses fluxos. A mutação ocorre somente após confirmação explícita; em falha, o diálogo permanece aberto com o contexto preenchido e mensagem local.
+- A conciliação bancária exige revisão visível da sugestão antes de registrar a baixa. A revisão mostra o movimento do extrato, o lançamento candidato, valores, datas e os critérios objetivos usados na correspondência.
+- Ignorar uma sugestão exige motivo, registra a decisão com auditoria e impede que o mesmo par movimentação-lançamento seja sugerido novamente. Ignorar não marca a movimentação como conciliada, permitindo avaliar outro candidato.
+- Essas regras são restritas aos fluxos financeiros/gerenciais envolvidos e não autorizam alterações visuais ou comportamentais incidentais nas páginas já aprovadas.
