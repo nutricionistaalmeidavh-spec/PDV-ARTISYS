@@ -53,6 +53,7 @@
     saveWeightProfile(body){return this.request('/api/v1/vertical/catalog/weight/profile',{method:'POST',body});},
     parseWeightBarcode(body){return this.request('/api/v1/vertical/catalog/weight/parse',{method:'POST',body});},
     addWeightedSaleItem(saleId,body){return this.request(`/api/v1/vertical/catalog/weight/sales/${e(saleId)}/items`,{method:'POST',body});},
+    removeWeightedSaleItem(saleId,itemId){return this.request(`/api/v1/vertical/catalog/weight/sales/${e(saleId)}/items/${e(itemId)}`,{method:'DELETE'});},
     createBakeryOrder(body){return this.request('/api/v1/vertical/bakery/orders',{method:'POST',body});},
     bakeryOrder(id){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}`);},
     updateBakeryOrderStatus(id,status){return this.request(`/api/v1/vertical/bakery/orders/${e(id)}/status`,{method:'PATCH',body:{status}});},
