@@ -10,7 +10,7 @@ const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 test('P5 presents Core and optional areas directly without a second module manager step',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
   const settings=read('desktop/renderer/settings-hub-ui.js');
-  assert.match(settings,/Alimentação, Atacado e Serviços/);
+  assert.match(settings,/Alimentação e Atacado/);
   assert.match(modules,/Núcleo ArtiSys/);
   assert.match(modules,/Uma operação · um caixa · áreas opcionais/);
   assert.match(modules,/void loadAndRenderSettingsModules\(card\)/);
@@ -39,7 +39,10 @@ test('QA audit covers optional areas and universal checkout documents',()=>{
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   const names=new Set(flow.steps.map(step=>step.name));
   for(const name of [
-    'configuracoes-areas','alimentacao','alimentacao-mesas-comandas','atacado','servicos',
+    'configuracoes-areas','alimentacao','alimentacao-mesas-comandas','atacado',
     'balcao-comandas-pedidos','balcao-pedido-atacado-carregado'
   ])assert.equal(names.has(name),true,name);
+  assert.equal(names.has('servicos'),false);
+  const registry=read('js/core/modules/module-registry.js');
+  assert.doesNotMatch(registry,/id:'SERVICES'/);
 });
