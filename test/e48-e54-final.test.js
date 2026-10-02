@@ -26,7 +26,7 @@ test('E48-E54 advance vertical schema to v8 and expose final modular services',(
   const rt=setup();
   try{
     assert.equal(VERTICAL_SCHEMA_VERSION,8);
-    for(const name of ['retail','services','selfService','onboarding','mobileAccess','hardwareCompatibility']){
+    for(const name of ['retail','selfService','onboarding','mobileAccess','hardwareCompatibility']){
       assert.ok(rt[name],`runtime.${name} deve existir`);
     }
     assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
@@ -51,26 +51,14 @@ test('E48 Core variants reuse E40 data and keep stock per variant through canoni
   }finally{rt.close();}
 });
 
-test('E49 services schedules locally, blocks professional overlap and creates canonical sale with commission',async()=>{
+test('E49 legacy services schema remains preserved but is not an active module/runtime surface',()=>{
   const rt=setup();
   try{
-    rt.modules.setEnabled('SERVICES',true,admin);
-    const service=rt.services.upsertService({id:'svc-cut',name:'Corte',durationMinutes:30,priceCents:5000},admin);
-    assert.equal(service.priceCents,5000);
-    const pro=rt.services.upsertProfessional({id:'pro-ana',name:'Ana',defaultCommissionBps:2000},admin);
-    rt.services.linkProfessional(service.id,pro.id,{commissionBps:2000},admin);
-    const appointment=rt.services.scheduleAppointment({id:'appt-1',serviceId:service.id,professionalId:pro.id,customerId:'cust-1',startsAt:'2026-09-12T10:00:00.000Z'},admin);
-    assert.equal(appointment.endsAt,'2026-09-12T10:30:00.000Z');
-    assert.throws(()=>rt.services.scheduleAppointment({serviceId:service.id,professionalId:pro.id,customerId:'cust-1',startsAt:'2026-09-12T10:15:00.000Z'},admin),/conflito/i);
-    rt.services.updateAppointmentStatus(appointment.id,'IN_PROGRESS',admin);
-    rt.services.updateAppointmentStatus(appointment.id,'COMPLETED',admin);
-    const sale=rt.services.createSale(appointment.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
-    assert.equal(sale.totalCents,5000);
-    rt.sales.completeSale(sale.id,{payments:[{method:'PIX',amountCents:5000}],actor:admin});
-    await rt.dispatchPending();
-    const report=rt.services.commissionReport();
-    assert.equal(report.totalCommissionCents,1000);
-    assert.equal(report.rows[0].professionalId,'pro-ana');
+    const tables=new Set(rt.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row=>row.name));
+    for(const name of ['service_catalog','service_professionals','service_professional_links','service_appointments'])assert.equal(tables.has(name),true,name);
+    assert.equal(rt.services,undefined);
+    assert.equal(rt.modules.list().some(module=>module.id==='SERVICES'),false);
+    assert.throws(()=>rt.modules.isEnabled('SERVICES'),/Modulo desconhecido/);
   }finally{rt.close();}
 });
 
@@ -104,7 +92,7 @@ test('E52 onboarding recommends editable module sets and persists completion',()
     assert.equal(state.completed,true);
     assert.equal(state.businessName,'Alimentação Teste');
     assert.equal(rt.modules.isEnabled('FOOD'),true);
-    assert.equal(rt.modules.isEnabled('SERVICES'),false);
+    assert.throws(()=>rt.modules.isEnabled('SERVICES'),/Modulo desconhecido/);
     assert.equal(rt.onboarding.getState().segment,'FOOD');
   }finally{rt.close();}
 });
