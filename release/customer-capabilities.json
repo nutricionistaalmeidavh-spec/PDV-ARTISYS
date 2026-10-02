@@ -93,7 +93,9 @@
         "finance-payables-receivables",
         "finance-entry-management-dimensions",
         "finance-bank-reconciliation-and-own-account-transfers",
-        "finance-recurring-rules-and-alerts"
+        "finance-recurring-rules-and-alerts",
+        "finance-statement-import-history",
+        "finance-alert-hide-restore"
       ],
       "backend": [
         {
