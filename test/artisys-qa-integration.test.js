@@ -43,7 +43,9 @@ test('future QA updates remain explicit and local-first',()=>{
   const pkg=readJson('package.json');
   assert.equal(pkg.scripts['qa:update'],'node scripts/sync-artisys-qa.mjs');
   assert.equal(pkg.scripts['qa:validate'],'node qa/runtime/artisys-qa.mjs validate --config qa/artisys-qa.config.json');
-  assert.equal(pkg.scripts['qa:e2e:p0'],'node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow all-pages-audit --environment ci --viewport compactDesktop --output qa-artifacts');
+  assert.match(pkg.scripts['qa:e2e:p0'],/--flow all-pages-audit/);
+  assert.match(pkg.scripts['qa:e2e:p0'],/--flow restaurant-table-lifecycle/);
+  assert.match(pkg.scripts['qa:e2e:p0'],/qa-artifacts\/restaurant-table-lifecycle/);
   const sync=readText('scripts/sync-artisys-qa.mjs');
   assert.match(sync,/ARTISYS_QA_SOURCE/);
   assert.match(sync,/qa\/artisys-qa\.config\.json/);
@@ -68,7 +70,12 @@ test('current Electron QA manifest uses the isolated QA desktop wrapper',()=>{
   assert.equal(config.electron.entry,'desktop/main.cjs');
   assert.equal(fs.existsSync(path.join(root,'qa/desktop/main.cjs')),true);
   const flow=readJson('qa/flows/all-pages-audit.json');
+  const restaurant=readJson('qa/flows/restaurant-table-lifecycle.json');
   assert.equal(flow.metadata.qaAutoAdmin,true);
   assert.equal(flow.steps.some(step=>step.action==='expectNoHorizontalOverflow'),true);
   assert.equal(flow.steps.some(step=>step.name==='balcao-finalizar-visivel'),true);
+  assert.equal(restaurant.metadata.qaAutoAdmin,true);
+  assert.equal(restaurant.steps.some(step=>step.name==='comanda-aberta'),true);
+  assert.equal(restaurant.steps.some(step=>step.name==='mesa-liberada'),true);
+  assert.equal(restaurant.steps.some(step=>step.name==='configuracao-separada'),true);
 });
