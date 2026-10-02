@@ -6,6 +6,8 @@
   if(typeof ApiClient!=='function')return;
   const api=new ApiClient();
   const content=document.getElementById('route-content');
+  const lifecycle=root.PdvUiLifecycle;
+  if(!lifecycle)return;
   const toastRoot=document.getElementById('toast-root');
   const SUPPORTED_IMAGE_TYPES=new Set(['image/png','image/jpeg','image/webp']);
   const MAX_SOURCE_BYTES=4*1024*1024;
@@ -103,7 +105,8 @@
     finally{mounting=false;}
   }
 
-  const observer=new MutationObserver(()=>{void mount();});
-  if(content)observer.observe(content,{childList:true,subtree:true});
-  void mount();
+  const onRouteChange=({route})=>{if(route==='settings')void mount();};
+  lifecycle.on('route:mounted',onRouteChange);
+  lifecycle.on('route:updated',onRouteChange);
+  if(document.body.dataset.activeRoute==='settings')void mount();
 })();
