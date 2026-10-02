@@ -6,8 +6,9 @@
   if (!ApiClient) return;
 
   const api = new ApiClient();
+  const lifecycle = root.PdvUiLifecycle;
+  if (!lifecycle) return;
   let latestCompletedSale = null;
-  let settingsObserver = null;
   let settingsInjectionQueued = false;
 
   function escapeHtml(value) {
@@ -244,17 +245,11 @@
     setTimeout(() => { void injectPrintingSettings(); }, 0);
   }
 
-  const content = document.getElementById('route-content');
-  if (content) {
-    settingsObserver = new MutationObserver(queueSettingsInjection);
-    settingsObserver.observe(content, { childList:true, subtree:true });
-  }
-  root.addEventListener('click', event => {
-    const routeTarget = event.target.closest?.('[data-route],[data-home-route]');
-    if (routeTarget && !event.target.closest?.('#post-sale-receipt-root')) closePostSaleModal();
-    if (event.target.closest?.('[data-route="settings"],[data-home-route="settings"]')) queueSettingsInjection();
-  }, true);
-  queueSettingsInjection();
+  lifecycle.on('route:before', () => closePostSaleModal());
+  const onSettingsRoute = ({ route }) => { if (route === 'settings') queueSettingsInjection(); };
+  lifecycle.on('route:mounted', onSettingsRoute);
+  lifecycle.on('route:updated', onSettingsRoute);
+  if (document.body.dataset.activeRoute === 'settings') queueSettingsInjection();
 
   root.PdvPostSaleReceiptUi = Object.freeze({ showPostSaleModal, injectPrintingSettings, closePostSaleModal });
 })();
