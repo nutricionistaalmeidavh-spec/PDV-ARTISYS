@@ -38,7 +38,7 @@ test('finance entry detail edits canonical dimensions instead of creating a para
   assert.match(finance,/categoryId/);
   assert.match(finance,/costCenterId/);
   assert.match(finance,/competencyDate/);
-  assert.match(finance,/PdvFinanceOperationsUi\.navigation\('finance'\)/);
+  assert.match(finance,/PdvFinanceOperationsUi\?\.navigation\?\.\('finance'\)/);
 });
 
 test('banking and recurrence P1 actions use the existing ERP finance APIs',()=>{
