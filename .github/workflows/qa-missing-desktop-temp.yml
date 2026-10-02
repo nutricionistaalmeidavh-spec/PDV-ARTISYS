@@ -1,0 +1,30 @@
+name: QA Missing Desktop TEMP
+on:
+  push:
+    branches:
+      - qa/all-screens-20261001
+permissions:
+  contents: read
+jobs:
+  capture-missing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - run: npx --prefix qa/runtime playwright install chromium --with-deps
+      - run: command -v xvfb-run >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y xvfb)
+      - name: Capture missing desktop screens
+        run: xvfb-run -a node qa/runtime/capture-missing-desktop.mjs
+      - name: Upload missing desktop screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv-artisys-missing-desktop-${{ github.run_number }}
+          path: qa-artifacts/missing-desktop
+          if-no-files-found: error
+          retention-days: 7
