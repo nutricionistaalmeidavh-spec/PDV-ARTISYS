@@ -137,6 +137,14 @@ async function finishRestaurant(page,state){
     if(!session.checkoutSaleId)throw new Error('Comanda QA nao foi levada ao caixa.');
     const sale=await api.sale(session.checkoutSaleId);
     if(sale.status==='OPEN')await api.completeSale(sale.id,[{method:'CASH',amountCents:sale.totalCents}]);
+    let finalTable=null;
+    for(let attempt=0;attempt<40;attempt++){
+      const tables=await api.request('/api/v1/restaurant/tables');
+      finalTable=tables.find(item=>item.id===state.tableId);
+      if(finalTable?.status==='FREE')break;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    if(finalTable?.status!=='FREE')throw new Error('Mesa QA nao foi liberada apos concluir a venda.');
     return{...state,sessionId:session.id,saleId:sale.id};
   },state);
 }
