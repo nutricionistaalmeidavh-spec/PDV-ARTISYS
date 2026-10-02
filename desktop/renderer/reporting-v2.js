@@ -41,6 +41,7 @@
     return Number.isFinite(number) ? Math.round(number * 100) : 0;
   }
   function showToast(message,type='') {
+    if (root.PdvToast?.show) { root.PdvToast.show(message,type); return; }
     if (!toastRoot) return;
     const node = document.createElement('div');
     node.className = `toast ${type}`;
@@ -103,6 +104,41 @@
   function selectedPaymentRows(sales) {
     const rows = sales.paymentMethods || [];
     return state.paymentMethod ? rows.filter(row => row.method === state.paymentMethod) : rows;
+  }
+
+
+  function marginPercent(row) {
+    const revenue=Number(row?.netCents||0);
+    return revenue ? Number(((Number(row?.estimatedMarginCents||0)/revenue)*100).toFixed(2)) : 0;
+  }
+
+  function presetPeriod(key,reference=new Date()) {
+    const end=new Date(reference.getFullYear(),reference.getMonth(),reference.getDate());
+    const start=new Date(end);
+    if(key==='last7')start.setDate(start.getDate()-6);
+    else if(key==='month')start.setDate(1);
+    else if(key==='prev-month'){start.setMonth(start.getMonth()-1,1);end.setDate(0);}
+    return{fromDate:dateValue(start),toDate:dateValue(end)};
+  }
+
+  async function openSalesDrilldown(title,filters={}) {
+    if(!modal?.open){showToast('Detalhamento indisponível.','error');return;}
+    try{
+      const from=new Date(`${state.fromDate}T00:00:00`).toISOString(),to=new Date(`${state.toDate}T23:59:59.999`).toISOString();
+      const rows=await api.reportSalesDetails({from,to,sellerId:SELLER_FILTER_VIEWS.has(state.view)?state.sellerId||'':'',...filters});
+      const body=`<p class="ops-muted">${escapeHtml(state.fromDate)} a ${escapeHtml(state.toDate)} · ${rows.length} venda${rows.length===1?'':'s'} encontrada${rows.length===1?'':'s'}.</p><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Venda</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Pagamento</th><th>Total</th></tr></thead><tbody>${rows.map(row=>`<tr><td><strong>${escapeHtml(row.saleNumber)}</strong><small>${escapeHtml(row.saleId)}</small></td><td>${when(row.completedAt)}</td><td>${escapeHtml(row.customerName||'Consumidor não identificado')}</td><td>${escapeHtml(row.sellerName||'Não identificado')}</td><td>${escapeHtml((row.payments||[]).map(payment=>paymentLabel(payment.method)).join(' + ')||'—')}</td><td><strong>${money(row.totalCents)}</strong></td></tr>`).join('')||empty('Nenhuma venda encontrada para este recorte.',6)}</tbody></table></div>`;
+      modal.open(title,body,{wide:true});
+    }catch(error){showToast(error.message,'error');}
+  }
+
+  function navigateManagement() {
+    const hub=document.querySelector('#sidebar-nav [data-route="financial-management"]');
+    if(hub){
+      hub.click();
+      setTimeout(()=>content.querySelector('[data-flow-route="management"]')?.click(),0);
+      return;
+    }
+    void root.PdvErpFinanceUi?.renderManagement?.();
   }
 
   function overviewView(sales) {
