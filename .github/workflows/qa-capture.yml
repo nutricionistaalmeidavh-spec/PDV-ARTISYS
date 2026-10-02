@@ -1,6 +1,9 @@
 name: QA Capture
 
 on:
+  push:
+    branches:
+      - audit/product-design-post-fixes-20261002
   workflow_dispatch:
     inputs:
       demo:
@@ -48,25 +51,18 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install -y "${missing[@]}"
           fi
-      - name: Capture PDV flow
+      - name: Capture Product Design post-fixes flow
         id: capture
         shell: bash
-        env:
-          INPUT_DEMO: ${{ inputs.demo }}
-          INPUT_PRESET: ${{ inputs.preset }}
         run: |
-          DEMO="${INPUT_DEMO:-quick-30s}"
-          PRESET="${INPUT_PRESET:-reels-9x16}"
-
           rm -rf qa-artifacts
-          echo "artifact_name=pdv-demo-${DEMO}-${PRESET}-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-          ARTISYS_QA_DEMO_PASSWORD="$(openssl rand -hex 16)" \
-            xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
-              --config qa/artisys-qa.config.json \
-              --demo "$DEMO" \
-              --preset "$PRESET" \
-              --environment ci \
-              --output qa-artifacts
+          echo "artifact_name=pdv-product-design-post-fixes-${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          xvfb-run -a node qa/runtime/artisys-qa.mjs run \
+            --config qa/artisys-qa.config.json \
+            --flow product-design-post-fixes-audit \
+            --environment ci \
+            --viewport desktop \
+            --output qa-artifacts
       - name: Upload screenshots videos traces and logs
         if: always()
         uses: actions/upload-artifact@v4
