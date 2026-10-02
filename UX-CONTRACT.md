@@ -4,7 +4,11 @@
 
 The local server and `js/core/modules/module-registry.js` own the optional-module definitions: stable ID, customer-facing name, description, family/area, dependency list, route ID, icon, allowed roles, management roles, and default activation. `js/core/modules/module-service.js` owns persisted activation and server-side authorization. Renderer code consumes the returned catalog; it must not maintain parallel module labels, family membership, icons, or permission lists.
 
-`desktop/renderer/restaurant-module-gate.js` is the sole renderer-side cache of the last authoritative module catalog. It publishes `artisys:modules-state-changed` with `{catalog, modules, changedIds}`. A failed refresh preserves the last known catalog and displays/handles request errors at the affected operation; it does not synthesize a module state. `desktop/renderer/vertical-modules.js` derives settings, grouped navigation, role visibility, and route selection from that catalog. `desktop/renderer/module-state-sync.js` uses stable route IDs, never translated headings.
+`desktop/renderer/restaurant-module-gate.js` is the sole renderer-side cache of the last authoritative module catalog. It publishes `artisys:modules-state-changed` with `{catalog, modules, changedIds}`. A failed refresh preserves the last known catalog and displays/handles request errors at the affected operation; it does not synthesize a module state. `desktop/renderer/vertical-modules.js` derives settings, navigation, role visibility, and route selection from that catalog. `desktop/renderer/module-state-sync.js` uses stable route IDs, never translated headings.
+
+## Core commercial capabilities
+
+Product variants, recipes/ficha técnica, stock behavior and weighted sale are Core capabilities. They must not depend on a retail, market, bakery or other segment module. A product sold in KG/G may use manual weight or the configured local scale in the canonical checkout.
 
 ## Module lifecycle
 
@@ -43,7 +47,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 ## Restaurante: ordering público por QR
 
-- Public ordering requires both `RESTAURANT` and `SELF_SERVICE` to be enabled. Each table has an opaque, locally generated QR token; the token identifies only that table and never grants administrative access.
+- Public ordering requires the `FOOD` / Alimentação area to be enabled. Pedidos and Produção/KDS are structural parts of Alimentação; self-service is a channel of that same area, not a separate module. Each table has an opaque, locally generated QR token; the token identifies only that table and never grants administrative access.
 - `/m/:token` is a public customer surface. It does not use `x-device-id`, `x-device-key`, operator login, or desktop session credentials.
 - The public product projection contains only customer-safe fields: product/category name, public description, sale price, availability, photo presence, and sanitized option/variant/combo labels and price deltas. Never serialize cost, recipe/ficha técnica, SKU, barcode, stock quantity, user, credential, or filesystem fields into this response.
 - Public descriptions are independent metadata. A recipe may inform a human-authored menu description, but the system does not expose or automatically publish recipe lines.
