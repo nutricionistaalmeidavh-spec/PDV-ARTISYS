@@ -146,6 +146,56 @@
     },
     {
       "action": "click",
+      "selector": "button[data-flow-route='products']",
+      "name": "abrir-produtos-p2",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-products-canonical='true'][data-products-view='dense']",
+      "name": "produtos-p2-canonico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#product-page-search",
+      "name": "produtos-busca-canonica",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "produtos-p2-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='customers']",
+      "name": "abrir-clientes-p2",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-customers-canonical='true'][data-customers-view='master-detail']",
+      "name": "clientes-p2-canonico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#customer-page-search",
+      "name": "clientes-busca-canonica",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "clientes-p2-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
       "selector": "button[data-route='post-sale']",
       "name": "vendas-devolucoes",
       "holdMs": 1000
