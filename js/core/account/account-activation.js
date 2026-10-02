@@ -89,14 +89,14 @@ function createAccountService({
   async function requestPasswordRecovery(email) {
     const accountEmail = normalizeEmail(email);
     if (!accountEmail) throw new Error('E-mail obrigatorio para recuperacao.');
-    return remote('/v1/password-recovery/request', { email:accountEmail });
+    return remote('/v1/password-recovery/request', { installationId:id, email:accountEmail });
   }
 
   async function verifyPasswordRecovery({ email, code }={}) {
     const accountEmail = normalizeEmail(email);
     const token = String(code || '').trim();
     if (!accountEmail || !token) throw new Error('E-mail e codigo sao obrigatorios para recuperacao.');
-    const payload = await remote('/v1/password-recovery/verify', { email:accountEmail, code:token });
+    const payload = await remote('/v1/password-recovery/verify', { installationId:id, email:accountEmail, code:token });
     const verifiedEmail = normalizeEmail(payload.accountEmail || payload.account_email || accountEmail);
     if (!payload.verified || !verifiedEmail) throw new Error('Codigo de recuperacao invalido ou expirado.');
     return { verified:true, accountEmail:verifiedEmail };
