@@ -2,7 +2,9 @@ import { _electron as electron, chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
+const require=createRequire(import.meta.url);
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'../..');
 const out=path.join(root,'qa-artifacts','all-screens');
@@ -185,6 +187,45 @@ for(const [moduleId,name] of [['RESTAURANT','restaurante'],['PIZZERIA','pizzaria
 await captureDesktop('varejo',async()=>{if(!await visibleClick("[data-module-nav='RETAIL']"))throw new Error('Varejo não encontrado');});
 await captureDesktop('servicos',async()=>{if(!await visibleClick("[data-module-nav='SERVICES']"))throw new Error('Serviços não encontrado');});
 
+await app.close().catch(()=>{});
+
+const {createServerFromEnvironment}=require('../../server/start.js');
+const {createPublicOrderingService}=require('../../js/domains/restaurant/public-ordering.js');
+const mobileService=createServerFromEnvironment({
+  ...process.env,
+  NODE_ENV:'test',
+  PDV_HOST:'127.0.0.1',
+  PDV_PORT:'4174',
+  PDV_DB_PATH:path.join(out,'mobile-runtime.sqlite'),
+  PDV_APP_VERSION:'1.4.23',
+  PDV_ENABLE_LAN:'true'
+},root);
+await mobileService.start();
+const mrt=mobileService.runtime;
+const mactor={userId:'qa-admin',role:'admin',terminalId:'PDV-01'};
+try{mrt.catalog.createUser({id:'qa-admin',username:'qaadmin',name:'QA Administrador',role:'admin',password:'QaLocalOnly-12345!',active:true},mactor);}catch{}
+for(const moduleId of ['RESTAURANT','FAST_FOOD','SELF_SERVICE']){mrt.modules.setEnabled(moduleId,true,mactor);}
+mrt.catalog.upsertProduct({id:'qa-x-tudo',sku:'XTUDO',name:'X-Tudo',salePriceCents:2790,costCents:842,trackStock:false,active:true},mactor);
+mrt.catalog.upsertProduct({id:'qa-batata',sku:'BATATA',name:'Batata frita',salePriceCents:1490,costCents:430,trackStock:false,active:true},mactor);
+mrt.catalog.upsertProduct({id:'qa-coca',sku:'COCA350',name:'Coca-Cola 350 ml',salePriceCents:600,costCents:280,trackStock:false,active:true},mactor);
+const mtable=mrt.restaurant.upsertTable({id:'qa-table-01',label:'Mesa 01',seats:4,active:true},mactor);
+const mstation=mrt.kitchen.upsertStation({id:'qa-kitchen',name:'Cozinha',active:true},mactor);
+mrt.kitchen.assignProduct('qa-x-tudo',mstation.id,mactor);
+const msession=mrt.restaurant.openTable(mtable.id,{operatorId:'qa-admin',actor:mactor,mutationId:'qa-open-table'});
+mrt.restaurant.addOrder(msession.id,{items:[{productId:'qa-x-tudo',quantity:1,unitPriceCents:2790,note:'Sem cebola'}],source:'DESKTOP',actor:mactor,mutationId:'qa-initial-order'});
+await mrt.dispatchPending();
+const mWaiter=mrt.mobileDevices.createDevice({id:'qa-waiter',name:'Garçom QA',deviceType:'WAITER',userId:'qa-admin'},mactor);
+const mKitchen=mrt.mobileDevices.createDevice({id:'qa-kds',name:'Cozinha QA',deviceType:'KITCHEN'},mactor);
+const mTablet=mrt.mobileDevices.createDevice({id:'qa-tablet',name:'Tablet Mesa 01',deviceType:'TABLET',tableId:mtable.id},mactor);
+const mSelf=mrt.mobileDevices.createDevice({id:'qa-self',name:'Autoatendimento QA',deviceType:'SELF_SERVICE'},mactor);
+mrt.selfService.configureDevice(mSelf.id,{mode:'PICKUP',operatorId:'qa-admin'},mactor);
+mrt.publicOrdering=createPublicOrderingService({db:mrt.db,modules:mrt.modules,catalog:mrt.catalog,catalogCustomization:mrt.catalogCustomization,restaurant:mrt.restaurant,productPhotos:mrt.productPhotos});
+mrt.publicOrdering.updateMenuProduct('qa-x-tudo',{description:'Pão, carne, queijo, bacon, ovo, alface e tomate.',visible:true,sortOrder:1},mactor);
+mrt.publicOrdering.updateMenuProduct('qa-batata',{description:'Batatas crocantes, porção individual.',visible:true,sortOrder:2},mactor);
+mrt.publicOrdering.updateMenuProduct('qa-coca',{description:'Lata 350 ml gelada.',visible:true,sortOrder:3},mactor);
+const mAccess=mrt.publicOrdering.issueTableAccess(mtable.id,mactor);
+const mobileQrUrl='http://127.0.0.1:4174/m/'+encodeURIComponent(mAccess.token);
+
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
 async function deviceScreen(name,device){
   if(!device?.id||!device?.credential){manifest.errors.push({screen:name,error:'Credencial do dispositivo indisponível'});return;}
@@ -206,10 +247,10 @@ async function deviceScreen(name,device){
   await shotMobile(p,'equipe-login');
   await context.close();
 }
-if(qr?.url){
+if(mobileQrUrl){
   const context=await browser.newContext({viewport:{width:390,height:844}});
   const p=await context.newPage();
-  await p.goto(qr.url,{waitUntil:'domcontentloaded'});
+  await p.goto(mobileQrUrl,{waitUntil:'domcontentloaded'});
   await p.waitForSelector('#products',{timeout:15000});
   await sleep(700);
   await shotMobile(p,'cliente-cardapio-mesa');
@@ -221,12 +262,12 @@ if(qr?.url){
   }
   await context.close();
 }
-await deviceScreen('garcom',waiter);
-await deviceScreen('cozinha-kds',kitchen);
-await deviceScreen('tablet-mesa',tablet);
-await deviceScreen('autoatendimento-dispositivo',selfDevice);
+await deviceScreen('garcom',mWaiter);
+await deviceScreen('cozinha-kds',mKitchen);
+await deviceScreen('tablet-mesa',mTablet);
+await deviceScreen('autoatendimento-dispositivo',mSelf);
 
 await browser.close();
-await app.close();
+await mobileService.stop();
 await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({desktop:manifest.desktop.length,mobile:manifest.mobile.length,errors:manifest.errors},null,2));
