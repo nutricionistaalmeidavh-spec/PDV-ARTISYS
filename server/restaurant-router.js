@@ -30,7 +30,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     return{device:auth.device,actor:{userId:auth.device.userId||null,role:`mobile-${auth.device.deviceType.toLowerCase()}`,terminalId:null}};
   }
 
-  function requireRestaurantEnabled(){runtime.modules?.requireEnabled('RESTAURANT');}
+  function requireRestaurantEnabled(){runtime.modules?.requireEnabled('FOOD');}
   function requireMenuItems(items=[]){
     for(const item of Array.isArray(items)?items:[]){
       const product=runtime.catalog.getProduct(String(item?.productId||''));
