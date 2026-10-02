@@ -78,3 +78,8 @@ Evolução pareada não significa copiar recursos de Produtos para Clientes ou v
 ## Exceções
 
 Correções estritamente locais de bug, acessibilidade ou estilo que não mudem o contrato estrutural não exigem aumento de nível. Mudanças que alterem fluxo, organização funcional, fonte de dados, fallback ou responsabilidade entre Legacy e nova UX exigem.
+
+
+## Estado P2 canônico — 2026-10-02
+
+Produtos e Clientes avançaram juntos para UX level 4. A arquitetura reversível por feature flag foi encerrada: ambos usam renderer funcional canônico, apresentação lifecycle-owned e não mantêm fallback Legacy. Alterações futuras continuam obrigadas a elevar `PRODUCTS_UX_LEVEL` e `CUSTOMERS_UX_LEVEL` em conjunto quando forem estruturais.
