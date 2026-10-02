@@ -186,7 +186,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       const waiter = requireActiveWaiter(waiterId);
       const id = idFactory('table-session');
       const timestamp = now();
-      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,waiter_id,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?,?,?)`)
+      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,waiter_id,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?,?)`)
         .run(id, table.id, operatorId || null, waiter?.id || null, timestamp, timestamp);
       const event = insertEvent({
         type:'restaurant.table-opened', aggregate:'table-session', aggregateId:id, actor, mutationId,
