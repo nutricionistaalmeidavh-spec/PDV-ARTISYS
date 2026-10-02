@@ -115,7 +115,17 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   const productColumns=new Set(db.prepare('PRAGMA table_info(products)').all().map(column=>column.name));
   if(!productColumns.has('menu_enabled')){
     db.exec('ALTER TABLE products ADD COLUMN menu_enabled INTEGER NOT NULL DEFAULT 0 CHECK(menu_enabled IN (0,1))');
-    db.prepare('UPDATE products SET menu_enabled=1 WHERE active=1').run();
+    const tableExists=name=>Boolean(db.prepare("SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?").get(name));
+    const hasRecipes=tableExists('product_recipes');
+    const hasRecipeComponents=tableExists('recipe_components');
+    const hasVariants=tableExists('product_variants');
+    const directStock=hasRecipeComponents
+      ? "(track_stock=1 AND NOT EXISTS (SELECT 1 FROM recipe_components rc WHERE rc.ingredient_product_id=products.id))"
+      : "track_stock=1";
+    const sourceRules=[directStock];
+    if(hasRecipes)sourceRules.push("EXISTS (SELECT 1 FROM product_recipes pr WHERE pr.product_id=products.id AND pr.active=1)");
+    if(hasVariants)sourceRules.push("EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id=products.id AND pv.active=1)");
+    db.exec(`UPDATE products SET menu_enabled=1 WHERE active=1 AND (${sourceRules.join(' OR ')})`);
   }
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
   const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
