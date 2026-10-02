@@ -8,7 +8,7 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=c=>`R$ ${(Number(c||0)/100).toFixed(2).replace('.',',')}`;
   function toast(message,error=false){const root=document.getElementById('toast-root');if(!root)return;const n=document.createElement('div');n.className=`toast ${error?'error':'success'}`;n.textContent=message;root.appendChild(n);setTimeout(()=>n.remove(),3200);}
-  function back(){window.PdvOperationalUi?.showRoute?.('inventory');}
+  function back(){void routeRegistry.render('inventory');}
   function shell(title,subtitle,body){const root=content();if(!root)return;root.innerHTML=`<section class="ops-page enterprise-depth-page"><header class="ops-head"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><button type="button" class="ops-secondary" data-enterprise-back>← Estoque</button></header>${body}</section>`;root.querySelector('[data-enterprise-back]')?.addEventListener('click',back);}
   function field(name,label,type='text',placeholder='',required=true){return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" placeholder="${esc(placeholder)}" ${required?'required':''}></label>`;}
   function select(name,label,rows,valueKey='id',labelKey='name'){return `<label class="field"><span>${esc(label)}</span><select name="${esc(name)}" required><option value="">Selecione</option>${rows.map(row=>`<option value="${esc(row[valueKey])}">${esc(row[labelKey]||row[valueKey])}</option>`).join('')}</select></label>`;}
