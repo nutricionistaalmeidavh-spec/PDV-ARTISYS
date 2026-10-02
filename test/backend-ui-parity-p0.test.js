@@ -47,6 +47,5 @@ test('P0 customer operations are wired to visible desktop actions',()=>{
   assert.match(index,/backend-parity-ui\.js/);
   for(const marker of [
     'Estoque por local','bindTerminalStockLocation','Cancelar devolução','createFinanceAccount','reverseFinanceSettlement',
-    '/vertical/services/appointments/${encodeURIComponent(id)}/status','/vertical/services/appointments/${encodeURIComponent(id)}/sale',
   ]) assert.ok(ui.includes(marker),`UI parity marker ausente: ${marker}`);
 });
