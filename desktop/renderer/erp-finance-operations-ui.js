@@ -177,7 +177,8 @@
     const ux=root.ArtisysUxComponents;
     const labels={ACTIVE:'retomada',PAUSED:'pausada',ENDED:'encerrada'};
     try{
-    if(status==='ENDED'&&ux?.openFormDialog){
+    if(status==='ENDED'){
+      if(!ux?.openFormDialog){toast('Diálogo financeiro indisponível.','error');return;}
       const result=await ux.openFormDialog({
         title:'Encerrar recorrência',
         description:`${rule.description} · ${money(rule.amountCents)}`,
