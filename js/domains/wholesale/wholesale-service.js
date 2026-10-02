@@ -34,7 +34,7 @@ function createWholesaleService({db,modules,orders,now=()=>new Date().toISOStrin
     if(!Number.isFinite(minQuantity)||minQuantity<=0)throw new Error('Quantidade minima da faixa deve ser maior que zero.');
     const unitPriceCents=assertCents(Number(input.unitPriceCents),'unitPriceCents');
     if(unitPriceCents>Number(p.salePriceCents))throw new Error('Preco de atacado nao pode ser maior que o preco base atual.');
-    const id=text(input.id||idFactory('wholesale-tier'));const ts=now();
+    const requestedId=text(input.id);const sameThreshold=db.prepare('SELECT id FROM wholesale_price_tiers WHERE product_id=? AND min_quantity=?').get(p.id,minQuantity);const id=requestedId||sameThreshold?.id||text(idFactory('wholesale-tier'));const ts=now();
     const collision=db.prepare('SELECT id FROM wholesale_price_tiers WHERE product_id=? AND min_quantity=? AND id<>?').get(p.id,minQuantity,id);
     if(collision)throw new Error('Ja existe uma faixa para esta quantidade minima.');
     const existing=db.prepare('SELECT id,created_at FROM wholesale_price_tiers WHERE id=?').get(id);
