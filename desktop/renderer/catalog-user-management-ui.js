@@ -5,7 +5,8 @@
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
   const toastRoot=document.getElementById('toast-root');
-  if(!ApiClient||!content)return;
+  const lifecycle=window.PdvUiLifecycle;
+  if(!ApiClient||!content||!lifecycle)return;
   const api=new ApiClient();
   let mounting=false;
   let currentUser=null;
@@ -121,5 +122,10 @@
     }catch(error){console.warn('Catalog/user management UI unavailable:',error?.message||error);}finally{mounting=false;}
   }
 
-  const observer=new MutationObserver(()=>queueMicrotask(()=>void mount()));observer.observe(content,{childList:true,subtree:true});void mount();
+  const scheduleMount=()=>queueMicrotask(()=>void mount());
+  lifecycle.on('route:mounted',scheduleMount);
+  lifecycle.on('route:updated',scheduleMount);
+  lifecycle.on('surface:mounted',scheduleMount);
+  lifecycle.on('user:changed',()=>{currentUser=null;scheduleMount();});
+  void mount();
 })();
