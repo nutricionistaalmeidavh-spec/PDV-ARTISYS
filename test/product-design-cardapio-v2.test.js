@@ -76,6 +76,17 @@ test('a direct stock product becomes BOTH when it is used by a technical sheet',
   }finally{rt.close();}
 });
 
+
+test('prepared products reject new stock variants while legacy variants remain editable',()=>{
+  const rt=runtime();
+  try{
+    rt.catalog.upsertProduct({id:'bread-v',name:'Pao',costCents:100,trackStock:true,usageType:'INGREDIENT'},admin);
+    rt.catalog.upsertProduct({id:'burger-v',name:'Burger',salePriceCents:1200,trackStock:false,usageType:'DIRECT'},admin);
+    rt.recipes.setRecipe('burger-v',{components:[{productId:'bread-v',quantity:1,unit:'UN'}]},admin);
+    assert.throws(()=>rt.catalogCustomization.upsertVariant({productId:'burger-v',name:'Grande',sku:'BURGER-G'},admin),/nao aceita variacao de estoque/i);
+  }finally{rt.close();}
+});
+
 test('Cardapio UI exposes the corrected source model and complete technical sheet fields',()=>{
   const app=read('desktop/renderer/app.js');
   const dense=read('desktop/renderer/products-dense-view.js');
@@ -104,6 +115,17 @@ test('Cardapio UI exposes the corrected source model and complete technical shee
   assert.match(styles,/\.modal-close[^}]*width: 44px/);
   assert.match(styles,/button:focus-visible/);
   assert.match(styles,/\.menu-source-row/);
+  assert.match(styles,/\[data-product-sale-only\]\[hidden\]/);
+  assert.match(styles,/\.products-secondary-actions-menu/);
+  assert.match(styles,/\.recipe-origin-summary[^}]*grid-template-columns:repeat\(3/);
+  assert.match(app,/Mais ações/);
+  assert.match(app,/Insumos usados apenas em fichas técnicas permanecem no Estoque/);
+  assert.match(app,/Capacidade atual/);
+  assert.match(dense,/Mais ações/);
+  assert.match(dense,/Até \$\{esc\(quantityLabel\(product\.recipeCapacity/);
+  assert.match(operational,/SKUs de estoque/);
+  assert.match(operational,/product\.trackStock/);
+  assert.match(variants,/if\(!product\?\.prepared\)/);
   assert.doesNotMatch(operational,/＋/);
   assert.doesNotMatch(variants,/＋/);
 });
