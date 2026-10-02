@@ -603,6 +603,18 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/wholesale/tiers",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-faixa-atacado-qa",
+      "body": {
+        "productId": "qa-wholesale-product",
+        "minQuantity": 12,
+        "unitPriceCents": 1000
+      }
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/wholesale/orders",
       "method": "POST",
       "expectedStatus": 201,
@@ -723,6 +735,59 @@
     {
       "action": "screenshot",
       "name": "atacado",
+      "fullPage": true
+    },
+    {
+      "action": "selectOption",
+      "selector": "#wholesale-item-form select[name='customerId']",
+      "value": "qa-wholesale-customer",
+      "name": "atacado-selecionar-cliente-faixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "#wholesale-item-form select[name='locationId']",
+      "value": "MAIN",
+      "name": "atacado-selecionar-local-faixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "#wholesale-item-form select[name='productId']",
+      "value": "qa-wholesale-product",
+      "name": "atacado-selecionar-produto-faixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#wholesale-item-form input[name='quantity']",
+      "value": "12",
+      "name": "atacado-quantidade-faixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#wholesale-item-form button[type='submit']",
+      "name": "atacado-adicionar-item-faixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-wholesale-cart]",
+      "expected": "faixa 12+",
+      "name": "atacado-preco-faixa-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-wholesale-cart]",
+      "expected": "10,00",
+      "name": "atacado-preco-faixa-valor",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "atacado-preco-por-quantidade",
       "fullPage": true
     },
     {
