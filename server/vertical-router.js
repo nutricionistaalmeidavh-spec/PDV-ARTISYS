@@ -50,57 +50,59 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='GET'&&recipe){businessRole(actor);const value=runtime.recipes.getRecipe(decodeURIComponent(recipe[1]));if(!value)throw new VerticalHttpError(404,'Ficha tecnica nao encontrada.');json(response,200,value);return true;}
       if(request.method==='PUT'&&recipe){businessRole(actor);json(response,200,runtime.recipes.setRecipe(decodeURIComponent(recipe[1]),await body(request),actor));return true;}
 
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/profile'){moduleRule('PIZZERIA',actor,true);json(response,201,runtime.pizzeria.upsertProfile(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/catalog'){moduleRule('PIZZERIA',actor,true);const data=await body(request);let value;if(data.kind==='size')value=runtime.pizzeria.upsertSize(data,actor);else if(data.kind==='flavor')value=runtime.pizzeria.upsertFlavor(data,actor);else if(data.kind==='crust')value=runtime.pizzeria.upsertCrust(data,actor);else throw new VerticalHttpError(400,'Tipo de cadastro de pizzaria invalido.');json(response,201,value);return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/price'){moduleRule('PIZZERIA',actor);json(response,200,runtime.pizzeria.pricePizza(await body(request)));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/profile'){moduleRule('FOOD',actor,true);json(response,201,runtime.pizzeria.upsertProfile(await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/catalog'){moduleRule('FOOD',actor,true);const data=await body(request);let value;if(data.kind==='size')value=runtime.pizzeria.upsertSize(data,actor);else if(data.kind==='flavor')value=runtime.pizzeria.upsertFlavor(data,actor);else if(data.kind==='crust')value=runtime.pizzeria.upsertCrust(data,actor);else throw new VerticalHttpError(400,'Tipo de cadastro de pizzaria invalido.');json(response,201,value);return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/price'){moduleRule('FOOD',actor);json(response,200,runtime.pizzeria.pricePizza(await body(request)));return true;}
       const pizzaProfile=pathname.match(/^\/api\/v1\/vertical\/pizzeria\/products\/([^/]+)$/);
-      if(request.method==='GET'&&pizzaProfile){moduleRule('PIZZERIA',actor);const value=runtime.pizzeria.getProfile(decodeURIComponent(pizzaProfile[1]));if(!value)throw new VerticalHttpError(404,'Perfil de pizzaria nao encontrado.');json(response,200,value);return true;}
+      if(request.method==='GET'&&pizzaProfile){moduleRule('FOOD',actor);const value=runtime.pizzeria.getProfile(decodeURIComponent(pizzaProfile[1]));if(!value)throw new VerticalHttpError(404,'Perfil de pizzaria nao encontrado.');json(response,200,value);return true;}
 
       const configuredSale=pathname.match(/^\/api\/v1\/vertical\/sales\/([^/]+)\/configured-item$/);
       if(request.method==='POST'&&configuredSale){const data=await body(request);json(response,200,runtime.sales.addItem(decodeURIComponent(configuredSale[1]),data));return true;}
 
       const settlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements$/);
-      if(request.method==='POST'&&settlement){moduleRule('RESTAURANT',actor);const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createItemSettlement(decodeURIComponent(settlement[1]),{...data,terminalId},actor));return true;}
+      if(request.method==='POST'&&settlement){moduleRule('FOOD',actor);const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createItemSettlement(decodeURIComponent(settlement[1]),{...data,terminalId},actor));return true;}
       const equalSettlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements\/equal$/);
-      if(request.method==='POST'&&equalSettlement){moduleRule('RESTAURANT',actor);const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createEqualSettlement(decodeURIComponent(equalSettlement[1]),{...data,terminalId},actor));return true;}
+      if(request.method==='POST'&&equalSettlement){moduleRule('FOOD',actor);const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createEqualSettlement(decodeURIComponent(equalSettlement[1]),{...data,terminalId},actor));return true;}
       const remaining=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/remaining$/);
-      if(request.method==='GET'&&remaining){moduleRule('RESTAURANT',actor);json(response,200,runtime.restaurantSettlement.getRemainingBalance(decodeURIComponent(remaining[1])));return true;}
+      if(request.method==='GET'&&remaining){moduleRule('FOOD',actor);json(response,200,runtime.restaurantSettlement.getRemainingBalance(decodeURIComponent(remaining[1])));return true;}
       const completeSettlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/settlements\/([^/]+)\/complete$/);
-      if(request.method==='POST'&&completeSettlement){moduleRule('RESTAURANT',actor);json(response,200,runtime.restaurantSettlement.completeSettlement(decodeURIComponent(completeSettlement[1]),await body(request),actor));return true;}
+      if(request.method==='POST'&&completeSettlement){moduleRule('FOOD',actor);json(response,200,runtime.restaurantSettlement.completeSettlement(decodeURIComponent(completeSettlement[1]),await body(request),actor));return true;}
       const cancelOrderItem=pathname.match(/^\/api\/v1\/vertical\/restaurant\/order-items\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&cancelOrderItem){moduleRule('RESTAURANT',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.cancelOrderItem(decodeURIComponent(cancelOrderItem[1]),data.reason,actor));return true;}
+      if(request.method==='POST'&&cancelOrderItem){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.cancelOrderItem(decodeURIComponent(cancelOrderItem[1]),data.reason,actor));return true;}
       const mergeSessions=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/merge$/);
-      if(request.method==='POST'&&mergeSessions){moduleRule('RESTAURANT',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.mergeSessions(decodeURIComponent(mergeSessions[1]),data.targetSessionId,actor));return true;}
+      if(request.method==='POST'&&mergeSessions){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.mergeSessions(decodeURIComponent(mergeSessions[1]),data.targetSessionId,actor));return true;}
       const transferItems=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/transfer-items$/);
-      if(request.method==='POST'&&transferItems){moduleRule('RESTAURANT',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.transferItems(decodeURIComponent(transferItems[1]),data.targetSessionId,data.items||[],actor));return true;}
+      if(request.method==='POST'&&transferItems){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.transferItems(decodeURIComponent(transferItems[1]),data.targetSessionId,data.items||[],actor));return true;}
 
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/delivery'){moduleRule('DELIVERY',actor);json(response,200,runtime.delivery.list({status:url.searchParams.get('status')||null,fulfillmentType:url.searchParams.get('fulfillmentType')||null}));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/delivery'){moduleRule('DELIVERY',actor);const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.delivery.create(data,actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/delivery'){moduleRule('FOOD',actor);json(response,200,runtime.delivery.list({status:url.searchParams.get('status')||null,fulfillmentType:url.searchParams.get('fulfillmentType')||null}));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/delivery'){moduleRule('FOOD',actor);const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.delivery.create(data,actor));json(response,result.statusCode,result.payload);return true;}
       const deliveryStatus=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/status$/);
-      if(request.method==='PATCH'&&deliveryStatus){moduleRule('DELIVERY',actor);const data=await body(request);json(response,200,runtime.delivery.updateStatus(decodeURIComponent(deliveryStatus[1]),data.status,actor));return true;}
+      if(request.method==='PATCH'&&deliveryStatus){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.delivery.updateStatus(decodeURIComponent(deliveryStatus[1]),data.status,actor));return true;}
       const deliveryCancel=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&deliveryCancel){moduleRule('DELIVERY',actor);const data=await body(request);json(response,200,runtime.delivery.cancel(decodeURIComponent(deliveryCancel[1]),data.reason,actor));return true;}
+      if(request.method==='POST'&&deliveryCancel){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.delivery.cancel(decodeURIComponent(deliveryCancel[1]),data.reason,actor));return true;}
       const deliveryCourier=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/courier$/);
-      if(request.method==='PATCH'&&deliveryCourier){moduleRule('DELIVERY',actor);const data=await body(request);json(response,200,runtime.delivery.assignCourier(decodeURIComponent(deliveryCourier[1]),data.courier,actor));return true;}
+      if(request.method==='PATCH'&&deliveryCourier){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.delivery.assignCourier(decodeURIComponent(deliveryCourier[1]),data.courier,actor));return true;}
       const deliverySale=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/sale$/);
-      if(request.method==='POST'&&deliverySale){moduleRule('DELIVERY',actor);const data=await body(request);json(response,201,runtime.delivery.createSale(decodeURIComponent(deliverySale[1]),{...data,terminalId:data.terminalId||p.terminalId},actor));return true;}
+      if(request.method==='POST'&&deliverySale){moduleRule('FOOD',actor);const data=await body(request);json(response,201,runtime.delivery.createSale(decodeURIComponent(deliverySale[1]),{...data,terminalId:data.terminalId||p.terminalId},actor));return true;}
 
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food/ready'){moduleRule('FAST_FOOD',actor);json(response,200,runtime.fastFood.readyBoard());return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food'){moduleRule('FAST_FOOD',actor);json(response,200,runtime.fastFood.list({status:url.searchParams.get('status')||null}));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/fast-food'){moduleRule('FAST_FOOD',actor);const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.fastFood.create(data,actor));json(response,result.statusCode,result.payload);return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food/ready'){moduleRule('FOOD',actor);json(response,200,runtime.fastFood.readyBoard());return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/fast-food'){moduleRule('FOOD',actor);json(response,200,runtime.fastFood.list({status:url.searchParams.get('status')||null}));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/fast-food'){moduleRule('FOOD',actor);const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.fastFood.create(data,actor));json(response,result.statusCode,result.payload);return true;}
       const fastStatus=pathname.match(/^\/api\/v1\/vertical\/fast-food\/([^/]+)\/status$/);
-      if(request.method==='PATCH'&&fastStatus){moduleRule('FAST_FOOD',actor);const data=await body(request);json(response,200,runtime.fastFood.updateStatus(decodeURIComponent(fastStatus[1]),data.status,actor));return true;}
+      if(request.method==='PATCH'&&fastStatus){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.fastFood.updateStatus(decodeURIComponent(fastStatus[1]),data.status,actor));return true;}
 
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/market/price-weight'){moduleRule('MARKET_BAKERY',actor);json(response,200,runtime.marketBakery.priceWeightedItem(await body(request)));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/market/weight-profile'){moduleRule('MARKET_BAKERY',actor,true);json(response,201,runtime.marketBakery.upsertWeightBarcodeProfile(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/market/parse-weight'){moduleRule('MARKET_BAKERY',actor);const data=await body(request);json(response,200,runtime.marketBakery.parseWeightBarcode(data.barcode,{profileId:data.profileId||null}));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/bakery/orders'){moduleRule('MARKET_BAKERY',actor);json(response,201,runtime.marketBakery.createBakeryOrder(await body(request),actor));return true;}
+      if(request.method==='POST'&&['/api/v1/vertical/market/price-weight','/api/v1/vertical/catalog/weight/price'].includes(pathname)){json(response,200,runtime.marketBakery.priceWeightedItem(await body(request)));return true;}
+      if(request.method==='POST'&&['/api/v1/vertical/market/weight-profile','/api/v1/vertical/catalog/weight/profile'].includes(pathname)){businessRole(actor);json(response,201,runtime.marketBakery.upsertWeightBarcodeProfile(await body(request),actor));return true;}
+      if(request.method==='POST'&&['/api/v1/vertical/market/parse-weight','/api/v1/vertical/catalog/weight/parse'].includes(pathname)){const data=await body(request);json(response,200,runtime.marketBakery.parseWeightBarcode(data.barcode,{profileId:data.profileId||null}));return true;}
+      const weightedSale=pathname.match(/^\/api\/v1\/vertical\/catalog\/weight\/sales\/([^/]+)\/items$/);
+      if(request.method==='POST'&&weightedSale){json(response,200,runtime.marketBakery.addWeightedItemToSale(decodeURIComponent(weightedSale[1]),await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/bakery/orders'){moduleRule('FOOD',actor);json(response,201,runtime.marketBakery.createBakeryOrder(await body(request),actor));return true;}
       const bakeryOrder=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)$/);
-      if(request.method==='GET'&&bakeryOrder){moduleRule('MARKET_BAKERY',actor);json(response,200,runtime.marketBakery.getBakeryOrder(decodeURIComponent(bakeryOrder[1])));return true;}
+      if(request.method==='GET'&&bakeryOrder){moduleRule('FOOD',actor);json(response,200,runtime.marketBakery.getBakeryOrder(decodeURIComponent(bakeryOrder[1])));return true;}
       const bakeryStatus=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)\/status$/);
-      if(request.method==='PATCH'&&bakeryStatus){moduleRule('MARKET_BAKERY',actor);const data=await body(request);json(response,200,runtime.marketBakery.updateBakeryOrderStatus(decodeURIComponent(bakeryStatus[1]),data.status,actor));return true;}
+      if(request.method==='PATCH'&&bakeryStatus){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.marketBakery.updateBakeryOrderStatus(decodeURIComponent(bakeryStatus[1]),data.status,actor));return true;}
       const bakeryCancel=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)\/cancel$/);
-      if(request.method==='POST'&&bakeryCancel){moduleRule('MARKET_BAKERY',actor);const data=await body(request);json(response,200,runtime.marketBakery.cancelBakeryOrder(decodeURIComponent(bakeryCancel[1]),data.reason,actor));return true;}
+      if(request.method==='POST'&&bakeryCancel){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.marketBakery.cancelBakeryOrder(decodeURIComponent(bakeryCancel[1]),data.reason,actor));return true;}
 
       throw new VerticalHttpError(404,'Rota vertical nao encontrada.');
     }catch(error){const status=statusForError(error);try{runtime.logger?.log({level:status>=500?'error':'warn',subsystem:'vertical-http',message:error.message||'Erro interno.',context:{method:request.method,path:pathname,status}});}catch{}json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
