@@ -96,12 +96,114 @@
     document.getElementById('ops-return-form')?.addEventListener('submit',async event=>{event.preventDefault();if(!loadedSale){showToast('Carregue a venda antes de concluir.','error');return;}const form=new FormData(event.currentTarget);const items=[];let total=0;content.querySelectorAll('[data-return-item]:checked').forEach(check=>{const id=check.dataset.returnItem;const quantity=Number(content.querySelector(`[data-return-qty="${CSS.escape(id)}"]`)?.value||0);if(quantity>0){items.push({saleItemId:id,quantity});total+=Math.round(Number(check.dataset.price||0)*quantity);}});if(!items.length){showToast('Selecione ao menos um item.','error');return;}try{await api.createReturn({saleId:loadedSale.id,items,refunds:[{method:form.get('method'),amountCents:total}],reason:form.get('reason')});showToast('Devolução concluída.','success');await renderReturns();}catch(error){showToast(error.message,'error');}});
   }
 
-  async function renderFinance(){
-    await ready();const [summary,entries,accounts]=await Promise.all([api.financeSummary(),api.financeEntries(),api.financeAccounts()]);
-    const body=`<div class="ops-metrics">${metric('A pagar',money(summary.payableOpenCents||0),`Vencido ${money(summary.overduePayableCents||0)}`)}${metric('A receber',money(summary.receivableOpenCents||0),`Vencido ${money(summary.overdueReceivableCents||0)}`)}${metric('Recebido/Pago',money((summary.receivableSettledCents||0)+(summary.payableSettledCents||0)))}</div><div class="ops-grid finance-layout"><section class="ops-card"><h2>Novo lançamento</h2><form id="ops-finance-form" class="ops-form"><label>Tipo<select name="kind" class="ops-input"><option value="PAYABLE">Conta a pagar</option><option value="RECEIVABLE">Conta a receber</option></select></label><label>Descrição<input name="description" class="ops-input" required></label><label>Categoria<input name="category" class="ops-input"></label><label>Conta<select name="accountId" class="ops-input"><option value="">Sem conta</option>${accounts.map(account=>`<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`).join('')}</select></label><label>Valor (R$)<input name="amount" class="ops-input" required></label><label>Vencimento<input name="dueAt" type="date" class="ops-input" required></label><button class="ops-primary" type="submit">Criar lançamento</button></form></section><section class="ops-card grow"><h2>Lançamentos</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vencimento</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Em aberto</th><th>Status</th><th></th></tr></thead><tbody>${entries.map(row=>`<tr><td>${when(row.dueAt)}</td><td><strong>${escapeHtml(row.description)}</strong><small>${escapeHtml(row.category||'')}</small></td><td>${escapeHtml(row.kind)}</td><td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${badge(row.isOverdue&&row.status!=='SETTLED'?'OVERDUE':row.status)}</td><td><div class="ops-row-actions">${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${escapeHtml(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-finance-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="7">${empty('Nenhum lançamento financeiro.')}</td></tr>`}</tbody></table></div></section></div>`;
+  async function renderFinance(filters={}){
+    await ready();
+    const state={
+      query:String(filters.query||''),
+      kind:String(filters.kind||''),
+      status:String(filters.status||''),
+      fromDate:String(filters.fromDate||''),
+      toDate:String(filters.toDate||''),
+      categoryId:String(filters.categoryId||''),
+      costCenterId:String(filters.costCenterId||'')
+    };
+    const entryFilters={};
+    if(state.query)entryFilters.query=state.query;
+    if(state.kind)entryFilters.kind=state.kind;
+    if(state.status==='OVERDUE')entryFilters.overdue='true';
+    else if(state.status)entryFilters.status=state.status;
+    if(state.fromDate)entryFilters.from=new Date(`${state.fromDate}T00:00:00`).toISOString();
+    if(state.toDate)entryFilters.to=new Date(`${state.toDate}T23:59:59.999`).toISOString();
+    if(state.categoryId)entryFilters.categoryId=state.categoryId;
+    if(state.costCenterId)entryFilters.costCenterId=state.costCenterId;
+
+    const [summary,entries,accounts,categories,centers]=await Promise.all([
+      api.financeSummary(),api.financeEntries(entryFilters),api.financeAccounts(),api.financeCategories(),api.costCenters()
+    ]);
+    const categoryById=new Map(categories.map(row=>[String(row.id),row]));
+    const centerById=new Map(centers.map(row=>[String(row.id),row]));
+    const received=Number(summary.receivableSettledCents||0),paid=Number(summary.payableSettledCents||0);
+    const todayDate=new Date().toISOString().slice(0,10);
+    const filterOptions=(rows,selected)=>rows.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===selected?'selected':''}>${escapeHtml(row.name)}</option>`).join('');
+    const body=`<div class="ops-metrics">${metric('A pagar',money(summary.payableOpenCents||0),`Vencido ${money(summary.overduePayableCents||0)}`)}${metric('A receber',money(summary.receivableOpenCents||0),`Vencido ${money(summary.overdueReceivableCents||0)}`)}${metric('Recebido',money(received))}${metric('Pago',money(paid))}${metric('Fluxo realizado',money(received-paid),'Recebido menos pago')}</div>
+      <section class="ops-card ops-finance-filter-card"><form id="ops-finance-filter" class="ops-finance-filter" novalidate>
+        <label>Buscar<input name="query" class="ops-input" type="search" value="${escapeHtml(state.query)}" placeholder="Descrição ou categoria legada"></label>
+        <label>Tipo<select name="kind" class="ops-input"><option value="">Todos</option><option value="PAYABLE" ${state.kind==='PAYABLE'?'selected':''}>Conta a pagar</option><option value="RECEIVABLE" ${state.kind==='RECEIVABLE'?'selected':''}>Conta a receber</option></select></label>
+        <label>Situação<select name="status" class="ops-input"><option value="">Todas</option><option value="OPEN" ${state.status==='OPEN'?'selected':''}>Em aberto</option><option value="PARTIAL" ${state.status==='PARTIAL'?'selected':''}>Parcial</option><option value="SETTLED" ${state.status==='SETTLED'?'selected':''}>Liquidado</option><option value="OVERDUE" ${state.status==='OVERDUE'?'selected':''}>Vencido</option><option value="CANCELLED" ${state.status==='CANCELLED'?'selected':''}>Cancelado</option></select></label>
+        <label>Vencimento de<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}"></label>
+        <label>Vencimento até<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}"></label>
+        <label>Categoria<select name="categoryId" class="ops-input"><option value="">Todas</option>${filterOptions(categories,state.categoryId)}</select></label>
+        <label>Centro de custo<select name="costCenterId" class="ops-input"><option value="">Todos</option>${filterOptions(centers,state.costCenterId)}</select></label>
+        <div class="ops-actions ops-finance-filter-actions"><button class="ops-primary" type="submit">Aplicar filtros</button><button class="ops-secondary" id="ops-finance-filter-clear" type="button">Limpar</button></div>
+      </form></section>
+      <div class="ops-grid finance-layout"><section class="ops-card"><h2>Novo lançamento</h2><form id="ops-finance-form" class="ops-form" novalidate>
+        <label>Tipo<select name="kind" class="ops-input"><option value="PAYABLE">Conta a pagar</option><option value="RECEIVABLE">Conta a receber</option></select></label>
+        <label>Descrição<input name="description" class="ops-input" required></label>
+        <label>Categoria gerencial<select name="categoryId" class="ops-input"><option value="">Sem categoria</option>${filterOptions(categories,'')}</select></label>
+        <label>Centro de custo<select name="costCenterId" class="ops-input"><option value="">Sem centro</option>${filterOptions(centers,'')}</select></label>
+        <label>Competência<input name="competencyDate" type="date" class="ops-input" value="${escapeHtml(todayDate)}"></label>
+        <label>Conta<select name="accountId" class="ops-input"><option value="">Sem conta</option>${accounts.map(account=>`<option value="${escapeHtml(account.id)}">${escapeHtml(account.name)}</option>`).join('')}</select></label>
+        <label>Valor (R$)<input name="amount" class="ops-input" inputmode="decimal" required></label>
+        <label>Vencimento<input name="dueAt" type="date" class="ops-input" required></label>
+        <button class="ops-primary" type="submit">Criar lançamento</button>
+      </form></section>
+      <section class="ops-card grow"><div class="ops-card-head"><div><h2>Lançamentos</h2><p>${entries.length} registro${entries.length===1?'':'s'} no recorte atual</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vencimento</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Em aberto</th><th>Status</th><th></th></tr></thead><tbody>${entries.map(row=>`<tr><td>${dateOnly(row.dueAt)}</td><td><strong>${escapeHtml(row.description)}</strong><small>${escapeHtml(categoryById.get(String(row.categoryId))?.name||row.category||'Sem categoria')}</small></td><td>${escapeHtml(financeKindLabel(row.kind))}</td><td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${financeStatusBadge(row)}</td><td><div class="ops-row-actions"><button class="ops-link" data-finance-detail="${escapeHtml(row.id)}">Detalhes</button>${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${escapeHtml(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-finance-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="7">${empty('Nenhum lançamento financeiro neste recorte.')}</td></tr>`}</tbody></table></div></section></div>`;
     if(!routeActive('finance'))return;
-    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais e histórico.',body);
-    document.getElementById('ops-finance-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api.createFinanceEntry({kind:form.get('kind'),description:form.get('description'),category:form.get('category')||null,accountId:form.get('accountId')||null,amountCents:centsInput(form.get('amount')),dueAt:new Date(`${form.get('dueAt')}T12:00:00`).toISOString()});showToast('Lançamento criado.','success');await renderFinance();}catch(error){showToast(error.message,'error');}});
+    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais, histórico e rastreabilidade.',body);
+
+    const renderWithState=next=>renderFinance({...state,...next});
+    document.getElementById('ops-finance-filter')?.addEventListener('submit',event=>{
+      event.preventDefault();const form=new FormData(event.currentTarget);
+      const fromDate=String(form.get('fromDate')||''),toDate=String(form.get('toDate')||'');
+      if(fromDate&&toDate&&fromDate>toDate){showToast('A data inicial não pode ser posterior à data final.','error');return;}
+      void renderFinance({query:form.get('query'),kind:form.get('kind'),status:form.get('status'),fromDate,toDate,categoryId:form.get('categoryId'),costCenterId:form.get('costCenterId')});
+    });
+    document.getElementById('ops-finance-filter-clear')?.addEventListener('click',()=>void renderFinance({}));
+
+    document.getElementById('ops-finance-form')?.addEventListener('submit',async event=>{
+      event.preventDefault();const form=new FormData(event.currentTarget);
+      const description=String(form.get('description')||'').trim(),amountCents=centsInput(form.get('amount')),dueAt=String(form.get('dueAt')||'');
+      if(!description){showToast('Informe a descrição do lançamento.','error');event.currentTarget.elements.description?.focus();return;}
+      if(amountCents<=0){showToast('Informe um valor maior que zero.','error');event.currentTarget.elements.amount?.focus();return;}
+      if(!dueAt){showToast('Informe o vencimento.','error');event.currentTarget.elements.dueAt?.focus();return;}
+      try{
+        await api.createFinanceEntry({kind:form.get('kind'),description,categoryId:form.get('categoryId')||null,costCenterId:form.get('costCenterId')||null,competencyDate:form.get('competencyDate')||null,accountId:form.get('accountId')||null,amountCents,dueAt:new Date(`${dueAt}T12:00:00`).toISOString()});
+        showToast('Lançamento criado.','success');await renderWithState({});
+      }catch(error){showToast(error.message,'error');}
+    });
+
+    async function reverseSettlement(entry,settlement){
+      if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
+      modal?.close?.();
+      const result=await ux.openFormDialog({
+        title:'Estornar baixa',
+        description:`${entry.description} · ${money(settlement.amountCents)} · ${financeMethodLabel(settlement.method)}`,
+        confirmLabel:'Estornar baixa',tone:'danger',initialFocus:'cancel',
+        body:`<div class="ux-dialog__summary"><strong>${escapeHtml(entry.description)}</strong><span>A baixa continuará no histórico marcada como estornada.</span></div><label>Motivo<textarea name="reason" class="ops-input" rows="3"></textarea></label>`,
+        validate:data=>String(data.reason||'').trim()?null:{message:'Informe o motivo do estorno.',field:'reason'},
+        onConfirm:data=>api.reverseFinanceSettlement(settlement.id,String(data.reason||'').trim())
+      });
+      if(result.confirmed){showToast('Baixa estornada.','success');await renderWithState({});}
+    }
+
+    async function openFinanceDetail(entryId){
+      if(!modal?.open){showToast('Detalhes indisponíveis.','error');return;}
+      try{
+        const entry=await api.financeEntry(entryId);
+        const category=categoryById.get(String(entry.categoryId)),center=centerById.get(String(entry.costCenterId));
+        const history=entry.settlementHistory||entry.settlements||[];
+        const historyHtml=history.length?history.slice().reverse().map(item=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${money(item.amountCents)} · ${escapeHtml(financeMethodLabel(item.method))}</strong><small>${when(item.createdAt)}${item.note?` · ${escapeHtml(item.note)}`:''}${item.reversedAt?` · Estornada em ${when(item.reversedAt)}`:''}</small></div>${!item.reversedAt?`<button class="ops-secondary" type="button" data-finance-reverse="${escapeHtml(item.id)}">Estornar</button>`:`<span class="ops-badge status-cancelled">Estornada</span>`}</div>`:'<div class="ops-empty">Nenhuma baixa registrada.</div>';
+        const body=`<div class="ops-details"><div><dt>Tipo</dt><dd>${escapeHtml(financeKindLabel(entry.kind))}</dd></div><div><dt>Situação</dt><dd>${escapeHtml(FINANCE_STATUS_LABELS[financeStatusCode(entry)]||financeStatusCode(entry))}</dd></div><div><dt>Valor</dt><dd>${money(entry.amountCents)}</dd></div><div><dt>Em aberto</dt><dd>${money(entry.openCents)}</dd></div><div><dt>Vencimento</dt><dd>${dateOnly(entry.dueAt)}</dd></div><div><dt>Competência</dt><dd>${dateOnly(entry.competencyDate)}</dd></div><div><dt>Categoria</dt><dd>${escapeHtml(category?.name||entry.category||'Sem categoria')}</dd></div><div><dt>Centro de custo</dt><dd>${escapeHtml(center?.name||'Sem centro')}</dd></div><div><dt>Origem</dt><dd>${escapeHtml([entry.sourceType,entry.sourceId].filter(Boolean).join(' · ')||'Lançamento manual')}</dd></div></div><h3>Histórico de baixas</h3><div id="ops-finance-settlement-history">${historyHtml}</div>`;
+        modal.open(entry.description,body,{wide:true,onMount(modalRoot){
+          modalRoot.querySelectorAll('[data-finance-reverse]').forEach(button=>button.addEventListener('click',()=>{
+            const settlement=history.find(item=>String(item.id)===String(button.dataset.financeReverse));
+            if(settlement)void reverseSettlement(entry,settlement);
+          }));
+        }});
+      }catch(error){showToast(error.message,'error');}
+    }
+
+    content.querySelectorAll('[data-finance-detail]').forEach(button=>button.addEventListener('click',()=>void openFinanceDetail(button.dataset.financeDetail)));
     content.querySelectorAll('[data-finance-settle]').forEach(button=>button.addEventListener('click',async()=>{
       const row=entries.find(item=>String(item.id)===String(button.dataset.financeSettle));if(!row)return;
       if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
@@ -114,7 +216,7 @@
         validate:data=>{const amount=centsInput(data.amount);if(amount<=0)return{message:'Informe um valor de baixa maior que zero.',field:'amount'};if(amount>Number(row.openCents||0))return{message:'O valor da baixa não pode exceder o saldo em aberto.',field:'amount'};return null;},
         onConfirm:data=>api.settleFinanceEntry(row.id,{amountCents:centsInput(data.amount),method:data.method||'MANUAL',note:String(data.note||'').trim()||null})
       });
-      if(result.confirmed){showToast('Baixa registrada.','success');await renderFinance();}
+      if(result.confirmed){showToast('Baixa registrada.','success');await renderWithState({});}
     }));
     content.querySelectorAll('[data-finance-cancel]').forEach(button=>button.addEventListener('click',async()=>{
       const row=entries.find(item=>String(item.id)===String(button.dataset.financeCancel));if(!row)return;
@@ -127,7 +229,7 @@
         validate:data=>String(data.reason||'').trim()?null:{message:'Informe o motivo do cancelamento.',field:'reason'},
         onConfirm:data=>api.cancelFinanceEntry(row.id,String(data.reason||'').trim())
       });
-      if(result.confirmed){showToast('Lançamento cancelado.','success');await renderFinance();}
+      if(result.confirmed){showToast('Lançamento cancelado.','success');await renderWithState({});}
     }));
   }
 
