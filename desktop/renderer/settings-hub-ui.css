@@ -42,3 +42,30 @@
 .module-family[data-module-config]{background:#fff}
 .module-family[data-module-config]>.vertical-rule{display:block;margin:8px 0 2px;border-radius:10px}
 .module-family[data-module-config] .ops-badge{white-space:nowrap}
+
+
+.core-area-summary {
+  padding:0;
+  overflow:hidden;
+  background:linear-gradient(105deg,#eef7ff,#fbfdff);
+  border-color:#c7dcf6;
+}
+.core-area-summary > summary {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:68px;
+  padding:14px 16px;
+  cursor:pointer;
+  list-style:none;
+}
+.core-area-summary > summary::-webkit-details-marker { display:none; }
+.core-area-summary > summary > span:first-child { display:grid; gap:3px; min-width:0; }
+.core-area-summary > summary strong { color:#173258; font-size:16px; }
+.core-area-summary > summary small { color:#657895; font-size:12px; }
+.core-area-summary[open] > summary { border-bottom:1px solid #d6e4f5; }
+.core-area-summary .vertical-card-grid { padding:12px; }
+.module-config-summary > .vertical-settings { order:0; }
+.module-config-summary > .core-area-summary { order:1; }
+

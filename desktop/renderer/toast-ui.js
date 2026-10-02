@@ -63,6 +63,7 @@
     node.classList.toggle('error', normalized === 'error');
     node.classList.toggle('success', normalized === 'success');
     node.setAttribute('role', normalized === 'error' ? 'alert' : 'status');
+    node.setAttribute('aria-atomic','true');
     return normalized;
   }
 

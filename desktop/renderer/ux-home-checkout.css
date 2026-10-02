@@ -108,3 +108,22 @@ body.theme-home .app-footer { font-size:16px; }
 body.theme-home .route-content {
   padding-top: 14px;
 }
+
+
+#seller-select {
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.customer-selected div { min-width:0; overflow:hidden; }
+.customer-selected strong,
+.customer-selected small {
+  display:block;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+

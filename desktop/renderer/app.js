@@ -132,13 +132,41 @@
     }
   }
 
+  function modalFocusableElements() {
+    return [...modalRoot.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter(node=>!node.hidden&&node.getAttribute('aria-hidden')!=='true'&&node.getClientRects().length);
+  }
+
+  function modalKeyboardHandler(event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable=modalFocusableElements();
+    if (!focusable.length) {
+      event.preventDefault();
+      modalRoot.querySelector('.modal-card')?.focus();
+      return;
+    }
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if (event.shiftKey&&document.activeElement===first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey&&document.activeElement===last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
   function openModal(title, bodyHtml, { wide = false, onMount } = {}) {
     modalRoot._returnFocus = document.activeElement;
     modalRoot.classList.remove('hidden');
-    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="pdv-modal-title"><header class="modal-head"><h2 id="pdv-modal-title">${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal aria-label="Fechar">×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
+    modalRoot.innerHTML = `<section class="modal-card ${wide ? 'modal-wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="pdv-modal-title" tabindex="-1"><header class="modal-head"><h2 id="pdv-modal-title">${escapeHtml(title)}</h2><button class="modal-close" type="button" data-close-modal aria-label="Fechar">×</button></header><div class="modal-body">${bodyHtml}</div></section>`;
     modalRoot.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModal));
     modalRoot.onclick = modalBackdropClose;
-    modalRoot.onkeydown = (event) => { if (event.key === 'Escape') { event.preventDefault(); closeModal(); } };
+    modalRoot.onkeydown = modalKeyboardHandler;
     if (onMount) onMount(modalRoot);
     window.PdvUiLifecycle?.emit('modal:mounted', { title, root:modalRoot });
     queueMicrotask(() => {
@@ -271,7 +299,7 @@
   function renderCheckout() {
     if (!isRouteActive('checkout')) return;
     const customer = selectedCustomer(); const sale = state.sale;
-    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button><button id="checkout-documents" class="scan-button" type="button">${icon('history',18)} &nbsp; Comandas e pedidos</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${checkoutProductGridHtml()}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente por nome, CPF ou código..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button><button class="pay-button tef" data-pay="tef">TEF</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
+    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button><button id="checkout-documents" class="scan-button" type="button">${icon('history',18)} &nbsp; Comandas e pedidos</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${checkoutProductGridHtml()}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
     content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     hydrateProductPhotos();
     bindCheckoutEvents();
@@ -340,10 +368,24 @@
     document.getElementById('finalize-sale')?.addEventListener('click', () => openPaymentModal());
   }
 
+  function checkoutDocumentStatusLabel(value) {
+    const key=String(value||'').trim().toUpperCase();
+    return ({
+      OPEN:'Em aberto',
+      CHECKOUT:'Em cobrança',
+      QUOTED:'Cotado',
+      CONFIRMED:'Confirmado',
+      PARTIALLY_FULFILLED:'Parcialmente atendido',
+      READY:'Pronto',
+      FULFILLED:'Atendido',
+      CANCELLED:'Cancelado'
+    })[key]||'Em andamento';
+  }
+
   function openCheckoutDocuments() {
     openModal('Comandas e pedidos', `<div class="field"><label>Localizar</label><input id="checkout-document-query" autocomplete="off" placeholder="Número do pedido, mesa, comanda ou cliente"></div><div id="checkout-document-results" class="data-card"><div class="empty-state">Carregando documentos em aberto…</div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Fechar</button></div>`, { wide:true, onMount(root) {
       const input=root.querySelector('#checkout-document-query');const host=root.querySelector('#checkout-document-results');let timer=null;
-      const render=rows=>{host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${row.type==='COMMAND'?'Alimentação':'Atacado'} · ${escapeHtml(row.status)}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{const split=button.dataset.openCheckoutDocument.indexOf(':');const type=button.dataset.openCheckoutDocument.slice(0,split);const id=button.dataset.openCheckoutDocument.slice(split+1);try{if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}button.disabled=true;const opened=await api.openCheckoutDocument(type,id);state.sale=opened.sale;state.discountPercent=0;state.selectedProductId=null;closeModal();renderCheckout();showToast(`${type==='COMMAND'?'Comanda':'Pedido'} carregado no caixa.`,'success');}catch(error){button.disabled=false;showToast(error.message,'error');}}));};
+      const render=rows=>{host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${row.type==='COMMAND'?'Alimentação':'Atacado'} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{const split=button.dataset.openCheckoutDocument.indexOf(':');const type=button.dataset.openCheckoutDocument.slice(0,split);const id=button.dataset.openCheckoutDocument.slice(split+1);try{if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}button.disabled=true;const opened=await api.openCheckoutDocument(type,id);state.sale=opened.sale;state.discountPercent=0;state.selectedProductId=null;closeModal();renderCheckout();showToast(`${type==='COMMAND'?'Comanda':'Pedido'} carregado no caixa.`,'success');}catch(error){button.disabled=false;showToast(error.message,'error');}}));};
       const load=async()=>{try{host.innerHTML='<div class="empty-state">Buscando…</div>';render(await api.checkoutDocuments(input.value));}catch(error){host.innerHTML=`<div class="empty-state">${escapeHtml(error.message)}</div>`;}};
       input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(load,180);});input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();clearTimeout(timer);void load();}});void load();input.focus();
     }});
@@ -864,7 +906,7 @@ function openCategoryForm() {
       ]),
       'financial-management': () => renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
         {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
-        {route:'finance',label:'Financeiro',description:'Lançamentos, bancos, conciliação, recorrências e alertas.',icon:'chart',tone:'green'},
+        {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
         {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
       ])
     };
