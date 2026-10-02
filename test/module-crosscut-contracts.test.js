@@ -19,7 +19,7 @@ test('builds fully covered crosscut contracts for all real optional modules',()=
 
   const expected={
     FOOD:{launcher:'#sidebar-nav [data-module-nav="FOOD"]',path:'/api/v1/restaurant/tables',heading:'Alimentação'},
-    WHOLESALE:{launcher:'[data-module-nav="WHOLESALE"]',path:'/api/v1/wholesale/tiers',heading:'Atacado'},
+    WHOLESALE:{launcher:'[data-module-nav="WHOLESALE"]',path:'/api/v1/wholesale/orders',heading:'Atacado'},
     SERVICES:{launcher:'[data-module-nav="SERVICES"]',path:'/api/v1/vertical/services/commissions',heading:'Serviços'}
   };
 
