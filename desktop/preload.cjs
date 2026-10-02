@@ -57,14 +57,14 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     openWhatsapp: (input) => ipcRenderer.invoke('artisys:external:whatsapp', input)
   },
   fiscal: {
-    status: () => ipcRenderer.invoke('artisys:fiscal:status'),
-    save: (connection) => ipcRenderer.invoke('artisys:fiscal:save', connection),
-    remove: () => ipcRenderer.invoke('artisys:fiscal:remove'),
-    test: () => ipcRenderer.invoke('artisys:fiscal:test'),
-    sefazStatus: () => ipcRenderer.invoke('artisys:fiscal:sefaz-status'),
-    certificateStatus: () => ipcRenderer.invoke('artisys:fiscal:certificate-status'),
-    importCertificate: (input) => ipcRenderer.invoke('artisys:fiscal:certificate-import', input),
-    setEnvironment: (environment) => ipcRenderer.invoke('artisys:fiscal:set-environment', { environment })
+    status: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:status', { sessionToken }),
+    save: (connection, sessionToken) => ipcRenderer.invoke('artisys:fiscal:save', { connection, sessionToken }),
+    remove: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:remove', { sessionToken }),
+    test: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:test', { sessionToken }),
+    sefazStatus: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:sefaz-status', { sessionToken }),
+    certificateStatus: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:certificate-status', { sessionToken }),
+    importCertificate: (input, sessionToken) => ipcRenderer.invoke('artisys:fiscal:certificate-import', { ...(input || {}), sessionToken }),
+    setEnvironment: (environment, sessionToken) => ipcRenderer.invoke('artisys:fiscal:set-environment', { environment, sessionToken })
   },
   updater: {
     state: () => ipcRenderer.invoke('updater:state'),
