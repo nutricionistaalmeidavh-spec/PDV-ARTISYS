@@ -323,6 +323,7 @@ function registerIpc() {
     store:fiscalStore,
     credentialStore:fiscalCredentialStore,
     isTrustedSender:trustedSender,
+    resolveSession:sessionToken=>receiptApiRequest('/api/v1/auth/session',{sessionToken}),
     providerResolver:fiscalProviderResolver,
     sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null,
     dialog,
