@@ -7,8 +7,8 @@
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   function content(){return document.getElementById('route-content');}
   function notify(message,error=false){const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3200);}
-  function back(){return '<button type="button" class="secondary-button" id="vertical-back">← Início</button>';}
-  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>document.querySelector('#sidebar-nav [data-route="home"]')?.click());}
+  function back(){const food=document.body.dataset.activeModuleWorkspace==='FOOD';return `<button type="button" class="secondary-button" id="vertical-back">← ${food?'Alimentação':'Início'}</button>`;}
+  function bindBack(){document.getElementById('vertical-back')?.addEventListener('click',()=>{if(document.body.dataset.activeModuleWorkspace==='FOOD'){window.PdvVerticalModules?.openWorkspace?.('FOOD');return;}document.querySelector('#sidebar-nav [data-route="home"]')?.click();});}
   function field(name,label,type='text',extra=''){return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" ${extra}></label>`;}
   async function req(path,options){return api.request(path,options);}
 
