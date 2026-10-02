@@ -266,6 +266,7 @@
     document.getElementById('ops-fiscal-test')?.addEventListener('click',async()=>{try{const result=await root.artisysDesktop.fiscal.test(api.sessionToken);showToast(result.reachable?'Conexão fiscal validada.':(result.error||'Falha na conexão fiscal.'),result.reachable?'success':'error');}catch(error){showToast(error.message,'error');}});
     document.getElementById('ops-fiscal-remove')?.addEventListener('click',async()=>{if(!confirm('Remover a conexão fiscal deste terminal?'))return;try{await root.artisysDesktop.fiscal.remove(api.sessionToken);showToast('Conexão fiscal removida.','success');await renderSettings();}catch(error){showToast(error.message,'error');}});
     content.querySelectorAll('[data-print-retry]').forEach(button=>button.addEventListener('click',async()=>{try{await api.retryPrint(button.dataset.printRetry);showToast('Impressão devolvida à fila.','success');await renderSettings();}catch(error){showToast(error.message,'error');}}));
+    routeRegistry.updated('settings', { surface:'settings' });
   }
 
   const renderers={inventory:renderInventory,cash:renderCash,sales:renderSalesHistory,finance:renderFinance,settings:renderSettings};
