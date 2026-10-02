@@ -218,6 +218,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "waitFor",
+      "selector": "#telemetry-settings-card",
+      "name": "configuracoes-telemetria-injetada",
+      "state": "attached",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectVisible",
       "selector": "#ops-store-receipt-card",
       "name": "configuracoes-loja-visivel",
