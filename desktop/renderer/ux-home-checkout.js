@@ -2,7 +2,8 @@
 
 (() => {
   const content = document.getElementById('route-content');
-  if (!content) return;
+  const lifecycle = window.PdvUiLifecycle;
+  if (!content || !lifecycle) return;
   let scheduled = false;
 
   function enhanceCheckout() {
@@ -55,6 +56,8 @@
     });
   }
 
-  new MutationObserver(schedule).observe(content, { childList:true, subtree:true });
-  schedule();
+  const onRouteChange = ({ route }) => { if (route === 'checkout') schedule(); };
+  lifecycle.on('route:mounted', onRouteChange);
+  lifecycle.on('route:updated', onRouteChange);
+  if (document.body.dataset.activeRoute === 'checkout') schedule();
 })();
