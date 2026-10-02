@@ -87,7 +87,7 @@
       if(area.navigation==='group')return [`<div class="vertical-card"><strong>${escapeHtml(area.label)}</strong><span>Uma entrada no menu lateral · ${available.map(module=>escapeHtml(labelFor(module))).join(' · ')}</span></div>`];
       return available.map(module=>`<div class="vertical-card"><strong>${escapeHtml(labelFor(module))}</strong><span>Acesso liberado no menu lateral</span></div>`);
     });
-    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Ativar recursos</h3><p>A ativação define o que o estabelecimento usa; os recursos compatíveis compartilham a mesma área de trabalho.</p></div>${activationGroups||'<p class="vertical-empty">Nenhum recurso configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu é montado a partir do mesmo catálogo e das permissões do perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
+    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Áreas opcionais</h3><p>Alimentação reúne mesa, balcão rápido, pizza, entrega e autoatendimento em uma única área. Serviços permanece separado porque possui agenda e profissionais.</p></div>${activationGroups||'<p class="vertical-empty">Nenhuma área configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu mostra somente as áreas habilitadas e permitidas para o perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
     body.querySelectorAll('[data-module-toggle]').forEach(input=>input.addEventListener('change',async()=>{
       const id=input.dataset.moduleToggle;
       const target=input.checked;
@@ -133,7 +133,7 @@
     card.className='ops-card';
     card.id='ops-establishment-modules-card';
     card.dataset.settingsCategory='modules';
-    card.innerHTML=`<div class="ops-card-head"><div><h2>Módulos do estabelecimento</h2><p class="ops-muted">Configure áreas e recursos do mesmo PDV. As opções alteram a navegação; vendas, estoque e caixa continuam compartilhados.</p></div><span class="vertical-rule">Núcleo local · operação compartilhada</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar módulos</button></div></div>`;
+    card.innerHTML=`<div class="ops-card-head"><div><h2>Áreas do estabelecimento</h2><p class="ops-muted">Ative apenas áreas que mudam o fluxo principal. Peso, variantes, ficha técnica, estoque, caixa e relatórios pertencem ao núcleo e não precisam de módulo.</p></div><span class="vertical-rule">Núcleo local · operação compartilhada</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar áreas</button></div></div>`;
     const firstGrid=page.querySelector('.ops-grid');
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
     root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'vertical-modules'});
@@ -207,6 +207,29 @@
     const content=document.getElementById('route-content');
     content.innerHTML=`<section class="page vertical-page" data-module-area="${escapeHtml(area.id)}"><header class="page-head"><div><h1>${escapeHtml(area.label)}</h1><p>${escapeHtml(area.description||'Operações disponíveis para este estabelecimento.')}. Os recursos abaixo usam o mesmo catálogo, estoque e caixa do ArtiSys.</p></div>${backButton()}</header><div class="food-module-grid">${available.map(module=>`<button type="button" class="data-card food-module-card" data-food-open="${escapeHtml(module.routeId)}"><span>${root.PdvIcon?.(module.icon,28)||''}</span><strong>${escapeHtml(labelFor(module))}</strong><small>${escapeHtml(module.description||'Recurso desta área de trabalho')}</small><span class="secondary-button">Abrir</span></button>`).join('')}</div></section>`;
     bindBack();content.querySelectorAll('[data-food-open]').forEach(button=>button.addEventListener('click',()=>void renderWorkspace(button.dataset.foodOpen)));
+  }
+
+  function renderFood(){
+    delete document.body.dataset.activeFoodCapability;
+    const content=document.getElementById('route-content');
+    if(!content)return;
+    content.innerHTML=`<section class="page vertical-page" data-module-area="FOOD"><header class="page-head"><div><h1>Alimentação</h1><p>Uma única área para operação de alimentação. Produção/KDS é infraestrutura compartilhada; escolha apenas o fluxo que deseja abrir.</p></div>${backButton()}</header><div class="food-module-grid">${FOOD_CAPABILITIES.map(capability=>`<button type="button" class="data-card food-module-card" data-food-capability="${escapeHtml(capability.id)}"><span>${root.PdvIcon?.(capability.icon,28)||''}</span><strong>${escapeHtml(capability.label)}</strong><small>${escapeHtml(capability.description)}</small><span class="secondary-button">Abrir</span></button>`).join('')}</div></section>`;
+    bindBack();
+    content.querySelectorAll('[data-food-capability]').forEach(button=>button.addEventListener('click',()=>openFoodCapability(button.dataset.foodCapability)));
+  }
+
+  async function openFoodCapability(id){
+    const capability=FOOD_CAPABILITIES.find(item=>item.id===id);
+    if(!capability)return;
+    document.body.dataset.activeFoodCapability=capability.id;
+    try{
+      await capability.render?.();
+    }catch(error){
+      const content=document.getElementById('route-content');
+      if(content)content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Não foi possível abrir ${escapeHtml(capability.label)}</h1><p>A área Alimentação continua disponível.</p></div>${backButton()}</header><div class="data-card ops-error" role="alert">${escapeHtml(error?.message||'Falha inesperada ao carregar a tela.')}</div></section>`;
+      bindBack();
+      notify('A operação não abriu. Tente novamente.',true);
+    }
   }
 
   function renderPizzeria(){
