@@ -2,14 +2,12 @@
 
 const AREAS=Object.freeze({
   FOOD:Object.freeze({id:'FOOD',label:'Alimentação',description:'Pedidos, produção/KDS e canais de atendimento',icon:'store',routeId:'FOOD',navigation:'module'}),
-  WHOLESALE:Object.freeze({id:'WHOLESALE',label:'Atacado',description:'Pedidos com preço automático por faixa de quantidade',icon:'document',routeId:'WHOLESALE',navigation:'module'}),
-  SERVICES:Object.freeze({id:'SERVICES',label:'Serviços',description:'Agenda, profissionais e comissões',icon:'users',routeId:'SERVICES',navigation:'module'})
+  WHOLESALE:Object.freeze({id:'WHOLESALE',label:'Atacado',description:'Pedidos com preço automático por faixa de quantidade',icon:'document',routeId:'WHOLESALE',navigation:'module'})
 });
 
 const MODULES=Object.freeze([
   {id:'FOOD',name:'Alimentação',description:'Pedidos e produção/KDS com canais de mesa, balcão, retirada, entrega e autoatendimento',defaultEnabled:true,dependsOn:[],area:AREAS.FOOD,routeId:'FOOD',icon:'store',accessRoles:['admin','manager'],manageRoles:['admin']},
-  {id:'WHOLESALE',name:'Atacado',description:'Pedidos com cliente obrigatório e preço por quantidade, reutilizando estoque, caixa e financeiro',defaultEnabled:false,dependsOn:[],area:AREAS.WHOLESALE,routeId:'WHOLESALE',icon:'document',accessRoles:['admin','manager'],manageRoles:['admin']},
-  {id:'SERVICES',name:'Serviços',description:'Agenda, profissionais e comissão',defaultEnabled:false,dependsOn:[],area:AREAS.SERVICES,routeId:'SERVICES',icon:'users',accessRoles:['admin','manager'],manageRoles:['admin']}
+  {id:'WHOLESALE',name:'Atacado',description:'Pedidos com cliente obrigatório e preço por quantidade, reutilizando estoque, caixa e financeiro',defaultEnabled:false,dependsOn:[],area:AREAS.WHOLESALE,routeId:'WHOLESALE',icon:'document',accessRoles:['admin','manager'],manageRoles:['admin']}
 ].map(module=>Object.freeze({...module,dependsOn:Object.freeze([...module.dependsOn]),accessRoles:Object.freeze([...module.accessRoles]),manageRoles:Object.freeze([...module.manageRoles])})));
 
 const BY_ID=new Map(MODULES.map(item=>[item.id,item]));

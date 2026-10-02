@@ -6,7 +6,6 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {Readable}=require('node:stream');
 const {createVerticalRouter}=require('../server/vertical-router');
-const {createE48E54Router}=require('../server/e48-e54-router');
 
 function request({method='GET',path='/',token='',body=null}={}){
   const req=Readable.from(body==null?[]:[Buffer.from(JSON.stringify(body))]);
@@ -34,10 +33,7 @@ function runtime(calls){
     marketBakery:{
       getBakeryOrder(id){calls.push({op:'bakery-get',id});return{id,status:'OPEN'};},
       cancelBakeryOrder(id,reason,actor){calls.push({op:'bakery-cancel',id,reason,actor});return{id,status:'CANCELLED'};}
-    },
-    services:{
-      updateAppointmentStatus(id,status,actor){calls.push({op:'service-status',id,status,actor});return{id,status};}
-    },
+    }
   };
 }
 
@@ -75,35 +71,4 @@ test('bakery order lookup and cancellation are exposed through the vertical HTTP
   const cancelled=await call(handler,{method:'POST',path:'/api/v1/vertical/bakery/orders/b1/cancel',token:'token-manager',body:{reason:'cliente desistiu'}});
   assert.equal(cancelled.statusCode,200);assert.equal(cancelled.payload.status,'CANCELLED');
   assert.deepEqual(calls.map(item=>item.op),['bakery-get','bakery-cancel']);
-});
-
-test('services final vertical route rejects requests without an authenticated desktop session',async()=>{
-  const calls=[];const handler=createE48E54Router({runtime:runtime(calls),sessionStore:sessions()});
-  const res=await call(handler,{method:'PATCH',path:'/api/v1/vertical/services/appointments/a1/status',body:{status:'IN_PROGRESS'}});
-  assert.equal(res.statusCode,401);
-  assert.match(res.payload.error,/Sessao invalida/i);
-  assert.equal(calls.length,0);
-});
-
-test('services final vertical route receives the logged-in manager actor',async()=>{
-  const calls=[];const handler=createE48E54Router({runtime:runtime(calls),sessionStore:sessions()});
-  let res=await call(handler,{method:'PATCH',path:'/api/v1/vertical/services/appointments/a1/status',token:'token-manager',body:{status:'IN_PROGRESS'}});
-  assert.equal(res.statusCode,200);
-  assert.equal(calls[0].actor.role,'manager');
-  assert.equal(calls[0].actor.userId,'manager-1');
-  assert.equal(calls[0].actor.terminalId,'PDV-01');
-});
-
-test('extra workspace observer becomes idempotent before mutating an already-bound button',()=>{
-  const source=fs.readFileSync(path.join(__dirname,'../desktop/renderer/vertical-parity-p1.js'),'utf8');
-  const start=source.indexOf('function mountExtraWorkspaceEntries()');
-  const end=source.indexOf('async function mountPizzeria()',start);
-  assert.ok(start>=0&&end>start,'mountExtraWorkspaceEntries must exist');
-  const block=source.slice(start,end);
-  const guard=block.indexOf("if(button.dataset.parityWorkspaceBound==='1')return;");
-  const disableMutation=block.indexOf('button.disabled=false;');
-  const labelMutation=block.indexOf("replaceChildren(document.createTextNode('Abrir módulo'))");
-  assert.ok(guard>=0,'bound guard must exist');
-  assert.ok(disableMutation>=0&&labelMutation>=0,'workspace button mutations must exist');
-  assert.ok(guard<disableMutation&&guard<labelMutation,'bound guard must run before DOM mutations to avoid MutationObserver feedback loops');
 });

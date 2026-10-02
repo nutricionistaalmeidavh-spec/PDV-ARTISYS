@@ -6,7 +6,6 @@ const {MODULES,getModuleDefinition}=require('../modules/module-registry');
 const SEGMENTS=Object.freeze({
   FOOD:['FOOD'],
   WHOLESALE:['WHOLESALE'],
-  SERVICES:['SERVICES'],
   GENERIC:[],
   RESTAURANT:['FOOD'],
   PIZZERIA:['FOOD'],

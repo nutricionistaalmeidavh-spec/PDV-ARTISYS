@@ -34,3 +34,11 @@
 .ops-card[hidden],.ops-grid[hidden],.vertical-layout[hidden]{display:none!important}
 @media(max-width:1050px){.settings-hub-nav{grid-template-columns:repeat(2,minmax(190px,1fr))}}
 @media(max-width:620px){.settings-hub-nav{grid-template-columns:1fr}.module-family-head{flex-direction:column}.settings-mode-summary{font-size:14px}}
+
+.module-config-summary{display:grid;gap:16px}
+.module-config-summary [data-core-area="true"]{background:linear-gradient(105deg,#eef7ff,#fbfdff);border-color:#c7dcf6}
+.module-config-summary [data-core-area="true"] .vertical-card{min-height:92px;cursor:default;background:#fff}
+.module-config-summary [data-core-area="true"] .vertical-card:hover{border-color:#dbe3ee;box-shadow:none}
+.module-family[data-module-config]{background:#fff}
+.module-family[data-module-config]>.vertical-rule{display:block;margin:8px 0 2px;border-radius:10px}
+.module-family[data-module-config] .ops-badge{white-space:nowrap}

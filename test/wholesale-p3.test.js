@@ -45,8 +45,9 @@ test('P3 applies the same quantity tiers in normal Balcao sales',()=>{
 test('P3 creates human order number and cashier opens confirmed wholesale order without retyping items',async()=>{
   const runtime=setup();
   try{
-    const quote=runtime.wholesale.createQuote({customerId:'customer',locationId:'MAIN',fulfillmentType:'PICKUP',items:[{productId:'product',quantity:12}]},manager);
+    const quote=runtime.wholesale.createQuote({customerId:'customer',locationId:'MAIN',fulfillmentType:'PICKUP',expectedAt:'2026-10-08T17:00:00.000Z',items:[{productId:'product',quantity:12}]},manager);
     assert.match(quote.orderNumber,/^P-\d{6}$/);
+    assert.equal(quote.expectedAt,'2026-10-08T17:00:00.000Z');
     assert.equal(quote.items[0].unitPriceCents,800);
     runtime.wholesale.confirmOrder(quote.id,manager);
 

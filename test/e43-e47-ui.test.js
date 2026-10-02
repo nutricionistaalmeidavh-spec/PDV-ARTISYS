@@ -22,7 +22,7 @@ test('vertical UI exposes one Alimentação module with operational capabilities
   assert.match(source,/FOOD:renderFoodWorkspace/);
   for(const id of ['PIZZERIA','DELIVERY','FAST_FOOD','SELF_SERVICE'])assert.match(source,new RegExp(`data-food-capability="${id}"`));
   assert.match(source,/Produção \/ KDS/);
-  assert.match(source,/Incluído automaticamente/);
+  assert.match(source,/Incluído ao ativar/);
   assert.doesNotMatch(source,/MARKET_BAKERY:renderMarket/);
   assert.doesNotMatch(source,/RETAIL:\(\)=>/);
   assert.match(source,/modules\(\)/);
@@ -54,11 +54,11 @@ test('business areas are activated in settings and opened from authorized naviga
   assert.match(source,/withTimeout/);
   assert.match(source,/Tentar novamente/);
   assert.match(source,/button\.dataset\.moduleNav=item\.target/);
-  assert.match(source,/Acesso liberado no menu lateral/);
+  assert.match(source,/O menu lateral se atualiza imediatamente/);
   assert.match(source,/Áreas do estabelecimento/);
-  assert.match(source,/Peso, variantes, ficha técnica/);
+  assert.match(source,/Núcleo ArtiSys/);
   assert.match(source,/#sidebar-nav \[data-route="home"\]/);
-  assert.doesNotMatch(source,/Abrir módulo/);
+  assert.doesNotMatch(source,/Abrir módulo|Gerenciar áreas|Gerenciar módulos/);
 });
 
 test('Alimentação is one direct module and production is not a separate toggle',()=>{

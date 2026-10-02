@@ -9,11 +9,10 @@
   const MODULE_REQUEST_TIMEOUT_MS=5000;
   const ROUTE_RENDERERS={
     FOOD:renderFoodWorkspace,
-    WHOLESALE:()=>root.PdvWholesaleUi?.show?.(),
-    SERVICES:()=>root.PdvFinalModules?.render?.('SERVICES')
+    WHOLESALE:()=>root.PdvWholesaleUi?.show?.()
   };
   let modules=[];
-  let modulesLoading=false;
+  const loadingSettingsCards=new WeakSet();
   let sanitizeScheduled=false;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));}
@@ -80,27 +79,34 @@
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
     const role=document.body.dataset.userRole;
-    const groups=new Map();
-    for(const module of modules){const area=areaFor(module);if(!area)continue;const group=groups.get(area.id)||{area,modules:[]};group.modules.push(module);groups.set(area.id,group);}
-    const renderToggle=module=>{const canManage=Array.isArray(module.manageRoles)&&module.manageRoles.includes(role);const included=module.id==='FOOD'?'<div class="module-included" aria-label="Incluído automaticamente com Alimentação"><strong>Incluído automaticamente</strong><span>✓ Pedidos</span><span>✓ Produção / KDS</span><span>✓ Integração com Cardápio, Estoque e Caixa</span><small>Os canais de atendimento são configurados dentro de Alimentação; produção não é um módulo separado.</small></div>':'';return `<div class="module-toggle-block"><label class="vertical-toggle"><span><strong>${escapeHtml(labelFor(module))}</strong><small>${escapeHtml(module.description||'')}${canManage?'':' · Somente administrador pode alterar'}</small></span><input type="checkbox" role="switch" aria-label="Ativar ${escapeHtml(labelFor(module))}" aria-checked="${module.enabled?'true':'false'}" data-module-toggle="${escapeHtml(module.id)}" ${module.enabled?'checked':''} ${canManage?'':'disabled'}></label>${included}</div>`;};
-    const activationGroups=[...groups.values()].map(({area,modules:areaModules})=>`<section class="module-family"><div class="module-family-head"><div><h4>${escapeHtml(area.label)}</h4><p>${escapeHtml(area.description||'Recursos que pertencem a esta área do sistema.')}${area.navigation==='group'?' · uma única entrada no menu, com operações internas':''}</p></div><span class="ops-badge">${areaModules.filter(module=>module.enabled).length} de ${areaModules.length} ativas</span></div>${areaModules.map(renderToggle).join('')}</section>`).join('');
-    const navigationCards=[...groups.values()].flatMap(({area,modules:areaModules})=>{
-      const available=areaModules.filter(module=>module.enabled&&moduleAllowed(module));if(!available.length)return[];
-      if(area.navigation==='group')return [`<div class="vertical-card"><strong>${escapeHtml(area.label)}</strong><span>Uma entrada no menu lateral · ${available.map(module=>escapeHtml(labelFor(module))).join(' · ')}</span></div>`];
-      return available.map(module=>`<div class="vertical-card"><strong>${escapeHtml(labelFor(module))}</strong><span>Acesso liberado no menu lateral</span></div>`);
-    });
-    body.innerHTML=`<div class="vertical-layout"><section class="vertical-settings"><div class="module-section-intro"><h3>Áreas opcionais</h3><p>Alimentação reúne os canais de atendimento. Atacado adiciona pedidos com preço por quantidade. Serviços permanece separado porque possui agenda e profissionais.</p></div>${activationGroups||'<p class="vertical-empty">Nenhuma área configurável disponível.</p>'}</section><section class="vertical-enabled"><div class="module-section-intro"><h3>Acesso na navegação</h3><p>O menu mostra somente as áreas habilitadas e permitidas para o perfil atual.</p></div><div class="vertical-card-grid">${navigationCards.length?navigationCards.join(''):'<p class="vertical-empty">Nenhuma área opcional está ativa para este perfil.</p>'}</div></section></div>`;
+    const impactCopy={
+      FOOD:'Adiciona Alimentação ao menu com pedidos, Produção/KDS e canais de atendimento. Cardápio, estoque e caixa continuam compartilhados.',
+      WHOLESALE:'Adiciona Atacado ao menu para políticas B2B e pedidos. O Balcão continua sendo o caixa e também aplica preço por quantidade em vendas avulsas.'
+    };
+    const coreItems=[
+      ['Balcão e Caixa','Venda, pagamento e faturamento de comandas e pedidos.'],
+      ['Cardápio e Estoque','Produtos, variantes, peso, ficha técnica, insumos e movimentações.'],
+      ['Clientes','Cadastro, histórico e limite de crédito.'],
+      ['Financeiro e Relatórios','Contas, DRE, indicadores e histórico operacional.']
+    ];
+    const moduleCard=module=>{
+      const canManage=Array.isArray(module.manageRoles)&&module.manageRoles.includes(role);
+      const status=module.enabled?'Ativa':'Desativada';
+      const included=module.id==='FOOD'?'<div class="module-included" aria-label="Recursos incluídos com Alimentação"><strong>Incluído ao ativar</strong><span>✓ Pedidos</span><span>✓ Produção / KDS</span><span>✓ Mesas, balcão, retirada, entrega e autoatendimento como canais</span></div>':'';
+      return `<article class="module-family" data-module-config="${escapeHtml(module.id)}"><div class="module-family-head"><div><h4>${escapeHtml(labelFor(module))}</h4><p>${escapeHtml(module.description||'')}</p></div><span class="ops-badge" data-module-status="${escapeHtml(module.id)}">${status}</span></div><p class="vertical-rule">${escapeHtml(impactCopy[module.id]||'Esta área aparece na navegação quando está ativa.')}</p><label class="vertical-toggle"><span><strong>${module.enabled?'Área ativa':'Ativar área'}</strong><small>${canManage?'A alteração vale para este estabelecimento.':'Somente administrador pode alterar esta área.'}</small></span><input type="checkbox" role="switch" aria-label="Ativar ${escapeHtml(labelFor(module))}" aria-checked="${module.enabled?'true':'false'}" data-module-toggle="${escapeHtml(module.id)}" ${module.enabled?'checked':''} ${canManage?'':'disabled'}></label>${included}</article>`;
+    };
+    body.innerHTML=`<div class="module-config-summary"><section class="module-family" data-core-area="true"><div class="module-family-head"><div><h3>Núcleo ArtiSys</h3><p>Estes recursos são sempre compartilhados. Não precisam ser ativados como módulos.</p></div><span class="ops-badge">Sempre ativo</span></div><div class="vertical-card-grid">${coreItems.map(([title,detail])=>`<div class="vertical-card"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(detail)}</span></div>`).join('')}</div></section><section class="vertical-settings"><div class="module-section-intro"><h3>Áreas opcionais</h3><p>Ative somente os fluxos que realmente mudam a operação. O menu lateral se atualiza imediatamente.</p></div>${modules.map(moduleCard).join('')||'<p class="vertical-empty">Nenhuma área configurável disponível.</p>'}</section></div>`;
     body.querySelectorAll('[data-module-toggle]').forEach(input=>input.addEventListener('change',async()=>{
       const id=input.dataset.moduleToggle;
       const target=input.checked;
       input.setAttribute('aria-checked',String(target));
       input.disabled=true;
       try{
-        await withTimeout(api.saveSetting(`modules.${id}.enabled`,target,'global'),MODULE_REQUEST_TIMEOUT_MS,'A alteração do módulo demorou demais. Nada foi travado; tente novamente.');
+        await withTimeout(api.saveSetting(`modules.${id}.enabled`,target,'global'),MODULE_REQUEST_TIMEOUT_MS,'A alteração da área demorou demais. Nada foi travado; tente novamente.');
         modules=modules.map(module=>module.id===id?{...module,enabled:target}:module);
         renderModuleNavigation();
         renderSettingsModules(card);
-        notify(`${labelFor(modules.find(module=>module.id===id))||id} ${target?'ativado':'desativado'}.`);
+        notify(`${labelFor(modules.find(module=>module.id===id))||id} ${target?'ativada':'desativada'}.`);
       }catch(error){
         input.checked=!target;
         input.setAttribute('aria-checked',String(!target));
@@ -111,11 +117,11 @@
   }
 
   async function loadAndRenderSettingsModules(card=settingsModulesCard()){
-    if(!card||modulesLoading)return;
+    if(!card||loadingSettingsCards.has(card))return;
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
-    modulesLoading=true;
-    body.innerHTML='<div class="ops-loader"></div><p class="ops-muted">Carregando módulos do estabelecimento…</p>';
+    loadingSettingsCards.add(card);
+    body.innerHTML='<div class="ops-loader"></div><p class="ops-muted">Carregando áreas do estabelecimento…</p>';
     try{
       await loadModules();
       if(card.isConnected)renderSettingsModules(card);
@@ -125,7 +131,7 @@
         body.querySelector('[data-modules-retry]')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
       }
       notify(error.message,true);
-    }finally{modulesLoading=false;}
+    }finally{loadingSettingsCards.delete(card);}
   }
 
   function mountSettingsModules(){
@@ -135,11 +141,11 @@
     card.className='ops-card';
     card.id='ops-establishment-modules-card';
     card.dataset.settingsCategory='modules';
-    card.innerHTML=`<div class="ops-card-head"><div><h2>Áreas do estabelecimento</h2><p class="ops-muted">Ative apenas áreas que mudam o fluxo principal. Peso, variantes, ficha técnica, estoque, caixa e relatórios pertencem ao núcleo e não precisam de módulo.</p></div><span class="vertical-rule">Núcleo local · operação compartilhada</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar áreas</button></div></div>`;
+    card.innerHTML=`<div class="ops-card-head"><div><h2>Áreas do estabelecimento</h2><p class="ops-muted">O núcleo de venda, caixa, catálogo, estoque, clientes, financeiro e relatórios é único. Aqui você ativa somente fluxos adicionais.</p></div><span class="vertical-rule">Uma operação · um caixa · áreas opcionais</span></div><div data-establishment-modules-body><div class="ops-loader"></div><p class="ops-muted">Carregando áreas do estabelecimento…</p></div>`;
     const firstGrid=page.querySelector('.ops-grid');
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
     root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'vertical-modules'});
-    card.querySelector('#ops-load-establishment-modules')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
+    void loadAndRenderSettingsModules(card);
   }
 
   function backButton(){return `<button class="secondary-button" type="button" id="vertical-back">← ${document.body.dataset.activeModuleWorkspace==='FOOD'?'Alimentação':'Início'}</button>`;}

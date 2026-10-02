@@ -196,8 +196,19 @@
       "timeoutMs": 10000
     },
     {
+      "action": "screenshot",
+      "name": "produtos",
+      "fullPage": true
+    },
+    {
       "action": "click",
-      "selector": "button[data-route='customers']",
+      "selector": "button[data-route='catalog']",
+      "name": "voltar-cadastros-clientes",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='customers']",
       "name": "abrir-clientes-p2",
       "timeoutMs": 10000
     },
@@ -277,15 +288,14 @@
       "timeoutMs": 10000
     },
     {
-      "action": "click",
-      "selector": "button[data-route='catalog']",
-      "name": "abrir-hub-catalogo-p5",
-      "timeoutMs": 10000
+      "action": "screenshot",
+      "name": "clientes",
+      "fullPage": true
     },
     {
       "action": "click",
       "selector": "button[data-route='catalog']",
-      "name": "abrir-estoque-p5",
+      "name": "abrir-hub-catalogo-p5",
       "timeoutMs": 10000
     },
     {
@@ -318,6 +328,18 @@
       "action": "click",
       "selector": "[data-enterprise-back]",
       "name": "voltar-estoque-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "estoque",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "estoque-sem-overflow",
+      "tolerancePx": 4,
       "timeoutMs": 10000
     },
     {
@@ -358,7 +380,13 @@
     },
     {
       "action": "click",
-      "selector": "button[data-route='sellers']",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-cadastros-equipe",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='sellers']",
       "name": "equipe",
       "holdMs": 1000
     },
@@ -490,6 +518,139 @@
       "timeoutMs": 10000
     },
     {
+      "action": "click",
+      "selector": "#settings-hub button[data-settings-category='modules']",
+      "name": "abrir-configuracoes-areas",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-core-area='true']",
+      "name": "nucleo-artisys-visivel",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-module-toggle='FOOD']",
+      "name": "toggle-alimentacao-visivel",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-module-toggle='WHOLESALE']",
+      "name": "toggle-atacado-visivel",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "configuracoes-areas",
+      "fullPage": true
+    },
+    {
+      "action": "check",
+      "selector": "[data-module-toggle='WHOLESALE']",
+      "name": "ativar-atacado-qa",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "nav-alimentacao-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-nav='WHOLESALE']",
+      "name": "nav-atacado-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "configuracoes-areas-ativas",
+      "fullPage": true
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/customers",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-cliente-atacado-qa",
+      "body": {
+        "id": "qa-wholesale-customer",
+        "name": "Mercado QA",
+        "creditLimitCents": 50000
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-produto-atacado-qa",
+      "body": {
+        "id": "qa-wholesale-product",
+        "name": "Produto QA Atacado",
+        "sku": "QA-ATAC-01",
+        "salePriceCents": 1250,
+        "costCents": 700,
+        "trackStock": false,
+        "menuEnabled": true,
+        "active": true
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/wholesale/orders",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-pedido-atacado-qa",
+      "body": {
+        "id": "qa-order-1",
+        "customerId": "qa-wholesale-customer",
+        "locationId": "MAIN",
+        "fulfillmentType": "PICKUP",
+        "items": [
+          {
+            "productId": "qa-wholesale-product",
+            "quantity": 12
+          }
+        ],
+        "expectedAt": "2026-10-08T17:00:00.000Z"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/wholesale/orders/qa-order-1/confirm",
+      "method": "POST",
+      "expectedStatus": 200,
+      "name": "confirmar-pedido-atacado-qa",
+      "body": {}
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/tables",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-mesa-qa",
+      "body": {
+        "id": "qa-table-1",
+        "label": "Mesa QA 1",
+        "capacity": 4,
+        "active": true
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/tables/qa-table-1/open",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "abrir-comanda-qa",
+      "body": {}
+    },
+    {
       "action": "expectVisible",
       "selector": ".ops-page",
       "name": "configuracoes-superficie-visivel",
@@ -510,6 +671,123 @@
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "home-final-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "abrir-alimentacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-workspace='FOOD']",
+      "name": "alimentacao-workspace",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "alimentacao",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "abrir-mesas-comandas",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".restaurant-page",
+      "name": "mesas-comandas-workspace",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "alimentacao-mesas-comandas",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-module-nav='WHOLESALE']",
+      "name": "abrir-atacado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-workspace='WHOLESALE']",
+      "name": "atacado-workspace",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "atacado",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "voltar-balcao-documentos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#checkout-documents",
+      "name": "abrir-comandas-pedidos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#checkout-document-query",
+      "name": "localizador-documentos-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-open-checkout-document='ORDER:qa-order-1']",
+      "name": "pedido-atacado-localizado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-open-checkout-document^='COMMAND:']",
+      "name": "comanda-localizada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "balcao-comandas-pedidos",
+      "fullPage": true
+    },
+    {
+      "action": "fill",
+      "selector": "#checkout-document-query",
+      "value": "qa-order-1",
+      "name": "buscar-pedido-atacado"
+    },
+    {
+      "action": "click",
+      "selector": "[data-open-checkout-document='ORDER:qa-order-1']",
+      "name": "carregar-pedido-no-caixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".checkout-layout",
+      "expected": "Produto QA Atacado",
+      "name": "pedido-carregado-sem-redigitacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "balcao-pedido-atacado-carregado",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "balcao-pedido-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
     }

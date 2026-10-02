@@ -25,9 +25,9 @@ test('Phase 6 release gate: capacidades de Alimentação e peso Core passam E2E'
   for(const marker of ['E43 pizza customization','E45 delivery','E46 fast food','E47 weight is Core']) assert.match(output,new RegExp(marker));
 });
 
-test('Phase 6 release gate: variantes Core, serviços e autoatendimento passam testes focados',()=>{
+test('Phase 6 release gate: variantes Core, legado preservado e autoatendimento passam testes focados',()=>{
   const result=run('test/e48-e54-final.test.js');
   const output=outputOf(result);
   assert.equal(result.status,0,output);
-  for(const marker of ['E48 Core variants','E49 services','E51 self-service']) assert.match(output,new RegExp(marker));
+  for(const marker of ['E48 Core variants','E49 legacy services schema','E51 self-service']) assert.match(output,new RegExp(marker));
 });

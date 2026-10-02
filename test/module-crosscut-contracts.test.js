@@ -13,14 +13,13 @@ function probes(){
 
 test('builds fully covered crosscut contracts for all real optional modules',()=>{
   const plan=buildModuleContractPlan({modules:MODULES,probes:probes()});
-  assert.equal(MODULES.length,3);
-  assert.equal(plan.contracts.length,3);
-  assert.deepEqual(plan.coverage,{discovered:3,covered:3,uncovered:0,uncoveredCritical:0});
+  assert.equal(MODULES.length,2);
+  assert.equal(plan.contracts.length,2);
+  assert.deepEqual(plan.coverage,{discovered:2,covered:2,uncovered:0,uncoveredCritical:0});
 
   const expected={
     FOOD:{launcher:'#sidebar-nav [data-module-nav="FOOD"]',path:'/api/v1/restaurant/tables',heading:'Alimentação'},
-    WHOLESALE:{launcher:'[data-module-nav="WHOLESALE"]',path:'/api/v1/wholesale/tiers',heading:'Atacado'},
-    SERVICES:{launcher:'[data-module-nav="SERVICES"]',path:'/api/v1/vertical/services/commissions',heading:'Serviços'}
+    WHOLESALE:{launcher:'[data-module-nav="WHOLESALE"]',path:'/api/v1/wholesale/orders',heading:'Atacado'}
   };
 
   for(const contract of plan.contracts){

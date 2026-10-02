@@ -10,7 +10,7 @@
     ['units','Unidades e dispositivos','Dados, servidor e terminais conectados'],
     ['printing','Impressão e periféricos','Impressoras, balança, leitor e gaveta'],
     ['fiscal','Fiscal','Documentos, credenciais e monitoramento'],
-    ['modules','Áreas','Alimentação e Serviços quando mudam o fluxo principal'],
+    ['modules','Áreas','Alimentação e Atacado quando mudam o fluxo principal'],
     ['privacy','Privacidade e telemetria','Consentimento e diagnóstico anônimo'],
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
   ];

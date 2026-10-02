@@ -34,9 +34,9 @@ function isModuleToggleStep(step) {
 
 async function restoreModuleToggleContext(page, step, deadline) {
   if (!isModuleToggleStep(step)) return false;
-  const modulesEntry = page.locator('#ops-load-establishment-modules');
-  if (!(await modulesEntry.isVisible().catch(() => false))) return false;
-  await modulesEntry.click();
+  const areasTab = page.locator("#settings-hub [data-settings-category='modules']");
+  if (!(await areasTab.isVisible().catch(() => false))) return false;
+  await areasTab.click();
   const remainingMs = Math.max(1, deadline - Date.now());
   await locator(page, step).waitFor({ state:'visible', timeout:Math.min(remainingMs, 5000) }).catch(() => {});
   return true;

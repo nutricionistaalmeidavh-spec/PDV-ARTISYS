@@ -26,11 +26,20 @@
   function reloadSettingsModules(){
     if(settingsRefreshScheduled||!onSettingsPage())return;
     settingsRefreshScheduled=true;
-    void routeRegistry.render('settings');
-    root.setTimeout?.(()=>{
-      settingsRefreshScheduled=false;
-      document.getElementById('ops-load-establishment-modules')?.click();
-    },0);
+    queueMicrotask(()=>{
+      const card=document.getElementById('ops-establishment-modules-card');
+      if(card){
+        root.PdvVerticalModules?.renderSettingsModules?.(card);
+        settingsRefreshScheduled=false;
+        return;
+      }
+      Promise.resolve(routeRegistry.render('settings')).finally(()=>{
+        root.setTimeout?.(()=>{
+          root.PdvVerticalModules?.renderSettingsModules?.();
+          settingsRefreshScheduled=false;
+        },0);
+      });
+    });
   }
   function handleStateChange(event){
     const detail=event?.detail||{};
