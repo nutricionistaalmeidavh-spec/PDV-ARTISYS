@@ -139,3 +139,7 @@
   .products-dense-status-cell { justify-content: flex-end; }
   .products-dense-table > .data-row:not(.variant-child-row) > div:last-child { grid-column: 1 / -1; justify-content: flex-start; }
 }
+
+.products-dense-price small { display:block; margin-top:4px; color:var(--muted); }
+.products-dense-stock-cell small { display:block; margin-top:4px; color:var(--muted); }
+.products-dense-status-cell .ux-status { white-space:normal; text-align:center; line-height:1.15; }
