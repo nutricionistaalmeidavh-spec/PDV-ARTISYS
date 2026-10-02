@@ -27,7 +27,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
 
   return async function e48e54Router(request,response){
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
-    const prefixes=['/api/v1/vertical/retail','/api/v1/vertical/services','/api/v1/vertical/self-service','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
+    const prefixes=['/api/v1/vertical/retail','/api/v1/vertical/self-service','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
     if(!prefixes.some(prefix=>pathname.startsWith(prefix)))return false;
     try{
       const p=principal(request);const actor=p.actor;
@@ -37,19 +37,6 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       if(request.method==='PUT'&&retailStock){const data=await body(request);json(response,200,runtime.retail.setVariantStock(decodeURIComponent(retailStock[1]),data.quantity,actor));return true;}
       const retailSale=pathname.match(/^\/api\/v1\/vertical\/retail\/sales\/([^/]+)\/variant$/);
       if(request.method==='POST'&&retailSale){json(response,200,runtime.retail.addVariantToSale(decodeURIComponent(retailSale[1]),await body(request),actor));return true;}
-
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/services/catalog'){json(response,200,runtime.services.listServices());return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/services/catalog'){json(response,201,runtime.services.upsertService(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/services/professionals'){json(response,200,runtime.services.listProfessionals());return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/services/professionals'){json(response,201,runtime.services.upsertProfessional(await body(request),actor));return true;}
-      const link=pathname.match(/^\/api\/v1\/vertical\/services\/catalog\/([^/]+)\/professionals\/([^/]+)$/);
-      if(request.method==='PUT'&&link){json(response,200,runtime.services.linkProfessional(decodeURIComponent(link[1]),decodeURIComponent(link[2]),await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/services/appointments'){const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.services.scheduleAppointment(data,actor));json(response,result.statusCode,result.payload);return true;}
-      const appointmentStatus=pathname.match(/^\/api\/v1\/vertical\/services\/appointments\/([^/]+)\/status$/);
-      if(request.method==='PATCH'&&appointmentStatus){const data=await body(request);json(response,200,runtime.services.updateAppointmentStatus(decodeURIComponent(appointmentStatus[1]),data.status,actor));return true;}
-      const appointmentSale=pathname.match(/^\/api\/v1\/vertical\/services\/appointments\/([^/]+)\/sale$/);
-      if(request.method==='POST'&&appointmentSale){const data=await body(request);json(response,201,runtime.services.createSale(decodeURIComponent(appointmentSale[1]),{...data,terminalId:data.terminalId||p.terminalId},actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/services/commissions'){json(response,200,runtime.services.commissionReport({from:url.searchParams.get('from')||null,to:url.searchParams.get('to')||null,professionalId:url.searchParams.get('professionalId')||null}));return true;}
 
       const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
       if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}
