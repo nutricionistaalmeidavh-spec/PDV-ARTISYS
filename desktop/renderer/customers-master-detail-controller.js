@@ -331,14 +331,18 @@
     if (page) selectCustomer(page, row.dataset.customerId);
   });
 
+  const decorateActiveCustomers = ({ forceData = false } = {}) => {
+    const page = customersPage();
+    if (page) void decorateCustomers(page, { forceData });
+  };
   const onRouteMounted = ({ route }) => {
-    if (route === 'customers') scheduleDecorate({ forceData:true });
+    if (route === 'customers') decorateActiveCustomers({ forceData:true });
   };
   const onRouteUpdated = ({ route, surface }) => {
-    if (route === 'customers') scheduleDecorate({ forceData:surface === 'customers' });
+    if (route === 'customers') decorateActiveCustomers({ forceData:surface === 'customers' });
   };
   lifecycle.on('route:mounted', onRouteMounted);
   lifecycle.on('route:updated', onRouteUpdated);
-  if (document.body.dataset.activeRoute === 'customers') scheduleDecorate({ forceData:true });
+  if (document.body.dataset.activeRoute === 'customers') decorateActiveCustomers({ forceData:true });
   window.PdvCustomersMasterDetailController = Object.freeze({ render:decorateCustomers, refresh:() => scheduleDecorate({ forceData:true }) });
 })();
