@@ -25,6 +25,10 @@ function createWholesaleRouter({runtime,sessionStore=null,requireTerminalAuth=fa
         if(req.method==='POST'){json(res,201,runtime.wholesale.upsertTier(await body(req),actor));return true;}
       }
       if((match=pathMatch(pathname,'/api/v1/wholesale/tiers/:id'))&&req.method==='DELETE'){json(res,200,runtime.wholesale.deactivateTier(match.id,actor));return true;}
+      if((match=pathMatch(pathname,'/api/v1/wholesale/customers/:id/policy'))){
+        if(req.method==='GET'){json(res,200,runtime.wholesale.getCustomerPolicy(match.id,actor));return true;}
+        if(req.method==='PUT'){json(res,200,runtime.wholesale.saveCustomerPolicy({...await body(req),customerId:match.id},actor));return true;}
+      }
       if(pathname==='/api/v1/wholesale/price'&&req.method==='GET'){
         const productId=url.searchParams.get('productId');const quantity=Number(url.searchParams.get('quantity'));if(!productId)throw new WholesaleHttpError(400,'productId obrigatorio.');
         json(res,200,runtime.wholesale.resolvePrice(productId,quantity,actor));return true;
