@@ -23,9 +23,12 @@ async function bootstrap(ctx){
 
 test('E42 modules are discoverable and enablement persists through authenticated settings',async()=>{
   const ctx=await setup();try{const token=await bootstrap(ctx);const h=sessionHeaders(token);
-    let res=await fetch(`${ctx.base}/api/v1/vertical/modules`,{headers:h});assert.equal(res.status,200);let modules=await res.json();assert.deepEqual(modules.map(m=>m.id),['FOOD','SERVICES']);assert.equal(modules.find(m=>m.id==='FOOD').enabled,true);assert.equal(modules.find(m=>m.id==='SERVICES').enabled,false);
-    res=await fetch(`${ctx.base}/api/v1/settings/modules.SERVICES.enabled`,{method:'PUT',headers:h,body:JSON.stringify({value:true,scope:'global'})});assert.equal(res.status,200);
-    res=await fetch(`${ctx.base}/api/v1/vertical/modules`,{headers:h});modules=await res.json();assert.equal(modules.find(m=>m.id==='SERVICES').enabled,true);
+    let res=await fetch(`${ctx.base}/api/v1/vertical/modules`,{headers:h});assert.equal(res.status,200);let modules=await res.json();
+    assert.deepEqual(modules.map(module=>module.id),['FOOD','SERVICES']);
+    assert.equal(modules.find(m=>m.id==='FOOD').enabled,true);
+    res=await fetch(`${ctx.base}/api/v1/settings/modules.FOOD.enabled`,{method:'PUT',headers:h,body:JSON.stringify({value:false,scope:'global'})});assert.equal(res.status,200);
+    res=await fetch(`${ctx.base}/api/v1/vertical/modules`,{headers:h});modules=await res.json();assert.equal(modules.find(m=>m.id==='FOOD').enabled,false);
+    res=await fetch(`${ctx.base}/api/v1/settings/modules.FOOD.enabled`,{method:'PUT',headers:h,body:JSON.stringify({value:true,scope:'global'})});assert.equal(res.status,200);
   }finally{await ctx.close();}}
 );
 
