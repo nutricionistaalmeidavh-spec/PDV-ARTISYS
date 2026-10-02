@@ -52,10 +52,10 @@
       <form id="restaurant-merge-form" class="restaurant-form restaurant-action-card"><h3>Juntar comandas</h3><label>Mesa destino<select name="targetSessionId">${occupied.map(t=>`<option value="${esc(t.sessionId)}">${esc(t.label)}</option>`).join('')}</select></label><button class="restaurant-btn secondary" type="submit" ${occupied.length?'':'disabled'}>Juntar nesta mesa</button></form>
       ${free.length?`<form id="restaurant-transfer-form" class="restaurant-form restaurant-action-card"><h3>Transferir comanda inteira</h3><label>Mesa destino<select name="targetTableId">${free.map(t=>`<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')}</select></label><button class="restaurant-btn secondary" type="submit">Transferir mesa</button></form>`:''}
       </div></details></section>`;
-      bindSession(session,remaining);
+      bindSession(session);
     }catch(error){host.innerHTML=`<section class="restaurant-card"><p>${esc(error.message)}</p></section>`;}
   }
-  function bindSession(session,remaining){
+  function bindSession(session){
     document.getElementById('restaurant-waiter-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await request(`/api/v1/restaurant/sessions/${encodeURIComponent(session.id)}/waiter`,{method:'PATCH',body:{waiterId:form.get('waiterId')||null}});toast('Garçom responsável atualizado.','success');await reload(session.id);}catch(error){toast(error.message,'error');}});
     document.getElementById('restaurant-add-draft-form')?.addEventListener('submit',event=>{event.preventDefault();const form=new FormData(event.currentTarget);const product=data.products.find(p=>p.id===form.get('productId'));const quantity=Number(form.get('quantity'));if(!product||!Number.isFinite(quantity)||quantity<=0)return;draftItems.push({productId:product.id,productName:product.name,unitPriceCents:Number(product.salePriceCents||0),quantity,note:String(form.get('note')||'')});void renderSession(session.id);});
     document.querySelectorAll('[data-draft-minus]').forEach(button=>button.addEventListener('click',()=>{const item=draftItems[Number(button.dataset.draftMinus)];if(!item)return;item.quantity=Math.max(0,item.quantity-1);if(item.quantity<=0)draftItems.splice(Number(button.dataset.draftMinus),1);void renderSession(session.id);}));
