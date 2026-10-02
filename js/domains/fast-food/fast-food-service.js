@@ -8,7 +8,7 @@ const TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CANCELLED']
 
 function createFastFoodService({db,modules,sales=null,kitchen=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
-  const gate=()=>modules.requireEnabled('FAST_FOOD');
+  const gate=()=>modules.requireEnabled('FOOD');
   const dateKey=ts=>String(ts).slice(0,10);
   const map=row=>row&&({id:row.id,saleId:row.sale_id,dailyNumber:row.daily_number,status:row.status,note:row.note,createdAt:row.created_at,updatedAt:row.updated_at});
 
