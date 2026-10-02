@@ -96,6 +96,8 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='POST'&&['/api/v1/vertical/market/parse-weight','/api/v1/vertical/catalog/weight/parse'].includes(pathname)){const data=await body(request);json(response,200,runtime.marketBakery.parseWeightBarcode(data.barcode,{profileId:data.profileId||null}));return true;}
       const weightedSale=pathname.match(/^\/api\/v1\/vertical\/catalog\/weight\/sales\/([^/]+)\/items$/);
       if(request.method==='POST'&&weightedSale){json(response,200,runtime.marketBakery.addWeightedItemToSale(decodeURIComponent(weightedSale[1]),await body(request),actor));return true;}
+      const weightedSaleItem=pathname.match(/^\/api\/v1\/vertical\/catalog\/weight\/sales\/([^/]+)\/items\/([^/]+)$/);
+      if(request.method==='DELETE'&&weightedSaleItem){json(response,200,runtime.sales.removeItemById(decodeURIComponent(weightedSaleItem[1]),decodeURIComponent(weightedSaleItem[2])));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/bakery/orders'){moduleRule('FOOD',actor);json(response,201,runtime.marketBakery.createBakeryOrder(await body(request),actor));return true;}
       const bakeryOrder=pathname.match(/^\/api\/v1\/vertical\/bakery\/orders\/([^/]+)$/);
       if(request.method==='GET'&&bakeryOrder){moduleRule('FOOD',actor);json(response,200,runtime.marketBakery.getBakeryOrder(decodeURIComponent(bakeryOrder[1])));return true;}
