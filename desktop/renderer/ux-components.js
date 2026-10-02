@@ -133,24 +133,24 @@
   } = {}) {
     if (typeof document === 'undefined') return Promise.reject(new Error('Dialog indisponível fora do renderer.'));
     const previousFocus = document.activeElement;
-    const dialogId = \`ux-dialog-\${++dialogSequence}\`;
+    const dialogId = `ux-dialog-${++dialogSequence}`;
     const dialog = document.createElement('dialog');
     const confirmClass = tone === 'danger' ? 'ops-danger ux-dialog__confirm' : 'ops-primary ux-dialog__confirm';
     dialog.className = 'ux-dialog';
-    dialog.setAttribute('aria-labelledby', \`\${dialogId}-title\`);
-    if (description) dialog.setAttribute('aria-describedby', \`\${dialogId}-description\`);
-    dialog.innerHTML = \`<form method="dialog" class="ux-dialog__form" novalidate>
+    dialog.setAttribute('aria-labelledby', `${dialogId}-title`);
+    if (description) dialog.setAttribute('aria-describedby', `${dialogId}-description`);
+    dialog.innerHTML = `<form method="dialog" class="ux-dialog__form" novalidate>
       <div class="ux-dialog__head">
-        <h2 id="\${dialogId}-title">\${escapeHtml(title)}</h2>
-        \${description ? \`<p id="\${dialogId}-description">\${escapeHtml(description)}</p>\` : ''}
+        <h2 id="${dialogId}-title">${escapeHtml(title)}</h2>
+        ${description ? `<p id="${dialogId}-description">${escapeHtml(description)}</p>` : ''}
       </div>
-      <div class="ux-dialog__body">\${String(body || '')}</div>
+      <div class="ux-dialog__body">${String(body || '')}</div>
       <p class="ux-dialog__error" role="alert" aria-live="assertive" hidden></p>
       <div class="ux-dialog__actions">
-        <button type="button" class="ops-secondary ux-dialog__cancel">\${escapeHtml(cancelLabel)}</button>
-        <button type="submit" class="\${confirmClass}">\${escapeHtml(confirmLabel)}</button>
+        <button type="button" class="ops-secondary ux-dialog__cancel">${escapeHtml(cancelLabel)}</button>
+        <button type="submit" class="${confirmClass}">${escapeHtml(confirmLabel)}</button>
       </div>
-    </form>\`;
+    </form>`;
     document.body.appendChild(dialog);
 
     const form = dialog.querySelector('form');
