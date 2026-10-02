@@ -99,3 +99,19 @@ test('E38: repeated mutation id produces one waiter open and one tablet order',a
     assert.equal(runtime.db.prepare("SELECT COUNT(*) AS n FROM table_sessions WHERE table_id=? AND status='OPEN'").get(table.id).n,1);
   }finally{if(server)await server.stop();ctx.close();}
 });
+
+test('mesa preserva operador de abertura e garcom responsavel separadamente',()=>{
+  const ctx=fixture();const {runtime,user,table}=ctx;
+  try{
+    const waiter=runtime.catalog.createUser({id:'u2',username:'garcom',name:'Garcom QA',role:'cashier',password:'senha-forte-456'});
+    const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,waiterId:waiter.id,actor:{userId:user.id,role:'cashier'}});
+    assert.equal(session.openedBy,user.id);
+    assert.equal(session.waiterId,waiter.id);
+    assert.equal(runtime.restaurant.listTables()[0].waiterId,waiter.id);
+    const reassigned=runtime.restaurant.assignWaiter(session.id,user.id,{userId:user.id,role:'cashier'});
+    assert.equal(reassigned.openedBy,user.id);
+    assert.equal(reassigned.waiterId,user.id);
+    assert.ok(runtime.db.prepare("SELECT 1 FROM audit_log WHERE action='restaurant.waiter.assign' AND entity_id=?").get(session.id));
+    assert.ok(runtime.db.prepare("SELECT 1 FROM schema_migrations WHERE version=20 AND name='restaurant_waiter_assignment_v20'").get());
+  }finally{ctx.close();}
+});
