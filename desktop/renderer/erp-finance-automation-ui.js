@@ -9,15 +9,15 @@
    if(!choice){toast('Nenhuma sugestão disponível para esta movimentação.','error');return;}
    if(!ux?.openFormDialog){toast('Diálogo de conciliação indisponível.','error');return;}
    const dayDistance=Number(choice.reason?.dayDistance||0);const textOverlap=Math.round(Number(choice.reason?.textOverlap||0)*100);const exactAmount=choice.reason?.exactAmount===true;
-   const facts=\`<div class="ux-dialog__facts"><div class="ux-dialog__fact"><small>Valor</small><strong>\${exactAmount?'Exato':'Diferença dentro da tolerância'}</strong></div><div class="ux-dialog__fact"><small>Datas</small><strong>\${dayDistance===0?'Mesmo dia':\`\${dayDistance} dia\${dayDistance===1?'':'s'} de diferença\`}</strong></div><div class="ux-dialog__fact"><small>Descrição</small><strong>\${textOverlap}% de correspondência</strong></div><div class="ux-dialog__fact"><small>Valor a conciliar</small><strong>\${money(choice.amountCents)}</strong></div></div>\`;
-   const summary=\`<div class="ux-dialog__summary"><strong>Extrato: \${esc(choice.description||'Movimentação bancária')}</strong><span>\${dateLabel(choice.postedDate)} · \${money(choice.transactionAmountCents)}</span></div><div class="ux-dialog__summary"><strong>Lançamento: \${esc(choice.entryDescription||choice.entryId)}</strong><span>Vencimento \${dateLabel(choice.dueAt)} · saldo \${money(choice.entryOpenCents)}</span></div>\`;
+   const facts=`<div class="ux-dialog__facts"><div class="ux-dialog__fact"><small>Valor</small><strong>${exactAmount?'Exato':'Diferença dentro da tolerância'}</strong></div><div class="ux-dialog__fact"><small>Datas</small><strong>${dayDistance===0?'Mesmo dia':`${dayDistance} dia${dayDistance===1?'':'s'} de diferença`}</strong></div><div class="ux-dialog__fact"><small>Descrição</small><strong>${textOverlap}% de correspondência</strong></div><div class="ux-dialog__fact"><small>Valor a conciliar</small><strong>${money(choice.amountCents)}</strong></div></div>`;
+   const summary=`<div class="ux-dialog__summary"><strong>Extrato: ${esc(choice.description||'Movimentação bancária')}</strong><span>${dateLabel(choice.postedDate)} · ${money(choice.transactionAmountCents)}</span></div><div class="ux-dialog__summary"><strong>Lançamento: ${esc(choice.entryDescription||choice.entryId)}</strong><span>Vencimento ${dateLabel(choice.dueAt)} · saldo ${money(choice.entryOpenCents)}</span></div>`;
    const rejecting=action==='reject';
    const result=await ux.openFormDialog({
     title:rejecting?'Ignorar sugestão de conciliação':'Revisar conciliação',
     description:rejecting?'Esta correspondência deixará de ser sugerida para esta movimentação.':'Confira a correspondência antes de registrar a baixa financeira.',
     confirmLabel:rejecting?'Ignorar esta sugestão':'Conciliar',
     initialFocus:rejecting?'cancel':'first',
-    body:\`\${summary}\${facts}\${rejecting?'<label>Motivo<textarea name="reason" class="ops-input" rows="3"></textarea></label>':''}\`,
+    body:`${summary}${facts}${rejecting?'<label>Motivo<textarea name="reason" class="ops-input" rows="3"></textarea></label>':''}`,
     validate:rejecting?(data=>String(data.reason||'').trim()?null:{message:'Informe o motivo para ignorar esta sugestão.',field:'reason'}):null,
     onConfirm:rejecting
       ?data=>api.rejectReconciliation(transactionId,{entryId:choice.entryId,reason:String(data.reason||'').trim(),idempotencyKey:api.mutationId()})
