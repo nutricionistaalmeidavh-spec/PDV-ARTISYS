@@ -226,17 +226,48 @@
       "timeoutMs": 10000
     },
     {
+      "action": "fill",
+      "selector": "#customer-form input[name='name']",
+      "value": "QA P5 Cliente Busca Incremental",
+      "name": "cliente-regressao-nome-p5"
+    },
+    {
       "action": "click",
-      "selector": "#modal-root .modal-close[data-close-modal]",
-      "name": "fechar-novo-cliente-p5",
+      "selector": "#customer-form button[type='submit']",
+      "name": "salvar-cliente-regressao-p5",
       "timeoutMs": 10000
     },
     {
       "action": "waitFor",
       "selector": "#modal-root",
-      "name": "modal-novo-cliente-fechado-p5",
+      "name": "modal-cliente-regressao-fechado-p5",
       "state": "hidden",
       "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".data-row:has-text('QA P5 Cliente Busca Incremental') [data-edit-customer]",
+      "name": "cliente-regressao-criado-p5",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-page-search",
+      "value": "QA P5 Cliente Busca Incremental",
+      "name": "cliente-regressao-buscar-p5"
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".data-row:has-text('QA P5 Cliente Busca Incremental') [data-remove-customer]",
+      "name": "cliente-regressao-excluir-preservado-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-page-search",
+      "value": "",
+      "name": "cliente-regressao-limpar-busca-p5"
     },
     {
       "action": "expectNoHorizontalOverflow",

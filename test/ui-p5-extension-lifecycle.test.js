@@ -45,6 +45,8 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
   const source=read('desktop/renderer/catalog-user-management-ui.js');
   assert.match(source,/data-remove-customer/);
   assert.doesNotMatch(source,/if\(root\.dataset\.catalogDeletionEnhanced==='1'\)return/);
+  assert.match(source,/route==='customers'&&surface==='customers-list'\)scheduleMount\(\)/);
+  assert.match(source,/root\.querySelectorAll\('\[data-edit-customer\]'\)\.forEach/);
 });
 
 test('P5 leaves complex P6 observers untouched',()=>{
