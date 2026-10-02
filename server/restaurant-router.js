@@ -71,7 +71,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     }
     const waiterOpen=pathname.match(/^\/api\/v1\/mobile\/tables\/([^/]+)\/open$/);
     if(request.method==='POST'&&waiterOpen){
-      const p=mobilePrincipal(request,['WAITER']);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(waiterOpen[1]),{operatorId:p.device.userId||null,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
+      const p=mobilePrincipal(request,['WAITER']);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(waiterOpen[1]),{operatorId:p.device.userId||null,waiterId:p.device.userId||null,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
     }
     const waiterTransfer=pathname.match(/^\/api\/v1\/mobile\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&waiterTransfer){
@@ -103,11 +103,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
     const tableOpen=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/open$/);
-    if(request.method==='POST'&&tableOpen){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&tableOpen){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,waiterId:data.waiterId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
     const tableService=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/service$/);
     if(request.method==='POST'&&tableService){const data=await body(request);json(response,201,runtime.restaurant.requestService(decodeURIComponent(tableService[1]),data.requestType,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
     if(request.method==='GET'&&sessionGet){const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
+    const waiterAssign=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/waiter$/);
+    if(request.method==='PATCH'&&waiterAssign){const data=await body(request);json(response,200,runtime.restaurant.assignWaiter(decodeURIComponent(waiterAssign[1]),data.waiterId||null,actor));return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
     if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:requireMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
