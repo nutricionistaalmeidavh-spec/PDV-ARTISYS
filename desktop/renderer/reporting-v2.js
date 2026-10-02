@@ -156,7 +156,7 @@
     <div class="ops-grid two">
       <section class="ops-card report-print-section"><h2>Resumo por meio de pagamento</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Transações</th><th>Recebido</th><th>Reembolsado</th><th>Líquido</th></tr></thead><tbody>${(sales.paymentMethods || []).map(row => `<tr><td>${escapeHtml(paymentLabel(row.method))}</td><td>${row.salesCount || 0}</td><td>${row.transactionCount || 0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('') || empty('Sem pagamentos no período.',6)}</tbody></table></div></section>
       <section class="ops-card report-print-section"><h2>Vendas por vendedor / garçom</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Vendas</th><th>Devoluções</th><th>Líquido</th><th>Canceladas</th></tr></thead><tbody>${(sales.sellers || []).map(row => `<tr><td>${escapeHtml(row.sellerName || row.sellerId || '—')}</td><td>${row.salesCount || 0}</td><td>${money(row.returnedCents || 0)}</td><td><strong>${money(row.salesCents || 0)}</strong></td><td>${row.cancelledSalesCount || 0} · ${money(row.cancelledSalesCents || 0)}</td></tr>`).join('') || empty('Sem vendas no período.',5)}</tbody></table></div></section>
-    </div>`;
+    </div><div class="report-v2-trace-actions report-v2-no-print"><button class="ops-secondary" type="button" data-report-drilldown="period">Ver vendas do período</button></div>`;
   }
 
   function customersView(sales) {
@@ -237,7 +237,7 @@
     const sellerField = SELLER_FILTER_VIEWS.has(state.view)
       ? `<label>Vendedor / Garçom<select name="sellerId" class="ops-input"><option value="">Todos</option>${sellers.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === state.sellerId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}</select></label>`
       : `<div class="report-v2-filter-note"><strong>Caixa físico</strong><span>O filtro de vendedor/garçom não se aplica a sangrias, suprimentos e fundo de abertura.</span></div>`;
-    return `<section class="ops-card report-v2-filter-card"><form id="report-v2-filter" class="report-v2-filter"><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
+    return `<section class="ops-card report-v2-filter-card"><div class="report-v2-period-presets" aria-label="Atalhos de período"><button type="button" class="ops-secondary" data-report-period="today">Hoje</button><button type="button" class="ops-secondary" data-report-period="last7">Últimos 7 dias</button><button type="button" class="ops-secondary" data-report-period="month">Este mês</button><button type="button" class="ops-secondary" data-report-period="prev-month">Mês anterior</button></div><form id="report-v2-filter" class="report-v2-filter" novalidate><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
   }
 
   function printMeta(sellers,inventory) {
