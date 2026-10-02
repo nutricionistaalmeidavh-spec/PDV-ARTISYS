@@ -64,3 +64,18 @@ test('management remains analytical and no longer owns bank, recurrence or alert
   assert.doesNotMatch(management,/erp-finance-alerts/);
   assert.doesNotMatch(management,/PdvErpFinanceOperationsUi|PdvErpFinanceAutomationUi/);
 });
+
+
+test('bank route exposes imported OFX history and alert route restores hidden alerts',()=>{
+  const api=read('desktop/renderer/erp-finance-api-client.js');
+  const operations=read('desktop/renderer/erp-finance-operations-ui.js');
+
+  assert.match(api,/statementBatches=function/);
+  assert.match(api,/statementBatch=function/);
+  assert.match(operations,/Extratos importados/);
+  assert.match(operations,/data-statement-batch/);
+  assert.match(operations,/financeAlerts\(true\)/);
+  assert.match(operations,/Alertas ocultos/);
+  assert.match(operations,/data-alert-unhide/);
+  assert.match(operations,/unhideFinanceAlert\(/);
+});
