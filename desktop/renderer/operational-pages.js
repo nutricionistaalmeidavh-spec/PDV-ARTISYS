@@ -150,7 +150,8 @@
       </form></section>
       <section class="ops-card grow"><div class="ops-card-head"><div><h2>Lançamentos</h2><p>${entries.length} registro${entries.length===1?'':'s'} no recorte atual</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vencimento</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Em aberto</th><th>Status</th><th></th></tr></thead><tbody>${entries.map(row=>`<tr><td>${dateOnly(row.dueAt)}</td><td><strong>${escapeHtml(row.description)}</strong><small>${escapeHtml(categoryById.get(String(row.categoryId))?.name||row.category||'Sem categoria')}</small></td><td>${escapeHtml(financeKindLabel(row.kind))}</td><td>${money(row.amountCents)}</td><td>${money(row.openCents)}</td><td>${financeStatusBadge(row)}</td><td><div class="ops-row-actions"><button class="ops-link" data-finance-detail="${escapeHtml(row.id)}">Detalhes</button>${row.openCents>0&&row.status!=='CANCELLED'?`<button class="ops-link" data-finance-settle="${escapeHtml(row.id)}" data-open="${row.openCents}">Baixar</button>`:''}${row.status==='OPEN'?`<button class="ops-link danger" data-finance-cancel="${escapeHtml(row.id)}">Cancelar</button>`:''}</div></td></tr>`).join('')||`<tr><td colspan="7">${empty('Nenhum lançamento financeiro neste recorte.')}</td></tr>`}</tbody></table></div></section></div>`;
     if(!routeActive('finance'))return;
-    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais, histórico e rastreabilidade.',body);
+    content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais, histórico e rastreabilidade.',`${root.PdvFinanceOperationsUi?.navigation?.('finance')||''}${body}`);
+    root.PdvFinanceOperationsUi?.bindNavigation?.(content);
 
     const renderWithState=next=>renderFinance({...state,...next});
     document.getElementById('ops-finance-filter')?.addEventListener('submit',event=>{
@@ -187,6 +188,26 @@
       if(result.confirmed){showToast('Baixa estornada.','success');await renderWithState({});}
     }
 
+    async function editFinanceDimensions(entry){
+      if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
+      modal?.close?.();
+      const competencyValue=String(entry.competencyDate||entry.dueAt||'').slice(0,10);
+      const result=await ux.openFormDialog({
+        title:'Editar classificação',
+        description:`${entry.description} · a classificação alimenta DRE e análises gerenciais.`,
+        confirmLabel:'Salvar classificação',
+        body:`<label>Categoria gerencial<select name="categoryId" class="ops-input"><option value="">Sem categoria</option>${categories.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===String(entry.categoryId||'')?'selected':''}>${escapeHtml(row.name)}</option>`).join('')}</select></label>
+          <label>Centro de custo<select name="costCenterId" class="ops-input"><option value="">Sem centro</option>${centers.map(row=>`<option value="${escapeHtml(row.id)}" ${String(row.id)===String(entry.costCenterId||'')?'selected':''}>${escapeHtml(row.name)}</option>`).join('')}</select></label>
+          <label>Competência<input name="competencyDate" type="date" class="ops-input" value="${escapeHtml(competencyValue)}"></label>`,
+        onConfirm:data=>api.updateFinanceDimensions(entry.id,{
+          categoryId:data.categoryId||null,
+          costCenterId:data.costCenterId||null,
+          competencyDate:data.competencyDate||null
+        })
+      });
+      if(result.confirmed){showToast('Classificação atualizada.','success');await renderWithState({});}
+    }
+
     async function openFinanceDetail(entryId){
       if(!modal?.open){showToast('Detalhes indisponíveis.','error');return;}
       try{
@@ -194,8 +215,9 @@
         const category=categoryById.get(String(entry.categoryId)),center=centerById.get(String(entry.costCenterId));
         const history=entry.settlementHistory||entry.settlements||[];
         const historyHtml=history.length?history.slice().reverse().map(item=>`<div class="ops-detail-row"><div class="ops-detail-copy"><strong>${money(item.amountCents)} · ${escapeHtml(financeMethodLabel(item.method))}</strong><small>${when(item.createdAt)}${item.note?` · ${escapeHtml(item.note)}`:''}${item.reversedAt?` · Estornada em ${when(item.reversedAt)}`:''}</small></div>${!item.reversedAt?`<button class="ops-secondary" type="button" data-finance-reverse="${escapeHtml(item.id)}">Estornar</button>`:`<span class="ops-badge status-cancelled">Estornada</span>`}</div>`).join(''):'<div class="ops-empty">Nenhuma baixa registrada.</div>';
-        const body=`<div class="ops-details"><div><dt>Tipo</dt><dd>${escapeHtml(financeKindLabel(entry.kind))}</dd></div><div><dt>Situação</dt><dd>${escapeHtml(FINANCE_STATUS_LABELS[financeStatusCode(entry)]||financeStatusCode(entry))}</dd></div><div><dt>Valor</dt><dd>${money(entry.amountCents)}</dd></div><div><dt>Em aberto</dt><dd>${money(entry.openCents)}</dd></div><div><dt>Vencimento</dt><dd>${dateOnly(entry.dueAt)}</dd></div><div><dt>Competência</dt><dd>${dateOnly(entry.competencyDate)}</dd></div><div><dt>Categoria</dt><dd>${escapeHtml(category?.name||entry.category||'Sem categoria')}</dd></div><div><dt>Centro de custo</dt><dd>${escapeHtml(center?.name||'Sem centro')}</dd></div><div><dt>Origem</dt><dd>${escapeHtml([entry.sourceType,entry.sourceId].filter(Boolean).join(' · ')||'Lançamento manual')}</dd></div></div><h3>Histórico de baixas</h3><div id="ops-finance-settlement-history">${historyHtml}</div>`;
+        const body=`<div class="ops-details"><div><dt>Tipo</dt><dd>${escapeHtml(financeKindLabel(entry.kind))}</dd></div><div><dt>Situação</dt><dd>${escapeHtml(FINANCE_STATUS_LABELS[financeStatusCode(entry)]||financeStatusCode(entry))}</dd></div><div><dt>Valor</dt><dd>${money(entry.amountCents)}</dd></div><div><dt>Em aberto</dt><dd>${money(entry.openCents)}</dd></div><div><dt>Vencimento</dt><dd>${dateOnly(entry.dueAt)}</dd></div><div><dt>Competência</dt><dd>${dateOnly(entry.competencyDate)}</dd></div><div><dt>Categoria</dt><dd>${escapeHtml(category?.name||entry.category||'Sem categoria')}</dd></div><div><dt>Centro de custo</dt><dd>${escapeHtml(center?.name||'Sem centro')}</dd></div><div><dt>Origem</dt><dd>${escapeHtml([entry.sourceType,entry.sourceId].filter(Boolean).join(' · ')||'Lançamento manual')}</dd></div></div><div class="ops-actions"><button class="ops-secondary" type="button" data-finance-classify>Editar classificação</button></div><h3>Histórico de baixas</h3><div id="ops-finance-settlement-history">${historyHtml}</div>`;
         modal.open(entry.description,body,{wide:true,onMount(modalRoot){
+          modalRoot.querySelector('[data-finance-classify]')?.addEventListener('click',()=>void editFinanceDimensions(entry));
           modalRoot.querySelectorAll('[data-finance-reverse]').forEach(button=>button.addEventListener('click',()=>{
             const settlement=history.find(item=>String(item.id)===String(button.dataset.financeReverse));
             if(settlement)void reverseSettlement(entry,settlement);
