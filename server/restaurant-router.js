@@ -63,6 +63,10 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   }
 
   function serveMobile(pathname,response){
+    if(pathname==='/mobile/order-composer.js'){
+      const full=path.join(__dirname,'..','shared','order-composer.js');if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
+      text(response,200,fs.readFileSync(full,'utf8'),'application/javascript; charset=utf-8');return true;
+    }
     const files={'/mobile':'index.html','/mobile/':'index.html','/mobile/index.html':'index.html','/mobile/app.js':'app.js','/mobile/styles.css':'styles.css'};
     const file=files[pathname];if(!file)return false;
     const full=path.join(mobileDir,file);if(!fs.existsSync(full)){text(response,404,'Interface mobile nao instalada.');return true;}
