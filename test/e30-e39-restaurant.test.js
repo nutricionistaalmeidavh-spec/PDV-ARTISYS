@@ -115,3 +115,45 @@ test('mesa preserva operador de abertura e garcom responsavel separadamente',()=
     assert.ok(runtime.db.prepare("SELECT 1 FROM schema_migrations WHERE version=20 AND name='restaurant_waiter_assignment_v20'").get());
   }finally{ctx.close();}
 });
+
+
+test('sessao de mesa guarda pessoas e cliente e projeta progresso da producao no salao',async()=>{
+  const ctx=fixture();const {runtime,user,table}=ctx;
+  try{
+    const customer=runtime.catalog.upsertCustomer({id:'cust-table',name:'Cliente Mesa',phone:'16999990000'});
+    const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,waiterId:user.id,partySize:3,customerId:customer.id,actor:{userId:user.id,role:'cashier'}});
+    assert.equal(session.partySize,3);
+    assert.equal(session.customerId,customer.id);
+    assert.equal(session.customerName,'Cliente Mesa');
+    runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:2}],actor:{userId:user.id,role:'cashier'}});
+    await runtime.dispatchPending();
+    let projected=runtime.restaurant.listTables().find(item=>item.id===table.id);
+    assert.equal(projected.partySize,3);
+    assert.equal(projected.customerName,'Cliente Mesa');
+    assert.equal(projected.productionStatus,'NEW');
+    assert.equal(projected.readyItems,0);
+    const ticket=runtime.kitchen.listTickets()[0];
+    runtime.kitchen.updateTicketStatus(ticket.id,'PREPARING',{userId:user.id});
+    projected=runtime.restaurant.listTables().find(item=>item.id===table.id);
+    assert.equal(projected.productionStatus,'PREPARING');
+    runtime.kitchen.updateTicketStatus(ticket.id,'READY',{userId:user.id});
+    projected=runtime.restaurant.listTables().find(item=>item.id===table.id);
+    assert.equal(projected.productionStatus,'READY');
+    assert.equal(projected.readyItems,2);
+  }finally{ctx.close();}
+});
+
+test('detalhes da comanda podem alterar pessoas e cliente sem perder operador ou garcom',()=>{
+  const ctx=fixture();const {runtime,user,table}=ctx;
+  try{
+    const customer=runtime.catalog.upsertCustomer({id:'cust-update',name:'Cliente Atualizado'});
+    const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,waiterId:user.id,partySize:2,actor:{userId:user.id,role:'cashier'}});
+    const updated=runtime.restaurant.updateSessionDetails(session.id,{partySize:4,customerId:customer.id},{userId:user.id,role:'cashier'});
+    assert.equal(updated.partySize,4);
+    assert.equal(updated.customerId,customer.id);
+    assert.equal(updated.customerName,'Cliente Atualizado');
+    assert.equal(updated.openedBy,user.id);
+    assert.equal(updated.waiterId,user.id);
+    assert.ok(runtime.db.prepare("SELECT 1 FROM audit_log WHERE action='restaurant.session.details' AND entity_id=?").get(session.id));
+  }finally{ctx.close();}
+});
