@@ -1,0 +1,40 @@
+name: QA All Screens TEMP
+
+on:
+  push:
+    branches:
+      - qa/all-screens-20261001
+
+permissions:
+  contents: read
+
+jobs:
+  capture-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PDV dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install QA runtime
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Install Chromium
+        run: npx --prefix qa/runtime playwright install chromium --with-deps
+      - name: Ensure Xvfb
+        run: |
+          command -v xvfb-run >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y xvfb)
+      - name: Capture every screen
+        run: xvfb-run -a node qa/runtime/capture-all-screens.mjs
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdv-artisys-all-screens-${{ github.run_number }}
+          path: qa-artifacts/all-screens
+          if-no-files-found: warn
+          retention-days: 7
