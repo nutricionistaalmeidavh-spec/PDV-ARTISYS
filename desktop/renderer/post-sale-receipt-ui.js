@@ -237,6 +237,7 @@
     } catch (error) {
       card.innerHTML = `<h2>Impressão do comprovante</h2><div class="ops-error">${escapeHtml(error?.message || 'Não foi possível carregar as configurações de impressão.')}</div>`;
     }
+    root.PdvRouteRegistry?.updated('settings', { surface:'settings-extension', extension:'printing' });
   }
 
   function queueSettingsInjection() {
