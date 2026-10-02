@@ -46,7 +46,8 @@ test('P3 creates human order number and cashier opens confirmed wholesale order 
   const runtime=setup();
   try{
     const quote=runtime.wholesale.createQuote({customerId:'customer',locationId:'MAIN',fulfillmentType:'PICKUP',expectedAt:'2026-10-08T17:00:00.000Z',items:[{productId:'product',quantity:12}]},manager);
-    assert.match(quote.orderNumber,/^P-\d{6}$/);\n    assert.equal(quote.expectedAt,'2026-10-08T17:00:00.000Z');
+    assert.match(quote.orderNumber,/^P-\d{6}$/);
+    assert.equal(quote.expectedAt,'2026-10-08T17:00:00.000Z');
     assert.equal(quote.items[0].unitPriceCents,800);
     runtime.wholesale.confirmOrder(quote.id,manager);
 
