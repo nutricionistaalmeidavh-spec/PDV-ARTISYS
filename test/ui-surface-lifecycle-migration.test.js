@@ -12,15 +12,24 @@ test('checkout and settings enhancements consume semantic lifecycle instead of D
   for (const relative of [
     'desktop/renderer/ux-home-checkout.js',
     'desktop/renderer/seller-select-sync.js',
-    'desktop/renderer/settings-hub-ui.js',
     'desktop/renderer/store-branding-ui.js',
-    'desktop/renderer/post-sale-receipt-ui.js'
+    'desktop/renderer/post-sale-receipt-ui.js',
+    'desktop/renderer/telemetry-ui.js'
   ]) {
     const source = read(relative);
     assert.match(source, /PdvUiLifecycle/, `${relative} must consume lifecycle`);
     assert.match(source, /route:updated/, `${relative} must react to semantic updates`);
     assert.doesNotMatch(source, /new MutationObserver\b/, `${relative} must not watch DOM mutations`);
   }
+});
+
+test('settings hub keeps one bounded compatibility observer only while Settings is active', () => {
+  const source = read('desktop/renderer/settings-hub-ui.js');
+  assert.match(source, /PdvUiLifecycle/);
+  assert.match(source, /legacyObserver=new MutationObserver\(schedule\)/);
+  assert.match(source, /legacyObserver\.observe\(content,\{childList:true,subtree:true\}\)/);
+  assert.match(source, /stopLegacyObserver/);
+  assert.match(source, /route:before/);
 });
 
 test('canonical renderers publish checkout and settings update signals', () => {
