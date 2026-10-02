@@ -17,10 +17,14 @@ test('desktop loads optional module API and workspace extensions',()=>{
   for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Fiscal','Módulos','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
 });
 
-test('vertical UI gates segment cards from enabled module state',()=>{
+test('vertical UI exposes one Alimentação module with operational capabilities',()=>{
   const source=read('desktop/renderer/vertical-modules.js');
-  for(const id of ['PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY'])assert.match(source,new RegExp(id));
-  assert.match(source,/\.filter\(module=>module\.enabled\)/);
+  assert.match(source,/FOOD:renderFoodWorkspace/);
+  for(const id of ['PIZZERIA','DELIVERY','FAST_FOOD','SELF_SERVICE'])assert.match(source,new RegExp(`data-food-capability="${id}"`));
+  assert.match(source,/Produção \/ KDS/);
+  assert.match(source,/Incluído automaticamente/);
+  assert.doesNotMatch(source,/MARKET_BAKERY:renderMarket/);
+  assert.doesNotMatch(source,/RETAIL:\(\)=>/);
   assert.match(source,/modules\(\)/);
   assert.match(source,/saveSetting/);
 });
@@ -55,15 +59,16 @@ test('modules are activated in settings and opened from authorized navigation',(
   assert.doesNotMatch(source,/Abrir módulo/);
 });
 
-test('food extensions share a distinct navigation group and one settings destination card',()=>{
+test('Alimentação is one direct module and production is not a separate toggle',()=>{
   const source=read('desktop/renderer/vertical-modules.js');
   const registry=read('js/core/modules/module-registry.js');
   assert.match(registry,/FOOD:Object\.freeze\(\{id:'FOOD',label:'Alimentação'/);
-  assert.match(registry,/navigation:'group'/);
-  assert.match(source,/area\.navigation==='group'/);
+  assert.match(registry,/navigation:'module'/);
+  assert.match(registry,/\{id:'FOOD',name:'Alimentação'/);
+  assert.doesNotMatch(registry,/\{id:'PIZZERIA'|\{id:'DELIVERY'|\{id:'FAST_FOOD'|\{id:'MARKET_BAKERY'|\{id:'RETAIL'|\{id:'SELF_SERVICE'/);
   assert.match(source,/dataset\.moduleNav=item\.target/);
-  assert.match(source,/areaModules\.map\(renderToggle\)/);
-  assert.doesNotMatch(source,/const FOOD_MODULES|const MODULE_LABELS|const MODULE_ICONS/);
+  assert.match(source,/module\.id==='FOOD'/);
+  assert.doesNotMatch(source,/data-module-toggle="PRODUCTION"|data-module-toggle="KDS"/);
 });
 
 test('settings expose server choices with explicit effects and accessible module switches',()=>{
