@@ -71,3 +71,15 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - A conciliação bancária exige revisão visível da sugestão antes de registrar a baixa. A revisão mostra o movimento do extrato, o lançamento candidato, valores, datas e os critérios objetivos usados na correspondência.
 - Ignorar uma sugestão exige motivo, registra a decisão com auditoria e impede que o mesmo par movimentação-lançamento seja sugerido novamente. Ignorar não marca a movimentação como conciliada, permitindo avaliar outro candidato.
 - Essas regras são restritas aos fluxos financeiros/gerenciais envolvidos e não autorizam alterações visuais ou comportamentais incidentais nas páginas já aprovadas.
+
+
+## Financeiro, DRE e Relatórios: rastreabilidade P1/P2
+
+- Lançamentos financeiros usam categoria gerencial, centro de custo e competência como dimensões canônicas. O campo livre de categoria não faz parte do fluxo normal de criação; valores legados permanecem somente para compatibilidade histórica.
+- Todo lançamento financeiro permite abrir detalhes e consultar o histórico completo de baixas, inclusive baixas estornadas. Estorno exige motivo e preserva a baixa original no histórico.
+- Filtros do Financeiro podem combinar busca, tipo, situação, vencimento, categoria e centro de custo. Valores técnicos como `PAYABLE`, `RECEIVABLE`, `OPEN`, `PARTIAL`, `SETTLED` e naturezas DRE não aparecem como rótulo normal para o usuário.
+- Grupos da DRE são os agrupadores apresentados na Gestão; categorias vinculadas ao mesmo grupo são consolidadas e a ordem configurada do grupo é respeitada. Cada grupo preserva referências aos lançamentos ou vendas que compõem o valor.
+- A DRE pode ser exportada em CSV sem alterar seu cálculo e permite navegar para sua composição. Gestão e Relatórios possuem navegação explícita entre si sem duplicar regras de cálculo.
+- Relatórios comerciais oferecem atalhos de período, abas acessíveis por teclado e drill-down das linhas de cliente, produto e meio de pagamento para as vendas de origem.
+- A tabela principal de produtos prioriza quantidade líquida, receita líquida, custo, margem e margem percentual. O CSV continua preservando o detalhamento analítico completo.
+- Alterações P1/P2 permanecem restritas às áreas Financeiro, Gestão/DRE e Relatórios; páginas já aprovadas fora desse escopo não devem sofrer redesign incidental.

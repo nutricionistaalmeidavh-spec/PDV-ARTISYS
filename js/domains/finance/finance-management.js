@@ -15,20 +15,20 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
   if(!db||!finance)throw new TypeError('db and finance are required.');
 
   function categoryNature(entryId,kind){
-    const row=db.prepare(`SELECT g.nature,c.id AS category_id,c.name AS category_name,cc.id AS cost_center_id,cc.name AS cost_center_name,d.competency_date
+    const row=db.prepare(`SELECT g.id AS group_id,g.name AS group_name,g.nature,g.sort_order,c.id AS category_id,c.name AS category_name,cc.id AS cost_center_id,cc.name AS cost_center_name,d.competency_date
       FROM financial_entry_dimensions d
       LEFT JOIN financial_categories c ON c.id=d.category_id
       LEFT JOIN finance_dre_groups g ON g.id=c.dre_group_id
       LEFT JOIN cost_centers cc ON cc.id=d.cost_center_id
       WHERE d.entry_id=?`).get(String(entryId));
-    return{nature:row?.nature||(kind==='RECEIVABLE'?'REVENUE':'EXPENSE'),categoryId:row?.category_id||null,categoryName:row?.category_name||null,costCenterId:row?.cost_center_id||null,costCenterName:row?.cost_center_name||null,competencyDate:row?.competency_date||null};
+    return{nature:row?.nature||(kind==='RECEIVABLE'?'REVENUE':'EXPENSE'),groupId:row?.group_id||null,groupName:row?.group_name||null,sortOrder:Number(row?.sort_order??900),categoryId:row?.category_id||null,categoryName:row?.category_name||null,costCenterId:row?.cost_center_id||null,costCenterName:row?.cost_center_name||null,competencyDate:row?.competency_date||null};
   }
 
   function salesSummary(from,to){
-    if(!reports||typeof reports.buildSalesSummary!=='function')return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0};
+    if(!reports||typeof reports.buildSalesSummary!=='function')return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};
     const {fromIso,toIso}=rangeIso(from,to);
-    try{return reports.buildSalesSummary({from:fromIso,to:toIso})||{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0};}
-    catch{return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0};}
+    try{return reports.buildSalesSummary({from:fromIso,to:toIso})||{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};}
+    catch{return{netSalesCents:0,estimatedCostCents:0,estimatedMarginCents:0,saleIds:[]};}
   }
 
   function financialDreRows({basis,from,to}){
@@ -53,9 +53,15 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
     const sales=salesSummary(from,to);
     const result={basis,from:businessDate(from),to:businessDate(to),revenueCents:cents(sales.netSalesCents),costCents:cents(sales.estimatedCostCents),expenseCents:0,otherResultCents:0,resultCents:0,groups:[],financialRows:rows.length};
     const groups=new Map();
-    const addGroup=(key,name,nature,amount)=>{const current=groups.get(key)||{id:key,name:name||key,nature,amountCents:0};current.amountCents+=amount;groups.set(key,current);};
-    if(result.revenueCents)addGroup('PDV_SALES','Vendas PDV','REVENUE',result.revenueCents);
-    if(result.costCents)addGroup('PDV_COGS','Custo das vendas','COST',result.costCents);
+    const addGroup=(key,name,nature,amount,{sortOrder=900,entryId=null,saleIds=[]}={})=>{
+      const current=groups.get(key)||{id:key,name:name||key,nature,sortOrder:Number(sortOrder??900),amountCents:0,entryIds:[],saleIds:[]};
+      current.amountCents+=amount;
+      if(entryId&&!current.entryIds.includes(String(entryId)))current.entryIds.push(String(entryId));
+      for(const saleId of saleIds||[])if(saleId&&!current.saleIds.includes(String(saleId)))current.saleIds.push(String(saleId));
+      groups.set(key,current);
+    };
+    if(result.revenueCents)addGroup('PDV_SALES','Vendas PDV','REVENUE',result.revenueCents,{sortOrder:0,saleIds:sales.saleIds||[]});
+    if(result.costCents)addGroup('PDV_COGS','Custo das vendas','COST',result.costCents,{sortOrder:15,saleIds:sales.saleIds||[]});
     for(const row of rows){
       if(row.source_type==='sale' || row.source_type==='sale-payment')continue;
       const meta=categoryNature(row.id,row.kind);const amount=cents(row.amount_cents);
@@ -63,10 +69,13 @@ function createFinanceManagementService({db,finance,reports=null,dimensions=null
       else if(meta.nature==='COST')result.costCents+=amount;
       else if(meta.nature==='EXPENSE')result.expenseCents+=amount;
       else result.otherResultCents+=(row.kind==='RECEIVABLE'?amount:-amount);
-      addGroup(meta.categoryId||`${row.kind}_UNCLASSIFIED`,meta.categoryName||(row.kind==='RECEIVABLE'?'Receitas sem categoria':'Despesas sem categoria'),meta.nature,amount);
+      const key=meta.groupId||`${row.kind}_UNCLASSIFIED`;
+      const name=meta.groupName||(row.kind==='RECEIVABLE'?'Receitas sem grupo':'Despesas sem grupo');
+      const groupAmount=meta.nature==='OTHER'&&row.kind==='PAYABLE'?-amount:amount;
+      addGroup(key,name,meta.nature,groupAmount,{sortOrder:meta.sortOrder,entryId:row.id});
     }
     result.resultCents=result.revenueCents-result.costCents-result.expenseCents+result.otherResultCents;
-    result.groups=[...groups.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+    result.groups=[...groups.values()].sort((a,b)=>a.sortOrder-b.sortOrder||a.name.localeCompare(b.name,'pt-BR'));
     return result;
   }
 
