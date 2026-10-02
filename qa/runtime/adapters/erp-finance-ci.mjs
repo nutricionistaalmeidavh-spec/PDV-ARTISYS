@@ -118,6 +118,7 @@ async function setupRestaurant(page){
     for(const product of products)await api.saveProduct(product);
     await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-1',label:'QA Mesa 01',seats:4}});
     await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-2',label:'QA Mesa 02',seats:4}});
+    await api.request('/api/v1/restaurant/tables/qa-restaurant-table-2/open',{method:'POST',body:{operatorId,waiterId:operatorId},mutationId:api.mutationId()});
     const station=await api.request('/api/v1/restaurant/kitchen/stations',{method:'POST',body:{id:'qa-restaurant-station',name:'QA Cozinha'}});
     for(const product of products)await api.request('/api/v1/restaurant/kitchen/assignments',{method:'POST',body:{productId:product.id,stationId:station.id||'qa-restaurant-station'}});
     let cash=null;try{cash=await api.openCash(config.terminalId);}catch{}
