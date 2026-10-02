@@ -50,6 +50,7 @@
   function variantMatches(variant,query){const q=String(query||'').trim().toLowerCase();if(!q)return false;const product=parent(variant.productId);return[variant.name,variant.sku,variant.barcode,product?.name,attrsText(variant.attributes)].some(value=>String(value||'').toLowerCase().includes(q));}
   function exactVariant(query){const q=String(query||'').trim().toLowerCase();return variants.find(variant=>variant.active!==false&&[variant.sku,variant.barcode].some(value=>String(value||'').toLowerCase()===q));}
   function baseProductCard(){
+    const canonical=content?.querySelector('#products-list');if(canonical)return canonical;
     const preferred=content?.querySelector('.page .toolbar + .data-card');
     if(preferred?.querySelector('[data-edit-product]'))return preferred;
     return [...(content?.querySelectorAll('.page .data-card')||[])].find(card=>card.querySelector('[data-edit-product]'))||null;
