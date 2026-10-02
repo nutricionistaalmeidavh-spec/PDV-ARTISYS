@@ -80,13 +80,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const principal=mobilePrincipal(request);
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
-      const device=principal.device;const products=mobileProducts();
+      const device=principal.device;const products=mobileProducts();const customers=runtime.catalog.listCustomers().map(customer=>({id:customer.id,name:customer.name}));
       if(device.deviceType==='TABLET'){
         const table=runtime.restaurant.getTable(device.tableId);const session=table?runtime.restaurant.currentSession(table.id):null;
         json(response,200,{device,table,session,products});return true;
       }
       if(device.deviceType==='WAITER'){
-        json(response,200,{device,tables:runtime.restaurant.listTables(),requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products});return true;
+        json(response,200,{device,tables:runtime.restaurant.listTables(),requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products,customers});return true;
       }
       json(response,200,{device,tickets:runtime.kitchen.listTickets({limit:250})});return true;
     }
