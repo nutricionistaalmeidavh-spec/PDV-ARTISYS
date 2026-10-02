@@ -1,6 +1,7 @@
 'use strict';
 
 (() => {
+  const root = window;
   const content = document.getElementById('route-content');
   const ApiClient = window.PdvApiClient?.ApiClient;
   const ui = window.PdvUiModel;
@@ -31,7 +32,7 @@
   const directAllowed = () => ['admin','manager'].includes(currentRole());
   const requiresApproval = () => currentRole() === 'cashier';
   const canOperate = () => directAllowed() || requiresApproval();
-  const refundLabel = method => ({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão débito',CREDIT_CARD:'Cartão crédito / TEF',STORE_CREDIT:'Crédito na loja',OTHER:'Outro'})[method] || method;
+  const refundLabel = method => ({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão débito',CREDIT_CARD:'Cartão crédito',STORE_CREDIT:'Crédito na loja',OTHER:'Outro'})[method] || method;
 
   function currentPage() {
     if (document.body.dataset.activeRoute !== 'returns') return null;
