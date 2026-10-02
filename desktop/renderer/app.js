@@ -565,7 +565,7 @@
   } });
 }
 
-function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();updateProductPhotoSyncStatus();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
+function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))updateProductPhotoSyncStatus();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);updateProductPhotoSyncStatus();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
   async function uploadProductPhoto(productId){try{const saved=await api.uploadProductPhoto(productId);if(!saved)return;state.products=await api.products();renderProducts();showToast('Foto e miniatura salvas no computador principal.','success');}catch(error){showToast(error.message,'error');}}
   async function removeProductPhoto(productId){
