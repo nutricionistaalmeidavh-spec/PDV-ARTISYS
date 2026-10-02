@@ -7,8 +7,17 @@ class ModuleDisabledError extends Error{constructor(id){super(`Modulo ${id} desa
 function createModuleService({db,settings,now=()=>new Date().toISOString()}={}){
   if(!db||!settings)throw new TypeError('db and settings are required.');
   const key=id=>`modules.${id}.enabled`;
+  const legacyFoodIds=['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','SELF_SERVICE'];
+  function foodDefault(definition){
+    const explicit=settings.get(key('FOOD'),{defaultValue:null});
+    if(typeof explicit==='boolean')return explicit;
+    const legacy=Object.fromEntries(legacyFoodIds.map(id=>[id,settings.get(key(id),{defaultValue:null})]));
+    if(Object.values(legacy).some(value=>value===true))return true;
+    if(legacy.RESTAURANT===false)return false;
+    return Boolean(definition.defaultEnabled);
+  }
   function normalize(id){const value=String(id||'').trim().toUpperCase();if(!getModuleDefinition(value))throw new Error(`Modulo desconhecido: ${value||id}.`);return value;}
-  function isEnabled(id){const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);return Boolean(settings.get(key(moduleId),{defaultValue:Boolean(definition.defaultEnabled)}));}
+  function isEnabled(id){const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);if(moduleId==='FOOD')return foodDefault(definition);return Boolean(settings.get(key(moduleId),{defaultValue:Boolean(definition.defaultEnabled)}));}
   function list(){return MODULES.map(def=>({...def,enabled:isEnabled(def.id)}));}
   function setEnabled(id,enabled,actor={}){
     const moduleId=normalize(id);const definition=getModuleDefinition(moduleId);if(String(actor?.role||'')!=='system'&&!definition.manageRoles.includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para alterar modulo.');
