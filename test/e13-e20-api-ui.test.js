@@ -60,7 +60,7 @@ test('P0 financial UI keeps approved pages intact while hardening risky actions'
   const root=path.join(__dirname,'..','desktop','renderer');
   const operational=fs.readFileSync(path.join(root,'operational-pages.js'),'utf8');
   const management=fs.readFileSync(path.join(root,'erp-finance-ui.js'),'utf8');
-  const automation=fs.readFileSync(path.join(root,'erp-finance-automation-ui.js'),'utf8');
+  const operations=fs.readFileSync(path.join(root,'erp-finance-operations-ui.js'),'utf8');
   const start=operational.indexOf('async function renderFinance');
   const end=operational.indexOf('async function renderReports',start);
   const financeSlice=operational.slice(start,end);
@@ -69,8 +69,8 @@ test('P0 financial UI keeps approved pages intact while hardening risky actions'
   assert.match(management,/erpDashboard\(\{from,to,basis\}\)/);
   assert.match(management,/equivalentPreviousPeriod/);
   assert.doesNotMatch(management,/setUTCMonth\(previousFrom/);
-  assert.match(automation,/\[data-reconcile-reject\]/);
-  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileAccept,'accept'\)/);
-  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileReject,'reject'\)/);
-  assert.match(automation,/openFormDialog/);
+  assert.match(operations,/\[data-reconcile-reject\]/);
+  assert.match(operations,/reviewSuggestion\(button\.dataset\.reconcileAccept,'accept'\)/);
+  assert.match(operations,/reviewSuggestion\(button\.dataset\.reconcileReject,'reject'\)/);
+  assert.match(operations,/openFormDialog/);
 });
