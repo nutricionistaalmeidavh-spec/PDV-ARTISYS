@@ -42,7 +42,7 @@ test('password recovery is enumeration-safe, changes only the local password and
     response=await fetch(`${ctx.base}/api/v1/auth/password-recovery/confirm`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'owner@example.com',code:'654321',password:'senha-nova-456'})});
     assert.equal(response.status,200);
     assert.deepEqual(await response.json(),{reset:true});
-    assert.deepEqual(Object.keys(ctx.calls.at(-1).body).sort(),['code','email']);
+    assert.deepEqual(Object.keys(ctx.calls.at(-1).body).sort(),['code','email','installationId']);
 
     const oldSession=await fetch(`${ctx.base}/api/v1/auth/session`,{headers:{authorization:`Bearer ${sessionToken}`}});
     assert.equal(oldSession.status,401);
