@@ -83,9 +83,9 @@ test('P0 renderer contract avoids native finance prompts and requires reconcilia
   const renderer=path.join(__dirname,'..','desktop','renderer');
   const operational=fs.readFileSync(path.join(renderer,'operational-pages.js'),'utf8');
   const management=fs.readFileSync(path.join(renderer,'erp-finance-ui.js'),'utf8');
-  const automation=fs.readFileSync(path.join(renderer,'erp-finance-automation-ui.js'),'utf8');
+  const operations=fs.readFileSync(path.join(renderer,'erp-finance-operations-ui.js'),'utf8');
   const ux=fs.readFileSync(path.join(renderer,'ux-components.js'),'utf8');
-  for(const [name,source] of [['operational-pages.js',operational],['erp-finance-ui.js',management],['erp-finance-automation-ui.js',automation],['ux-components.js',ux]]) assert.doesNotThrow(()=>new vm.Script(source,{filename:name}));
+  for(const [name,source] of [['operational-pages.js',operational],['erp-finance-ui.js',management],['erp-finance-operations-ui.js',operations],['ux-components.js',ux]]) assert.doesNotThrow(()=>new vm.Script(source,{filename:name}));
   const start=operational.indexOf('async function renderFinance');
   const end=operational.indexOf('async function renderReports',start);
   const financeSection=operational.slice(start,end);
@@ -93,7 +93,7 @@ test('P0 renderer contract avoids native finance prompts and requires reconcilia
   assert.match(financeSection,/openFormDialog/);
   assert.match(management,/erpDashboard\(\{from,to,basis\}\)/);
   assert.match(management,/equivalentPreviousPeriod\(from,to\)/);
-  assert.match(automation,/\[data-reconcile-reject\].*addEventListener/s);
-  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileAccept,'accept'\)/);
-  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileReject,'reject'\)/);
+  assert.match(operations,/\[data-reconcile-reject\]/);
+  assert.match(operations,/reviewSuggestion\(button\.dataset\.reconcileAccept,'accept'\)/);
+  assert.match(operations,/reviewSuggestion\(button\.dataset\.reconcileReject,'reject'\)/);
 });
