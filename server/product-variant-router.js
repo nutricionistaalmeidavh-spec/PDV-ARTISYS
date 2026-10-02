@@ -22,6 +22,7 @@ function createProductVariantRouter({runtime,installationToken='',requireTermina
       }
       if(request.method==='POST'&&pathname==='/api/v1/product-variants'){
         const data=await body(request);const product=runtime.catalog.getProduct(String(data.productId||''));if(!product)throw new ProductVariantHttpError(404,'Produto pai nao encontrado.');
+        if(product.prepared){const existing=String(data.id||'')&&runtime.retail.listProductVariants({productId:product.id,includeInactive:true}).some(item=>String(item.variantId)===String(data.id));if(!existing)throw new ProductVariantHttpError(409,'Produto preparado com Ficha Tecnica nao aceita variacao de estoque. Use opcoes/adicionais.');}
         runtime.retail.prepareProductForVariants(product.id,actor);
         const priceDeltaCents=data.salePriceCents==null?Number(data.priceDeltaCents||0):Number(data.salePriceCents)-Number(product.salePriceCents||0);
         const saved=runtime.catalogCustomization.upsertVariant({...data,priceDeltaCents},actor);
