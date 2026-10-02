@@ -104,3 +104,14 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Admin, configuração fiscal, monitor fiscal e NFS-e montam exclusivamente pela rota `settings`, anunciam a própria extensão e não observam mutações de DOM.
 - O Settings Hub não possui mais observer de compatibilidade: extensões de Configurações devem publicar `route:updated('settings')` após inserir sua superfície.
 - Orçamento máximo de `MutationObserver` no renderer após P3/P4: **14**. Nenhum novo observer pode ser incluído sem reduzir ou atualizar explicitamente esse contrato.
+
+
+## P5 — extensões operacionais simples sem observers
+
+- Gestão de catálogo/usuários reage a `route:mounted`, `route:updated`, `surface:mounted` e `user:changed`; não observa mais mutações do `#route-content`.
+- Endereço de entrega reage a `modal:mounted` para o formulário de cliente e a `inventory/enterprise-orders` para pedidos; o snapshot de endereço continua sendo responsabilidade do domínio.
+- Kits e combos reagem ao lifecycle de Produtos/Balcão e preservam os contratos de promoção e bloqueio de desconto manual.
+- `module-state-sync.js` reage ao lifecycle de rota/superfície e usa o registry canônico para atualizar Configurações.
+- Campos operacionais amigáveis reagem a rota, modal e módulo montados; não existe varredura acionada por mutações de DOM.
+- `enterprise-depth-ui.js` publica updates semânticos de Compras, Logística e Pedidos; `vertical-modules.js` publica `surface:mounted` para área e workspace.
+- Orçamento máximo de `MutationObserver` após P5: **9**. Os observers restantes pertencem às extensões complexas reservadas ao P6.
