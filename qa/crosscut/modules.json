@@ -22,17 +22,6 @@
       "supportsLiveSync": true,
       "workspaceSelector": "[data-module-workspace=\"WHOLESALE\"]",
       "workspaceHeading": "Atacado"
-    },
-    "SERVICES": {
-      "critical": true,
-      "launcherSelector": "[data-module-nav=\"SERVICES\"]",
-      "protectedProbe": {
-        "path": "/api/v1/vertical/services/commissions",
-        "method": "GET"
-      },
-      "supportsLiveSync": true,
-      "workspaceSelector": "[data-module-workspace=\"SERVICES\"]",
-      "workspaceHeading": "Serviços"
     }
   }
 }
