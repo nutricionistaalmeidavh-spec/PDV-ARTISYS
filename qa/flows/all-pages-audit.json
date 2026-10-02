@@ -240,7 +240,13 @@
     },
     {
       "action": "click",
-      "selector": "button[data-route='inventory']",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-hub-catalogo-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='inventory']",
       "name": "abrir-estoque-p5",
       "timeoutMs": 10000
     },
