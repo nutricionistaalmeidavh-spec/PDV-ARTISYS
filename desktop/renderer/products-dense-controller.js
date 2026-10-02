@@ -221,11 +221,14 @@
     }
   }, true);
 
-  const onRouteChange = ({ route }) => {
+  const onRouteMounted = ({ route }) => {
     if (route === 'products') scheduleDecorate({ forceProducts:true });
   };
-  lifecycle.on('route:mounted', onRouteChange);
-  lifecycle.on('route:updated', onRouteChange);
+  const onRouteUpdated = ({ route, surface }) => {
+    if (route === 'products') scheduleDecorate({ forceProducts:surface === 'products' });
+  };
+  lifecycle.on('route:mounted', onRouteMounted);
+  lifecycle.on('route:updated', onRouteUpdated);
   if (document.body.dataset.activeRoute === 'products') scheduleDecorate({ forceProducts:true });
   window.PdvProductsDenseController = Object.freeze({ render:decorateProducts, refresh:() => scheduleDecorate({ forceProducts:true }) });
 })();
