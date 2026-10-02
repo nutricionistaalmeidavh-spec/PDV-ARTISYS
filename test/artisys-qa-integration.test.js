@@ -63,9 +63,10 @@ test('GitHub QA capture is manual demo-only and cannot run legacy E2E flows',()=
 });
 
 
-test('current Electron QA manifest resolves the app entry from the qa directory',()=>{
+test('current Electron QA manifest uses the isolated QA desktop wrapper',()=>{
   const config=readJson('qa/artisys-qa.config.json');
-  assert.equal(config.electron.entry,'../desktop/main.cjs');
+  assert.equal(config.electron.entry,'desktop/main.cjs');
+  assert.equal(fs.existsSync(path.join(root,'qa/desktop/main.cjs')),true);
   const flow=readJson('qa/flows/all-pages-audit.json');
   assert.equal(flow.metadata.qaAutoAdmin,true);
   assert.equal(flow.steps.some(step=>step.action==='expectNoHorizontalOverflow'),true);
