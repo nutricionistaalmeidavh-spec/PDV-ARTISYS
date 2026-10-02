@@ -23,7 +23,7 @@
       if (product.recipeStockStatus === 'LOW') return { key:'recipe-low', label:'Insumo baixo', tone:'warning' };
       return { key:'recipe-ok', label:'Insumos OK', tone:'success' };
     }
-    if (product.trackStock === false) return { key:'normal', label:'Disponível', tone:'success' };
+    if (product.trackStock === false) return { key:'uncontrolled', label:'Sem controle', tone:'info' };
     const stock = Number(product.stockQuantity || 0);
     const minimum = Math.max(Number(product.minimumStock || 0), 0);
     if (stock <= 0) return { key:'out', label:'Sem estoque', tone:'danger' };
@@ -73,6 +73,7 @@
             { value:'normal', label:'Normal' },
             { value:'low', label:'Baixo' },
             { value:'out', label:'Sem estoque' },
+            { value:'uncontrolled', label:'Sem controle' },
             { value:'recipe-ok', label:'Ficha: insumos OK' },
             { value:'recipe-low', label:'Ficha: insumo baixo' },
             { value:'recipe-out', label:'Ficha: indisponível' }
