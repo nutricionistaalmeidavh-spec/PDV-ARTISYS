@@ -141,6 +141,7 @@
     card.innerHTML=`<div class="ops-card-head"><div><h2>Módulos do estabelecimento</h2><p class="ops-muted">Configure áreas e recursos do mesmo PDV. As opções alteram a navegação; vendas, estoque e caixa continuam compartilhados.</p></div><span class="vertical-rule">Núcleo local · operação compartilhada</span></div><div data-establishment-modules-body><div class="ops-actions"><button id="ops-load-establishment-modules" class="ops-primary" type="button">Gerenciar módulos</button></div></div>`;
     const firstGrid=page.querySelector('.ops-grid');
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
+    root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'vertical-modules'});
     card.querySelector('#ops-load-establishment-modules')?.addEventListener('click',()=>{void loadAndRenderSettingsModules(card);});
   }
 
