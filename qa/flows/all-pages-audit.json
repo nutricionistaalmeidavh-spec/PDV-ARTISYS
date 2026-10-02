@@ -62,6 +62,18 @@
     },
     {
       "action": "expectVisible",
+      "selector": ".checkout-layout[data-ux-checkout-preserved='true']",
+      "name": "balcao-layout-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#seller-select",
+      "name": "balcao-vendedor-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
       "selector": "#finalize-sale",
       "name": "balcao-finalizar-visivel",
       "timeoutMs": 10000
@@ -191,6 +203,25 @@
       "selector": "button[data-route='settings']",
       "name": "configuracoes",
       "holdMs": 1000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#settings-hub",
+      "name": "configuracoes-hub-lifecycle",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#printing-settings-card",
+      "name": "configuracoes-impressao-injetada",
+      "state": "attached",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#ops-store-receipt-card",
+      "name": "configuracoes-loja-visivel",
+      "timeoutMs": 10000
     },
     {
       "action": "expectVisible",
