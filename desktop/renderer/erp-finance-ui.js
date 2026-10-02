@@ -35,11 +35,9 @@
     document.getElementById('erp-cost-center-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api.saveCostCenter({name:form.get('name')});toast('Centro de custo criado.','success');await renderManagement({from,to,basis});}catch(error){toast(error.message,'error');}});
   }
   async function enhanceFinancePage(){
-    const form=document.getElementById('ops-finance-form');if(!form||form.dataset.erpEnhanced)return;form.dataset.erpEnhanced='1';
-    try{await api.initialize();const [categories,centers]=await Promise.all([api.financeCategories(),api.costCenters()]);
-      const submit=form.querySelector('button[type="submit"]');const holder=document.createElement('div');holder.className='erp-finance-dimensions';holder.innerHTML=`<label>Categoria gerencial<select name="categoryId" class="ops-input"><option value="">Sem categoria</option>${categories.map(row=>`<option value="${esc(row.id)}">${esc(row.name)}</option>`).join('')}</select></label><label>Centro de custo<select name="costCenterId" class="ops-input"><option value="">Sem centro</option>${centers.map(row=>`<option value="${esc(row.id)}">${esc(row.name)}</option>`).join('')}</select></label><label>Competência<input name="competencyDate" type="date" class="ops-input" value="${monthStart()}"></label>`;form.insertBefore(holder,submit);
-      form.addEventListener('submit',async event=>{const fd=new FormData(form);if(!fd.get('categoryId')&&!fd.get('costCenterId')&&!fd.get('competencyDate'))return;event.preventDefault();event.stopImmediatePropagation();try{const amountText=String(fd.get('amount')||'').trim().replace(/\./g,'').replace(',','.');await api.createFinanceEntry({kind:fd.get('kind'),description:fd.get('description'),category:fd.get('category')||null,categoryId:fd.get('categoryId')||null,costCenterId:fd.get('costCenterId')||null,competencyDate:fd.get('competencyDate')||null,accountId:fd.get('accountId')||null,amountCents:Math.round(Number(amountText)*100),dueAt:new Date(`${fd.get('dueAt')}T12:00:00`).toISOString()});toast('Lançamento criado.','success');await root.PdvOperationalUi?.renderFinance?.();}catch(error){toast(error.message,'error');}},true);
-    }catch(error){console.warn('Falha ao carregar dimensoes financeiras',error);}
+    const form=document.getElementById('ops-finance-form');
+    if(!form||form.dataset.erpEnhanced)return;
+    form.dataset.erpEnhanced='1';
   }
   root.PdvErpFinanceUi=Object.freeze({renderManagement,enhanceFinancePage});
 })();
