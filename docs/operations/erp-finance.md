@@ -50,4 +50,4 @@ npm run verify
 npm run verify:release
 ```
 
-Os fluxos E2E antigos de UI foram removidos; a nova suíte será criada do zero com base nos fluxos atuais. `qa:validate` verifica somente a configuração do harness e não equivale à validação funcional visual.
+Os fluxos E2E legados de UI continuam aposentados. O smoke atual `npm run qa:e2e:p0` executa `all-pages-audit` no Electron em 1366×768 e valida superfícies críticas/overflow com screenshots e trace; `qa:validate` continua verificando somente a configuração do harness.
