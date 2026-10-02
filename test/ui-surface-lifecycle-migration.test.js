@@ -38,3 +38,12 @@ test('canonical renderers publish checkout and settings update signals', () => {
   assert.match(app, /routeRegistry\.updated\('checkout', \{ surface:'checkout' \}\)/);
   assert.match(operational, /routeRegistry\.updated\('settings', \{ surface:'settings' \}\)/);
 });
+
+
+test('migrated Settings extensions declare explicit categories instead of title guessing', () => {
+  assert.match(read('desktop/renderer/settings-hub-ui.js'), /dataset\.settingsCategory/);
+  assert.match(read('desktop/renderer/store-branding-ui.js'), /settingsCategory='company'/);
+  assert.match(read('desktop/renderer/post-sale-receipt-ui.js'), /settingsCategory = 'printing'/);
+  assert.match(read('desktop/renderer/telemetry-ui.js'), /settingsCategory='privacy'/);
+  assert.match(read('desktop/renderer/vertical-modules.js'), /settingsCategory='modules'/);
+});
