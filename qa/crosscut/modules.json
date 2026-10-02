@@ -16,7 +16,7 @@
       "critical": true,
       "launcherSelector": "[data-module-nav=\"WHOLESALE\"]",
       "protectedProbe": {
-        "path": "/api/v1/wholesale/tiers",
+        "path": "/api/v1/wholesale/orders",
         "method": "GET"
       },
       "supportsLiveSync": true,
