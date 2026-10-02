@@ -21,7 +21,7 @@
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
-    ,catalog: { label: 'Cardápio e estoque', icon: 'document' }
+    ,catalog: { label: 'Cadastros', icon: 'document' }
     ,'post-sale': { label: 'Vendas e devoluções', icon: 'history' }
     ,'financial-management': { label: 'Gestão financeira', icon: 'management' }
   };
@@ -213,6 +213,7 @@
     if (!window.PdvHomeRoleModel?.canAccessRoute(state.user?.role, route)) route = 'home';
     state.route = route;
     document.body.dataset.activeRoute = route;
+    delete document.body.dataset.activeModuleWorkspace;
     document.body.classList.toggle('theme-home', route === 'home');
     renderSidebar();
     if (route === 'checkout') {
@@ -227,7 +228,8 @@
   }
 
   function renderFlowHub(title, subtitle, cards) {
-    content.innerHTML=`<section class="page flow-hub-page"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${cards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
+    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvHomeRoleModel?.canAccessRoute(state.user?.role,card.route));
+    content.innerHTML=`<section class="page flow-hub-page"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
 
@@ -833,9 +835,11 @@ function openCategoryForm() {
         return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
       },
       products: () => renderProducts(),
-      catalog: () => renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
-        {route:'products',label:'Cardápio',description:'Itens disponíveis para venda, preços e categorias.',icon:'document',tone:'purple'},
-        {route:'inventory',label:'Estoque',description:'Produtos, insumos, fichas técnicas, saldos e movimentações.',icon:'cubes',tone:'teal'}
+      catalog: () => renderFlowHub('Cadastros','Clientes e estrutura operacional do negócio, com acesso ajustado ao perfil atual.',[
+        {route:'customers',label:'Clientes',description:'Cadastro, histórico e limite de crédito.',icon:'users',tone:'green'},
+        {route:'products',label:'Cardápio e produtos',description:'Itens de venda, preços, categorias, variantes e fichas técnicas.',icon:'document',tone:'purple'},
+        {route:'inventory',label:'Estoque',description:'Saldos, insumos, movimentações, compras e logística.',icon:'cubes',tone:'teal'},
+        {route:'sellers',label:'Equipe e acessos',description:'Usuários, funções, permissões e comissões.',icon:'users',tone:'orange'}
       ]),
       'post-sale': () => renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
         {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
