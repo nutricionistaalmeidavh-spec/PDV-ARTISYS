@@ -72,7 +72,7 @@
       stock.id = 'products-stock-filter';
       stock.className = 'secondary-button products-dense-filter';
       stock.setAttribute('aria-label', 'Filtrar itens por situação de estoque ou ficha técnica');
-      stock.innerHTML = '<option value="">Situação: todas</option><option value="normal">Estoque normal</option><option value="low">Estoque baixo</option><option value="out">Sem estoque</option><option value="recipe-ok">Ficha: insumos OK</option><option value="recipe-low">Ficha: insumo baixo</option><option value="recipe-out">Ficha: indisponível</option>';
+      stock.innerHTML = '<option value="">Situação: todas</option><option value="normal">Estoque normal</option><option value="low">Estoque baixo</option><option value="out">Sem estoque</option><option value="uncontrolled">Sem controle</option><option value="recipe-ok">Ficha: insumos OK</option><option value="recipe-low">Ficha: insumo baixo</option><option value="recipe-out">Ficha: indisponível</option>';
       stock.value = stockFilter;
       stock.addEventListener('change', event => {
         stockFilter = event.currentTarget.value;
