@@ -4,6 +4,8 @@
   const ui = window.PdvUiModel;
   const { ApiClient } = window.PdvApiClient;
   const api = new ApiClient();
+  const routeRegistry = window.PdvRouteRegistry;
+  if (!routeRegistry) throw new Error('PdvRouteRegistry must load before app.js.');
 
   const ROUTES = {
     home: { label: 'Início', icon: 'home' },
@@ -213,32 +215,11 @@
     if (route === 'checkout') {
       try { await restoreCheckoutState(); } catch (error) { showToast(error.message, 'error'); }
     }
-    renderRoute(); content.focus({ preventScroll: true });
+    await renderRoute(); content.focus({ preventScroll: true });
   }
 
-  function renderRoute() {
-    if (state.route === 'home') return renderHome();
-    if (state.route === 'checkout') return renderCheckout();
-    if (state.route === 'customers') return renderCustomers();
-    if (state.route === 'sellers') return renderSellers();
-    if (state.route === 'management') {
-      if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
-      return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
-    }
-    if (state.route === 'products') return renderProducts();
-    if (state.route === 'catalog') return renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
-      {route:'products',label:'Cardápio',description:'Itens disponíveis para venda, preços e categorias.',icon:'document',tone:'purple'},
-      {route:'inventory',label:'Estoque',description:'Produtos, insumos, fichas técnicas, saldos e movimentações.',icon:'cubes',tone:'teal'}
-    ]);
-    if (state.route === 'post-sale') return renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
-      {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
-      {route:'returns',label:'Devoluções',description:'Registrar e acompanhar trocas e devoluções.',icon:'return',tone:'pink'}
-    ]);
-    if (state.route === 'financial-management') return renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
-      {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
-      {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
-      {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
-    ]);
+  async function renderRoute() {
+    if (routeRegistry.has(state.route)) return routeRegistry.render(state.route, { state });
     return renderPlaceholder(state.route);
   }
 
@@ -703,5 +684,35 @@ function openCategoryForm() {
     }
   }
 
+  function registerBaseRoutes() {
+    const ownedRoutes = {
+      home: () => renderHome(),
+      checkout: () => renderCheckout(),
+      customers: () => renderCustomers(),
+      sellers: () => renderSellers(),
+      management: () => {
+        if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
+        return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
+      },
+      products: () => renderProducts(),
+      catalog: () => renderFlowHub('Cardápio e estoque','O que o cliente pode pedir e os insumos que sustentam cada item.',[
+        {route:'products',label:'Cardápio',description:'Itens disponíveis para venda, preços e categorias.',icon:'document',tone:'purple'},
+        {route:'inventory',label:'Estoque',description:'Produtos, insumos, fichas técnicas, saldos e movimentações.',icon:'cubes',tone:'teal'}
+      ]),
+      'post-sale': () => renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
+        {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},
+        {route:'returns',label:'Devoluções',description:'Registrar e acompanhar trocas e devoluções.',icon:'return',tone:'pink'}
+      ]),
+      'financial-management': () => renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
+        {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
+        {route:'finance',label:'Contas a pagar e receber',description:'Organizar compromissos, recebimentos e vencimentos.',icon:'chart',tone:'green'},
+        {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
+      ])
+    };
+    for (const [route, render] of Object.entries(ownedRoutes)) routeRegistry.register(route, { owner:'app', render });
+  }
+
+  registerBaseRoutes();
+  window.PdvAppNavigation = Object.freeze({ navigate });
   void boot();
 })();
