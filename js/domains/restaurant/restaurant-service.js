@@ -37,6 +37,13 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     return row;
   }
 
+  function requireActiveWaiter(id) {
+    if (id == null || String(id).trim() === '') return null;
+    const user = db.prepare('SELECT id,name,role,active FROM users WHERE id=?').get(String(id));
+    if (!user || !user.active) throw new Error('Garcom responsavel nao encontrado ou inativo.');
+    return user;
+  }
+
   function activeSessionRow(tableId) {
     return db.prepare("SELECT * FROM table_sessions WHERE table_id=? AND status IN ('OPEN','CHECKOUT') ORDER BY opened_at DESC LIMIT 1").get(String(tableId));
   }
@@ -101,6 +108,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       tableLabel: row.table_label || getTable(row.table_id)?.label || row.table_id,
       status: row.status,
       openedBy: row.opened_by,
+      waiterId: row.waiter_id || null,
       checkoutSaleId: row.checkout_sale_id,
       openedAt: row.opened_at,
       closedAt: row.closed_at,
@@ -131,6 +139,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
         ...table,
         status: !session ? 'FREE' : billRequested ? 'BILL_REQUESTED' : session.status === 'CHECKOUT' ? 'CHECKOUT' : 'OCCUPIED',
         sessionId: session?.id || null,
+        waiterId: session?.waiterId || null,
         totalCents: session?.totalCents || 0,
         openedAt: session?.openedAt || null
       };
@@ -169,21 +178,33 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     return event;
   }
 
-  function openTable(tableId, { operatorId = null, actor = {}, mutationId = null } = {}) {
+  function openTable(tableId, { operatorId = null, waiterId = null, actor = {}, mutationId = null } = {}) {
     return withTransaction(db, () => {
       const table = requireTable(tableId);
       const existing = activeSessionRow(table.id);
       if (existing) return getSession(existing.id);
+      const waiter = requireActiveWaiter(waiterId);
       const id = idFactory('table-session');
       const timestamp = now();
-      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?)`)
-        .run(id, table.id, operatorId || null, timestamp, timestamp);
+      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,waiter_id,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?,?,?)`)
+        .run(id, table.id, operatorId || null, waiter?.id || null, timestamp, timestamp);
       const event = insertEvent({
         type:'restaurant.table-opened', aggregate:'table-session', aggregateId:id, actor, mutationId,
-        payload:{ tableId:table.id, tableLabel:table.label, operatorId:operatorId || null }
+        payload:{ tableId:table.id, tableLabel:table.label, operatorId:operatorId || null, waiterId:waiter?.id || null }
       });
-      writeAudit(db, { action:'restaurant.table.open', entity:'table_session', entityId:id, actor, context:{ tableId:table.id, eventId:event.eventId } }, now);
+      writeAudit(db, { action:'restaurant.table.open', entity:'table_session', entityId:id, actor, context:{ tableId:table.id, waiterId:waiter?.id || null, eventId:event.eventId } }, now);
       return getSession(id);
+    });
+  }
+
+  function assignWaiter(sessionId, waiterId, actor = {}) {
+    return withTransaction(db, () => {
+      const session = db.prepare("SELECT * FROM table_sessions WHERE id=? AND status IN ('OPEN','CHECKOUT')").get(String(sessionId));
+      if (!session) throw new Error('Comanda ativa nao encontrada.');
+      const waiter = requireActiveWaiter(waiterId);
+      db.prepare('UPDATE table_sessions SET waiter_id=?,updated_at=? WHERE id=?').run(waiter?.id || null, now(), session.id);
+      writeAudit(db, { action:'restaurant.waiter.assign', entity:'table_session', entityId:session.id, actor, context:{ waiterId:waiter?.id || null } }, now);
+      return getSession(session.id);
     });
   }
 
@@ -329,6 +350,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     getTable,
     listTables,
     openTable,
+    assignWaiter,
     getSession,
     currentSession,
     addOrder,
