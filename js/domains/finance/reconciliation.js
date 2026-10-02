@@ -36,11 +36,13 @@ function createReconciliation({ db, finance, statements, now = () => new Date().
   async function suggest({ accountId = null, limit = 200 } = {}) {
     const txs = statements.listTransactions({ accountId, matchStatus:'UNMATCHED', limit });
     const entries = finance.listEntries().filter(entry => entry.status !== 'CANCELLED' && entry.openCents > 0);
+    const rejectedPair = db.prepare("SELECT 1 FROM finance_reconciliations WHERE transaction_id=? AND entry_id=? AND decision='REJECTED' LIMIT 1");
     const suggestions = [];
     for (const tx of txs) {
       const expectedKind = tx.direction === 'debit' ? 'PAYABLE' : 'RECEIVABLE';
       for (const entry of entries) {
         if (entry.kind !== expectedKind) continue;
+        if (rejectedPair.get(tx.id,entry.id)) continue;
         const amountDelta = Math.abs(Number(tx.amountCents) - Number(entry.openCents));
         if (amountDelta > Math.max(100, Math.round(Number(tx.amountCents) * 0.02))) continue;
         const days = dayDistance(tx.date, entry.dueAt);
@@ -78,7 +80,8 @@ function createReconciliation({ db, finance, statements, now = () => new Date().
   function reject(input = {}, actor = null) {
     const key = String(input.idempotencyKey || '').trim(); if (!key) throw new Error('Chave de idempotencia obrigatoria.');
     const existing = reconciliationByKey(key); if (existing) return mapReconciliation(existing);
-    const tx = transaction(input.transactionId); const entry = finance.getEntry(String(input.entryId || '')); if (!entry) throw new Error('Lancamento financeiro nao encontrado.');
+    const tx = transaction(input.transactionId); if (tx.match_status !== 'UNMATCHED') throw new Error('Transacao de extrato ja conciliada.');
+    const entry = finance.getEntry(String(input.entryId || '')); if (!entry) throw new Error('Lancamento financeiro nao encontrado.');
     const reason = String(input.reason || '').trim(); if (!reason) throw new Error('Motivo da rejeicao obrigatorio.');
     return withTransaction(db, () => {
       const again = reconciliationByKey(key); if (again) return mapReconciliation(again);
