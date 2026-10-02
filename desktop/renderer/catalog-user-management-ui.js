@@ -68,7 +68,6 @@
       root.querySelectorAll('[data-edit-customer]').forEach(button=>button.remove());
       return;
     }
-    if(root.dataset.catalogDeletionEnhanced==='1')return;
     root.dataset.catalogDeletionEnhanced='1';
     const active=await api.customers();const activeIds=new Set(active.map(item=>item.id));
     root.querySelectorAll('[data-edit-customer]').forEach(button=>{
