@@ -30,7 +30,12 @@ test('reporting v2 and seller synchronization are wired into desktop shell',()=>
 
 test('styles define visual tokens and checkout split layout',()=>{
   const css=read('desktop/renderer/styles.css');
-  for(const marker of [/--artisys-blue:/,/\.home-grid/,/\.checkout-layout/,/\.sale-panel/,/\.product-grid/]) assert.match(css,marker);
+  for(const marker of [/--artisys-blue:/,/\.home-grid/,/\.checkout-layout/,/\.sale-panel/,/\.product-grid/,/:focus-visible/,/@media \(prefers-reduced-motion: reduce\)/]) assert.match(css,marker);
+});
+
+test('shared modal provides accessible dialog semantics and keyboard focus handling',()=>{
+  const app=read('desktop/renderer/app.js');
+  for(const marker of [/role="dialog"/,/aria-modal="true"/,/aria-labelledby="pdv-modal-title"/,/event\.key === 'Escape'/,/event\.key !== 'Tab'/,/modalReturnFocus/]) assert.match(app,marker);
 });
 
 test('Electron preload exposes safe window controls',()=>{
