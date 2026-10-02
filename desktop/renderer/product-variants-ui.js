@@ -206,6 +206,11 @@
     const removeButton=event.target.closest?.('#remove-item');if(removeButton&&selectedVariantItemId){event.preventDefault();event.stopImmediatePropagation();void removeSelectedVariant();}
   },true);
 
+  window.addEventListener('artisys:product-form-opened',event=>{
+    const productId=String(event.detail?.productId||'');
+    if(productId&&variants.some(item=>String(item.productId)===productId))setTimeout(lockParentStockForm,0);
+  });
+
   window.addEventListener('keydown',event=>{
     if(event.key==='F3'&&selectedVariantItemId){event.preventDefault();event.stopImmediatePropagation();void removeSelectedVariant();return;}
     if(event.key==='Enter'&&event.target?.id==='product-search'){
