@@ -192,11 +192,11 @@ await captureDesktop('acesso-mobile-qr',async()=>{await goSidebar('settings');aw
 await captureDesktop('perifericos-diagnostico',async()=>{await goSidebar('settings');await page.locator("[data-settings-category='modules']").click();if(await page.locator('#ops-load-establishment-modules').isVisible())await page.locator('#ops-load-establishment-modules').click();await page.locator('#e54-hardware-card').click();});
 
 async function openModule(id){
-  await page.evaluate(async moduleId=>{
+  await page.evaluate(moduleId=>{
     if(!window.PdvVerticalModules?.openWorkspace)throw new Error('PdvVerticalModules indisponível');
-    await window.PdvVerticalModules.openWorkspace(moduleId);
+    void window.PdvVerticalModules.openWorkspace(moduleId);
   },id);
-  await sleep(350);
+  await sleep(700);
 }
 async function foodHub(){await openModule('FOOD');await page.locator('[data-module-area="FOOD"]').waitFor({state:'visible'});}
 await captureDesktop('alimentacao-hub',foodHub);
