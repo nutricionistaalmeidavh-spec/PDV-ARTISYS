@@ -116,6 +116,7 @@ async function setupRestaurant(page){
       {id:'qa-restaurant-product-2',name:'QA Suco Natural',sku:'QA-REST-2',salePriceCents:890,costCents:300,trackStock:false,menuEnabled:true,usageType:'DIRECT'}
     ];
     for(const product of products)await api.saveProduct(product);
+    await api.saveCustomer({id:'qa-restaurant-customer',name:'QA Cliente Mesa',phone:'16999990001'});
     await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-1',label:'QA Mesa 01',seats:4}});
     await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id:'qa-restaurant-table-2',label:'QA Mesa 02',seats:4}});
     await api.request('/api/v1/restaurant/tables/qa-restaurant-table-2/open',{method:'POST',body:{operatorId,waiterId:operatorId},mutationId:api.mutationId()});
@@ -123,7 +124,7 @@ async function setupRestaurant(page){
     for(const product of products)await api.request('/api/v1/restaurant/kitchen/assignments',{method:'POST',body:{productId:product.id,stationId:station.id||'qa-restaurant-station'}});
     let cash=null;try{cash=await api.openCash(config.terminalId);}catch{}
     if(!cash)cash=await api.createCash({terminalId:config.terminalId,operatorId,initialCashCents:0});
-    return{operatorId,terminalId:config.terminalId,tableId:'qa-restaurant-table-1',secondTableId:'qa-restaurant-table-2',productIds:products.map(p=>p.id),cashId:cash?.id||null};
+    return{operatorId,terminalId:config.terminalId,tableId:'qa-restaurant-table-1',secondTableId:'qa-restaurant-table-2',customerId:'qa-restaurant-customer',productIds:products.map(p=>p.id),cashId:cash?.id||null};
   });
 }
 
