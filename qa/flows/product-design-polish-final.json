@@ -184,7 +184,7 @@
       "action": "expectText",
       "selector": ".ops-metrics",
       "name": "sku-de-estoque",
-      "expected": "SKUS DE ESTOQUE"
+      "expected": "SKUs de estoque"
     },
     {
       "action": "screenshot",
