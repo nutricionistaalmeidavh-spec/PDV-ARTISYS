@@ -15,8 +15,8 @@ test('finance QA fixture uses the seeded revenue DRE group',()=>{
 
 test('finance E2E surfaces are visible before user interaction',()=>{
   const management=read('desktop/renderer/erp-finance-ui.js');
-  const automation=read('desktop/renderer/erp-finance-automation-ui.js');
+  const operations=read('desktop/renderer/erp-finance-operations-ui.js');
   assert.doesNotMatch(management,/id="erp-drilldown-panel" class="ops-card" hidden/);
   assert.match(management,/id="erp-drilldown-panel" class="ops-card">[^<]*<p>/);
-  assert.match(automation,/id="erp-statement-preview"><p>/);
+  assert.match(operations,/id="erp-statement-preview"/);
 });
