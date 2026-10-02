@@ -76,9 +76,9 @@ function createRecipeService({db,now=()=>new Date().toISOString(),idFactory=p=>`
   }
 
   function theoreticalCostCents(productId){
-    const recipe=getRecipe(productId);if(!recipe){return Number(requireProduct(productId).cost_cents||0);}let total=0;
-    for(const c of recipe.components){const multiplier=Number(c.conversionFactor||1)*(1+Number(c.lossPercent||0)/100);total+=Number(c.costCents||0)*Number(c.quantity)*multiplier;}
-    return Math.max(0,Math.round(total));
+    const recipe=getRecipe(productId);
+    if(!recipe)return Number(requireProduct(productId).cost_cents||0);
+    return Math.max(0,Number(recipe.costPerPortionCents||0));
   }
 
   return{getRecipe,setRecipe,expandItems,theoreticalCostCents,availability};
