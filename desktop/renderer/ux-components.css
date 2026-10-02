@@ -100,3 +100,39 @@
   .ux-data-table td { padding: 11px 12px; }
   .ux-detail-panel__fields { grid-template-columns: 1fr; }
 }
+
+
+.ux-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(720px, calc(100vh - 32px));
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--line, #dfe6f1);
+  border-radius: var(--radius, 18px);
+  background: var(--surface, #fff);
+  color: var(--ink, #10172f);
+  box-shadow: var(--shadow, 0 12px 32px rgba(33, 56, 94, .12));
+}
+.ux-dialog::backdrop { background: rgba(8, 26, 53, .42); }
+.ux-dialog__form { display: grid; max-height: inherit; }
+.ux-dialog__head { padding: 20px 22px 14px; border-bottom: 1px solid var(--line, #dfe6f1); }
+.ux-dialog__head h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; }
+.ux-dialog__head p { margin: 6px 0 0; color: var(--muted, #71809f); line-height: 1.45; }
+.ux-dialog__body { display: grid; gap: 13px; padding: 18px 22px; overflow: auto; }
+.ux-dialog__body label { display: grid; gap: 6px; color: #53627f; font-size: 12px; font-weight: 750; }
+.ux-dialog__body textarea { min-height: 92px; resize: none; }
+.ux-dialog__summary { display: grid; gap: 8px; padding: 12px; border: 1px solid #e3e8f1; border-radius: 12px; background: var(--surface-soft, #f6f8fc); }
+.ux-dialog__summary strong { color: var(--ink, #10172f); }
+.ux-dialog__summary span,.ux-dialog__summary small { color: var(--muted, #71809f); }
+.ux-dialog__facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.ux-dialog__fact { display: grid; gap: 3px; padding: 10px; border: 1px solid #e8edf4; border-radius: 10px; }
+.ux-dialog__fact small { color: var(--muted, #71809f); }
+.ux-dialog__error { margin: 0 22px 4px; padding: 10px 12px; border-radius: 10px; background: #fff0f2; color: var(--danger, #ef3340); }
+.ux-dialog__actions { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 22px 20px; border-top: 1px solid var(--line, #dfe6f1); }
+.ux-dialog__actions button:disabled { cursor: default; opacity: .6; }
+.ux-dialog:focus-visible { outline: 3px solid rgba(11, 108, 255, .28); outline-offset: 2px; }
+
+@media (max-width: 620px) {
+  .ux-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
+  .ux-dialog__facts { grid-template-columns: 1fr; }
+}

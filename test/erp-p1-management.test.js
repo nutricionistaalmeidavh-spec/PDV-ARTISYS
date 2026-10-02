@@ -29,6 +29,17 @@ test('cash DRE uses active settlements and accrual DRE uses competency',()=>{
  fx.db.close();
 });
 
+test('dashboard honors selected DRE basis instead of forcing cash',()=>{
+ const fx=fixture();
+ const entry=fx.finance.createEntry({kind:'PAYABLE',description:'Aluguel base',amountCents:10000,dueAt:'2026-09-25T12:00:00.000Z',competencyDate:'2026-09-01'},admin);
+ fx.finance.settleEntry(entry.id,{amountCents:4000,method:'PIX'},admin);
+ const cash=fx.management.dashboard({from:'2026-09-01',to:'2026-09-30',basis:'cash'});
+ const accrual=fx.management.dashboard({from:'2026-09-01',to:'2026-09-30',basis:'accrual'});
+ assert.equal(cash.basis,'cash');assert.equal(cash.expenseCents,4000);
+ assert.equal(accrual.basis,'accrual');assert.equal(accrual.expenseCents,10000);
+ fx.db.close();
+});
+
 test('cashflow projects open receivables/payables at 7 30 90 days',()=>{
  const fx=fixture();
  fx.finance.createEntry({kind:'RECEIVABLE',description:'Cliente',categoryId:'OTHER',amountCents:15000,dueAt:'2026-09-25T12:00:00.000Z',competencyDate:'2026-09-01'},admin);

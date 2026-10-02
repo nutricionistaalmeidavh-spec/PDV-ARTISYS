@@ -54,3 +54,23 @@ test('desktop loads real operational renderers instead of E13-E20 placeholders',
   for(const method of ['inventoryBalances','cashSessions','salesHistory','returns','financeSummary','reportSales','printJobs','fiscalDocuments']) assert.match(api,new RegExp(`${method}\\s*\\(`));
   assert.doesNotMatch(operational,/Módulo previsto para E1[3-9]|Módulo previsto para E20/);
 });
+
+
+test('P0 financial UI keeps approved pages intact while hardening risky actions',()=>{
+  const root=path.join(__dirname,'..','desktop','renderer');
+  const operational=fs.readFileSync(path.join(root,'operational-pages.js'),'utf8');
+  const management=fs.readFileSync(path.join(root,'erp-finance-ui.js'),'utf8');
+  const automation=fs.readFileSync(path.join(root,'erp-finance-automation-ui.js'),'utf8');
+  const start=operational.indexOf('async function renderFinance');
+  const end=operational.indexOf('async function renderReports',start);
+  const financeSlice=operational.slice(start,end);
+  assert.doesNotMatch(financeSlice,/root\.prompt\(/);
+  assert.match(financeSlice,/openFormDialog/);
+  assert.match(management,/erpDashboard\(\{from,to,basis\}\)/);
+  assert.match(management,/equivalentPreviousPeriod/);
+  assert.doesNotMatch(management,/setUTCMonth\(previousFrom/);
+  assert.match(automation,/\[data-reconcile-reject\]/);
+  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileAccept,'accept'\)/);
+  assert.match(automation,/reviewSuggestion\(btn\.dataset\.reconcileReject,'reject'\)/);
+  assert.match(automation,/openFormDialog/);
+});

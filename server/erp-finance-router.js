@@ -18,7 +18,7 @@ function createErpFinanceRouter({runtime,sessionStore=null,bodyLimitBytes=1024*1
       if(pathname==='/api/v1/erp-finance/cost-centers'){if(req.method==='GET'){json(res,200,runtime.financeDimensions.listCostCenters({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}if(req.method==='POST'){json(res,201,runtime.financeDimensions.saveCostCenter(await readBody(req,bodyLimitBytes),actor));return true;}}
       if((match=pathMatch(pathname,'/api/v1/erp-finance/entries/:id/dimensions'))&&req.method==='PATCH'){json(res,200,runtime.financeDimensions.setEntryDimensions(match.id,await readBody(req,bodyLimitBytes),actor));return true;}
       const range=dateRange(url);
-      if(pathname==='/api/v1/erp-finance/dashboard'&&req.method==='GET'){json(res,200,runtime.financeManagement.dashboard(range));return true;}
+      if(pathname==='/api/v1/erp-finance/dashboard'&&req.method==='GET'){json(res,200,runtime.financeManagement.dashboard({...range,basis:url.searchParams.get('basis')||'cash'}));return true;}
       if(pathname==='/api/v1/erp-finance/dre'&&req.method==='GET'){json(res,200,runtime.financeManagement.dre({...range,basis:url.searchParams.get('basis')||'cash'}));return true;}
       if(pathname==='/api/v1/erp-finance/cashflow'&&req.method==='GET'){json(res,200,runtime.financeManagement.cashflow({...range,projectionDays:Number(url.searchParams.get('projectionDays')||30)}));return true;}
       if(pathname==='/api/v1/erp-finance/compare'&&req.method==='GET'){json(res,200,runtime.financeManagement.compare({...range,previousFrom:url.searchParams.get('previousFrom'),previousTo:url.searchParams.get('previousTo'),basis:url.searchParams.get('basis')||'cash'}));return true;}

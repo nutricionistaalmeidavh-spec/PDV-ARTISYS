@@ -117,6 +117,108 @@
     return `<aside class="ux-detail-panel" data-ux-component="DetailPanel">${eyebrow ? `<small class="ux-detail-panel__eyebrow">${escapeHtml(eyebrow)}</small>` : ''}<div class="ux-detail-panel__head"><div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ''}</div>${badge ? StatusBadge(badge) : ''}</div>${fieldsHtml ? `<div class="ux-detail-panel__fields">${fieldsHtml}</div>` : ''}${actionsHtml ? `<div class="ux-detail-panel__actions">${actionsHtml}</div>` : ''}</aside>`;
   }
 
+
+  let dialogSequence = 0;
+
+  function openFormDialog({
+    title = '',
+    description = '',
+    body = '',
+    confirmLabel = 'Confirmar',
+    cancelLabel = 'Cancelar',
+    tone = 'default',
+    initialFocus = 'first',
+    validate = null,
+    onConfirm = null
+  } = {}) {
+    if (typeof document === 'undefined') return Promise.reject(new Error('Dialog indisponível fora do renderer.'));
+    const previousFocus = document.activeElement;
+    const dialogId = `ux-dialog-${++dialogSequence}`;
+    const dialog = document.createElement('dialog');
+    const confirmClass = tone === 'danger' ? 'ops-danger ux-dialog__confirm' : 'ops-primary ux-dialog__confirm';
+    dialog.className = 'ux-dialog';
+    dialog.setAttribute('aria-labelledby', `${dialogId}-title`);
+    if (description) dialog.setAttribute('aria-describedby', `${dialogId}-description`);
+    dialog.innerHTML = `<form method="dialog" class="ux-dialog__form" novalidate>
+      <div class="ux-dialog__head">
+        <h2 id="${dialogId}-title">${escapeHtml(title)}</h2>
+        ${description ? `<p id="${dialogId}-description">${escapeHtml(description)}</p>` : ''}
+      </div>
+      <div class="ux-dialog__body">${String(body || '')}</div>
+      <p class="ux-dialog__error" role="alert" aria-live="assertive" hidden></p>
+      <div class="ux-dialog__actions">
+        <button type="button" class="ops-secondary ux-dialog__cancel">${escapeHtml(cancelLabel)}</button>
+        <button type="submit" class="${confirmClass}">${escapeHtml(confirmLabel)}</button>
+      </div>
+    </form>`;
+    document.body.appendChild(dialog);
+
+    const form = dialog.querySelector('form');
+    const cancelButton = dialog.querySelector('.ux-dialog__cancel');
+    const confirmButton = dialog.querySelector('.ux-dialog__confirm');
+    const errorNode = dialog.querySelector('.ux-dialog__error');
+    let busy = false;
+    let settled = false;
+
+    const setBusy = (next) => {
+      busy = Boolean(next);
+      confirmButton.disabled = busy;
+      cancelButton.disabled = busy;
+      confirmButton.setAttribute('aria-busy', busy ? 'true' : 'false');
+      form.querySelectorAll('input,select,textarea').forEach((field) => { field.disabled = busy; });
+    };
+    const showError = (message, fieldName = '') => {
+      errorNode.textContent = String(message || 'Não foi possível concluir a operação.');
+      errorNode.hidden = false;
+      const field = fieldName ? form.elements.namedItem(fieldName) : null;
+      field?.focus?.();
+    };
+    const finish = (result) => {
+      if (settled) return result;
+      settled = true;
+      if (dialog.open) dialog.close();
+      dialog.remove();
+      previousFocus?.focus?.({ preventScroll: true });
+      return result;
+    };
+
+    return new Promise((resolve) => {
+      const cancel = () => {
+        if (busy) return;
+        resolve(finish({ confirmed: false, data: null, value: null }));
+      };
+      cancelButton.addEventListener('click', cancel);
+      dialog.addEventListener('cancel', (event) => { event.preventDefault(); cancel(); });
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        errorNode.hidden = true;
+        const data = Object.fromEntries(new FormData(form).entries());
+        const validation = typeof validate === 'function' ? validate(data, form) : null;
+        if (validation) {
+          const issue = typeof validation === 'string' ? { message: validation } : validation;
+          showError(issue.message, issue.field);
+          return;
+        }
+        setBusy(true);
+        try {
+          const value = typeof onConfirm === 'function' ? await onConfirm(data, form) : data;
+          resolve(finish({ confirmed: true, data, value }));
+        } catch (error) {
+          setBusy(false);
+          showError(error?.message || String(error));
+        }
+      });
+
+      dialog.showModal();
+      queueMicrotask(() => {
+        if (initialFocus === 'cancel') cancelButton.focus();
+        else if (typeof initialFocus === 'string' && initialFocus.startsWith('#')) dialog.querySelector(initialFocus)?.focus?.();
+        else form.querySelector('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')?.focus?.();
+      });
+    });
+  }
+
   return Object.freeze({
     DataTable,
     StatusBadge,
@@ -124,6 +226,7 @@
     FilterBar,
     EmptyState,
     ActionMenu,
-    DetailPanel
+    DetailPanel,
+    openFormDialog
   });
 });

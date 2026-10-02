@@ -5,6 +5,7 @@
   const { ApiClient } = root.PdvApiClient;
   const api = new ApiClient();
   const ui = root.PdvUiModel;
+  const ux = root.ArtisysUxComponents;
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
   const OPERATIONAL_ROUTES = new Set(['inventory','cash','sales','returns','finance','reports','settings']);
@@ -92,8 +93,33 @@
     if(!routeActive('finance'))return;
     content.innerHTML=page('Financeiro','Contas a pagar e receber com baixas parciais e histórico.',body);
     document.getElementById('ops-finance-form')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api.createFinanceEntry({kind:form.get('kind'),description:form.get('description'),category:form.get('category')||null,accountId:form.get('accountId')||null,amountCents:centsInput(form.get('amount')),dueAt:new Date(`${form.get('dueAt')}T12:00:00`).toISOString()});showToast('Lançamento criado.','success');await renderFinance();}catch(error){showToast(error.message,'error');}});
-    content.querySelectorAll('[data-finance-settle]').forEach(button=>button.addEventListener('click',async()=>{const suggested=money(Number(button.dataset.open)).replace('R$','').trim();const value=root.prompt('Valor da baixa (R$):',suggested);if(value===null)return;try{await api.settleFinanceEntry(button.dataset.financeSettle,{amountCents:centsInput(value),method:'MANUAL'});showToast('Baixa registrada.','success');await renderFinance();}catch(error){showToast(error.message,'error');}}));
-    content.querySelectorAll('[data-finance-cancel]').forEach(button=>button.addEventListener('click',async()=>{const reason=root.prompt('Motivo do cancelamento:');if(!reason)return;try{await api.cancelFinanceEntry(button.dataset.financeCancel,reason);showToast('Lançamento cancelado.','success');await renderFinance();}catch(error){showToast(error.message,'error');}}));
+    content.querySelectorAll('[data-finance-settle]').forEach(button=>button.addEventListener('click',async()=>{
+      const row=entries.find(item=>String(item.id)===String(button.dataset.financeSettle));if(!row)return;
+      if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
+      const suggested=(Number(row.openCents||0)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+      const result=await ux.openFormDialog({
+        title:row.kind==='RECEIVABLE'?'Registrar recebimento':'Registrar pagamento',
+        description:`${row.description} · saldo em aberto ${money(row.openCents)}`,
+        confirmLabel:'Registrar baixa',
+        body:`<div class="ux-dialog__summary"><strong>${escapeHtml(row.description)}</strong><span>Valor original ${money(row.amountCents)} · em aberto ${money(row.openCents)}</span></div><label>Valor da baixa (R$)<input name="amount" class="ops-input" inputmode="decimal" value="${escapeHtml(suggested)}"></label><label>Forma<select name="method" class="ops-input"><option value="MANUAL">Manual</option><option value="PIX">PIX</option><option value="DINHEIRO">Dinheiro</option><option value="TRANSFERENCIA">Transferência</option><option value="CARTAO">Cartão</option><option value="BOLETO">Boleto</option></select></label><label>Observação<textarea name="note" class="ops-input" rows="3"></textarea></label>`,
+        validate:data=>{const amount=centsInput(data.amount);if(amount<=0)return{message:'Informe um valor de baixa maior que zero.',field:'amount'};if(amount>Number(row.openCents||0))return{message:'O valor da baixa não pode exceder o saldo em aberto.',field:'amount'};return null;},
+        onConfirm:data=>api.settleFinanceEntry(row.id,{amountCents:centsInput(data.amount),method:data.method||'MANUAL',note:String(data.note||'').trim()||null})
+      });
+      if(result.confirmed){showToast('Baixa registrada.','success');await renderFinance();}
+    }));
+    content.querySelectorAll('[data-finance-cancel]').forEach(button=>button.addEventListener('click',async()=>{
+      const row=entries.find(item=>String(item.id)===String(button.dataset.financeCancel));if(!row)return;
+      if(!ux?.openFormDialog){showToast('Diálogo financeiro indisponível.','error');return;}
+      const result=await ux.openFormDialog({
+        title:'Cancelar lançamento',
+        description:`${row.description} · ${money(row.openCents)} em aberto`,
+        confirmLabel:'Cancelar lançamento',tone:'danger',initialFocus:'cancel',
+        body:`<div class="ux-dialog__summary"><strong>${escapeHtml(row.description)}</strong><span>O lançamento será cancelado e deixará de compor os saldos financeiros.</span></div><label>Motivo<textarea name="reason" class="ops-input" rows="3"></textarea></label>`,
+        validate:data=>String(data.reason||'').trim()?null:{message:'Informe o motivo do cancelamento.',field:'reason'},
+        onConfirm:data=>api.cancelFinanceEntry(row.id,String(data.reason||'').trim())
+      });
+      if(result.confirmed){showToast('Lançamento cancelado.','success');await renderFinance();}
+    }));
   }
 
   async function renderReports(selected={}){
