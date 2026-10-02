@@ -17,7 +17,7 @@ const app=await electron.launch({
 });
 const page=await app.firstWindow();await page.setViewportSize({width:1440,height:900}).catch(()=>{});page.setDefaultTimeout(4000);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function shot(name){const file=path.join(out,String(manifest.screens.length+1).padStart(2,'0')+'-'+name+'.png');await page.screenshot({path:file,fullPage:true});manifest.screens.push({name,file:path.basename(file)});console.log('[shot]',name);}
+async function shot(name){const file=path.join(out,String(manifest.screens.length+1).padStart(2,'0')+'-'+name+'.png');await page.screenshot({path:file,fullPage:false});manifest.screens.push({name,file:path.basename(file)});console.log('[shot]',name);}
 async function capture(name,fn){try{await fn();await sleep(300);await shot(name);}catch(e){manifest.errors.push({name,error:String(e?.message||e)});console.error('[error]',name,e?.message||e);}}
 async function click(sel){const l=page.locator(sel);const n=await l.count();for(let i=0;i<n;i++){if(await l.nth(i).isVisible().catch(()=>false)){await l.nth(i).click();return true;}}return false;}
 async function api(p,method='GET',body){const r=await page.evaluate(async input=>{const token=sessionStorage.getItem('artisys.sessionToken')||null;return window.artisysDesktop.apiRequest({path:input.p,method:input.method,body:input.body,sessionToken:token});},{p,method,body});if(!r?.ok)throw new Error((r?.payload?.error)||('HTTP '+r?.status+' '+p));return r.payload;}
