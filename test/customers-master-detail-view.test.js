@@ -8,11 +8,11 @@ const view = require(path.join(__dirname, '..', 'desktop', 'renderer', 'customer
 const components = require(path.join(__dirname, '..', 'desktop', 'renderer', 'ux-components.js'));
 
 test('customer master-detail exports the same guarded maturity contract expected by paired UX', () => {
-  assert.equal(view.CUSTOMERS_UX_LEVEL, 3);
+  assert.equal(view.CUSTOMERS_UX_LEVEL, 4);
   assert.deepEqual(view.CUSTOMERS_UX_GUARDS, {
-    reversible: true,
-    progressiveEnhancement: true,
-    legacyHandlersPreserved: true,
+    canonicalRenderer: true,
+    lifecycleOwned: true,
+    legacyFallbackRemoved: true,
     parityGuarded: true,
     crossFlowGuarded: true,
     releaseRegressionGuarded: true
