@@ -77,5 +77,5 @@ await capture('restaurante-nova-mesa',async()=>{await openModule('RESTAURANT','.
 for(const [id,name,ready] of [['PIZZERIA','pizzaria','#pizza-profile-form'],['DELIVERY','delivery','#delivery-form'],['FAST_FOOD','fast-food','#fast-new'],['MARKET_BAKERY','mercado-padaria','#weight-price-form'],['SELF_SERVICE','autoatendimento','#self-create'],['RETAIL','varejo','#retail-search'],['SERVICES','servicos','#service-form']])await capture(name,()=>openModule(id,ready));
 
 await fs.writeFile(path.join(out,'manifest.json'),JSON.stringify(manifest,null,2));
-await app.close().catch(()=>{});
 console.log(JSON.stringify(manifest,null,2));
+process.exit(manifest.errors.length?2:0);
