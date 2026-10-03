@@ -4,6 +4,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import net from 'node:net';
 import { _electron as electron } from 'playwright';
 
 const require=createRequire(import.meta.url);
@@ -12,8 +13,8 @@ const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
   smoke:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
-  full:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
-  stress:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
+  full:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
+  stress:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
 });
 
 const SCALE_CASHIERS=10;
@@ -42,6 +43,27 @@ function assert(condition,message,details={}){
 
 function safeJson(value){
   try{return JSON.stringify(value);}catch{return String(value);}
+}
+
+function freeLocalPort(){
+  return new Promise((resolve,reject)=>{
+    const server=net.createServer();
+    server.once('error',reject);
+    server.listen(0,'127.0.0.1',()=>{
+      const address=server.address();
+      const port=typeof address==='object'&&address?address.port:0;
+      server.close(error=>error?reject(error):resolve(port));
+    });
+  });
+}
+
+async function waitUntil(predicate,{timeoutMs=15000,intervalMs=100,message='Condição de QA não atendida.'}={}){
+  const started=Date.now();
+  while(Date.now()-started<timeoutMs){
+    try{if(await predicate())return true;}catch{}
+    await new Promise(resolve=>setTimeout(resolve,intervalMs));
+  }
+  throw new Error(message);
 }
 
 function requestFactory(base,defaults={}){
@@ -230,6 +252,138 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     const cashBOpen=await state.cashB.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-open-cash-b'},body:{initialCashCents:10000},expected:201});
     state.cashSessionA=cashAOpen.body.session;
     state.cashSessionB=cashBOpen.body.session;
+
+    await scenario('terminal-onboarding-pairing',async()=>{
+      const rootDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');
+      const principalUserData=path.join(outputDir,'electron-principal-onboarding');
+      const terminalUserData=path.join(outputDir,'electron-terminal-onboarding');
+      const screenshotDir=path.join(outputDir,'screenshots');
+      fs.mkdirSync(principalUserData,{recursive:true});
+      fs.mkdirSync(terminalUserData,{recursive:true});
+      fs.mkdirSync(screenshotDir,{recursive:true});
+      const lanPort=await freeLocalPort();
+      fs.writeFileSync(path.join(principalUserData,'data-server.json'),JSON.stringify({
+        selected:true,
+        setupIntent:null,
+        mode:'lan-host',
+        host:'127.0.0.1',
+        port:lanPort,
+        serverUrl:'',
+        terminalId:'PDV-01'
+      },null,2)+'\n');
+
+      const launchDesktop=async(userDataDir,extraEnv={})=>electron.launch({
+        executablePath:require('electron'),
+        args:[path.join(rootDir,'qa','desktop','main.cjs'),'--no-sandbox','--password-store=basic'],
+        env:{
+          ...process.env,
+          ARTISYS_QA:'1',
+          ARTISYS_QA_USER_DATA_DIR:userDataDir,
+          ARTISYS_QA_NO_PRINTERS:'1',
+          ARTISYS_QA_SIMULATE_PRINTER:'1',
+          PDV_STORE_NAME:'Loja QA Onboarding',
+          PDV_AUTO_PRINT:'false',
+          ...extraEnv
+        }
+      });
+
+      let principalApp=null;
+      let terminalApp=null;
+      try{
+        principalApp=await launchDesktop(principalUserData,{ARTISYS_QA_AUTO_ADMIN:'1'});
+        const principalPage=await principalApp.firstWindow();
+        await principalPage.locator('#login-form').waitFor({state:'visible',timeout:20000});
+        await principalPage.locator("#login-form input[name='username']").fill('qaadmin');
+        await principalPage.locator("#login-form input[name='password']").fill('QaLocalOnly-12345!');
+        await principalPage.locator("#login-form button[type='submit']").click();
+        await principalPage.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await principalPage.locator("button[data-route='settings']").click();
+        const addTerminal=principalPage.locator('#p1-terminal-admin-panel [data-create-pairing-code]');
+        await addTerminal.waitFor({state:'visible',timeout:15000});
+        await addTerminal.click();
+        const codeNode=principalPage.locator('#p1-terminal-admin-panel [data-pairing-output] strong');
+        await codeNode.waitFor({state:'visible',timeout:10000});
+        const codeText=await codeNode.innerText();
+        const pairingCode=codeText.match(/\d{6}/)?.[0]||'';
+        assert(/^\d{6}$/.test(pairingCode),'PC principal não gerou código de pareamento de 6 dígitos',{codeText});
+        await principalPage.screenshot({path:path.join(screenshotDir,'onboarding-principal-code.png'),fullPage:true});
+
+        terminalApp=await launchDesktop(terminalUserData,{ARTISYS_QA_NO_RELAUNCH:'1'});
+        let terminalPage=await terminalApp.firstWindow();
+        const connectExisting=terminalPage.locator('[data-connect-existing]');
+        await connectExisting.waitFor({state:'visible',timeout:20000});
+        assert(await terminalPage.locator('#activation-verify-form').count()===0,'Terminal novo exibiu ativação comercial antes do pareamento.');
+        assert(await terminalPage.locator('#first-access-form').count()===0,'Terminal novo exibiu criação de administrador antes do pareamento.');
+        await connectExisting.click();
+        await terminalPage.locator("#terminal-pairing-form input[name='serverUrl']").fill('http://127.0.0.1:'+lanPort);
+        await terminalPage.locator('#terminal-pairing-form [data-pairing-code]').fill(pairingCode);
+        await terminalPage.locator("#terminal-pairing-form input[name='terminalName']").fill('Caixa Pareado QA');
+        await terminalPage.locator("#terminal-pairing-form button[type='submit']").click();
+
+        const terminalConfigPath=path.join(terminalUserData,'data-server.json');
+        await waitUntil(()=>{
+          if(!fs.existsSync(terminalConfigPath))return false;
+          const saved=JSON.parse(fs.readFileSync(terminalConfigPath,'utf8'));
+          return saved.selected===true&&saved.mode==='lan-client'&&Boolean(saved.terminalId);
+        },{message:'Terminal não persistiu o pareamento LAN.'});
+        const terminalConfig=JSON.parse(fs.readFileSync(terminalConfigPath,'utf8'));
+        const terminalId=String(terminalConfig.terminalId||'');
+        const rawTerminalConfig=fs.readFileSync(terminalConfigPath,'utf8');
+        assert(!/terminalKey|credential|secret/i.test(rawTerminalConfig),'Configuração pública do terminal persistiu segredo',{rawTerminalConfig});
+        assert(fs.existsSync(path.join(terminalUserData,'terminal-credential.bin')),'Credencial permanente não foi salva no armazenamento seguro do terminal.');
+        await terminalApp.close().catch(()=>{});
+        terminalApp=null;
+
+        terminalApp=await launchDesktop(terminalUserData,{ARTISYS_QA_NO_RELAUNCH:'1'});
+        terminalPage=await terminalApp.firstWindow();
+        await terminalPage.locator('#login-form').waitFor({state:'visible',timeout:20000});
+        assert(await terminalPage.locator('#activation-verify-form').count()===0,'Terminal pareado pediu ativação comercial novamente.');
+        assert(await terminalPage.locator('#first-access-form').count()===0,'Terminal pareado tentou criar outro administrador.');
+        await terminalPage.screenshot({path:path.join(screenshotDir,'onboarding-terminal-login.png'),fullPage:true});
+        await terminalPage.locator("#login-form input[name='username']").fill('qaadmin');
+        await terminalPage.locator("#login-form input[name='password']").fill('QaLocalOnly-12345!');
+        await terminalPage.locator("#login-form button[type='submit']").click();
+        await terminalPage.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+
+        await principalPage.locator('#p1-terminal-admin-panel [data-terminal-refresh]').click();
+        const lifecycleButton=principalPage.locator(`#p1-terminal-admin-panel [data-terminal-status="${terminalId}"]`);
+        await lifecycleButton.waitFor({state:'visible',timeout:10000});
+        assert((await lifecycleButton.innerText()).includes('Bloquear'),'Terminal pareado não apareceu como ACTIVE no PC principal.');
+        await lifecycleButton.click();
+        await waitUntil(async()=>((await lifecycleButton.innerText()).includes('Reativar')),{
+          message:'PC principal não refletiu terminal BLOCKED.'
+        });
+
+        await terminalPage.reload({waitUntil:'domcontentloaded'});
+        await terminalPage.locator('#login-form').waitFor({state:'visible',timeout:20000});
+        await terminalPage.locator("#login-form input[name='username']").fill('qaadmin');
+        await terminalPage.locator("#login-form input[name='password']").fill('QaLocalOnly-12345!');
+        await terminalPage.locator("#login-form button[type='submit']").click();
+        await terminalPage.locator('.toast.error').waitFor({state:'visible',timeout:10000});
+
+        await lifecycleButton.click();
+        await waitUntil(async()=>((await lifecycleButton.innerText()).includes('Bloquear')),{
+          message:'PC principal não refletiu terminal ACTIVE após reativação.'
+        });
+        await terminalPage.locator("#login-form button[type='submit']").click();
+        await terminalPage.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await terminalPage.screenshot({path:path.join(screenshotDir,'onboarding-terminal-reactivated.png'),fullPage:true});
+
+        return{
+          principalPort:lanPort,
+          terminalId,
+          pairingCodeDigits:pairingCode.length,
+          blockedStatus:'BLOCKED',
+          reactivatedStatus:'ACTIVE',
+          activationPromptShown:false,
+          adminSetupShown:false,
+          screenshots:3
+        };
+      }finally{
+        if(terminalApp)await terminalApp.close().catch(()=>{});
+        if(principalApp)await principalApp.close().catch(()=>{});
+      }
+    });
 
     await scenario('price-propagation',async()=>{
       await state.admin.request('/api/v1/products',{method:'POST',body:{id:'qa-price',sku:'QA-PRICE',name:'Produto Preco',categoryId:'qa-category',salePriceCents:1250,costCents:400,trackStock:false,menuEnabled:true,active:true},expected:201});
