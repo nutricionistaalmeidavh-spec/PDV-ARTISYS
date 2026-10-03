@@ -56,7 +56,7 @@ body.home-view-classic .home-grid[hidden] { display:none !important; }
 .classic-home-extras { display:none !important; }
 .flow-hub-page { width:100%; max-width:none; }
 .flow-hub-grid { display:grid; width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.flow-hub-grid .home-tile { width:100%; min-height:132px; padding:17px 20px; }
+.flow-hub-grid .home-tile { width:100%; min-height:108px; padding:14px 16px; }
 .flow-hub-grid .home-tile::after { font-size:60px; }
 .flow-hub-grid .home-tile h2 { font-size:21px; }
 .flow-hub-grid .home-tile p { font-size:14px; max-width:72%; }
