@@ -45,3 +45,12 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
   assert.match(runner,/PRAGMA integrity_check/,'QA must validate SQLite integrity');
   assert.match(runner,/PRAGMA foreign_key_check/,'QA must validate foreign keys');
 });
+
+
+test('Electron QA harness provides isolated safeStorage for terminal credentials',()=>{
+  const harness=fs.readFileSync(path.join(root,'qa','desktop','main.cjs'),'utf8');
+  assert.match(harness,/ARTISYS_QA/);
+  assert.match(harness,/safeStorage\.isEncryptionAvailable/);
+  assert.match(harness,/safeStorage\.encryptString/);
+  assert.match(harness,/safeStorage\.decryptString/);
+});
