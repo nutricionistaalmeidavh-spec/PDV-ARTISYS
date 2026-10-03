@@ -17,7 +17,7 @@
     "capability:check:phase3": "node scripts/check-customer-capability-parity.js",
     "capability:check:release": "node scripts/check-customer-capability-parity.js --require-100",
     "docs:check": "node scripts/check-docs-consistency.js",
-    "test": "node --test test/*.test.js",
+    "test": "node scripts/run-v1-tests.js",
     "test:telemetry:cloudflare": "npm --prefix cloudflare/telemetry test",
     "telemetry:cloudflare:setup": "node scripts/setup-cloudflare-telemetry.mjs",
     "test:restaurant": "node --test test/e30-e39-restaurant.test.js",
