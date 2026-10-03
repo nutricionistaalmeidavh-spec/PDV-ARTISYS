@@ -299,6 +299,10 @@
       "name": "restaurant.channels.assert"
     },
     {
+      "action": "capability",
+      "name": "restaurant.channels.teardown"
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "body",
       "name": "canais-sem-overflow",
