@@ -986,6 +986,30 @@
     },
     {
       "action": "click",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "voltar-alimentacao-pos-correcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-workspace='FOOD']",
+      "name": "alimentacao-workspace-pos-correcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "reabrir-mesas-comandas-pos-correcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-restaurant-view='operation']",
+      "name": "mesas-comandas-voltar-operacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
       "selector": "[data-module-nav='WHOLESALE']",
       "name": "abrir-atacado",
       "timeoutMs": 10000
