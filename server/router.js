@@ -44,6 +44,8 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
 
       const session=authenticate(request);const currentActor=actor(session);const mutationId=String(request.headers['x-mutation-id']||'').trim()||null;
 
+      if(request.method==='GET'&&pathname==='/api/v1/system/deployment/authorization'){requireCapability(session,'deployment.manage');sendJson(response,200,{authorized:true},request,allowedOrigins);return;}
+
       if(request.method==='POST'&&pathname==='/api/v1/lan/pairing-codes'){requireCapability(session,'devices.pair');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.terminals.createPairingCode({createdBy:session.userId,ttlSeconds:body.ttlSeconds}),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/terminals'){requireCapability(session,'devices.view');sendJson(response,200,runtime.terminals.listTerminals(),request,allowedOrigins);return;}
       const terminalMatch=pathname.match(/^\/api\/v1\/terminals\/([^/]+)$/);if(request.method==='PATCH'&&terminalMatch){requireCapability(session,'devices.block');const body=await readJson(request,bodyLimitBytes);sendJson(response,200,runtime.terminals.setTerminalStatus(decodeURIComponent(terminalMatch[1]),body.status),request,allowedOrigins);return;}
