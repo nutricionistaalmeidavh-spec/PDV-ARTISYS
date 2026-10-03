@@ -4,7 +4,10 @@ import { resolveSecret, stepLabel } from './helpers.js';
 
 function locator(page, step) {
   if (step.testId) return page.getByTestId(step.testId);
-  if (step.role) return page.getByRole(step.role, step.name ? { name: step.name } : undefined);
+  if (step.role) {
+    const accessibleName = step.accessibleName ?? step.name;
+    return page.getByRole(step.role, accessibleName ? { name: accessibleName, exact:step.exact ?? false } : undefined);
+  }
   if (step.text) return page.getByText(step.text, { exact: step.exact ?? false });
   if (step.label) return page.getByLabel(step.label, { exact: step.exact ?? false });
   if (step.selector) return page.locator(step.selector);
@@ -123,7 +126,7 @@ async function qaRunStartMs(screenshotsDir, runtimeContext) {
   return Number(info.ctimeMs || 0);
 }
 
-export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, runtimeContext = null }) {
+export async function executeStep({ page, step, index, screenshotsDir, baseURL, env = process.env, adapter = null, electronApp = null, runtimeContext = null }) {
   const label = stepLabel(step, index);
   switch (step.action) {
     case 'goto': {
@@ -165,6 +168,12 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         ? runtimeVariable(runtimeContext, step.valueFrom, label)
         : resolveSecret(step, env);
       await locator(page, step).fill(String(value ?? ''));
+      break;
+    }
+    case 'focus': {
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs});
+      await target.focus();
       break;
     }
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
@@ -254,6 +263,18 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await page.setViewportSize({ width, height });
       break;
     }
+    case 'setZoomFactor': {
+      const factor=Number(step.factor);
+      if(!Number.isFinite(factor)||factor<0.5||factor>3)throw new TypeError(`${label}: factor must be between 0.5 and 3`);
+      if(!electronApp?.evaluate)throw new Error(`${label}: native Electron zoom requires an Electron QA runtime`);
+      await electronApp.evaluate(({BrowserWindow},value)=>{
+        for(const window of BrowserWindow.getAllWindows()){
+          if(!window.isDestroyed())window.webContents.setZoomFactor(value);
+        }
+      },factor);
+      await page.waitForTimeout(Number(step.settleMs??150));
+      break;
+    }
     case 'waitFor': await locator(page, step).waitFor({ state: waitState(step), timeout: step.timeoutMs }); break;
     case 'waitForTimeout': await page.waitForTimeout(step.timeoutMs ?? 250); break;
     case 'expectVisible': {
@@ -272,6 +293,85 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         && box.x + box.width <= viewport.width + tolerancePx
         && box.y + box.height <= viewport.height + tolerancePx;
       if (!inside) throw new Error(`${label}: target is outside viewport (${JSON.stringify(box)} vs ${viewport.width}x${viewport.height})`);
+      break;
+    }
+    case 'expectFocused': {
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs});
+      const focused=await target.evaluate(element=>element===document.activeElement);
+      if(!focused)throw new Error(`${label}: expected locator to own keyboard focus`);
+      break;
+    }
+    case 'expectAccessibleName': {
+      if(step.expected==null)throw new Error(`${label}: expectAccessibleName requires expected`);
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs});
+      const actual=await target.evaluate(element=>{
+        const labelledBy=String(element.getAttribute('aria-labelledby')||'').trim();
+        if(labelledBy){
+          const text=labelledBy.split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' ').trim();
+          if(text)return text;
+        }
+        const aria=String(element.getAttribute('aria-label')||'').trim();
+        if(aria)return aria;
+        if(element.labels?.length)return Array.from(element.labels).map(label=>label.textContent||'').join(' ').trim();
+        const alt=String(element.getAttribute('alt')||'').trim();
+        if(alt)return alt;
+        return String(element.innerText||element.textContent||element.getAttribute('title')||'').replace(/\\s+/g,' ').trim();
+      });
+      if(actual!==String(step.expected))throw new Error(`${label}: expected accessible name ${JSON.stringify(String(step.expected))}, got ${JSON.stringify(actual)}`);
+      break;
+    }
+    case 'expectMinimumContrast': {
+      const minimum=Number(step.minRatio??4.5);
+      if(!Number.isFinite(minimum)||minimum<=1)throw new TypeError(`${label}: minRatio must be greater than 1`);
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs});
+      const measurement=await target.evaluate((element,minRatio)=>{
+        const rgba=value=>{
+          const canvas=document.createElement('canvas');
+          canvas.width=1;
+          canvas.height=1;
+          const context=canvas.getContext('2d',{willReadFrequently:true});
+          if(!context)return null;
+          context.clearRect(0,0,1,1);
+          context.fillStyle=String(value||'transparent');
+          context.fillRect(0,0,1,1);
+          const pixel=context.getImageData(0,0,1,1).data;
+          return {r:pixel[0],g:pixel[1],b:pixel[2],a:pixel[3]/255};
+        };
+        const composite=(front,back)=>({
+          r:front.r*front.a+back.r*(1-front.a),
+          g:front.g*front.a+back.g*(1-front.a),
+          b:front.b*front.a+back.b*(1-front.a),
+          a:1
+        });
+        const luminance=color=>{
+          const channel=value=>{
+            const normalized=value/255;
+            return normalized<=0.03928?normalized/12.92:Math.pow((normalized+0.055)/1.055,2.4);
+          };
+          return 0.2126*channel(color.r)+0.7152*channel(color.g)+0.0722*channel(color.b);
+        };
+        const foreground=rgba(getComputedStyle(element).color);
+        if(!foreground)return {ok:false,ratio:0,reason:'foreground-unavailable'};
+        let background={r:255,g:255,b:255,a:1};
+        let node=element;
+        while(node){
+          const candidate=rgba(getComputedStyle(node).backgroundColor);
+          if(candidate&&candidate.a>0){
+            background=candidate.a<1?composite(candidate,{r:255,g:255,b:255,a:1}):candidate;
+            break;
+          }
+          node=node.parentElement;
+        }
+        const fg=foreground.a<1?composite(foreground,background):foreground;
+        const lighter=Math.max(luminance(fg),luminance(background));
+        const darker=Math.min(luminance(fg),luminance(background));
+        const ratio=(lighter+0.05)/(darker+0.05);
+        return {ok:ratio>=minRatio,ratio,foreground:fg,background};
+      },minimum);
+      if(!measurement.ok)throw new Error(`${label}: contrast ratio ${Number(measurement.ratio||0).toFixed(2)} is below ${minimum}`);
       break;
     }
     case 'expectValue': {

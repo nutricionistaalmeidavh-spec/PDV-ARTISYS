@@ -148,6 +148,7 @@ export async function runQaFlow({
           baseURL: environment.baseURL,
           env: process.env,
           adapter: demoAdapter,
+          electronApp,
           runtimeContext,
         });
         if (manifest.capture?.screenshotEachStep) {

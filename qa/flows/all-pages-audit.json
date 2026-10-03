@@ -1281,6 +1281,151 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectAccessibleName",
+      "selector": "#report-open-management",
+      "expected": "Abrir Gestão",
+      "name": "a11y-relatorios-gestao-nome-acessivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectAccessibleName",
+      "selector": ".report-v2-tabs",
+      "expected": "Tipos de relatório",
+      "name": "a11y-relatorios-tablist-nome",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "focus",
+      "selector": "#report-open-management",
+      "name": "a11y-relatorios-gestao-foco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectFocused",
+      "selector": "#report-open-management",
+      "name": "a11y-relatorios-gestao-foco-confirmado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "#report-open-management",
+      "key": "Enter",
+      "name": "a11y-relatorios-gestao-teclado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".erp-management-page",
+      "name": "a11y-relatorios-gestao-teclado-confirmado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "focus",
+      "selector": "#sidebar-nav button[data-route='financial-management']",
+      "name": "a11y-gestao-sidebar-foco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "#sidebar-nav button[data-route='financial-management']",
+      "key": "Enter",
+      "name": "a11y-gestao-sidebar-teclado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-flow-route='reports']",
+      "name": "a11y-gestao-relatorios-disponivel",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "focus",
+      "selector": "button[data-flow-route='reports']",
+      "name": "a11y-relatorios-voltar-foco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "button[data-flow-route='reports']",
+      "key": "Enter",
+      "name": "a11y-relatorios-voltar-teclado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".report-v2-page",
+      "name": "a11y-relatorios-voltar-confirmado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "focus",
+      "selector": "button[data-report-drilldown='period']",
+      "name": "a11y-relatorios-modal-origem-foco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "button[data-report-drilldown='period']",
+      "key": "Enter",
+      "name": "a11y-relatorios-modal-teclado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#modal-root [role='dialog']",
+      "name": "a11y-relatorios-modal-dialog",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectAccessibleName",
+      "selector": "#modal-root .modal-close",
+      "expected": "Fechar",
+      "name": "a11y-relatorios-modal-fechar-nome",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "#modal-root .modal-close",
+      "key": "Escape",
+      "name": "a11y-relatorios-modal-escape",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectFocused",
+      "selector": "button[data-report-drilldown='period']",
+      "name": "a11y-relatorios-modal-foco-restaurado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectMinimumContrast",
+      "selector": ".report-v2-page h1",
+      "minRatio": 4.5,
+      "name": "a11y-relatorios-contraste",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "setZoomFactor",
+      "factor": 2,
+      "name": "a11y-relatorios-zoom-200"
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "a11y-relatorios-zoom-200-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "a11y-relatorios-zoom-200",
+      "fullPage": true
+    },
+    {
+      "action": "setZoomFactor",
+      "factor": 1,
+      "name": "a11y-relatorios-zoom-reset"
+    },
+    {
       "action": "desktopConfig",
       "name": "capturar-servidor-local-qa",
       "saveAs": {
