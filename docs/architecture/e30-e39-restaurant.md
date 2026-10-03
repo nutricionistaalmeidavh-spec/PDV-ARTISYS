@@ -16,13 +16,13 @@ O servidor autoritativo permanece local. Desktop, terminais e dispositivos móve
 
 ## E32 — cozinha/KDS
 
-`kitchen-service.js` mantém setores, vínculo produto→setor e tickets. `restaurant.order-created` é roteado por efeito idempotente. A restrição única `(order_id, station_id)` evita duplicidade de ticket mesmo se um efeito for reprocessado. Impressão de produção usa IDs determinísticos por ticket.
+`kitchen-service.js` mantém setores, roteamento explícito de produto e tickets. Cada item de cardápio usado no restaurante deve ser classificado como **PRODUCTION** (com setor ativo) ou **DIRECT** (atendimento direto, sem KDS). Produtos já vinculados a setor em instalações existentes são migrados como `PRODUCTION`; produtos sem regra permanecem não configurados para que um erro de cadastro não seja tratado silenciosamente como atendimento direto. Em pedidos mistos, itens `DIRECT` continuam na comanda, enquanto somente itens `PRODUCTION` geram ticket. `restaurant.order-created` é roteado por efeito idempotente. A restrição única `(order_id, station_id)` evita duplicidade de ticket mesmo se um efeito for reprocessado. Impressão de produção usa IDs determinísticos por ticket.
 
 ## E33/E34 — dispositivos LAN
 
 `mobile-device-service.js` gera uma credencial aleatória exibida somente na criação/rotação e persiste apenas `scrypt(hash + salt)`. Dispositivos podem ser bloqueados ou ter a chave rotacionada. Tipos suportados: `WAITER`, `TABLET`, `KITCHEN`.
 
-A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom opera mesas/comandas e o KDS altera apenas tickets de cozinha.
+A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom opera mesas/comandas e o KDS altera apenas tickets de cozinha. A visão do garçom mantém os pedidos da mesa visíveis: itens `DIRECT` aparecem como atendimento direto e os itens de produção acompanham o estado agregado `NEW → PREPARING → READY` retornado pelo mesmo pedido canônico.
 
 ## E35 — workspace desktop
 

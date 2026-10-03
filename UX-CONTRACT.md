@@ -55,12 +55,13 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - If `autoOpenTable` is enabled, the first confirmed QR order may open the table session. If disabled, orders are rejected until a session exists; a waiter call may establish an empty service session so staff can attend the table.
 - Public mutations use mutation IDs. Order success is shown only after the server confirms persistence; on failure the cart remains intact and the UI identifies what is still usable.
 - Public orders enter the existing `restaurant.addOrder()` path and the existing event dispatch to kitchen. No second order store or kitchen queue is allowed.
+- Restaurant menu items use an explicit service route: `DIRECT` remains on the command and never creates a KDS ticket; `PRODUCTION` requires an active production station and is the only mode routed to KDS. An item with no route is a configuration error, never an implicit direct-service item.
 - Rotating a table QR invalidates the previous token. The desktop UI uses an app-owned confirmation step before rotation.
 
 ## Restaurante: equipe móvel e PWA
 
 - `/mobile` is staff-only and continues to use paired device credentials. Customer QR users must never be directed to the device login screen.
-- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. Kitchen mode prioritizes `Novo → Em preparo → Pronto` production lanes. Paired table and self-service kiosk modes retain their existing device contracts.
+- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. After submission, the selected table keeps its command visible: `DIRECT` items are labelled as direct service, while production items reflect the canonical order state (`Novo → Em preparo → Pronto`). Kitchen mode prioritizes the same production lanes and never receives `DIRECT` items. Paired table and self-service kiosk modes retain their existing device contracts.
 - Staff mutations disable the initiating control while pending and use pessimistic confirmation. Background refresh is single-flight and must not erase a local in-progress cart.
 - Manifest/service worker registration occurs only in secure contexts (HTTPS or localhost). LAN HTTP remains supported as an ordinary web application and is not labelled installable PWA.
 - Service-worker caching is limited to the staff application shell. `/api/` requests remain network-authoritative and are never satisfied from an offline cache.

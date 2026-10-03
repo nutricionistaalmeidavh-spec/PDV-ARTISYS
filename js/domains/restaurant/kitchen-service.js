@@ -6,6 +6,7 @@ const { writeAudit } = require('../../core/audit-log');
 
 const TICKET_STATUSES = new Set(['NEW','PREPARING','READY','CANCELLED']);
 const PRODUCTION_SOURCES = new Set(['DELIVERY','FAST_FOOD']);
+const PRODUCT_ROUTE_MODES = new Set(['DIRECT','PRODUCTION']);
 
 function parseConfiguration(value) {
   if (!value) return null;
@@ -129,22 +130,87 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     return db.prepare(`${stationSelect(includeInactive ? '' : 'WHERE active=1')} ORDER BY sort_order,name,id`).all().map(mapStation);
   }
 
+  function getProductRoute(productId) {
+    const row=db.prepare(`SELECT p.id AS productId,p.name AS productName,r.mode,r.station_id AS stationId,ks.name AS stationName,ks.active AS stationActive
+      FROM products p
+      LEFT JOIN restaurant_product_routes r ON r.product_id=p.id
+      LEFT JOIN kitchen_stations ks ON ks.id=r.station_id
+      WHERE p.id=? AND p.active=1`).get(String(productId));
+    if(!row||!row.mode)return null;
+    const route={
+      productId:row.productId,
+      productName:row.productName,
+      mode:row.mode,
+      stationId:row.stationId||null,
+      stationName:row.stationName||null
+    };
+    if(row.mode==='PRODUCTION')route.stationActive=Boolean(row.stationActive);
+    return route;
+  }
+
+  function listProductRoutes() {
+    return db.prepare(`SELECT p.id AS productId,p.name AS productName,r.mode,r.station_id AS stationId,ks.name AS stationName,ks.active AS stationActive
+      FROM products p
+      LEFT JOIN restaurant_product_routes r ON r.product_id=p.id
+      LEFT JOIN kitchen_stations ks ON ks.id=r.station_id
+      WHERE p.active=1 AND p.menu_enabled=1
+      ORDER BY p.name,p.id`).all().map(row=>({
+        productId:row.productId,
+        productName:row.productName,
+        mode:row.mode||null,
+        stationId:row.stationId||null,
+        stationName:row.stationName||null,
+        stationActive:row.mode==='PRODUCTION'?Boolean(row.stationActive):null
+      }));
+  }
+
+  function configureProductRoute(productId,{mode,stationId=null}={},actor={}) {
+    const product=db.prepare('SELECT id,name FROM products WHERE id=? AND active=1').get(String(productId));
+    if(!product)throw new Error('Produto nao encontrado ou inativo.');
+    const normalized=String(mode||'').trim().toUpperCase();
+    if(!PRODUCT_ROUTE_MODES.has(normalized))throw new Error('Destino do produto invalido.');
+    return withTransaction(db,()=>{
+      let station=null;
+      if(normalized==='PRODUCTION'){
+        station=db.prepare('SELECT id,name FROM kitchen_stations WHERE id=? AND active=1').get(String(stationId||''));
+        if(!station)throw new Error('Setor de producao nao encontrado ou inativo.');
+        db.prepare(`INSERT INTO product_kitchen_stations(product_id,station_id,updated_at) VALUES(?,?,?)
+          ON CONFLICT(product_id) DO UPDATE SET station_id=excluded.station_id,updated_at=excluded.updated_at`)
+          .run(product.id,station.id,now());
+      }else{
+        db.prepare('DELETE FROM product_kitchen_stations WHERE product_id=?').run(product.id);
+      }
+      db.prepare(`INSERT INTO restaurant_product_routes(product_id,mode,station_id,updated_at) VALUES(?,?,?,?)
+        ON CONFLICT(product_id) DO UPDATE SET mode=excluded.mode,station_id=excluded.station_id,updated_at=excluded.updated_at`)
+        .run(product.id,normalized,station?.id||null,now());
+      writeAudit(db,{action:'restaurant.kitchen.product.route',entity:'product',entityId:product.id,actor,context:{mode:normalized,stationId:station?.id||null,stationName:station?.name||null}},now);
+      const route=getProductRoute(product.id);
+      if(route&&route.mode==='PRODUCTION')delete route.stationActive;
+      return route;
+    });
+  }
+
+  function assertOrderRouting(items=[]) {
+    const productIds=[...new Set((Array.isArray(items)?items:[]).map(item=>String(item.productId||'').trim()).filter(Boolean))];
+    for(const productId of productIds){
+      const route=getProductRoute(productId);
+      if(!route)throw new Error('Configure a produção ou marque atendimento direto antes de enviar o produto.');
+      if(route.mode==='PRODUCTION'&&!route.stationActive)throw new Error('Setor de produção do produto está inativo. Configure outro setor antes de enviar.');
+    }
+    return true;
+  }
+
   function assignProduct(productId, stationId, actor = {}) {
-    const product = db.prepare('SELECT id,name FROM products WHERE id=? AND active=1').get(String(productId));
-    if (!product) throw new Error('Produto nao encontrado ou inativo.');
-    const station = db.prepare('SELECT id,name FROM kitchen_stations WHERE id=? AND active=1').get(String(stationId));
-    if (!station) throw new Error('Setor de producao nao encontrado ou inativo.');
-    db.prepare(`INSERT INTO product_kitchen_stations(product_id,station_id,updated_at) VALUES(?,?,?)
-      ON CONFLICT(product_id) DO UPDATE SET station_id=excluded.station_id,updated_at=excluded.updated_at`)
-      .run(product.id,station.id,now());
-    writeAudit(db,{action:'restaurant.kitchen.product.assign',entity:'product',entityId:product.id,actor,context:{stationId:station.id,stationName:station.name}},now);
-    return { productId:product.id, productName:product.name, stationId:station.id, stationName:station.name };
+    return configureProductRoute(productId,{mode:'PRODUCTION',stationId},actor);
   }
 
   function unassignProduct(productId, actor = {}) {
-    const result = db.prepare('DELETE FROM product_kitchen_stations WHERE product_id=?').run(String(productId));
-    if (result.changes) writeAudit(db,{action:'restaurant.kitchen.product.unassign',entity:'product',entityId:String(productId),actor,context:{}},now);
-    return { productId:String(productId), removed:Boolean(result.changes) };
+    return withTransaction(db,()=>{
+      const assignment=db.prepare('DELETE FROM product_kitchen_stations WHERE product_id=?').run(String(productId));
+      const route=db.prepare('DELETE FROM restaurant_product_routes WHERE product_id=?').run(String(productId));
+      if(assignment.changes||route.changes)writeAudit(db,{action:'restaurant.kitchen.product.unassign',entity:'product',entityId:String(productId),actor,context:{}},now);
+      return { productId:String(productId), removed:Boolean(assignment.changes||route.changes) };
+    });
   }
 
   function listAssignments() {
@@ -290,7 +356,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     });
   }
 
-  return { upsertStation,getStation,listStations,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,TICKET_STATUSES,PRODUCTION_SOURCES };
+  return { upsertStation,getStation,listStations,configureProductRoute,getProductRoute,listProductRoutes,assertOrderRouting,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,TICKET_STATUSES,PRODUCTION_SOURCES,PRODUCT_ROUTE_MODES };
 }
 
 module.exports={createKitchenService};
