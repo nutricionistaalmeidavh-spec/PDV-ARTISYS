@@ -13,7 +13,7 @@ test('release gate: public support surfaces never expose secret-like values',()=
    assert.throws(()=>runtime.settings.set('provider.token','TOP-SECRET',{actor:{userId:'admin',role:'admin'}}),/sensivel/i);
    runtime.logger.log({level:'error',subsystem:'security-test',message:'controlled',context:{token:'TOP-SECRET',authorization:'Bearer TOP-SECRET',safe:'visible'}});
    const logs=runtime.logger.list({limit:10});const serialized=JSON.stringify(logs);assert.equal(serialized.includes('TOP-SECRET'),false);assert.equal(serialized.includes('Bearer'),false);assert.equal(logs[0].context.safe,'visible');
-   const bundle=runtime.diagnostics.createPackage({actor:{userId:'admin',role:'admin'}});const raw=fs.readFileSync(bundle.filePath);assert.equal(raw.includes(Buffer.from('TOP-SECRET')),false);assert.equal(raw.includes(Buffer.from('Bearer TOP-SECRET')),false);
+   const bundle=runtime.diagnostics.createPackage({actor:{kind:'system',role:'system'}});const raw=fs.readFileSync(bundle.filePath);assert.equal(raw.includes(Buffer.from('TOP-SECRET')),false);assert.equal(raw.includes(Buffer.from('Bearer TOP-SECRET')),false);
  }finally{runtime.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
