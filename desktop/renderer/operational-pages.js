@@ -23,7 +23,7 @@
   function centsInput(value){const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const n=Number(text);return Number.isFinite(n)?Math.round(n*100):0;}
   function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
   function empty(message){return `<div class="ops-empty">${escapeHtml(message)}</div>`;}
-  function badge(value){const normalized=String(value||'').toLowerCase();return `<span class="ops-badge status-${escapeHtml(normalized)}">${escapeHtml(value||'—')}</span>`;}
+  function badge(value){const normalized=String(value||'').toLowerCase();const label=ui?.statusLabel?.(value,String(value||'—'))||String(value||'—');return `<span class="ops-badge status-${escapeHtml(normalized)}">${escapeHtml(label)}</span>`;}
   const FINANCE_KIND_LABELS=Object.freeze({PAYABLE:'Conta a pagar',RECEIVABLE:'Conta a receber'});
   const FINANCE_STATUS_LABELS=Object.freeze({OPEN:'Em aberto',PARTIAL:'Parcial',SETTLED:'Liquidado',CANCELLED:'Cancelado',OVERDUE:'Vencido'});
   const FINANCE_METHOD_LABELS=Object.freeze({CASH:'Dinheiro',DINHEIRO:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',CARTAO:'Cartão',TRANSFERENCIA:'Transferência',BOLETO:'Boleto',MANUAL:'Manual',BANK_RECONCILIATION:'Conciliação bancária'});
