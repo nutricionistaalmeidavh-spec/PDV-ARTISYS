@@ -39,3 +39,43 @@ test('route policy checks capabilities rather than role/profile names',()=>{
   assert.equal(policy.canAccessRoute(manager,'sellers'),true);
   assert.equal(policy.canAccessRoute(manager,'financial-management'),true);
 });
+
+
+test('Access Center derives partial tabs, loads and actions from capabilities',()=>{
+  const manager=user(['users.view','users.create','users.edit','users.reset_password']);
+  const managerModel=policy.accessCenterModel(manager);
+  assert.deepEqual(managerModel.tabs,['people']);
+  assert.deepEqual(managerModel.load,{users:true,profiles:false,permissions:false,devices:false,security:false});
+  assert.equal(managerModel.actions.createPerson,true);
+  assert.equal(managerModel.actions.editPerson,true);
+  assert.equal(managerModel.actions.resetPassword,true);
+  assert.equal(managerModel.actions.assignProfile,false);
+  assert.equal(managerModel.actions.createProfile,false);
+  assert.equal(managerModel.actions.pairDevice,false);
+  assert.equal(managerModel.actions.revokeSession,false);
+
+  const readOnly=user(['users.view']);
+  const readOnlyModel=policy.accessCenterModel(readOnly);
+  assert.deepEqual(readOnlyModel.tabs,['people']);
+  assert.deepEqual(readOnlyModel.load,{users:true,profiles:false,permissions:false,devices:false,security:false});
+  assert.equal(Object.values(readOnlyModel.actions).some(Boolean),false);
+
+  const deviceAdmin=user(['devices.view','devices.block','devices.rotate_credential']);
+  const deviceModel=policy.accessCenterModel(deviceAdmin);
+  assert.deepEqual(deviceModel.tabs,['devices']);
+  assert.deepEqual(deviceModel.load,{users:false,profiles:false,permissions:false,devices:true,security:false});
+  assert.equal(deviceModel.actions.blockDevice,true);
+  assert.equal(deviceModel.actions.rotateDeviceCredential,true);
+  assert.equal(deviceModel.actions.pairDevice,false);
+});
+
+test('Access Center only exposes profile assignment when profile catalog is visible',()=>{
+  const assignOnly=user(['users.view','profiles.assign']);
+  assert.equal(policy.accessCenterModel(assignOnly).actions.assignProfile,false);
+  const assignWithView=user(['users.view','profiles.view','profiles.assign']);
+  const model=policy.accessCenterModel(assignWithView);
+  assert.deepEqual(model.tabs,['people','profiles']);
+  assert.equal(model.actions.assignProfile,true);
+  assert.equal(model.load.profiles,true);
+  assert.equal(model.load.permissions,true);
+});
