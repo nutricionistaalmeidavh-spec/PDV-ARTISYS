@@ -38,13 +38,28 @@ test('P1 food workspace uses the user-facing task name Mesas e comandas',()=>{
   assert.doesNotMatch(restaurant,/<h1>Restaurante<\/h1>/);
 });
 
-test('P1 food workspace puts operational choices before explanatory area details',()=>{
+test('P0 food workspace is an operational hub instead of a second configuration surface',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
-  const task=modules.indexOf('<h2>Como o estabelecimento atende</h2>');
-  const explanation=modules.indexOf('<h2>Incluído na área</h2>');
-  assert.notEqual(task,-1);
-  assert.notEqual(explanation,-1);
-  assert.ok(task<explanation,'operational choices must appear before the explanatory area summary');
+  const css=read('desktop/renderer/product-support.css');
+  assert.match(modules,/<h2 id="food-operation-title">Operação<\/h2>/);
+  assert.match(modules,/Abra o fluxo que precisa usar agora/);
+  assert.doesNotMatch(modules,/Como o estabelecimento atende/);
+  assert.doesNotMatch(modules,/Incluído na área/);
+  assert.match(modules,/data-food-capability="RESTAURANT"/);
+  assert.match(modules,/data-food-capability="FAST_FOOD"/);
+  assert.match(modules,/data-food-capability="DELIVERY"/);
+  assert.match(modules,/data-food-capability="SELF_SERVICE"/);
+  assert.match(css,/\.food-workspace \.food-module-card\{[^}]*min-height:118px/);
+  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+});
+
+test('P0 KDS expands to desktop lanes and keeps compact mobile mode',()=>{
+  const mobile=read('server/mobile/app.js');
+  const css=read('server/mobile/styles.css');
+  assert.match(mobile,/classList\.toggle\('kds-mode',type==='KITCHEN'\)/);
+  assert.match(mobile,/KDS local · painel responsivo por ordem de chegada/);
+  assert.match(css,/@media\(min-width:901px\)[\s\S]*main\.kds-mode \.kitchen-board\{grid-template-columns:repeat\(3,minmax\(280px,1fr\)\)/);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*main\.kds-mode \.kitchen-board\{grid-template-columns:1fr\}/);
 });
 
 test('P1 active optional areas expose a direct continuation action in settings',()=>{
