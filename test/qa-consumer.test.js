@@ -13,3 +13,22 @@ test('vendored QA runtime is pinned to 2.6.0 and normalizes demo media duration'
 
 
 test('partial Access Center QA flow covers manager and read-only capability boundaries',()=>{const config=JSON.parse(fs.readFileSync(configPath,'utf8'));const flowPath=config.flows['access-center-partial-permissions'];assert.ok(flowPath);const flow=JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath),flowPath),'utf8'));const names=new Set(flow.steps.map(step=>step.name));for(const name of ['gerente-central-carregada','gerente-pode-criar-pessoa','gerente-sem-tab-perfis','gerente-pessoa-editada','leitor-central-carregada','leitor-sem-criar-pessoa','leitor-sem-editar-pessoa'])assert.equal(names.has(name),true,name);});
+
+
+test('ergonomic Access Center QA flow covers unified person/profile administration',()=>{
+  const config=JSON.parse(fs.readFileSync(configPath,'utf8'));
+  const flowPath=config.flows['access-center-ergonomic'];
+  assert.ok(flowPath);
+  const flow=JSON.parse(fs.readFileSync(path.resolve(path.dirname(configPath),flowPath),'utf8'));
+  const names=new Set(flow.steps.map(step=>step.name));
+  for(const name of [
+    'ergonomic-central-carregada',
+    'ergonomic-perfil-informacoes',
+    'ergonomic-perfil-permissoes',
+    'ergonomic-perfil-revisao',
+    'ergonomic-perfil-criado',
+    'ergonomic-pessoa-perfil-no-mesmo-fluxo',
+    'ergonomic-exclusao-em-uso-bloqueada',
+    'ergonomic-perfil-excluido'
+  ])assert.equal(names.has(name),true,name);
+});
