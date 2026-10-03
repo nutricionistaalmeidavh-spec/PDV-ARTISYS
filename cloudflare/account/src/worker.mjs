@@ -217,7 +217,7 @@ async function verifyPasswordRecovery(request,env){
 }
 
 function adminAuthorized(request,env){const expected=String(env.ADMIN_TOKEN||'').trim();const provided=String(request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();return Boolean(expected)&&provided===expected;}
-function adminHtml(){return \`<!doctype html>
+function adminHtml(){return `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -283,7 +283,7 @@ async function recovery(installationId,email){try{const j=await api('/v1/admin/r
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
 </script>
 </body>
-</html>\`;}
+</html>`;}
 async function adminRoute(request,env,url){
   if(request.method==='GET'&&url.pathname==='/admin')return new Response(adminHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   if(!url.pathname.startsWith('/v1/admin/'))return null;
