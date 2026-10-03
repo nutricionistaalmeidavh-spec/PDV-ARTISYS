@@ -45,7 +45,7 @@
     text.style.cssText = 'margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere';
     text.textContent = note;
     const status = document.createElement('small');
-    status.style.color = '#78869a';
+    status.style.color = 'var(--text-subtle)';
     status.textContent = lastSaleDetails?.printObservation
       ? 'Registrada internamente e impressa no cupom não fiscal.'
       : 'Registro interno — não impressa no cupom.';
@@ -69,7 +69,7 @@
       <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#526176;cursor:pointer">
         <input id="sale-observation-print" type="checkbox"> Imprimir esta observação no cupom não fiscal
       </label>
-      <small id="sale-observation-hint" style="display:block;margin-top:5px;color:#78869a">Registro interno: até ${MAX_INTERNAL} caracteres. Impresso: até ${MAX_PRINTED} caracteres / 4 linhas.</small>`;
+      <small id="sale-observation-hint" style="display:block;margin-top:5px;color:var(--text-subtle)">Registro interno: até ${MAX_INTERNAL} caracteres. Impresso: até ${MAX_PRINTED} caracteres / 4 linhas.</small>`;
 
     panel.insertBefore(block, finalize);
     const textarea = block.querySelector('#sale-observation');

@@ -22,8 +22,8 @@ function readToastStyles() {
 
 test('desktop loads the shared toast assets before app.js', () => {
   assert.ok(indexSource.includes('<link rel="stylesheet" href="./toast-ui.css" />'), 'index.html must load toast-ui.css');
-  assert.ok(indexSource.includes('<script src="./toast-ui.js"></script>'), 'index.html must load toast-ui.js');
-  assert.ok(indexSource.indexOf('./toast-ui.js') < indexSource.indexOf('./app.js'), 'toast-ui.js must load before app.js');
+  assert.match(indexSource,/<script\s+defer\s+src="\.\/toast-ui\.js"><\/script>/, 'index.html must defer-load toast-ui.js');
+  assert.ok(indexSource.indexOf('./toast-ui.js') < indexSource.indexOf('./app.js'), 'toast-ui.js must preserve execution order before app.js');
 });
 
 test('shared toast policy limits visual noise and preserves errors', () => {

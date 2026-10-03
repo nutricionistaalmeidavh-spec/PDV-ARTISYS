@@ -166,14 +166,16 @@ npm run docs:check
 npm run verify
 npm run verify:release
 npm run qa:validate
+npm run qa:web-surfaces
 npm run qa:e2e:p0
+npm run qa:e2e:tablet
 npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.23-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
 
-O gate atual de UI é `npm run qa:e2e:p0`: ele executa o fluxo `all-pages-audit` no Electron real em 1366×768, percorre as superfícies principais, valida controles críticos e overflow horizontal e mantém screenshots/trace como evidência do CI. Esse smoke atual não substitui E2E transacional profundo de cada domínio nem comparação visual pixel a pixel.
+O gate atual de UI combina `npm run qa:web-surfaces`, `npm run qa:e2e:p0` e `npm run qa:e2e:tablet`. O primeiro sobe o servidor local real e valida as superfícies `/mobile` e `/m/:token`; os demais executam `all-pages-audit` no Electron real em 1366×768 e 1024×768, verificando controles críticos, presença do CTA de finalização dentro do viewport e overflow horizontal, além de manter screenshots/trace como evidência do CI. Esses smokes não substituem E2E transacional profundo de cada domínio nem comparação visual pixel a pixel.
 
 Os fluxos legados anteriores continuam aposentados. Novos cenários E2E devem partir da interface atual e verificar um resultado operacional útil antes de entrarem no gate.
 

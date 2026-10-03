@@ -44,9 +44,19 @@
     cartRegion.className = 'sale-cart-region';
     cartRegion.dataset.checkoutCartRegion = 'true';
     cartRegion.append(cartHead, cartList);
+
     const totals = panel.querySelector(':scope > .totals');
-    if (totals) panel.insertBefore(cartRegion, totals);
-    else panel.appendChild(cartRegion);
+    const paymentStrip = panel.querySelector(':scope > .payment-strip');
+    const finalize = panel.querySelector(':scope > .finalize-button');
+    const observation = panel.querySelector(':scope > [data-sale-observation]');
+    const footer = document.createElement('section');
+    footer.className = 'sale-checkout-footer';
+    footer.dataset.checkoutFooter = 'true';
+    for (const node of [observation, totals, paymentStrip, finalize]) {
+      if (node) footer.append(node);
+    }
+
+    panel.append(cartRegion, footer);
   }
 
   function schedule() {

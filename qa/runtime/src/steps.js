@@ -281,6 +281,20 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       if (!(await locator(page, step).isVisible())) throw new Error(`${label}: expected locator to be visible`);
       break;
     }
+    case 'expectInViewport': {
+      const target = locator(page, step).first();
+      await target.waitFor({ state:'visible', timeout:step.timeoutMs ?? 10000 });
+      const box = await target.boundingBox();
+      const viewport = page.viewportSize();
+      const tolerancePx = Number(step.tolerancePx ?? 0);
+      if (!box || !viewport) throw new Error(`${label}: could not measure viewport visibility`);
+      const inside = box.x >= -tolerancePx
+        && box.y >= -tolerancePx
+        && box.x + box.width <= viewport.width + tolerancePx
+        && box.y + box.height <= viewport.height + tolerancePx;
+      if (!inside) throw new Error(`${label}: target is outside viewport (${JSON.stringify(box)} vs ${viewport.width}x${viewport.height})`);
+      break;
+    }
     case 'expectFocused': {
       const target=locator(page,step).first();
       await target.waitFor({state:'visible',timeout:step.timeoutMs});

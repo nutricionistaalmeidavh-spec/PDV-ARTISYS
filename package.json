@@ -34,7 +34,9 @@
     "verify": "npm run capability:check:phase3 && npm run docs:check && npm test && npm run test:telemetry:cloudflare && npm run lint:eventbus && npm run lint:core && npm run lint:desktop && npm run lint:commercial-media",
     "verify:release": "npm run capability:check:release && npm run verify && npm run test:release",
     "release:manifest": "node scripts/generate-release-manifest.js",
-    "dist:win": "electron-builder --win nsis --x64 --publish never"
+    "dist:win": "electron-builder --win nsis --x64 --publish never",
+    "qa:e2e:tablet": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow all-pages-audit --environment ci --viewport tablet --output qa-artifacts",
+    "qa:web-surfaces": "node --test test/ui-web-surfaces.test.js"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",

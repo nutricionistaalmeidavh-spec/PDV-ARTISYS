@@ -62,6 +62,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#app-topbar",
+      "name": "topbar-sem-overflow",
+      "tolerancePx": 2,
+      "timeoutMs": 10000
+    },
+    {
       "action": "click",
       "selector": "button[data-route='checkout']",
       "name": "balcao",
@@ -92,6 +99,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectInViewport",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-no-viewport-1",
+      "tolerancePx": 2,
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
       "name": "balcao",
       "fullPage": true
@@ -107,6 +121,13 @@
       "action": "expectVisible",
       "selector": "#finalize-sale",
       "name": "balcao-finalizar-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectInViewport",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-no-viewport-2",
+      "tolerancePx": 2,
       "timeoutMs": 10000
     },
     {
