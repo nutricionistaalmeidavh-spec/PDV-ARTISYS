@@ -1901,7 +1901,7 @@
     {
       "action": "expectText",
       "selector": ".selected-orders",
-      "expected": "Pronto",
+      "expected": "Pedido pronto",
       "name": "garcom-ve-pedido-pronto",
       "timeoutMs": 15000
     },
