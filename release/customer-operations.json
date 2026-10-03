@@ -200,8 +200,8 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/vertical-parity-p1.js",
-          "marker": "delivery-sale-form"
+          "path": "desktop/renderer/vertical-modules.js",
+          "marker": "delivery-form"
         }
       ]
     },
