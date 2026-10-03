@@ -57,7 +57,7 @@ body.theme-home .window-controls button:hover { background: #edf1f7; }
 .optional-label { color:var(--text-subtle); font-weight:400; }
 .customer-block .search-field { height:44px; }
 .customer-selected { margin-top:6px; padding:8px; }
-.sale-cart-region { min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+.sale-cart-region { min-height:0; display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
 .cart-head { padding:9px 12px; }
 .cart-head h3 { font-size:13px; }
 .cart-head .secondary-button { padding:7px 9px; font-size:11px; }
