@@ -16,7 +16,7 @@
   let sanitizeScheduled=false;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));}
-  function notify(message,error=false){const toastRoot=document.getElementById('toast-root');if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3200);}
+  function notify(message,error=false){if(root.PdvToast?.show){root.PdvToast.show(message,error?'error':'success');return;}const toastRoot=document.getElementById('toast-root');if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3200);}
   function sanitizeLegacyPaymentCopy(target=document){
     if(!target)return;
     if(target.nodeType===Node.TEXT_NODE){if(target.nodeValue?.includes('Cartão crédito / TEF'))target.nodeValue=target.nodeValue.replaceAll('Cartão crédito / TEF','Cartão crédito');return;}
