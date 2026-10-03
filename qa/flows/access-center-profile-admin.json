@@ -43,6 +43,69 @@
     },
     {
       "action": "click",
+      "selector": "[data-new-person]",
+      "name": "perfil-admin-nova-pessoa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root [data-person-form]",
+      "name": "perfil-admin-modal-pessoa",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#modal-root input[name='name']",
+      "value": "Pessoa Perfil QA",
+      "name": "perfil-admin-pessoa-nome"
+    },
+    {
+      "action": "fill",
+      "selector": "#modal-root input[name='username']",
+      "value": "qa-profile-target",
+      "name": "perfil-admin-pessoa-usuario"
+    },
+    {
+      "action": "fill",
+      "selector": "#modal-root input[name='password']",
+      "valueFromEnv": "ARTISYS_QA_FORM_FIXTURE",
+      "name": "perfil-admin-pessoa-senha"
+    },
+    {
+      "action": "selectOption",
+      "selector": "#modal-root select[name='profileId']",
+      "value": "profile-operator",
+      "name": "perfil-admin-pessoa-operador",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#modal-root [data-person-form] button[type='submit']",
+      "name": "perfil-admin-criar-pessoa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "perfil-admin-pessoa-criacao-fechada",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "expected": "Pessoa Perfil QA",
+      "name": "perfil-admin-pessoa-criada",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-pessoa-base",
+      "fullPage": true
+    },
+    {
+      "action": "click",
       "selector": "button[data-access-tab='profiles']",
       "name": "perfil-admin-abrir-perfis",
       "timeoutMs": 10000
@@ -187,21 +250,21 @@
     },
     {
       "action": "waitFor",
-      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "selector": "tr:has-text('Pessoa Perfil QA') [data-profile-select]",
       "name": "perfil-admin-pessoa-pronta",
       "state": "visible",
       "timeoutMs": 10000
     },
     {
       "action": "press",
-      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "selector": "tr:has-text('Pessoa Perfil QA') [data-profile-select]",
       "key": "End",
       "name": "perfil-admin-selecionar-perfil-customizado",
       "timeoutMs": 10000
     },
     {
       "action": "click",
-      "selector": "tr:has-text('Gerente QA Acessos') [data-save-profile]",
+      "selector": "tr:has-text('Pessoa Perfil QA') [data-save-profile]",
       "name": "perfil-admin-atribuir-pessoa",
       "timeoutMs": 10000
     },
@@ -247,14 +310,14 @@
     },
     {
       "action": "selectOption",
-      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "selector": "tr:has-text('Pessoa Perfil QA') [data-profile-select]",
       "value": "profile-manager",
       "name": "perfil-admin-selecionar-gerente",
       "timeoutMs": 10000
     },
     {
       "action": "click",
-      "selector": "tr:has-text('Gerente QA Acessos') [data-save-profile]",
+      "selector": "tr:has-text('Pessoa Perfil QA') [data-save-profile]",
       "name": "perfil-admin-reatribuir-gerente",
       "timeoutMs": 10000
     },
