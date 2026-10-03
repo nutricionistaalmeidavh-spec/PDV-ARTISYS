@@ -11,12 +11,13 @@ function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
+async function runDdl(db,sqlText){for(const sql of String(sqlText||'').split(';').map(x=>x.trim()).filter(Boolean))await db.prepare(sql).run();}
 
 class D1AccountStore{
   constructor(db){if(!db)throw new Error('D1 DB binding ausente.');this.db=db;this.schemaReady=false;}
   async ensureSchema(){
     if(this.schemaReady)return;
-    await this.db.exec(`CREATE TABLE IF NOT EXISTS accounts (
+    await runDdl(this.db,`CREATE TABLE IF NOT EXISTS accounts (
       id TEXT PRIMARY KEY,
       email_normalized TEXT NOT NULL UNIQUE,
       created_at TEXT NOT NULL
@@ -68,7 +69,7 @@ class D1AccountStore{
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
-    await this.db.exec(`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
+    await runDdl(this.db,`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_lookup ON activation_tokens(account_id,token_digest,expires_at,used_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_installation ON activation_tokens(installation_id,created_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_attempts ON activation_tokens(account_id,expires_at,used_at,attempts);
