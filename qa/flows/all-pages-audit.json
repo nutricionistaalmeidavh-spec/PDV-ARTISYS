@@ -939,6 +939,34 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectText",
+      "selector": "[data-product-routing-list]",
+      "expected": "Coca QA",
+      "name": "gestao-rota-direta-produto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-product-routing-list]",
+      "expected": "Atendimento direto",
+      "name": "gestao-rota-direta-rotulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-product-routing-list]",
+      "expected": "Produto QA Atacado",
+      "name": "gestao-rota-producao-produto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-product-routing-list]",
+      "expected": "Produção",
+      "name": "gestao-rota-producao-rotulo",
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
       "name": "alimentacao-mesas-comandas-gestao",
       "fullPage": true
