@@ -329,6 +329,11 @@
       const expected=document.expectedAt ? ` · previsão ${checkoutDocumentContextWhen(document.expectedAt)}` : '';
       return `<div class="checkout-document-context" data-checkout-document-context><div><small>Pedido em atendimento</small><strong>${escapeHtml(number)} · ${escapeHtml(customer)}</strong></div><span>Atacado · ${fulfillment}${expected}</span></div>`;
     }
+    if (context.type === 'DELIVERY') {
+      const customer=document.customerName || selectedCustomer()?.name || 'Cliente não identificado';
+      const fulfillment=String(document.fulfillmentType || '').toUpperCase()==='PICKUP'?'Retirada':'Delivery';
+      return `<div class="checkout-document-context" data-checkout-document-context><div><small>Pedido em atendimento</small><strong>${escapeHtml(customer)}</strong></div><span>${escapeHtml(fulfillment)} · ${escapeHtml(checkoutDocumentStatusLabel(document.status))}</span></div>`;
+    }
     const table=document.tableLabel || document.label || document.tableId || 'Comanda';
     const opened=document.openedAt ? ` · aberta ${checkoutDocumentContextWhen(document.openedAt)}` : '';
     return `<div class="checkout-document-context" data-checkout-document-context><div><small>Comanda em atendimento</small><strong>${escapeHtml(table)}</strong></div><span>Alimentação${opened}</span></div>`;
@@ -414,23 +419,62 @@
   function checkoutDocumentStatusLabel(value) {
     const key=String(value||'').trim().toUpperCase();
     return ({
+      NEW:'Novo pedido',
+      PREPARING:'Preparando',
+      READY:'Pedido pronto',
+      OUT_FOR_DELIVERY:'Saiu para entrega',
+      DELIVERED:'Entregue',
+      PICKED_UP:'Retirado',
       OPEN:'Em aberto',
+      SUSPENDED:'Suspensa',
       CHECKOUT:'Em cobrança',
       QUOTED:'Cotado',
       CONFIRMED:'Confirmado',
       PARTIALLY_FULFILLED:'Parcialmente atendido',
-      READY:'Pronto',
       FULFILLED:'Atendido',
+      COMPLETED:'Concluída',
       CANCELLED:'Cancelado'
     })[key]||'Em andamento';
   }
 
+  function checkoutDocumentTypeLabel(row) {
+    if(row.type==='COMMAND')return 'Alimentação';
+    if(row.type==='ORDER')return 'Atacado';
+    if(row.type==='DELIVERY')return row.fulfillmentType==='PICKUP'?'Retirada':'Delivery';
+    return 'Pedido';
+  }
+
   function openCheckoutDocuments() {
-    openModal('Comandas e pedidos', `<div class="field"><label>Localizar</label><input id="checkout-document-query" autocomplete="off" placeholder="Número do pedido, mesa, comanda ou cliente"></div><div class="checkout-document-filters" role="group" aria-label="Filtrar documentos"><button type="button" class="checkout-document-filter" data-checkout-document-filter="" aria-pressed="true">Todos</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="comanda" aria-pressed="false">Comandas</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="atacado" aria-pressed="false">Atacado</button></div><div id="checkout-document-results" class="data-card"><div class="empty-state">Carregando documentos em aberto…</div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Fechar</button></div>`, { wide:true, onMount(root) {
-      const input=root.querySelector('#checkout-document-query');const host=root.querySelector('#checkout-document-results');const filterButtons=[...root.querySelectorAll('[data-checkout-document-filter]')];let activeFilter='';let timer=null;
-      const render=rows=>{host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${row.type==='COMMAND'?'Alimentação':'Atacado'} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{const split=button.dataset.openCheckoutDocument.indexOf(':');const type=button.dataset.openCheckoutDocument.slice(0,split);const id=button.dataset.openCheckoutDocument.slice(split+1);try{if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}button.disabled=true;const opened=await api.openCheckoutDocument(type,id);state.sale=opened.sale;state.checkoutDocumentContext={type,document:opened.document};state.discountPercent=0;state.selectedProductId=null;closeModal();renderCheckout();showToast(`${type==='COMMAND'?'Comanda':'Pedido'} carregado no caixa.`,'success');}catch(error){button.disabled=false;showToast(error.message,'error');}}));};
+    openModal('Comandas e pedidos', `<div class="field"><label>Localizar</label><input id="checkout-document-query" autocomplete="off" placeholder="Número, mesa, comanda, cliente ou telefone"></div><div class="checkout-document-filters" role="group" aria-label="Filtrar documentos"><button type="button" class="checkout-document-filter" data-checkout-document-filter="" aria-pressed="true">Todos</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="comanda" aria-pressed="false">Comandas</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="atacado" aria-pressed="false">Atacado</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="delivery" aria-pressed="false">Delivery</button><button type="button" class="checkout-document-filter" data-checkout-document-filter="retirada" aria-pressed="false">Retirada</button></div><div id="checkout-document-results" class="data-card"><div class="empty-state">Carregando documentos em aberto…</div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Fechar</button></div>`, { wide:true, onMount(root) {
+      const input=root.querySelector('#checkout-document-query');
+      const host=root.querySelector('#checkout-document-results');
+      const filterButtons=[...root.querySelectorAll('[data-checkout-document-filter]')];
+      let activeFilter='';let timer=null;
+      const render=rows=>{
+        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
+        host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
+          const split=button.dataset.openCheckoutDocument.indexOf(':');
+          const type=button.dataset.openCheckoutDocument.slice(0,split);
+          const id=button.dataset.openCheckoutDocument.slice(split+1);
+          try{
+            if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');
+            if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}
+            button.disabled=true;
+            const opened=await api.openCheckoutDocument(type,id);
+            state.sale=opened.sale;
+            state.checkoutDocumentContext={type,document:opened.document};
+            state.discountPercent=0;state.selectedProductId=null;
+            closeModal();renderCheckout();
+            const label=type==='COMMAND'?'Comanda':type==='DELIVERY'?(opened.document?.fulfillmentType==='PICKUP'?'Retirada':'Delivery'):'Pedido';
+            showToast(`${label} carregado no caixa.`,'success');
+          }catch(error){button.disabled=false;showToast(error.message,'error');}
+        }));
+      };
       const load=async()=>{try{host.innerHTML='<div class="empty-state">Buscando…</div>';const query=[activeFilter,input.value].map(value=>String(value||'').trim()).filter(Boolean).join(' ');render(await api.checkoutDocuments(query));}catch(error){host.innerHTML=`<div class="empty-state">${escapeHtml(error.message)}</div>`;}};
-      filterButtons.forEach(button=>button.addEventListener('click',()=>{activeFilter=button.dataset.checkoutDocumentFilter||'';filterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));void load();}));input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(load,180);});input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();clearTimeout(timer);void load();}});void load();input.focus();
+      filterButtons.forEach(button=>button.addEventListener('click',()=>{activeFilter=button.dataset.checkoutDocumentFilter||'';filterButtons.forEach(item=>item.setAttribute('aria-pressed',String(item===button)));void load();}));
+      input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(load,180);});
+      input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();clearTimeout(timer);void load();}});
+      void load();input.focus();
     }});
   }
 
