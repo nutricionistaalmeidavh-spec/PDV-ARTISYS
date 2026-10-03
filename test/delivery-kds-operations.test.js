@@ -162,8 +162,8 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.match(vertical,/Retirada/);
   assert.doesNotMatch(parity,/new MutationObserver/);
   assert.doesNotMatch(vertical,/new MutationObserver/);
-  assert.doesNotMatch(parity,/ID do pedido/);
-  assert.doesNotMatch(parity,/ID do produto/);
+  assert.doesNotMatch(parity,/function mountDelivery|parity-delivery-p1|data-delivery-next|data-delivery-prefill-sale/);
+  assert.doesNotMatch(vertical,/delivery-sale-form|Gerar venda do pedido|data-delivery-prefill-sale/);
   assert.doesNotMatch(parity,/Avançar para PREPARING|Avançar para READY/);
   assert.match(vertical+parity,/Avisar no WhatsApp/);
   assert.match(vertical,/data-delivery-view="DELIVERY"/);
