@@ -93,7 +93,7 @@ class D1AccountStore{
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
 
-function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.DB);}
+function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.DB||env.artisys);}
 function activeInstallation(record,now){if(!record)return false;if(record.status&&record.status!=='ACTIVE')return false;if(record.expiresAt&&record.expiresAt<=now)return false;return true;}
 function recoveryPepper(env){return String(env.RECOVERY_PEPPER||env.ACTIVATION_PEPPER||'').trim();}
 
@@ -152,7 +152,73 @@ async function verifyPasswordRecovery(request,env){
 }
 
 function adminAuthorized(request,env){const expected=String(env.ADMIN_TOKEN||'').trim();const provided=String(request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();return Boolean(expected)&&provided===expected;}
-function adminHtml(){return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ArtiSys Licencas</title><style>body{font:15px system-ui;background:#f5f6f8;color:#18181b;margin:0}.wrap{max-width:980px;margin:32px auto;padding:0 16px}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:20px;margin:16px 0}input,select,button{padding:10px;border:1px solid #bbb;border-radius:8px;margin:4px}button{cursor:pointer;font-weight:600}.code{font-size:32px;letter-spacing:6px;font-weight:800}table{width:100%;border-collapse:collapse}td,th{padding:9px;border-bottom:1px solid #eee;text-align:left}.muted{color:#666}</style><div class="wrap"><h1>Painel de Licencas ArtiSys</h1><div class="card"><label>Token administrativo <input id="token" type="password"></label><button onclick="load()">Entrar</button></div><div class="card"><h2>Liberar licenca</h2><input id="email" type="email" placeholder="cliente@empresa.com"><input id="expires" type="date"><button onclick="release()">Liberar</button><div id="released"></div></div><div class="card"><h2>Licencas</h2><div id="list" class="muted">Informe o token.</div></div></div><script>const h=()=>({'content-type':'application/json','authorization':'Bearer '+document.querySelector('#token').value});async function api(p,o={}){const r=await fetch(p,{...o,headers:{...h(),...(o.headers||{})}});const j=await r.json();if(!r.ok)throw Error(j.error||'Falha');return j}async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<table><tr><th>E-mail</th><th>Status</th><th>Instalacao</th><th>Acoes</th></tr>'+j.licenses.map(x=>'<tr><td>'+x.email+'</td><td>'+x.status+'</td><td>'+(x.installation_id||'-')+'</td><td><button onclick="recovery(decodeURIComponent(\''+encodeURIComponent(x.installation_id||'')+'\'),decodeURIComponent(\''+encodeURIComponent(x.email)+'\'))">Recuperacao</button><button onclick="status(\''+x.id+'\',\'SUSPENDED\')">Suspender</button><button onclick="status(\''+x.id+'\',\'CANCELLED\')">Cancelar</button></td></tr>').join('')+'</table>'}catch(e){alert(e.message)}}async function release(){try{const email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,expiresAt})});document.querySelector('#released').innerHTML='<p>Codigo de ativacao:</p><div class="code">'+j.code+'</div><p>Valido ate '+j.codeExpiresAt+'</p>';load()}catch(e){alert(e.message)}}async function recovery(installationId,email){if(!installationId)return alert('Licenca ainda nao possui instalacao ativada.');try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Codigo de recuperacao: '+j.code+' (15 min)')}catch(e){alert(e.message)}}async function status(id,status){try{await api('/v1/admin/licenses/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});load()}catch(e){alert(e.message)}}</script></html>`;}
+function adminHtml(){return \`<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Central de Licenças ArtiSys</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18181b;background:#f4f5f7}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 48px}
+h1{margin:0 0 6px;font-size:30px}h2{margin:0 0 14px;font-size:18px}.sub{margin:0 0 22px;color:#64646f}
+.card{background:#fff;border:1px solid #dddfe4;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
+label{font-weight:650;font-size:14px}input,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:11px 12px}
+button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color:#18181b}.secondary{background:#fff;color:#18181b}
+.hint{font-size:13px;color:#70707b}.result{margin-top:16px;padding:16px;background:#f7f7f8;border-radius:12px;display:none}
+.code{font-size:34px;letter-spacing:7px;font-weight:850;margin:8px 0}.manual{font-weight:700;margin:4px 0}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:700px}td,th{padding:10px;border-bottom:1px solid #ececf0;text-align:left;white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.muted{color:#71717a}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 9px;font-size:12px}
+@media(max-width:640px){.wrap{padding:18px 12px}.card{padding:16px}.field{min-width:100%}.code{font-size:30px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Central de Licenças ArtiSys</h1>
+  <p class="sub">Libere o acesso do cliente manualmente. A Central gera o código e você envia o código ao cliente.</p>
+
+  <div class="card">
+    <h2>Acesso administrativo</h2>
+    <div class="row">
+      <div class="field"><label for="token">Token administrativo</label><input id="token" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN"></div>
+      <button type="button" onclick="load()">Entrar / atualizar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Liberar novo acesso</h2>
+    <div class="row">
+      <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
+      <div class="field"><label for="expires">Validade da licença <span class="hint">(opcional)</span></label><input id="expires" type="date"></div>
+      <button type="button" onclick="release()">Gerar código</button>
+    </div>
+    <div id="released" class="result">
+      <div class="hint">Código de ativação</div>
+      <div id="released-code" class="code"></div>
+      <div class="manual">Você envia o código ao cliente.</div>
+      <div id="released-expiry" class="hint"></div>
+      <p><button type="button" class="secondary" onclick="copyCode()">Copiar código</button></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Licenças</h2>
+    <div id="list" class="muted">Informe o token administrativo para carregar.</div>
+  </div>
+</div>
+<script>
+const h=()=>({'content-type':'application/json','authorization':'Bearer '+document.querySelector('#token').value});
+async function api(p,o={}){const r=await fetch(p,{...o,headers:{...h(),...(o.headers||{})}});let j={};try{j=await r.json()}catch{}if(!r.ok)throw Error(j.error||'Falha');return j}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>'}catch(e){alert(e.message)}}
+async function release(){try{const email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
+async function copyCode(){const code=document.querySelector('#released-code').textContent.trim();if(!code)return;try{await navigator.clipboard.writeText(code)}catch{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}}
+async function recovery(installationId,email){try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Código de recuperação: '+j.code+' (15 min). Você envia esse código ao cliente.')}catch(e){alert(e.message)}}
+async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
+</script>
+</body>
+</html>\`;}
 async function adminRoute(request,env,url){
   if(request.method==='GET'&&url.pathname==='/admin')return new Response(adminHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   if(!url.pathname.startsWith('/v1/admin/'))return null;
