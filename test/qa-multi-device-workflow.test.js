@@ -54,3 +54,18 @@ test('Electron QA harness provides isolated safeStorage for terminal credentials
   assert.match(harness,/safeStorage\.encryptString/);
   assert.match(harness,/safeStorage\.decryptString/);
 });
+
+
+test('stress profile homologates the requested LAN scale and aggressive order ramp',()=>{
+  const runner=fs.readFileSync(runnerPath,'utf8');
+  assert.ok(runner.includes('scale-10-cashiers-15-waiters-13-orders'),'stress must cover the exact requested topology');
+  assert.ok(runner.includes('aggressive-order-ramp'),'stress must include the aggressive load ramp');
+  assert.match(runner,/const SCALE_CASHIERS=10\b/);
+  assert.match(runner,/const SCALE_WAITERS=15\b/);
+  assert.match(runner,/const SCALE_SIMULTANEOUS_ORDERS=13\b/);
+  assert.match(runner,/const AGGRESSIVE_ORDER_LEVELS=\[100,250,500\]/);
+  assert.match(runner,/p50Ms/);
+  assert.match(runner,/p95Ms/);
+  assert.match(runner,/maxMs/);
+  assert.match(runner,/Promise\.all/,'load must actually issue concurrent work');
+});
