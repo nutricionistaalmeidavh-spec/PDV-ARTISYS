@@ -60,11 +60,12 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
 
   function productionSummary(sessionId) {
     if (!sessionId) return { productionStatus:null, readyItems:0, preparingItems:0, newItems:0 };
-    const rows = db.prepare(`SELECT o.status,SUM(i.quantity) AS quantity
-      FROM restaurant_orders o
-      JOIN restaurant_order_items i ON i.order_id=o.id
-      WHERE o.table_session_id=? AND o.status<>'CANCELLED'
-      GROUP BY o.status`).all(String(sessionId));
+    const rows = db.prepare(`SELECT t.status,SUM(i.quantity) AS quantity
+      FROM kitchen_tickets t
+      JOIN kitchen_ticket_items i ON i.ticket_id=t.id
+      JOIN restaurant_orders o ON o.id=t.order_id
+      WHERE o.table_session_id=? AND t.status<>'CANCELLED' AND o.status<>'CANCELLED'
+      GROUP BY t.status`).all(String(sessionId));
     const counts = Object.fromEntries(rows.map(row=>[row.status,Number(row.quantity||0)]));
     const readyItems=counts.READY||0,preparingItems=counts.PREPARING||0,newItems=counts.NEW||0;
     const productionStatus=preparingItems>0?'PREPARING':newItems>0?'NEW':readyItems>0?'READY':null;
