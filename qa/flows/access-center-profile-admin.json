@@ -1,0 +1,291 @@
+{
+  "name": "access-center-profile-admin",
+  "title": "ArtiSys PDV — Administração completa de perfis",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "perfil-admin-bootstrap",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "perfil-admin-entrar-admin",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "perfil-admin-autenticado",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "#sidebar-nav button[data-route='access']",
+      "name": "perfil-admin-abrir-central",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".access-center-page",
+      "name": "perfil-admin-central-carregada",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-central-inicial",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-access-tab='profiles']",
+      "name": "perfil-admin-abrir-perfis",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-new-profile]",
+      "name": "perfil-admin-pode-criar-perfil",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-lista-perfis",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-new-profile]",
+      "name": "perfil-admin-novo-perfil",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root [data-profile-form]",
+      "name": "perfil-admin-modal-criacao",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-criacao-vazia",
+      "fullPage": true
+    },
+    {
+      "action": "fill",
+      "selector": "#modal-root input[name='name']",
+      "value": "ZZZ Perfil QA Auditoria",
+      "name": "perfil-admin-nome"
+    },
+    {
+      "action": "check",
+      "selector": "#modal-root input[name='permission'][value='products.view']",
+      "name": "perfil-admin-permissao-produtos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "check",
+      "selector": "#modal-root input[name='permission'][value='inventory.view']",
+      "name": "perfil-admin-permissao-estoque",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-criacao-preenchida",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#modal-root [data-profile-form] button[type='submit']",
+      "name": "perfil-admin-salvar-novo-perfil",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "perfil-admin-criacao-fechada",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "expected": "ZZZ Perfil QA Auditoria",
+      "name": "perfil-admin-perfil-criado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-criado",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "article:has-text('ZZZ Perfil QA Auditoria') [data-edit-profile]",
+      "name": "perfil-admin-editar-perfil",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root [data-profile-form]",
+      "name": "perfil-admin-modal-edicao",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#modal-root input[name='name']",
+      "value": "ZZZ Perfil QA Auditoria Editado",
+      "name": "perfil-admin-editar-nome"
+    },
+    {
+      "action": "check",
+      "selector": "#modal-root input[name='permission'][value='reports.view']",
+      "name": "perfil-admin-adicionar-relatorios",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-edicao-preenchida",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#modal-root [data-profile-form] button[type='submit']",
+      "name": "perfil-admin-salvar-edicao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root",
+      "name": "perfil-admin-edicao-fechada",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "expected": "ZZZ Perfil QA Auditoria Editado",
+      "name": "perfil-admin-perfil-editado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-editado",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-access-tab='people']",
+      "name": "perfil-admin-abrir-pessoas",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "name": "perfil-admin-pessoa-pronta",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "press",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "key": "End",
+      "name": "perfil-admin-selecionar-perfil-customizado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-save-profile]",
+      "name": "perfil-admin-atribuir-pessoa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitForTimeout",
+      "timeoutMs": 250,
+      "name": "perfil-admin-aguardar-atribuicao"
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-pessoa-atribuida",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-access-tab='profiles']",
+      "name": "perfil-admin-voltar-perfis",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "article:has-text('ZZZ Perfil QA Auditoria Editado') [data-delete-profile]",
+      "name": "perfil-admin-tentar-excluir-em-uso",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "expected": "Perfil em uso nao pode ser excluido.",
+      "name": "perfil-admin-exclusao-bloqueada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-exclusao-em-uso",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-access-tab='people']",
+      "name": "perfil-admin-voltar-pessoas",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-profile-select]",
+      "value": "profile-manager",
+      "name": "perfil-admin-selecionar-gerente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-save-profile]",
+      "name": "perfil-admin-reatribuir-gerente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitForTimeout",
+      "timeoutMs": 250,
+      "name": "perfil-admin-aguardar-reatribuicao"
+    },
+    {
+      "action": "click",
+      "selector": "button[data-access-tab='profiles']",
+      "name": "perfil-admin-perfis-para-excluir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "article:has-text('ZZZ Perfil QA Auditoria Editado') [data-delete-profile]",
+      "name": "perfil-admin-excluir-perfil",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "article:has-text('ZZZ Perfil QA Auditoria Editado')",
+      "name": "perfil-admin-perfil-excluido",
+      "state": "detached",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "perfil-admin-excluido",
+      "fullPage": true
+    }
+  ]
+}
