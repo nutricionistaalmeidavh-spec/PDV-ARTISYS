@@ -92,6 +92,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectInViewport",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-no-viewport-1",
+      "tolerancePx": 2,
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
       "name": "balcao",
       "fullPage": true
@@ -107,6 +114,13 @@
       "action": "expectVisible",
       "selector": "#finalize-sale",
       "name": "balcao-finalizar-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectInViewport",
+      "selector": "#finalize-sale",
+      "name": "balcao-finalizar-no-viewport-2",
+      "tolerancePx": 2,
       "timeoutMs": 10000
     },
     {
