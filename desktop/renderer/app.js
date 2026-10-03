@@ -196,7 +196,7 @@
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
     const accessPolicy = window.PdvAccessPolicy;
-    const items = accessPolicy?.routesForUser(state.user) || ['home'];
+    const items = (accessPolicy?.routesForUser(state.user) || ['home']).filter(route=>route!=='settings');
     const parentRoute = {
       finance:'financial-management',
       'finance-banks':'financial-management',
