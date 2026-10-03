@@ -127,9 +127,13 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
   const label = stepLabel(step, index);
   switch (step.action) {
     case 'goto': {
-      const target = step.urlFrom
-        ? String(runtimeVariable(runtimeContext, step.urlFrom, label))
-        : step.url || (step.path && baseURL ? new URL(step.path, baseURL).toString() : step.path);
+      let target;
+      if (step.urlFrom) {
+        const dynamicBase = String(runtimeVariable(runtimeContext, step.urlFrom, label));
+        target = step.path ? new URL(step.path, dynamicBase).toString() : dynamicBase;
+      } else {
+        target = step.url || (step.path && baseURL ? new URL(step.path, baseURL).toString() : step.path);
+      }
       if (!target) throw new Error('goto requires url, urlFrom or path');
       await page.goto(target, { waitUntil: step.waitUntil || 'domcontentloaded' });
       break;
@@ -180,6 +184,23 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         form.requestSubmit();
       }, credentials);
       await page.locator('#auth-overlay').waitFor({ state:'hidden', timeout:step.timeoutMs ?? 15000 });
+      break;
+    }
+    case 'desktopConfig': {
+      const config = await page.evaluate(async () => {
+        if (typeof window.artisysDesktop?.getConfig !== 'function') throw new Error('Desktop config bridge unavailable');
+        return window.artisysDesktop.getConfig();
+      });
+      if (!runtimeContext) throw new Error(`${label}: runtime context is unavailable`);
+      runtimeContext.vars ||= {};
+      if (step.saveAs != null) {
+        if (!step.saveAs || typeof step.saveAs !== 'object' || Array.isArray(step.saveAs)) throw new TypeError(`${label}: saveAs must be an object`);
+        for (const [name, configPath] of Object.entries(step.saveAs)) {
+          const value = payloadPathValue(config, configPath);
+          if (value == null) throw new Error(`${label}: config value ${configPath} is unavailable for ${name}`);
+          runtimeContext.vars[name] = value;
+        }
+      }
       break;
     }
     case 'desktopApiRequest': {
