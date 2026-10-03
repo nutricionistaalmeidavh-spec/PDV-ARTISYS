@@ -73,3 +73,10 @@ test('Access Center UX filters profiles by name and usage context',()=>{
   assert.equal(all.find(item=>item.id==='p-stock').usageCount,1);
   assert.equal(all.find(item=>item.id==='profile-administrator').systemProfile,true);
 });
+
+
+test('Access Center UX disables hidden bulk permission actions while searching',()=>{
+  assert.equal(model.permissionGroupBulkAction({selected:1,total:4,query:'relatórios'}),null);
+  assert.deepEqual(model.permissionGroupBulkAction({selected:1,total:4,query:''}),{action:'select',label:'Selecionar grupo'});
+  assert.deepEqual(model.permissionGroupBulkAction({selected:4,total:4,query:''}),{action:'clear',label:'Limpar grupo'});
+});
