@@ -28,7 +28,7 @@ A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora
 
 `restaurant-ui.js` é carregado como módulo de renderer e usa a ponte IPC já existente (`artisys:api`). O Electron injeta o token local somente para rotas de restaurante no perfil servidor; terminais remotos usam sua credencial de terminal já pareada.
 
-A superfície desktop separa duas visões sem duplicar domínio: **Operação** concentra mapa de mesas, contexto do atendimento, compositor multi-item, comanda, chamados, KDS, pré-conta, fechamento e movimentações (divisão/cobrança, transferência/cancelamento de itens, junção e transferência de comandas); **Configuração**, disponível apenas para gerente/administrador, concentra setores de produção, dispositivos LAN e indicadores/exportação. A abertura do workspace sempre prioriza Operação, e a comanda selecionada é preservada ao alternar de visão.
+A superfície desktop separa duas visões sem duplicar domínio: **Operação** concentra mapa de mesas, contexto do atendimento, compositor multi-item, comanda, chamados, KDS, pré-conta e fechamento; **Configuração**, disponível apenas para gerente/administrador, concentra setores de produção, dispositivos LAN e indicadores/exportação. As operações avançadas de divisão, liquidação, transferência, junção e cancelamento continuam no fluxo avançado já existente, sem duplicar o domínio de mesas. A abertura do workspace sempre prioriza Operação, e a comanda selecionada é preservada ao alternar de visão.
 
 ## E36 — roteamento HTTP local
 
@@ -40,7 +40,7 @@ A superfície desktop separa duas visões sem duplicar domínio: **Operação** 
 
 ## E38 — confiabilidade
 
-Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. O gate de UI cobre o ciclo transacional abrir mesa → contexto/responsável → pedido multi-item → KDS → conta → Caixa → venda concluída → mesa livre e também os canais garçom/tablet/QR usando o mesmo compositor.
+Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. O gate de UI cobre o ciclo transacional abrir mesa → contexto/responsável → pedido multi-item → KDS → conta → Caixa → venda concluída → mesa livre. A suíte de integração HTTP cobre garçom, tablet e QR usando o mesmo compositor/configuração canônica, enquanto o smoke de superfícies valida `/mobile` e `/m/:token`.
 
 ## E39 — release
 
