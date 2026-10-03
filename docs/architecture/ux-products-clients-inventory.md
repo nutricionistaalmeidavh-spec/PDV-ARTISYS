@@ -22,10 +22,6 @@ Contratos preservados: `#new-product`, `#new-category`, `#product-page-search`, 
 
 Sincronização, upload, remoção e miniaturas continuam usando API/bridge locais.
 
-## Dados fiscais — funcionalidade injetada
-
-`product-fiscal-fields.js` continua ampliando `#product-form` com perfil tributário e GTIN.
-
 ## Variações/subitens — funcionalidade injetada
 
 `product-variants-ui.js` usa `PdvUiLifecycle` nas rotas Produtos/Balcão, preservando produto pai, variações, estoque e seleção no checkout.
