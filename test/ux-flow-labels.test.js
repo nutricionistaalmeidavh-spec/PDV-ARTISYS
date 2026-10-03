@@ -16,6 +16,8 @@ test('Cardápio uses publication-oriented labels instead of product-creation wor
   assert.doesNotMatch(app,/>Ver origem<\/button>/);
 
   const dense=read('desktop/renderer/products-dense-view.js');
+  assert.match(dense,/<h1>Cardápio<\/h1>/);
+  assert.match(dense,/id="new-product">\+ Adicionar ao Cardápio<\/button>/);
   assert.match(dense,/product\.prepared\s*\?\s*'Ver ficha técnica'\s*:\s*'Ver cadastro'/);
   assert.doesNotMatch(dense,/>Ver origem<\/button>/);
 });
