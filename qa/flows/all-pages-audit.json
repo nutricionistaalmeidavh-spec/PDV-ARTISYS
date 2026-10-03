@@ -766,6 +766,23 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-produto-sem-destino-qa",
+      "body": {
+        "id": "qa-pending-route-product",
+        "name": "Água QA sem destino",
+        "sku": "QA-PEND-01",
+        "salePriceCents": 500,
+        "costCents": 200,
+        "trackStock": false,
+        "menuEnabled": true,
+        "active": true
+      }
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/restaurant/kitchen/stations",
       "method": "POST",
       "expectedStatus": 201,
@@ -936,6 +953,39 @@
       "selector": "[data-restaurant-management]",
       "expected": "Configuração e indicadores",
       "name": "mesas-comandas-gestao-titulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-routing-alert]",
+      "name": "gestao-alerta-destinos-pendentes",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-routing-alert]",
+      "expected": "sem destino configurado",
+      "name": "gestao-alerta-destinos-contagem",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-routing-alert]",
+      "expected": "Água QA sem destino",
+      "name": "gestao-alerta-produto-pendente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-routing-review]",
+      "name": "gestao-revisar-primeiro-destino-pendente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectValue",
+      "selector": "#assignment-form select[name='productId']",
+      "expected": "qa-pending-route-product",
+      "name": "gestao-seleciona-produto-pendente",
       "timeoutMs": 10000
     },
     {

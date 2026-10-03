@@ -103,3 +103,43 @@ test('waiter mobile context exposes order production status for the selected tab
     ctx.close();
   }
 });
+
+
+test('product production route can be read before the item enters the menu',async()=>{
+  const ctx=fixture();
+  let server;
+  try{
+    ctx.runtime.modules.setEnabled('FOOD',true,admin);
+    ctx.runtime.catalog.upsertProduct({
+      id:'water',
+      name:'Água mineral',
+      sku:'AGUA',
+      salePriceCents:500,
+      costCents:200,
+      trackStock:true,
+      usageType:'DIRECT',
+      menuEnabled:false,
+      active:true
+    },admin);
+    ctx.runtime.kitchen.configureProductRoute('water',{mode:'DIRECT'},admin);
+
+    server=createLocalServer({runtime:ctx.runtime,host:'127.0.0.1',port:0,token:'local-secret',requireTerminalAuth:false});
+    const address=await server.start();
+    const response=await fetch(`http://${address.host}:${address.port}/api/v1/restaurant/kitchen/routing/water`,{
+      headers:{'x-pdv-token':'local-secret'}
+    });
+
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{
+      productId:'water',
+      productName:'Água mineral',
+      mode:'DIRECT',
+      stationId:null,
+      stationName:null
+    });
+    assert.equal(ctx.runtime.catalog.getProduct('water').menuEnabled,false);
+  }finally{
+    if(server)await server.stop();
+    ctx.close();
+  }
+});
