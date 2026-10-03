@@ -42,7 +42,7 @@ jobs:
           QA_PROFILE: ${{ inputs.profile }}
         run: |
           rm -rf qa-artifacts/multi-device
-          npm run qa:multi-device -- --profile "${QA_PROFILE:-full}" --output qa-artifacts/multi-device
+          xvfb-run -a npm run qa:multi-device -- --profile "${QA_PROFILE:-full}" --output qa-artifacts/multi-device
 
       - name: Publish QA summary
         if: always()
