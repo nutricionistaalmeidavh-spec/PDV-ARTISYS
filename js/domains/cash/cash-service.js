@@ -52,6 +52,16 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     if(current)return current;
     throw new Error('Nao existe caixa correspondente a esta operacao.');
   }
+  function aggregateAmountsByMethod(items=[]){
+    const grouped=new Map();
+    for(const item of items||[]){
+      const method=normalizeMethod(item?.method)||'CASH';
+      const amountCents=assertCents(item?.amountCents,'amountCents');
+      if(amountCents<0)throw new Error('Valor do movimento nao pode ser negativo.');
+      grouped.set(method,(grouped.get(method)||0)+amountCents);
+    }
+    return [...grouped].map(([method,amountCents])=>({method,amountCents}));
+  }
   function recalculateClosedSession(sessionId){
     const row=db.prepare('SELECT * FROM cash_sessions WHERE id=?').get(String(sessionId));
     if(!row||row.status!=='CLOSED')return;
@@ -59,8 +69,8 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     const summary=calculateCashClosing({initialCashCents:row.initial_cash_cents,movements,countedByMethod:{CASH:Number(row.counted_cash_cents||0)}});
     db.prepare('UPDATE cash_sessions SET expected_cash_cents=?,divergence_cents=? WHERE id=?').run(summary.expectedCashCents,summary.divergenceCents,row.id);
   }
-  function recordSalePayments({cashSessionId=null,terminalId,saleId,payments=[],occurredAt=null}={}){const session=resolveEffectSession({cashSessionId,terminalId,occurredAt});const result=withTransaction(db,()=>payments.map(payment=>insertMovement({sessionId:session.id,type:'SALE',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:occurredAt||now()})));recalculateClosedSession(session.id);return result;}
-  function reverseSalePayments({cashSessionId=null,terminalId,saleId,payments=[],occurredAt=null}={}){const session=resolveEffectSession({cashSessionId,terminalId,occurredAt});const result=withTransaction(db,()=>payments.map(payment=>insertMovement({sessionId:session.id,type:'REVERSAL',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:occurredAt||now()})));recalculateClosedSession(session.id);return result;}
+  function recordSalePayments({cashSessionId=null,terminalId,saleId,payments=[],occurredAt=null}={}){const session=resolveEffectSession({cashSessionId,terminalId,occurredAt});const grouped=aggregateAmountsByMethod(payments);const result=withTransaction(db,()=>grouped.map(payment=>insertMovement({sessionId:session.id,type:'SALE',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:occurredAt||now()})));recalculateClosedSession(session.id);return result;}
+  function reverseSalePayments({cashSessionId=null,terminalId,saleId,payments=[],occurredAt=null}={}){const session=resolveEffectSession({cashSessionId,terminalId,occurredAt});const grouped=aggregateAmountsByMethod(payments);const result=withTransaction(db,()=>grouped.map(payment=>insertMovement({sessionId:session.id,type:'REVERSAL',amountCents:payment.amountCents,paymentMethod:payment.method,saleId,createdAt:occurredAt||now()})));recalculateClosedSession(session.id);return result;}
   function recordReturnRefunds({cashSessionId=null,terminalId,returnId,refunds=[],direction='return',occurredAt=null}={}){
     const session=resolveEffectSession({cashSessionId,terminalId,occurredAt});
     const type=direction==='cancel'?'SALE':'REVERSAL';
