@@ -89,3 +89,41 @@ test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{
   assert.match(css,/flow-hub-page\[data-flow-hub="Cadastros"\] \.home-tile \{ min-height:104px/);
   assert.match(css,/@media \(min-width:621px\)[\s\S]*flow-hub-page\[data-flow-hub="Cadastros"\] \.flow-hub-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
+
+
+test('P2 flow hubs use compact card density consistently',()=>{
+  const css=read('desktop/renderer/classic-home-ui.css');
+  assert.match(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:108px[^}]*padding:14px 16px/);
+  assert.doesNotMatch(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:132px/);
+});
+
+test('P2 Estoque removes persistent explanatory copy from the primary cards',()=>{
+  const pages=read('desktop/renderer/operational-pages.js');
+  assert.match(pages,/<h2>Cadastro mestre<\/h2><p>Produtos, insumos e fichas técnicas\.<\/p>/);
+  assert.doesNotMatch(pages,/Nada é colocado no Cardápio automaticamente/);
+  assert.match(pages,/<h2>Fichas técnicas<\/h2><p>Composição interna de produtos preparados\.<\/p>/);
+});
+
+test('P2 vertical card grids stay two-column on tablet and stack only on narrow screens',()=>{
+  const css=read('desktop/renderer/vertical-modules.css');
+  assert.match(css,/@media\(min-width:761px\) and \(max-width:1100px\)\{[^}]*\.vertical-card-grid\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css,/@media\(max-width:760px\)\{[^}]*\.vertical-card-grid\{grid-template-columns:1fr\}/);
+});
+
+test('P2 dense operational surfaces use concise helper copy',()=>{
+  const restaurant=read('desktop/renderer/restaurant-ui.js');
+  const reports=read('desktop/renderer/reporting-v2.js');
+  assert.match(restaurant,/Escolha Produção\/KDS ou Sem KDS para cada item\./);
+  assert.doesNotMatch(restaurant,/Ex\.: refrigerante = sem KDS; suco preparado = produção/);
+  assert.match(reports,/Indicadores para decisão; o CSV mantém o detalhamento analítico\./);
+  assert.doesNotMatch(reports,/O CSV preserva o detalhamento completo, incluindo Desconto rateado/);
+});
+
+test('P1 secondary operational text keeps WCAG-AA-friendly contrast tokens',()=>{
+  const ops=read('desktop/renderer/operational-pages.css');
+  const restaurant=read('desktop/renderer/restaurant-ui.css');
+  assert.match(ops,/\.ops-metric small\{[^}]*color:var\(--text-subtle,#60708a\)/);
+  assert.match(ops,/\.ops-table td small\{[^}]*color:var\(--text-subtle,#60708a\)/);
+  assert.match(restaurant,/\.restaurant-row small\{color:var\(--text-subtle,#60708a\)\}/);
+  assert.match(restaurant,/\.restaurant-kpi span\{[^}]*color:var\(--text-subtle,#60708a\)/);
+});
