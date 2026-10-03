@@ -27,12 +27,12 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
       }
       for(const order of runtime.delivery?.list?.()||[]){
         if(!order.saleId)continue;const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')continue;
-        if(!matchesSearch([order.customerName,order.id,order.fulfillmentType,'delivery entrega retirada pedido pedidos'],q))continue;
+        if(!matchesSearch([order.customerName,order.id,order.fulfillmentType,'delivery entrega retirada'],q))continue;
         rows.push({type:'DELIVERY',id:order.id,number:order.id,label:`${order.customerName||'Pedido'} · ${order.fulfillmentType==='PICKUP'?'Retirada':'Entrega'}`,status:order.status,totalCents:sale.totalCents,customerName:order.customerName||null,saleId:sale.id,openedAt:order.createdAt});
       }
       for(const order of runtime.fastFood?.list?.()||[]){
         if(!order.saleId)continue;const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')continue;
-        if(!matchesSearch([order.dailyNumber,order.id,'fast food fast-food balcao senha senhas pedido pedidos'],q))continue;
+        if(!matchesSearch([order.dailyNumber,order.id,'fast food fast-food balcao senha senhas'],q))continue;
         rows.push({type:'FAST_FOOD',id:order.id,number:String(order.dailyNumber),label:`Senha ${order.dailyNumber}`,status:order.status,totalCents:sale.totalCents,customerName:null,saleId:sale.id,openedAt:order.createdAt});
       }
     }
