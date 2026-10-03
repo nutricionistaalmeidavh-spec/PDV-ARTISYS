@@ -84,6 +84,7 @@ const DEFINITIONS=[
   ['modules.manage','system','Gerenciar módulos','Ativar ou desativar áreas do estabelecimento.'],
   ['settings.view','system','Consultar configurações','Consultar configurações administrativas.'],
   ['settings.manage','system','Gerenciar configurações','Alterar configurações administrativas e operacionais.'],
+  ['deployment.manage','system','Gerenciar implantação','Alterar o papel deste computador, servidor de dados e acesso LAN.'],
   ['security.view','system','Consultar segurança','Consultar estado de segurança, acessos e alertas.'],
   ['audit.view','system','Consultar auditoria','Consultar eventos de auditoria e alterações sensíveis.']
 ];
