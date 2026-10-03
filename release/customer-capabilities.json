@@ -235,8 +235,7 @@
         "restaurant-service-requests-waiter-and-bill",
         "restaurant-operational-reports-and-csv-export",
         "restaurant-session-waiter-party-customer-context",
-        "restaurant-shared-multichannel-order-composer",
-        "restaurant-table-lifecycle-transactional-e2e"
+        "restaurant-shared-multichannel-order-composer"
       ],
       "backend": [
         {
