@@ -1,9 +1,6 @@
 name: QA Multi-Device LAN
 
 on:
-  push:
-    branches:
-      - feat/qa-multi-device-lan
   workflow_dispatch:
     inputs:
       profile:
@@ -20,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: qa-multi-device-lan-stress-rerun-${{ github.sha }}
+  group: qa-multi-device-lan-${{ github.ref }}-${{ inputs.profile }}
   cancel-in-progress: false
 
 jobs:
@@ -45,7 +42,7 @@ jobs:
           QA_PROFILE: ${{ inputs.profile }}
         run: |
           rm -rf qa-artifacts/multi-device
-          xvfb-run -a npm run qa:multi-device -- --profile "${QA_PROFILE:-stress}" --output qa-artifacts/multi-device
+          xvfb-run -a npm run qa:multi-device -- --profile "${QA_PROFILE:-full}" --output qa-artifacts/multi-device
 
       - name: Publish QA summary
         if: always()
