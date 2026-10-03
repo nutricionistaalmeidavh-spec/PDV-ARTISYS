@@ -87,12 +87,15 @@ test('P2 public resource principals receive only explicit public capabilities',(
 });
 
 
-test('P2 runtime exposes canonical authorization service without replacing legacy gates yet',()=>{
+test('P2 runtime exposes canonical authorization service and P3 resolves humans from persisted profiles',()=>{
   const {createPdvRuntime}=require('../js/core/pdv-runtime');
   const runtime=createPdvRuntime({dbPath:':memory:'});
   try{
+    const admin=runtime.catalog.createUser({id:'a1',username:'admin-p2',name:'Admin P2',role:'admin',password:'senha-admin-p2'});
+    const cashier=runtime.catalog.createUser({id:'c1',username:'cashier-p2',name:'Cashier P2',role:'cashier',password:'senha-cashier-p2'});
     assert.ok(runtime.authorization);
-    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'a1',legacyRole:'admin'},capability:'profiles.edit'}),true);
-    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'c1',legacyRole:'cashier'},capability:'finance.manage'}),false);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:admin.id},capability:'profiles.edit'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'finance.manage'}),false);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'ghost',legacyRole:'admin'},capability:'profiles.edit'}),false);
   }finally{runtime.close();}
 });
