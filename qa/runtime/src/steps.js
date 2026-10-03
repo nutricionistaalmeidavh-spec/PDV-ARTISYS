@@ -111,6 +111,17 @@ function runtimeVariable(runtimeContext, key, label) {
   return runtimeContext.vars[name];
 }
 
+function resolveRuntimeTemplate(value, runtimeContext, label) {
+  if (typeof value === 'string') {
+    return value.replace(/\{\{([^{}]+)\}\}/g, (_match, key) => String(runtimeVariable(runtimeContext, key.trim(), label)));
+  }
+  if (Array.isArray(value)) return value.map(item => resolveRuntimeTemplate(item, runtimeContext, label));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key,item]) => [key, resolveRuntimeTemplate(item, runtimeContext, label)]));
+  }
+  return value;
+}
+
 function payloadPathValue(payload, pathValue) {
   const path = String(pathValue || '').trim();
   if (!path) return payload;
@@ -213,13 +224,14 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       break;
     }
     case 'desktopApiRequest': {
-      const requestPath=String(step.path||'').trim();
+      const requestPath=String(resolveRuntimeTemplate(step.path||'',runtimeContext,label)).trim();
+      const requestBody=resolveRuntimeTemplate(step.body??null,runtimeContext,label);
       if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);
       const result=await page.evaluate(async input=>{
         if(typeof window.artisysDesktop?.apiRequest!=='function')throw new Error('Desktop API bridge unavailable');
         const sessionToken=sessionStorage.getItem('artisys.sessionToken')||null;
         return window.artisysDesktop.apiRequest({path:input.path,method:input.method||'GET',body:input.body,sessionToken});
-      },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
+      },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:requestBody});
       if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
       if(step.expectOk!==false&&!result?.ok)throw new Error(`${label}: desktop API request failed: ${JSON.stringify(result?.payload||null)}`);
       if(step.expectedPayloadIncludes!=null){
