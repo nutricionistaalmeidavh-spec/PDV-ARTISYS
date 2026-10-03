@@ -15,10 +15,11 @@ function createPublicOrderingRouter({runtime,publicDir=path.join(__dirname,'cust
   const files=new Map([
     ['/menu/app.js',['app.js','application/javascript; charset=utf-8']],
     ['/menu/styles.css',['styles.css','text/css; charset=utf-8']],
-    ['/menu/icon.svg',['icon.svg','image/svg+xml; charset=utf-8']]
+    ['/menu/icon.svg',['icon.svg','image/svg+xml; charset=utf-8']],
+    ['/menu/order-composer.js',[path.join(__dirname,'..','shared','order-composer.js'),'application/javascript; charset=utf-8',true]]
   ]);
   function serveStatic(pathname,response){
-    const entry=files.get(pathname);if(!entry)return false;const full=path.join(publicDir,entry[0]);if(!fs.existsSync(full)){text(response,404,'Interface de cardapio nao instalada.');return true;}text(response,200,fs.readFileSync(full,'utf8'),entry[1]);return true;
+    const entry=files.get(pathname);if(!entry)return false;const full=entry[2]?entry[0]:path.join(publicDir,entry[0]);if(!fs.existsSync(full)){text(response,404,'Interface de cardapio nao instalada.');return true;}text(response,200,fs.readFileSync(full,'utf8'),entry[1]);return true;
   }
   function serveMenuShell(pathname,response){
     if(!/^\/m\/[A-Za-z0-9_-]{20,64}\/?$/.test(pathname))return false;const full=path.join(publicDir,'index.html');if(!fs.existsSync(full)){text(response,404,'Interface de cardapio nao instalada.');return true;}text(response,200,fs.readFileSync(full,'utf8'),'text/html; charset=utf-8',{'x-robots-tag':'noindex, nofollow'});return true;
