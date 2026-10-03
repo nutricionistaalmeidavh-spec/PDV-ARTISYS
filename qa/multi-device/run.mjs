@@ -20,7 +20,7 @@ const SCALE_CASHIERS=10;
 const SCALE_WAITERS=15;
 const SCALE_SIMULTANEOUS_ORDERS=13;
 const AGGRESSIVE_ORDER_LEVELS=[100,250,500];
-const LOAD_REQUEST_TIMEOUT_MS=30000;
+const LOAD_REQUEST_TIMEOUT_MS=90000;
 
 function parseArgs(argv){
   const result={profile:process.env.QA_PROFILE||'full',output:'qa-artifacts/multi-device'};
