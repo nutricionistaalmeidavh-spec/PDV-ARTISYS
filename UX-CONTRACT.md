@@ -183,3 +183,14 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Um item sem destino continua sendo erro de configuração e nunca é convertido implicitamente para atendimento direto.
 - Quando Gestão ou Cardápio detectam um item sem destino, a ação de correção leva ao cadastro correspondente no Estoque.
 - Setores disponíveis são criados em Alimentação → Gestão; o Estoque escolhe qual setor cada item preparado utiliza.
+
+## Entrega, retirada e produção
+
+- **Entrega e retirada** é uma única área operacional com entradas visuais para Delivery e Retirada; os cards escolhem o recorte da fila, não criam fluxos concorrentes.
+- **Atendimento** registra cliente, itens e fulfillment e envia o pedido para produção. A interface não solicita IDs de pedido/produto nem replica o formulário técnico da venda.
+- **KDS** é a autoridade de preparo. Cozinha, Bar e demais setores alteram somente seus tickets `NEW → PREPARING → READY`; Delivery/Retirada exibem o estado agregado e não oferecem botões paralelos de “Preparar” ou “Pronto”.
+- Um pedido com vários setores só é **Pronto** quando todos os tickets ativos estão `READY`.
+- KDS pode ser escopado por setor em **Acessos → Dispositivos**; nenhum setor selecionado significa painel geral.
+- Depois de pronto, **Retirada** oferece WhatsApp e “Marcar retirado”; **Delivery** oferece entregador, “Saiu para entrega” e “Entregue”.
+- **Cobrar no Balcão** abre a venda canônica já vinculada ao pedido. A interface não recria itens, preços ou cliente.
+- Atualização periódica de dados pode existir para superfícies persistentes, mas montagem e descoberta de UI usam eventos/lifecycle; não se observa DOM para descobrir que a tela apareceu.
