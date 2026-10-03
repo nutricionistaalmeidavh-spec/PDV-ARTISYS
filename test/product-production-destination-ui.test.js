@@ -5,6 +5,7 @@ const assert=require('node:assert/strict');
 
 const root=path.resolve(__dirname,'..');
 const app=fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
+const restaurantRouter=fs.readFileSync(path.join(root,'server/restaurant-router.js'),'utf8');
 
 test('product and recipe forms expose one canonical production destination field',()=>{
   assert.match(app,/function productionDestinationMarkup\(/);
@@ -14,6 +15,11 @@ test('product and recipe forms expose one canonical production destination field
   assert.match(app,/\/api\/v1\/restaurant\/kitchen\/stations/);
   assert.ok((app.match(/persistProductionDestination\(root,saved(?:Product)?\.id\)/g)||[]).length>=2,
     'stock product and technical sheet saves must persist the same canonical route');
+});
+
+test('a product route can be read before the product is added to Cardapio',()=>{
+  assert.match(restaurantRouter,/kitchen\\/routing\\/\\(\\[\\^\\/\\]\\+\\)/);
+  assert.match(restaurantRouter,/runtime\.kitchen\.getProductRoute/);
 });
 
 test('Cardapio addition requires choosing the same production destination',()=>{
