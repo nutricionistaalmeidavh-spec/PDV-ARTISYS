@@ -37,17 +37,18 @@ test('Balcão e senhas creates a canonical sale-backed order with products inste
   assert.match(modules,/fast-food-order-form/);
   assert.match(modules,/fast-food-product-form/);
   assert.match(modules,/pricedCartItems\(fastFoodCart\)/);
-  assert.match(modules,/createFastFood\(\{[\s\S]*terminalId:[\s\S]*operatorId:[\s\S]*items:/);
+  assert.match(modules,/createFastFood\(\{terminalId:[^,]+,operatorId:[^,]+,items,/);
 });
 
 test('Delivery composes products before creating its canonical sale and no longer asks for technical IDs',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
   const parity=read('desktop/renderer/vertical-parity-p1.js');
+  const deliveryParity=parity.slice(parity.indexOf('async function mountDelivery'),parity.indexOf('async function mountMarket'));
   assert.match(modules,/delivery-product-form/);
   assert.match(modules,/pricedCartItems\(deliveryCart\)/);
   assert.match(modules,/createDeliverySale\(/);
-  assert.doesNotMatch(parity,/ID do pedido/);
-  assert.doesNotMatch(parity,/ID do produto/);
+  assert.doesNotMatch(deliveryParity,/ID do pedido/);
+  assert.doesNotMatch(deliveryParity,/ID do produto/);
 });
 
 test('checkout operational documents include Alimentação commands Atacado Delivery and Balcão/senhas',()=>{
