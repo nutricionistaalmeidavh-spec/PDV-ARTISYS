@@ -13,8 +13,14 @@ const {createLocalServer}=require('../../server/local-server');
 const PROFILE_SCENARIOS=Object.freeze({
   smoke:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
   full:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
-  stress:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','stress-last-unit-races','database-invariants']
+  stress:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
 });
+
+const SCALE_CASHIERS=10;
+const SCALE_WAITERS=15;
+const SCALE_SIMULTANEOUS_ORDERS=13;
+const AGGRESSIVE_ORDER_LEVELS=[100,250,500];
+const LOAD_REQUEST_TIMEOUT_MS=30000;
 
 function parseArgs(argv){
   const result={profile:process.env.QA_PROFILE||'full',output:'qa-artifacts/multi-device'};
@@ -39,12 +45,21 @@ function safeJson(value){
 }
 
 function requestFactory(base,defaults={}){
-  return async function request(route,{method='GET',body,headers={},expected=null}={}){
-    const response=await fetch(base+route,{
-      method,
-      headers:{...(body===undefined?{}:{'content-type':'application/json'}),...(defaults.headers||{}),...headers},
-      body:body===undefined?undefined:JSON.stringify(body)
-    });
+  return async function request(route,{method='GET',body,headers={},expected=null,timeoutMs=LOAD_REQUEST_TIMEOUT_MS}={}){
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),timeoutMs);
+    let response;
+    try{
+      response=await fetch(base+route,{
+        method,
+        headers:{...(body===undefined?{}:{'content-type':'application/json'}),...(defaults.headers||{}),...headers},
+        body:body===undefined?undefined:JSON.stringify(body),
+        signal:controller.signal
+      });
+    }catch(error){
+      if(error?.name==='AbortError')throw new Error(method+' '+route+' excedeu '+timeoutMs+'ms.');
+      throw error;
+    }finally{clearTimeout(timeout);}
     const text=await response.text();
     let payload=null;
     if(text){try{payload=JSON.parse(text);}catch{payload=text;}}
@@ -80,6 +95,55 @@ function movementCount(db,productId,type='sale'){
 function completedCount(db,ids){
   const placeholders=ids.map(()=>'?').join(',');
   return db.prepare("SELECT COUNT(*) AS n FROM sales WHERE id IN ("+placeholders+") AND status='COMPLETED'").get(...ids).n;
+}
+
+function percentile(values,ratio){
+  if(!values.length)return 0;
+  const sorted=[...values].sort((a,b)=>a-b);
+  const index=Math.min(sorted.length-1,Math.max(0,Math.ceil(sorted.length*ratio)-1));
+  return sorted[index];
+}
+
+function roundMetric(value){
+  return Math.round(Number(value||0)*100)/100;
+}
+
+function summarizeLoad(samples,elapsedMs,launchSpreadMs){
+  const durations=samples.filter(sample=>sample.ok).map(sample=>sample.durationMs);
+  return{
+    requests:samples.length,
+    succeeded:samples.filter(sample=>sample.ok).length,
+    failed:samples.filter(sample=>!sample.ok).length,
+    elapsedMs:roundMetric(elapsedMs),
+    launchSpreadMs:roundMetric(launchSpreadMs),
+    p50Ms:roundMetric(percentile(durations,0.50)),
+    p95Ms:roundMetric(percentile(durations,0.95)),
+    maxMs:roundMetric(durations.length?Math.max(...durations):0),
+    throughputOpsPerSecond:elapsedMs>0?roundMetric((samples.length*1000)/elapsedMs):0
+  };
+}
+
+async function runSimultaneousOperations(operations){
+  let release;
+  const gate=new Promise(resolve=>{release=resolve;});
+  const queued=operations.map(async operation=>{
+    await gate;
+    const started=performance.now();
+    const {run,...meta}=operation;
+    try{
+      const result=await run();
+      return{...meta,ok:true,started,durationMs:performance.now()-started,result};
+    }catch(error){
+      return{...meta,ok:false,started,durationMs:performance.now()-started,error:error?.message||String(error)};
+    }
+  });
+  const batchStarted=performance.now();
+  release();
+  const samples=await Promise.all(queued);
+  const elapsedMs=performance.now()-batchStarted;
+  const starts=samples.map(sample=>sample.started);
+  const launchSpreadMs=starts.length?Math.max(...starts)-Math.min(...starts):0;
+  return{samples,metrics:summarizeLoad(samples,elapsedMs,launchSpreadMs)};
 }
 
 async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-device'}={}){
@@ -416,6 +480,186 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       return{kdsToSelfService:kdsSelf.status,waiterToKds:waiterKds.status};
     });
 
+    await scenario('scale-10-cashiers-15-waiters-13-orders',async()=>{
+      const cashProductId='qa-scale-cash-product';
+      const foodProductId='qa-scale-food';
+      runtime.catalog.upsertProduct({id:cashProductId,sku:'QA-SCALE-CASH',name:'Produto Caixa Escala',categoryId:'qa-category',salePriceCents:300,costCents:100,trackStock:true,menuEnabled:false,active:true},actor);
+      runtime.catalog.upsertProduct({id:foodProductId,sku:'QA-SCALE-FOOD',name:'Prato Escala',categoryId:'qa-category',salePriceCents:450,costCents:150,trackStock:false,menuEnabled:true,active:true},actor);
+      runtime.inventory.move({productId:cashProductId,type:'opening',quantityDelta:100,reason:'QA scale seed'},actor);
+      runtime.kitchen.upsertStation({id:'qa-scale-station',name:'Cozinha Escala QA',active:true},actor);
+      runtime.kitchen.assignProduct(foodProductId,'qa-scale-station',actor);
+
+      const cashierFixtures=[];
+      for(let i=1;i<=SCALE_CASHIERS;i+=1){
+        const suffix=String(i).padStart(2,'0');
+        const userId='qa-scale-cash-user-'+suffix;
+        const username='qa-scale-cash-'+suffix;
+        const terminal=pairTerminal('SCALE-CAIXA-'+suffix,'Caixa Escala '+suffix);
+        runtime.catalog.createUser({id:userId,username,name:'Caixa Escala '+suffix,role:'cashier',password:'qa-test-password'});
+        const client=await login(base,{username,password:'qa-test-password',terminal});
+        const opened=await client.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-scale-open-cash-'+suffix},body:{initialCashCents:0},expected:201});
+        cashierFixtures.push({index:i,userId,terminal,client,session:opened.body.session});
+      }
+      assert(cashierFixtures.length===SCALE_CASHIERS,'Quantidade de caixas preparada incorretamente',{prepared:cashierFixtures.length});
+
+      const waiterFixtures=[];
+      for(let i=1;i<=SCALE_WAITERS;i+=1){
+        const suffix=String(i).padStart(2,'0');
+        const userId='qa-scale-waiter-user-'+suffix;
+        runtime.catalog.createUser({id:userId,username:'qa-scale-waiter-'+suffix,name:'Garcom Escala '+suffix,role:'cashier',password:'qa-test-password'});
+        const device=runtime.mobileDevices.createDevice({id:'qa-scale-waiter-device-'+suffix,name:'Garcom Escala '+suffix,deviceType:'WAITER',userId},actor);
+        waiterFixtures.push({index:i,userId,device,client:deviceClient(base,device)});
+      }
+      assert(waiterFixtures.length===SCALE_WAITERS,'Quantidade de garcons preparada incorretamente',{prepared:waiterFixtures.length});
+
+      const waiterConnectivity=await runSimultaneousOperations(waiterFixtures.map(item=>({
+        kind:'waiter-context',index:item.index,run:()=>item.client('/api/v1/mobile/context',{expected:200})
+      })));
+      assert(waiterConnectivity.metrics.succeeded===SCALE_WAITERS,'Nem todos os 15 garcons autenticaram simultaneamente',{metrics:waiterConnectivity.metrics,samples:waiterConnectivity.samples.filter(sample=>!sample.ok)});
+
+      const sessions=await Promise.all(Array.from({length:SCALE_SIMULTANEOUS_ORDERS},async(_,idx)=>{
+        const n=idx+1;
+        const suffix=String(n).padStart(2,'0');
+        const tableId='qa-scale-table-'+suffix;
+        runtime.restaurant.upsertTable({id:tableId,label:'Mesa Escala '+suffix,seats:4,active:true},actor);
+        const opened=await waiterFixtures[idx].client('/api/v1/mobile/tables/'+tableId+'/open',{
+          method:'POST',headers:{'x-mutation-id':'qa-scale-table-open-'+suffix},body:{partySize:2},expected:201
+        });
+        return{index:n,tableId,sessionId:opened.body.id,waiter:waiterFixtures[idx]};
+      }));
+
+      const preparedSales=await Promise.all(cashierFixtures.map(async fixture=>{
+        const suffix=String(fixture.index).padStart(2,'0');
+        const opened=await fixture.client.request('/api/v1/sales',{method:'POST',body:{saleNumber:'QA-SCALE-CASH-SALE-'+suffix},expected:201});
+        await fixture.client.request('/api/v1/sales/'+opened.body.id+'/items',{method:'POST',body:{productId:cashProductId,quantity:1},expected:200});
+        return{...fixture,saleId:opened.body.id};
+      }));
+
+      const simultaneousOperations=[
+        ...preparedSales.map(fixture=>({
+          kind:'cash-sale',index:fixture.index,saleId:fixture.saleId,
+          run:()=>fixture.client.request('/api/v1/sales/'+fixture.saleId+'/complete',{
+            method:'POST',headers:{'x-mutation-id':'qa-scale-cash-complete-'+String(fixture.index).padStart(2,'0')},
+            body:{payments:[{method:'PIX',amountCents:300}]},expected:200
+          })
+        })),
+        ...sessions.map(session=>({
+          kind:'restaurant-order',index:session.index,sessionId:session.sessionId,
+          run:()=>session.waiter.client('/api/v1/mobile/orders',{
+            method:'POST',headers:{'x-mutation-id':'qa-scale-order-'+String(session.index).padStart(2,'0')},
+            body:{sessionId:session.sessionId,items:[{productId:foodProductId,quantity:1}]},expected:201
+          })
+        })),
+        ...waiterFixtures.slice(SCALE_SIMULTANEOUS_ORDERS).map(waiter=>({
+          kind:'waiter-context-during-burst',index:waiter.index,
+          run:()=>waiter.client('/api/v1/mobile/context',{expected:200})
+        }))
+      ];
+
+      const burst=await runSimultaneousOperations(simultaneousOperations);
+      const failed=burst.samples.filter(sample=>!sample.ok);
+      assert(failed.length===0,'A rajada 10 caixas + 15 garcons + 13 pedidos teve falhas',{metrics:burst.metrics,failed});
+
+      const cashSamples=burst.samples.filter(sample=>sample.kind==='cash-sale');
+      const orderSamples=burst.samples.filter(sample=>sample.kind==='restaurant-order');
+      assert(cashSamples.length===SCALE_CASHIERS&&cashSamples.every(sample=>sample.ok),'Nem todas as 10 vendas simultaneas concluiram',{cashSamples});
+      assert(orderSamples.length===SCALE_SIMULTANEOUS_ORDERS&&orderSamples.every(sample=>sample.ok),'Nem todos os 13 pedidos simultaneos foram aceitos',{orderSamples});
+
+      const orderIds=orderSamples.map(sample=>sample.result.body.order.id);
+      assert(new Set(orderIds).size===SCALE_SIMULTANEOUS_ORDERS,'Pedidos simultaneos geraram IDs duplicados',{orderIds});
+      const placeholders=orderIds.map(()=>'?').join(',');
+      const persistedOrders=runtime.db.prepare('SELECT COUNT(*) AS n FROM restaurant_orders WHERE id IN ('+placeholders+')').get(...orderIds).n;
+      const routedTickets=runtime.db.prepare('SELECT COUNT(*) AS n FROM kitchen_tickets WHERE order_id IN ('+placeholders+')').get(...orderIds).n;
+      assert(persistedOrders===SCALE_SIMULTANEOUS_ORDERS,'Nem todos os 13 pedidos foram persistidos',{persistedOrders,expected:SCALE_SIMULTANEOUS_ORDERS});
+      assert(routedTickets===SCALE_SIMULTANEOUS_ORDERS,'Nem todos os 13 pedidos chegaram ao KDS',{routedTickets,expected:SCALE_SIMULTANEOUS_ORDERS});
+
+      const completedSales=runtime.db.prepare("SELECT id,cash_session_id AS cashSessionId FROM sales WHERE id IN ("+preparedSales.map(()=>'?').join(',')+") AND status='COMPLETED'").all(...preparedSales.map(item=>item.saleId));
+      assert(completedSales.length===SCALE_CASHIERS,'Nem todas as 10 vendas ficaram COMPLETED',{completed:completedSales.length});
+      const expectedSessionBySale=new Map(preparedSales.map(item=>[item.saleId,item.session.id]));
+      const wrongCashSession=completedSales.filter(row=>expectedSessionBySale.get(row.id)!==row.cashSessionId);
+      assert(wrongCashSession.length===0,'Venda simultanea caiu na sessao de outro caixa',{wrongCashSession});
+      assert(new Set(completedSales.map(row=>row.cashSessionId)).size===SCALE_CASHIERS,'As 10 vendas nao ficaram isoladas em 10 sessoes',{sessions:completedSales.map(row=>row.cashSessionId)});
+
+      const finalStock=runtime.inventory.getBalance(cashProductId);
+      const movements=movementCount(runtime.db,cashProductId);
+      assert(finalStock===90,'As 10 vendas simultaneas nao baixaram exatamente 10 unidades',{finalStock});
+      assert(movements===SCALE_CASHIERS,'Quantidade de movimentos das 10 vendas esta incorreta',{movements});
+
+      const details={
+        cashiers:SCALE_CASHIERS,
+        waiters:SCALE_WAITERS,
+        simultaneousOrders:SCALE_SIMULTANEOUS_ORDERS,
+        operationsInBurst:simultaneousOperations.length,
+        waiterConnectivity:waiterConnectivity.metrics,
+        burst:burst.metrics,
+        completedSales:completedSales.length,
+        persistedOrders,
+        routedTickets,
+        finalStock,
+        stockMovements:movements
+      };
+      fs.writeFileSync(path.join(outputDir,'scale-10x15x13.json'),JSON.stringify(details,null,2));
+      return details;
+    });
+
+    await scenario('aggressive-order-ramp',async()=>{
+      const foodProductId='qa-ramp-food';
+      runtime.catalog.upsertProduct({id:foodProductId,sku:'QA-RAMP-FOOD',name:'Prato Rampa',categoryId:'qa-category',salePriceCents:250,costCents:80,trackStock:false,menuEnabled:true,active:true},actor);
+      runtime.kitchen.upsertStation({id:'qa-ramp-station',name:'Cozinha Rampa QA',active:true},actor);
+      runtime.kitchen.assignProduct(foodProductId,'qa-ramp-station',actor);
+
+      const waiters=[];
+      for(let i=1;i<=SCALE_WAITERS;i+=1){
+        const suffix=String(i).padStart(2,'0');
+        const userId='qa-ramp-waiter-user-'+suffix;
+        runtime.catalog.createUser({id:userId,username:'qa-ramp-waiter-'+suffix,name:'Garcom Rampa '+suffix,role:'cashier',password:'qa-test-password'});
+        const device=runtime.mobileDevices.createDevice({id:'qa-ramp-waiter-device-'+suffix,name:'Garcom Rampa '+suffix,deviceType:'WAITER',userId},actor);
+        waiters.push({index:i,client:deviceClient(base,device)});
+      }
+
+      const levels=[];
+      for(const level of AGGRESSIVE_ORDER_LEVELS){
+        const tableId='qa-ramp-table-'+level;
+        runtime.restaurant.upsertTable({id:tableId,label:'Mesa Rampa '+level,seats:4,active:true},actor);
+        const opened=await waiters[0].client('/api/v1/mobile/tables/'+tableId+'/open',{
+          method:'POST',headers:{'x-mutation-id':'qa-ramp-open-'+level},body:{partySize:4},expected:201
+        });
+        const sessionId=opened.body.id;
+        const operations=Array.from({length:level},(_,idx)=>{
+          const waiter=waiters[idx%waiters.length];
+          const orderNumber=idx+1;
+          return{
+            kind:'ramp-order',index:orderNumber,
+            run:()=>waiter.client('/api/v1/mobile/orders',{
+              method:'POST',
+              headers:{'x-mutation-id':'qa-ramp-'+level+'-'+String(orderNumber).padStart(4,'0')},
+              body:{sessionId,items:[{productId:foodProductId,quantity:1}]},
+              expected:201,
+              timeoutMs:LOAD_REQUEST_TIMEOUT_MS
+            })
+          };
+        });
+
+        const batch=await runSimultaneousOperations(operations);
+        const orderIds=batch.samples.filter(sample=>sample.ok).map(sample=>sample.result.body.order.id);
+        const uniqueOrders=new Set(orderIds).size;
+        const persisted=runtime.db.prepare('SELECT COUNT(*) AS n FROM restaurant_orders WHERE table_session_id=?').get(sessionId).n;
+        const tickets=runtime.db.prepare('SELECT COUNT(*) AS n FROM kitchen_tickets kt JOIN restaurant_orders ro ON ro.id=kt.order_id WHERE ro.table_session_id=?').get(sessionId).n;
+        const levelResult={level,...batch.metrics,uniqueOrders,persistedOrders:persisted,kdsTickets:tickets};
+        levels.push(levelResult);
+        fs.writeFileSync(path.join(outputDir,'load-metrics.json'),JSON.stringify({levels},null,2));
+
+        assert(batch.metrics.failed===0,'Rampa de '+level+' pedidos teve falhas',{levelResult,failures:batch.samples.filter(sample=>!sample.ok).slice(0,20)});
+        assert(uniqueOrders===level,'Rampa de '+level+' pedidos gerou IDs duplicados ou perdeu respostas',{levelResult});
+        assert(persisted===level,'Rampa de '+level+' pedidos perdeu persistencia',{levelResult});
+        assert(tickets===level,'Rampa de '+level+' pedidos perdeu roteamento ao KDS',{levelResult});
+      }
+
+      const highestPassed=levels.filter(item=>item.failed===0&&item.persistedOrders===item.level&&item.kdsTickets===item.level).reduce((max,item)=>Math.max(max,item.level),0);
+      assert(highestPassed===Math.max(...AGGRESSIVE_ORDER_LEVELS),'Rampa agressiva nao homologou o nivel maximo',{highestPassed,levels});
+      return{waiters:SCALE_WAITERS,levels,highestPassed};
+    });
+
     await scenario('stress-last-unit-races',async()=>{
       const iterations=50;
       let winners=0;
@@ -465,6 +709,8 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   const failed=results.filter(item=>item.status==='FAIL');
   const report={schemaVersion:1,profile,generatedAt:new Date().toISOString(),passed:results.length-failed.length,failed:failed.length,scenarios:results};
   fs.writeFileSync(path.join(outputDir,'report.json'),JSON.stringify(report,null,2));
+  const stressEvidence=results.filter(item=>['scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races'].includes(item.name));
+  if(stressEvidence.length)fs.writeFileSync(path.join(outputDir,'stress-evidence.json'),JSON.stringify(stressEvidence,null,2));
   const lines=[
     '# QA Multi-Device LAN',
     '',
