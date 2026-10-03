@@ -126,3 +126,25 @@ Alimentação
 - Delivery/Retirada não possuem motor de preço, desconto, estoque, pagamento ou pós-venda próprio.
 - Enums técnicos continuam estáveis no domínio; rótulos expostos ao operador são localizados em português, por exemplo **Novo pedido**, **Preparando** e **Pedido pronto**.
 - Campos de operação devem usar entidades reconhecíveis (produto, mesa, pessoa, setor). IDs técnicos podem existir em credenciais e APIs, mas não como dado a ser digitado para executar uma tarefa cotidiana.
+
+## Fluxo operacional canônico de Alimentação
+
+```text
+Atendimento (Mesa / Balcão e senhas / Delivery / Retirada / Autoatendimento)
+                              ↓
+                       Pedido canônico
+                              ↓
+                  roteamento por item/setor
+                    ↙        ↓        ↘
+                Cozinha     Bar     outros KDS
+                    ↘        ↓        ↙
+                 PREPARING / READY agregados
+                              ↓
+                       Balcão canônico
+                              ↓
+                     SaleService / Caixa
+```
+
+O localizador do Balcão pesquisa **Comandas, Atacado, Delivery e Retirada**. Para Delivery/Retirada, o resultado referencia a venda já vinculada (`saleId`) e nunca recompõe itens, preço ou cliente.
+
+Na apresentação ao usuário, estados operacionais usam português: **Novo pedido**, **Aguardando produção**, **Preparando**, **Pedido pronto**, **Saiu para entrega**, **Entregue** e **Retirado**. Os enums permanecem internos para compatibilidade de API e persistência.
