@@ -98,7 +98,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - A edição de categoria gerencial, centro de custo e competência altera as dimensões do lançamento financeiro canônico; não cria lançamento, espelho ou registro financeiro paralelo.
 - O antigo watchdog `operational-route-stability.js` não faz parte da arquitetura atual. Uma rota não deve ser recriada em resposta a `MutationObserver`; conflitos de ownership devem falhar nos testes/registro.
 - O orçamento de `MutationObserver` do renderer não pode aumentar silenciosamente. Observers legados permanecem somente durante migrações progressivas já documentadas e devem ser substituídos por lifecycle/owners explícitos quando a superfície for migrada.
-- O gate de UI atual executa `all-pages-audit` em Electron a 1366×768, verifica overflow horizontal e affordances críticas e publica screenshots/trace. Ele é smoke estrutural/visual e não substitui testes transacionais específicos.
+- O gate de UI executa `all-pages-audit` em Electron a 1366×768 e 1024×768, verifica overflow horizontal, controles críticos e que a finalização do Balcão permaneça dentro do viewport. O job de UI também sobe o servidor local e valida `/mobile` e `/m/:token`. Screenshots/trace permanecem como evidência; o gate continua sendo smoke estrutural/visual e não substitui testes transacionais específicos.
 
 
 
