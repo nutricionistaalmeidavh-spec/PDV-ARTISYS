@@ -86,11 +86,16 @@ jobs:
             sudo apt-get update -y
             sudo apt-get install -y "${missing[@]}"
           fi
+      - name: Run mobile and public menu surface smoke
+        run: npm run qa:web-surfaces
       - name: Run current UI E2E at 1366x768
         shell: bash
         run: |
           rm -rf qa-artifacts
           xvfb-run -a npm run qa:e2e:p0
+      - name: Run responsive UI E2E at 1024x768
+        shell: bash
+        run: xvfb-run -a npm run qa:e2e:tablet
       - name: Upload UI screenshots trace and logs
         if: always()
         uses: actions/upload-artifact@v4
