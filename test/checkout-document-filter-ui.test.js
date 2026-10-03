@@ -15,7 +15,7 @@ test('checkout document locator exposes quick filter chips',()=>{
   assert.match(app,/data-checkout-document-filter="comanda"[^>]*>Comandas</);
   assert.match(app,/data-checkout-document-filter="atacado"[^>]*>Atacado</);
   assert.match(app,/aria-pressed="true"/);
-  assert.match(app,/query=[activeFilter,input\.value]/);
+  assert.match(app,/query=\[activeFilter,input\.value\]/);
   assert.match(app,/data-checkout-document-filter/);
 });
 
