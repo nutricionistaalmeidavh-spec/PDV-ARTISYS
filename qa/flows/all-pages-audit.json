@@ -580,7 +580,7 @@
     },
     {
       "action": "click",
-      "selector": "#sidebar-nav button[data-route='settings']",
+      "selector": "#app-sidebar > button[data-route='settings']",
       "name": "configuracoes",
       "holdMs": 1000
     },
