@@ -38,7 +38,7 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
         if(!order.saleId||order.status==='CANCELLED')continue;
         const sale=runtime.sales.getSale(order.saleId);if(!sale||!['OPEN','SUSPENDED'].includes(sale.status))continue;
         const pickup=order.fulfillmentType==='PICKUP';
-        const aliases=pickup?'retirada retirar pickup pedido retirada pedidos retirada':'delivery entrega entregas pedido delivery pedidos delivery';
+        const aliases=pickup?'retirada retirar pickup':'delivery entrega entregas';
         if(!matchesSearch([order.id,order.customerName,order.phone,aliases],q))continue;
         const channel=pickup?'Retirada':'Delivery';
         rows.push({type:'DELIVERY',id:order.id,number:order.id,label:`${order.customerName||order.id} · ${channel}`,status:order.status,totalCents:Number(sale.totalCents||0),customerName:order.customerName||null,phone:order.phone||null,fulfillmentType:order.fulfillmentType,saleId:order.saleId,openedAt:order.createdAt});
