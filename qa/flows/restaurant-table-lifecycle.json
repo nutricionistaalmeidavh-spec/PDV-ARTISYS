@@ -114,13 +114,6 @@
     },
     {
       "action": "waitFor",
-      "selector": "#restaurant-waiter-form",
-      "name": "comanda-aberta",
-      "timeoutMs": 10000,
-      "state": "visible"
-    },
-    {
-      "action": "waitFor",
       "selector": "#restaurant-session-details-form input[name='partySize']",
       "name": "detalhes-pessoas-visiveis",
       "state": "visible",
@@ -302,38 +295,6 @@
     },
     {
       "action": "click",
-      "selector": ".restaurant-advanced summary",
-      "name": "abrir-conta-movimentacoes",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "waitFor",
-      "selector": "#restaurant-transfer-item-form",
-      "name": "transferencia-sem-id",
-      "timeoutMs": 10000,
-      "state": "visible"
-    },
-    {
-      "action": "waitFor",
-      "selector": "#restaurant-cancel-item-form",
-      "name": "cancelamento-sem-id",
-      "timeoutMs": 10000,
-      "state": "visible"
-    },
-    {
-      "action": "waitFor",
-      "selector": "#restaurant-merge-form",
-      "name": "juncao-sem-id",
-      "timeoutMs": 10000,
-      "state": "visible"
-    },
-    {
-      "action": "screenshot",
-      "name": "09-conta-movimentacoes",
-      "fullPage": true
-    },
-    {
-      "action": "click",
       "selector": "[data-bill]",
       "name": "solicitar-conta",
       "timeoutMs": 10000
@@ -398,13 +359,13 @@
     },
     {
       "action": "click",
-      "selector": "[data-restaurant-view-target='settings']",
+      "selector": "[data-restaurant-view-target='management']",
       "name": "abrir-configuracao",
       "timeoutMs": 10000
     },
     {
       "action": "waitFor",
-      "selector": ".restaurant-settings-intro",
+      "selector": "[data-restaurant-management]",
       "name": "configuracao-separada",
       "timeoutMs": 10000,
       "state": "visible"
