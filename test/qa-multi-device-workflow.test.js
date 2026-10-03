@@ -26,6 +26,7 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
   assert.equal(syntax.status,0,syntax.stderr||syntax.stdout);
   const runner=fs.readFileSync(runnerPath,'utf8');
   for(const invariant of [
+    'terminal-onboarding-pairing',
     'price-propagation',
     'cashier-ui-price-propagation',
     'sale-stock-decrement',

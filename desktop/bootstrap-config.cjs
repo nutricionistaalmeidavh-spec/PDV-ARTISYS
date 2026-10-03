@@ -41,7 +41,7 @@ function validateBootstrapConfig(config={},options={}){
     let parsed;try{parsed=new URL(config.apiBase);}catch{throw new Error('URL HTTP do servidor invalida.');}
     if(!['http:','https:'].includes(parsed.protocol))throw new Error('Servidor do terminal deve usar HTTP ou HTTPS.');
     if(!clean(config.terminalId))throw new Error('Identificador do terminal obrigatorio.');
-    if(requireCredential&&!clean(config.terminalKey))throw new Error('Chave de pareamento do terminal obrigatoria.');
+    if(requireCredential&&!clean(config.terminalKey))throw new Error('Credencial segura do terminal obrigatoria.');
   }
   if(config.accountEndpoint){let parsed;try{parsed=new URL(config.accountEndpoint);}catch{throw new Error('Endpoint da conta comercial invalido.');}if(parsed.protocol!=='https:'&&parsed.hostname!=='127.0.0.1'&&parsed.hostname!=='localhost')throw new Error('Endpoint da conta comercial deve usar HTTPS.');}
   return config;

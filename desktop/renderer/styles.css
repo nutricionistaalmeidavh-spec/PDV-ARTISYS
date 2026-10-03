@@ -535,3 +535,19 @@ textarea:focus-visible,
     grid-template-columns:1fr;
   }
 }
+
+
+/* Device onboarding: keep first-run choices task-oriented and technical secrets invisible. */
+.device-onboarding-card{width:min(720px,calc(100vw - 40px))}
+.device-onboarding-card>p{margin:0 0 18px;color:#617087;line-height:1.5}
+.device-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.device-choice-card{display:grid;gap:8px;min-height:150px;padding:18px;border:1px solid #d8e2ee;border-radius:14px;background:#fff;color:#18304f;text-align:left;cursor:pointer;transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.device-choice-card:hover{border-color:#8fb4e7;box-shadow:0 10px 24px rgba(29,74,128,.10);transform:translateY(-1px)}
+.device-choice-card.selected{border-color:#2878e5;background:#f2f7ff;box-shadow:inset 0 0 0 1px #2878e5}
+.device-choice-card strong{font-size:17px;line-height:1.25}
+.device-choice-card span{color:#66758a;font-size:13px;line-height:1.5}
+.device-choice-card:focus-visible{outline:3px solid rgba(37,99,235,.55);outline-offset:3px}
+.device-pairing-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.device-pairing-form>.field:first-child,.device-pairing-form>.modal-actions,.device-pairing-form>.ops-muted{grid-column:1/-1}
+.device-pairing-form .modal-actions{margin-top:2px}
+@media(max-width:680px){.device-choice-grid,.device-pairing-form{grid-template-columns:1fr}.device-pairing-form>*{grid-column:1!important}}

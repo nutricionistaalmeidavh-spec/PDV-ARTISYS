@@ -22,7 +22,7 @@ const REQUIRED_PERMISSIONS=[
   'users.view','users.create','users.edit','users.disable',
   'profiles.view','profiles.create','profiles.edit','profiles.assign',
   'devices.view','devices.pair','devices.block','devices.rotate_credential',
-  'modules.view','modules.manage','settings.view','settings.manage','security.view','audit.view'
+  'modules.view','modules.manage','settings.view','settings.manage','deployment.manage','security.view','audit.view'
 ];
 
 test('P1 permission registry is canonical, unique and immutable',()=>{

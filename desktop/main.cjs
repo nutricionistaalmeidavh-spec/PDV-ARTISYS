@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const { networkInterfaces } = require('node:os');
 const { version: productVersion } = require('../package.json');
 const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
@@ -12,14 +13,15 @@ const { resolvePrintingPreferences } = require('../js/domains/printing/printing-
 const { createLocalServer } = require('../server/local-server');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
+const { createTerminalIdentityStore } = require('./terminal-identity.cjs');
 const { registerImportIpc } = require('./import-bridge.cjs');
 const { createProductPhotoClient, registerProductPhotoIpc } = require('./product-photo-bridge.cjs');
 const { createHardwareController, registerHardwareIpc } = require('./hardware-bridge.cjs');
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createHardwareConfigStore } = require('./hardware-config-store.cjs');
 const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
-const { loadDataServerConfig, saveDataServerConfig, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
-const { migrateLegacyDataServerCredential, saveDataServerSelection, testDataServerTarget } = require('./data-server-runtime.cjs');
+const { loadDataServerConfig, saveDataServerConfig, saveDataServerIntent, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
+const { migrateLegacyDataServerCredential, saveDataServerSelection, testDataServerTarget, pairDataServerTerminal } = require('./data-server-runtime.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -28,6 +30,7 @@ let lanServer = null;
 let apiBase = '';
 let bootstrapConfig = null;
 let terminalCredentialStore = null;
+let terminalIdentityStore = null;
 let hardwareController = null;
 let hardwareConfigStore = null;
 let printWorker = null;
@@ -59,6 +62,37 @@ function currentPrintingPreferences() {
 function terminalCredentialConfigured() {
   try { return Boolean(terminalCredentialStore?.status?.().configured); }
   catch { return false; }
+}
+
+function lanAddresses() {
+  const values=[];
+  for(const entries of Object.values(networkInterfaces()||{})){
+    for(const entry of entries||[]){
+      if(entry?.family==='IPv4'&&!entry.internal)values.push(String(entry.address));
+    }
+  }
+  return [...new Set(values)];
+}
+
+function publicDataServerState() {
+  return {
+    ...publicDataServerConfig(dataServerConfig,terminalCredentialConfigured()),
+    lanAddresses:lanAddresses(),
+    lanPort:Number(dataServerConfig?.port||4174)
+  };
+}
+
+async function authorizeDeploymentChange(sessionToken) {
+  const token=String(sessionToken||'').trim();
+  if(!token)throw new Error('Faça login com um administrador autorizado para alterar a implantação.');
+  const response=await fetchWithTimeout(`${apiBase}/api/v1/system/deployment/authorization`,{
+    headers:{accept:'application/json',authorization:`Bearer ${token}`,...terminalApiHeaders()}
+  },5000);
+  const text=await response.text();
+  let payload={};
+  if(text){try{payload=JSON.parse(text);}catch{payload={error:text};}}
+  if(!response.ok)throw new Error(payload?.error||'Somente administradores autorizados podem alterar a implantação.');
+  return true;
 }
 
 async function startEmbeddedServer() {
@@ -235,11 +269,34 @@ function registerIpc() {
     storeName: bootstrapConfig?.storeName || 'Loja Matriz',
     lanEnabled: Boolean(lanServer),
     version: productVersion,
-    dataServer: publicDataServerConfig(dataServerConfig,terminalCredentialConfigured())
+    dataServer: publicDataServerState()
   }));
 
-  ipcMain.handle('artisys:data-server:state', () => publicDataServerConfig(dataServerConfig,terminalCredentialConfigured()));
-  ipcMain.handle('artisys:data-server:save', (_event, input = {}) => {
+  ipcMain.handle('artisys:data-server:state', () => publicDataServerState());
+  ipcMain.handle('artisys:data-server:new-installation', () => {
+    if(dataServerConfig?.selected||Number(runtime?.catalog?.countUsers?.()||0)>0)throw new Error('A configuração inicial deste computador já foi concluída.');
+    dataServerConfig=saveDataServerIntent(dataServerConfigPath,'new-installation');
+    return { config:publicDataServerState() };
+  });
+  ipcMain.handle('artisys:data-server:pair', async (_event, input = {}) => {
+    if(dataServerConfig?.selected)throw new Error('Este computador já possui uma implantação configurada.');
+    const result=await pairDataServerTerminal({
+      db:runtime?.db||null,
+      filePath:dataServerConfigPath,
+      input,
+      currentConfig:dataServerConfig,
+      credentialStore:terminalCredentialStore,
+      identityStore:terminalIdentityStore,
+      fetchImpl:(url,options)=>fetchWithTimeout(url,options,5000),
+      appVersion:productVersion,
+      timeoutMs:5000
+    });
+    dataServerConfig=loadDataServerConfig(dataServerConfigPath);
+    return { ...result, config:publicDataServerState() };
+  });
+  ipcMain.handle('artisys:data-server:save', async (_event, payload = {}) => {
+    await authorizeDeploymentChange(payload.sessionToken);
+    const input=payload.input||{};
     dataServerConfig = saveDataServerSelection({
       db:runtime?.db||null,
       filePath:dataServerConfigPath,
@@ -247,7 +304,7 @@ function registerIpc() {
       currentConfig:dataServerConfig,
       credentialStore:terminalCredentialStore
     });
-    return { config:publicDataServerConfig(dataServerConfig,terminalCredentialConfigured()), restartRequired:true };
+    return { config:publicDataServerState(), restartRequired:true };
   });
   ipcMain.handle('artisys:data-server:test', async (_event, input = {}) => testDataServerTarget({
     input,
@@ -256,7 +313,7 @@ function registerIpc() {
     fetchImpl:(url,options)=>fetchWithTimeout(url,options,5000),
     timeoutMs:5000
   }));
-  ipcMain.handle('artisys:data-server:restart', () => { app.relaunch(); app.exit(0); });
+  ipcMain.handle('artisys:data-server:restart', () => { if(process.env.ARTISYS_QA==='1'&&process.env.ARTISYS_QA_NO_RELAUNCH==='1')return {restartRequired:true,suppressed:true}; app.relaunch(); app.exit(0); return {restartRequired:true}; });
 
   ipcMain.handle('artisys:api', async (_event, request = {}) => {
     const method = String(request.method || 'GET').toUpperCase();
@@ -346,6 +403,7 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  terminalIdentityStore = createTerminalIdentityStore({ userDataPath:app.getPath('userData') });
   dataServerConfig = migrateLegacyDataServerCredential({ config:dataServerConfig, filePath:dataServerConfigPath, credentialStore:terminalCredentialStore });
   hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
   if (publicBootstrap.profile === 'terminal') {

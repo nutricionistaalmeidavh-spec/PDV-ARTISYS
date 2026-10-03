@@ -55,7 +55,7 @@ function migrateLegacyDataServerCredential({config,filePath,credentialStore}={})
   return saveDataServerConfig(filePath,{...config,terminalKey:legacy});
 }
 
-function saveDataServerSelection({db,filePath,input={},currentConfig={},credentialStore}={}){
+function saveDataServerSelection({db,filePath,input={},currentConfig={},credentialStore,allowExternalEnrollment=false}={}){
   const candidateMode=String(input.mode||currentConfig.mode||'local');
   const external=['lan-client','own-server'].includes(candidateMode);
   let terminalKey='';
@@ -65,6 +65,7 @@ function saveDataServerSelection({db,filePath,input={},currentConfig={},credenti
       const labels=summary.tables.slice(0,5).map(item=>`${item.table}:${item.total}`).join(', ');
       throw new Error(`Esta instalação possui dados locais (${labels}). Exporte ou migre os dados antes de conectá-la como terminal; a troca não foi aplicada.`);
     }
+    if(!allowExternalEnrollment)throw new Error('Para conectar ou trocar o servidor deste terminal, faça um novo pareamento por código.');
     terminalKey=resolveTerminalSecret(input,currentConfig,credentialStore);
     normalize({...currentConfig,...input,mode:candidateMode,terminalKey});
     if(!credentialStore?.save)throw new Error('Armazenamento seguro da credencial do terminal indisponivel.');
@@ -93,11 +94,95 @@ async function testDataServerTarget({input={},currentConfig={},credentialStore,f
     try{response=await fetchImpl(`${serverUrl}/api/v1/vertical/catalog/kits`,{headers:{accept:'application/json','x-terminal-id':terminalId,'x-terminal-key':terminalKey},...(controller?{signal:controller.signal}:{})});}
     catch(error){if(error?.name==='AbortError')throw new Error('O servidor não respondeu dentro do tempo esperado.');throw error;}
     if(!response?.ok){
-      if(Number(response?.status)===401||Number(response?.status)===403)throw new Error('Servidor encontrado, mas o terminal ou a chave de pareamento não foram aceitos.');
+      if(Number(response?.status)===401||Number(response?.status)===403)throw new Error('Servidor encontrado, mas a credencial segura deste terminal não foi aceita. Faça um novo pareamento.');
       throw new Error(`Servidor encontrado, mas a validação do terminal respondeu com HTTP ${response?.status||0}.`);
     }
     return{ok:true,server:true,terminal:true};
   }finally{if(timer)clearTimeout(timer);}
 }
 
-module.exports={BUSINESS_DATA_TABLES,localBusinessDataSummary,migrateLegacyDataServerCredential,saveDataServerSelection,testDataServerTarget};
+
+async function responseJson(response){
+  try{return await response.json();}catch{return{};}
+}
+
+async function pairDataServerTerminal({
+  db,
+  filePath,
+  input={},
+  currentConfig={},
+  credentialStore,
+  identityStore,
+  fetchImpl=globalThis.fetch,
+  appVersion='0.0.0',
+  timeoutMs=5000
+}={}){
+  if(typeof fetchImpl!=='function')throw new TypeError('fetchImpl is required.');
+  if(!identityStore?.getOrCreate)throw new TypeError('identityStore is required.');
+  const serverUrl=String(input.serverUrl||'').trim().replace(/\/+$/,'');
+  const code=String(input.code||'').trim();
+  const name=String(input.name||'').trim()||'Terminal ArtiSys';
+  if(!/^\d{6}$/.test(code))throw new Error('Informe o código de pareamento de 6 dígitos.');
+  normalize({...currentConfig,mode:'lan-client',serverUrl,terminalKey:'pairing-pending'});
+
+  const summary=localBusinessDataSummary(db);
+  if(summary.hasData){
+    const labels=summary.tables.slice(0,5).map(item=>`${item.table}:${item.total}`).join(', ');
+    throw new Error(`Esta instalação possui dados locais (${labels}). Exporte ou migre os dados antes de conectá-la como terminal; o pareamento não foi iniciado.`);
+  }
+  const credentialStatus=credentialStore?.status?.();
+  if(!credentialStore?.save||credentialStatus?.encryptionAvailable===false)throw new Error('Armazenamento seguro do sistema operacional indisponível.');
+  const identity=identityStore.getOrCreate();
+
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+  try{
+    const handshakeUrl=`${serverUrl}/api/v1/lan/handshake?terminalId=${encodeURIComponent(identity.terminalId)}&appVersion=${encodeURIComponent(String(appVersion||'0.0.0'))}`;
+    let handshakeResponse;
+    try{handshakeResponse=await fetchImpl(handshakeUrl,{headers:{accept:'application/json'},...(controller?{signal:controller.signal}:{})});}
+    catch(error){if(error?.name==='AbortError')throw new Error('O computador principal não respondeu dentro do tempo esperado.');throw error;}
+    const handshake=await responseJson(handshakeResponse);
+    if(!handshakeResponse?.ok)throw new Error(handshake?.error||`O computador principal respondeu com HTTP ${handshakeResponse?.status||0}.`);
+    if(handshake.compatible===false)throw new Error(`Este terminal precisa ser atualizado antes do pareamento. Versão mínima: ${handshake.minimumTerminalVersion||'mais recente'}.`);
+
+    let pairResponse;
+    try{
+      pairResponse=await fetchImpl(`${serverUrl}/api/v1/lan/pair`,{
+        method:'POST',
+        headers:{accept:'application/json','content-type':'application/json'},
+        body:JSON.stringify({
+          code,
+          terminalId:identity.terminalId,
+          name,
+          fingerprint:identity.fingerprint,
+          appVersion:String(appVersion||'0.0.0')
+        }),
+        ...(controller?{signal:controller.signal}:{})
+      });
+    }catch(error){if(error?.name==='AbortError')throw new Error('O pareamento excedeu o tempo esperado.');throw error;}
+    const paired=await responseJson(pairResponse);
+    if(!pairResponse?.ok)throw new Error(paired?.error||`Não foi possível parear este computador (HTTP ${pairResponse?.status||0}).`);
+    const credential=String(paired?.credential||'').trim();
+    if(!credential)throw new Error('O computador principal não devolveu uma credencial válida para este terminal.');
+
+    const saved=saveDataServerSelection({
+      db,
+      filePath,
+      input:{mode:'lan-client',serverUrl,terminalId:identity.terminalId,terminalKey:credential},
+      currentConfig,
+      credentialStore,
+      allowExternalEnrollment:true
+    });
+    return{
+      config:saved,
+      terminal:{
+        terminalId:identity.terminalId,
+        name:String(paired?.name||name),
+        status:String(paired?.status||'ACTIVE')
+      },
+      restartRequired:true
+    };
+  }finally{if(timer)clearTimeout(timer);}
+}
+
+module.exports={BUSINESS_DATA_TABLES,localBusinessDataSummary,migrateLegacyDataServerCredential,saveDataServerSelection,testDataServerTarget,pairDataServerTerminal};

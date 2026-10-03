@@ -22,7 +22,7 @@ test('persiste escolha explícita de PC principal', () => {
 });
 
 test('terminal cliente exige endereço e chave sem fallback', () => {
-  assert.throws(() => config.normalize({ mode:'lan-client', serverUrl:'http://192.168.0.10:4174' }), /chave/i);
+  assert.throws(() => config.normalize({ mode:'lan-client', serverUrl:'http://192.168.0.10:4174' }), /credencial|chave/i);
   const value = config.normalize({ mode:'lan-client', serverUrl:'http://192.168.0.10:4174', terminalKey:'secret' });
   assert.equal(config.isExternalMode(value), true);
 });
