@@ -3,13 +3,13 @@
 function principalFromActor(actor={}){
   if(!actor||typeof actor!=='object')return null;
   const kind=String(actor.kind||'').trim().toLowerCase();
-  if(kind==='system')return{kind:'system',id:'system'};
+  const legacyRole=String(actor.role||'').trim().toLowerCase();
+  if(kind==='system'||legacyRole==='system')return{kind:'system',id:'system'};
   if(kind==='public-resource'&&actor.id)return{...actor,kind:'public-resource',id:String(actor.id)};
   if(kind==='device'&&actor.id)return{...actor,kind:'device',id:String(actor.id)};
   const userId=String(actor.id||actor.userId||'').trim();
   if(kind==='human'&&userId)return{kind:'human',id:userId};
   if(userId)return{kind:'human',id:userId};
-  if(String(actor.role||'').trim().toLowerCase()==='system')return{kind:'system',id:'system'};
   return null;
 }
 

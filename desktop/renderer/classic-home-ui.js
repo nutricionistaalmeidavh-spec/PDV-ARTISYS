@@ -6,7 +6,7 @@
   const ui = window.PdvUiModel;
   const roleModel = window.PdvHomeRoleModel;
   const lifecycle = window.PdvUiLifecycle;
-  if (!content || !brandButton || !ui?.HOME_TILES || !roleModel?.homeForRole || !lifecycle) return;
+  if (!content || !brandButton || !ui?.HOME_TILES || !roleModel?.homeForUser || !lifecycle) return;
 
   const symbols = {
     checkout:'🛒', customers:'👥', sellers:'●', products:'◇', inventory:'▦', cash:'▤',
@@ -92,19 +92,20 @@
     const nativeHome = baseHome();
     const existing = content.querySelector('#classic-home-grid');
     if (!nativeHome) return;
-    if (existing?.dataset.homeRole === (document.body.dataset.userRole || 'cashier')) {
+    const accessKey=String(window.PdvCurrentAccess?.profile?.id||window.PdvCurrentAccess?.profileId||'anonymous')+'|'+(window.PdvCurrentAccess?.permissions||[]).join(',');
+    if (existing?.dataset.accessKey === accessKey) {
       adoptExtraLaunchers(nativeHome, existing);
       return;
     }
     existing?.remove();
     nativeHome.hidden = true;
 
-    const view = roleModel.homeForRole(document.body.dataset.userRole || 'cashier', ui.HOME_TILES);
+    const view = roleModel.homeForUser(window.PdvCurrentAccess, ui.HOME_TILES);
     const operatorName = document.getElementById('operator-name')?.textContent?.trim() || '';
     const canonical = document.createElement('section');
     canonical.id = 'classic-home-grid';
     canonical.className = 'classic-home-grid';
-    canonical.dataset.homeRole = view.role;
+    canonical.dataset.accessKey = accessKey;
     canonical.setAttribute('aria-label', `Início de ${view.label}`);
     canonical.innerHTML = `<header class="classic-home-head">
       <div><span class="classic-home-eyebrow">Início · ${escapeHtml(view.label)}</span><h1>${escapeHtml(view.title)}</h1><p>${escapeHtml(view.subtitle)}</p></div>
