@@ -37,3 +37,11 @@ test('extended coverage proves useful content instead of screenshots only',()=>{
     'cardapio-qr-produtos'
   ]) assert.equal(names.has(name),true,name);
 });
+
+test('CI UI gate exposes the LAN surfaces only on loopback',()=>{
+  const config=JSON.parse(read('qa/artisys-qa.config.json'));
+  const env=config.environments.ci.env;
+  assert.equal(env.PDV_ENABLE_LAN,'true');
+  assert.equal(env.PDV_LAN_HOST,'127.0.0.1');
+  assert.equal(env.PDV_LAN_PORT,'4174');
+});
