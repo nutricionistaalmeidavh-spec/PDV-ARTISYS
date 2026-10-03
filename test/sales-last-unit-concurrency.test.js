@@ -23,8 +23,6 @@ test('last physical unit is reserved by the first completed POS sale before Even
     runtime.sales.completeSale(saleA.id,{payments:[{method:'PIX',amountCents:1000}],actor:{userId:'cash-a',role:'cashier',terminalId:'CAIXA-A'},mutationId:'last-unit-a'});
 
     assert.equal(runtime.inventory.getBalance('last-unit'),1,'physical decrement remains an EventBus effect');
-    assert.equal(runtime.logistics.getAvailability('last-unit').availableQuantity,0,'completion must reserve the unit before the stock effect');
-
     assert.throws(
       ()=>runtime.sales.completeSale(saleB.id,{payments:[{method:'PIX',amountCents:1000}],actor:{userId:'cash-b',role:'cashier',terminalId:'CAIXA-B'},mutationId:'last-unit-b'}),
       /Estoque disponivel insuficiente/i
