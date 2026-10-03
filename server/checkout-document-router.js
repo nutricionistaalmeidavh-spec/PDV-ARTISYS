@@ -33,6 +33,17 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
         rows.push({type:'ORDER',id:order.id,number:order.orderNumber||order.id,label:`${order.orderNumber||order.id} · Pedido Atacado`,status:order.status,totalCents:order.items.reduce((sum,item)=>sum+Math.round(Number(item.pendingQuantity||0)*Number(item.unitPriceCents||0)),0),customerName:order.customerName||null,saleId:null,openedAt:order.createdAt});
       }
     }
+    if(runtime.modules?.isEnabled('FOOD')&&runtime.delivery?.list){
+      for(const order of runtime.delivery.list()){
+        if(!order.saleId||order.status==='CANCELLED')continue;
+        const sale=runtime.sales.getSale(order.saleId);if(!sale||!['OPEN','SUSPENDED'].includes(sale.status))continue;
+        const pickup=order.fulfillmentType==='PICKUP';
+        const aliases=pickup?'retirada retirar pickup pedido retirada pedidos retirada':'delivery entrega entregas pedido delivery pedidos delivery';
+        if(!matchesSearch([order.id,order.customerName,order.phone,aliases],q))continue;
+        const channel=pickup?'Retirada':'Delivery';
+        rows.push({type:'DELIVERY',id:order.id,number:order.id,label:`${order.customerName||order.id} · ${channel}`,status:order.status,totalCents:Number(sale.totalCents||0),customerName:order.customerName||null,phone:order.phone||null,fulfillmentType:order.fulfillmentType,saleId:order.saleId,openedAt:order.createdAt});
+      }
+    }
     return rows.sort((a,b)=>String(b.openedAt||'').localeCompare(String(a.openedAt||''))).slice(0,50);
   }
   return async function checkoutDocumentRouter(req,res){
@@ -54,6 +65,14 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
         const terminalId=actor.terminalId;if(!terminalId)throw new CheckoutDocumentHttpError(400,'Terminal obrigatorio.');
         const result=runtime.orders.prepareCheckout(m.id,{terminalId,operatorId:actor.userId,sellerId:actor.userId},actor);
         json(res,200,{type:'ORDER',document:result.order,fulfillment:result.fulfillment,sale:result.sale});return true;
+      }
+      if((m=match(pathname,'/api/v1/checkout/documents/delivery/:id/open'))&&req.method==='POST'){
+        if(!runtime.modules?.isEnabled('FOOD')||!runtime.delivery?.get)throw new CheckoutDocumentHttpError(409,'Alimentacao desativada.');
+        const order=runtime.delivery.get(m.id);if(!order||order.status==='CANCELLED')throw new CheckoutDocumentHttpError(404,'Pedido de entrega ou retirada nao encontrado.');
+        if(!order.saleId)throw new CheckoutDocumentHttpError(409,'Pedido ainda nao foi enviado para o caixa.');
+        let sale=runtime.sales.getSale(order.saleId);if(!sale||!['OPEN','SUSPENDED'].includes(sale.status))throw new CheckoutDocumentHttpError(409,'A venda deste pedido nao esta disponivel para cobranca.');
+        if(sale.status==='SUSPENDED'){if(typeof runtime.sales.resumeSale!=='function')throw new CheckoutDocumentHttpError(409,'Venda suspensa nao pode ser retomada.');sale=runtime.sales.resumeSale(sale.id);}
+        json(res,200,{type:'DELIVERY',document:order,sale});return true;
       }
       throw new CheckoutDocumentHttpError(405,'Metodo nao permitido.');
     }catch(error){
