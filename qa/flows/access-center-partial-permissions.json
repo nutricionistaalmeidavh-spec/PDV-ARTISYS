@@ -164,7 +164,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-user-row] [data-edit-person]",
+      "selector": "tr:has-text('Gerente QA Acessos') [data-edit-person]",
       "name": "gerente-pode-editar-pessoa",
       "timeoutMs": 10000
     },
