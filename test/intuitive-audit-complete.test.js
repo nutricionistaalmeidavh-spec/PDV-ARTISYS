@@ -80,3 +80,19 @@ test('all-pages QA completes a real return and confirms it durably',()=>{
   assert.equal(durable?.path,'/api/v1/returns');
   assert.match(String(durable?.expectedPayloadIncludes||''),/Devolução QA/);
 });
+
+
+test('all-pages QA verifies destructive sale cancellation before confirming durable state',()=>{
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  const names=new Set(flow.steps.map(step=>step.name));
+  for(const name of [
+    'cancelamento-venda-iniciada',
+    'cancelamento-confirmacao-visivel',
+    'cancelamento-confirmado',
+    'cancelamento-feedback',
+    'cancelamento-persistido'
+  ]) assert.equal(names.has(name),true,name);
+  const durable=flow.steps.find(step=>step.name==='cancelamento-persistido');
+  assert.equal(durable?.path,'/api/v1/sales?status=CANCELLED');
+  assert.match(String(durable?.expectedPayloadIncludes||''),/CANCELLED/);
+});
