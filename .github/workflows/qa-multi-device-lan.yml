@@ -1,9 +1,6 @@
 name: QA Multi-Device LAN
 
 on:
-  push:
-    branches:
-      - feat/qa-multi-device-lan
   workflow_dispatch:
     inputs:
       profile:
