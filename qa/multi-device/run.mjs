@@ -4,6 +4,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { _electron as electron } from 'playwright';
 
 const require=createRequire(import.meta.url);
 const {createPdvRuntime}=require('../../js/core/pdv-runtime');
@@ -11,8 +12,8 @@ const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
   smoke:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
-  full:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
-  stress:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','stress-last-unit-races','database-invariants']
+  full:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
+  stress:['price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','stress-last-unit-races','database-invariants']
 });
 
 function parseArgs(argv){
@@ -138,6 +139,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     runtime.modules.setEnabled('FOOD',true,actor);
     const seedProducts=[
       {id:'qa-price',sku:'QA-PRICE',name:'Produto Preco',salePriceCents:1000,costCents:400,trackStock:false,menuEnabled:true},
+      {id:'qa-ui-price',sku:'QA-UI-PRICE',name:'Produto UI Preco',salePriceCents:1000,costCents:400,trackStock:false,menuEnabled:true},
       {id:'qa-stock',sku:'QA-STOCK',name:'Produto Estoque',salePriceCents:1000,costCents:400,trackStock:true,menuEnabled:true},
       {id:'qa-last',sku:'QA-LAST',name:'Ultima Unidade',salePriceCents:700,costCents:250,trackStock:true,menuEnabled:true},
       {id:'qa-idem',sku:'QA-IDEM',name:'Produto Idempotencia',salePriceCents:900,costCents:300,trackStock:true,menuEnabled:true},
@@ -178,6 +180,84 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       assert(completed.body.sale.totalCents===1250,'Venda concluiu com total diferente do preco atualizado',{sale:completed.body.sale});
       state.priceSaleId=opened.body.id;
       return{priceCents:product.salePriceCents,saleUnitPriceCents:sale.body.items[0].unitPriceCents,saleTotalCents:completed.body.sale.totalCents};
+    });
+
+    await scenario('cashier-ui-price-propagation',async()=>{
+      const rootDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');
+      const userDataDir=path.join(outputDir,'electron-cashier-user-data');
+      const screenshotDir=path.join(outputDir,'screenshots');
+      fs.mkdirSync(userDataDir,{recursive:true});
+      fs.mkdirSync(screenshotDir,{recursive:true});
+      fs.writeFileSync(path.join(userDataDir,'data-server.json'),JSON.stringify({
+        selected:true,
+        mode:'lan-client',
+        host:'0.0.0.0',
+        port:4174,
+        serverUrl:base,
+        terminalId:state.cashATerminal.terminalId
+      },null,2)+'\n');
+
+      let app=null;
+      try{
+        app=await electron.launch({
+          executablePath:require('electron'),
+          args:[
+            path.join(rootDir,'qa','desktop','main.cjs'),
+            '--no-sandbox',
+            '--password-store=basic'
+          ],
+          env:{
+            ...process.env,
+            ARTISYS_QA:'1',
+            ARTISYS_QA_USER_DATA_DIR:userDataDir,
+            ARTISYS_QA_NO_PRINTERS:'1',
+            ARTISYS_QA_SIMULATE_PRINTER:'1',
+            PDV_DEPLOYMENT_PROFILE:'terminal',
+            PDV_SERVER_URL:base,
+            PDV_TERMINAL_ID:state.cashATerminal.terminalId,
+            PDV_TERMINAL_KEY:state.cashATerminal.credential,
+            PDV_TERMINAL_NAME:'Caixa QA UI',
+            PDV_STORE_NAME:'Loja QA',
+            PDV_AUTO_PRINT:'false'
+          }
+        });
+        const page=await app.firstWindow();
+        await page.locator('#login-form').waitFor({state:'visible',timeout:20000});
+        await page.locator("#login-form input[name='username']").fill('qa-cash-a');
+        await page.locator("#login-form input[name='password']").fill('qa-test-password');
+        await page.locator("#login-form button[type='submit']").click();
+        await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await page.locator("button[data-route='checkout']").click();
+
+        const card=page.locator("[data-add-product='qa-ui-price']");
+        await card.waitFor({state:'visible',timeout:15000});
+        const before=(await card.innerText()).replace(/\s+/g,' ');
+        assert(before.includes('10,00'),'Caixa Electron nao exibiu preco inicial de R$ 10,00',{text:before});
+        await page.screenshot({path:path.join(screenshotDir,'cashier-price-before.png'),fullPage:true});
+
+        await state.admin.request('/api/v1/products',{method:'POST',body:{
+          id:'qa-ui-price',sku:'QA-UI-PRICE',name:'Produto UI Preco',categoryId:'qa-category',
+          salePriceCents:1375,costCents:400,trackStock:false,menuEnabled:true,active:true
+        },expected:201});
+
+        await page.reload({waitUntil:'domcontentloaded'});
+        await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await page.locator("button[data-route='checkout']").click();
+        const updated=page.locator("[data-add-product='qa-ui-price']");
+        await updated.waitFor({state:'visible',timeout:15000});
+        const after=(await updated.innerText()).replace(/\s+/g,' ');
+        assert(after.includes('13,75'),'Preco alterado pelo Admin nao apareceu no Caixa Electron',{text:after});
+        await updated.click();
+
+        const cart=page.locator(".cart-line[data-select-product='qa-ui-price']");
+        await cart.waitFor({state:'visible',timeout:15000});
+        const cartText=(await cart.innerText()).replace(/\s+/g,' ');
+        assert(cartText.includes('13,75'),'Carrinho do Caixa Electron nao usou o novo preco',{text:cartText});
+        await page.screenshot({path:path.join(screenshotDir,'cashier-price-after.png'),fullPage:true});
+        return{before:'10,00',after:'13,75',cartPrice:'13,75',screenshots:2};
+      }finally{
+        if(app)await app.close().catch(()=>{});
+      }
     });
 
     await scenario('sale-stock-decrement',async()=>{
