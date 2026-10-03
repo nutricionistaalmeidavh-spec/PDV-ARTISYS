@@ -235,7 +235,7 @@
     const sellerField = SELLER_FILTER_VIEWS.has(state.view)
       ? `<label>Vendedor / Garçom<select name="sellerId" class="ops-input"><option value="">Todos</option>${sellers.map(s => `<option value="${escapeHtml(s.id)}" ${s.id === state.sellerId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}</select></label>`
       : `<div class="report-v2-filter-note"><strong>Caixa físico</strong><span>O filtro de vendedor/garçom não se aplica a sangrias, suprimentos e fundo de abertura.</span></div>`;
-    return `<section class="ops-card report-v2-filter-card"><div class="report-v2-period-presets" aria-label="Atalhos de período"><button type="button" class="ops-secondary" data-report-period="today">Hoje</button><button type="button" class="ops-secondary" data-report-period="last7">Últimos 7 dias</button><button type="button" class="ops-secondary" data-report-period="month">Este mês</button><button type="button" class="ops-secondary" data-report-period="prev-month">Mês anterior</button></div><form id="report-v2-filter" class="report-v2-filter" novalidate><label>Data inicial<input name="fromDate" type="date" class="ops-input" value="${escapeHtml(state.fromDate)}" required></label><label>Data final<input name="toDate" type="date" class="ops-input" value="${escapeHtml(state.toDate)}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
+    return `<section class="ops-card report-v2-filter-card"><div class="report-v2-period-presets" aria-label="Atalhos de período"><button type="button" class="ops-secondary" data-report-period="today">Hoje</button><button type="button" class="ops-secondary" data-report-period="last7">Últimos 7 dias</button><button type="button" class="ops-secondary" data-report-period="month">Este mês</button><button type="button" class="ops-secondary" data-report-period="prev-month">Mês anterior</button></div><form id="report-v2-filter" class="report-v2-filter" novalidate><label>Data inicial<input name="fromDate" type="text" inputmode="numeric" autocomplete="off" data-date-ptbr class="ops-input" placeholder="dd/mm/aaaa" value="${escapeHtml(root.PdvBusinessDate.formatDatePtBr(state.fromDate))}" required></label><label>Data final<input name="toDate" type="text" inputmode="numeric" autocomplete="off" data-date-ptbr class="ops-input" placeholder="dd/mm/aaaa" value="${escapeHtml(root.PdvBusinessDate.formatDatePtBr(state.toDate))}" required></label>${sellerField}<button class="ops-primary" type="submit">Aplicar período</button></form></section>`;
   }
 
   function printMeta(sellers,inventory) {
@@ -243,7 +243,7 @@
       const selected=selectedInventory(inventory);
       return `Posição atual · Local: ${selected.locationName || 'Todos os locais'} · período e vendedor não se aplicam`;
     }
-    const periodText = `${state.fromDate} a ${state.toDate}`;
+    const periodText = `${root.PdvBusinessDate.formatDatePtBr(state.fromDate)} a ${root.PdvBusinessDate.formatDatePtBr(state.toDate)}`;
     if (!SELLER_FILTER_VIEWS.has(state.view)) return `${periodText} · vendedor/garçom não se aplica ao caixa físico`;
     const sellerName = sellers.find(row => row.id === state.sellerId)?.name || 'Todos';
     return `${periodText} · Vendedor/Garçom: ${sellerName}`;
@@ -286,8 +286,14 @@
     document.getElementById('report-v2-filter')?.addEventListener('submit',event => {
       event.preventDefault();
       const form = new FormData(event.currentTarget);
-      const fromDate = String(form.get('fromDate'));
-      const toDate = String(form.get('toDate'));
+      let fromDate,toDate;
+      try {
+        fromDate = root.PdvBusinessDate.parseDatePtBr(String(form.get('fromDate') || ''));
+        toDate = root.PdvBusinessDate.parseDatePtBr(String(form.get('toDate') || ''));
+      } catch (error) {
+        showToast(error.message || 'Informe as datas no formato dd/mm/aaaa.','error');
+        return;
+      }
       if (fromDate > toDate) { showToast('A data inicial não pode ser posterior à data final.','error'); return; }
       void renderReportsV2({ fromDate,toDate,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? String(form.get('sellerId') || '') : state.sellerId,customerId:'',productId:'',paymentMethod:'' });
     });

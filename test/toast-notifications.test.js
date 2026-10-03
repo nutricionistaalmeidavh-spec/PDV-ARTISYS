@@ -30,7 +30,7 @@ test('shared toast policy limits visual noise and preserves errors', () => {
   const source = readToastSource();
   assert.match(source, /SUCCESS_DURATION_MS\s*=\s*2000/);
   assert.match(source, /ERROR_DURATION_MS\s*=\s*6000/);
-  assert.match(source, /MAX_VISIBLE\s*=\s*2/);
+  assert.match(source, /MAX_VISIBLE\s*=\s*1/);
   assert.ok(source.includes('data-toast-close'), 'toasts must expose a manual close control');
   assert.ok(source.includes('findDuplicateToast'), 'identical visible messages must be deduplicated');
   assert.ok(source.includes("type === 'error'"), 'error toasts must be explicitly prioritized');

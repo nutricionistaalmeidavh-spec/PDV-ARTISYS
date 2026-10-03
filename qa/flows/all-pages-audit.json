@@ -1051,6 +1051,20 @@
       "timeoutMs": 10000
     },
     {
+      "action": "fill",
+      "selector": "#wholesale-item-form input[name='expectedAt']",
+      "value": "08/10/2026 17:00",
+      "name": "atacado-previsao-preencher-ptbr",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectValue",
+      "selector": "#wholesale-item-form input[name='expectedAt']",
+      "expected": "08/10/2026 17:00",
+      "name": "atacado-previsao-ptbr",
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
       "name": "atacado",
       "fullPage": true
@@ -1160,6 +1174,19 @@
       "selector": ".checkout-layout",
       "expected": "Produto QA Atacado",
       "name": "pedido-carregado-sem-redigitacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".sale-cart-region .cart-line",
+      "name": "balcao-carrinho-item-visivel-antes-finalizar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".sale-cart-region .cart-line",
+      "expected": "Produto QA Atacado",
+      "name": "balcao-carrinho-item-legivel-antes-finalizar",
       "timeoutMs": 10000
     },
     {
@@ -1390,6 +1417,20 @@
       "selector": ".report-v2-page",
       "name": "relatorios-ui",
       "timeoutMs": 15000
+    },
+    {
+      "action": "expectValue",
+      "selector": "#report-v2-filter input[name='fromDate']",
+      "expected": "01/10/2026",
+      "name": "relatorios-data-inicial-ptbr",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectValue",
+      "selector": "#report-v2-filter input[name='toDate']",
+      "expected": "03/10/2026",
+      "name": "relatorios-data-final-ptbr",
+      "timeoutMs": 10000
     },
     {
       "action": "expectText",
@@ -1648,6 +1689,13 @@
     },
     {
       "action": "expectText",
+      "selector": ".staff-head .eyebrow",
+      "expected": "Garçom",
+      "name": "equipe-mobile-tipo-traduzido",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
       "selector": ".staff-head",
       "expected": "Garçom QA",
       "name": "equipe-mobile-identidade",
@@ -1743,6 +1791,13 @@
       "selector": ".kitchen-board",
       "name": "kds-mobile-lanes",
       "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".staff-head .eyebrow",
+      "expected": "Cozinha",
+      "name": "kds-mobile-tipo-traduzido",
+      "timeoutMs": 10000
     },
     {
       "action": "expectText",

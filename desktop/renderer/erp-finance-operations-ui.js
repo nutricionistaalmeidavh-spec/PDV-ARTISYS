@@ -236,7 +236,7 @@
         <label>Tipo<select name="kind" class="ops-input"><option value="PAYABLE">Conta a pagar</option><option value="RECEIVABLE">Conta a receber</option></select></label>
         <label>Descrição<input name="description" class="ops-input"></label>
         <label>Valor (R$)<input name="amount" class="ops-input" inputmode="decimal"></label>
-        <label>Início<input name="startDate" type="date" class="ops-input" value="${today()}"></label>
+        <label>Início<input name="startDate" type="text" inputmode="numeric" autocomplete="off" data-date-ptbr class="ops-input" placeholder="dd/mm/aaaa" value="${root.PdvBusinessDate.formatDatePtBr(today())}"></label>
         <label>Dia de vencimento<input name="dueDay" type="number" min="1" max="31" class="ops-input" value="1"></label>
         <button class="ops-primary" type="submit">Criar recorrência</button></form></section>
       <section class="ops-card"><div class="ops-card-head"><div><h2>Regras cadastradas</h2><p>${recurrences.length} regra(s)</p></div><button id="erp-generate-recurrences" class="ops-secondary" type="button">Gerar lançamentos pendentes</button></div>
@@ -252,7 +252,7 @@
       if(!description){toast('Informe a descrição da recorrência.','error');event.currentTarget.elements.description?.focus();return;}
       if(amountCents<=0){toast('Informe um valor maior que zero.','error');event.currentTarget.elements.amount?.focus();return;}
       if(!Number.isInteger(dueDay)||dueDay<1||dueDay>31){toast('Informe um dia de vencimento entre 1 e 31.','error');event.currentTarget.elements.dueDay?.focus();return;}
-      try{await api.createRecurrence({kind:data.get('kind'),description,amountCents,startDate:data.get('startDate'),dueDay});toast('Recorrência criada.','success');await renderRecurrences();}catch(error){toast(error.message||String(error),'error');}
+      try{const startDate=root.PdvBusinessDate.parseDatePtBr(String(data.get('startDate')||''));await api.createRecurrence({kind:data.get('kind'),description,amountCents,startDate,dueDay});toast('Recorrência criada.','success');await renderRecurrences();}catch(error){toast(error.message||String(error),'error');}
     });
 
     document.getElementById('erp-generate-recurrences')?.addEventListener('click',async()=>{
@@ -262,9 +262,9 @@
         title:'Gerar lançamentos pendentes',
         description:'Gera as ocorrências vencidas das regras ativas até a data escolhida.',
         confirmLabel:'Gerar lançamentos',
-        body:`<label>Gerar até<input name="asOf" type="date" class="ops-input" value="${today()}"></label>`,
-        validate:data=>data.asOf?null:{message:'Informe a data limite.',field:'asOf'},
-        onConfirm:data=>api.generateRecurrences(data.asOf)
+        body:`<label>Gerar até<input name="asOf" type="text" inputmode="numeric" autocomplete="off" data-date-ptbr class="ops-input" placeholder="dd/mm/aaaa" value="${root.PdvBusinessDate.formatDatePtBr(today())}"></label>`,
+        validate:data=>{if(!data.asOf)return {message:'Informe a data limite.',field:'asOf'};try{root.PdvBusinessDate.parseDatePtBr(data.asOf);return null;}catch(error){return {message:error.message,field:'asOf'}}},
+        onConfirm:data=>api.generateRecurrences(root.PdvBusinessDate.parseDatePtBr(data.asOf))
       });
       if(result.confirmed){toast(`${Array.isArray(result.value)?result.value.length:0} lançamento(s) gerado(s).`,'success');await renderRecurrences();}
     });

@@ -58,6 +58,16 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Restaurant menu items use an explicit service route: `DIRECT` remains on the command and never creates a KDS ticket; `PRODUCTION` requires an active production station and is the only mode routed to KDS. An item with no route is a configuration error, never an implicit direct-service item.
 - Rotating a table QR invalidates the previous token. The desktop UI uses an app-owned confirmation step before rotation.
 
+
+## Convenções de operação — datas, feedback e catálogo
+
+- Campos de data digitáveis do desktop exibem e aceitam **dd/mm/aaaa**; data e hora usam **dd/mm/aaaa hh:mm**. Valores canônicos enviados aos serviços permanecem ISO/AAAA-MM-DD conforme o contrato de cada API.
+- O desktop mantém no máximo uma notificação transitória gerenciada por vez. Feedback de sucesso sem ação pendente é descartado ao trocar de rota; erros permanecem até o ciclo normal de fechamento para não ocultar falhas.
+- No Balcão, quando existe item na venda, a região de carrinho preserva espaço mínimo suficiente para conferir item, quantidade/preço e total antes de **Finalizar venda**, inclusive no viewport compacto do gate.
+- **Produtos** é a visão do catálogo de venda (nome, preço, categoria e disponibilidade comercial). **Estoque** continua sendo a superfície operacional para saldo, insumos e fichas técnicas; Produtos oferece um atalho explícito para essa área sem duplicar o cadastro canônico.
+- Ações de criação usam texto/glyphs portáveis (`+`) e não dependem de glifos específicos da fonte do sistema.
+
+
 ## Restaurante: equipe móvel e PWA
 
 - `/mobile` is staff-only and continues to use paired device credentials. Customer QR users must never be directed to the device login screen.

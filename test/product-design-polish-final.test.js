@@ -76,7 +76,7 @@ test('optional module navigation has persistent visible labels and accessible na
 
 test('managed toasts announce atomically and remain bounded',()=>{
   const toast=read('desktop/renderer/toast-ui.js');
-  assert.match(toast,/MAX_VISIBLE = 2/);
+  assert.match(toast,/MAX_VISIBLE = 1/);
   assert.match(toast,/setAttribute\('role', normalized === 'error' \? 'alert' : 'status'\)/);
   assert.match(toast,/setAttribute\('aria-atomic','true'\)/);
 });

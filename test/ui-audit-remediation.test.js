@@ -44,7 +44,7 @@ test('checkout keeps payment and finalization in a fixed panel footer',()=>{
   const js=read('desktop/renderer/ux-home-checkout.js');
   const css=read('desktop/renderer/ux-home-checkout.css');
   assert.match(js,/sale-checkout-footer/);
-  assert.match(css,/\.sale-panel\s*\{[^}]*grid-template-rows:[^;}]*minmax\(0,1fr\)[^;}]*auto[^}]*overflow-y:hidden/s);
+  assert.match(css,/\.sale-panel\s*\{[^}]*grid-template-rows:[^;}]*minmax\(84px,1fr\)[^;}]*auto[^}]*overflow-y:hidden/s);
   assert.match(css,/\.sale-checkout-footer\s*\{/);
   assert.match(css,/\.sale-cart-region \.cart-list\s*\{[^}]*min-height:0[^}]*overflow:auto/s);
 });

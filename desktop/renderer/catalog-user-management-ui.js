@@ -16,7 +16,7 @@
   const roleLabel=role=>({admin:'Administrador',manager:'Gerente',cashier:'Operador / vendedor'})[role]||role;
   const canManageCatalog=()=>['admin','manager'].includes(currentUser?.role);
   const isAdmin=()=>currentUser?.role==='admin';
-  function toast(message,type=''){if(!toastRoot)return;const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;toastRoot.appendChild(el);setTimeout(()=>el.remove(),3500);}
+  function toast(message,type=''){if(window.PdvToast?.show){window.PdvToast.show(message,type);return;}if(!toastRoot)return;const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;toastRoot.appendChild(el);setTimeout(()=>el.remove(),3500);}
   async function session(){if(currentUser)return currentUser;try{currentUser=(await api.currentSession()).user;return currentUser;}catch{return null;}}
   function closeModal(){if(!modalRoot)return;modalRoot.classList.add('hidden');modalRoot.innerHTML='';}
   function modal(title,body,onMount){if(!modalRoot)return;modalRoot.classList.remove('hidden');modalRoot.innerHTML=`<section class="modal-card"><header><h2>${esc(title)}</h2><button type="button" class="modal-close" data-catalog-modal-close>×</button></header>${body}</section>`;modalRoot.querySelector('[data-catalog-modal-close]')?.addEventListener('click',closeModal);onMount?.(modalRoot);}
@@ -31,7 +31,7 @@
     existing?.remove();
     const users=await api.users(true);
     const panel=page.querySelector('.data-card')||document.createElement('section');panel.id='catalog-user-management-users';panel.className='data-card';
-    panel.innerHTML=`<div style="padding:14px"><nav class="category-chips" aria-label="Seções de equipe"><button class="category-chip active" type="button" data-team-tab="people">Pessoas</button><button class="category-chip" type="button" data-team-tab="access">Acessos</button><button class="category-chip" type="button" data-team-tab="roles">Papéis e permissões</button><button class="category-chip" type="button" data-team-tab="commissions">Comissões</button></nav><header class="page-head"><div><h2>Pessoas</h2><p>Cadastre a equipe e defina, no mesmo fluxo, se a pessoa terá login e quais áreas poderá usar.</p></div><button type="button" class="primary-button" id="catalog-new-user">＋ Nova pessoa</button></header><div data-team-panel="people">${users.map(user=>{
+    panel.innerHTML=`<div style="padding:14px"><nav class="category-chips" aria-label="Seções de equipe"><button class="category-chip active" type="button" data-team-tab="people">Pessoas</button><button class="category-chip" type="button" data-team-tab="access">Acessos</button><button class="category-chip" type="button" data-team-tab="roles">Papéis e permissões</button><button class="category-chip" type="button" data-team-tab="commissions">Comissões</button></nav><header class="page-head"><div><h2>Pessoas</h2><p>Cadastre a equipe e defina, no mesmo fluxo, se a pessoa terá login e quais áreas poderá usar.</p></div><button type="button" class="primary-button" id="catalog-new-user">+ Nova pessoa</button></header><div data-team-panel="people">${users.map(user=>{
       const managerBlocked=currentUser.role==='manager'&&user.role==='admin';
       const status=user.active?'Ativo':'Inativo';
       const activation=isAdmin()?(user.active?`<button type="button" class="danger-button" data-remove-user="${esc(user.id)}">Desativar</button>`:`<button type="button" class="secondary-button" data-reactivate-user="${esc(user.id)}">Ativar</button>`):'';

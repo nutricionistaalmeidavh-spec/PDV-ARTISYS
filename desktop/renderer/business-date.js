@@ -5,9 +5,19 @@
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root) root.PdvBusinessDate = api;
 })(typeof window !== 'undefined' ? window : globalThis, () => {
+  const DATE_PTBR = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const DATETIME_PTBR = /^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})$/;
+
+  function pad(value) { return String(value).padStart(2,'0'); }
+
+  function validDateParts(year,month,day) {
+    const date = new Date(Date.UTC(year,month - 1,day));
+    return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+  }
+
   function localBusinessDate(value = new Date(), timeZone = null) {
     const date = value instanceof Date ? value : new Date(value);
-    if (!Number.isFinite(date.getTime())) throw new Error('Data invalida.');
+    if (!Number.isFinite(date.getTime())) throw new Error('Data inválida.');
     const options = { year:'numeric', month:'2-digit', day:'2-digit' };
     if (timeZone) options.timeZone = String(timeZone);
     const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
@@ -15,5 +25,47 @@
     return `${values.year}-${values.month}-${values.day}`;
   }
 
-  return Object.freeze({ localBusinessDate });
+  function parseCanonicalDate(value) {
+    const match = String(value ?? '').trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) throw new Error('Data inválida.');
+    const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]);
+    if (!validDateParts(year,month,day)) throw new Error('Data inválida.');
+    return {year,month,day};
+  }
+
+  function formatDatePtBr(value) {
+    if (!String(value ?? '').trim()) return '';
+    const {year,month,day}=parseCanonicalDate(value);
+    return `${pad(day)}/${pad(month)}/${year}`;
+  }
+
+  function parseDatePtBr(value) {
+    const text=String(value ?? '').trim();
+    const match=text.match(DATE_PTBR);
+    if (!match) throw new Error('Informe a data no formato dd/mm/aaaa.');
+    const day=Number(match[1]),month=Number(match[2]),year=Number(match[3]);
+    if (!validDateParts(year,month,day)) throw new Error('Informe uma data válida no formato dd/mm/aaaa.');
+    return `${year}-${pad(month)}-${pad(day)}`;
+  }
+
+  function formatDateTimePtBr(value) {
+    const text=String(value ?? '').trim();
+    if (!text) return '';
+    const match=text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (!match) throw new Error('Data e hora inválidas.');
+    const year=Number(match[1]),month=Number(match[2]),day=Number(match[3]),hour=Number(match[4]),minute=Number(match[5]);
+    if (!validDateParts(year,month,day)||hour>23||minute>59) throw new Error('Data e hora inválidas.');
+    return `${pad(day)}/${pad(month)}/${year} ${pad(hour)}:${pad(minute)}`;
+  }
+
+  function parseDateTimePtBr(value) {
+    const text=String(value ?? '').trim();
+    const match=text.match(DATETIME_PTBR);
+    if (!match) throw new Error('Informe data e hora no formato dd/mm/aaaa hh:mm.');
+    const day=Number(match[1]),month=Number(match[2]),year=Number(match[3]),hour=Number(match[4]),minute=Number(match[5]);
+    if (!validDateParts(year,month,day)||hour>23||minute>59) throw new Error('Informe uma data e hora válidas no formato dd/mm/aaaa hh:mm.');
+    return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+  }
+
+  return Object.freeze({ localBusinessDate,formatDatePtBr,parseDatePtBr,formatDateTimePtBr,parseDateTimePtBr });
 });
