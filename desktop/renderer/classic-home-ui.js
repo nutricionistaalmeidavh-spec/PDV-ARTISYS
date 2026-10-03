@@ -11,7 +11,7 @@
   const symbols = {
     checkout:'🛒', customers:'👥', sellers:'●', products:'◇', inventory:'▦', cash:'▤',
     finance:'$', reports:'▥', sales:'◷', returns:'↩', management:'↗', team:'👥',
-    devices:'⌁', fiscal:'✓', backup:'↻', modules:'+'
+    devices:'⌁', backup:'↻', modules:'+'
   };
   let scheduled = false;
 
