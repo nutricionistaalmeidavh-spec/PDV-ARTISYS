@@ -146,7 +146,7 @@
   function securityView(){
     const security=snapshot.security||{counts:{},sessions:[],recent:[]};
     return `<div class="access-security-grid">
-      <article class="access-metric"><span>Logins ativos</span><strong>${Number(security.counts?.sessions||0)}</strong></article>an><strong>${Number(security.counts?.sessions||0)}</strong></article>
+      <article class="access-metric"><span>Logins ativos</span><strong>${Number(security.counts?.sessions||0)}</strong></article>
       <article class="access-metric"><span>Administradores</span><strong>${Number(security.counts?.administrators||0)}</strong></article>
       <article class="access-metric"><span>Dispositivos ativos</span><strong>${Number(security.counts?.devices||0)}</strong></article>
       <article class="access-metric"><span>Bloqueados</span><strong>${Number(security.counts?.blockedDevices||0)}</strong></article>
