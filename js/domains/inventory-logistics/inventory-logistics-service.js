@@ -3,6 +3,7 @@ const { randomUUID } = require('node:crypto');
 const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity } = require('../inventory/inventory-rules');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 
 function createInventoryLogisticsService({db,inventory,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!inventory)throw new TypeError('db and inventory are required.');

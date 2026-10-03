@@ -60,7 +60,7 @@ test('user password reset works and self or last-admin deactivation is blocked',
     assert.equal(runtime.catalog.verifyUserPassword('caixa','senha-antiga-123').ok,false);
     assert.equal(runtime.catalog.verifyUserPassword('caixa','senha-nova-456').ok,true);
     assert.throws(()=>runtime.catalog.removeUser('admin1',adminActor),/proprio usuario|próprio usuário/i);
-    assert.throws(()=>runtime.catalog.removeUser('admin1',{userId:'root-external',role:'admin'}),/ultimo administrador|último administrador/i);
+    assert.throws(()=>runtime.catalog.removeUser('admin1',{kind:'system',id:'system'}),/ultimo administrador|último administrador/i);
   }finally{runtime.close();}
 });
 
@@ -100,7 +100,7 @@ async function api(ctx,token,pathname,{method='GET',body}={}){
   return fetch(`${ctx.base}${pathname}`,{method,headers,body:body===undefined?undefined:JSON.stringify(body)});
 }
 
-test('HTTP RBAC reserves admin promotion and user deactivation to admins',async()=>{
+test('HTTP capabilities prevent escalation and preserve operator customer access',async()=>{
   const ctx=await httpFixture();
   try{
     const admin=await login(ctx,'admin','senha-admin-123');
@@ -118,7 +118,7 @@ test('HTTP RBAC reserves admin promotion and user deactivation to admins',async(
     response=await api(ctx,admin,'/api/v1/users?includeInactive=true');
     assert.equal((await response.json()).find(user=>user.id==='cashier2').active,false);
 
-    assert.equal((await api(ctx,cashier,'/api/v1/customers',{method:'POST',body:{name:'Nao pode'}})).status,403);
+    assert.equal((await api(ctx,cashier,'/api/v1/customers',{method:'POST',body:{name:'Cliente do operador'}})).status,201);
     response=await api(ctx,manager,'/api/v1/customers',{method:'POST',body:{id:'c2',name:'Cliente 2'}});assert.equal(response.status,201);
     response=await api(ctx,manager,'/api/v1/customers/c2',{method:'DELETE'});assert.equal(response.status,200);
     response=await api(ctx,manager,'/api/v1/categories',{method:'POST',body:{id:'cat2',name:'Categoria 2'}});assert.equal(response.status,201);

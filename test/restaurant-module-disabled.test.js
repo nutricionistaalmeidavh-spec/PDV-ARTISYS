@@ -34,7 +34,7 @@ async function call(router,url,options){
 test('restaurant desktop mutations are rejected when FOOD module is disabled',async t=>{
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
-  runtime.modules.setEnabled('FOOD',false,{role:'admin',userId:'admin-1'});
+  runtime.modules.setEnabled('FOOD',false,{kind:'system',id:'system'});
   const router=createRestaurantRouter({runtime});
 
   const result=await call(router,'/api/v1/restaurant/tables',{
@@ -51,7 +51,7 @@ test('restaurant desktop mutations are rejected when FOOD module is disabled',as
 test('restaurant mobile mutations are rejected when FOOD module is disabled',async t=>{
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
-  const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{role:'admin'});
+  const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{kind:'system',id:'system'});
   runtime.modules.setEnabled('FOOD',false,{role:'admin',userId:'admin-1'});
   const router=createRestaurantRouter({runtime});
 

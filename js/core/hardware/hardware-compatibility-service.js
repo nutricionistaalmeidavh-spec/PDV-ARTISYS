@@ -18,7 +18,7 @@ function normalizeStatus(value){
   return normalized;
 }
 
-function createHardwareCompatibilityService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createHardwareCompatibilityService({db,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('db is required.');
   runHardwareMigrations(db,now);
   runSaleObservationMigrations(db,now);

@@ -5,7 +5,11 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {createPilotService,PILOT_STATES}=require('../js/core/pilot/pilot-service');
 
-function fixture(){const db=openDatabase(':memory:');runMigrations(db);let seq=0;const now=()=>new Date(1789004400000+seq++*1000).toISOString();return{db,pilot:createPilotService({db,now})};}
+function fixture(){
+ const db=openDatabase(':memory:');runMigrations(db);let seq=0;const now=()=>new Date(1789004400000+seq++*1000).toISOString();
+ const authorization={require({principal,capability}){assert.equal(capability,'settings.manage');if(principal?.id==='cash'){const error=new Error('Permissao insuficiente.');error.statusCode=403;throw error;}return true;}};
+ return{db,pilot:createPilotService({db,authorization,now})};
+}
 
 test('pilot seeds required field checks idempotently with explicit states',()=>{const {db,pilot}=fixture();try{
  const first=pilot.listChecks();const second=pilot.listChecks();assert.equal(first.length,second.length);assert.ok(first.length>=12);assert.equal(new Set(first.map(x=>x.key)).size,first.length);
@@ -13,7 +17,7 @@ test('pilot seeds required field checks idempotently with explicit states',()=>{
  assert.deepEqual(PILOT_STATES,['NOT_STARTED','IN_PROGRESS','READY','BLOCKED','BLOCKED_EXTERNAL']);assert.equal(first.every(x=>x.status==='NOT_STARTED'),true);
 }finally{db.close();}});
 
-test('pilot updates persist evidence and audit actor with admin/manager RBAC',()=>{const {db,pilot}=fixture();try{
+test('pilot updates persist evidence and enforce settings.manage capability',()=>{const {db,pilot}=fixture();try{
  const updated=pilot.updateCheck('lan-test',{status:'READY',note:'Ping e handshake OK',evidence:{terminalId:'PDV-02',latencyMs:5},actor:{userId:'mgr',role:'manager'}});assert.equal(updated.status,'READY');assert.equal(updated.note,'Ping e handshake OK');assert.equal(updated.evidence.terminalId,'PDV-02');assert.equal(updated.updatedBy,'mgr');
  assert.throws(()=>pilot.updateCheck('sale-test',{status:'READY',actor:{userId:'cash',role:'cashier'}}),/permiss/i);assert.throws(()=>pilot.updateCheck('sale-test',{status:'FAKE',actor:{userId:'admin',role:'admin'}}),/estado/i);
  const audit=db.prepare("SELECT action,entity_id FROM audit_log WHERE action='pilot.check.update' ORDER BY id DESC LIMIT 1").get();assert.equal(audit.entity_id,'lan-test');
