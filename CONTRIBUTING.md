@@ -34,4 +34,4 @@ Essa regra vale para código, UI, banco, API, módulos, hardware, QA, build/rele
 
 Os fluxos automatizados antigos e as comparações visuais acopladas às versões anteriores da interface continuam aposentados. `npm run qa:validate` valida somente o manifesto do harness.
 
-O gate `npm run qa:e2e:p0` roda no Electron em 1366×768 e faz parte do GitHub Actions. Ele executa `all-pages-audit` para smoke das superfícies principais e `restaurant-table-lifecycle` para a jornada transacional de mesas/comandas. Ambos devem permanecer alinhados à UI corrente e guardar screenshots/trace; novos fluxos só entram no gate depois de revisão contra a interface atual e de verificarem um resultado operacional útil.
+O gate `npm run qa:e2e:p0` roda no Electron e faz parte do GitHub Actions. Ele executa `all-pages-audit`, `restaurant-table-lifecycle` e `restaurant-multichannel-ui`; o último navega nas superfícies LAN reais de garçom, tablet e QR. Os fluxos devem permanecer alinhados à UI corrente, verificar resultados operacionais e guardar screenshots/trace; novos fluxos só entram depois de revisão contra a interface atual.
