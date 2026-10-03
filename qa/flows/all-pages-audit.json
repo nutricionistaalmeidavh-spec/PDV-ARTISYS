@@ -1163,6 +1163,64 @@
       "expectedStatus": 200,
       "expectedPayloadIncludes": "Devolução QA",
       "name": "devolucao-persistida"
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "cancelamento-voltar-balcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#new-sale",
+      "name": "cancelamento-venda-iniciada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-add-product='qa-wholesale-product']",
+      "name": "cancelamento-item-adicionado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#cancel-sale",
+      "name": "cancelamento-acao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#confirm-cancel",
+      "name": "cancelamento-confirmacao-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#cancel-reason",
+      "value": "Cancelamento QA",
+      "name": "cancelamento-motivo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-cancel",
+      "name": "cancelamento-confirmado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "expected": "Venda cancelada.",
+      "name": "cancelamento-feedback",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/sales?status=CANCELLED",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": "CANCELLED",
+      "name": "cancelamento-persistido"
     }
   ]
 }
