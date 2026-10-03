@@ -44,6 +44,15 @@ function createAuthSessionRouter({ runtime, sessionStore, requireTerminalAuth = 
       return true;
     }
 
+    if (runtime.account?.syncLicenseStatus && runtime.account?.status?.().activated) {
+      const license = await runtime.account.syncLicenseStatus({ allowOffline:true });
+      if (license?.active === false) {
+        sessionStore.delete(token);
+        sendJson(response, 403, { error:'Licenca comercial suspensa, cancelada ou expirada.' });
+        return true;
+      }
+    }
+
     sendJson(response, 200, {
       user,
       terminalId: session.terminalId || null,

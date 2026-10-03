@@ -2,6 +2,7 @@
 
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
+const { version: productVersion } = require('../package.json');
 const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes, createHash } = require('node:crypto');
@@ -81,8 +82,8 @@ async function startEmbeddedServer() {
     backupDir,
     diagnosticsDir:path.join(app.getPath('userData'),'diagnostics'),
     productPhotoDir:path.join(app.getPath('userData'),'product-photos'),
-    appVersion:app.getVersion(),
-    serverVersion:app.getVersion(),
+    appVersion:productVersion,
+    serverVersion:productVersion,
     fiscalProviderResolver,
     nfseProviderResolver,
     installationId,
@@ -245,7 +246,7 @@ function registerIpc() {
     terminalName: bootstrapConfig?.terminalName || 'Terminal PDV-01',
     storeName: bootstrapConfig?.storeName || 'Loja Matriz',
     lanEnabled: Boolean(lanServer),
-    version: app.getVersion(),
+    version: productVersion,
     dataServer: publicDataServerConfig(dataServerConfig,terminalCredentialConfigured())
   }));
 

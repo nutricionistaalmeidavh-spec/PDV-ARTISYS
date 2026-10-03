@@ -99,6 +99,21 @@ async function newestMatchingFile(directory, suffix = '') {
   return candidates[0]?.filePath || null;
 }
 
+function runtimeVariable(runtimeContext, key, label) {
+  const name = String(key || '').trim();
+  if (!name) throw new Error(`${label}: runtime variable name is required`);
+  if (!runtimeContext?.vars || !Object.prototype.hasOwnProperty.call(runtimeContext.vars, name)) {
+    throw new Error(`${label}: runtime variable ${name} is not available`);
+  }
+  return runtimeContext.vars[name];
+}
+
+function payloadPathValue(payload, pathValue) {
+  const path = String(pathValue || '').trim();
+  if (!path) return payload;
+  return path.split('.').reduce((value, segment) => value == null ? undefined : value[segment], payload);
+}
+
 async function qaRunStartMs(screenshotsDir, runtimeContext) {
   const explicit = Number(runtimeContext?.runStartedAtMs);
   if (Number.isFinite(explicit) && explicit > 0) return explicit;
@@ -112,8 +127,14 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
   const label = stepLabel(step, index);
   switch (step.action) {
     case 'goto': {
-      const target = step.url || (step.path && baseURL ? new URL(step.path, baseURL).toString() : step.path);
-      if (!target) throw new Error('goto requires url or path');
+      let target;
+      if (step.urlFrom) {
+        const dynamicBase = String(runtimeVariable(runtimeContext, step.urlFrom, label));
+        target = step.path ? new URL(step.path, dynamicBase).toString() : dynamicBase;
+      } else {
+        target = step.url || (step.path && baseURL ? new URL(step.path, baseURL).toString() : step.path);
+      }
+      if (!target) throw new Error('goto requires url, urlFrom or path');
       await page.goto(target, { waitUntil: step.waitUntil || 'domcontentloaded' });
       break;
     }
@@ -139,7 +160,13 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       }
       break;
     }
-    case 'fill': await locator(page, step).fill(resolveSecret(step, env)); break;
+    case 'fill': {
+      const value = step.valueFrom != null
+        ? runtimeVariable(runtimeContext, step.valueFrom, label)
+        : resolveSecret(step, env);
+      await locator(page, step).fill(String(value ?? ''));
+      break;
+    }
     case 'press': await locator(page, step).press(step.key || 'Enter'); break;
     case 'check': await setCheckboxState(page, step, true); break;
     case 'uncheck': await setCheckboxState(page, step, false); break;
@@ -159,6 +186,23 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await page.locator('#auth-overlay').waitFor({ state:'hidden', timeout:step.timeoutMs ?? 15000 });
       break;
     }
+    case 'desktopConfig': {
+      const config = await page.evaluate(async () => {
+        if (typeof window.artisysDesktop?.getConfig !== 'function') throw new Error('Desktop config bridge unavailable');
+        return window.artisysDesktop.getConfig();
+      });
+      if (!runtimeContext) throw new Error(`${label}: runtime context is unavailable`);
+      runtimeContext.vars ||= {};
+      if (step.saveAs != null) {
+        if (!step.saveAs || typeof step.saveAs !== 'object' || Array.isArray(step.saveAs)) throw new TypeError(`${label}: saveAs must be an object`);
+        for (const [name, configPath] of Object.entries(step.saveAs)) {
+          const value = payloadPathValue(config, configPath);
+          if (value == null) throw new Error(`${label}: config value ${configPath} is unavailable for ${name}`);
+          runtimeContext.vars[name] = value;
+        }
+      }
+      break;
+    }
     case 'desktopApiRequest': {
       const requestPath=String(step.path||'').trim();
       if(!requestPath.startsWith('/api/v1/'))throw new Error(`${label}: desktopApiRequest requires /api/v1/ path`);
@@ -169,6 +213,23 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
       if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
       if(step.expectOk!==false&&!result?.ok)throw new Error(`${label}: desktop API request failed: ${JSON.stringify(result?.payload||null)}`);
+      if(step.expectedPayloadIncludes!=null){
+        const payloadText=JSON.stringify(result?.payload??null);
+        const expectations=Array.isArray(step.expectedPayloadIncludes)?step.expectedPayloadIncludes:[step.expectedPayloadIncludes];
+        for(const expected of expectations){
+          if(!payloadText.includes(String(expected)))throw new Error(`${label}: API payload does not include ${JSON.stringify(String(expected))}: ${payloadText}`);
+        }
+      }
+      if (step.saveAs != null) {
+        if (!step.saveAs || typeof step.saveAs !== 'object' || Array.isArray(step.saveAs)) throw new TypeError(`${label}: saveAs must be an object`);
+        if (!runtimeContext) throw new Error(`${label}: runtime context is unavailable`);
+        runtimeContext.vars ||= {};
+        for (const [name, payloadPath] of Object.entries(step.saveAs)) {
+          const value = payloadPathValue(result?.payload, payloadPath);
+          if (value == null) throw new Error(`${label}: response value ${payloadPath} is unavailable for ${name}`);
+          runtimeContext.vars[name] = value;
+        }
+      }
       break;
     }
     case 'setFeatureFlags': {
@@ -210,9 +271,7 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
         && box.y >= -tolerancePx
         && box.x + box.width <= viewport.width + tolerancePx
         && box.y + box.height <= viewport.height + tolerancePx;
-      if (!inside) {
-        throw new Error(`${label}: target is outside viewport (${JSON.stringify(box)} vs ${viewport.width}x${viewport.height})`);
-      }
+      if (!inside) throw new Error(`${label}: target is outside viewport (${JSON.stringify(box)} vs ${viewport.width}x${viewport.height})`);
       break;
     }
     case 'expectValue': {

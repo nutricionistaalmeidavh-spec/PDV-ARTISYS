@@ -18,7 +18,7 @@
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const dateLabel=value=>{if(!value)return '—';const text=String(value).slice(0,10);const date=new Date(`${text}T00:00:00.000Z`);return Number.isNaN(date.getTime())?text:date.toLocaleDateString('pt-BR',{timeZone:'UTC'});};
   const centsInput=value=>{const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const number=Number(text);return Number.isFinite(number)?Math.round(number*100):0;};
-  const today=()=>new Date().toISOString().slice(0,10);
+  const today=()=>root.PdvBusinessDate.localBusinessDate(new Date());
   const toast=(message,type='')=>root.PdvToast?.show?.(message,type)||console[type==='error'?'error':'log'](message);
 
   function navigation(activeRoute){
