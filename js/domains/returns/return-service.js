@@ -59,6 +59,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
   }
 
   function assertManage(actor) { if(authorization)authorization.require({principal:principalFromActor(actor),capability:'returns.manage'}); }
+  function assertApprove(actor) { if(authorization)authorization.require({principal:principalFromActor(actor),capability:'returns.approve'}); }
 
   function resolveCashSession(terminalId) {
     if(typeof cashSessionResolver!=='function')return null;
@@ -110,7 +111,8 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
   function createReturn(input = {}) {
     const actor = input.actor || {};
     const authorizedBy = input.authorizedBy || actor;
-    assertManager(authorizedBy);
+    assertManage(actor);
+    assertApprove(authorizedBy);
     const saleId = String(input.saleId || '').trim();
     const terminalId = String(input.terminalId || actor.terminalId || '').trim();
     const operatorId = String(input.operatorId || actor.userId || '').trim();

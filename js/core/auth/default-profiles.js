@@ -26,7 +26,7 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
   ].filter((id,index,array)=>array.indexOf(id)===index).sort()),
   OPERATOR:Object.freeze([
     'sales.view','sales.create',
-    'returns.view',
+    'returns.view','returns.manage',
     'cash.view','cash.open','cash.close','cash.supply','cash.withdraw',
     'customers.view','customers.manage',
     'products.view'

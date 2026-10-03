@@ -198,11 +198,10 @@
       "timeoutMs": 10000
     },
     {
-      "action": "waitFor",
-      "selector": "#catalog-category-management",
+      "action": "expectVisible",
+      "selector": "#new-category",
       "name": "produtos-categorias-p5",
-      "state": "attached",
-      "timeoutMs": 15000
+      "timeoutMs": 10000
     },
     {
       "action": "waitFor",

@@ -22,9 +22,7 @@ function createProfilePermissionResolver({db,fallback=()=>[]}={}){
         JOIN profile_permissions pp ON pp.profile_id=p.id
         WHERE u.id=? AND u.active=1
         ORDER BY pp.permission_id`).all(String(principal.id));
-      if(rows.length)return rows.map(row=>row.permission_id);
-      if(principal.legacyRole)return fallback(principal,context);
-      return [];
+      return rows.map(row=>row.permission_id);
     }
     return fallback(principal,context);
   };

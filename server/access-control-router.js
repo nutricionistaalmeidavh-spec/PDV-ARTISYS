@@ -46,7 +46,7 @@ function createAccessControlRouter({runtime,sessionStore=null,requireTerminalAut
       lastSeenAt:session.lastSeenAt?new Date(session.lastSeenAt).toISOString():null,
       expiresAt:new Date(session.expiresAt).toISOString()
     }));
-    const adminProfile=runtime.profiles.getProfileBySystemKey('ADMINISTRATOR');
+    const adminProfile=runtime.profiles.getProfileBySystemKey('admin');
     return{
       counts:{
         people:users.filter(user=>user.active).length,

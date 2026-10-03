@@ -116,8 +116,8 @@ function createReturnAuthorizationRouter({
           sendJson(response, 401, { error:'Usuario ou senha de autorizacao invalidos.' });
           return true;
         }
-        if (!runtime.authorization.can({principal:{kind:'human',id:verified.user.id},capability:'returns.manage'})) {
-          sendJson(response, 403, { error:'Permissao para gerenciar devolucoes necessaria.' });
+        if (!runtime.authorization.can({principal:{kind:'human',id:verified.user.id},capability:'returns.approve'})) {
+          sendJson(response, 403, { error:'Permissao para autorizar devolucoes necessaria.' });
           return true;
         }
         const issued = approvalStore.issue({
@@ -137,8 +137,15 @@ function createReturnAuthorizationRouter({
 
       const result = await executeMutation(request, pathname, 201, async mutationId => {
         let authorizedBy = { userId:session.userId, name:session.name || '' };
-        const requesterCanManage=runtime.authorization.can({principal:{kind:'human',id:session.userId},capability:'returns.manage'});
-        if (!requesterCanManage) {
+        const requesterPrincipal={kind:'human',id:session.userId};
+        const requesterCanManage=runtime.authorization.can({principal:requesterPrincipal,capability:'returns.manage'});
+        if(!requesterCanManage){
+          const error=new Error('Permissao insuficiente para registrar devolucao.');
+          error.statusCode=403;
+          throw error;
+        }
+        const requesterCanApprove=runtime.authorization.can({principal:requesterPrincipal,capability:'returns.approve'});
+        if (!requesterCanApprove) {
           const approvalToken = String(body.approvalToken || '').trim();
           if (!approvalToken) {
             const error = new Error('Autorizacao de gerente necessaria para devolucao.');

@@ -9,17 +9,15 @@ function createReturnApprovalStore({ now = () => Date.now(), randomBytesFn = ran
     const sessionToken = String(requesterSessionToken || '').trim();
     const requesterId = String(requesterUserId || '').trim();
     const normalizedSaleId = String(saleId || '').trim();
-    const role = String(authorizedBy?.role || '').trim().toLowerCase();
     const authorizerId = String(authorizedBy?.userId || '').trim();
     if (!sessionToken || !requesterId || !normalizedSaleId) throw new Error('Dados da autorizacao incompletos.');
-    if (!['manager', 'admin'].includes(role)) throw new Error('Autorizacao de gerente ou admin necessaria para devolucao.');
     if (!authorizerId) throw new Error('Identidade do autorizador e obrigatoria.');
 
     const approvalToken = randomBytesFn(32).toString('hex');
     const expiresAtMs = now() + ttlMs;
     const safeAuthorizedBy = Object.freeze({
       userId: authorizerId,
-      role,
+      role: String(authorizedBy?.role || '').trim().toLowerCase() || null,
       name: String(authorizedBy?.name || '')
     });
     approvals.set(approvalToken, {

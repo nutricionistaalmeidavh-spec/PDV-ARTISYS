@@ -19,6 +19,7 @@ const DEFINITIONS=[
   ['sales.cancel','sales','Cancelar vendas','Cancelar vendas conforme as regras operacionais.'],
   ['returns.view','sales','Consultar devoluções','Consultar trocas e devoluções registradas.'],
   ['returns.manage','sales','Gerenciar devoluções','Criar, concluir e cancelar devoluções.'],
+  ['returns.approve','sales','Autorizar devoluções','Autorizar devoluções que exigem aprovação superior.'],
 
   ['cash.view','cash','Consultar caixa','Consultar sessão e movimentações de caixa.'],
   ['cash.open','cash','Abrir caixa','Abrir uma sessão de caixa.'],
