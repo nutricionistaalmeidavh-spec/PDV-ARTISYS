@@ -169,6 +169,13 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       },{path:requestPath,method:String(step.method||'GET').toUpperCase(),body:step.body??null});
       if(step.expectedStatus!=null&&Number(result?.status)!==Number(step.expectedStatus))throw new Error(`${label}: expected HTTP ${step.expectedStatus}, got ${result?.status}`);
       if(step.expectOk!==false&&!result?.ok)throw new Error(`${label}: desktop API request failed: ${JSON.stringify(result?.payload||null)}`);
+      if(step.expectedPayloadIncludes!=null){
+        const payloadText=JSON.stringify(result?.payload??null);
+        const expectations=Array.isArray(step.expectedPayloadIncludes)?step.expectedPayloadIncludes:[step.expectedPayloadIncludes];
+        for(const expected of expectations){
+          if(!payloadText.includes(String(expected)))throw new Error(`${label}: API payload does not include ${JSON.stringify(String(expected))}: ${payloadText}`);
+        }
+      }
       break;
     }
     case 'setFeatureFlags': {
