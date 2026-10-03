@@ -6,10 +6,7 @@ const EVENT_MAP=Object.freeze({
  'sale.opened':['sale_started',{module:'pos'}],
  'sale.completed':['sale_completed',{module:'pos',result:'success'}],
  'return.completed':['return_completed',{module:'returns',result:'success'}],
- 'receipt.failed':['printer_failed',failureDimensions({module:'printing',subsystem:'printing',operation:'receipt_print',domainType:'receipt.failed'})],
- 'fiscal.failed':['fiscal_failed',failureDimensions({module:'fiscal',subsystem:'fiscal',operation:'issue',state:'failed',domainType:'fiscal.failed'})],
- 'fiscal.rejected':['fiscal_failed',failureDimensions({module:'fiscal',subsystem:'fiscal',operation:'issue',state:'rejected',domainType:'fiscal.rejected'})],
- 'fiscal.unknown':['fiscal_failed',failureDimensions({module:'fiscal',subsystem:'fiscal',operation:'issue',state:'unknown',domainType:'fiscal.unknown'})]
+ 'receipt.failed':['printer_failed',failureDimensions({module:'printing',subsystem:'printing',operation:'receipt_print',domainType:'receipt.failed'})]
 });
 function registerTelemetryEffects({bus,telemetry}={}){
  if(!bus?.subscribe||!telemetry?.record)throw new TypeError('bus e telemetry obrigatorios.');
