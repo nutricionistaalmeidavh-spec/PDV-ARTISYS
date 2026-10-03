@@ -35,7 +35,7 @@ function adminHeaders(){return {authorization:'Bearer admin-test'};}
 test('health and admin panel are exposed without exposing admin data',async()=>{
   const {handleRequest}=await loadWorker();const e=env();
   assert.equal((await handleRequest(request('/health'),e)).status,200);
-  const panel=await handleRequest(request('/admin'),e);assert.equal(panel.status,200);assert.match(await panel.text(),/Painel de Licencas ArtiSys/);
+  const panel=await handleRequest(request('/admin'),e);assert.equal(panel.status,200);assert.match(await panel.text(),/Central de Licen[cç]as ArtiSys/);
   assert.equal((await handleRequest(request('/v1/admin/licenses'),e)).status,401);
 });
 
