@@ -45,7 +45,8 @@
   "defaultFlow": "all-pages-audit",
   "flows": {
     "all-pages-audit": "flows/all-pages-audit.json",
-    "access-center-partial-permissions": "flows/access-center-partial-permissions.json"
+    "access-center-partial-permissions": "flows/access-center-partial-permissions.json",
+    "access-center-ergonomic": "flows/access-center-ergonomic.json"
   },
   "qaProfiles": {
     "quick": {
