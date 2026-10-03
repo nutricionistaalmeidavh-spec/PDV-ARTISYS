@@ -8,6 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "build": "node scripts/prepare-cloudflare-account-build.mjs",
     "start:server": "node server/start.js",
     "start:desktop": "electron .",
     "qa:update": "node scripts/sync-artisys-qa.mjs",
@@ -19,6 +20,7 @@
     "docs:check": "node scripts/check-docs-consistency.js",
     "test": "node scripts/run-v1-tests.js",
     "test:telemetry:cloudflare": "npm --prefix cloudflare/telemetry test",
+    "test:cloudflare:account": "node --test test/cloudflare-account-worker.test.js test/cloudflare-account-build.test.js",
     "telemetry:cloudflare:setup": "node scripts/setup-cloudflare-telemetry.mjs",
     "test:restaurant": "node --test test/e30-e39-restaurant.test.js",
     "test:release": "node scripts/run-release-tests.js",

@@ -51,6 +51,8 @@ jobs:
         run: npm run capability:check:phase3
       - name: Check documentation consistency
         run: npm run docs:check
+      - name: Validate Cloudflare license Worker build
+        run: npm run build
       - name: Run unit and integration tests with coverage
         shell: bash
         run: |

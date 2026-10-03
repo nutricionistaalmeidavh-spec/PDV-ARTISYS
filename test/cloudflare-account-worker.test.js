@@ -35,8 +35,22 @@ function adminHeaders(){return {authorization:'Bearer admin-test'};}
 test('health and admin panel are exposed without exposing admin data',async()=>{
   const {handleRequest}=await loadWorker();const e=env();
   assert.equal((await handleRequest(request('/health'),e)).status,200);
-  const panel=await handleRequest(request('/admin'),e);assert.equal(panel.status,200);assert.match(await panel.text(),/Painel de Licencas ArtiSys/);
+  const panel=await handleRequest(request('/admin'),e);assert.equal(panel.status,200);assert.match(await panel.text(),/Central de Licen[cç]as ArtiSys/);
   assert.equal((await handleRequest(request('/v1/admin/licenses'),e)).status,401);
+});
+
+test('admin panel makes manual code delivery explicit and uses no email delivery flow',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();
+  const panel=await handleRequest(request('/admin'),e);const html=await panel.text();
+  assert.match(html,/Voc[eê] envia o c[oó]digo ao cliente/i);
+  assert.match(html,/Copiar c[oó]digo/i);
+  assert.doesNotMatch(html,/enviar por e-mail|email service|EMAIL_FROM/i);
+});
+
+test('worker accepts the existing Cloudflare D1 binding named artisys',()=>{
+  const fs=require('node:fs');
+  const source=fs.readFileSync(require.resolve('../cloudflare/account/src/worker.mjs'),'utf8');
+  assert.match(source,/env\.DB\s*\|\|\s*env\.artisys/);
 });
 
 test('admin releases license and displays a six digit code that activates exactly one installation',async()=>{

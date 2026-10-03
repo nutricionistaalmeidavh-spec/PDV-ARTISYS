@@ -1,65 +1,77 @@
-# ArtiSys Account Worker (opcional)
+# Central de Licenças ArtiSys
 
-Serviço comercial isolado para ativação de novas instalações do ArtiSys PDV. O PDV continua local/self-hosted por padrão; este Worker só participa do primeiro acesso quando `PDV_REQUIRE_COMMERCIAL_ACTIVATION=true` e `PDV_ACCOUNT_ENDPOINT` está configurado.
+Worker comercial do **PDV ArtiSys** na conta Cloudflare `sistema-artisys`.
 
-## Fluxo de licença
+Este serviço é separado do core local do PDV. O PDV continua local/self-hosted; a nuvem participa somente da liberação inicial, consulta de status da licença e recuperação administrativa.
 
-1. Acesse `/admin` no Worker e informe o `ADMIN_TOKEN`.
-2. Informe o e-mail do cliente e, opcionalmente, a validade da licença.
-3. Clique em **Liberar**. O painel cria a conta/licença `ACTIVE` e mostra um código de ativação de seis dígitos.
-4. No primeiro acesso ao PDV, o cliente informa e-mail + código.
-5. O código é consumido, a licença é vinculada ao `installationId` e o cliente define a senha do administrador.
-6. A senha e seu hash permanecem somente no banco local do PDV.
+## Fluxo de liberação
 
-O código de ativação administrativo é de uso único, expira em 30 minutos e é bloqueado após cinco tentativas inválidas.
+1. Acesse `/admin` no Worker `pdv-artisys`.
+2. Informe o `ADMIN_TOKEN`.
+3. Digite o e-mail do cliente e, opcionalmente, a validade da licença.
+4. Clique em **Gerar código**.
+5. A Central mostra um código de 6 dígitos e o botão **Copiar código**.
+6. **Você envia esse código ao cliente** pelo meio que preferir.
+7. No primeiro acesso, o cliente informa o mesmo e-mail + código.
+8. O código é consumido uma única vez e a instalação fica vinculada à licença.
+9. O primeiro Administrador é criado localmente no PDV; senha e hash nunca são enviados ao Cloudflare.
 
-## Recuperação de senha
+Não existe envio automático de e-mail neste fluxo.
 
-Para uma instalação já ativada, o painel permite gerar um código de recuperação com validade de 15 minutos e no máximo cinco tentativas inválidas. O código fica vinculado ao e-mail e ao `installationId`; ele não funciona em outro computador. Depois da validação, o PDV grava apenas o novo hash local e revoga as sessões locais anteriores.
+## Central
 
-O serviço comercial não recebe senha nem hash de senha.
+- `GET /admin` — interface da Central.
+- `GET /v1/admin/licenses` — lista licenças; exige Bearer `ADMIN_TOKEN`.
+- `POST /v1/admin/licenses` — cria/libera uma licença e retorna o código.
+- `PATCH /v1/admin/licenses/:id` — altera status para `ACTIVE`, `SUSPENDED`, `CANCELLED` ou `EXPIRED`.
+- `POST /v1/admin/recovery` — gera código manual de recuperação para uma instalação ativa.
 
-## Endpoints
+## API do PDV
 
 - `GET /health`
-- `GET /admin` — painel administrativo.
-- `GET /v1/admin/licenses` — lista licenças; exige Bearer `ADMIN_TOKEN`.
-- `POST /v1/admin/licenses` — libera licença e devolve o código; exige Bearer `ADMIN_TOKEN`.
-- `PATCH /v1/admin/licenses/:id` — altera status da licença; exige Bearer `ADMIN_TOKEN`.
-- `POST /v1/admin/recovery` — gera código de recuperação para instalação ativa; exige Bearer `ADMIN_TOKEN`.
-- `POST /v1/activation/verify` — valida e consome o código de ativação.
-- `POST /v1/password-recovery/request` — valida silenciosamente o contexto e orienta a solicitar o código ao administrador.
-- `POST /v1/password-recovery/verify` — valida código de recuperação vinculado à instalação.
-- `GET /v1/license/status?installationId=...` — retorna somente `active`; e-mail, licença e data de ativação não são expostos.
+- `POST /v1/activation/request` — não envia código; apenas orienta a usar o código fornecido pela ArtiSys.
+- `POST /v1/activation/verify` — valida e consome o código.
+- `GET /v1/license/status?installationId=...` — retorna apenas se a licença está ativa.
+- `POST /v1/password-recovery/request`
+- `POST /v1/password-recovery/verify`
 
 ## D1
 
-Aplique todas as migrations em `migrations/`. A `0003_manual_license_panel.sql` adiciona o vínculo de recuperação ao `installation_id`.
+O Worker aceita os dois nomes de binding:
 
-O painel passa a provisionar `accounts` e `licenses`; não é mais necessário inserir a licença manualmente no D1.
+- `artisys` — binding existente no Worker `pdv-artisys`;
+- `DB` — compatibilidade com configuração antiga.
 
-## Deploy
+Na primeira operação que precisa do banco, o Worker cria de forma idempotente as tabelas próprias da Central caso ainda não existam. Ele não apaga tabelas nem dados existentes.
 
-1. Copie `wrangler.toml.example` para `wrangler.toml` e preencha o `database_id`.
-2. Crie/aplique o D1 usando Wrangler e a pasta `migrations`.
-3. Configure segredos fortes e independentes:
+Tabelas usadas:
 
-```bash
-npx wrangler secret put ACTIVATION_PEPPER
-npx wrangler secret put RECOVERY_PEPPER
-npx wrangler secret put ADMIN_TOKEN
-```
+- `accounts`
+- `licenses`
+- `activation_tokens`
+- `installations`
+- `password_recovery_tokens`
 
-4. Faça o deploy do Worker.
-5. No PDV que deve exigir ativação comercial, configure:
+## Segredos de runtime
 
-```text
-PDV_ACCOUNT_ENDPOINT=https://SEU-WORKER.workers.dev
-PDV_REQUIRE_COMMERCIAL_ACTIVATION=true
-```
+Configure em **Workers & Pages → pdv-artisys → Configurações → Variáveis e segredos**:
 
-Não grave essas opções em `deployment.json`; elas são opt-in por ambiente/build.
+- `ADMIN_TOKEN` — senha/token forte para abrir os dados da Central;
+- `ACTIVATION_PEPPER` — segredo forte usado para armazenar somente o digest dos códigos;
+- `RECOVERY_PEPPER` — segredo independente para códigos de recuperação.
 
-## Testes
+Esses valores são segredos de **runtime**, não variáveis do build.
 
-Os testes do contrato ficam em `test/cloudflare-account-worker.test.js` e usam store em memória; nenhum serviço de envio de e-mail é necessário.
+## Deploy pelo repositório
+
+O Worker conectado no Cloudflare é `pdv-artisys`, branch de produção `main`.
+
+O `package.json` da raiz possui `npm run build` apenas para validar a sintaxe e os testes da Central antes do deploy.
+
+**Importante:** não adicione um `wrangler.toml/jsonc` incompleto na raiz. Wrangler trata a configuração como fonte de verdade e uma configuração sem o D1/R2 reais pode remover bindings configurados pelo painel.
+
+O arquivo `wrangler.toml.example` serve apenas como referência para uma futura configuração declarativa, quando o ID real do D1 desta conta for copiado do painel.
+
+## Core local
+
+O Cloudflare não é dependência do funcionamento diário do PDV já ativado. Nenhum dado operacional de venda, caixa, clientes, produtos ou senha do Administrador é armazenado nesta Central.
