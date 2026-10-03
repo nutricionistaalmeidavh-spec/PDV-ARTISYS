@@ -584,7 +584,11 @@
         "audit-health-sanitized-logs",
         "server-terminal-and-terminal-deployment-profiles"
       ],
-      "backend": [],
+      "backend": [
+        {
+          "path": "js/core/auth/authorization-service.js"
+        }
+      ],
       "api": [],
       "client": [],
       "ui": []
