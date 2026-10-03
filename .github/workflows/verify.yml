@@ -109,7 +109,7 @@ jobs:
       - name: Run Delivery and pickup operational E2E
         shell: bash
         run: |
-          rm -rf qa-artifacts-delivery
+          rm -rf qa-artifacts-delivery-pickup
           xvfb-run -a npm run qa:e2e:delivery-pickup
       - name: Run Access Center partial-permissions E2E
         shell: bash
@@ -131,7 +131,7 @@ jobs:
           name: ui-e2e-${{ github.run_number }}
           path: |
             qa-artifacts
-            qa-artifacts-delivery
+            qa-artifacts-delivery-pickup
             qa-artifacts-access
             qa-artifacts-access-ergonomic
           if-no-files-found: warn
