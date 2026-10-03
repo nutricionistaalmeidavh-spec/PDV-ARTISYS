@@ -140,6 +140,8 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   const vertical=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-modules.js'),'utf8');
   const parity=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-parity-p1.js'),'utf8');
   const checkout=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','app.js'),'utf8');
+  const access=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','access-center-ui.js'),'utf8');
+  const accessRouter=fs.readFileSync(path.join(__dirname,'..','server','access-control-router.js'),'utf8');
 
   assert.match(vertical,/Entrega e retirada/);
   assert.match(vertical,/Delivery/);
@@ -155,4 +157,7 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.match(vertical,/production\.stations/);
   assert.match(vertical,/openCheckoutSale/);
   assert.match(checkout,/openCheckoutSale/);
+  assert.match(access,/Setores de produção/);
+  assert.match(access,/stationIds/);
+  assert.match(accessRouter,/kitchen-stations/);
 });
