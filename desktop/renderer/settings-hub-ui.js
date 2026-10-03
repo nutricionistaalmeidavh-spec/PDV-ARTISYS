@@ -9,7 +9,6 @@
     ['team','Equipe e permissões','Pessoas, papéis e acessos'],
     ['units','Unidades e dispositivos','Dados, servidor e terminais conectados'],
     ['printing','Impressão e periféricos','Impressoras, balança, leitor e gaveta'],
-    ['fiscal','Fiscal','Documentos, credenciais e monitoramento'],
     ['modules','Áreas','Alimentação e Atacado quando mudam o fluxo principal'],
     ['privacy','Privacidade e telemetria','Consentimento e diagnóstico anônimo'],
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
@@ -27,7 +26,6 @@
     const title=card.querySelector('h2,h3')?.textContent?.trim()||'';
     if(/privacidade|telemetria/i.test(title))return'privacy';
     if(/módulo/i.test(title))return'modules';
-    if(/fiscal|focus|nf[cs]-?e|documento eletrônico/i.test(title))return'fiscal';
     if(/impress|hardware|periférico|balança|gaveta|leitor/i.test(title))return'printing';
     if(/terminal|unidade|dispositivo|acesso mobile/i.test(title))return'units';
     if(/loja|empresa|marca|identidade|configuração pública/i.test(title))return'company';

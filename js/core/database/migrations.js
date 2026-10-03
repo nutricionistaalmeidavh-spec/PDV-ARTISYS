@@ -320,28 +320,6 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_print_jobs_status_created ON print_jobs(status,created_at);
       CREATE INDEX IF NOT EXISTS idx_print_jobs_entity ON print_jobs(entity_type,entity_id,created_at);
 
-      CREATE TABLE IF NOT EXISTS fiscal_documents (
-        id TEXT PRIMARY KEY,
-        sale_id TEXT NOT NULL,
-        provider TEXT NOT NULL,
-        document_type TEXT NOT NULL CHECK (document_type IN ('nfce','nfe')),
-        environment TEXT NOT NULL CHECK (environment IN ('homologation','production')),
-        reference TEXT NOT NULL UNIQUE,
-        status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','ISSUED','FAILED','CANCELLED')),
-        access_key TEXT,
-        number TEXT,
-        series TEXT,
-        issued_at TEXT,
-        cancelled_at TEXT,
-        last_error TEXT,
-        response_json TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY (sale_id) REFERENCES sales(id)
-      );
-      CREATE INDEX IF NOT EXISTS idx_fiscal_sale_created ON fiscal_documents(sale_id,created_at);
-      CREATE INDEX IF NOT EXISTS idx_fiscal_status_created ON fiscal_documents(status,created_at);
-
       CREATE TABLE IF NOT EXISTS device_settings (
         id TEXT PRIMARY KEY,
         terminal_id TEXT NOT NULL,

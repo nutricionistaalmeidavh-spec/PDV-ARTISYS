@@ -11,7 +11,6 @@ const PILOT_CHECKS=Object.freeze([
   {key:'printer-test',title:'Testar impressora',category:'hardware'},
   {key:'drawer-test',title:'Testar gaveta',category:'hardware'},
   {key:'scale-test',title:'Testar balança quando aplicável',category:'hardware',optional:true},
-  {key:'fiscal-test',title:'Configurar e testar fiscal quando aplicável',category:'fiscal',optional:true},
   {key:'backup-manual',title:'Executar backup manual',category:'recovery'},
   {key:'restore-test',title:'Validar restore controlado',category:'recovery'},
   {key:'sale-test',title:'Executar venda teste',category:'operations'},

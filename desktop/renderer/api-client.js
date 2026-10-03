@@ -136,10 +136,6 @@
     retryPrint(id) { return this.request(`/api/v1/print/jobs/${encodeURIComponent(id)}/retry`, { method:'POST', body:{} }); }
     reprint(id) { return this.request(`/api/v1/print/jobs/${encodeURIComponent(id)}/reprint`, { method:'POST', body:{} }); }
 
-    fiscalDocuments(filters = {}) { return this.request(`/api/v1/fiscal/documents${this.params(filters)}`); }
-    fiscalDocument(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}`); }
-    requestFiscalIssue(body) { return this.request('/api/v1/fiscal/documents', { method:'POST', body, mutationId:this.mutationId() }); }
-    retryFiscalIssue(id) { return this.request(`/api/v1/fiscal/documents/${encodeURIComponent(id)}/retry`, { method:'POST', body:{}, mutationId:this.mutationId() }); }
 
     backupStatus() { return this.request('/api/v1/backups/status'); }
     backups() { return this.request('/api/v1/backups'); }

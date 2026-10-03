@@ -16,7 +16,7 @@ test('P14 settings surface exposes certificate, SEFAZ, readiness and protected p
 test('P14-P16 API routes expose readiness and contingency without filesystem paths',()=>{
   const router=read('server/fiscal-block6-router.js');const server=read('server/local-server.js');
   for(const route of ['/api/v1/fiscal/production/readiness','/api/v1/fiscal/production/activate','/api/v1/fiscal/production/evidence','/api/v1/fiscal/contingencies']) assert.match(router,new RegExp(route.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
-  assert.match(router,/contingency/);assert.doesNotMatch(router,/xml_path|cancellation_xml_path|filePath/i);assert.match(server,/createFiscalBlock6Router/);
+  assert.match(router,/contingency/);assert.doesNotMatch(router,/xml_path|cancellation_xml_path|filePath/i);assert.doesNotMatch(server,/createFiscalBlock6Router/);
 });
 
 test('P16 ACBr adapter has separate create/sign and later send path for offline contingency',()=>{
