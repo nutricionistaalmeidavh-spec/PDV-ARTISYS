@@ -197,6 +197,8 @@ test('checkout locator allows reopening the document already loaded as the same 
   const path=require('node:path');
   const app=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','app.js'),'utf8');
   assert.match(app,/data-checkout-document-sale/);
-  assert.match(app,/state\.sale\.id!==targetSaleId/);
-  assert.match(app,/state\.sale\.id===targetSaleId/);
+  assert.match(app,/const targetSaleId=/);
+  assert.match(app,/const sameCanonicalSale=/);
+  assert.match(app,/!sameCanonicalSale/);
+  assert.match(app,/state\.checkoutDocumentContext=\{type,document:/);
 });
