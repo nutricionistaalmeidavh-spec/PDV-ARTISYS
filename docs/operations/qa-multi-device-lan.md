@@ -1,6 +1,6 @@
 # QA Multi-Device LAN
 
-Este gate valida a operacao do ArtiSys com um unico servidor autoritativo e varios clientes logicos simultaneos sobre HTTP local. Ele nao depende de SaaS, internet, D1, R2 ou qualquer servico pago.
+Este gate valida a operacao do ArtiSys com um unico servidor autoritativo e varios clientes simultaneos sobre HTTP local. Os desktops sao pareados como terminais LAN reais e o servidor roda com `requireTerminalAuth:true`. Ele nao depende de SaaS, internet, D1, R2 ou qualquer servico pago.
 
 ## Disparo
 
@@ -18,7 +18,7 @@ Depois de integrado na branch padrao:
 ## Perfis
 
 - `smoke`: propagacao de preco, baixa de estoque, corrida pela ultima unidade, idempotencia e invariantes finais.
-- `full`: inclui dois caixas, isolamento de sessao, garcom -> KDS, totem e invariantes de banco.
+- `full`: inclui dois caixas, isolamento de sessao, dois garcons concorrentes na mesma comanda, KDS, checkout no caixa, pagamento, baixa de estoque, totem, fronteiras de permissao e invariantes de banco.
 - `stress`: executa o perfil completo e repete 50 corridas concorrentes pela ultima unidade.
 
 ## Invariantes obrigatorios
@@ -28,9 +28,10 @@ Depois de integrado na branch padrao:
 - **last-unit-race**: com saldo 1 e dois caixas tentando concluir ao mesmo tempo, apenas uma venda pode concluir.
 - **idempotent-completion**: reenvio com o mesmo `mutationId` nao pode duplicar pagamento, venda ou baixa.
 - **cash-session-isolation**: cada venda deve permanecer vinculada a sessao do terminal correto.
-- **restaurant-kds-flow**: pedido do garcom precisa chegar ao KDS e o status READY precisa voltar para a comanda.
-- **self-service-order**: o totem precisa criar pedido autenticado com o dispositivo pareado.
-- **database-invariants**: nao pode haver estoque negativo, pagamento orfao, venda concluida sem pagamento ou venda concluida sem sessao de caixa.
+- **restaurant-kds-flow**: dois garcons enviam pedidos concorrentes para a mesma comanda; ambos precisam chegar ao KDS, voltar como READY, passar pelo checkout do caixa, concluir pagamento, baixar estoque exatamente uma vez e liberar a mesa.
+- **self-service-order**: o totem precisa criar pedido autenticado com o dispositivo pareado e reenvio com o mesmo `mutationId` nao pode duplicar o pedido.
+- **authorization-boundaries**: garcom nao pode operar rota de KDS e KDS nao pode operar rota de autoatendimento.
+- **database-invariants**: `PRAGMA integrity_check` e `foreign_key_check` devem passar; nao pode haver estoque negativo, pagamento orfao, venda concluida sem pagamento/sessao de caixa ou efeito de dominio duplicado.
 
 ## Evidencias
 
@@ -51,4 +52,4 @@ npm run qa:multi-device -- --profile full --output qa-artifacts/multi-device
 npm run qa:multi-device -- --profile stress --output qa-artifacts/multi-device
 ```
 
-O teste usa `127.0.0.1` para representar a LAN dentro do runner. Isso valida contratos HTTP, concorrencia, persistencia e efeitos de dominio. Firewall do Windows, roteador, perda fisica de Wi-Fi e hardware real continuam sendo validacoes de bancada.
+O teste usa `127.0.0.1` para representar o transporte da LAN dentro do runner, mas os clientes desktop passam pelo mesmo pareamento e autenticacao de terminal usados na rede real. Isso valida contratos HTTP, concorrencia, persistencia, isolamento de terminal e efeitos de dominio. Firewall do Windows, roteador, perda fisica de Wi-Fi e hardware real continuam sendo validacoes de bancada.
