@@ -74,7 +74,9 @@
     deleteAccessProfile(id) { return this.request(`/api/v1/access/profiles/${encodeURIComponent(id)}`, { method:'DELETE' }); }
     assignAccessProfile(userId, profileId) { return this.request(`/api/v1/access/users/${encodeURIComponent(userId)}/profile`, { method:'PUT', body:{profileId} }); }
     accessDevices(filters = {}) { return this.request(`/api/v1/access/devices${this.params(filters)}`); }
+    accessKitchenStations() { return this.request('/api/v1/access/kitchen-stations'); }
     createAccessDevice(body) { return this.request('/api/v1/access/devices', { method:'POST', body }); }
+    setAccessDeviceKitchenStations(id, stationIds) { return this.request(`/api/v1/access/devices/${encodeURIComponent(id)}/kitchen-stations`, { method:'PUT', body:{stationIds} }); }
     setAccessDeviceStatus(id, status) { return this.request(`/api/v1/access/devices/${encodeURIComponent(id)}/status`, { method:'PATCH', body:{status} }); }
     rotateAccessDevice(id) { return this.request(`/api/v1/access/devices/${encodeURIComponent(id)}/rotate`, { method:'POST', body:{} }); }
     accessSecurity() { return this.request('/api/v1/access/security'); }
