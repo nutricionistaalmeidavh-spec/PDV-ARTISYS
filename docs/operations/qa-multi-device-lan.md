@@ -47,7 +47,10 @@ Cada execucao grava em `qa-artifacts/multi-device`:
 - `scale-10x15x13.json`: evidencia da topologia de 10 caixas, 15 garcons e 13 pedidos simultaneos;
 - `load-metrics.json`: metricas das rampas de 100, 250 e 500 pedidos;
 - `stress-evidence.json`: resumo estruturado dos cenarios pesados;
-- `screenshots/cashier-price-before.png` e `cashier-price-after.png`: evidencia visual da propagacao de preco no caixa remoto quando o perfil inclui UI.
+- `screenshots/cashier-price-before.png` e `cashier-price-after.png`: evidencia visual da propagacao de preco no caixa remoto quando o perfil inclui UI;
+- `scale-10x15x13.json`: metricas e invariantes da topologia solicitada;
+- `load-metrics.json`: resultados por nivel da rampa 100/250/500;
+- `stress-evidence.json`: consolidado dos cenarios de stress.
 
 O artifact e enviado mesmo quando algum cenario falha.
 
@@ -73,3 +76,8 @@ Na execucao de homologacao do perfil `stress` no GitHub Actions:
 - throughput observado nas rampas: aproximadamente 14 pedidos/s.
 
 Esses numeros sao uma referencia do runner hospedado, nao um SLA de hardware local. O gate funcional exige ausencia de perda/duplicacao; as metricas ficam no artifact para acompanhar regressao de desempenho.
+
+
+## Interpretacao das metricas de stress
+
+A rampa de 100/250/500 pedidos e um teste de capacidade extrema, nao um SLA de interface. O gate exige zero perda e consistencia de banco/KDS dentro do timeout do benchmark e registra a latencia observada para comparacao entre versoes. A topologia 10 caixas + 15 garcons + 13 pedidos simultaneos representa melhor a carga operacional solicitada e continua sendo uma assercao bloqueante separada.
