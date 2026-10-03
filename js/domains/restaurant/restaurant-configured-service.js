@@ -6,13 +6,16 @@ const { assertCents }=require('../shared/money');
 
 function parseConfiguration(text){if(!text)return null;try{return JSON.parse(text);}catch{return null;}}
 
-function createConfiguredRestaurantService({db,baseService,now=()=>new Date().toISOString()}={}){
+function createConfiguredRestaurantService({db,baseService,kitchenService=null,now=()=>new Date().toISOString()}={}){
   if(!db||!baseService)throw new TypeError('db and baseService are required.');
 
   function enrichOrder(order){
     if(!order)return null;
-    const configs=new Map(db.prepare('SELECT id,configuration_json AS configurationJson FROM restaurant_order_items WHERE order_id=?').all(order.id).map(row=>[row.id,parseConfiguration(row.configurationJson)]));
-    return{...order,items:order.items.map(item=>({...item,configuration:configs.get(item.id)||null}))};
+    const metadata=new Map(db.prepare(`SELECT i.id,i.configuration_json AS configurationJson,r.mode AS productionMode
+      FROM restaurant_order_items i
+      LEFT JOIN restaurant_product_routes r ON r.product_id=i.product_id
+      WHERE i.order_id=?`).all(order.id).map(row=>[row.id,{configuration:parseConfiguration(row.configurationJson),productionMode:row.productionMode||null}]));
+    return{...order,items:order.items.map(item=>({...item,configuration:metadata.get(item.id)?.configuration||null,productionMode:metadata.get(item.id)?.productionMode||null}))};
   }
   function enrichSession(session){if(!session)return null;return{...session,orders:(session.orders||[]).map(enrichOrder)};}
   function getOrder(id){return enrichOrder(baseService.getOrder(id));}
@@ -21,6 +24,7 @@ function createConfiguredRestaurantService({db,baseService,now=()=>new Date().to
 
   function addOrder(sessionId,input={}){
     const items=Array.isArray(input.items)?input.items:[];
+    kitchenService?.assertOrderRouting?.(items);
     const configured=items.some(item=>item.unitPriceCents!==undefined||item.configurationSnapshot);
     if(!configured)return enrichOrder(baseService.addOrder(sessionId,input));
     return withTransaction(db,()=>{
