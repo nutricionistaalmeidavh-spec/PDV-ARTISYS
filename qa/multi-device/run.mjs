@@ -298,7 +298,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       });
       assert(completed.body.dispatch?.failed===0,'Fechamento do restaurante teve falha de efeito',{dispatch:completed.body.dispatch});
       const finalSession=runtime.restaurant.getSession(opened.body.id);
-      const finalTable=runtime.restaurant.getTable('qa-table');
+      const finalTable=runtime.restaurant.listTables({includeInactive:true}).find(item=>item.id==='qa-table');
       const finalStock=runtime.inventory.getBalance('qa-food');
       assert(finalSession.status==='CLOSED','Comanda nao fechou apos pagamento',{session:finalSession});
       assert(finalTable.status==='FREE','Mesa nao voltou a ficar livre',{table:finalTable});
