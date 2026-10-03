@@ -139,6 +139,7 @@ test('mobile KDS context returns only tickets assigned to the device stations',a
 test('delivery and pickup UI is one operational surface without legacy DOM observation or technical sale IDs',()=>{
   const vertical=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-modules.js'),'utf8');
   const parity=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-parity-p1.js'),'utf8');
+  const checkout=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','app.js'),'utf8');
 
   assert.match(vertical,/Entrega e retirada/);
   assert.match(vertical,/Delivery/);
@@ -152,4 +153,6 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.match(vertical,/data-delivery-view="PICKUP"/);
   assert.match(vertical,/Enviar para produção/);
   assert.match(vertical,/production\.stations/);
+  assert.match(vertical,/openCheckoutSale/);
+  assert.match(checkout,/openCheckoutSale/);
 });
