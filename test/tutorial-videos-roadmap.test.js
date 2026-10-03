@@ -61,6 +61,11 @@ test('tutorial roadmap defines 36 sparse micro-tutorials capped at 30 seconds', 
   assert.ok(args.includes('libx264'));
   assert.ok(args.some(value => String(value).includes('subtitles=')));
   assert.equal(args.at(-1), 'final.mp4');
+
+  const windowsArgs = buildTutorialEditArgs('raw.mp4', 'final.mp4', 'C:\\tutorials\\captions.srt');
+  const windowsFilter = windowsArgs[windowsArgs.indexOf('-vf') + 1];
+  assert.doesNotMatch(windowsFilter, /\\\\tutorials\\\\/);
+  assert.match(windowsFilter, /C\\\\:/);
 });
 
 test('package scripts expose local validation and FFmpeg editing without paid dependencies', () => {
