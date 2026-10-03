@@ -1,0 +1,429 @@
+{
+  "name": "restaurant-table-lifecycle",
+  "title": "ArtiSys PDV — ciclo completo de mesa/comanda",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "bootstrap",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='username']",
+      "value": "qaadmin",
+      "name": "usuario-qa"
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='password']",
+      "value": "QaLocalOnly-12345!",
+      "name": "senha-qa"
+    },
+    {
+      "action": "click",
+      "selector": "#login-form button[type='submit']",
+      "name": "entrar",
+      "holdMs": 300
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "autenticado",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "restaurant.setup"
+    },
+    {
+      "action": "click",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "abrir-alimentacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-module-area='FOOD']",
+      "name": "alimentacao-visivel",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "01-alimentacao",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "abrir-mesas",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-restaurant-view='operation']",
+      "name": "salao-visivel",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "02-salao",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "button[data-table-id='qa-restaurant-table-1']",
+      "name": "selecionar-mesa-livre",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-open-table-form",
+      "name": "modal-abrir-atendimento",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "03-abrir-atendimento",
+      "fullPage": true
+    },
+    {
+      "action": "fill",
+      "selector": "#restaurant-open-table-form input[name='partySize']",
+      "value": "3",
+      "name": "pessoas-atendimento"
+    },
+    {
+      "action": "selectOption",
+      "selector": "#restaurant-open-table-form select[name='customerId']",
+      "value": "qa-restaurant-customer",
+      "name": "cliente-atendimento"
+    },
+    {
+      "action": "click",
+      "selector": "#restaurant-open-table-form button[type='submit']",
+      "name": "abrir-atendimento",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-waiter-form",
+      "name": "comanda-aberta",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-session-details-form input[name='partySize']",
+      "name": "detalhes-pessoas-visiveis",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1']:has-text('QA Cliente Mesa')",
+      "name": "card-cliente-pessoas",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "04-comanda-aberta",
+      "fullPage": true
+    },
+    {
+      "action": "selectOption",
+      "selector": "#restaurant-add-draft-form select[name='productId']",
+      "value": "qa-restaurant-product-1",
+      "name": "produto-prato"
+    },
+    {
+      "action": "fill",
+      "selector": "#restaurant-add-draft-form input[name='quantity']",
+      "value": "2",
+      "name": "quantidade-prato"
+    },
+    {
+      "action": "fill",
+      "selector": "#restaurant-add-draft-form input[name='note']",
+      "value": "QA sem cebola",
+      "name": "observacao-prato"
+    },
+    {
+      "action": "click",
+      "selector": "#restaurant-add-draft-form button[type='submit']",
+      "name": "adicionar-prato",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-draft-line:has-text('QA Prato Executivo')",
+      "name": "prato-no-carrinho",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-add-draft-form select[name='productId']",
+      "name": "compositor-pronto-segundo-item",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "#restaurant-add-draft-form select[name='productId']",
+      "value": "qa-restaurant-product-2",
+      "name": "produto-suco"
+    },
+    {
+      "action": "fill",
+      "selector": "#restaurant-add-draft-form input[name='quantity']",
+      "value": "1",
+      "name": "quantidade-suco"
+    },
+    {
+      "action": "click",
+      "selector": "#restaurant-add-draft-form button[type='submit']",
+      "name": "adicionar-suco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-draft-line:has-text('QA Suco Natural')",
+      "name": "carrinho-multiplo",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "05-montar-pedido",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-send-order]",
+      "name": "enviar-cozinha",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-detail .restaurant-order-items:has-text('QA Prato Executivo')",
+      "name": "pedido-lancado",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-ticket-status][data-next='PREPARING']",
+      "name": "kds-novo",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.NEW",
+      "name": "card-producao-novo",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "06-pedido-enviado-kds-novo",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket-status][data-next='PREPARING']",
+      "name": "iniciar-preparo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.PREPARING",
+      "name": "kds-status-preparando",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.PREPARING",
+      "name": "card-producao-preparando",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-ticket-status][data-next='READY']",
+      "name": "kds-preparando",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "07-kds-preparando",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket-status][data-next='READY']",
+      "name": "marcar-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-page > .restaurant-columns .restaurant-card:nth-child(2) .restaurant-status.READY",
+      "name": "kds-status-pronto",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-production-state .restaurant-status.READY",
+      "name": "card-producao-pronto",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitForTimeout",
+      "name": "aguardar-kds-pronto",
+      "timeoutMs": 400
+    },
+    {
+      "action": "screenshot",
+      "name": "08-kds-pronto",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": ".restaurant-advanced summary",
+      "name": "abrir-conta-movimentacoes",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-transfer-item-form",
+      "name": "transferencia-sem-id",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-cancel-item-form",
+      "name": "cancelamento-sem-id",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-merge-form",
+      "name": "juncao-sem-id",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "09-conta-movimentacoes",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-bill]",
+      "name": "solicitar-conta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-status.BILL_REQUESTED",
+      "name": "mesa-conta-solicitada",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "10-conta-solicitada",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-checkout]",
+      "name": "levar-caixa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".checkout-layout",
+      "name": "checkout-comanda",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "11-caixa",
+      "fullPage": true
+    },
+    {
+      "action": "capability",
+      "name": "restaurant.finish"
+    },
+    {
+      "action": "click",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "voltar-alimentacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "voltar-salao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[data-table-id='qa-restaurant-table-1'] .restaurant-status.FREE",
+      "name": "mesa-liberada",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "12-mesa-fechada-livre",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-restaurant-view-target='settings']",
+      "name": "abrir-configuracao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": ".restaurant-settings-intro",
+      "name": "configuracao-separada",
+      "timeoutMs": 10000,
+      "state": "visible"
+    },
+    {
+      "action": "screenshot",
+      "name": "13-configuracao-separada",
+      "fullPage": true
+    },
+    {
+      "action": "capability",
+      "name": "restaurant.assert"
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "restaurante-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    }
+  ]
+}
