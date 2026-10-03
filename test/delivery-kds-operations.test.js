@@ -13,7 +13,7 @@ function fixture(){
   let seq=0;
   const runtime=createPdvRuntime({
     dbPath:':memory:',
-    now:()=>`2026-10-03T21:00:${String(seq++).padStart(2,'0')}.000Z`,
+    now:()=>new Date(Date.UTC(2026,9,3,21,0,0,seq++)).toISOString(),
     idFactory:prefix=>`${prefix}-${++seq}`
   });
   runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
