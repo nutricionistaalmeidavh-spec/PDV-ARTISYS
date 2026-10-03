@@ -19,6 +19,8 @@
   const dateLabel=value=>{if(!value)return '—';const text=String(value).slice(0,10);const date=new Date(`${text}T00:00:00.000Z`);return Number.isNaN(date.getTime())?text:date.toLocaleDateString('pt-BR',{timeZone:'UTC'});};
   const centsInput=value=>{const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const number=Number(text);return Number.isFinite(number)?Math.round(number*100):0;};
   const today=()=>root.PdvBusinessDate.localBusinessDate(new Date());
+  const STATEMENT_STATUS_LABELS=Object.freeze({UNMATCHED:'Pendente',MATCHED:'Conciliada'});
+  const statementStatusLabel=value=>STATEMENT_STATUS_LABELS[String(value||'').toUpperCase()]||'Situação desconhecida';
   const toast=(message,type='')=>root.PdvToast?.show?.(message,type)||console[type==='error'?'error':'log'](message);
 
   function navigation(activeRoute){
@@ -192,7 +194,7 @@
         const batch=await api.statementBatch(button.dataset.statementBatch);
         const modal=root.PdvModal;
         if(!modal?.open){toast('Detalhes do extrato indisponíveis.','error');return;}
-        const rows=(batch.transactions||[]).map(tx=>`<tr><td>${dateLabel(tx.date)}</td><td>${esc(tx.description)}</td><td>${tx.direction==='debit'?'Saída':'Entrada'}</td><td>${money(tx.amountCents)}</td><td>${esc(tx.matchStatus||'UNMATCHED')}</td></tr>`).join('');
+        const rows=(batch.transactions||[]).map(tx=>`<tr><td>${dateLabel(tx.date)}</td><td>${esc(tx.description)}</td><td>${tx.direction==='debit'?'Saída':'Entrada'}</td><td>${money(tx.amountCents)}</td><td>${esc(statementStatusLabel(tx.matchStatus))}</td></tr>`).join('');
         modal.open(batch.sourceName||'Extrato importado',`<div class="ops-details"><div><dt>Conta</dt><dd>${esc(accountsById.get(String(batch.accountId))?.name||batch.accountId)}</dd></div><div><dt>Importadas</dt><dd>${Number(batch.inserted||0)}</dd></div><div><dt>Duplicadas</dt><dd>${Number(batch.duplicates||0)}</dd></div><div><dt>Data</dt><dd>${dateLabel(batch.createdAt)}</dd></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Valor</th><th>Situação</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Nenhuma movimentação neste lote.</td></tr>'}</tbody></table></div>`,{wide:true});
       }catch(error){toast(error.message||String(error),'error');}
     }));
