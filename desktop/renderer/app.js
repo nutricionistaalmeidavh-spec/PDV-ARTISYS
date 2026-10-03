@@ -265,9 +265,14 @@
   }
 
   async function restoreCheckoutState() {
-    const [openSales, suspended] = await Promise.all([api.sales('OPEN', 20), api.sales('SUSPENDED', 30)]);
-    state.suspendedSales = suspended;
-    state.sale = openSales.find((sale) => sale.terminalId === state.config.terminalId && sale.operatorId === state.user.id) || null;
+    const [openSales,suspended,documents]=await Promise.all([
+      api.sales('OPEN',20),
+      api.sales('SUSPENDED',30),
+      api.checkoutDocuments('').catch(()=>[])
+    ]);
+    state.suspendedSales=suspended;
+    clearCheckoutDocumentContext();
+    state.sale=ui.selectCheckoutRestoreSale(openSales,documents,state.config.terminalId,state.user.id);
     if (state.sale?.sellerId) state.selectedSellerId = state.sale.sellerId;
     state.discountPercent = state.sale?.subtotalCents ? Number(((state.sale.discountCents / state.sale.subtotalCents) * 100).toFixed(2)) : 0;
   }
@@ -457,8 +462,9 @@
           const type=button.dataset.openCheckoutDocument.slice(0,split);
           const id=button.dataset.openCheckoutDocument.slice(split+1);
           try{
-            if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');
-            if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}
+            const currentOperationalDocument=Boolean(state.checkoutDocumentContext);
+            if(state.sale?.status==='OPEN'&&state.sale.items?.length&&!currentOperationalDocument)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');
+            if(state.sale?.status==='OPEN'&&!state.sale.items?.length&&!currentOperationalDocument){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}
             button.disabled=true;
             const opened=await api.openCheckoutDocument(type,id);
             state.sale=opened.sale;
