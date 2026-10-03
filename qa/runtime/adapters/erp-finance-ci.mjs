@@ -1,3 +1,8 @@
+import { createRequire } from 'node:module';
+const require=createRequire(import.meta.url);
+const {createPdvRuntime}=require('../../../js/core/pdv-runtime');
+const {createLocalServer}=require('../../../server/local-server');
+
 function fail(message, details={}){return{ok:false,message,details};}
 function pass(details={}){return{ok:true,details};}
 
@@ -165,35 +170,31 @@ async function assertRestaurant(page,state){
 }
 
 
-async function setupRestaurantChannels(page){
-  return page.evaluate(async()=>{
-    const api=new window.PdvApiClient.ApiClient();const auth=await api.currentSession();const config=await api.initialize();const operatorId=auth.user.id;
-    await api.setModule('FOOD',true);
-    const product={id:'qa-channel-product',name:'QA Channel Burger',sku:'QA-CHANNEL-1',salePriceCents:2000,costCents:800,trackStock:false,menuEnabled:true,usageType:'DIRECT'};
-    await api.saveProduct(product);
-    await api.createOptionGroup({id:'qa-channel-group',name:'QA Adicionais',selectionType:'MULTIPLE',minSelections:0,maxSelections:2});
-    await api.createOption({id:'qa-channel-option',groupId:'qa-channel-group',name:'QA Bacon',priceDeltaCents:300});
-    await api.request('/api/v1/vertical/catalog/products/qa-channel-product/option-groups/qa-channel-group',{method:'PUT',body:{required:false,sortOrder:1}});
-    await api.saveCustomer({id:'qa-channel-customer',name:'QA Cliente Multicanal',phone:'16999990002'});
-    for(const [id,label] of [['qa-channel-waiter','QA Mesa Garcom'],['qa-channel-tablet','QA Mesa Tablet'],['qa-channel-qr','QA Mesa QR']]){
-      await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id,label,seats:4}});
-    }
-    const station=await api.request('/api/v1/restaurant/kitchen/stations',{method:'POST',body:{id:'qa-channel-station',name:'QA Cozinha Canais'}});
-    await api.request('/api/v1/restaurant/kitchen/assignments',{method:'POST',body:{productId:product.id,stationId:station.id||'qa-channel-station'}});
-    async function device(id,name,deviceType,extra={}){
-      const existing=(await api.request('/api/v1/restaurant/devices')).find(row=>row.id===id);
-      if(existing)return api.request('/api/v1/restaurant/devices/'+encodeURIComponent(id)+'/rotate',{method:'POST',body:{}});
-      return api.request('/api/v1/restaurant/devices',{method:'POST',body:{id,name,deviceType,...extra}});
-    }
-    const waiter=await device('qa-channel-device-waiter','QA Garcom UI','WAITER',{userId:operatorId});
-    const tablet=await device('qa-channel-device-tablet','QA Tablet UI','TABLET',{tableId:'qa-channel-tablet'});
-    const kds=await device('qa-channel-device-kds','QA KDS UI','KITCHEN');
-    const tabletTable=(await api.request('/api/v1/restaurant/tables')).find(row=>row.id==='qa-channel-tablet');
-    if(tabletTable?.status==='FREE')await api.request('/api/v1/restaurant/tables/qa-channel-tablet/open',{method:'POST',body:{operatorId,waiterId:operatorId,partySize:2},mutationId:api.mutationId()});
-    await api.request('/api/v1/vertical/self-service/public-ordering/config',{method:'PUT',body:{autoOpenTable:true}});
-    const qr=await api.request('/api/v1/vertical/self-service/public-ordering/tables/qa-channel-qr/qr?host=127.0.0.1&port=4174');
-    return{operatorId,terminalId:config.terminalId,productId:product.id,optionId:'qa-channel-option',customerId:'qa-channel-customer',waiter,tablet,kds,qrUrl:qr.url};
-  });
+async function setupRestaurantChannels(){
+  const runtime=createPdvRuntime({dbPath:':memory:',appVersion:'qa',serverVersion:'qa'});
+  const actor={userId:'qa-channel-admin',role:'admin',terminalId:'PDV-01'};
+  const user=runtime.catalog.createUser({id:'qa-channel-admin',username:'qa-channel-admin',name:'QA Garcom UI',role:'admin',password:'Qa-Channel-12345!'},actor);
+  runtime.modules.setEnabled('FOOD',true,actor);
+  const product=runtime.catalog.upsertProduct({id:'qa-channel-product',name:'QA Channel Burger',sku:'QA-CHANNEL-1',salePriceCents:2000,costCents:800,trackStock:false,menuEnabled:true,usageType:'DIRECT'},actor);
+  const customer=runtime.catalog.upsertCustomer({id:'qa-channel-customer',name:'QA Cliente Multicanal',phone:'16999990002'},actor);
+  const group=runtime.catalogCustomization.upsertOptionGroup({id:'qa-channel-group',name:'QA Adicionais',selectionType:'MULTIPLE',minSelections:0,maxSelections:2},actor);
+  const option=runtime.catalogCustomization.upsertOption({id:'qa-channel-option',groupId:group.id,name:'QA Bacon',priceDeltaCents:300},actor);
+  runtime.catalogCustomization.linkGroupToProduct(product.id,group.id,{required:false,sortOrder:1},actor);
+  for(const [id,label] of [['qa-channel-waiter','QA Mesa Garcom'],['qa-channel-tablet','QA Mesa Tablet'],['qa-channel-qr','QA Mesa QR']])runtime.restaurant.upsertTable({id,label,seats:4},actor);
+  const station=runtime.kitchen.upsertStation({id:'qa-channel-station',name:'QA Cozinha Canais'},actor);
+  runtime.kitchen.assignProduct(product.id,station.id,actor);
+  const waiter=runtime.mobileDevices.createDevice({id:'qa-channel-device-waiter',name:'QA Garcom UI',deviceType:'WAITER',userId:user.id},actor);
+  const tablet=runtime.mobileDevices.createDevice({id:'qa-channel-device-tablet',name:'QA Tablet UI',deviceType:'TABLET',tableId:'qa-channel-tablet'},actor);
+  const kds=runtime.mobileDevices.createDevice({id:'qa-channel-device-kds',name:'QA KDS UI',deviceType:'KITCHEN'},actor);
+  runtime.restaurant.openTable('qa-channel-tablet',{operatorId:user.id,waiterId:user.id,partySize:2,actor});
+  const server=createLocalServer({runtime,host:'127.0.0.1',port:4174,token:'qa-channel-install',requireTerminalAuth:false});
+  await server.start();
+  runtime.publicOrdering.updateConfig({autoOpenTable:true},actor);
+  const access=runtime.publicOrdering.issueTableAccess('qa-channel-qr',actor);
+  return{
+    state:{operatorId:user.id,terminalId:'PDV-01',productId:product.id,optionId:option.id,customerId:customer.id,waiter,tablet,kds,qrUrl:`http://127.0.0.1:4174/m/${access.token}`},
+    resources:{runtime,server}
+  };
 }
 
 async function loginRestaurantChannel(page,state,key){
@@ -229,10 +230,11 @@ export default {
     'restaurant.setup':async({page,runtimeContext})=>{runtimeContext.restaurantState=await setupRestaurant(page);},
     'restaurant.finish':async({page,runtimeContext})=>{runtimeContext.restaurantState=await finishRestaurant(page,runtimeContext.restaurantState||{});},
     'restaurant.assert':async({page,runtimeContext})=>{runtimeContext.restaurantResult=await assertRestaurant(page,runtimeContext.restaurantState||{});},
-    'restaurant.channels.setup':async({page,runtimeContext})=>{runtimeContext.restaurantChannels=await setupRestaurantChannels(page);},
+    'restaurant.channels.setup':async({runtimeContext})=>{const setup=await setupRestaurantChannels();runtimeContext.restaurantChannels=setup.state;runtimeContext.restaurantChannelsResources=setup.resources;},
     'restaurant.channels.loginWaiter':async({page,runtimeContext})=>{await loginRestaurantChannel(page,runtimeContext.restaurantChannels||{},'waiter');},
     'restaurant.channels.loginTablet':async({page,runtimeContext})=>{await loginRestaurantChannel(page,runtimeContext.restaurantChannels||{},'tablet');},
     'restaurant.channels.openQr':async({page,runtimeContext})=>{await openRestaurantQr(page,runtimeContext.restaurantChannels||{});},
-    'restaurant.channels.assert':async({page,runtimeContext})=>{runtimeContext.restaurantChannelsResult=await assertRestaurantChannels(page,runtimeContext.restaurantChannels||{});}
+    'restaurant.channels.assert':async({page,runtimeContext})=>{runtimeContext.restaurantChannelsResult=await assertRestaurantChannels(page,runtimeContext.restaurantChannels||{});},
+    'restaurant.channels.teardown':async({runtimeContext})=>{const resources=runtimeContext.restaurantChannelsResources;if(resources?.server)await resources.server.stop();if(resources?.runtime)resources.runtime.close();runtimeContext.restaurantChannelsResources=null;}
   }
 };
