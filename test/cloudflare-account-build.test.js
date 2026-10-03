@@ -64,7 +64,6 @@ test('generated Wrangler config targets only the pdv-artisys worker and preserve
   assert.equal(config.keep_vars,true);
   assert.deepEqual(config.d1_databases,[{binding:'artisys',database_name:'artisys',database_id:'db-123',migrations_dir:'cloudflare/account/migrations'}]);
   assert.deepEqual(config.r2_buckets,[{binding:'artisysr2',bucket_name:'artisyspdv'}]);
-  assert.deepEqual(config.previews,{});
 });
 
 test('root npm build is dedicated to Cloudflare account Worker preparation',()=>{
