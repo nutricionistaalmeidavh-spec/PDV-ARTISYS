@@ -1,7 +1,7 @@
-const TOKEN_TTL_MS=10*60*1000;
+const TOKEN_TTL_MS=30*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
 const RECOVERY_RESEND_MS=60*1000;
-const ADMIN_ACTIVATION_TTL_MS=30*24*60*60*1000;
+const ACTIVATION_MAX_ATTEMPTS=5;
 const RECOVERY_MAX_ATTEMPTS=5;
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
@@ -25,14 +25,23 @@ class D1AccountStore{
       ORDER BY l.created_at DESC LIMIT 1`).bind(email,new Date().toISOString()).first();
     return row?{id:row.id,accountId:row.account_id,email:row.email,status:row.status,expiresAt:row.expires_at||null}:null;
   }
-  async saveActivationToken(token){await this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,expires_at,used_at,created_at)
-    VALUES(?,?,?,?,?,?,NULL,?)`).bind(token.id,token.accountId,token.licenseId,token.installationId,token.tokenDigest,token.expiresAt,token.createdAt).run();}
+  async saveActivationToken(token){await this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
+    VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.licenseId,token.installationId,token.tokenDigest,token.expiresAt,token.createdAt).run();}
   async findActivationToken({email,digest,now}){
-    const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.expires_at,t.used_at,a.email_normalized AS email
+    const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
       FROM activation_tokens t JOIN accounts a ON a.id=t.account_id
-      WHERE a.email_normalized=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? ORDER BY t.created_at DESC LIMIT 1`).bind(email,digest,now).first();
-    return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,expiresAt:row.expires_at,usedAt:row.used_at}:null;
+      WHERE a.email_normalized=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
+      ORDER BY t.created_at DESC LIMIT 1`).bind(email,digest,now,ACTIVATION_MAX_ATTEMPTS).first();
+    return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
   }
+  async findActivationCandidate({email,now}){
+    const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
+      FROM activation_tokens t JOIN accounts a ON a.id=t.account_id
+      WHERE a.email_normalized=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
+      ORDER BY t.created_at DESC LIMIT 1`).bind(email,now,ACTIVATION_MAX_ATTEMPTS).first();
+    return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
+  }
+  async incrementActivationAttempts(id){await this.db.prepare('UPDATE activation_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
   async provisionLicense({email,expiresAt=null,codeDigest,codeExpiresAt,createdAt}){
     let account=await this.findAccount(email);
     if(!account){account={id:newId('account'),email};await this.db.prepare('INSERT INTO accounts(id,email_normalized,created_at) VALUES(?,?,?)').bind(account.id,email,createdAt).run();}
@@ -55,10 +64,16 @@ class D1AccountStore{
       VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.email,token.installationId||null,token.tokenDigest,token.expiresAt,token.createdAt).run();
   }
   async findRecoveryToken({email,installationId,digest,now}){
-    const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,installation_id,attempts,expires_at,used_at,created_at
+    const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,installation_id,token_digest,attempts,expires_at,used_at,created_at
       FROM password_recovery_tokens WHERE email_normalized=? AND installation_id=? AND token_digest=? AND used_at IS NULL AND expires_at>? AND attempts<?
       ORDER BY created_at DESC LIMIT 1`).bind(email,installationId,digest,now,RECOVERY_MAX_ATTEMPTS).first();
-    return row?{id:row.id,accountId:row.account_id,email:row.email,installationId:row.installation_id,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
+    return row?{id:row.id,accountId:row.account_id,email:row.email,installationId:row.installation_id,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
+  }
+  async findRecoveryCandidate({email,installationId,now}){
+    const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,installation_id,token_digest,attempts,expires_at,used_at,created_at
+      FROM password_recovery_tokens WHERE email_normalized=? AND installation_id=? AND used_at IS NULL AND expires_at>? AND attempts<?
+      ORDER BY created_at DESC LIMIT 1`).bind(email,installationId,now,RECOVERY_MAX_ATTEMPTS).first();
+    return row?{id:row.id,accountId:row.account_id,email:row.email,installationId:row.installation_id,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
   }
   async findLatestRecoveryToken({email,now}){
     const row=await this.db.prepare(`SELECT id,account_id,email_normalized AS email,attempts,expires_at,used_at,created_at
@@ -92,8 +107,19 @@ async function verifyActivation(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
   if(!email||!installationId||!/^\d{6}$/.test(code))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'Servico de ativacao indisponivel.'},503);
-  const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});const token=await store.findActivationToken({email,digest,now});
-  if(!token||(token.installationId!=='PENDING'&&token.installationId!==installationId))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
+  const token=typeof store.findActivationCandidate==='function'
+    ? await store.findActivationCandidate({email,now})
+    : await store.findActivationToken({email,digest,now});
+  if(!token)return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  if(token.tokenDigest&&token.tokenDigest!==digest){
+    if(typeof store.incrementActivationAttempts==='function')await store.incrementActivationAttempts(token.id);
+    return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  }
+  if(token.installationId!=='PENDING'&&token.installationId!==installationId){
+    if(typeof store.incrementActivationAttempts==='function')await store.incrementActivationAttempts(token.id);
+    return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  }
   const license=await store.findActiveLicense(email);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
   await store.consumeActivationToken(token.id,now);
   await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,status:'ACTIVE',activatedAt:now});
@@ -113,8 +139,14 @@ async function verifyPasswordRecovery(request,env){
   if(!email||!installationId||!/^[0-9]{6}$/.test(code))return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   const pepper=recoveryPepper(env);if(!pepper)return json({error:'Servico de recuperacao indisponivel.'},503);
   const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
-  const token=await store.findRecoveryToken({email,installationId,digest,now});
-  if(!token){return json({error:'Codigo de recuperacao invalido ou expirado.'},400);}
+  const token=typeof store.findRecoveryCandidate==='function'
+    ? await store.findRecoveryCandidate({email,installationId,now})
+    : await store.findRecoveryToken({email,installationId,digest,now});
+  if(!token)return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
+  if(token.tokenDigest&&token.tokenDigest!==digest){
+    if(typeof store.incrementRecoveryAttempts==='function')await store.incrementRecoveryAttempts(token.id);
+    return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
+  }
   await store.consumeRecoveryToken(token.id,now);
   return json({verified:true,accountEmail:email,installationId});
 }
@@ -131,7 +163,7 @@ async function adminRoute(request,env,url){
     const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
-    const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.now()+ADMIN_ACTIVATION_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
+    const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.now()+TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
     const provisioned=await store.provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,code,codeExpiresAt,expiresAt},201);
   }
   if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
@@ -147,7 +179,7 @@ async function adminRoute(request,env,url){
 async function licenseStatus(url,env){
   const installationId=normalizeInstallationId(url.searchParams.get('installationId'));if(!installationId)return json({error:'Instalacao invalida.'},400);
   const record=await resolveStore(env).findInstallation(installationId);const now=new Date().toISOString();
-  return json({active:activeInstallation(record,now),installationId,licenseId:record?.licenseId||null,accountEmail:record?.accountEmail||null,activatedAt:record?.activatedAt||null});
+  return json({active:activeInstallation(record,now)});
 }
 
 export async function handleRequest(request,env={}){

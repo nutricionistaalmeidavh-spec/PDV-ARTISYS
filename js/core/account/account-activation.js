@@ -9,6 +9,17 @@ function normalizeEndpoint(value) {
   return String(value || '').trim().replace(/\/+$/, '');
 }
 
+function parseMetadata(value) {
+  if (!value) return {};
+  if (typeof value === 'object' && !Array.isArray(value)) return { ...value };
+  try {
+    const parsed = JSON.parse(String(value));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 function createAccountService({
   db,
   installationId='local',
@@ -32,7 +43,7 @@ function createAccountService({
       licenseId:row.license_id,
       activatedAt:row.activated_at,
       activationSource:row.activation_source,
-      metadata:row.metadata_json ? JSON.parse(row.metadata_json) : null
+      metadata:row.metadata_json ? parseMetadata(row.metadata_json) : null
     };
   }
 
@@ -62,6 +73,39 @@ function createAccountService({
     }
   }
 
+  function updateActivationMetadata(patch = {}) {
+    const current = activation();
+    if (!current) return null;
+    const metadata = { ...parseMetadata(current.metadata), ...patch };
+    db.prepare('UPDATE installation_activation SET metadata_json=? WHERE installation_id=?')
+      .run(JSON.stringify(metadata), id);
+    return activation();
+  }
+
+  async function syncLicenseStatus({ allowOffline=true }={}) {
+    const current = activation();
+    if (!current || !baseUrl || typeof fetchImpl !== 'function') {
+      return { active:current?.metadata?.licenseActive !== false, checked:false };
+    }
+    const cachedActive = current.metadata?.licenseActive !== false;
+    try {
+      const response = await fetchImpl(`${baseUrl}/v1/license/status?installationId=${encodeURIComponent(id)}`, {
+        method:'GET',
+        headers:{ accept:'application/json' }
+      });
+      let payload = {};
+      try { payload = await response.json(); } catch { payload = {}; }
+      if (!response.ok || typeof payload.active !== 'boolean') {
+        throw new Error(payload.error || `Falha no servico de conta (${response.status}).`);
+      }
+      updateActivationMetadata({ licenseActive:payload.active, licenseCheckedAt:now() });
+      return { active:payload.active, checked:true };
+    } catch (error) {
+      if (!allowOffline) throw new Error('Servico de conta indisponivel.');
+      return { active:cachedActive, checked:false, offline:true };
+    }
+  }
+
   async function requestActivation(email) {
     const accountEmail = normalizeEmail(email);
     if (!accountEmail) throw new Error('E-mail obrigatorio para ativacao comercial.');
@@ -77,12 +121,12 @@ function createAccountService({
     if (!licenseId) throw new Error('Resposta de ativacao sem licenca valida.');
     const normalizedRemoteEmail = normalizeEmail(payload.accountEmail || payload.account_email || accountEmail) || accountEmail;
     const activatedAt = String(payload.activatedAt || payload.activated_at || now());
-    const metadata = payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : null;
+    const metadata = { ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}), licenseActive:true, licenseCheckedAt:activatedAt };
     db.prepare(`INSERT INTO installation_activation(installation_id,account_email,license_id,activated_at,activation_source,metadata_json)
       VALUES(?,?,?,?,?,?)
       ON CONFLICT(installation_id) DO UPDATE SET account_email=excluded.account_email,license_id=excluded.license_id,
         activated_at=excluded.activated_at,activation_source=excluded.activation_source,metadata_json=excluded.metadata_json`)
-      .run(id, normalizedRemoteEmail, licenseId, activatedAt, 'cloudflare-account', metadata ? JSON.stringify(metadata) : null);
+      .run(id, normalizedRemoteEmail, licenseId, activatedAt, 'cloudflare-account', JSON.stringify(metadata));
     return activation();
   }
 
@@ -107,6 +151,7 @@ function createAccountService({
     activation,
     requestActivation,
     verifyActivation,
+    syncLicenseStatus,
     requestPasswordRecovery,
     verifyPasswordRecovery
   };

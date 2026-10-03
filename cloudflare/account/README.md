@@ -11,11 +11,11 @@ Serviço comercial isolado para ativação de novas instalações do ArtiSys PDV
 5. O código é consumido, a licença é vinculada ao `installationId` e o cliente define a senha do administrador.
 6. A senha e seu hash permanecem somente no banco local do PDV.
 
-O código de ativação administrativo é de uso único e expira em 30 dias.
+O código de ativação administrativo é de uso único, expira em 30 minutos e é bloqueado após cinco tentativas inválidas.
 
 ## Recuperação de senha
 
-Para uma instalação já ativada, o painel permite gerar um código de recuperação com validade de 15 minutos. O código fica vinculado ao e-mail e ao `installationId`; ele não funciona em outro computador. Depois da validação, o PDV grava apenas o novo hash local e revoga as sessões locais anteriores.
+Para uma instalação já ativada, o painel permite gerar um código de recuperação com validade de 15 minutos e no máximo cinco tentativas inválidas. O código fica vinculado ao e-mail e ao `installationId`; ele não funciona em outro computador. Depois da validação, o PDV grava apenas o novo hash local e revoga as sessões locais anteriores.
 
 O serviço comercial não recebe senha nem hash de senha.
 
@@ -30,7 +30,7 @@ O serviço comercial não recebe senha nem hash de senha.
 - `POST /v1/activation/verify` — valida e consome o código de ativação.
 - `POST /v1/password-recovery/request` — valida silenciosamente o contexto e orienta a solicitar o código ao administrador.
 - `POST /v1/password-recovery/verify` — valida código de recuperação vinculado à instalação.
-- `GET /v1/license/status?installationId=...`
+- `GET /v1/license/status?installationId=...` — retorna somente `active`; e-mail, licença e data de ativação não são expostos.
 
 ## D1
 
