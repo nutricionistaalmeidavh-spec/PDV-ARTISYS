@@ -114,8 +114,7 @@ export function buildWranglerConfig({
     r2_buckets:[{
       binding:'artisysr2',
       bucket_name:r2BucketName
-    }],
-    previews:{}
+    }]
   };
 }
 
