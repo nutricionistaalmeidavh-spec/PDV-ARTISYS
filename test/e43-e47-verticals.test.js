@@ -93,7 +93,12 @@ test('E45 delivery enforces lifecycle and keeps payment manual',()=>{
   const order=rt.delivery.create({customerName:'Ana',phone:'16999999999',fulfillmentType:'DELIVERY',address:{street:'Rua A',number:'10'},region:'Centro',feeCents:500,paymentMethod:'PIX'},admin);
   assert.equal(order.status,'NEW');assert.equal(order.feeCents,500);assert.equal(order.paymentMethod,'PIX');
   assert.throws(()=>rt.delivery.updateStatus(order.id,'DELIVERED',admin),/Transicao de delivery invalida/);
-  rt.delivery.updateStatus(order.id,'PREPARING',admin);rt.delivery.updateStatus(order.id,'READY',admin);rt.delivery.updateStatus(order.id,'OUT_FOR_DELIVERY',admin);const done=rt.delivery.updateStatus(order.id,'DELIVERED',admin);
+  assert.throws(()=>rt.delivery.updateStatus(order.id,'PREPARING',admin),/KDS|producao/i);
+  rt.delivery.createSale(order.id,{terminalId:'pdv-1',operatorId:'admin-1',items:[{productId:'burger',quantity:1}]},admin);
+  const ticket=rt.kitchen.listTickets().find(item=>item.sourceType==='DELIVERY'&&item.sourceId===order.id);
+  rt.kitchen.updateTicketStatus(ticket.id,'PREPARING',admin);assert.equal(rt.delivery.get(order.id).status,'PREPARING');
+  rt.kitchen.updateTicketStatus(ticket.id,'READY',admin);assert.equal(rt.delivery.get(order.id).status,'READY');
+  rt.delivery.updateStatus(order.id,'OUT_FOR_DELIVERY',admin);const done=rt.delivery.updateStatus(order.id,'DELIVERED',admin);
   assert.equal(done.status,'DELIVERED');
   rt.close();
 });

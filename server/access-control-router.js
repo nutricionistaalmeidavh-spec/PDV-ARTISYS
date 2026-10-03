@@ -91,6 +91,9 @@ function createAccessControlRouter({runtime,sessionStore=null,requireTerminalAut
       if(request.method==='GET'&&pathname==='/api/v1/access/devices'){
         requireCapability(context,'devices.view');json(response,200,runtime.mobileDevices.listDevices({status:url.searchParams.get('status')||null,deviceType:url.searchParams.get('deviceType')||null}));return true;
       }
+      if(request.method==='GET'&&pathname==='/api/v1/access/kitchen-stations'){
+        requireCapability(context,'devices.view');json(response,200,runtime.kitchen.listStations());return true;
+      }
       if(request.method==='POST'&&pathname==='/api/v1/access/devices'){
         requireCapability(context,'devices.pair');json(response,201,runtime.mobileDevices.createDevice(await body(request,bodyLimitBytes),context.actor));return true;
       }
@@ -101,6 +104,10 @@ function createAccessControlRouter({runtime,sessionStore=null,requireTerminalAut
       const deviceRotate=pathname.match(/^\/api\/v1\/access\/devices\/([^/]+)\/rotate$/);
       if(deviceRotate&&request.method==='POST'){
         requireCapability(context,'devices.rotate_credential');json(response,200,runtime.mobileDevices.rotateCredential(decodeURIComponent(deviceRotate[1]),context.actor));return true;
+      }
+      const deviceStations=pathname.match(/^\/api\/v1\/access\/devices\/([^/]+)\/kitchen-stations$/);
+      if(deviceStations&&request.method==='PUT'){
+        requireCapability(context,'devices.pair');const data=await body(request,bodyLimitBytes);json(response,200,runtime.mobileDevices.setKitchenStations(decodeURIComponent(deviceStations[1]),data.stationIds,context.actor));return true;
       }
 
       if(request.method==='GET'&&pathname==='/api/v1/access/security'){

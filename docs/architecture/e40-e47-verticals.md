@@ -88,3 +88,20 @@ Um código que não corresponda ao perfil configurado deve ser rejeitado.
 Pré-conta, ticket de produção/cozinha e documentos operacionais permanecem não fiscais. Configurações de item relevantes à produção — como tamanho, frações de sabores, borda e adicionais — são preservadas no KDS e na impressão.
 
 E40–E47 não chamam emissão NFC-e/NF-e/SAT/MFE/SEFAZ e não exigem provedor fiscal para funcionar.
+
+## Delivery e retirada — operação orientada pelo KDS
+
+Delivery e retirada compartilham uma única superfície operacional em **Alimentação → Entrega e retirada**. O pedido é o objeto reconhecível pelo operador; a implementação mantém responsabilidades separadas sem expor essa divisão como trabalho manual:
+
+- os itens são persistidos no pedido antes de a venda canônica ser aberta;
+- ao enviar para produção, itens `PRODUCTION` geram tickets por setor e itens `DIRECT` não criam ticket;
+- `NEW → PREPARING → READY` é autoridade do KDS para pedidos com produção;
+- o pedido permanece `PREPARING` enquanto qualquer setor ainda não estiver `READY`;
+- retirada só libera `PICKED_UP` depois de `READY`;
+- delivery só libera entregador / `OUT_FOR_DELIVERY → DELIVERED` depois de `READY`;
+- a venda vinculada é aberta no **Balcão** pela mesma identidade de venda, sem reconstrução de itens;
+- retirada `READY` mantém a ação local **Avisar no WhatsApp**, via `wa.me`, sem API paga.
+
+Dispositivos `KITCHEN` podem ser vinculados a um ou mais setores de produção. Um dispositivo sem setores selecionados continua sendo um KDS geral por compatibilidade; com setores selecionados, `/mobile/context` projeta somente os tickets desses setores.
+
+A superfície canônica e suas extensões usam `PdvUiLifecycle` / eventos semânticos. Delivery/retirada não dependem de `MutationObserver` para montagem ou sincronização.
