@@ -13,6 +13,7 @@ class AccountMemoryStore {
     this.tokens = [];
     this.recoveryTokens = [];
     this.installations = new Map();
+    this.adminSessions = [];
   }
   async findAccount(email) { return this.accounts.get(email) || null; }
   async findActiveLicense(email) {
@@ -82,6 +83,14 @@ class AccountMemoryStore {
   async setLicenseStatus(id, status) {
     const license = this.licenses.find(item => item.id === id);
     if (license) license.status = status;
+  }
+  async createAdminSession(record) { this.adminSessions.push({ ...record }); }
+  async findAdminSession({ digest, now }) {
+    return this.adminSessions.find(item => item.tokenDigest === digest && !item.revokedAt && item.expiresAt > now) || null;
+  }
+  async deleteAdminSession(digest) {
+    const session = this.adminSessions.find(item => item.tokenDigest === digest);
+    if (session) session.revokedAt = new Date().toISOString();
   }
   async saveInstallation(record) { this.installations.set(record.installationId, { ...record }); }
   async findInstallation(id) {
@@ -159,15 +168,23 @@ function workerEnv() {
   };
 }
 
-const adminHeaders = { authorization:'Bearer admin-test' };
+async function adminCookie(handleRequest, env) {
+  const response = await handleRequest(workerRequest('/v1/admin/session', {
+    method:'POST',
+    body:JSON.stringify({ token:'admin-test' })
+  }), env);
+  assert.equal(response.status, 204);
+  return { cookie:String(response.headers.get('set-cookie') || '').split(';')[0] };
+}
 
 test('activation code expires within 30 minutes and locks after five wrong attempts', async () => {
   const { handleRequest } = await loadAccountWorker();
   const env = workerEnv();
   const before = Date.now();
+  const { cookie } = await adminCookie(handleRequest, env);
   let response = await handleRequest(workerRequest('/v1/admin/licenses', {
     method:'POST',
-    headers:adminHeaders,
+    headers:{ cookie },
     body:JSON.stringify({ email:'owner@example.com' })
   }), env);
   assert.equal(response.status, 201);
@@ -193,9 +210,10 @@ test('activation code expires within 30 minutes and locks after five wrong attem
 test('password recovery locks after five wrong codes', async () => {
   const { handleRequest } = await loadAccountWorker();
   const env = workerEnv();
+  const { cookie } = await adminCookie(handleRequest, env);
   let response = await handleRequest(workerRequest('/v1/admin/licenses', {
     method:'POST',
-    headers:adminHeaders,
+    headers:{ cookie },
     body:JSON.stringify({ email:'owner@example.com' })
   }), env);
   const released = await response.json();
@@ -206,7 +224,7 @@ test('password recovery locks after five wrong codes', async () => {
 
   response = await handleRequest(workerRequest('/v1/admin/recovery', {
     method:'POST',
-    headers:adminHeaders,
+    headers:{ cookie },
     body:JSON.stringify({ installationId:'install-001', email:'owner@example.com' })
   }), env);
   assert.equal(response.status, 201);
@@ -231,9 +249,10 @@ test('password recovery locks after five wrong codes', async () => {
 test('public license status reveals only whether the installation is active', async () => {
   const { handleRequest } = await loadAccountWorker();
   const env = workerEnv();
+  const { cookie } = await adminCookie(handleRequest, env);
   let response = await handleRequest(workerRequest('/v1/admin/licenses', {
     method:'POST',
-    headers:adminHeaders,
+    headers:{ cookie },
     body:JSON.stringify({ email:'owner@example.com' })
   }), env);
   const released = await response.json();

@@ -18,6 +18,22 @@ Este serviço é separado do core local do PDV. O PDV continua local/self-hosted
 
 Não existe envio automático de e-mail neste fluxo.
 
+## Login administrativo
+
+A Central não mantém mais o `ADMIN_TOKEN` na interface depois do login.
+
+Fluxo:
+
+1. `GET /admin` sem sessão mostra somente a tela de login.
+2. O `ADMIN_TOKEN` é enviado uma única vez para `POST /v1/admin/session`.
+3. O Worker cria uma sessão aleatória de 8 horas.
+4. O navegador recebe apenas um cookie `__Host-artisys_admin_session` com `HttpOnly`, `Secure` e `SameSite=Strict`.
+5. O D1 armazena somente o digest da sessão, nunca o token bruto.
+6. `DELETE /v1/admin/session` revoga a sessão no D1 e limpa o cookie.
+7. Rotacionar o `ADMIN_TOKEN` invalida a autenticação baseada no valor anterior.
+
+As APIs administrativas de licença exigem uma sessão válida.
+
 ## Central
 
 - `GET /admin` — interface da Central.
