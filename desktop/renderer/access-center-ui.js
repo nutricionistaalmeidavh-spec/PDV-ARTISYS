@@ -89,13 +89,13 @@
     const rows=profiles.map(profile=>{
       const deletion=ux.profileDeleteState(profile,snapshot.users);
       const usage=usageKnown?plural(deletion.usageCount,'pessoa','pessoas'):'Uso não disponível';
-      const type=profile.protected?'Sistema':'Personalizado';
+      const type=profile.protected?'Sistema':profile.systemKey?'Padrão':'Personalizado';
       const actions=[
         canAction('editProfile')&&!profile.protected?'<button type="button" class="secondary-button access-row-action" data-edit-profile>Editar</button>':'',
         canAction('deleteProfile')&&!profile.protected?'<button type="button" class="danger-button access-row-action" data-delete-profile>Excluir</button>':''
       ].filter(Boolean).join('');
       return `<tr data-profile-card="${esc(profile.id)}" data-profile-id="${esc(profile.id)}">
-        <td><strong>${esc(profile.name)}</strong>${profile.protected?'<small>Protegido pelo sistema</small>':'<small>Configuração personalizada</small>'}</td>
+        <td><strong>${esc(profile.name)}</strong>${profile.protected?'<small>Protegido pelo sistema</small>':profile.systemKey?'<small>Perfil padrão editável</small>':'<small>Configuração personalizada</small>'}</td>
         <td><span class="access-type-badge">${type}</span></td>
         <td>${plural(profile.permissions?.length||0,'permissão','permissões')}</td>
         <td><span class="${deletion.usageCount>0?'access-usage-active':''}">${esc(usage)}</span></td>
