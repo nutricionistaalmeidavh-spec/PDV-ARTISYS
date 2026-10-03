@@ -233,7 +233,9 @@
         "restaurant-checkout-reusing-sales-cash-and-inventory",
         "kitchen-kds-stations-product-routing-and-printer-routing",
         "restaurant-service-requests-waiter-and-bill",
-        "restaurant-operational-reports-and-csv-export"
+        "restaurant-operational-reports-and-csv-export",
+        "restaurant-session-waiter-party-customer-context",
+        "restaurant-shared-multichannel-order-composer"
       ],
       "backend": [
         {
