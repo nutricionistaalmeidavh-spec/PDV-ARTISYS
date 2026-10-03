@@ -1099,6 +1099,70 @@
       "expectedStatus": 200,
       "expectedPayloadIncludes": "FULFILLED",
       "name": "pedido-status-fulfill-persistido"
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='post-sale']",
+      "name": "devolucao-pos-venda-hub",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='returns']",
+      "name": "devolucao-pos-venda-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-return-sales-list] [data-return-sale]:first-child",
+      "name": "devolucao-venda-disponivel",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-return-sales-list] [data-return-sale]:first-child",
+      "name": "devolucao-venda-concluida-selecionada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-return-sale-detail] [data-return-item]",
+      "name": "devolucao-item-detalhe",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "check",
+      "selector": "[data-return-sale-detail] [data-return-check]",
+      "name": "devolucao-item-selecionado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#return-reason",
+      "value": "Devolução QA",
+      "name": "devolucao-motivo-preenchido",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-return",
+      "name": "devolucao-confirmada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#returns-status",
+      "expected": "concluída",
+      "name": "devolucao-status-concluido",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/returns",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": "Devolução QA",
+      "name": "devolucao-persistida"
     }
   ]
 }
