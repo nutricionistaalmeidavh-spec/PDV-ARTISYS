@@ -28,10 +28,10 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   };
-  const currentRole = () => String(state.session?.user?.role || '').trim().toLowerCase();
-  const directAllowed = () => ['admin','manager'].includes(currentRole());
-  const requiresApproval = () => currentRole() === 'cashier';
-  const canOperate = () => directAllowed() || requiresApproval();
+  const hasCapability = capability => Array.isArray(state.session?.user?.permissions)&&state.session.user.permissions.includes(capability);
+  const directAllowed = () => hasCapability('returns.approve');
+  const requiresApproval = () => hasCapability('returns.manage')&&!directAllowed();
+  const canOperate = () => hasCapability('returns.manage');
   const refundLabel = method => ({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão débito',CREDIT_CARD:'Cartão crédito',STORE_CREDIT:'Crédito na loja',OTHER:'Outro'})[method] || method;
 
   function currentPage() {
@@ -128,10 +128,10 @@
     if (!requiresApproval()) return '<div class="return-permission-warning">Seu perfil não possui permissão para concluir devoluções.</div>';
     const approvedBy = state.approval?.authorizedBy;
     const approvalText = approvedBy
-      ? `Autorizado por ${escapeHtml(approvedBy.name || approvedBy.id || 'gerente/admin')}${state.approval?.expiresAt ? ` até ${when(state.approval.expiresAt)}` : ''}.`
-      : 'Informe as credenciais de um gerente ou administrador para liberar esta devolução.';
+      ? `Autorizado por ${escapeHtml(approvedBy.name || approvedBy.id || 'perfil autorizador')}${state.approval?.expiresAt ? ` até ${when(state.approval.expiresAt)}` : ''}.`
+      : 'Informe as credenciais de um perfil com permissão de aprovação para liberar esta devolução.';
     return `<section class="return-permission-warning" data-return-authorization>
-      <strong>Autorização de gerente/admin</strong>
+      <strong>Autorização de perfil autorizador</strong>
       <p data-return-authorization-status>${approvalText}</p>
       <div class="return-refund-grid">
         <label class="field"><span>Usuário autorizador</span><input id="return-authorizer-username" autocomplete="username" ${approvedBy ? 'disabled' : ''}></label>
@@ -238,7 +238,7 @@
     const passwordInput = page.querySelector('#return-authorizer-password');
     const password = String(passwordInput?.value || '');
     if (!username || !password) {
-      setStatus('Informe usuário e senha do gerente ou administrador.','error');
+      setStatus('Informe usuário e senha do perfil com permissão de aprovação.','error');
       return;
     }
     const button = page.querySelector('#authorize-return');
@@ -253,7 +253,7 @@
       });
       if (passwordInput) passwordInput.value = '';
       renderSaleDetails();
-      setStatus(`Devolução autorizada por ${state.approval?.authorizedBy?.name || 'gerente/admin'}.`,'ok');
+      setStatus(`Devolução autorizada por ${state.approval?.authorizedBy?.name || 'perfil autorizador'}.`,'ok');
     } catch (error) {
       state.approval = null;
       if (passwordInput) passwordInput.value = '';
@@ -271,7 +271,7 @@
       return;
     }
     if (requiresApproval() && !state.approval?.approvalToken) {
-      setStatus('Autorize a devolução com credenciais de gerente ou administrador.','error');
+      setStatus('Autorize a devolução com credenciais de perfil com permissão de aprovação.','error');
       return;
     }
     const reason = String(page.querySelector('#return-reason')?.value || '').trim();

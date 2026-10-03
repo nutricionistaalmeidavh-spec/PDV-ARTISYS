@@ -54,7 +54,7 @@ test('approval expires after the configured 120 second TTL', () => {
   assert.throws(() => store.consume(issued.approvalToken, { ...request, scope:'return.complete' }), /expirada/i);
 });
 
-test('approval refuses non-manager authorizers', () => {
+test('approval store validates identity while authorization stays at the router boundary', () => {
   const { store } = fixture();
-  assert.throws(() => store.issue({ ...request, authorizedBy:{ userId:'cashier2', role:'cashier', name:'Outro caixa' } }), /gerente|admin/i);
+  assert.throws(() => store.issue({ ...request, authorizedBy:{ name:'Sem identidade' } }), /Identidade/i);
 });

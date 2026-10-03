@@ -1,4 +1,5 @@
 'use strict';
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const { writeAudit }=require('../audit-log');
 
@@ -36,10 +37,10 @@ function ensurePilotTable(db){
   CREATE INDEX IF NOT EXISTS idx_pilot_checks_status ON pilot_checks(status,category);`);
 }
 function mapRow(row){if(!row)return null;let evidence=null;try{evidence=row.evidence_json?JSON.parse(row.evidence_json):null;}catch{evidence=null;}return{key:row.check_key,title:row.title,category:row.category,optional:Boolean(row.optional),status:row.status,note:row.note,evidence,updatedBy:row.updated_by,createdAt:row.created_at,updatedAt:row.updated_at};}
-function assertActor(actor){if(!['admin','manager'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para atualizar checklist de piloto.');}
+function assertActor(actor,authorization){if(authorization)authorization.require({principal:principalFromActor(actor),capability:'settings.manage'});}
 function sanitizeEvidence(value){if(value==null)return null;if(typeof value!=='object'||Array.isArray(value))throw new Error('Evidencia do piloto deve ser um objeto.');const text=JSON.stringify(value);if(text.length>12000)throw new Error('Evidencia do piloto excede o limite.');return value;}
 
-function createPilotService({db,now=()=>new Date().toISOString()}={}){
+function createPilotService({db,authorization=null,now=()=>new Date().toISOString()}={}){
   if(!db)throw new TypeError('Database is required.');ensurePilotTable(db);
   const insert=db.prepare(`INSERT OR IGNORE INTO pilot_checks(check_key,title,category,optional,status,created_at,updated_at) VALUES(?,?,?,?, 'NOT_STARTED',?,?)`);
   const seededAt=now();for(const item of PILOT_CHECKS)insert.run(item.key,item.title,item.category,item.optional?1:0,seededAt,seededAt);
@@ -47,7 +48,7 @@ function createPilotService({db,now=()=>new Date().toISOString()}={}){
   function listChecks(){return db.prepare('SELECT * FROM pilot_checks ORDER BY rowid').all().map(mapRow);}
   function getCheck(key){return mapRow(db.prepare('SELECT * FROM pilot_checks WHERE check_key=?').get(String(key)));}
   function updateCheck(key,{status,note=null,evidence=null,actor={}}={}){
-    assertActor(actor);const normalizedStatus=String(status||'').toUpperCase();if(!PILOT_STATES.includes(normalizedStatus))throw new Error('Estado de piloto invalido.');const existing=getCheck(key);if(!existing)throw new Error('Item do checklist de piloto nao encontrado.');
+    assertActor(actor,authorization);const normalizedStatus=String(status||'').toUpperCase();if(!PILOT_STATES.includes(normalizedStatus))throw new Error('Estado de piloto invalido.');const existing=getCheck(key);if(!existing)throw new Error('Item do checklist de piloto nao encontrado.');
     const safeEvidence=sanitizeEvidence(evidence);const safeNote=note==null?null:String(note).trim().slice(0,2000)||null;const timestamp=now();
     db.prepare('UPDATE pilot_checks SET status=?,note=?,evidence_json=?,updated_by=?,updated_at=? WHERE check_key=?').run(normalizedStatus,safeNote,safeEvidence==null?null:JSON.stringify(safeEvidence),actor.userId||null,timestamp,existing.key);
     writeAudit(db,{action:'pilot.check.update',entity:'pilot-check',entityId:existing.key,actor,context:{from:existing.status,to:normalizedStatus,note:safeNote,evidence:safeEvidence}},now);

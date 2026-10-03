@@ -14,7 +14,7 @@ function createReceiptRouter({runtime,sessionStore,env=process.env,isExistingIns
   if(!runtime||!sessionStore)throw new TypeError('runtime e sessionStore sao obrigatorios no router de comprovante.');
   const receipts=createSaleReceiptService({saleService:runtime.sales,settings:runtime.settings,env});
   function session(req){const token=bearer(req);const current=sessionStore.get(token);if(!current||current.expiresAt<=Date.now()){if(token)sessionStore.delete(token);throw httpError(401,'Sessao invalida ou expirada.');}return current;}
-  function requireRole(current,roles){if(!roles.includes(String(current?.role||'')))throw httpError(403,'Permissao insuficiente.');}
+  function requireCapability(current,capability){try{return runtime.authorization.require({principal:{kind:'human',id:current.userId},capability});}catch(error){throw httpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
   function printingPreferences(){return resolvePrintingPreferences({settings:runtime.settings,env,isExistingInstall});}
   function jobReceipt(job,saleId=job?.entityId){
     if(!job)return null;
@@ -28,9 +28,9 @@ function createReceiptRouter({runtime,sessionStore,env=process.env,isExistingIns
   function originalReceipt(saleId){return jobReceipt(runtime.printing?.getOriginalSaleReceipt?.(saleId),saleId);}
   function saleReceipt(saleId){return originalReceipt(saleId)||receipts.build(saleId);}
   function savePrintingPreferences(input,current){
-    requireRole(current,['admin','manager']);
+    requireCapability(current,'settings.manage');
     const normalized=validatePrintingPreferences({...printingPreferences(),...(input||{})});
-    const actor={userId:current.userId,role:current.role,terminalId:current.terminalId||null};
+    const actor={kind:'human',userId:current.userId,terminalId:current.terminalId||null};
     const values={
       'printing.deviceName':normalized.deviceName,
       'printing.paperMm':normalized.paperMm,

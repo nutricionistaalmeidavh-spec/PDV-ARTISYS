@@ -434,6 +434,9 @@
         },
         {
           "path": "server/router.js"
+        },
+        {
+          "path": "server/access-control-router.js"
         }
       ],
       "client": [
@@ -584,10 +587,47 @@
         "audit-health-sanitized-logs",
         "server-terminal-and-terminal-deployment-profiles"
       ],
-      "backend": [],
-      "api": [],
-      "client": [],
-      "ui": []
+      "backend": [
+        {
+          "path": "js/core/auth/authorization-service.js"
+        },
+        {
+          "path": "js/core/auth/profile-service.js"
+        },
+        {
+          "path": "js/core/auth/device-access-service.js"
+        },
+        {
+          "path": "js/core/auth/access-security-service.js"
+        },
+        {
+          "path": "js/core/auth/principal-resolver.js"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/access-control-router.js"
+        },
+        {
+          "path": "server/auth-session-router.js"
+        },
+        {
+          "path": "server/catalog-management-router.js"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/access-policy.js"
+        },
+        {
+          "path": "desktop/renderer/api-client.js"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/access-center-ui.js"
+        }
+      ]
     }
   ]
 }

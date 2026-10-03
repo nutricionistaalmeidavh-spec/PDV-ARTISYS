@@ -34,7 +34,7 @@ function createAccountService({
   const id = String(installationId || 'local').trim() || 'local';
 
   function activation() {
-    const row = db.prepare(`SELECT installation_id,account_email,license_id,activated_at,activation_source,metadata_json
+    const row = db.prepare(`SELECT installation_id,account_email,license_id,activated_at,activation_source,metadata_json,owner_user_id
       FROM installation_activation WHERE installation_id=?`).get(id);
     if (!row) return null;
     return {
@@ -43,6 +43,7 @@ function createAccountService({
       licenseId:row.license_id,
       activatedAt:row.activated_at,
       activationSource:row.activation_source,
+      ownerUserId:row.owner_user_id || null,
       metadata:row.metadata_json ? parseMetadata(row.metadata_json) : null
     };
   }
@@ -130,6 +131,18 @@ function createAccountService({
     return activation();
   }
 
+  function bindOwnerUser(userId) {
+    const current=activation();
+    if(!current) throw new Error('Ativacao da instalacao nao encontrada.');
+    const idValue=String(userId||'').trim();
+    if(!idValue) throw new Error('Usuario proprietario obrigatorio.');
+    const user=db.prepare("SELECT id,email_normalized,role,active FROM users WHERE id=?").get(idValue);
+    if(!user||!user.active||user.role!=='admin')throw new Error('Proprietario deve ser um administrador ativo.');
+    if(normalizeEmail(user.email_normalized)!==normalizeEmail(current.accountEmail))throw new Error('E-mail do administrador deve corresponder ao e-mail liberado para esta instalacao.');
+    db.prepare('UPDATE installation_activation SET owner_user_id=? WHERE installation_id=?').run(user.id,id);
+    return activation();
+  }
+
   async function requestPasswordRecovery(email) {
     const accountEmail = normalizeEmail(email);
     if (!accountEmail) throw new Error('E-mail obrigatorio para recuperacao.');
@@ -151,6 +164,7 @@ function createAccountService({
     activation,
     requestActivation,
     verifyActivation,
+    bindOwnerUser,
     syncLicenseStatus,
     requestPasswordRecovery,
     verifyPasswordRecovery

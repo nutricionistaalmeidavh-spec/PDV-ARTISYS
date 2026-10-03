@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const ACCOUNT_IDENTITY_SCHEMA_VERSION = 18;
-const ACCOUNT_IDENTITY_MIGRATION_NAME = 'pdv_auth_account_identity_v18';
+const ACCOUNT_IDENTITY_SCHEMA_VERSION = 24;
+const ACCOUNT_IDENTITY_MIGRATION_NAME = 'pdv_auth_account_ownership_v24';
 
 function tableColumns(db, tableName) {
   return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map(row => row.name));
@@ -34,6 +34,17 @@ function applyAccountIdentityMigration(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_installation_activation_license ON installation_activation(license_id);
   `);
+  ensureColumn(db, 'installation_activation', 'owner_user_id', 'TEXT REFERENCES users(id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_installation_activation_owner ON installation_activation(owner_user_id)');
+  db.prepare(`UPDATE installation_activation
+    SET owner_user_id=(
+      SELECT u.id FROM users u
+      WHERE u.role='admin' AND u.active=1 AND u.email_normalized=installation_activation.account_email
+      LIMIT 1
+    )
+    WHERE owner_user_id IS NULL
+      AND 1=(SELECT COUNT(*) FROM users u WHERE u.role='admin' AND u.active=1 AND u.email_normalized=installation_activation.account_email)`)
+    .run();
 }
 
 function migrationApplied(db) {
@@ -45,7 +56,8 @@ function schemaPresent(db) {
   const required = ['email', 'email_normalized', 'email_verified_at', 'password_changed_at'];
   const hasColumns = required.every(name => columns.has(name));
   const activation = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installation_activation'").get();
-  return hasColumns && Boolean(activation);
+  const activationColumns=activation?tableColumns(db,'installation_activation'):new Set();
+  return hasColumns && Boolean(activation) && activationColumns.has('owner_user_id');
 }
 
 function runAccountIdentityMigrations(db, now = () => new Date().toISOString()) {

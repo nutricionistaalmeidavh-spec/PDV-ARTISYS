@@ -47,6 +47,9 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
   assert.doesNotMatch(source,/if\(root\.dataset\.catalogDeletionEnhanced==='1'\)return/);
   assert.match(source,/route==='customers'&&surface==='customers-list'\)scheduleMount\(\)/);
   assert.match(source,/root\.querySelectorAll\('\[data-edit-customer\]'\)\.forEach/);
+  assert.match(source,/let remountRequested=false/);
+  assert.match(source,/if\(mounting\)\{remountRequested=true;return;\}/);
+  assert.match(source,/if\(remountRequested\)\{remountRequested=false;scheduleMount\(\);\}/);
 });
 
 test('P5 leaves complex P6 observers untouched',()=>{

@@ -67,6 +67,18 @@
     users(includeInactive = false) { return this.request(`/api/v1/users${includeInactive ? '?includeInactive=true' : ''}`); }
     sellers() { return this.request('/api/v1/sellers'); }
     saveUser(body) { return this.request('/api/v1/users', { method: 'POST', body }); }
+    accessPermissions() { return this.request('/api/v1/access/permissions'); }
+    accessProfiles(includeInactive = false) { return this.request(`/api/v1/access/profiles${includeInactive ? '?includeInactive=true' : ''}`); }
+    createAccessProfile(body) { return this.request('/api/v1/access/profiles', { method:'POST', body }); }
+    updateAccessProfile(id, body) { return this.request(`/api/v1/access/profiles/${encodeURIComponent(id)}`, { method:'PATCH', body }); }
+    deleteAccessProfile(id) { return this.request(`/api/v1/access/profiles/${encodeURIComponent(id)}`, { method:'DELETE' }); }
+    assignAccessProfile(userId, profileId) { return this.request(`/api/v1/access/users/${encodeURIComponent(userId)}/profile`, { method:'PUT', body:{profileId} }); }
+    accessDevices(filters = {}) { return this.request(`/api/v1/access/devices${this.params(filters)}`); }
+    createAccessDevice(body) { return this.request('/api/v1/access/devices', { method:'POST', body }); }
+    setAccessDeviceStatus(id, status) { return this.request(`/api/v1/access/devices/${encodeURIComponent(id)}/status`, { method:'PATCH', body:{status} }); }
+    rotateAccessDevice(id) { return this.request(`/api/v1/access/devices/${encodeURIComponent(id)}/rotate`, { method:'POST', body:{} }); }
+    accessSecurity() { return this.request('/api/v1/access/security'); }
+    revokeAccessSession(id) { return this.request(`/api/v1/access/sessions/${encodeURIComponent(id)}`, { method:'DELETE' }); }
 
     inventoryBalances(filters = {}) { return this.request(`/api/v1/inventory${this.params(filters)}`); }
     inventoryLowStock() { return this.request('/api/v1/inventory/low-stock'); }

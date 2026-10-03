@@ -9,6 +9,7 @@
   if(!ApiClient||!content||!lifecycle)return;
   const api=new ApiClient();
   let mounting=false;
+  let remountRequested=false;
   let currentUser=null;
   const removedCustomerIds=new Set();
 
@@ -115,14 +116,14 @@
   }
 
   async function mount(){
-    if(mounting)return;mounting=true;
+    if(mounting){remountRequested=true;return;}mounting=true;
     try{
       await session();const title=heading();
       if(title==='Equipe e acessos')await renderUsers();
       else if(title==='Clientes')await enhanceCustomers();
       else if(['Produtos','Cardápio'].includes(title))await enhanceProducts();
       else if(title==='Compras e recebimentos')await enhanceSuppliers();
-    }catch(error){console.warn('Catalog/user management UI unavailable:',error?.message||error);}finally{mounting=false;}
+    }catch(error){console.warn('Catalog/user management UI unavailable:',error?.message||error);}finally{mounting=false;if(remountRequested){remountRequested=false;scheduleMount();}}
   }
 
   const scheduleMount=()=>queueMicrotask(()=>void mount());

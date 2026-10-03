@@ -4,8 +4,7 @@ const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 function seed(runtime) {
-  runtime.db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
-    .run('mgr','gerente','Gerente','manager','hash','salt',1,'2026-09-09T10:00:00Z','2026-09-09T10:00:00Z');
+  runtime.catalog.createUser({id:'mgr',username:'gerente',name:'Gerente',role:'manager',password:'senha-gerente-123'},{kind:'system',id:'system'});
   runtime.catalog.upsertCategory({ id:'cat1', name:'Geral' });
   runtime.catalog.upsertProduct({ id:'p1', sku:'SKU-1', name:'Produto A', salePriceCents:1000, costCents:500, trackStock:true, minimumStock:1 });
   runtime.inventory.move({ productId:'p1', type:'opening', quantityDelta:5, reason:'saldo inicial' });
@@ -115,6 +114,7 @@ test('return rejects delegated authorization from a non-manager role', async () 
   seed(runtime);
   runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
   const sale = await completeSale(runtime);
+  runtime.catalog.createUser({ id:'cashier2', username:'caixa2', name:'Outro caixa', role:'cashier', password:'senha-caixa2-123' },{kind:'system',id:'system'});
   assert.throws(() => runtime.returns.createReturn({
     saleId:sale.id,
     terminalId:'PDV-01',
@@ -124,6 +124,6 @@ test('return rejects delegated authorization from a non-manager role', async () 
     refunds:[{ method:'CASH', amountCents:1000 }],
     actor:cashierActor(),
     authorizedBy:{ userId:'cashier2', role:'cashier', name:'Outro caixa' }
-  }), /Autorizacao de gerente/i);
+  }), /permiss|autoriza/i);
   runtime.close();
 });

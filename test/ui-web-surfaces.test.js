@@ -7,10 +7,11 @@ const {createLocalServer}=require('../server/local-server');
 const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
 
 const admin={userId:'qa-admin',role:'admin',terminalId:'PDV-01'};
+const system={kind:'system',id:'system'};
 
 test('QA gate serves staff mobile and public QR menu from the real local server',async t=>{
   const runtime=createPdvRuntime({dbPath:':memory:'});
-  runtime.modules.setEnabled('FOOD',true,admin);
+  runtime.modules.setEnabled('FOOD',true,system);
   runtime.catalog.upsertCategory({id:'qa-food',name:'QA'},admin);
   runtime.catalog.upsertProduct({
     id:'qa-product',

@@ -69,14 +69,12 @@ test('P1 active optional areas expose a direct continuation action in settings',
 });
 
 
-test('P1 admin Home exposes Configurações without adding it to cashier or manager Home',()=>{
+test('P1 Home exposes Configurações only when settings.view is granted',()=>{
   const model=require('../desktop/renderer/home-role-model');
   const ui=require('../desktop/renderer/ui-model');
-  const routes=role=>model.homeForRole(role,ui.HOME_TILES).sections.flatMap(section=>section.tiles.map(tile=>tile.route));
-  assert.equal(routes('admin').includes('settings'),true);
-  assert.equal(routes('manager').includes('settings'),false);
-  assert.equal(routes('cashier').includes('settings'),false);
-  assert.equal(model.HUB_TILES.settings.label,'Configurações');
+  const routes=permissions=>model.homeForUser({profile:{name:'Perfil'},permissions},ui.HOME_TILES).sections.flatMap(section=>section.tiles.map(tile=>tile.route));
+  assert.equal(routes(['settings.view']).includes('settings'),true);
+  assert.equal(routes(['sales.create']).includes('settings'),false);
 });
 
 test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{

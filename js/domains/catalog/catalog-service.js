@@ -105,7 +105,7 @@ function rowToSupplier(row) {
 
 function publicUser(row) {
   if (!row) return null;
-  const user = { id: row.id, username: row.username, name: row.name, role: row.role, active: Boolean(row.active), createdAt: row.created_at, updatedAt: row.updated_at };
+  const user = { id: row.id, username: row.username, name: row.name, role: row.role, profileId:row.profile_id||null, active: Boolean(row.active), createdAt: row.created_at, updatedAt: row.updated_at };
   if (row.email) user.email = row.email;
   return user;
 }
@@ -140,6 +140,21 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   const hasProductPhotos=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='product_photos'").get());
   const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
   const hasAccountIdentity=['email','email_normalized','password_changed_at'].every(name=>userColumns.has(name));
+  const hasProfiles=userColumns.has('profile_id')&&tableExists('profiles');
+
+  function resolveUserProfile(input,legacyRole,existing=null){
+    if(!hasProfiles)return null;
+    let row=null;
+    if(input.profileId!==undefined&&input.profileId!==null&&String(input.profileId).trim()){
+      row=db.prepare('SELECT id,legacy_role,active FROM profiles WHERE id=?').get(String(input.profileId).trim());
+    }else if(existing?.profile_id&&String(existing.role||'')===String(legacyRole||'')){
+      row=db.prepare('SELECT id,legacy_role,active FROM profiles WHERE id=?').get(existing.profile_id);
+    }else{
+      row=db.prepare('SELECT id,legacy_role,active FROM profiles WHERE legacy_role=? AND active=1 ORDER BY protected DESC,id LIMIT 1').get(String(legacyRole||''));
+    }
+    if(!row||!row.active)throw new Error('Perfil de acesso nao encontrado ou inativo.');
+    return row;
+  }
 
   function upsertCategory(input = {}, actor = null) {
     const id = String(input.id || idFactory('cat')).trim();
@@ -312,8 +327,10 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   }
 
   function createUser(input = {}, actor = null) {
-    const role = String(input.role || '').trim().toLowerCase();
+    let role = String(input.role || '').trim().toLowerCase();
     if (!['admin', 'manager', 'cashier'].includes(role)) throw new Error('Perfil de usuario invalido.');
+    const profile=resolveUserProfile(input,role,null);
+    if(profile)role=profile.legacy_role||'cashier';
     const password = String(input.password || '');
     if (password.length < 10) throw new Error('Senha deve possuir pelo menos 10 caracteres.');
     const id = String(input.id || idFactory('user')).trim();
@@ -324,7 +341,11 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const salt = randomBytes(16).toString('hex');
     const hash = scryptSync(password, salt, 64).toString('hex');
     const timestamp = now();
-    if (hasAccountIdentity) {
+    if (hasAccountIdentity && hasProfiles) {
+      db.prepare(`INSERT INTO users (id,username,name,role,profile_id,password_hash,password_salt,email,email_normalized,password_changed_at,active,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, username, name, role, profile.id, hash, salt, email, email, timestamp, booleanInt(input.active), timestamp, timestamp);
+    } else if (hasAccountIdentity) {
       db.prepare(`INSERT INTO users (id,username,name,role,password_hash,password_salt,email,email_normalized,password_changed_at,active,created_at,updated_at)
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
         .run(id, username, name, role, hash, salt, email, email, timestamp, booleanInt(input.active), timestamp, timestamp);
@@ -333,7 +354,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
         VALUES (?,?,?,?,?,?,?,?,?)`)
         .run(id, username, name, role, hash, salt, booleanInt(input.active), timestamp, timestamp);
     }
-    writeAudit(db, { action: 'user.create', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
+    writeAudit(db, { action: 'user.create', entity: 'user', entityId: id, actor, context: { username, name, role, profileId:profile?.id||null, hasEmail:Boolean(email) } }, now);
     return publicUser(db.prepare('SELECT * FROM users WHERE id=?').get(id));
   }
 
@@ -341,12 +362,14 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     const id = String(input.id || '').trim();
     const username = String(input.username || '').trim().toLowerCase();
     const name = String(input.name || '').trim();
-    const role = String(input.role || '').trim().toLowerCase();
+    let role = String(input.role || '').trim().toLowerCase();
     if (!id) return createUser(input, actor);
     if (!username || !name) throw new Error('Usuario e nome sao obrigatorios.');
     if (!['admin', 'manager', 'cashier'].includes(role)) throw new Error('Perfil de usuario invalido.');
     const existing = db.prepare('SELECT * FROM users WHERE id=?').get(id);
     if (!existing) return createUser(input, actor);
+    const profile=resolveUserProfile(input,role,existing);
+    if(profile)role=profile.legacy_role||'cashier';
     const email = input.email === undefined ? existing.email : normalizeEmail(input.email);
     const password = String(input.password || '');
     let hash = existing.password_hash;
@@ -359,14 +382,17 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
       hash = scryptSync(password, salt, 64).toString('hex');
       passwordChangedAt = timestamp;
     }
-    if (hasAccountIdentity) {
+    if (hasAccountIdentity && hasProfiles) {
+      db.prepare(`UPDATE users SET username=?,name=?,role=?,profile_id=?,password_hash=?,password_salt=?,email=?,email_normalized=?,password_changed_at=?,active=?,updated_at=? WHERE id=?`)
+        .run(username, name, role, profile.id, hash, salt, email, email, passwordChangedAt, booleanInt(input.active), timestamp, id);
+    } else if (hasAccountIdentity) {
       db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,email=?,email_normalized=?,password_changed_at=?,active=?,updated_at=? WHERE id=?`)
         .run(username, name, role, hash, salt, email, email, passwordChangedAt, booleanInt(input.active), timestamp, id);
     } else {
       db.prepare(`UPDATE users SET username=?,name=?,role=?,password_hash=?,password_salt=?,active=?,updated_at=? WHERE id=?`)
         .run(username, name, role, hash, salt, booleanInt(input.active), timestamp, id);
     }
-    writeAudit(db, { action: 'user.upsert', entity: 'user', entityId: id, actor, context: { username, name, role, hasEmail:Boolean(email) } }, now);
+    writeAudit(db, { action: 'user.upsert', entity: 'user', entityId: id, actor, context: { username, name, role, profileId:profile?.id||null, hasEmail:Boolean(email) } }, now);
     return getUser(id);
   }
 

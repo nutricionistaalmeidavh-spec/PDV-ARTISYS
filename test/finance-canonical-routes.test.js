@@ -11,14 +11,14 @@ const read=relative=>fs.readFileSync(path.join(__dirname,'..',relative),'utf8');
 test('finance operations are canonical routes, not DOM enhancements',()=>{
   const index=read('desktop/renderer/index.html');
   const app=read('desktop/renderer/app.js');
-  const roles=read('desktop/renderer/home-role-model.js');
+  const access=read('desktop/renderer/access-policy.js');
   const operations=read('desktop/renderer/erp-finance-operations-ui.js');
 
   assert.match(index,/erp-finance-operations-ui\.js/);
   assert.doesNotMatch(index,/erp-finance-automation-ui\.js/);
   for(const route of ['finance-banks','finance-recurrences','finance-alerts']){
     assert.match(app,new RegExp(`['"]${route}['"]\\s*:\\s*\\{`),`${route} must be a known app route`);
-    assert.match(roles,new RegExp(`['"]${route}['"]\\s*:\\s*Object\\.freeze`),`${route} must have explicit role access`);
+    assert.match(access,new RegExp(`['"]${route}['"]\\s*:\\s*Object\\.freeze\\(\\['finance\\.view'\\]\\)`),`${route} must have explicit capability access`);
     assert.match(operations,new RegExp(`register\\(['"]${route}['"]\\s*,\\s*\\{\\s*owner:['"]erp-finance-operations['"]`),`${route} must have one canonical renderer owner`);
   }
 

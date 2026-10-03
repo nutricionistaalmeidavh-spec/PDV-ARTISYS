@@ -25,9 +25,9 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
 
   function mobilePrincipal(request,types=null){
     const id=String(request.headers['x-device-id']||'').trim();const key=String(request.headers['x-device-key']||'');
-    const auth=runtime.mobileDevices.authenticate(id,key);if(!auth.ok)throw new RestaurantHttpError(401,'Dispositivo nao autorizado.');
+    const auth=runtime.deviceAccess?.authenticate?runtime.deviceAccess.authenticate(id,key):runtime.mobileDevices.authenticate(id,key);if(!auth.ok)throw new RestaurantHttpError(401,'Dispositivo nao autorizado.');
     if(types&&!types.includes(auth.device.deviceType))throw new RestaurantHttpError(403,'Dispositivo sem permissao para esta operacao.');
-    return{device:auth.device,actor:{userId:auth.device.userId||null,role:`mobile-${auth.device.deviceType.toLowerCase()}`,terminalId:null}};
+    return{device:auth.device,principal:auth.principal||null,scope:auth.scope||auth.device.scope||null,actor:{userId:auth.device.userId||null,role:`mobile-${auth.device.deviceType.toLowerCase()}`,terminalId:null}};
   }
 
   function requireRestaurantEnabled(){runtime.modules?.requireEnabled('FOOD');}

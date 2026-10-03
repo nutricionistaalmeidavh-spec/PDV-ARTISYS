@@ -4,8 +4,9 @@ const { randomUUID }=require('node:crypto');
 const { writeAudit }=require('../../core/audit-log');
 const { roundQuantity }=require('../inventory/inventory-rules');
 const { assertCents }=require('../shared/money');
+const { principalFromActor }=require('../../core/auth/principal-resolver');
 
-function createCommercialPricingService({db,modules,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createCommercialPricingService({db,modules,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
   const text=value=>String(value||'').trim();
   const wholesaleEnabled=()=>modules.isEnabled('WHOLESALE');
@@ -14,9 +15,7 @@ function createCommercialPricingService({db,modules,now=()=>new Date().toISOStri
     if(!row||!row.active)throw new Error('Produto nao encontrado ou inativo.');
     return row;
   }
-  function manager(actor={}){
-    if(!['manager','admin'].includes(String(actor?.role||'')))throw new Error('Autorizacao de gerente necessaria para regras de preco.');
-  }
+  function requirePricingManage(actor={}){if(authorization)authorization.require({principal:principalFromActor(actor),capability:'products.manage'});}
   function mapTier(row){
     if(!row)return null;const p=db.prepare('SELECT name,sale_price_cents AS salePriceCents FROM products WHERE id=?').get(row.product_id);
     return{id:row.id,productId:row.product_id,productName:p?.name||null,minQuantity:roundQuantity(row.min_quantity),unitPriceCents:Number(row.unit_price_cents),baseUnitPriceCents:Number(p?.salePriceCents||0),active:Boolean(row.active),createdBy:row.created_by,createdAt:row.created_at,updatedAt:row.updated_at};
@@ -26,7 +25,7 @@ function createCommercialPricingService({db,modules,now=()=>new Date().toISOStri
     return db.prepare(`SELECT * FROM wholesale_price_tiers${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY product_id,min_quantity,id`).all(...params).map(mapTier);
   }
   function upsertQuantityTier(input={},actor={}){
-    manager(actor);const p=product(input.productId);const minQuantity=roundQuantity(Number(input.minQuantity));
+    requirePricingManage(actor);const p=product(input.productId);const minQuantity=roundQuantity(Number(input.minQuantity));
     if(!Number.isFinite(minQuantity)||minQuantity<=0)throw new Error('Quantidade minima da faixa deve ser maior que zero.');
     const unitPriceCents=assertCents(Number(input.unitPriceCents),'unitPriceCents');
     if(unitPriceCents>Number(p.salePriceCents))throw new Error('Preco por quantidade nao pode ser maior que o preco base atual.');
@@ -41,7 +40,7 @@ function createCommercialPricingService({db,modules,now=()=>new Date().toISOStri
     return mapTier(db.prepare('SELECT * FROM wholesale_price_tiers WHERE id=?').get(id));
   }
   function deactivateQuantityTier(id,actor={}){
-    manager(actor);const row=db.prepare('SELECT * FROM wholesale_price_tiers WHERE id=?').get(text(id));if(!row)throw new Error('Faixa de preco nao encontrada.');
+    requirePricingManage(actor);const row=db.prepare('SELECT * FROM wholesale_price_tiers WHERE id=?').get(text(id));if(!row)throw new Error('Faixa de preco nao encontrada.');
     db.prepare('UPDATE wholesale_price_tiers SET active=0,updated_at=? WHERE id=?').run(now(),row.id);
     writeAudit(db,{action:'commercial-pricing.quantity-tier.deactivate',entity:'quantity-price-tier',entityId:row.id,actor,context:{productId:row.product_id,minQuantity:row.min_quantity}},now);
     return mapTier(db.prepare('SELECT * FROM wholesale_price_tiers WHERE id=?').get(row.id));

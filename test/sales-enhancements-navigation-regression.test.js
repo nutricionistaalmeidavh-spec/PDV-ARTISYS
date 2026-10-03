@@ -9,7 +9,8 @@ const app = fs.readFileSync(path.join(root, 'desktop', 'renderer', 'app.js'), 'u
 test('current navigation no longer depends on removed sales-enhancements legacy QA flow', () => {
   assert.equal(fs.existsSync(path.join(root, 'qa', 'flows', 'sales-enhancements-v2.json')), false);
   assert.match(app, /home:\s*\{ label: 'Início'/);
-  assert.match(app, /sellers:\s*\{ label: 'Equipe e acessos'/);
+  assert.match(app, /sellers:\s*\{ label: 'Equipe comercial'/);
+  assert.match(app, /access:\s*\{ label: 'Acessos e equipe'/);
   assert.match(app, /state\.route = route;\s*document\.body\.dataset\.activeRoute = route;/);
   assert.match(app, /routeRegistry\.render\(state\.route, \{ state \}\)/);
   assert.match(app, /sellers:\s*\(\) => renderSellers\(\)/);

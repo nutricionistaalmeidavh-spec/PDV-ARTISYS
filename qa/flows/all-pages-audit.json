@@ -198,11 +198,16 @@
       "timeoutMs": 10000
     },
     {
-      "action": "waitFor",
-      "selector": "#catalog-category-management",
+      "action": "click",
+      "selector": "[data-products-secondary-actions] > summary",
+      "name": "abrir-acoes-secundarias-produtos-p5",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#new-category",
       "name": "produtos-categorias-p5",
-      "state": "attached",
-      "timeoutMs": 15000
+      "timeoutMs": 10000
     },
     {
       "action": "waitFor",
@@ -526,38 +531,56 @@
     },
     {
       "action": "click",
-      "selector": "button[data-route='catalog']",
-      "name": "abrir-cadastros-equipe",
+      "selector": "button[data-route='access']",
+      "name": "abrir-acessos-equipe",
       "timeoutMs": 10000
     },
     {
-      "action": "click",
-      "selector": "button[data-flow-route='sellers']",
-      "name": "equipe",
-      "holdMs": 1000
-    },
-    {
       "action": "waitFor",
-      "selector": "#catalog-user-management-users",
-      "name": "equipe-gestao-p5",
+      "selector": ".access-center-page",
+      "name": "acessos-centro-nativo",
       "state": "attached",
       "timeoutMs": 15000
     },
     {
+      "action": "expectVisible",
+      "selector": "button[data-access-tab='people']",
+      "name": "acessos-pessoas-tab",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "button[data-access-tab='profiles']",
+      "name": "acessos-perfis-tab",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "button[data-access-tab='devices']",
+      "name": "acessos-dispositivos-tab",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "button[data-access-tab='security']",
+      "name": "acessos-seguranca-tab",
+      "timeoutMs": 10000
+    },
+    {
       "action": "screenshot",
-      "name": "equipe",
+      "name": "acessos-equipe",
       "fullPage": true
     },
     {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
-      "name": "equipe-sem-overflow",
+      "name": "acessos-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
     },
     {
       "action": "click",
-      "selector": "button[data-route='settings']",
+      "selector": "#app-sidebar > button[data-route='settings']",
       "name": "configuracoes",
       "holdMs": 1000
     },

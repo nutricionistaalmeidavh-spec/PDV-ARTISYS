@@ -1,4 +1,5 @@
 'use strict';
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -49,7 +50,7 @@ function mapRecord(row) {
   return { id:row.id,filePath:row.file_path,manifestPath:row.manifest_path,reason:row.reason,appVersion:row.app_version,schemaVersion:row.schema_version,sha256:row.sha256,size:row.size_bytes,valid:Boolean(row.valid),createdAt:row.created_at,validatedAt:row.validated_at };
 }
 
-function createBackupService({ db, dbPath, backupDir, now=()=>new Date().toISOString(), appVersion='0.0.0', retention=30 } = {}) {
+function createBackupService({ db, dbPath, backupDir, authorization=null, now=()=>new Date().toISOString(), appVersion='0.0.0', retention=30 } = {}) {
   if (!db || !dbPath || dbPath === ':memory:' || !backupDir) throw new TypeError('Database file and backup directory are required.');
   ensureBackupTable(db);
   fs.mkdirSync(backupDir,{recursive:true});
@@ -120,7 +121,7 @@ function createBackupService({ db, dbPath, backupDir, now=()=>new Date().toISOSt
   }
 
   function prepareRestore(id,{actor={}}={}) {
-    if (String(actor.role||'') !== 'admin') throw new Error('Restore exige usuario administrador.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'settings.manage'});
     const validation = validateBackup(id);
     if (!validation.valid) throw new Error(`Backup invalido para restore: ${validation.errors.join(' ')}`);
     const safety = createBackup('pre-restore',{prune:false});

@@ -4,6 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {createHash,randomUUID}=require('node:crypto');
 const {sanitizeAuditPayload,writeAudit}=require('../audit-log');
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const CRC_TABLE=(()=>{const table=new Uint32Array(256);for(let n=0;n<256;n+=1){let c=n;for(let k=0;k<8;k+=1)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);table[n]=c>>>0;}return table;})();
 function crc32(buffer){let crc=0xFFFFFFFF;for(const byte of buffer)crc=CRC_TABLE[(crc^byte)&0xFF]^(crc>>>8);return (crc^0xFFFFFFFF)>>>0;}
@@ -23,11 +24,11 @@ function buildStoredZip(entries,createdAt){
   return Buffer.concat([...localParts,...centralParts,end]);
 }
 
-function createDiagnosticPackage({db,health,settings,logger,diagnosticsDir,version='0.0.0',now=()=>new Date().toISOString(),idFactory=()=>`diag-${randomUUID()}`}={}){
+function createDiagnosticPackage({db,health,settings,logger,authorization=null,diagnosticsDir,version='0.0.0',now=()=>new Date().toISOString(),idFactory=()=>`diag-${randomUUID()}`}={}){
   if(!db||!health||!settings||!logger||!diagnosticsDir)throw new TypeError('db, health, settings, logger and diagnosticsDir are required.');
   fs.mkdirSync(diagnosticsDir,{recursive:true});
   function createPackage({actor={}}={}){
-    if(String(actor.role||'')!=='admin')throw new Error('Pacote de diagnostico exige usuario administrador.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'settings.manage'});
     const createdAt=now();const id=String(idFactory('diag'));const schemaVersion=Number(db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get().version||0);
     const contents=['health.json','settings-public.json','migrations.json','logs.json'];
     const manifest={id,product:'ArtiSys PDV',version:String(version),schemaVersion,createdAt,contents,safeSupportBundle:true};

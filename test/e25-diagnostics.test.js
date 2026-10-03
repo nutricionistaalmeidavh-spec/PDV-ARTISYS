@@ -26,7 +26,7 @@ test('diagnostic package is a valid safe ZIP with only public support data',()=>
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-diag-'));const dbPath=path.join(dir,'pdv.sqlite');const db=openDatabase(dbPath);let seq=0;const now=()=>new Date(1789000800000+seq++*1000).toISOString();
   try{
     runMigrations(db,now);const settings=createSettingsService({db,now});const logger=createSystemLogger({db,now});
-    settings.set('store.name','Loja Teste',{actor:{userId:'admin',role:'admin'}});
+    settings.set('store.name','Loja Teste',{actor:{kind:'system',userId:'system',role:'system'}});
     logger.log({level:'error',subsystem:'fiscal',message:'Falha controlada',context:{saleId:'s1',token:'NAO_PODE_VAZAR',authorization:'Bearer SEGREDO'}});
     const health=createSystemHealth({db,version:'0.9.0'});
     const diagnostics=createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:path.join(dir,'diagnostics'),version:'0.9.0',now,idFactory:()=> 'diag-1'});
@@ -39,9 +39,9 @@ test('diagnostic package is a valid safe ZIP with only public support data',()=>
   }finally{db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
-test('diagnostic package requires admin role',()=>{
+test('diagnostic package requires settings.manage',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-diag-role-'));const db=openDatabase(path.join(dir,'pdv.sqlite'));try{
-    runMigrations(db);const settings=createSettingsService({db});const logger=createSystemLogger({db});const health=createSystemHealth({db});const diagnostics=createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:path.join(dir,'diagnostics')});
-    assert.throws(()=>diagnostics.createPackage({actor:{userId:'mgr',role:'manager'}}),/administrador/i);
+    runMigrations(db);const settings=createSettingsService({db});const logger=createSystemLogger({db});const health=createSystemHealth({db});const authorization={require(){throw Object.assign(new Error('Permissao insuficiente.'),{statusCode:403});}};const diagnostics=createDiagnosticPackage({db,health,settings,logger,authorization,diagnosticsDir:path.join(dir,'diagnostics')});
+    assert.throws(()=>diagnostics.createPackage({actor:{kind:'human',userId:'mgr'}}),/permissao/i);
   }finally{db.close();fs.rmSync(dir,{recursive:true,force:true});}
 });

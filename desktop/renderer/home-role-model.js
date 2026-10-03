@@ -1,93 +1,35 @@
 'use strict';
 
-((root, factory) => {
-  const model = factory();
-  if (typeof module === 'object' && module.exports) module.exports = model;
-  if (root) root.PdvHomeRoleModel = model;
-})(typeof window !== 'undefined' ? window : null, () => {
-  const HUB_TILES = Object.freeze({
-    catalog: Object.freeze({ key:'catalog', label:'Cadastros', description:'Clientes, produtos, estoque e equipe', route:'catalog', tone:'purple', icon:'document' }),
-    'post-sale': Object.freeze({ key:'post-sale', label:'Vendas e devoluções', description:'Histórico, comprovantes e devoluções', route:'post-sale', tone:'slate', icon:'history' }),
-    'financial-management': Object.freeze({ key:'financial-management', label:'Gestão financeira', description:'DRE, relatórios e financeiro', route:'financial-management', tone:'rose', icon:'management' }),
-    settings: Object.freeze({ key:'settings', label:'Configurações', description:'Empresa, equipe, áreas e dispositivos', route:'settings', tone:'sky', icon:'modules' })
+((root,factory)=>{
+  const policy=root?.PdvAccessPolicy||(typeof require==='function'?require('./access-policy'):null);
+  const model=factory(policy);
+  if(typeof module==='object'&&module.exports)module.exports=model;
+  if(root)root.PdvHomeRoleModel=model;
+})(typeof window!=='undefined'?window:null,(policy)=>{
+  const HUB_TILES=Object.freeze({
+    catalog:Object.freeze({key:'catalog',label:'Cadastros',description:'Clientes, produtos, estoque e equipe',route:'catalog',tone:'purple',icon:'document'}),
+    'post-sale':Object.freeze({key:'post-sale',label:'Vendas e devoluções',description:'Histórico, comprovantes e devoluções',route:'post-sale',tone:'slate',icon:'history'}),
+    'financial-management':Object.freeze({key:'financial-management',label:'Gestão financeira',description:'DRE, relatórios e financeiro',route:'financial-management',tone:'rose',icon:'management'}),
+    access:Object.freeze({key:'access',label:'Acessos e equipe',description:'Pessoas, perfis, dispositivos e segurança',route:'access',tone:'amber',icon:'users'}),
+    settings:Object.freeze({key:'settings',label:'Configurações',description:'Empresa, áreas e preferências operacionais',route:'settings',tone:'sky',icon:'settings'})
   });
 
-  const PRESETS = Object.freeze({
-    cashier: Object.freeze({
-      label: 'Caixa',
-      title: 'Início',
-      subtitle: 'Acesso rápido à operação do caixa.',
-      sections: Object.freeze([
-        Object.freeze({ key:'cashier-primary', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog']) })
-      ])
-    }),
-    manager: Object.freeze({
-      label: 'Gerente',
-      title: 'Início',
-      subtitle: 'Operação e visão do negócio em um só lugar.',
-      sections: Object.freeze([
-        Object.freeze({ key:'manager-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management']) })
-      ])
-    }),
-    admin: Object.freeze({
-      label: 'Administrador',
-      title: 'Início',
-      subtitle: 'Atalhos principais da operação e da gestão.',
-      sections: Object.freeze([
-        Object.freeze({ key:'admin-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management','settings']) })
-      ])
-    })
-  });
+  const TOP_LEVEL=Object.freeze(['checkout','cash','post-sale','catalog','financial-management','access','settings']);
 
-  const ROUTE_ACCESS = Object.freeze({
-    home: Object.freeze(['admin','manager','cashier']),
-    checkout: Object.freeze(['admin','manager','cashier']),
-    cash: Object.freeze(['admin','manager','cashier']),
-    sales: Object.freeze(['admin','manager','cashier']),
-    returns: Object.freeze(['admin','manager','cashier']),
-    customers: Object.freeze(['admin','manager','cashier']),
-    products: Object.freeze(['admin','manager']),
-    inventory: Object.freeze(['admin','manager']),
-    finance: Object.freeze(['admin','manager']),
-    'finance-banks': Object.freeze(['admin','manager']),
-    'finance-recurrences': Object.freeze(['admin','manager']),
-    'finance-alerts': Object.freeze(['admin','manager']),
-    reports: Object.freeze(['admin','manager']),
-    management: Object.freeze(['admin','manager']),
-    sellers: Object.freeze(['admin','manager']),
-    settings: Object.freeze(['admin','manager'])
-    ,catalog: Object.freeze(['admin','manager','cashier'])
-    ,'post-sale': Object.freeze(['admin','manager','cashier'])
-    ,'financial-management': Object.freeze(['admin','manager'])
-  });
+  function profileLabel(user){return String(user?.profile?.name||user?.profileName||'Operação');}
 
-  function canAccessRoute(role, route) {
-    return Boolean(ROUTE_ACCESS[route]?.includes(role));
-  }
-
-  function routesForRole(role) {
-    const menu = role === 'cashier'
-      ? ['home','checkout','cash','post-sale','catalog']
-      : ['home','checkout','cash','post-sale','catalog','financial-management'];
-    return menu.filter(route => canAccessRoute(role, route));
-  }
-
-  function homeForRole(role, baseTiles = []) {
-    const normalizedRole = Object.hasOwn(PRESETS, role) ? role : 'cashier';
-    const preset = PRESETS[normalizedRole];
-    const tiles = new Map(baseTiles.map((tile) => [tile.route, tile]));
-    Object.entries(HUB_TILES).forEach(([key, tile]) => tiles.set(key, tile));
-    return {
-      role: normalizedRole,
-      label: preset.label,
-      title: preset.title,
-      subtitle: preset.subtitle,
-      sections: preset.sections.map((section) => ({
-        ...section,
-        tiles: section.routes.map((key) => tiles.get(key)).filter(Boolean)
-      })).filter((section) => section.tiles.length)
+  function homeForUser(user,baseTiles=[]){
+    const tiles=new Map(baseTiles.map(tile=>[tile.route,tile]));
+    Object.values(HUB_TILES).forEach(tile=>tiles.set(tile.route,tile));
+    const routes=TOP_LEVEL.filter(route=>policy?.canAccessRoute?.(user,route));
+    return{
+      profileId:user?.profile?.id||user?.profileId||null,
+      label:profileLabel(user),
+      title:'Início',
+      subtitle:'Acesso rápido às áreas liberadas para este perfil.',
+      sections:[{key:'authorized-main',label:'',tiles:routes.map(route=>tiles.get(route)).filter(Boolean)}]
     };
   }
 
-  return Object.freeze({ HUB_TILES, PRESETS, ROUTE_ACCESS, canAccessRoute, routesForRole, homeForRole });
+  return Object.freeze({HUB_TILES,TOP_LEVEL,homeForUser});
 });

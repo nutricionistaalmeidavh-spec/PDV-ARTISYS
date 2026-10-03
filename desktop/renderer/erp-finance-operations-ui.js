@@ -49,7 +49,7 @@
   }
 
   function canAccess(){
-    return ['admin','manager'].includes(String(document.body.dataset.userRole||''));
+    return Boolean(root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'finance.view'));
   }
 
   function routeActive(route){

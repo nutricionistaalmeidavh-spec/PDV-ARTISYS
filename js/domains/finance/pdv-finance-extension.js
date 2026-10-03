@@ -14,7 +14,7 @@ function ensurePdvFinance(runtime,{now=()=>new Date().toISOString(),idFactory}={
   if(!runtime?.db||!runtime?.inventory)throw new TypeError('PDV runtime invalido para extensao financeira.');
   if(runtime.__pdvFinanceP0P3Attached)return runtime;
   runErpFinanceMigrations(runtime.db,now);runErpFinanceP3Migrations(runtime.db);
-  const common={db:runtime.db,now};if(idFactory)common.idFactory=idFactory;
+  const common={db:runtime.db,authorization:runtime.authorization||null,now};if(idFactory)common.idFactory=idFactory;
   const financeDimensions=createFinanceDimensionsService(common);
   const finance=createFinanceService({...common,dimensions:financeDimensions});
   const procurement=createProcurementService({...common,inventory:runtime.inventory,finance});

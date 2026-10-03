@@ -11,6 +11,7 @@ const { runCommercialMediaMigrations } = require('../../core/database/commercial
 const { runEnterpriseDepthMigrations } = require('../../core/database/enterprise-depth-migrations');
 const { ensureIntegritySchema } = require('../../core/database/integrity-migrations');
 const { createTerminalStockLocationService } = require('../inventory/terminal-stock-location-service');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 const VALID_PAYMENT_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
 
 function createSaleService({
@@ -20,7 +21,8 @@ function createSaleService({
   idFactory = p => `${p}-${randomUUID()}`,
   stockRequirementsResolver = null,
   commissionService = null,
-  cashSessionResolver = null
+  cashSessionResolver = null,
+  authorization = null
 } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
   runSalesEnhancementMigrations(db, now);
@@ -171,7 +173,7 @@ function createSaleService({
   function overrideItemPrice(saleId,itemId,{unitPriceCents,reason='',actor={}}={}){
     return withTransaction(db,()=>{
       requireSale(saleId,['OPEN']);
-      if(!['manager','admin'].includes(String(actor.role||'')))throw new Error('Autorizacao de gerente necessaria para alterar o preco.');
+      if(authorization)authorization.require({principal:principalFromActor(actor),capability:'sales.discount'});
       const price=assertCents(Number(unitPriceCents),'unitPriceCents');if(price<0)throw new Error('Preco do item nao pode ser negativo.');
       const text=String(reason||'').trim();if(!text)throw new Error('Informe o motivo da alteracao de preco.');
       const row=db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND id=?').get(saleId,String(itemId));if(!row)throw new Error('Item nao encontrado na venda.');
@@ -243,7 +245,7 @@ function createSaleService({
       });
     }
     if (current.status !== 'COMPLETED') throw new Error(`Venda nao pode ser cancelada no status ${current.status}.`);
-    if (!['manager','admin'].includes(String(actor.role || ''))) throw new Error('Autorizacao de gerente necessaria.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'sales.cancel'});
     return withTransaction(db, () => {
       const sale = requireSale(saleId, ['COMPLETED']); const items = getItems(saleId); const payments = getPayments(saleId); const timestamp = now();
       const creditTotal = payments.filter(p => p.method === 'STORE_CREDIT').reduce((sum, p) => sum + p.amountCents, 0);

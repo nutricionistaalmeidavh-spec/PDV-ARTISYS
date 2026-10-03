@@ -1,4 +1,5 @@
 'use strict';
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const {randomUUID}=require('node:crypto');
 const {writeAudit}=require('../audit-log');
@@ -17,13 +18,13 @@ function normalizeStatus(value){
   return normalized;
 }
 
-function createHardwareCompatibilityService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createHardwareCompatibilityService({db,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('db is required.');
   runHardwareMigrations(db,now);
   runSaleObservationMigrations(db,now);
   function map(row){return row&&{id:row.id,manufacturer:row.manufacturer,model:row.model,kind:row.kind,connection:row.connection,driver:row.driver,configuration:parseConfiguration(row.configuration_json),os:row.os,testedAt:row.tested_at,status:normalizeStatus(row.status),result:row.result,limitations:row.limitations,evidence:row.evidence,createdAt:row.created_at,updatedAt:row.updated_at};}
   function recordEvidence(input={},actor={}){
-    if(!['admin','system'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para registrar homologacao.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'settings.manage'});
     const manufacturer=required(input.manufacturer,'Fabricante');const model=required(input.model,'Modelo');const kind=String(input.kind||'OTHER').toUpperCase();if(!KINDS.has(kind))throw new Error('Tipo de periferico invalido.');const connection=required(input.connection,'Conexao');const os=required(input.os,'Sistema operacional');const testedAt=required(input.testedAt,'Data do teste');if(Number.isNaN(new Date(testedAt).getTime()))throw new Error('Data do teste invalida.');const status=normalizeStatus(input.status);const result=required(input.result,'Resultado do teste');const evidence=String(input.evidence||'').trim()||null;if(['PROTOCOL_VERIFIED','FIELD_VERIFIED'].includes(status)&&!evidence)throw new Error('Evidencia obrigatoria para status verificado.');
     const id=String(input.id||idFactory('hardware-evidence'));const ts=now();const configuration=input.configuration&&typeof input.configuration==='object'?input.configuration:{};
     db.prepare(`INSERT INTO hardware_compatibility_evidence(id,manufacturer,model,kind,connection,driver,configuration_json,os,tested_at,status,result,limitations,evidence,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)

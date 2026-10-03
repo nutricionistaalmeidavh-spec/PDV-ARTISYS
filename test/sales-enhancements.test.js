@@ -32,7 +32,8 @@ function setup() {
   catalog.createUser({ id:'seller1', username:'maria', name:'Maria Garçom', role:'cashier', password:'senha-maria-123' });
   catalog.createUser({ id:'manager1', username:'gerente', name:'Gerente', role:'manager', password:'senha-gerente-123' });
   catalog.upsertProduct({ id:'p1', sku:'P1', name:'Produto', salePriceCents:1000 });
-  const sales = createSaleService({ db, outbox:new SqliteOutboxStore(db), now, idFactory });
+  const authorization={require({principal,capability}){if(capability==='sales.discount'&&principal?.id==='manager1')return true;const error=new Error('Permissao insuficiente.');error.statusCode=403;throw error;}};
+  const sales = createSaleService({ db, outbox:new SqliteOutboxStore(db), authorization, now, idFactory });
   return { db, sales };
 }
 
@@ -69,7 +70,7 @@ test('manager price override preserves catalog price, reason and authorization',
   sales.openSale({ id:'s1', saleNumber:'1', terminalId:'T1', operatorId:'op1', sellerId:'seller1' });
   const withItem = sales.addItem('s1', { productId:'p1', quantity:2 });
   const itemId = withItem.items[0].id;
-  assert.throws(() => sales.overrideItemPrice('s1', itemId, { unitPriceCents:800, reason:'Oferta', actor:{ userId:'op1', role:'cashier' } }), /gerente/i);
+  assert.throws(() => sales.overrideItemPrice('s1', itemId, { unitPriceCents:800, reason:'Oferta', actor:{ userId:'op1', role:'cashier' } }), /permiss/i);
   const changed = sales.overrideItemPrice('s1', itemId, { unitPriceCents:800, reason:'Oferta anunciada', actor:{ userId:'manager1', role:'manager' } });
   assert.equal(changed.items[0].catalogUnitPriceCents, 1000);
   assert.equal(changed.items[0].unitPriceCents, 800);

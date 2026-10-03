@@ -32,10 +32,10 @@ function createCatalogManagementRouter({runtime,sessionStore=null,requireTermina
     if(!current||!current.active){sessions.delete(token);throw new CatalogManagementHttpError(401,'Sessao invalida ou expirada.');}
     session.role=current.role;session.name=current.name;
     if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new CatalogManagementHttpError(401,'Terminal nao autorizado.');}
-    return{userId:session.userId,role:session.role,terminalId:session.terminalId||null};
+    return{kind:'human',userId:session.userId,role:session.role,terminalId:session.terminalId||null};
   }
 
-  function requireRole(actor,roles){if(!roles.includes(actor.role))throw new CatalogManagementHttpError(403,'Permissao insuficiente.');}
+  function requireCapability(actor,capability){try{return runtime.authorization.require({principal:{kind:'human',id:actor.userId},capability});}catch(error){throw new CatalogManagementHttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
   function invalidateUserSessions(user){
     for(const [token,session] of sessions.entries()){
       if(session.userId!==user.id)continue;
@@ -57,25 +57,27 @@ function createCatalogManagementRouter({runtime,sessionStore=null,requireTermina
     try{
       const actor=principal(req);
       if(req.method==='POST'&&pathname==='/api/v1/customers'){
-        requireRole(actor,['admin','manager']);
+        requireCapability(actor,'customers.manage');
         json(res,201,runtime.catalog.upsertCustomer(await readBody(req,bodyLimitBytes),actor));return true;
       }
       if(req.method==='POST'&&pathname==='/api/v1/users'){
-        requireRole(actor,['admin','manager']);
-        const saved=runtime.catalog.saveManagedUser(await readBody(req,bodyLimitBytes),actor);
+        const data=await readBody(req,bodyLimitBytes);
+        const existing=data.id?runtime.catalog.getUser(data.id):null;
+        requireCapability(actor,existing?'users.edit':'users.create');
+        const saved=runtime.catalog.saveManagedUser(data,actor);
         invalidateUserSessions(saved);json(res,201,saved);return true;
       }
       if(req.method==='DELETE'&&categoryMatch){
-        requireRole(actor,['admin','manager']);json(res,200,runtime.catalog.removeCategory(decodeURIComponent(categoryMatch[1]),actor));return true;
+        requireCapability(actor,'products.manage');json(res,200,runtime.catalog.removeCategory(decodeURIComponent(categoryMatch[1]),actor));return true;
       }
       if(req.method==='DELETE'&&customerMatch){
-        requireRole(actor,['admin','manager']);json(res,200,runtime.catalog.removeCustomer(decodeURIComponent(customerMatch[1]),actor));return true;
+        requireCapability(actor,'customers.manage');json(res,200,runtime.catalog.removeCustomer(decodeURIComponent(customerMatch[1]),actor));return true;
       }
       if(req.method==='DELETE'&&supplierMatch){
-        requireRole(actor,['admin','manager']);json(res,200,runtime.catalog.removeSupplier(decodeURIComponent(supplierMatch[1]),actor));return true;
+        requireCapability(actor,'suppliers.manage');json(res,200,runtime.catalog.removeSupplier(decodeURIComponent(supplierMatch[1]),actor));return true;
       }
       if(req.method==='DELETE'&&userMatch){
-        requireRole(actor,['admin']);
+        requireCapability(actor,'users.disable');
         const removed=runtime.catalog.removeUser(decodeURIComponent(userMatch[1]),actor);invalidateUserSessions(removed);json(res,200,removed);return true;
       }
       return false;
