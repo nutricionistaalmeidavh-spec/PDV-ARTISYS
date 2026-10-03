@@ -45,7 +45,7 @@
   }
 
   async function mountPizzeria(){
-    const target=page();if(!target||title()!=='Pizzaria'||target.querySelector('#parity-pizzeria-p1'))return;
+    const target=page();if(!target||title()!=='Personalização de pizza'||target.querySelector('#parity-pizzeria-p1'))return;
     const card=document.createElement('section');card.id='parity-pizzeria-p1';card.className='data-card';
     card.innerHTML=`<h2>Cadastro de tamanhos, sabores e bordas</h2><p class="vertical-rule">Cadastre diretamente os componentes usados pela política de preço da pizza.</p>
       <div class="ops-grid two">
