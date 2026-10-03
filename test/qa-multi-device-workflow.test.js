@@ -27,6 +27,7 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
   const runner=fs.readFileSync(runnerPath,'utf8');
   for(const invariant of [
     'price-propagation',
+    'cashier-ui-price-propagation',
     'sale-stock-decrement',
     'last-unit-race',
     'idempotent-completion',
@@ -37,6 +38,8 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
     'database-invariants'
   ]) assert.ok(runner.includes(invariant),invariant);
   assert.match(runner,/requireTerminalAuth:true/,'LAN QA must authenticate paired terminals');
+  assert.match(runner,/electron\.launch/,'full LAN QA must exercise a real remote Electron cashier');
+  assert.match(runner,/data-add-product='qa-ui-price'/,'cashier UI must assert the price on the POS product card');
   assert.match(runner,/\/api\/v1\/restaurant\/sessions\/'\+opened\.body\.id\+'\/checkout/,'restaurant QA must reach checkout');
   assert.match(runner,/qa-waiter-device-2/,'restaurant QA must cover concurrent waiters');
   assert.match(runner,/PRAGMA integrity_check/,'QA must validate SQLite integrity');
