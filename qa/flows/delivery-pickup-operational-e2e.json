@@ -290,7 +290,7 @@
     {
       "action": "fill",
       "selector": "#delivery-form input[name='city']",
-      "value": "Ribeirão Preto",
+      "value": "Cidade QA",
       "name": "delivery-cidade"
     },
     {
