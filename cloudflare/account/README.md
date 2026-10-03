@@ -66,11 +66,16 @@ Esses valores são segredos de **runtime**, não variáveis do build.
 
 O Worker conectado no Cloudflare é `pdv-artisys`, branch de produção `main`.
 
-O `package.json` da raiz possui `npm run build` apenas para validar a sintaxe e os testes da Central antes do deploy.
+A raiz contém o `wrangler.jsonc` canônico com:
 
-**Importante:** não adicione um `wrangler.toml/jsonc` incompleto na raiz. Wrangler trata a configuração como fonte de verdade e uma configuração sem o D1/R2 reais pode remover bindings configurados pelo painel.
+- entrypoint `cloudflare/account/src/worker.mjs`;
+- binding D1 `artisys`;
+- binding R2 `artisysr2`;
+- sem IDs de conta gravados no repositório.
 
-O arquivo `wrangler.toml.example` serve apenas como referência para uma futura configuração declarativa, quando o ID real do D1 desta conta for copiado do painel.
+O Cloudflare/Wrangler mantém recursos já vinculados ao Worker pelo binding nas implantações seguintes. O build não chama `d1 list`, não cria recursos e não depende de o token de build possuir permissão de leitura do D1.
+
+O `npm run build` valida a configuração e executa os testes da Central antes de o comando de implantação `npx wrangler deploy` publicar a nova versão.
 
 ## Core local
 
