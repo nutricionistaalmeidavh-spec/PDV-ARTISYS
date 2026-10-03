@@ -81,6 +81,24 @@ test('E51 self-service uses paired device and creates pickup order without elect
   }finally{rt.close();}
 });
 
+test('E51 self-service table mode returns table and open command context',()=>{
+  const rt=setup();
+  try{
+    rt.modules.setEnabled('FOOD',true,admin);
+    rt.catalog.upsertProduct({id:'meal',name:'Prato',salePriceCents:2500,trackStock:false,menuEnabled:true},admin);
+    rt.restaurant.upsertTable({id:'table-self',label:'Mesa Self'},admin);
+    rt.restaurant.openTable('table-self',{operatorId:'admin',actor:admin});
+    const device=rt.mobileDevices.createDevice({id:'totem-table',name:'Totem Mesa',deviceType:'SELF_SERVICE'},admin);
+    rt.selfService.configureDevice(device.id,{mode:'TABLE',tableId:'table-self'},admin);
+    const context=rt.selfService.context(device.id);
+    assert.equal(context.profile.mode,'TABLE');
+    assert.equal(context.table.id,'table-self');
+    assert.ok(context.session);
+    assert.equal(context.session.tableId,'table-self');
+    assert.ok(context.products.some(product=>product.id==='meal'));
+  }finally{rt.close();}
+});
+
 test('E52 onboarding recommends editable module sets and persists completion',()=>{
   const rt=setup();
   try{

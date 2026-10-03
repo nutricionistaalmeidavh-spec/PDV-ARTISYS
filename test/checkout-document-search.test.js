@@ -47,7 +47,10 @@ function fixture(){
     items:[{pendingQuantity:2,unitPriceCents:1500}]
   };
   const runtime={
-    sales:{},
+    sales:{getSale:id=>({
+      'sale-delivery':{id:'sale-delivery',status:'OPEN',totalCents:5400,items:[{productId:'p1',quantity:2}]},
+      'sale-fast':{id:'sale-fast',status:'OPEN',totalCents:2300,items:[{productId:'p2',quantity:1}]}
+    })[id]||null},
     modules:{isEnabled:name=>name==='FOOD'||name==='WHOLESALE'},
     restaurant:{
       listTables:()=>[{id:'table-1',label:'Setor A',sessionId:session.id}],
@@ -56,6 +59,14 @@ function fixture(){
     orders:{
       listOrders:({origin}={})=>origin==='WHOLESALE'?[order]:[],
       prepareCheckout(){throw new Error('not used by search tests');}
+    },
+    delivery:{
+      list:()=>[{id:'delivery-1',saleId:'sale-delivery',customerName:'Cliente Beta',fulfillmentType:'DELIVERY',status:'PREPARING',createdAt:'2026-10-03T13:30:00.000Z'}],
+      get:id=>id==='delivery-1'?{id:'delivery-1',saleId:'sale-delivery',customerName:'Cliente Beta',fulfillmentType:'DELIVERY',status:'PREPARING',createdAt:'2026-10-03T13:30:00.000Z'}:null
+    },
+    fastFood:{
+      list:()=>[{id:'fast-1',saleId:'sale-fast',dailyNumber:27,status:'READY',createdAt:'2026-10-03T13:40:00.000Z'}],
+      get:id=>id==='fast-1'?{id:'fast-1',saleId:'sale-fast',dailyNumber:27,status:'READY',createdAt:'2026-10-03T13:40:00.000Z'}:null
     }
   };
   const sessionStore=new Map([['test-token',{
@@ -100,4 +111,33 @@ test('checkout document search keeps existing identifier and customer matching',
   assert.equal((await search(router,'ATC-0041'))[0]?.type,'ORDER');
   assert.equal((await search(router,'Cliente Alfa'))[0]?.type,'ORDER');
   assert.equal((await search(router,'Setor A'))[0]?.type,'COMMAND');
+});
+
+test('checkout document search includes delivery and fast-food aliases without stealing generic wholesale pedido terms',async()=>{
+  const router=fixture();
+
+  assert.equal((await search(router,'delivery cliente beta'))[0]?.type,'DELIVERY');
+  assert.equal((await search(router,'retirada cliente beta'))[0]?.type,'DELIVERY');
+  assert.equal((await search(router,'senha 27'))[0]?.type,'FAST_FOOD');
+  const generic=await search(router,'pedido');
+  assert.equal(generic.length,1);
+  assert.equal(generic[0].type,'ORDER');
+});
+
+test('checkout opens existing canonical delivery and fast-food sales',async()=>{
+  const router=fixture();
+  for(const [path,type,saleId] of [
+    ['/api/v1/checkout/documents/delivery/delivery-1/open','DELIVERY','sale-delivery'],
+    ['/api/v1/checkout/documents/fast-food/fast-1/open','FAST_FOOD','sale-fast']
+  ]){
+    const req=Readable.from([]);
+    req.url=path;req.method='POST';req.headers={host:'localhost',authorization:'Bearer test-token'};
+    const res=responseCapture();
+    assert.equal(await router(req,res),true);
+    assert.equal(res.statusCode,200);
+    const payload=JSON.parse(res.body);
+    assert.equal(payload.type,type);
+    assert.equal(payload.sale.id,saleId);
+    assert.equal(payload.sale.status,'OPEN');
+  }
 });
