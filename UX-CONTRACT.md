@@ -150,7 +150,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - O **Núcleo ArtiSys** permanece sempre ativo: Balcão/Caixa, Cardápio/Estoque, Clientes e Gestão/Relatórios não são módulos opcionais.
 - A aba Áreas carrega automaticamente; não existe uma segunda etapa “Gerenciar módulos”.
 - Ativar ou desativar uma área atualiza a navegação imediatamente e preserva os domínios canônicos compartilhados.
-- O menu lateral e o Início usam apenas fluxos de alto nível. Para caixa: Início, Balcão, Caixa, Vendas e devoluções e Cadastros. Para gerente/admin, soma-se Gestão financeira.
+- O menu lateral e o Início usam apenas fluxos de alto nível. Para caixa: Início, Balcão, Caixa, Vendas e devoluções e Cadastros. Para gerente, soma-se Gestão financeira. Para administrador, somam-se Gestão financeira e o atalho Configurações; a ativação de áreas continua exclusiva de Configurações → Áreas.
 - **Cadastros** agrupa Clientes, Cardápio/produtos, Estoque e Equipe, filtrando as opções conforme a permissão do perfil.
 - Rotas internas permanecem estáveis para atalhos, deep links e integrações; simplificar a navegação não remove funcionalidades.
 - Alimentação e Atacado aparecem como entradas adicionais somente quando a área está ativa e o perfil possui acesso.

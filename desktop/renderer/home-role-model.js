@@ -6,9 +6,10 @@
   if (root) root.PdvHomeRoleModel = model;
 })(typeof window !== 'undefined' ? window : null, () => {
   const HUB_TILES = Object.freeze({
-    catalog: Object.freeze({ key:'catalog', label:'Cadastros', description:'Clientes, cardápio, estoque e equipe em um só lugar', route:'catalog', tone:'purple', icon:'document' }),
-    'post-sale': Object.freeze({ key:'post-sale', label:'Vendas e devoluções', description:'Histórico, comprovantes, trocas e devoluções', route:'post-sale', tone:'slate', icon:'history' }),
-    'financial-management': Object.freeze({ key:'financial-management', label:'Gestão financeira', description:'DRE, relatórios e contas a pagar e receber', route:'financial-management', tone:'rose', icon:'management' })
+    catalog: Object.freeze({ key:'catalog', label:'Cadastros', description:'Clientes, produtos, estoque e equipe', route:'catalog', tone:'purple', icon:'document' }),
+    'post-sale': Object.freeze({ key:'post-sale', label:'Vendas e devoluções', description:'Histórico, comprovantes e devoluções', route:'post-sale', tone:'slate', icon:'history' }),
+    'financial-management': Object.freeze({ key:'financial-management', label:'Gestão financeira', description:'DRE, relatórios e financeiro', route:'financial-management', tone:'rose', icon:'management' }),
+    settings: Object.freeze({ key:'settings', label:'Configurações', description:'Empresa, equipe, áreas e dispositivos', route:'settings', tone:'sky', icon:'modules' })
   });
 
   const PRESETS = Object.freeze({
@@ -33,7 +34,7 @@
       title: 'Início',
       subtitle: 'Atalhos principais da operação e da gestão.',
       sections: Object.freeze([
-        Object.freeze({ key:'admin-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management']) })
+        Object.freeze({ key:'admin-main', label:'', routes:Object.freeze(['checkout','cash','post-sale','catalog','financial-management','settings']) })
       ])
     })
   });
