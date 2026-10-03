@@ -93,7 +93,7 @@ async function testDataServerTarget({input={},currentConfig={},credentialStore,f
     try{response=await fetchImpl(`${serverUrl}/api/v1/vertical/catalog/kits`,{headers:{accept:'application/json','x-terminal-id':terminalId,'x-terminal-key':terminalKey},...(controller?{signal:controller.signal}:{})});}
     catch(error){if(error?.name==='AbortError')throw new Error('O servidor não respondeu dentro do tempo esperado.');throw error;}
     if(!response?.ok){
-      if(Number(response?.status)===401||Number(response?.status)===403)throw new Error('Servidor encontrado, mas o terminal ou a chave de pareamento não foram aceitos.');
+      if(Number(response?.status)===401||Number(response?.status)===403)throw new Error('Servidor encontrado, mas a credencial segura deste terminal não foi aceita. Faça um novo pareamento.');
       throw new Error(`Servidor encontrado, mas a validação do terminal respondeu com HTTP ${response?.status||0}.`);
     }
     return{ok:true,server:true,terminal:true};
