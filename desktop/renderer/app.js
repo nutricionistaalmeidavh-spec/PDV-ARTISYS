@@ -113,6 +113,7 @@
   }
 
   function showToast(message, type = '') {
+    if (window.PdvToast?.show) { window.PdvToast.show(message,type); return; }
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.textContent = message;
@@ -567,7 +568,7 @@
 
   function renderCustomers() {
     if (!isRouteActive('customers')) return;
-    content.innerHTML = `<section class="page" data-customers-canonical="true"><header class="page-head"><div><h1>Clientes</h1><p>Cadastro, consulta e limite de crédito.</p></div><button class="primary-button" id="new-customer">＋ Novo cliente</button></header><div class="toolbar"><label class="search-field">⌕<input id="customer-page-search" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${escapeHtml(state.customerQuery)}"></label></div><div class="data-card" id="customers-list">${customersListHtml()}</div></section>`;
+    content.innerHTML = `<section class="page" data-customers-canonical="true"><header class="page-head"><div><h1>Clientes</h1><p>Cadastro, consulta e limite de crédito.</p></div><button class="primary-button" id="new-customer">+ Novo cliente</button></header><div class="toolbar"><label class="search-field">⌕<input id="customer-page-search" placeholder="Buscar por nome, CPF/CNPJ ou telefone" value="${escapeHtml(state.customerQuery)}"></label></div><div class="data-card" id="customers-list">${customersListHtml()}</div></section>`;
     document.getElementById('new-customer')?.addEventListener('click', () => openCustomerForm());
     document.getElementById('customer-page-search')?.addEventListener('input', (event) => { state.customerQuery = event.target.value; renderCustomersList(); });
     bindCustomerRows();
