@@ -31,7 +31,7 @@ A fonte canônica de nomes, duração e textos é [catalog.json](./catalog.json)
 3. A edição final aplica somente os overlays do catálogo:
    `npm run qa:tutorials:edit -- --tutorial 10-abrir-caixa --input caminho/raw.mp4`
 4. O MP4 final recebe o nome definido em `outputFile`.
-5. Após revisão, o arquivo final é colocado no Drive em **pdv-artisys/Videos Tutoriais**.
+5. Após revisão, o arquivo final é colocado no Drive em **pdv-artisys/videos tutoriais**.
 
 ## Validação
 
