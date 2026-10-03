@@ -139,3 +139,27 @@ test('coalesces concurrent dispatch requests and drains events inserted while di
   assert.deepEqual([...dispatched].sort(), ['evt-coalesce-1', 'evt-coalesce-2']);
   assert.ok(listPendingCalls <= 5, 'concurrent callers should share one drain instead of rescanning the outbox');
 });
+
+
+test('does not redeliver the same event when an outbox adapter returns a stale pending row', async () => {
+  const { DomainEventDispatcher } = require(dispatcherPath);
+  const bus = new DomainEventBus();
+  const event = sampleEvent('evt-stale-1');
+  const deliveries = [];
+  let reads = 0;
+  const outbox = {
+    async listPending() {
+      reads += 1;
+      return reads <= 3 ? [event] : [];
+    },
+    async markDispatched() {},
+    async recordFailure() {}
+  };
+  bus.subscribe('sale.completed', value => deliveries.push(value.eventId));
+
+  const dispatcher = new DomainEventDispatcher({ bus, outbox, batchSize:10 });
+  const result = await dispatcher.dispatchPending();
+
+  assert.deepEqual(deliveries, ['evt-stale-1']);
+  assert.equal(result.dispatched, 1);
+});
