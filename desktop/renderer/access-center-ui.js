@@ -11,7 +11,7 @@
   let activeTab='people';
   let currentUser=null;
   let accessModel={tabs:[],load:{},actions:{}};
-  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[]};
+  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],stations:[]};
 
   const TABS=Object.freeze([
     ['people','Pessoas'],
@@ -25,12 +25,12 @@
   function visibleTabs(){return TABS.filter(([id])=>accessModel.tabs?.includes(id));}
 
   async function load(){
-    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[]};
+    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],stations:[]};
     const tasks=[];
     if(accessModel.load?.users)tasks.push(api.users(true).then(value=>{snapshot.users=value;}));
     if(accessModel.load?.profiles)tasks.push(api.accessProfiles(true).then(value=>{snapshot.profiles=value;}));
     if(accessModel.load?.permissions)tasks.push(api.accessPermissions().then(value=>{snapshot.permissions=value.permissions||[];}));
-    if(accessModel.load?.devices)tasks.push(api.accessDevices().then(value=>{snapshot.devices=value;}));
+    if(accessModel.load?.devices)tasks.push(Promise.all([api.accessDevices(),api.accessKitchenStations()]).then(([devices,stations])=>{snapshot.devices=devices;snapshot.stations=stations;}));
     if(accessModel.load?.security)tasks.push(api.accessSecurity().then(value=>{snapshot.security=value;}));
     await Promise.all(tasks);
   }
@@ -89,9 +89,13 @@
       ${snapshot.devices.map(device=>{
         const actions=[
           canAction('blockDevice')?`<button type="button" class="secondary-button" data-toggle-device>${device.status==='ACTIVE'?'Bloquear':'Reativar'}</button>`:'',
+          device.deviceType==='KITCHEN'&&canAction('pairDevice')?'<button type="button" class="secondary-button" data-device-stations>Configurar setores</button>':'',
           canAction('rotateDeviceCredential')?'<button type="button" class="secondary-button" data-rotate-device>Rotacionar credencial</button>':''
         ].filter(Boolean).join('');
-        return `<tr data-device-row="${esc(device.id)}"><td><strong>${esc(device.name)}</strong><small>${esc(device.id)}</small></td><td>${esc(device.surface||device.deviceType)}</td><td>${device.scope?`${esc(device.scope.type)}: ${esc(device.scope.id||'estabelecimento')}`:'Estabelecimento'}</td><td>${esc(device.status)}</td><td>${esc(device.lastSeenAt||'Nunca')}</td><td><div class="vertical-actions">${actions}</div></td></tr>`;
+        const stationScope=device.deviceType==='KITCHEN'
+          ?(device.stationIds?.length?device.stationIds.map(id=>snapshot.stations.find(station=>station.id===id)?.name||id).join(', '):'Todos os setores')
+          :(device.scope?`${device.scope.type}: ${device.scope.id||'estabelecimento'}`:'Estabelecimento');
+        return `<tr data-device-row="${esc(device.id)}"><td><strong>${esc(device.name)}</strong><small>${esc(device.id)}</small></td><td>${esc(device.surface||device.deviceType)}</td><td>${esc(stationScope)}</td><td>${esc(device.status)}</td><td>${esc(device.lastSeenAt||'Nunca')}</td><td><div class="vertical-actions">${actions}</div></td></tr>`;
       }).join('')||'<tr><td colspan="6">Nenhum dispositivo pareado.</td></tr>'}
       </tbody></table></div></div>`;
   }
@@ -155,13 +159,22 @@
     }});
   }
 
+  function stationChoices(selected=[]){const chosen=new Set(selected||[]);return snapshot.stations.length?snapshot.stations.map(station=>`<label class="checkbox-row"><input type="checkbox" name="stationId" value="${esc(station.id)}" ${chosen.has(station.id)?'checked':''}><span><strong>${esc(station.name)}</strong><small>Exibir somente os pedidos enviados para este setor.</small></span></label>`).join(''):'<p class="helper">Nenhum setor cadastrado. Configure setores em Alimentação → Gestão.</p>';}
+
   function deviceDialog(){
-    window.PdvModal?.open?.('Novo dispositivo',`<form data-device-form><div class="field"><label>Nome</label><input name="name" required></div><div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="TABLET">Tablet de mesa</option><option value="KITCHEN">KDS / cozinha</option><option value="SELF_SERVICE">Autoatendimento</option></select></div><div class="field"><label>Mesa (somente Tablet)</label><input name="tableId" placeholder="ID da mesa"></div><div class="form-actions"><button class="primary-button" type="submit">Parear</button></div></form>`,{onMount:modal=>{
-      modal.querySelector('[data-device-form]').addEventListener('submit',async event=>{
-        event.preventDefault();const form=event.currentTarget;
-        const deviceType=form.elements.deviceType.value;
-        try{const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,tableId:deviceType==='TABLET'?form.elements.tableId.value:null});window.PdvModal.close();await render({state:{user:currentUser}});window.PdvModal?.open?.('Credencial do dispositivo',`<p>Copie esta credencial agora. Ela não será exibida novamente.</p><div class="data-card"><code>${esc(created.credential)}</code></div>`); }catch(error){toast(error.message,'error');}
+    window.PdvModal?.open?.('Novo dispositivo',`<form data-device-form><div class="field"><label>Nome</label><input name="name" required></div><div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="TABLET">Tablet de mesa</option><option value="KITCHEN">KDS / produção</option><option value="SELF_SERVICE">Autoatendimento</option></select></div><div class="field" data-device-table><label>Mesa (somente Tablet)</label><input name="tableId" placeholder="Mesa vinculada"></div><fieldset class="data-card" data-device-station-fieldset hidden><legend>Setores de produção</legend><p class="helper">Escolha Cozinha, Bar ou outros setores que este painel deve acompanhar. Sem seleção, o KDS mostra todos.</p>${stationChoices()}</fieldset><div class="form-actions"><button class="primary-button" type="submit">Parear</button></div></form>`,{onMount:modal=>{
+      const form=modal.querySelector('[data-device-form]');const type=form.elements.deviceType;const stationFieldset=form.querySelector('[data-device-station-fieldset]');const tableField=form.querySelector('[data-device-table]');
+      const syncType=()=>{stationFieldset.hidden=type.value!=='KITCHEN';tableField.hidden=type.value!=='TABLET';};type.addEventListener('change',syncType);syncType();
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();const deviceType=type.value;const stationIds=deviceType==='KITCHEN'?[...form.querySelectorAll('input[name="stationId"]:checked')].map(input=>input.value):[];
+        try{const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,tableId:deviceType==='TABLET'?form.elements.tableId.value:null,stationIds});window.PdvModal.close();await render({state:{user:currentUser}});window.PdvModal?.open?.('Credencial do dispositivo',`<p>Copie esta credencial agora. Ela não será exibida novamente.</p><div class="data-card"><code>${esc(created.credential)}</code></div>`); }catch(error){toast(error.message,'error');}
       });
+    }});
+  }
+
+  function deviceStationsDialog(device){
+    window.PdvModal?.open?.('Setores do KDS',`<form data-device-stations-form><p>Defina quais filas <strong>${esc(device.name)}</strong> deve exibir. Sem seleção, o painel acompanha todos os setores.</p><fieldset class="data-card"><legend>Setores de produção</legend>${stationChoices(device.stationIds)}</fieldset><div class="form-actions"><button type="submit" class="primary-button">Salvar setores</button></div></form>`,{onMount:modal=>{
+      modal.querySelector('[data-device-stations-form]')?.addEventListener('submit',async event=>{event.preventDefault();const stationIds=[...event.currentTarget.querySelectorAll('input[name="stationId"]:checked')].map(input=>input.value);try{await api.setAccessDeviceKitchenStations(device.id,stationIds);window.PdvModal.close();await render({state:{user:currentUser}});toast('Setores do KDS atualizados.','success');}catch(error){toast(error.message,'error');}});
     }});
   }
 
@@ -183,6 +196,7 @@
     content.querySelectorAll('[data-device-row]').forEach(row=>{
       const device=snapshot.devices.find(item=>item.id===row.dataset.deviceRow);
       row.querySelector('[data-toggle-device]')?.addEventListener('click',async()=>{try{await api.setAccessDeviceStatus(device.id,device.status==='ACTIVE'?'BLOCKED':'ACTIVE');await render({state:{user:currentUser}});toast('Dispositivo atualizado.','success');}catch(error){toast(error.message,'error');}});
+      row.querySelector('[data-device-stations]')?.addEventListener('click',()=>deviceStationsDialog(device));
       row.querySelector('[data-rotate-device]')?.addEventListener('click',async()=>{try{const result=await api.rotateAccessDevice(device.id);await render({state:{user:currentUser}});window.PdvModal?.open?.('Nova credencial',`<p>A credencial anterior foi invalidada.</p><div class="data-card"><code>${esc(result.credential)}</code></div>`);}catch(error){toast(error.message,'error');}});
     });
     content.querySelectorAll('[data-session-row]').forEach(row=>row.querySelector('[data-revoke-session]')?.addEventListener('click',async()=>{try{await api.revokeAccessSession(row.dataset.sessionRow);await render({state:{user:currentUser}});toast('Sessão revogada.','success');}catch(error){toast(error.message,'error');}}));
