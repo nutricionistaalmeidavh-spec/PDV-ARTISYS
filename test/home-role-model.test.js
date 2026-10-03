@@ -15,10 +15,11 @@ test('cashier Home exposes only four top-level daily workflows', () => {
   assert.deepEqual(keys('cashier'), ['checkout','cash','post-sale','catalog']);
 });
 
-test('manager and administrator Home use the same five top-level workflow hubs', () => {
-  const expected=['checkout','cash','post-sale','catalog','financial-management'];
-  assert.deepEqual(keys('manager'), expected);
-  assert.deepEqual(keys('admin'), expected);
+test('manager keeps five top-level hubs and administrator adds Configurações', () => {
+  const managerExpected=['checkout','cash','post-sale','catalog','financial-management'];
+  const adminExpected=[...managerExpected,'settings'];
+  assert.deepEqual(keys('manager'), managerExpected);
+  assert.deepEqual(keys('admin'), adminExpected);
 });
 
 test('unknown roles receive the restricted cashier Home', () => {
