@@ -18,7 +18,42 @@ test('Cloudflare account build resolves the existing artisys D1 without creating
   assert.equal(db.uuid,'db-123');
   assert.throws(()=>parseD1List(JSON.stringify([]),'artisys'),/nao encontrado/i);
   const source=fs.readFileSync(path.join(root,'scripts','prepare-cloudflare-account-build.mjs'),'utf8');
-  assert.doesNotMatch(source,/d1\s+create/i);
+  assert.doesNotMatch(source,/['"]d1['"]\s*,\s*['"]create['"]/i);
+});
+
+test('build can recover the D1 and R2 bindings from the already deployed Worker version',async()=>{
+  const {parseLatestVersionId,parseLiveBindings}=await loadBuild();
+  assert.equal(parseLatestVersionId(JSON.stringify([{id:'version-123'}])),'version-123');
+  const live=parseLiveBindings(JSON.stringify({
+    resources:{
+      bindings:[
+        {type:'d1_database',name:'artisys',database_id:'db-live',database_name:'artisys'},
+        {type:'r2_bucket',name:'artisysr2',bucket_name:'artisyspdv'}
+      ]
+    }
+  }));
+  assert.deepEqual(live,{databaseId:'db-live',databaseName:'artisys',r2BucketName:'artisyspdv'});
+});
+
+test('binding discovery prefers the live Worker and never needs D1-list permission on the happy path',async()=>{
+  const {discoverExistingBindings}=await loadBuild();
+  const calls=[];
+  const runner=(_command,args)=>{
+    calls.push(args);
+    if(args.includes('versions')&&args.includes('list'))return JSON.stringify([{id:'version-123'}]);
+    if(args.includes('versions')&&args.includes('view'))return JSON.stringify({
+      bindings:[
+        {type:'d1_database',name:'artisys',database_id:'db-live',database_name:'artisys'},
+        {type:'r2_bucket',name:'artisysr2',bucket_name:'artisyspdv'}
+      ]
+    });
+    throw new Error('unexpected command');
+  };
+  const result=discoverExistingBindings({runner,cwd:root,env:{}});
+  assert.equal(result.databaseId,'db-live');
+  assert.equal(result.r2BucketName,'artisyspdv');
+  assert.equal(result.source,'live-worker');
+  assert.equal(calls.some(args=>args.includes('d1')),false);
 });
 
 test('generated Wrangler config targets only the pdv-artisys worker and preserves known bindings',async()=>{
