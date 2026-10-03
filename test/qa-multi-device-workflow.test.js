@@ -64,6 +64,7 @@ test('stress profile homologates the requested LAN scale and aggressive order ra
   assert.match(runner,/const SCALE_WAITERS=15\b/);
   assert.match(runner,/const SCALE_SIMULTANEOUS_ORDERS=13\b/);
   assert.match(runner,/const AGGRESSIVE_ORDER_LEVELS=\[100,250,500\]/);
+  assert.match(runner,/const LOAD_REQUEST_TIMEOUT_MS=90000\b/,'extreme 500-order benchmark must not be cut off by the normal 30s client timeout');
   assert.match(runner,/p50Ms/);
   assert.match(runner,/p95Ms/);
   assert.match(runner,/maxMs/);
