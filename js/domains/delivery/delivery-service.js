@@ -95,7 +95,10 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
       if(!order.items.length&&submittedItems.length)persistOrderItems(order.id,submittedItems,now());
       const saleItems=order.items.length?order.items:orderItems(order.id);
       const sale=sales.openSale({terminalId,operatorId,customerId:order.customerId||null},actor);
-      for(const item of saleItems)sales.addItem(sale.id,{productId:item.productId,quantity:item.quantity??1,unitPriceCents:item.unitPriceCents,configurationSnapshot:item.configurationSnapshot,forceSeparateLine:Boolean(item.configurationSnapshot)||item.unitPriceCents!==undefined});
+      for(const item of saleItems){
+        const configurationSnapshot={...(item.configurationSnapshot||{}),orderPriceSnapshot:{version:1,source:'DELIVERY',unitPriceCents:item.unitPriceCents}};
+        sales.addItem(sale.id,{productId:item.productId,quantity:item.quantity??1,unitPriceCents:item.unitPriceCents,configurationSnapshot,forceSeparateLine:true});
+      }
       if(order.feeCents>0){ensureFeeProduct();sales.addItem(sale.id,{productId:DELIVERY_FEE_PRODUCT_ID,quantity:1,unitPriceCents:order.feeCents,configurationSnapshot:{version:1,systemAdjustment:{type:'DELIVERY_FEE',label:'Taxa de entrega'}},forceSeparateLine:true});db.prepare('UPDATE products SET active=0,updated_at=? WHERE id=?').run(now(),DELIVERY_FEE_PRODUCT_ID);}
       db.prepare('UPDATE delivery_orders SET sale_id=?,updated_at=? WHERE id=?').run(sale.id,now(),order.id);
       const current=sales.getSale(sale.id);
