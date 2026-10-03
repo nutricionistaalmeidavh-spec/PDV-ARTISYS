@@ -4,7 +4,7 @@ const {randomUUID}=require('node:crypto');
 const {writeAudit}=require('../audit-log');
 const {getPermissionDefinition}=require('./permission-registry');
 const {DEFAULT_PROFILE_IDS}=require('./default-profiles');
-const {principalFromLegacyActor}=require('./legacy-authorization-adapter');
+const {principalFromActor}=require('./principal-resolver');
 
 function slugify(value){
   return String(value||'').trim().toLowerCase()
@@ -62,6 +62,13 @@ function createProfileService({
     return mapProfile(db.prepare('SELECT * FROM profiles WHERE id=?').get(String(id||'')));
   }
 
+  function getUserAccess(userId){
+    const row=db.prepare('SELECT profile_id FROM users WHERE id=? AND active=1').get(String(userId||''));
+    if(!row)return{profile:null,permissions:[]};
+    const profile=getProfile(row.profile_id);
+    return{profile,permissions:profile?.permissions||[]};
+  }
+
   function getProfileBySystemKey(systemKey){
     const key=String(systemKey||'').trim().toLowerCase();
     return mapProfile(db.prepare('SELECT * FROM profiles WHERE lower(system_key)=?').get(key));
@@ -74,10 +81,7 @@ function createProfileService({
     return rows.map(mapProfile);
   }
 
-  function principal(actor){
-    if(actor?.kind)return actor;
-    return principalFromLegacyActor(actor);
-  }
+  function principal(actor){return principalFromActor(actor);}
 
   function requireCapability(actor,capability){
     const p=principal(actor);
@@ -202,7 +206,8 @@ function createProfileService({
     updateProfile,
     deleteProfile,
     assignProfile,
-    permissionsForProfile
+    permissionsForProfile,
+    getUserAccess
   };
 }
 

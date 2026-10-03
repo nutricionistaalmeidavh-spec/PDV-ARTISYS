@@ -1,5 +1,14 @@
 'use strict';
 
+const SURFACE_PERMISSIONS=Object.freeze({
+  waiter:Object.freeze(['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.transfer','restaurant.tables.manage','restaurant.service.manage']),
+  table:Object.freeze(['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.service.request']),
+  kitchen:Object.freeze(['restaurant.access','kitchen.view','kitchen.update_status']),
+  'self-service':Object.freeze(['restaurant.access','self_service.order.create']),
+  terminal:Object.freeze([])
+});
+
+
 function principalForDevice(device){
   if(!device?.id||!device?.surface)return null;
   const principal={
@@ -25,6 +34,11 @@ function deviceResourcePolicy({principal,resource}={}){
 function createDeviceAccessService({mobileDevices}={}){
   if(!mobileDevices)throw new TypeError('mobileDevices is required.');
 
+  function permissionsForPrincipal(principal){
+    if(principal?.kind!=='device')return[];
+    return SURFACE_PERMISSIONS[String(principal.surface||'').toLowerCase()]||[];
+  }
+
   function authenticate(deviceId,credential){
     if(typeof mobileDevices.authenticatePrincipal==='function'){
       const auth=mobileDevices.authenticatePrincipal(deviceId,credential);
@@ -37,7 +51,7 @@ function createDeviceAccessService({mobileDevices}={}){
     return {ok:true,device:auth.device,principal,scope:auth.device.scope||null};
   }
 
-  return Object.freeze({authenticate,principalForDevice});
+  return Object.freeze({authenticate,principalForDevice,permissionsForPrincipal});
 }
 
-module.exports={createDeviceAccessService,principalForDevice,deviceResourcePolicy};
+module.exports={createDeviceAccessService,principalForDevice,deviceResourcePolicy,SURFACE_PERMISSIONS};

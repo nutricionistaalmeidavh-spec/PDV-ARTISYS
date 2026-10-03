@@ -79,6 +79,7 @@ const { createAuthorizationService }=require('./auth/authorization-service');
 const { createLegacyPermissionResolver }=require('./auth/legacy-authorization-adapter');
 const { createProfileService,createProfilePermissionResolver }=require('./auth/profile-service');
 const { createDeviceAccessService,deviceResourcePolicy }=require('./auth/device-access-service');
+const { createAccessSecurityService }=require('./auth/access-security-service');
 
 function createPdvRuntime({
   dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
@@ -88,14 +89,22 @@ function createPdvRuntime({
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);
   const legacyPermissionResolver=createLegacyPermissionResolver();
-  const authorization=createAuthorizationService({resolvePermissions:createProfilePermissionResolver({db,fallback:legacyPermissionResolver}),resourcePolicy:deviceResourcePolicy});
+  let deviceAccess=null;
+  const profilePermissionResolver=createProfilePermissionResolver({db,fallback:(principal,context)=>{
+    if(principal?.kind==='device'&&deviceAccess)return deviceAccess.permissionsForPrincipal(principal);
+    return legacyPermissionResolver(principal,context);
+  }});
+  const authorization=createAuthorizationService({resolvePermissions:profilePermissionResolver,resourcePolicy:deviceResourcePolicy});
+  const settings=createSettingsService({db,authorization,now});
+  const modules=createModuleService({db,settings,authorization,now});
+  const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   const catalog=createCatalogService({db,now,idFactory});
   const account=createAccountService({db,installationId,endpoint:accountEndpoint,requireCommercialActivation,fetchImpl:accountFetchImpl,countUsers:()=>catalog.countUsers(),now});
   const profiles=createProfileService({db,authorization,account,now,idFactory});
-  Object.assign(catalog,createCatalogManagementService({db,catalog,account,now}));
+  const accessSecurity=createAccessSecurityService({db,now});
+  Object.assign(catalog,createCatalogManagementService({db,catalog,account,authorization,profiles,now}));
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
   const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});productPhotos.cleanupExpired();
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});
@@ -115,12 +124,12 @@ function createPdvRuntime({
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,kitchenService:kitchen,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,now,idFactory});
-  const mobileDevices=createMobileDeviceService({db,now,idFactory});const deviceAccess=createDeviceAccessService({mobileDevices});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
+  const mobileDevices=createMobileDeviceService({db,now,idFactory});deviceAccess=createDeviceAccessService({mobileDevices});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;const terminals=createTerminalRegistry(terminalOptions);const mutations=createMutationCoordinator({db,now});const imports=createImportService({db,catalog,inventory,now,idFactory});const logger=createSystemLogger({db,now,retention:logRetention});const pilot=createPilotService({db,now});
   const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,now,appVersion,retention:backupRetention}):null;
   const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,authorization,profiles,accessProfiles:profiles,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,authorization,profiles,accessProfiles:profiles,accessSecurity,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
