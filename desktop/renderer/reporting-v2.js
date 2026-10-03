@@ -132,10 +132,8 @@
   }
 
   function navigateManagement() {
-    const hub=document.querySelector('#sidebar-nav [data-route="financial-management"]');
-    if(hub){
-      hub.click();
-      setTimeout(()=>content.querySelector('[data-flow-route="management"]')?.click(),0);
+    if(root.PdvAppNavigation?.navigate){
+      void root.PdvAppNavigation.navigate('management');
       return;
     }
     void root.PdvErpFinanceUi?.renderManagement?.();
