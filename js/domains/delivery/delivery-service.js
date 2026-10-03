@@ -72,7 +72,7 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
     return withTransaction(db,()=>{
       if(order.saleId){
         const sale=sales.getSale(order.saleId);
-        if(sale&&sale.status!=='CANCELLED')sales.cancelSale(order.saleId,{reason:text,actor});
+        if(sale&&['OPEN','SUSPENDED'].includes(sale.status))sales.cancelSale(order.saleId,{reason:text,actor});
       }
       if(kitchen?.cancelSourceTickets)kitchen.cancelSourceTickets('DELIVERY',order.id,actor);
       else db.prepare("UPDATE production_tickets SET status='CANCELLED',updated_at=? WHERE source_type='DELIVERY' AND source_id=? AND status<>'CANCELLED'").run(now(),order.id);
