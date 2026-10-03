@@ -198,6 +198,12 @@
       "timeoutMs": 10000
     },
     {
+      "action": "click",
+      "selector": "[data-products-secondary-actions] > summary",
+      "name": "abrir-acoes-secundarias-produtos-p5",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectVisible",
       "selector": "#new-category",
       "name": "produtos-categorias-p5",
