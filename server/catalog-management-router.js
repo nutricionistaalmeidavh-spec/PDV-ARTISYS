@@ -61,8 +61,10 @@ function createCatalogManagementRouter({runtime,sessionStore=null,requireTermina
         json(res,201,runtime.catalog.upsertCustomer(await readBody(req,bodyLimitBytes),actor));return true;
       }
       if(req.method==='POST'&&pathname==='/api/v1/users'){
-        requireCapability(actor,'users.create');
-        const saved=runtime.catalog.saveManagedUser(await readBody(req,bodyLimitBytes),actor);
+        const data=await readBody(req,bodyLimitBytes);
+        const existing=data.id?runtime.catalog.getUser(data.id):null;
+        requireCapability(actor,existing?'users.edit':'users.create');
+        const saved=runtime.catalog.saveManagedUser(data,actor);
         invalidateUserSessions(saved);json(res,201,saved);return true;
       }
       if(req.method==='DELETE'&&categoryMatch){
