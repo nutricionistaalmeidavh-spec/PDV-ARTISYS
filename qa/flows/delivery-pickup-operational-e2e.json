@@ -25,6 +25,28 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/settings/modules.FOOD.enabled",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "name": "delivery-ativar-alimentacao",
+      "body": {
+        "value": true,
+        "scope": "global"
+      }
+    },
+    {
+      "action": "reload",
+      "name": "delivery-recarregar-areas"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "delivery-sessao-restaurada",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/products",
       "method": "POST",
       "expectedStatus": 201,
