@@ -176,3 +176,41 @@ test('HTTP user editing requires users.edit without also requiring users.create'
     assert.equal(response.status,403);
   }finally{await ctx.close();}
 });
+
+
+test('HTTP password reset requires users.reset_password independently of users.edit',async()=>{
+  const ctx=await httpFixture();
+  try{
+    const editOnly=ctx.runtime.profiles.createProfile({
+      id:'profile-edit-only',
+      name:'Editor sem reset',
+      permissions:['users.view','users.edit']
+    },{kind:'system',id:'system'});
+    ctx.runtime.catalog.createUser({
+      id:'edit-only',username:'edit-only',name:'Editor sem reset',role:'cashier',profileId:editOnly.id,password:'senha-editor-123'
+    },{kind:'system',id:'system'});
+    const editor=await login(ctx,'edit-only','senha-editor-123');
+
+    let response=await api(ctx,editor,'/api/v1/users',{method:'POST',body:{
+      id:'cashier1',username:'cashier',name:'Operador',password:'senha-trocada-456',active:true
+    }});
+    assert.equal(response.status,403);
+    assert.equal(ctx.runtime.catalog.verifyUserPassword('cashier','senha-cashier-123').ok,true);
+    assert.equal(ctx.runtime.catalog.verifyUserPassword('cashier','senha-trocada-456').ok,false);
+
+    const resetter=ctx.runtime.profiles.createProfile({
+      id:'profile-resetter',
+      name:'Editor com reset',
+      permissions:['users.view','users.edit','users.reset_password']
+    },{kind:'system',id:'system'});
+    ctx.runtime.catalog.createUser({
+      id:'resetter1',username:'resetter',name:'Resetter',role:'cashier',profileId:resetter.id,password:'senha-resetter-123'
+    },{kind:'system',id:'system'});
+    const resetterToken=await login(ctx,'resetter','senha-resetter-123');
+    response=await api(ctx,resetterToken,'/api/v1/users',{method:'POST',body:{
+      id:'cashier1',username:'cashier',name:'Operador',password:'senha-trocada-456',active:true
+    }});
+    assert.equal(response.status,201);
+    assert.equal(ctx.runtime.catalog.verifyUserPassword('cashier','senha-trocada-456').ok,true);
+  }finally{await ctx.close();}
+});
