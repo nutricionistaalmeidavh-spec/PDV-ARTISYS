@@ -155,3 +155,12 @@ test('deployment migration grants the new capability to existing administrators 
     assert.equal(runDeploymentCapabilityMigrations(runtime.db),DEPLOYMENT_CAPABILITY_SCHEMA_VERSION);
   }finally{runtime.close();}
 });
+
+
+test('paired terminals cannot silently retarget the permanent credential to another server',()=>{
+  const settings=read('desktop/renderer/settings-hub-ui.js');
+  assert.match(settings,/value="lan-client" disabled/);
+  assert.match(settings,/value="own-server" disabled/);
+  assert.match(settings,/credencial atual nunca é reaproveitada em outro servidor/);
+  assert.match(settings,/const external=\['lan-client','own-server'\]\.includes\(value\.mode\)/);
+});
