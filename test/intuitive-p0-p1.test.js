@@ -113,8 +113,10 @@ test('P2 vertical card grids stay two-column on tablet and stack only on narrow 
 test('P2 dense operational surfaces use concise helper copy',()=>{
   const restaurant=read('desktop/renderer/restaurant-ui.js');
   const reports=read('desktop/renderer/reporting-v2.js');
-  assert.match(restaurant,/Escolha Produção\/KDS ou Sem KDS para cada item\./);
+  assert.match(restaurant,/Crie os destinos disponíveis para itens preparados\. O vínculo de cada produto é definido no Estoque\./);
+  assert.doesNotMatch(restaurant,/Escolha Produção\/KDS ou Sem KDS para cada item\./);
   assert.doesNotMatch(restaurant,/Ex\.: refrigerante = sem KDS; suco preparado = produção/);
+  assert.doesNotMatch(restaurant,/id="assignment-form"/);
   assert.match(reports,/Indicadores para decisão; o CSV mantém o detalhamento analítico\./);
   assert.doesNotMatch(reports,/O CSV preserva o detalhamento completo, incluindo Desconto rateado/);
 });
