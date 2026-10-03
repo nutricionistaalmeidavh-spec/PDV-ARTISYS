@@ -124,6 +124,15 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Orçamento máximo de `MutationObserver` após P5: **9**. Os observers restantes pertencem às extensões complexas reservadas ao P6.
 
 
+## Intuitividade P2 — reconhecimento e separação de contexto
+
+- A navegação lateral de alto nível combina ícone e rótulo textual curto. O ícone continua servindo ao operador frequente, mas o rótulo elimina a necessidade de decorar destinos como Balcão, Caixa, Vendas, Cadastros e Gestão.
+- Os rótulos curtos não alteram route IDs, permissões, atalhos de teclado ou a navegação canônica; `title` e `aria-label` continuam usando o nome completo do destino.
+- **Mesas e comandas** abre sempre em **Operação**. Mapa de mesas, comanda ativa, chamados e KDS permanecem na rotina principal.
+- **Configuração** de Alimentação é uma visão separada, acessível somente a gerente/administrador. Setores de produção, dispositivos LAN e indicadores/CSV não ficam misturados à rotina de salão.
+- Trocar entre Operação e Configuração preserva a comanda selecionada; ao retornar para Operação, o contexto operacional é restaurado.
+- O P2 não cria um segundo domínio ou segunda fonte de dados: ambas as visões usam os mesmos serviços de restaurante, pedidos, KDS e relatórios locais.
+
 ## Produto P5/P6 — ativação e navegação final
 
 - **Configurações → Áreas** é a superfície canônica para ativar Alimentação e Atacado.
