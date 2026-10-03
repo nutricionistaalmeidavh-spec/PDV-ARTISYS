@@ -73,6 +73,8 @@ const { createSystemLogger }=require('./observability/system-logger');
 const { createSystemHealth }=require('./observability/system-health');
 const { createDiagnosticPackage }=require('./observability/diagnostic-package');
 const { createPilotService }=require('./pilot/pilot-service');
+const { createAuthorizationService }=require('./auth/authorization-service');
+const { createLegacyPermissionResolver }=require('./auth/legacy-authorization-adapter');
 
 function createPdvRuntime({
   dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
@@ -84,6 +86,7 @@ function createPdvRuntime({
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runAccountIdentityMigrations(db,now);runIntegrityMigrations(db,now);
+  const authorization=createAuthorizationService({resolvePermissions:createLegacyPermissionResolver()});
   const catalog=createCatalogService({db,now,idFactory});
   const account=createAccountService({db,installationId,endpoint:accountEndpoint,requireCommercialActivation,fetchImpl:accountFetchImpl,countUsers:()=>catalog.countUsers(),now});
   Object.assign(catalog,createCatalogManagementService({db,catalog,account,now}));
@@ -112,6 +115,6 @@ function createPdvRuntime({
   const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,authorization,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};

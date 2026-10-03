@@ -6,6 +6,7 @@ const PERMISSION_GROUPS=Object.freeze({
   catalog:Object.freeze({id:'catalog',label:'Cadastros'}),
   finance:Object.freeze({id:'finance',label:'Financeiro e gestão'}),
   inventory:Object.freeze({id:'inventory',label:'Estoque'}),
+  public:Object.freeze({id:'public',label:'Acesso público'}),
   restaurant:Object.freeze({id:'restaurant',label:'Alimentação e atacado'}),
   sales:Object.freeze({id:'sales',label:'Vendas e pós-venda'}),
   system:Object.freeze({id:'system',label:'Sistema e segurança'})
@@ -70,6 +71,9 @@ const DEFINITIONS=[
   ['devices.rotate_credential','access','Rotacionar credenciais','Gerar nova credencial para dispositivo autorizado.'],
   ['sessions.view','access','Consultar sessões','Consultar sessões e acessos ativos.'],
   ['sessions.revoke','access','Revogar sessões','Encerrar sessões de acesso existentes.'],
+
+  ['public.menu.view','public','Consultar cardápio público','Consultar a projeção pública segura do cardápio para um recurso autorizado.'],
+  ['public.order.create','public','Criar pedido público','Criar pedido público dentro do recurso autorizado por token opaco.'],
 
   ['modules.view','system','Consultar módulos','Consultar áreas habilitadas no estabelecimento.'],
   ['modules.manage','system','Gerenciar módulos','Ativar ou desativar áreas do estabelecimento.'],
