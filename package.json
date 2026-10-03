@@ -34,7 +34,8 @@
     "qa:web-surfaces": "node --test test/ui-web-surfaces.test.js",
     "build": "node scripts/prepare-cloudflare-account-build.mjs",
     "test:cloudflare:account": "node --test test/cloudflare-account-worker.test.js test/cloudflare-account-build.test.js",
-    "qa:multi-device": "node qa/multi-device/run.mjs"
+    "qa:multi-device": "node qa/multi-device/run.mjs",
+    "qa:e2e:delivery-pickup": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow delivery-pickup-operational --environment ci --viewport compactDesktop --output qa-artifacts-delivery"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",
