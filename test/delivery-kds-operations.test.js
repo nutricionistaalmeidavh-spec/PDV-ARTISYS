@@ -147,6 +147,7 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.match(vertical,/Delivery/);
   assert.match(vertical,/Retirada/);
   assert.doesNotMatch(parity,/new MutationObserver/);
+  assert.doesNotMatch(vertical,/new MutationObserver/);
   assert.doesNotMatch(parity,/ID do pedido/);
   assert.doesNotMatch(parity,/ID do produto/);
   assert.doesNotMatch(parity,/Avançar para PREPARING|Avançar para READY/);
