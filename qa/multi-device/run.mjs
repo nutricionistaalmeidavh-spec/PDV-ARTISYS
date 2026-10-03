@@ -135,6 +135,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     runtime.catalog.createUser({id:'qa-waiter-2',username:'qa-waiter-2',name:'QA Garcom 2',role:'cashier',password:'qa-test-password'});
 
     runtime.catalog.upsertCategory({id:'qa-category',name:'QA Multi-Device'},actor);
+    runtime.modules.setEnabled('FOOD',true,actor);
     const seedProducts=[
       {id:'qa-price',sku:'QA-PRICE',name:'Produto Preco',salePriceCents:1000,costCents:400,trackStock:false,menuEnabled:true},
       {id:'qa-stock',sku:'QA-STOCK',name:'Produto Estoque',salePriceCents:1000,costCents:400,trackStock:true,menuEnabled:true},
