@@ -116,7 +116,7 @@
         key:'actions',
         label:'Ações',
         align:'end',
-        render:product => `<div class="products-dense-actions"><button class="secondary-button" type="button" data-product-photo-edit="${esc(product.id)}">${product.photo ? 'Trocar foto' : 'Adicionar foto'}</button>${product.photo ? `<button class="secondary-button" type="button" data-product-photo-remove="${esc(product.id)}">Remover foto</button>` : ''}<button class="secondary-button" type="button" data-edit-product="${esc(product.id)}">Ver origem</button><button class="danger-button" type="button" data-remove-product="${esc(product.id)}">Retirar</button></div>`
+        render:product => `<div class="products-dense-actions"><button class="secondary-button" type="button" data-product-photo-edit="${esc(product.id)}">${product.photo ? 'Trocar foto' : 'Adicionar foto'}</button>${product.photo ? `<button class="secondary-button" type="button" data-product-photo-remove="${esc(product.id)}">Remover foto</button>` : ''}<button class="secondary-button" type="button" data-edit-product="${esc(product.id)}">${product.prepared ? 'Ver ficha técnica' : 'Ver cadastro'}</button><button class="danger-button" type="button" data-remove-product="${esc(product.id)}">Retirar</button></div>`
       }
     ];
 
@@ -131,7 +131,7 @@
       }
     });
 
-    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Produtos</h1><p><strong>Catálogo de venda:</strong> nomes, preços e categorias. Ajuste saldo, insumos e fichas técnicas em Estoque.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="open-product-stock" type="button">Estoque e fichas</button><details class="products-secondary-actions" data-products-secondary-actions><summary class="secondary-button">Mais ações</summary><div class="products-secondary-actions-menu" data-products-secondary-actions-menu><button class="products-secondary-action" id="sync-product-photos" type="button">↻ Sincronizar fotos</button><button class="products-secondary-action" id="new-category" type="button">+ Categoria</button></div></details><button class="primary-button" id="new-product">+ Novo produto</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
+    return `<section class="page products-dense-page" data-products-view="dense"><header class="page-head"><div><h1>Cardápio</h1><p><strong>Catálogo de venda:</strong> nomes, preços e categorias. Ajuste saldo, insumos e fichas técnicas em Estoque.</p></div><div class="products-dense-head-actions"><button class="secondary-button" id="open-product-stock" type="button">Estoque e fichas</button><details class="products-secondary-actions" data-products-secondary-actions><summary class="secondary-button">Mais ações</summary><div class="products-secondary-actions-menu" data-products-secondary-actions-menu><button class="products-secondary-action" id="sync-product-photos" type="button">↻ Sincronizar fotos</button><button class="products-secondary-action" id="new-category" type="button">+ Categoria</button></div></details><button class="primary-button" id="new-product">+ Adicionar ao Cardápio</button></div></header><div class="products-dense-toolbar">${search}${filters}<small class="products-dense-sync">${esc(syncLabel)}</small></div>${table}</section>`;
   }
 
   return Object.freeze({
