@@ -204,7 +204,9 @@
         "restaurant-checkout-reusing-sales-cash-and-inventory",
         "kitchen-kds-stations-product-routing-and-printer-routing",
         "restaurant-service-requests-waiter-and-bill",
-        "restaurant-operational-reports-and-csv-export"
+        "restaurant-operational-reports-and-csv-export",
+        "restaurant-session-party-customer-waiter-and-production-state",
+        "shared-order-composer-desktop-waiter-tablet-and-qr"
       ],
       "backend": [
         {
@@ -255,6 +257,12 @@
         },
         {
           "path": "server/mobile/app.js"
+        },
+        {
+          "path": "shared/order-composer.js"
+        },
+        {
+          "path": "desktop/renderer/restaurant-order-composer-ui.js"
         }
       ],
       "ui": [
@@ -269,6 +277,9 @@
         },
         {
           "path": "server/mobile/index.html"
+        },
+        {
+          "path": "desktop/renderer/restaurant-order-composer-ui.js"
         }
       ]
     },
