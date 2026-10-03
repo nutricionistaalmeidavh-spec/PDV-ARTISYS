@@ -454,7 +454,7 @@
   function stationChoices(selected=[]){
     const chosen=new Set((selected||[]).map(String));
     return snapshot.stations.length
-      ?snapshot.stations.map(station=>`<label class="checkbox-row"><input type="checkbox" name="stationId" value="${esc(station.id)}" ${chosen.has(String(station.id))?'checked':''}><span><strong>${esc(station.name)}</strong><small>Mostrar pedidos enviados para este setor.</small></span></label>`).join('')
+      ?snapshot.stations.map(station=>`<label class="access-permission-row"><input type="checkbox" name="stationId" value="${esc(station.id)}" ${chosen.has(String(station.id))?'checked':''}><span><strong>${esc(station.name)}</strong><small>Mostrar pedidos enviados para este setor.</small></span></label>`).join('')
       :'<div class="access-empty">Nenhum setor de produção cadastrado.</div>';
   }
 
