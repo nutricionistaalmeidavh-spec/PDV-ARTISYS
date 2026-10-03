@@ -32,10 +32,8 @@
         "ARTISYS_QA_PDF_DIR": "../qa-artifacts/pdf",
         "ARTISYS_QA_SIMULATE_PRINTER": "1",
         "ARTISYS_QA_NO_PRINTERS": "1",
-        "PDV_ENABLE_LAN": "true",
-        "PDV_AUTO_PRINT": "false",
-        "PDV_LAN_HOST": "127.0.0.1",
-        "PDV_LAN_PORT": "4174"
+        "PDV_ENABLE_LAN": "false",
+        "PDV_AUTO_PRINT": "false"
       }
     }
   },
