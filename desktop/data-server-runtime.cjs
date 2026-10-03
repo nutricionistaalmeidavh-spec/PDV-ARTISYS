@@ -55,7 +55,7 @@ function migrateLegacyDataServerCredential({config,filePath,credentialStore}={})
   return saveDataServerConfig(filePath,{...config,terminalKey:legacy});
 }
 
-function saveDataServerSelection({db,filePath,input={},currentConfig={},credentialStore}={}){
+function saveDataServerSelection({db,filePath,input={},currentConfig={},credentialStore,allowExternalEnrollment=false}={}){
   const candidateMode=String(input.mode||currentConfig.mode||'local');
   const external=['lan-client','own-server'].includes(candidateMode);
   let terminalKey='';
@@ -65,6 +65,7 @@ function saveDataServerSelection({db,filePath,input={},currentConfig={},credenti
       const labels=summary.tables.slice(0,5).map(item=>`${item.table}:${item.total}`).join(', ');
       throw new Error(`Esta instalação possui dados locais (${labels}). Exporte ou migre os dados antes de conectá-la como terminal; a troca não foi aplicada.`);
     }
+    if(!allowExternalEnrollment)throw new Error('Para conectar ou trocar o servidor deste terminal, faça um novo pareamento por código.');
     terminalKey=resolveTerminalSecret(input,currentConfig,credentialStore);
     normalize({...currentConfig,...input,mode:candidateMode,terminalKey});
     if(!credentialStore?.save)throw new Error('Armazenamento seguro da credencial do terminal indisponivel.');
@@ -169,7 +170,8 @@ async function pairDataServerTerminal({
       filePath,
       input:{mode:'lan-client',serverUrl,terminalId:identity.terminalId,terminalKey:credential},
       currentConfig,
-      credentialStore
+      credentialStore,
+      allowExternalEnrollment:true
     });
     return{
       config:saved,
