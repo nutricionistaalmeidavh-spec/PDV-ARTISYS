@@ -7,14 +7,13 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=file=>fs.readFileSync(path.join(root,file),'utf8');
 
-test('generic catalog calls products Produtos instead of Cardápio',()=>{
+test('generic products route keeps its internal label while the sellable surface is titled Cardápio',()=>{
   const app=read('desktop/renderer/app.js');
   const products=read('desktop/renderer/products-dense-view.js');
   assert.match(app,/products:\s*\{\s*label:\s*'Produtos'/);
   assert.match(app,/route:'products',label:'Produtos'/);
   assert.match(products,/ariaLabel:'Produtos'/);
-  assert.match(products,/<h1>Produtos<\/h1>/);
-  assert.doesNotMatch(products,/<h1>Cardápio<\/h1>/);
+  assert.match(products,/<h1>Cardápio<\/h1>/);
 });
 
 test('desktop exposes the commercial package version instead of the Electron runtime version',()=>{

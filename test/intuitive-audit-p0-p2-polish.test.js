@@ -53,12 +53,12 @@ test('desktop notifications use one managed toast and clear stale success contex
   for(const source of [app,wholesale,modules,catalog]) assert.match(source,/PdvToast\?\.show/);
 });
 
-test('Produtos explains its boundary with Estoque and provides a contextual shortcut',()=>{
+test('Cardápio explains its boundary with Estoque and provides a contextual shortcut',()=>{
   const view=read('desktop/renderer/products-dense-view.js');
   const controller=read('desktop/renderer/products-dense-controller.js');
   assert.match(view,/Catálogo de venda/);
   assert.match(view,/id="open-product-stock"/);
-  assert.match(view,/\+ Novo produto/);
+  assert.match(view,/\+ Adicionar ao Cardápio/);
   assert.match(controller,/open-product-stock/);
   assert.match(controller,/data-route="inventory"/);
 });
