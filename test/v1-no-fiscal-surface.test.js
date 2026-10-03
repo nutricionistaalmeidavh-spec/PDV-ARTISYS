@@ -69,7 +69,7 @@ test('V1 installer excludes fiscal code and external fiscal resources', () => {
   const pkg=JSON.parse(read('package.json'));
   assert.deepEqual(pkg.build.extraResources, []);
   const files=pkg.build.files.join('\n');
-  for(const marker of ['!desktop/fiscal-*.cjs','!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
+  for(const marker of ['!desktop/fiscal-*.cjs','!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/fiscal-sidecar/**/*','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
   assert.equal(Object.keys(pkg.scripts).some(key=>key.startsWith('fiscal:')||key.startsWith('test:fiscal:')),false);
 });
 
@@ -109,9 +109,35 @@ test('V1 keeps regression tests for sales printing restaurant KDS wholesale and 
   }
 });
 
-test('V1 test runner excludes legacy fiscal suites while keeping V1 guardrails', () => {
+test('V1 repository has no legacy fiscal runtime or source trees', () => {
+  const forbidden=[
+    'desktop/fiscal-bridge.cjs',
+    'desktop/fiscal-credential-store.cjs',
+    'desktop/fiscal-runtime-paths.cjs',
+    'desktop/fiscal-sidecar-runtime.cjs',
+    'desktop/nfse-provider-resolver.cjs',
+    'desktop/renderer/fiscal-config-ui.js',
+    'desktop/renderer/fiscal-monitor.js',
+    'desktop/renderer/nfse-ui.js',
+    'desktop/renderer/product-fiscal-fields.js',
+    'fiscal-runtime',
+    'fiscal-packs',
+    'js/core/database/fiscal-migrations.js',
+    'js/domains/fiscal',
+    'js/domains/nfse',
+    'scripts/fiscal-pack-cli.js',
+    'scripts/fiscal-release-certification.js',
+    'server/fiscal-block5-router.js',
+    'server/fiscal-block6-router.js',
+    'server/fiscal-sidecar',
+    'server/nfse-router.js'
+  ];
+  for(const relative of forbidden) assert.equal(fs.existsSync(path.join(root,relative)),false,relative);
+});
+
+test('V1 test runner executes every remaining top-level test file', () => {
   const runner=read('scripts/run-v1-tests.js');
-  assert.match(runner,/e20-fiscal\.test\.js/);
-  assert.match(runner,/startsWith\('fiscal-'\)/);
+  assert.doesNotMatch(runner,/excluded|e20-fiscal|startsWith\('fiscal-'/);
+  assert.match(runner,/filter\(name=>name\.endsWith\('\.test\.js'\)\)/);
   assert.equal(JSON.parse(read('package.json')).scripts.test,'node scripts/run-v1-tests.js');
 });

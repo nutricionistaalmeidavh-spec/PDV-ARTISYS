@@ -4,7 +4,7 @@ A tela **Configurações > Diagnóstico e suporte** reúne sinais operacionais s
 
 ## Health
 
-O health autenticado informa versão/schema, banco, outbox pendente, terminais, fila de impressão, fiscal e último backup. Use-o primeiro quando houver falha de operação ou de rede.
+O health autenticado informa versão/schema, banco, outbox pendente, terminais, fila de impressão e último backup. Use-o primeiro quando houver falha de operação ou de rede.
 
 ## Logs e auditoria
 
@@ -12,6 +12,6 @@ Logs locais são estruturados por nível/subsistema/correlação/terminal. Senha
 
 ## Pacote de diagnóstico
 
-Administradores podem gerar um ZIP contendo manifesto do sistema, versões, health snapshot, migrations, configuração pública e logs sanitizados. Por padrão o pacote **não inclui** banco SQLite, senhas, credenciais LAN nem credenciais/payload fiscal sensível.
+Administradores podem gerar um ZIP contendo manifesto do sistema, versões, health snapshot, migrations, configuração pública e logs sanitizados. Por padrão o pacote **não inclui** banco SQLite, senhas, credenciais LAN nem outros segredos operacionais.
 
 Ao enviar o pacote ao suporte, confirme a data/hora do problema e o terminal afetado para facilitar a correlação.

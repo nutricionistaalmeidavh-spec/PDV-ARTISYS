@@ -45,17 +45,15 @@ test('Products dense presentation is lifecycle-owned with no MutationObserver or
   assert.doesNotMatch(controller, /MutationObserver|PdvFeatureFlags|restoreLegacy/);
 });
 
-test('variants, fiscal fields and kits/combos keep the canonical Product hooks', () => {
+test('variants and kits/combos keep the canonical Product hooks', () => {
   const variants = read('desktop/renderer/product-variants-ui.js');
-  const fiscal = read('desktop/renderer/product-fiscal-fields.js');
   const kits = read('desktop/renderer/kits-combos-ui.js');
   includesAll(variants, ['.data-row','[data-edit-product]','data-new-product-variant','data-edit-product-variant','PdvUiLifecycle'], 'variants');
   assert.doesNotMatch(variants, /MutationObserver/);
-  includesAll(fiscal, ['#product-form','#new-product','[data-edit-product]','fiscalProfileId','fiscalGtin'], 'fiscal');
   includesAll(kits, ['Kits e combos','dataset.newKit','dataset.newCombo','data-edit-kit','data-edit-combo'], 'kits/combos');
 });
 
 test('Products parity document records canonical P2 architecture', () => {
   const matrix = read('docs/architecture/products-dense-parity.md');
-  includesAll(matrix, ['P2 canônico','sem feature flag','lifecycle','busca incremental','Variações','Kits e combos','Dados fiscais'], 'Products parity');
+  includesAll(matrix, ['P2 canônico','sem feature flag','lifecycle','busca incremental','Variações','Kits e combos'], 'Products parity');
 });

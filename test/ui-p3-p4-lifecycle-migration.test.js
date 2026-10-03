@@ -26,30 +26,20 @@ test('P3 shell surfaces use semantic lifecycle without MutationObserver',()=>{
   assert.match(operational,/routeRegistry\.updated\('sales',\{surface:'sale-detail'\}\)/);
 });
 
-test('P4 Admin Fiscal NFS-e and Settings hub use lifecycle and announce settings extensions',()=>{
-  const extensions=[
-    ['desktop/renderer/admin-ops.js','admin-ops'],
-    ['desktop/renderer/fiscal-config-ui.js','fiscal-config'],
-    ['desktop/renderer/fiscal-monitor.js','fiscal-monitor'],
-    ['desktop/renderer/nfse-ui.js','nfse']
-  ];
-  for(const [file,extension] of extensions){
-    const source=read(file);
-    assert.match(source,/PdvUiLifecycle/,`${file}: lifecycle missing`);
-    assert.match(source,/route:mounted/,`${file}: mounted hook missing`);
-    assert.match(source,/route:updated/,`${file}: updated hook missing`);
-    assert.ok(source.includes(`extension:'${extension}'`),`${file}: extension update missing`);
-    assert.doesNotMatch(source,/new MutationObserver\b/,`${file}: observer must be retired`);
-  }
+test('P4 Admin and Settings hub use lifecycle and announce settings extensions',()=>{
+  const source=read('desktop/renderer/admin-ops.js');
+  assert.match(source,/PdvUiLifecycle/,'admin-ops lifecycle missing');
+  assert.match(source,/route:mounted/,'admin-ops mounted hook missing');
+  assert.match(source,/route:updated/,'admin-ops updated hook missing');
+  assert.ok(source.includes("extension:'admin-ops'"),'admin-ops extension update missing');
+  assert.doesNotMatch(source,/new MutationObserver\b/,'admin-ops observer must be retired');
+
   const hub=read('desktop/renderer/settings-hub-ui.js');
   assert.match(hub,/route:mounted/);
   assert.match(hub,/route:updated/);
   assert.doesNotMatch(hub,/MutationObserver|legacyObserver/);
-  for(const file of ['desktop/renderer/fiscal-config-ui.js','desktop/renderer/fiscal-monitor.js','desktop/renderer/nfse-ui.js']){
-    assert.match(read(file),/settingsCategory='fiscal'/,`${file}: explicit fiscal category required`);
-  }
+  assert.doesNotMatch(hub,/fiscal|nfse/i);
 });
-
 test('auth lifecycle is published only after canonical setup and login form bindings',()=>{
   const app=read('desktop/renderer/app.js');
   const setupBind=app.indexOf("authOverlay.querySelector('#setup-form').addEventListener");

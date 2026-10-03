@@ -70,6 +70,7 @@
       "!js/domains/nfse/**/*",
       "!js/core/database/fiscal-migrations.js",
       "!server/fiscal-*.js",
+      "!server/fiscal-sidecar/**/*",
       "!server/nfse-router.js"
     ],
     "asarUnpack": [

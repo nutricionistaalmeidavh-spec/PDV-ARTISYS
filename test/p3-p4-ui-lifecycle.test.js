@@ -27,22 +27,14 @@ test('P3 shell surfaces use semantic lifecycle without DOM observers',()=>{
   assert.match(read('desktop/renderer/sale-observation-ui.js'),/surface === 'sale-detail'/);
 });
 
-test('P4 Settings extensions use route lifecycle and publish semantic updates',()=>{
-  for(const [file,extension] of [
-    ['desktop/renderer/admin-ops.js','admin-ops'],
-    ['desktop/renderer/fiscal-config-ui.js','fiscal-config'],
-    ['desktop/renderer/fiscal-monitor.js','fiscal-monitor'],
-    ['desktop/renderer/nfse-ui.js','nfse']
-  ]){
-    const source=read(file);
-    assert.match(source,/PdvUiLifecycle/,`${file}: lifecycle required`);
-    assert.match(source,/route:mounted/,`${file}: route mounted hook required`);
-    assert.match(source,/route:updated/,`${file}: route updated hook required`);
-    assert.doesNotMatch(source,/new MutationObserver\b/,`${file}: DOM observer retired in P4`);
-    assert.ok(source.includes(`extension:'${extension}'`),`${file}: semantic settings update required`);
-  }
+test('P4 Settings admin extension uses route lifecycle and publishes semantic updates',()=>{
+  const source=read('desktop/renderer/admin-ops.js');
+  assert.match(source,/PdvUiLifecycle/,'admin-ops lifecycle required');
+  assert.match(source,/route:mounted/,'admin-ops route mounted hook required');
+  assert.match(source,/route:updated/,'admin-ops route updated hook required');
+  assert.doesNotMatch(source,/new MutationObserver\b/,'admin-ops DOM observer retired in P4');
+  assert.ok(source.includes("extension:'admin-ops'"),'admin-ops semantic settings update required');
 });
-
 test('Settings Hub has no compatibility MutationObserver after P4',()=>{
   const source=read('desktop/renderer/settings-hub-ui.js');
   assert.match(source,/PdvUiLifecycle/);
