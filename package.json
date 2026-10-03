@@ -31,7 +31,9 @@
     "release:manifest": "node scripts/generate-release-manifest.js",
     "dist:win": "electron-builder --win nsis --x64 --publish never",
     "qa:e2e:tablet": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow all-pages-audit --environment ci --viewport tablet --output qa-artifacts",
-    "qa:web-surfaces": "node --test test/ui-web-surfaces.test.js"
+    "qa:web-surfaces": "node --test test/ui-web-surfaces.test.js",
+    "build": "node scripts/prepare-cloudflare-account-build.mjs",
+    "test:cloudflare:account": "node --test test/cloudflare-account-worker.test.js test/cloudflare-account-build.test.js"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",
