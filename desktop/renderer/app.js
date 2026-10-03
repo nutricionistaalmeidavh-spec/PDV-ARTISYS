@@ -660,15 +660,46 @@
     return route;
   }
 
-  function openMenuDestinationForm(product,onSaved=null) {
+  async function ensureMenuProductHasDestination(product) {
+    if(!product?.id)return null;
+    await refreshProductionRoutes();
+    return (state.productionRoutes||[]).find(item=>item.productId===product.id)?.mode||null;
+  }
+
+  function openInventoryItem(productId) {
+    const product=state.products.find(item=>item.id===productId);
+    if(!product)return false;
+    if(product.prepared){void openRecipeForm(product);return true;}
+    openProductForm(product);
+    return true;
+  }
+
+  function openInventoryConfigurationRequired(product) {
     if(!product)return;
-    openModal('Destino do pedido', `<form id="menu-production-destination-form"><p><strong>${escapeHtml(product.name)}</strong></p>${productionDestinationMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="submit" class="primary-button">Salvar destino</button></div></form>`, {onMount(root){
-      root._productionDestinationReady=mountProductionDestination(root,product);
-      root.querySelector('#menu-production-destination-form')?.addEventListener('submit',async event=>{event.preventDefault();try{await persistProductionDestination(root,product.id);if(typeof onSaved==='function')await onSaved();else{closeModal();await refreshProductionRoutes();if(isRouteActive('products'))renderProductsList();showToast('Destino do pedido atualizado.','success');}}catch(error){showToast(error.message,'error');}});
+    openModal('Configure o destino no Estoque', `<p><strong>${escapeHtml(product.name)}</strong> ainda não tem destino operacional.</p><p>Defina no cadastro do Estoque se o item é atendimento direto ou se deve seguir para um setor de Produção/KDS.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Agora não</button><button type="button" class="primary-button" data-open-inventory-item>Abrir no Estoque</button></div>`, {onMount(root){
+      root.querySelector('[data-open-inventory-item]')?.addEventListener('click',async()=>{
+        closeModal();
+        await window.PdvAppNavigation?.navigate?.('inventory');
+        window.PdvCatalogAdmin?.openInventoryItem?.(product.id);
+      });
     }});
   }
 
-  function recipeStatusMeta(product) {
+  async function addMenuSourceProduct(product) {
+    if(!product)return;
+    try{
+      const mode=await ensureMenuProductHasDestination(product);
+      if(!mode){openInventoryConfigurationRequired(product);return;}
+      const saved=await api.saveProduct({...product,menuEnabled:true});
+      const index=state.products.findIndex(item=>item.id===saved.id);
+      if(index>=0)state.products[index]=saved;else state.products.push(saved);
+      closeModal();
+      renderProducts();
+      showToast('Item adicionado ao Cardápio.','success');
+    }catch(error){showToast(error.message,'error');}
+  }
+
+  function recipeStatusMeta(product) {  function recipeStatusMeta(product) {
     if (!product?.prepared) return null;
     if (product.recipeStockStatus === 'OUT') return { label:'Indisponível por insumo', detail:'Sem insumo suficiente para uma porção' };
     if (product.recipeStockStatus === 'LOW') return { label:'Insumo baixo', detail:`Até ${Number(product.recipeCapacity || 0)} porção(ões)` };
@@ -677,13 +708,13 @@
 
   function productsListHtml() {
     const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
-    return products.map((product) => { const status=recipeStatusMeta(product); return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(productionDestinationLabel(product.id))}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}<button class="secondary-button" data-product-destination-edit="${product.id}">Destino</button><button class="secondary-button" data-edit-product="${product.id}">Ver origem</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button></div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
+    return products.map((product) => { const status=recipeStatusMeta(product); const destination=productionDestinationLabel(product.id); const missingDestination=destination==='Destino: não configurado'; return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(destination)}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}${missingDestination?`<button class="secondary-button" data-product-inventory-route="${product.id}">Configurar no Estoque</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">Ver origem</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button></div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
   }
 
   function bindProductRows(root = content) {
     root.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
     root.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
-    root.querySelectorAll('[data-product-destination-edit]').forEach(button=>button.addEventListener('click',()=>openMenuDestinationForm(state.products.find(product=>product.id===button.dataset.productDestinationEdit))));
+    root.querySelectorAll('[data-product-inventory-route]').forEach(button=>button.addEventListener('click',async()=>{await window.PdvAppNavigation?.navigate?.('inventory');window.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.productInventoryRoute);}));
     root.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openMenuSourceDetails(state.products.find((product) => product.id === button.dataset.editProduct))));
     root.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
   }
@@ -736,7 +767,7 @@
       const hiddenIngredients=rows.filter(({product,recipe})=>product.active&&!recipe&&product.usageType==='INGREDIENT').length;
       host.innerHTML=`<p class="menu-source-help">Escolha o que será vendido. Produtos de venda direta e Fichas Técnicas podem entrar no Cardápio.</p><div class="field"><label for="menu-source-search">Buscar</label><input id="menu-source-search" placeholder="Nome, SKU ou código de barras"></div>${hiddenIngredients?'<p class="menu-source-note">Insumos usados apenas em fichas técnicas permanecem no Estoque e não aparecem nesta seleção.</p>':''}<div id="menu-source-groups">${renderGroup('Produtos para venda direta',stock,'stock','menu-stock-title')}${renderGroup('Fichas Técnicas',recipes,'recipe','menu-recipe-title')}</div>`;
       host.querySelector('#menu-source-search')?.addEventListener('input',event=>{const term=String(event.target.value||'').toLowerCase();host.querySelectorAll('[data-add-menu-source]').forEach(button=>button.hidden=Boolean(term)&&!button.textContent.toLowerCase().includes(term));});
-      host.querySelectorAll('[data-add-menu-source]').forEach(button=>button.addEventListener('click',()=>{const product=products.find(item=>item.id===button.dataset.addMenuSource);if(!product)return;openMenuDestinationForm(product,async()=>{const saved=await api.saveProduct({...product,menuEnabled:true});const index=state.products.findIndex(item=>item.id===saved.id);if(index>=0)state.products[index]=saved;else state.products.push(saved);await refreshProductionRoutes();closeModal();renderProducts();showToast('Item adicionado ao Cardápio com destino definido.','success');});}));
+      host.querySelectorAll('[data-add-menu-source]').forEach(button=>button.addEventListener('click',()=>{const product=products.find(item=>item.id===button.dataset.addMenuSource);if(product)void addMenuSourceProduct(product);}));
     } catch(error) { host.innerHTML=`<div class="empty-state">Não foi possível carregar as origens do Cardápio: ${escapeHtml(error.message)}</div>`; }
   }
   async function openMenuSourceDetails(product) {
@@ -874,9 +905,10 @@ function openCategoryForm() {
       }});
     } catch(error) { showToast(error.message,'error'); }
   }
-  window.PdvCatalogAdmin=Object.freeze({
+  window.PdvCatalogAdmin = Object.freeze({
     openStockProductForm:(product=null)=>openProductForm(product),
-    openRecipeForm:(product=null)=>void openRecipeForm(product)
+    openRecipeForm:(product=null)=>void openRecipeForm(product),
+    openInventoryItem
   });
 
   async function mountRecipeEditor(root, product) {
