@@ -22,3 +22,7 @@
 .restaurant-management-head{padding:14px 16px;border:1px solid #dbe3ee;border-radius:14px;background:#f8fafc}
 .restaurant-management-head h2{margin:0 0 4px;color:#18365c}
 .restaurant-management-head p{margin:0;color:#64748b}
+
+.restaurant-routing-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #e7b768;border-radius:14px;background:#fff8e8;color:#6f4510}
+.restaurant-routing-alert>div{min-width:0}.restaurant-routing-alert strong{display:block;font-size:16px;color:#7a4607}.restaurant-routing-alert small{display:block;margin-top:4px;color:#8b5c20;white-space:normal;overflow-wrap:anywhere}.restaurant-routing-alert p{margin:6px 0 0;font-size:12px;color:#795729}.restaurant-row[data-routing-pending-product]{padding-inline:10px;border:1px solid #efd8ab;border-radius:10px;background:#fffbf2}.restaurant-status.PENDING{background:#fff0cf;color:#8a5610}
+@media(max-width:720px){.restaurant-routing-alert{align-items:stretch;flex-direction:column}.restaurant-routing-alert .restaurant-btn{align-self:flex-start}}
