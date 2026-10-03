@@ -437,7 +437,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-finance-surface='finance']",
+      "selector": "#ops-finance-form",
       "name": "financeiro-lancamentos-visivel",
       "timeoutMs": 10000
     },
