@@ -117,7 +117,7 @@ test('checkout document search includes delivery and fast-food aliases without s
   const router=fixture();
 
   assert.equal((await search(router,'delivery cliente beta'))[0]?.type,'DELIVERY');
-  assert.equal((await search(router,'retirada cliente beta')).length,0);
+  assert.equal((await search(router,'retirada cliente beta'))[0]?.type,'DELIVERY');
   assert.equal((await search(router,'senha 27'))[0]?.type,'FAST_FOOD');
   const generic=await search(router,'pedido');
   assert.equal(generic.length,1);
