@@ -144,10 +144,9 @@
       "timeoutMs": 10000
     },
     {
-      "action": "waitFor",
+      "action": "expectVisible",
       "selector": "button[data-access-tab='devices']",
-      "name": "gerente-sem-tab-dispositivos",
-      "state": "detached",
+      "name": "gerente-tab-dispositivos",
       "timeoutMs": 10000
     },
     {
