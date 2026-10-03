@@ -25,6 +25,16 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
         if(!matchesSearch([table.label,table.id,session.id,'mesa mesas comanda comandas alimentacao'],q))continue;
         rows.push({type:'COMMAND',id:session.id,number:table.label,label:`${table.label} · Comanda`,status:session.status,totalCents:session.totalCents,customerName:null,saleId:session.checkoutSaleId||null,openedAt:session.openedAt});
       }
+      for(const order of runtime.delivery?.list?.()||[]){
+        if(!order.saleId)continue;const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')continue;
+        if(!matchesSearch([order.customerName,order.id,order.fulfillmentType,'delivery entrega retirada pedido pedidos'],q))continue;
+        rows.push({type:'DELIVERY',id:order.id,number:order.id,label:`${order.customerName||'Pedido'} · ${order.fulfillmentType==='PICKUP'?'Retirada':'Entrega'}`,status:order.status,totalCents:sale.totalCents,customerName:order.customerName||null,saleId:sale.id,openedAt:order.createdAt});
+      }
+      for(const order of runtime.fastFood?.list?.()||[]){
+        if(!order.saleId)continue;const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')continue;
+        if(!matchesSearch([order.dailyNumber,order.id,'fast food fast-food balcao senha senhas pedido pedidos'],q))continue;
+        rows.push({type:'FAST_FOOD',id:order.id,number:String(order.dailyNumber),label:`Senha ${order.dailyNumber}`,status:order.status,totalCents:sale.totalCents,customerName:null,saleId:sale.id,openedAt:order.createdAt});
+      }
     }
     if(runtime.modules?.isEnabled('WHOLESALE')){
       for(const order of runtime.orders.listOrders({origin:'WHOLESALE'})){
@@ -48,6 +58,18 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
         const terminalId=actor.terminalId;if(!terminalId)throw new CheckoutDocumentHttpError(400,'Terminal obrigatorio.');
         const result=runtime.restaurant.checkoutToSale(session.id,{terminalId,operatorId:actor.userId,actor},runtime.sales);
         json(res,200,{type:'COMMAND',document:result.session,sale:result.sale});return true;
+      }
+      if((m=match(pathname,'/api/v1/checkout/documents/delivery/:id/open'))&&req.method==='POST'){
+        if(!runtime.modules?.isEnabled('FOOD'))throw new CheckoutDocumentHttpError(409,'Alimentacao desativada.');
+        const order=runtime.delivery?.get?.(m.id);if(!order?.saleId)throw new CheckoutDocumentHttpError(404,'Pedido sem venda aberta.');
+        const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')throw new CheckoutDocumentHttpError(409,'Venda do pedido nao esta aberta.');
+        json(res,200,{type:'DELIVERY',document:order,sale});return true;
+      }
+      if((m=match(pathname,'/api/v1/checkout/documents/fast-food/:id/open'))&&req.method==='POST'){
+        if(!runtime.modules?.isEnabled('FOOD'))throw new CheckoutDocumentHttpError(409,'Alimentacao desativada.');
+        const order=runtime.fastFood?.get?.(m.id);if(!order?.saleId)throw new CheckoutDocumentHttpError(404,'Senha sem venda aberta.');
+        const sale=runtime.sales.getSale(order.saleId);if(!sale||sale.status!=='OPEN')throw new CheckoutDocumentHttpError(409,'Venda da senha nao esta aberta.');
+        json(res,200,{type:'FAST_FOOD',document:order,sale});return true;
       }
       if((m=match(pathname,'/api/v1/checkout/documents/order/:id/open'))&&req.method==='POST'){
         if(!runtime.modules?.isEnabled('WHOLESALE'))throw new CheckoutDocumentHttpError(409,'Atacado desativado.');
