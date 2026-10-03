@@ -7,7 +7,8 @@ A release só é considerada publicável quando todos os gates abaixo são compr
 - [ ] `npm ci --no-audit --no-fund` instala exatamente o grafo do lockfile raiz.
 - [ ] `npm run verify:release` verde no HEAD final.
 - [ ] Perfil QA `release` verde, incluindo regressões de checkout, módulos e navegação.
-- [ ] Certificação fiscal cumulativa verde quando aplicável.
+- [ ] Confirmar que o instalador V1 não contém ACBr, sidecar, fiscal-runtime ou fiscal-packs.
+- [ ] Confirmar impressão/reimpressão de documentos NÃO FISCAIS para venda, pedidos/comandas, cozinha/KDS e caixa.
 - [ ] Windows x64 NSIS gerado no CI a partir do mesmo HEAD.
 - [ ] Executável empacotado passa no smoke test sem encerramento prematuro.
 - [ ] `latest.yml` e blockmap do updater são gerados e validados.
