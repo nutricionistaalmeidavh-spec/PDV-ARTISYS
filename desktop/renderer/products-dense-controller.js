@@ -219,6 +219,9 @@
     if (event.target.closest('[data-product-photo-edit], [data-product-photo-remove], [data-edit-product], #new-product, #new-category, #sync-product-photos')) {
       productsLoadedAt = 0;
     }
+    if (event.target.closest('#open-product-stock')) {
+      document.querySelector('#sidebar-nav [data-route="inventory"]')?.click();
+    }
   }, true);
 
   const onRouteMounted = ({ route }) => {
