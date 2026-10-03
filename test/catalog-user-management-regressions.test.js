@@ -214,3 +214,34 @@ test('HTTP password reset requires users.reset_password independently of users.e
     assert.equal(ctx.runtime.catalog.verifyUserPassword('cashier','senha-trocada-456').ok,true);
   }finally{await ctx.close();}
 });
+
+
+test('direct core APIs deny capabilities hidden by the renderer',async()=>{
+  const ctx=await httpFixture();
+  try{
+    const profile=ctx.runtime.profiles.createProfile({
+      id:'profile-people-only',
+      name:'Somente pessoas',
+      permissions:['users.view']
+    },{kind:'system',id:'system'});
+    ctx.runtime.catalog.createUser({
+      id:'people-only',username:'people-only',name:'Somente Pessoas',role:'cashier',profileId:profile.id,password:'senha-people-123'
+    },{kind:'system',id:'system'});
+    const token=await login(ctx,'people-only','senha-people-123');
+
+    assert.equal((await api(ctx,token,'/api/v1/users')).status,200);
+    for(const pathname of [
+      '/api/v1/categories',
+      '/api/v1/products',
+      '/api/v1/customers',
+      '/api/v1/inventory',
+      '/api/v1/cash/sessions',
+      '/api/v1/sales',
+      '/api/v1/returns'
+    ])assert.equal((await api(ctx,token,pathname)).status,403,pathname);
+
+    assert.equal((await api(ctx,token,'/api/v1/customers',{method:'POST',body:{name:'Bloqueado'}})).status,403);
+    assert.equal((await api(ctx,token,'/api/v1/sales',{method:'POST',body:{id:'blocked-sale',saleNumber:'B-1'}})).status,403);
+    assert.equal((await api(ctx,token,'/api/v1/cash/sessions',{method:'POST',body:{openingFloatCents:0}})).status,403);
+  }finally{await ctx.close();}
+});
