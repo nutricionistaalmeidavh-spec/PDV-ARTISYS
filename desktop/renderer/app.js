@@ -241,14 +241,27 @@
   }
 
   async function loadCommonData() {
-    const [categories, products, customers, sellers] = await Promise.all([api.categories(), api.products(), api.customers(), api.sellers()]);
+    const plan=window.PdvAccessPolicy?.commonDataLoadPlan?.(state.user)||{
+      categories:false,products:false,productPhotos:false,customers:false,sellers:false,users:false,cash:false
+    };
+    const [categories, products, customers, sellers] = await Promise.all([
+      plan.categories?api.categories():Promise.resolve([]),
+      plan.products?api.products():Promise.resolve([]),
+      plan.customers?api.customers():Promise.resolve([]),
+      plan.sellers?api.sellers():Promise.resolve([])
+    ]);
     state.categories = categories; state.products = products; state.customers = customers; state.sellers = sellers;
-    try { state.photoSyncStatus = await api.syncProductPhotos(false); monitorProductPhotoSync(); } catch (error) { state.photoSyncStatus={failed:1,lastError:error.message}; }
+    if(plan.productPhotos){
+      try { state.photoSyncStatus = await api.syncProductPhotos(false); monitorProductPhotoSync(); }
+      catch (error) { state.photoSyncStatus={failed:1,lastError:error.message}; }
+    }else state.photoSyncStatus=null;
     if (!state.selectedSellerId || !sellers.some((seller) => seller.id === state.selectedSellerId)) state.selectedSellerId = sellers.find((seller) => seller.id === state.user?.id)?.id || sellers[0]?.id || '';
-    if (window.PdvAccessPolicy?.hasCapability(state.user,'users.view')) {
+    if (plan.users) {
       try { state.users = await api.users(true); } catch { state.users = []; }
-    }
-    try { state.cashSession = await api.openCash(state.config.terminalId); } catch { state.cashSession = null; }
+    } else state.users=[];
+    if(plan.cash){
+      try { state.cashSession = await api.openCash(state.config.terminalId); } catch { state.cashSession = null; }
+    }else state.cashSession=null;
   }
 
   async function restoreCheckoutState() {
