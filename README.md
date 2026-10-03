@@ -1,4 +1,4 @@
-# ArtiSys PDV 1.4.23
+# ArtiSys PDV 2.0.0
 
 PDV desktop da ArtiSys para operação **local-first**, self-hosted e em rede LAN. O funcionamento diário não depende de SaaS, nuvem ou internet: venda, estoque, caixa, impressão, módulos operacionais e persistência permanecem no ambiente do estabelecimento.
 
@@ -108,7 +108,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Módulos reutili
 ## Requisitos e desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 1.4.23.
+- Windows x64 é o alvo de empacotamento comercial 2.0.0.
 
 ```bash
 npm install
