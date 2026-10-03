@@ -22,6 +22,19 @@ env:
   ARTISYS_QA_FORM_FIXTURE: qa-managed-user-fixture
 
 jobs:
+  npm-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Run repository verification
+        run: npm run verify
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
