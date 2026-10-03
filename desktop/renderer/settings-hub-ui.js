@@ -3,7 +3,9 @@
 (() => {
   const content=document.getElementById('route-content');
   const lifecycle=window.PdvUiLifecycle;
-  if(!content||!lifecycle)return;
+  const ApiClient=window.PdvApiClient?.ApiClient;
+  if(!content||!lifecycle||!ApiClient)return;
+  const api=new ApiClient();
   const categories=[
     ['company','Empresa','Dados da empresa e implantação'],
     ['team','Equipe e permissões','Pessoas, papéis e acessos'],
@@ -42,18 +44,63 @@
   }
   function addDataServerCard(root){
     if(root.querySelector('#settings-data-server'))return;
+    const canManage=Boolean(window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,'deployment.manage'));
     const card=document.createElement('section');card.id='settings-data-server';card.className='ops-card';
-    card.innerHTML=`<div class="ops-card-head"><div><h2>Dados e servidor</h2><p class="ops-muted">Escolha explicitamente onde os dados ficam e qual aparelho atende os outros terminais.</p></div></div><div class="settings-mode-summary" role="status" aria-live="polite"></div><form id="settings-data-server-form" class="field-grid"><div class="field wide"><label for="settings-server-mode">Este computador será</label><select id="settings-server-mode" name="mode"><option value="local">Apenas meu caixa · dados neste computador</option><option value="lan-host">PC principal · atende aparelhos da rede local</option><option value="lan-client">Terminal cliente · conecta a um PC principal</option><option value="own-server">Terminal conectado a servidor próprio</option></select></div><div class="field" data-server-option="port"><label for="settings-server-port">Porta da rede local</label><input id="settings-server-port" name="port" type="number" min="1" max="65535" value="4174"></div><div class="field wide" data-server-option="serverUrl"><label for="settings-server-url">Endereço do servidor</label><input id="settings-server-url" name="serverUrl" placeholder="http://192.168.0.10:4174 ou https://servidor.exemplo"></div><div class="field" data-server-option="terminalId"><label for="settings-terminal-id">Identificação do terminal</label><input id="settings-terminal-id" name="terminalId"></div><div class="field" data-server-option="terminalKey"><label for="settings-terminal-key">Chave de pareamento</label><input id="settings-terminal-key" name="terminalKey" type="password" autocomplete="off"></div><div class="modal-actions wide"><button type="button" class="secondary-button" data-test>Testar conexão</button><button type="submit" class="primary-button">Salvar escolha e reiniciar</button></div><p class="ops-muted wide">A troca para servidor externo não migra dados locais automaticamente. A aplicação informa e bloqueia a mudança se houver dados sem migração.</p></form>`;
+    card.innerHTML=`<div class="ops-card-head"><div><h2>Dados e servidor</h2><p class="ops-muted">Veja onde os dados ficam e qual papel este computador exerce na instalação.</p></div></div><div class="settings-mode-summary" role="status" aria-live="polite"></div><form id="settings-data-server-form" class="field-grid"><div class="field wide"><label for="settings-server-mode">Este computador será</label><select id="settings-server-mode" name="mode" ${canManage?'':'disabled'}><option value="local">Apenas meu caixa · dados neste computador</option><option value="lan-host">PC principal · atende aparelhos da rede local</option><option value="lan-client">Terminal cliente · conecta a um PC principal</option><option value="own-server">Terminal conectado a servidor próprio</option></select></div><div class="field" data-server-option="port"><label for="settings-server-port">Porta da rede local</label><input id="settings-server-port" name="port" type="number" min="1" max="65535" value="4174" ${canManage?'':'disabled'}></div><div class="field wide" data-server-option="serverUrl"><label for="settings-server-url">Endereço do servidor</label><input id="settings-server-url" name="serverUrl" placeholder="http://192.168.0.10:4174 ou https://servidor.exemplo" ${canManage?'':'disabled'}></div><div class="modal-actions wide"><button type="button" class="secondary-button" data-test>Testar conexão</button><button type="submit" class="primary-button" ${canManage?'':'disabled'}>Salvar escolha e reiniciar</button></div><p class="ops-muted wide">${canManage?'A troca para servidor externo não migra dados locais automaticamente. A aplicação informa e bloqueia a mudança se houver dados sem migração. Para conectar um computador novo ao PC principal, use o código temporário de pareamento no primeiro acesso.':'Somente administradores autorizados podem alterar o papel deste computador ou a origem dos dados.'}</p></form>`;
     root.appendChild(card);
     const form=card.querySelector('form');
     const modeSummary=card.querySelector('.settings-mode-summary');
-    const modeCopy={local:['Somente neste computador','Os dados permanecem neste PC. Nenhum acesso pela rede é iniciado.'], 'lan-host':['PC principal da rede local','Este PC atende os terminais autorizados na mesma rede; a rede só é ativada após salvar.'], 'lan-client':['Terminal conectado','Este aparelho usa o servidor indicado abaixo. Se ele estiver indisponível, o sistema não troca silenciosamente para dados locais.'], 'own-server':['Servidor próprio','Este terminal conecta ao endereço configurado. A conexão não muda nem envia dados até você salvar.']};
-    const syncModeFields=()=>{const mode=form.elements.mode.value;const [title,copy]=modeCopy[mode]||modeCopy.local;modeSummary.innerHTML=`<strong>${title}</strong><span>${copy}</span>`;card.querySelectorAll('[data-server-option]').forEach(field=>{const key=field.dataset.serverOption;const visible=key==='port'?mode==='lan-host':key==='serverUrl'?['lan-client','own-server'].includes(mode):['terminalId','terminalKey'].includes(key)?mode==='lan-client':false;field.hidden=!visible;});card.querySelector('[data-test]').hidden=!['lan-client','own-server'].includes(mode);};
+    const modeCopy={
+      local:['Somente neste computador','Os dados permanecem neste PC. Nenhum acesso pela rede é iniciado.'],
+      'lan-host':['PC principal da rede local','Este PC atende terminais autorizados na mesma rede.'],
+      'lan-client':['Terminal conectado','Este aparelho usa o PC principal configurado; a credencial técnica permanece protegida pelo sistema operacional.'],
+      'own-server':['Servidor próprio','Este terminal conecta ao endereço remoto configurado.']
+    };
+    const syncModeFields=()=>{
+      const mode=form.elements.mode.value;
+      const [title,copy]=modeCopy[mode]||modeCopy.local;
+      modeSummary.innerHTML=`<strong>${title}</strong><span>${copy}</span>`;
+      card.querySelectorAll('[data-server-option]').forEach(field=>{
+        const key=field.dataset.serverOption;
+        const visible=key==='port'?mode==='lan-host':key==='serverUrl'?['lan-client','own-server'].includes(mode):false;
+        field.hidden=!visible;
+      });
+      card.querySelector('[data-test]').hidden=!canManage||!['lan-client','own-server'].includes(mode);
+    };
     form.elements.mode.addEventListener('change',syncModeFields);
     syncModeFields();
-    window.artisysDesktop.dataServer.state().then(value=>{form.elements.mode.value=value.mode;form.elements.port.value=value.port;form.elements.serverUrl.value=value.serverUrl||'';form.elements.terminalId.value=value.terminalId||'';form.elements.terminalKey.value=value.terminalKey||'';syncModeFields();}).catch(error=>{modeSummary.replaceChildren();const title=document.createElement('strong');title.textContent='Não foi possível confirmar o modo salvo';const detail=document.createElement('span');detail.textContent=String(error?.message||'Verifique a conexão antes de alterar esta opção.');modeSummary.append(title,detail);});
-    form.querySelector('[data-test]').addEventListener('click',async()=>{try{await window.artisysDesktop.dataServer.test({serverUrl:form.elements.serverUrl.value});window.ToastUI?.show?.('Servidor encontrado.','success');}catch(error){window.ToastUI?.show?.(error.message,'error');}});
-    form.addEventListener('submit',async event=>{event.preventDefault();try{await window.artisysDesktop.dataServer.save({mode:form.elements.mode.value,port:Number(form.elements.port.value),serverUrl:form.elements.serverUrl.value,terminalId:form.elements.terminalId.value,terminalKey:form.elements.terminalKey.value});await window.artisysDesktop.dataServer.restart();}catch(error){window.ToastUI?.show?.(error.message,'error');}});
+    window.artisysDesktop.dataServer.state().then(value=>{
+      form.elements.mode.value=value.mode;
+      form.elements.port.value=value.port;
+      form.elements.serverUrl.value=value.serverUrl||'';
+      syncModeFields();
+      if(value.mode==='lan-host'&&Array.isArray(value.lanAddresses)&&value.lanAddresses.length){
+        const address=value.lanAddresses.map(item=>`${item}:${value.lanPort||value.port||4174}`).join(' · ');
+        modeSummary.querySelector('span').textContent=`Este PC atende terminais autorizados em ${address}.`;
+      }
+    }).catch(error=>{
+      modeSummary.replaceChildren();
+      const title=document.createElement('strong');title.textContent='Não foi possível confirmar o modo salvo';
+      const detail=document.createElement('span');detail.textContent=String(error?.message||'Verifique a conexão antes de alterar esta opção.');
+      modeSummary.append(title,detail);
+    });
+    form.querySelector('[data-test]').addEventListener('click',async()=>{
+      if(!canManage)return;
+      try{await window.artisysDesktop.dataServer.test({serverUrl:form.elements.serverUrl.value});window.ToastUI?.show?.('Servidor encontrado.','success');}
+      catch(error){window.ToastUI?.show?.(error.message,'error');}
+    });
+    form.addEventListener('submit',async event=>{
+      event.preventDefault();
+      if(!canManage){window.ToastUI?.show?.('Somente administradores autorizados podem alterar a implantação.','error');return;}
+      try{
+        await window.artisysDesktop.dataServer.save({
+          mode:form.elements.mode.value,
+          port:Number(form.elements.port.value),
+          serverUrl:form.elements.serverUrl.value
+        },api.sessionToken);
+        await window.artisysDesktop.dataServer.restart();
+      }catch(error){window.ToastUI?.show?.(error.message,'error');}
+    });
   }
   function ensureHub(root){
     let hub=root.querySelector('#settings-hub');
