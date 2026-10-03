@@ -38,17 +38,54 @@ test('P1 food workspace uses the user-facing task name Mesas e comandas',()=>{
   assert.doesNotMatch(restaurant,/<h1>Restaurante<\/h1>/);
 });
 
-test('P1 food workspace puts operational choices before explanatory area details',()=>{
+test('P0 food workspace is an operational hub instead of a second configuration surface',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
-  const task=modules.indexOf('<h2>Como o estabelecimento atende</h2>');
-  const explanation=modules.indexOf('<h2>Incluído na área</h2>');
-  assert.notEqual(task,-1);
-  assert.notEqual(explanation,-1);
-  assert.ok(task<explanation,'operational choices must appear before the explanatory area summary');
+  const css=read('desktop/renderer/product-support.css');
+  assert.match(modules,/<h2 id="food-operation-title">Operação<\/h2>/);
+  assert.match(modules,/Abra o fluxo que precisa usar agora/);
+  assert.doesNotMatch(modules,/Como o estabelecimento atende/);
+  assert.doesNotMatch(modules,/Incluído na área/);
+  assert.match(modules,/data-food-capability="RESTAURANT"/);
+  assert.match(modules,/data-food-capability="FAST_FOOD"/);
+  assert.match(modules,/data-food-capability="DELIVERY"/);
+  assert.match(modules,/data-food-capability="SELF_SERVICE"/);
+  assert.match(css,/\.food-workspace \.food-module-card\{[^}]*min-height:118px/);
+  assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+});
+
+test('P0 KDS expands to desktop lanes and keeps compact mobile mode',()=>{
+  const mobile=read('server/mobile/app.js');
+  const css=read('server/mobile/styles.css');
+  assert.match(mobile,/classList\.toggle\('kds-mode',type==='KITCHEN'\)/);
+  assert.match(mobile,/KDS local · painel responsivo por ordem de chegada/);
+  assert.match(css,/@media\(min-width:901px\)[\s\S]*main\.kds-mode \.kitchen-board\{grid-template-columns:repeat\(3,minmax\(280px,1fr\)\)/);
+  assert.match(css,/@media\(max-width:900px\)[\s\S]*main\.kds-mode \.kitchen-board\{grid-template-columns:1fr\}/);
 });
 
 test('P1 active optional areas expose a direct continuation action in settings',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
   assert.match(modules,/data-open-module-area/);
   assert.match(modules,/Abrir área/);
+});
+
+
+test('P1 admin Home exposes Configurações without adding it to cashier or manager Home',()=>{
+  const model=require('../desktop/renderer/home-role-model');
+  const ui=require('../desktop/renderer/ui-model');
+  const routes=role=>model.homeForRole(role,ui.HOME_TILES).sections.flatMap(section=>section.tiles.map(tile=>tile.route));
+  assert.equal(routes('admin').includes('settings'),true);
+  assert.equal(routes('manager').includes('settings'),false);
+  assert.equal(routes('cashier').includes('settings'),false);
+  assert.equal(model.HUB_TILES.settings.label,'Configurações');
+});
+
+test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{
+  const app=read('desktop/renderer/app.js');
+  const css=read('desktop/renderer/classic-home-ui.css');
+  assert.match(app,/data-flow-hub="\$\{escapeHtml\(title\)\}"/);
+  assert.match(app,/renderFlowHub\('Cadastros','Clientes, produtos, estoque e equipe\.'/);
+  assert.match(app,/description:'Saldos e movimentações\.'/);
+  assert.match(app,/description:'Pessoas, funções e permissões\.'/);
+  assert.match(css,/flow-hub-page\[data-flow-hub="Cadastros"\] \.home-tile \{ min-height:104px/);
+  assert.match(css,/@media \(min-width:621px\)[\s\S]*flow-hub-page\[data-flow-hub="Cadastros"\] \.flow-hub-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });

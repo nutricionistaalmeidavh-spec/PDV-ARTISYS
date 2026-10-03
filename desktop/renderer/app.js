@@ -277,7 +277,7 @@
 
   function renderFlowHub(title, subtitle, cards) {
     const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvHomeRoleModel?.canAccessRoute(state.user?.role,card.route));
-    content.innerHTML=`<section class="page flow-hub-page"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
+    content.innerHTML=`<section class="page flow-hub-page" data-flow-hub="${escapeHtml(title)}"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
 
@@ -999,11 +999,11 @@ function openCategoryForm() {
         return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
       },
       products: () => renderProducts(),
-      catalog: () => renderFlowHub('Cadastros','Clientes e estrutura operacional do negócio, com acesso ajustado ao perfil atual.',[
-        {route:'customers',label:'Clientes',description:'Cadastro, histórico e limite de crédito.',icon:'users',tone:'green'},
-        {route:'products',label:'Produtos',description:'Itens de venda, preços, categorias, variantes e fichas técnicas.',icon:'document',tone:'purple'},
-        {route:'inventory',label:'Estoque',description:'Saldos, insumos, movimentações, compras e logística.',icon:'cubes',tone:'teal'},
-        {route:'sellers',label:'Equipe e acessos',description:'Usuários, funções, permissões e comissões.',icon:'users',tone:'orange'}
+      catalog: () => renderFlowHub('Cadastros','Clientes, produtos, estoque e equipe.',[
+        {route:'customers',label:'Clientes',description:'Cadastro, histórico e crédito.',icon:'users',tone:'green'},
+        {route:'products',label:'Produtos',description:'Itens de venda e fichas técnicas.',icon:'document',tone:'purple'},
+        {route:'inventory',label:'Estoque',description:'Saldos e movimentações.',icon:'cubes',tone:'teal'},
+        {route:'sellers',label:'Equipe e acessos',description:'Pessoas, funções e permissões.',icon:'users',tone:'orange'}
       ]),
       'post-sale': () => renderFlowHub('Vendas e devoluções','Histórico de vendas, comprovantes, trocas e devoluções.',[
         {route:'sales',label:'Últimas vendas',description:'Consultar vendas recentes e seus detalhes.',icon:'history',tone:'slate'},

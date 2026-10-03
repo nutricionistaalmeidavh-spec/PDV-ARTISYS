@@ -119,7 +119,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Preservação de scroll reage a `route:before`/`route:mounted` e mantém a intenção de retorno por `data-scroll-restore`/back.
 - Primeiro acesso reage a `auth:rendered`; `app.js` publica auth somente depois de ligar os formulários canônicos.
 - Observação de venda reage ao lifecycle do Balcão e ao update semântico `sales/sale-detail`.
-- Admin, configuração fiscal, monitor fiscal e NFS-e montam exclusivamente pela rota `settings`, anunciam a própria extensão e não observam mutações de DOM.
+- Admin e o Settings Hub montam exclusivamente pela rota `settings`, anunciam extensões semânticas e não observam mutações de DOM. A V1 não possui configuração fiscal, monitor fiscal ou NFS-e no renderer.
 - O Settings Hub não possui mais observer de compatibilidade: extensões de Configurações devem publicar `route:updated('settings')` após inserir sua superfície.
 - Orçamento máximo de `MutationObserver` no renderer após P3/P4: **14**. Nenhum novo observer pode ser incluído sem reduzir ou atualizar explicitamente esse contrato.
 
@@ -150,7 +150,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - O **Núcleo ArtiSys** permanece sempre ativo: Balcão/Caixa, Cardápio/Estoque, Clientes e Gestão/Relatórios não são módulos opcionais.
 - A aba Áreas carrega automaticamente; não existe uma segunda etapa “Gerenciar módulos”.
 - Ativar ou desativar uma área atualiza a navegação imediatamente e preserva os domínios canônicos compartilhados.
-- O menu lateral e o Início usam apenas fluxos de alto nível. Para caixa: Início, Balcão, Caixa, Vendas e devoluções e Cadastros. Para gerente/admin, soma-se Gestão financeira.
+- O menu lateral e o Início usam apenas fluxos de alto nível. Para caixa: Início, Balcão, Caixa, Vendas e devoluções e Cadastros. Para gerente, soma-se Gestão financeira. Para administrador, somam-se Gestão financeira e o atalho Configurações; a ativação de áreas continua exclusiva de Configurações → Áreas.
 - **Cadastros** agrupa Clientes, Cardápio/produtos, Estoque e Equipe, filtrando as opções conforme a permissão do perfil.
 - Rotas internas permanecem estáveis para atalhos, deep links e integrações; simplificar a navegação não remove funcionalidades.
 - Alimentação e Atacado aparecem como entradas adicionais somente quando a área está ativa e o perfil possui acesso.

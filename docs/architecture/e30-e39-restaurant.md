@@ -8,7 +8,7 @@ O servidor autoritativo permanece local. Desktop, terminais e dispositivos móve
 
 ## E30 — impressão não fiscal
 
-`non-fiscal-service.js` usa o `print-service.js` existente e apenas adiciona renderizações de pré-conta, cozinha e fechamento de caixa. Jobs continuam persistidos em `print_jobs`, com retry e reimpressão. A emissão fiscal é independente deste caminho.
+`non-fiscal-service.js` usa o `print-service.js` existente e apenas adiciona renderizações de pré-conta, cozinha e fechamento de caixa. Jobs continuam persistidos em `print_jobs`, com retry e reimpressão. A V1 não realiza emissão fiscal neste ou em qualquer outro caminho operacional.
 
 ## E31 — mesas e comandas
 

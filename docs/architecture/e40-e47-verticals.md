@@ -21,7 +21,7 @@ SQLite local / estoque / caixa / impressão não fiscal
 - Internet não é necessária para a operação diária.
 - Pagamentos dos novos fluxos são registros manuais; não há TEF, gateway ou API bancária embutida.
 - Documentos operacionais/comerciais dos fluxos E40–E47 são **NÃO FISCAL**.
-- A camada fiscal legada continua isolada e não é dependência dos módulos E40–E47.
+- A V1 não contém runtime de emissão fiscal; os módulos E40–E47 dependem somente do núcleo operacional e da impressão não fiscal.
 
 ## Schema
 
@@ -83,7 +83,7 @@ Cada perfil define explicitamente:
 
 Um código que não corresponda ao perfil configurado deve ser rejeitado.
 
-## Impressão e fiscal
+## Impressão não fiscal
 
 Pré-conta, ticket de produção/cozinha e documentos operacionais permanecem não fiscais. Configurações de item relevantes à produção — como tamanho, frações de sabores, borda e adicionais — são preservadas no KDS e na impressão.
 

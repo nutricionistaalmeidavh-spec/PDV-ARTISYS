@@ -90,3 +90,25 @@ body.home-view-classic .home-grid[hidden] { display:none !important; }
   .classic-home-section[data-home-section="admin-control"] .home-tile,
   .classic-home-section[data-home-section="admin-control"] .home-tile:nth-child(n+4) { grid-column:1 / -1; }
 }
+
+
+/* P1: Home administrativa e hub de Cadastros mais densos, sem scroll desnecessário. */
+@media (min-width:1181px) {
+  #classic-home-grid[data-home-role="admin"] .classic-home-tiles { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  #classic-home-grid[data-home-role="admin"] .home-tile { grid-column:auto; }
+}
+@media (min-width:761px) and (max-width:1180px) {
+  #classic-home-grid[data-home-role="admin"] .classic-home-tiles { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #classic-home-grid[data-home-role="admin"] .home-tile { grid-column:auto; }
+}
+.flow-hub-page[data-flow-hub="Cadastros"] .flow-hub-grid { gap:10px; }
+.flow-hub-page[data-flow-hub="Cadastros"] .home-tile { min-height:104px; padding:13px 16px; }
+.flow-hub-page[data-flow-hub="Cadastros"] .home-tile .tile-icon { margin-bottom:4px; }
+.flow-hub-page[data-flow-hub="Cadastros"] .home-tile h2 { font-size:18px; margin-bottom:3px; }
+.flow-hub-page[data-flow-hub="Cadastros"] .home-tile p { max-width:88%; font-size:13px; line-height:1.25; }
+@media (min-width:621px) {
+  .flow-hub-page[data-flow-hub="Cadastros"] .flow-hub-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:620px) {
+  .flow-hub-page[data-flow-hub="Cadastros"] .flow-hub-grid { grid-template-columns:1fr; }
+}

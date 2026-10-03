@@ -5,9 +5,8 @@ const path=require('node:path');
 const {spawnSync}=require('node:child_process');
 
 const testDir=path.join(process.cwd(),'test');
-const excluded=name=>name==='e20-fiscal.test.js'||name.startsWith('fiscal-');
 const files=fs.readdirSync(testDir)
-  .filter(name=>name.endsWith('.test.js')&&!excluded(name))
+  .filter(name=>name.endsWith('.test.js'))
   .sort()
   .map(name=>path.join('test',name));
 
