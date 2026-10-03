@@ -1166,10 +1166,8 @@ function openCategoryForm() {
       }
 
       const restored = await restorePersistedSession();
-      if (restored) {
-        if (!dataServer.selected && dataServer.setupIntent === 'new-installation') showPrimaryRoleChoice();
-        return;
-      }
+      if (restored && !dataServer.selected && dataServer.setupIntent === 'new-installation') showPrimaryRoleChoice();
+      if (restored) return;
       showLogin(!dataServer.selected && dataServer.setupIntent==='new-installation'?'Entre como administrador para concluir a configuração deste computador.':'');
     } catch (error) {
       setOnline(false);
