@@ -1,15 +1,11 @@
-name = "artisys-account"
+name = "pdv-artisys"
 main = "src/worker.mjs"
 compatibility_date = "2026-09-25"
+keep_vars = true
 
+# Referência somente. Antes de transformar este arquivo em wrangler.toml,
+# copie do painel o ID do D1 já associado ao Worker pdv-artisys.
 [[d1_databases]]
-binding = "DB"
-database_name = "artisys-account"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
-migrations_dir = "migrations"
-
-[[send_email]]
-name = "EMAIL"
-
-[vars]
-EMAIL_FROM = "noreply@REPLACE_WITH_ONBOARDED_DOMAIN"
+binding = "artisys"
+database_name = "artisys"
+database_id = "REPLACE_WITH_EXISTING_D1_DATABASE_ID"
