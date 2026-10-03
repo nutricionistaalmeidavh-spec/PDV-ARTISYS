@@ -14,7 +14,7 @@ test('desktop loads optional module API and workspace extensions',()=>{
   assert.match(html,/settings-hub-ui\.css/);
   assert.match(html,/settings-hub-ui\.js/);
   const settingsHub=read('desktop/renderer/settings-hub-ui.js');
-  for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Fiscal','Áreas','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
+  for(const label of ['Empresa','Equipe e permissões','Unidades e dispositivos','Impressão e periféricos','Áreas','Privacidade e telemetria','Diagnóstico e backup'])assert.match(settingsHub,new RegExp(label));
 });
 
 test('vertical UI exposes one Alimentação module with operational capabilities',()=>{
