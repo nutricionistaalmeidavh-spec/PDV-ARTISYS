@@ -4,6 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const {spawnSync}=require('node:child_process');
 
 const root=path.join(__dirname,'..');
 const workflowPath=path.join(root,'.github','workflows','qa-multi-device-lan.yml');
@@ -21,6 +22,8 @@ test('multi-device LAN QA is isolated in a manual-only workflow',()=>{
 
 test('multi-device LAN QA runner exposes business invariant coverage',()=>{
   assert.equal(fs.existsSync(runnerPath),true,'qa/multi-device/run.mjs must exist');
+  const syntax=spawnSync(process.execPath,['--check',runnerPath],{encoding:'utf8'});
+  assert.equal(syntax.status,0,syntax.stderr||syntax.stdout);
   const runner=fs.readFileSync(runnerPath,'utf8');
   for(const invariant of [
     'price-propagation',
