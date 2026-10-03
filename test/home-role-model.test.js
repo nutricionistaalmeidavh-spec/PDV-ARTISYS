@@ -79,3 +79,28 @@ test('Access Center only exposes profile assignment when profile catalog is visi
   assert.equal(model.load.profiles,true);
   assert.equal(model.load.permissions,true);
 });
+
+
+test('desktop common-data loading is capability-aware for partial profiles',()=>{
+  const readOnly=user(['users.view']);
+  assert.deepEqual(policy.commonDataLoadPlan(readOnly),{
+    categories:false,
+    products:false,
+    productPhotos:false,
+    customers:false,
+    sellers:false,
+    users:true,
+    cash:false
+  });
+
+  const operator=user(['sales.create','products.view','customers.view','cash.view']);
+  assert.deepEqual(policy.commonDataLoadPlan(operator),{
+    categories:true,
+    products:true,
+    productPhotos:true,
+    customers:true,
+    sellers:false,
+    users:false,
+    cash:true
+  });
+});
