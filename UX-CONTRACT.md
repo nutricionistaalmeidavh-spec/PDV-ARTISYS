@@ -65,7 +65,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - O desktop mantém no máximo uma notificação transitória gerenciada por vez. Feedback de sucesso sem ação pendente é descartado ao trocar de rota; erros permanecem até o ciclo normal de fechamento para não ocultar falhas.
 - No Balcão, quando existe item na venda, a região de carrinho preserva espaço mínimo suficiente para conferir item, quantidade/preço e total antes de **Finalizar venda**, inclusive no viewport compacto do gate.
 - **Produtos** é a visão do catálogo de venda (nome, preço, categoria e disponibilidade comercial). **Estoque** continua sendo a superfície operacional para saldo, insumos e fichas técnicas; Produtos oferece um atalho explícito para essa área sem duplicar o cadastro canônico.
-- Ações de criação usam texto/glyphs portáveis () e não dependem de glifos específicos da fonte do sistema.
+- Ações de criação usam texto/glyphs portáveis (`+`) e não dependem de glifos específicos da fonte do sistema.
 
 
 ## Restaurante: equipe móvel e PWA
