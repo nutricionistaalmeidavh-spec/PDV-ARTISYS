@@ -149,3 +149,30 @@ test('desktop wiring exposes the native Access Center and preserves logical dele
   assert.doesNotThrow(()=>new Function(managementApi));
   assert.doesNotThrow(()=>new Function(accessUi));
 });
+
+
+test('HTTP user editing requires users.edit without also requiring users.create',async()=>{
+  const ctx=await httpFixture();
+  try{
+    const profile=ctx.runtime.profiles.createProfile({
+      id:'profile-user-editor',
+      name:'Editor de pessoas',
+      permissions:['users.view','users.edit']
+    },{kind:'system',id:'system'});
+    ctx.runtime.catalog.createUser({
+      id:'editor1',username:'editor',name:'Editor',role:'cashier',profileId:profile.id,password:'senha-editor-123'
+    },{kind:'system',id:'system'});
+    const editor=await login(ctx,'editor','senha-editor-123');
+
+    let response=await api(ctx,editor,'/api/v1/users',{method:'POST',body:{
+      id:'cashier1',username:'cashier',name:'Operador editado',active:true
+    }});
+    assert.equal(response.status,201);
+    assert.equal((await response.json()).name,'Operador editado');
+
+    response=await api(ctx,editor,'/api/v1/users',{method:'POST',body:{
+      id:'new-by-editor',username:'novo',name:'Novo',password:'senha-novo-123',active:true
+    }});
+    assert.equal(response.status,403);
+  }finally{await ctx.close();}
+});
