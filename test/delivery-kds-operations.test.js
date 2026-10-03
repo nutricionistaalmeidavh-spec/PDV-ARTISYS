@@ -83,13 +83,14 @@ test('cancelling delivery cancels its active production tickets and KDS cannot r
   const ctx=fixture();
   try{
     const order=ctx.runtime.delivery.create({customerName:'Cancelado',fulfillmentType:'PICKUP',paymentMethod:'PIX',items:[{productId:'burger',quantity:1}]},admin);
-    ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
+    const linkedSale=ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
     const ticket=ctx.runtime.kitchen.listTickets().find(item=>item.sourceType==='DELIVERY'&&item.sourceId===order.id);
     ctx.runtime.kitchen.updateTicketStatus(ticket.id,'PREPARING',admin);
     const cancelled=ctx.runtime.delivery.cancel(order.id,'Cliente desistiu',admin);
     assert.equal(cancelled.status,'CANCELLED');
     assert.equal(ctx.runtime.kitchen.getTicket(ticket.id).status,'CANCELLED');
     assert.equal(ctx.runtime.delivery.get(order.id).status,'CANCELLED');
+    assert.equal(ctx.runtime.sales.getSale(linkedSale.id).status,'CANCELLED');
     assert.throws(()=>ctx.runtime.kitchen.updateTicketStatus(ticket.id,'PREPARING',admin),/cancelado/i);
     assert.equal(ctx.runtime.delivery.get(order.id).status,'CANCELLED');
   }finally{ctx.close();}
