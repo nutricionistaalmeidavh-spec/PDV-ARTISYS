@@ -44,7 +44,7 @@ test('checkout keeps payment and finalization in a fixed panel footer',()=>{
   const js=read('desktop/renderer/ux-home-checkout.js');
   const css=read('desktop/renderer/ux-home-checkout.css');
   assert.match(js,/sale-checkout-footer/);
-  assert.match(css,/\.sale-panel\s*\{[^}]*grid-template-rows:[^;}]*minmax\(0,1fr\)[^;}]*auto[^}]*overflow-y:hidden/s);
+  assert.match(css,/\.sale-panel\s*\{[^}]*grid-template-rows:[^;}]*minmax\\(84px,1fr\\)[^;}]*auto[^}]*overflow-y:hidden/s);
   assert.match(css,/\.sale-checkout-footer\s*\{/);
   assert.match(css,/\.sale-cart-region \.cart-list\s*\{[^}]*min-height:0[^}]*overflow:auto/s);
 });
@@ -85,7 +85,7 @@ test('navigation labels remain readable and shell scripts do not block HTML pars
 test('tablet desktop shell collapses secondary topbar context and checkout tools without clipping',()=>{
   const css=read('desktop/renderer/ux-home-checkout.css');
   assert.match(css,/@media \(max-width:1100px\)[\s\S]*#network-status[\s\S]*\.clock[\s\S]*display:none/s);
-  assert.match(css,/@media \(max-width:1100px\)[\s\S]*\.checkout-tools\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
+  assert.match(css,/@media \(max-width:1100px\)[\s\S]*\.checkout-tools\s*\{[^}]*grid-template-columns:repeat\(2,minmax\\(84px,1fr\\)\)/s);
   assert.match(css,/@media \(max-width:1100px\)[\s\S]*\.checkout-tools \.search-field\s*\{[^}]*grid-column:1\/-1/s);
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   assert.equal(flow.steps.some(step=>step.action==='expectNoHorizontalOverflow'&&step.selector==='#app-topbar'),true);
