@@ -10,7 +10,7 @@ async function setupTutorial(page,scenario){
       barcode:'789000000001',
       categoryId:null,
       unit:'UN',
-      usageType:'RETAIL',
+      usageType:'DIRECT',
       salePriceCents:1000,
       costCents:400,
       minimumStock:0,
