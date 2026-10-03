@@ -65,12 +65,31 @@ test('V1 infrastructure has no fiscal telemetry, diagnostics, restore companions
   assert.doesNotMatch(read('js/core/pdv-event-types.js'), /FISCAL_|fiscal\./);
 });
 
-test('V1 installer excludes fiscal code and external fiscal resources', () => {
+test('V1 repository and installer contain no fiscal runtime, sidecar or provider source', () => {
   const pkg=JSON.parse(read('package.json'));
   assert.deepEqual(pkg.build.extraResources, []);
-  const files=pkg.build.files.join('\n');
-  for(const marker of ['!desktop/fiscal-*.cjs','!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
+  assert.doesNotMatch(pkg.build.files.join('\n'), /fiscal|nfse|acbr/i);
   assert.equal(Object.keys(pkg.scripts).some(key=>key.startsWith('fiscal:')||key.startsWith('test:fiscal:')),false);
+  for(const target of [
+    'desktop/fiscal-bridge.cjs',
+    'desktop/fiscal-credential-store.cjs',
+    'desktop/fiscal-runtime-paths.cjs',
+    'desktop/fiscal-sidecar-runtime.cjs',
+    'desktop/nfse-provider-resolver.cjs',
+    'desktop/renderer/fiscal-config-ui.js',
+    'desktop/renderer/fiscal-monitor.js',
+    'desktop/renderer/nfse-ui.js',
+    'desktop/renderer/product-fiscal-fields.js',
+    'js/core/database/fiscal-migrations.js',
+    'js/domains/fiscal',
+    'js/domains/nfse',
+    'server/fiscal-sidecar',
+    'server/fiscal-block5-router.js',
+    'server/fiscal-block6-router.js',
+    'server/nfse-router.js',
+    'fiscal-runtime',
+    'fiscal-packs'
+  ]) assert.equal(fs.existsSync(path.join(root,target)),false,target);
 });
 
 test('V1 release manifests advertise non-fiscal printing but no fiscal or NFS-e capability', () => {
@@ -109,9 +128,10 @@ test('V1 keeps regression tests for sales printing restaurant KDS wholesale and 
   }
 });
 
-test('V1 test runner excludes legacy fiscal suites while keeping V1 guardrails', () => {
-  const runner=read('scripts/run-v1-tests.js');
-  assert.match(runner,/e20-fiscal\.test\.js/);
-  assert.match(runner,/startsWith\('fiscal-'\)/);
-  assert.equal(JSON.parse(read('package.json')).scripts.test,'node scripts/run-v1-tests.js');
+test('V1 runs the complete remaining root test suite without fiscal exclusions', () => {
+  const pkg=JSON.parse(read('package.json'));
+  assert.equal(pkg.scripts.test,'node --test test/*.test.js');
+  assert.equal(fs.existsSync(path.join(root,'scripts/run-v1-tests.js')),false);
+  const legacy=fs.readdirSync(path.join(root,'test')).filter(name=>name==='e20-fiscal.test.js'||name==='acbr-monitor-adapter.test.js'||name.startsWith('fiscal-'));
+  assert.deepEqual(legacy,[]);
 });

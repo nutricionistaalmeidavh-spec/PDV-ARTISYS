@@ -23,7 +23,6 @@ test('Entrega 1 keeps a written inventory of every Products/Customers extension 
     'Regra de paridade',
     'Produtos — superfície atual',
     'Fotos de produto',
-    'Dados fiscais — funcionalidade injetada',
     'Variações/subitens — funcionalidade injetada',
     'Kits e combos — funcionalidade injetada',
     'Clientes — superfície atual',
@@ -87,16 +86,6 @@ test('renderer API contract preserves catalog, photo and customer operations use
 });
 
 test('Products extension modules keep their DOM hooks and canonical features', () => {
-  const fiscal = read('desktop/renderer/product-fiscal-fields.js');
-  requireMarkers(fiscal, [
-    '#product-form',
-    '#new-product',
-    '[data-edit-product]',
-    'fiscalProfileId',
-    'fiscalGtin',
-    'saveProductFiscal'
-  ], 'produto fiscal');
-
   const variants = read('desktop/renderer/product-variants-ui.js');
   requireMarkers(variants, [
     '.page .data-card',

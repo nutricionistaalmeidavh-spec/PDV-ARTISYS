@@ -11,7 +11,7 @@ O perfil **server-terminal** é a instalação principal do ArtiSys PDV 1.0. Ess
 5. Para aceitar terminais remotos, mantenha a LAN habilitada e libere a porta TCP 4174 somente na rede local confiável. `PDV_LAN_HOST` e `PDV_LAN_PORT` podem alterar bind/porta.
 6. Gere um código temporário de pareamento para cada terminal cliente.
 7. Execute um backup manual e valide-o antes de colocar o caixa em produção.
-8. Conclua o checklist de implantação; dependências de hardware/fiscal ausentes devem ficar como `BLOCKED_EXTERNAL`.
+8. Conclua o checklist de implantação; dependências externas de hardware, rede ou periféricos ausentes devem ficar como `BLOCKED_EXTERNAL`.
 
 ## Dados e atualização
 
