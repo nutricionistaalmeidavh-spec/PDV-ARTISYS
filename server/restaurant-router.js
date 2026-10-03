@@ -127,6 +127,8 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/stations'){json(response,201,runtime.kitchen.upsertStation(await body(request),actor));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/assignments'){json(response,200,runtime.kitchen.listAssignments());return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/assignments'){const data=await body(request);json(response,200,runtime.kitchen.assignProduct(data.productId,data.stationId,actor));return true;}
+    const productRouting=pathname.match(/^\/api\/v1\/restaurant\/kitchen\/routing\/([^/]+)$/);
+    if(request.method==='GET'&&productRouting){json(response,200,runtime.kitchen.getProductRoute(decodeURIComponent(productRouting[1]))||null);return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/routing'){json(response,200,runtime.kitchen.listProductRoutes());return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/routing'){const data=await body(request);json(response,200,runtime.kitchen.configureProductRoute(data.productId,{mode:data.mode,stationId:data.stationId||null},actor));return true;}
     const unassign=pathname.match(/^\/api\/v1\/restaurant\/kitchen\/assignments\/([^/]+)$/);
