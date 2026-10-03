@@ -27,8 +27,20 @@ test('generated Wrangler config targets only the pdv-artisys worker and preserve
   assert.equal(config.name,'pdv-artisys');
   assert.equal(config.main,'cloudflare/account/src/worker.mjs');
   assert.equal(config.keep_vars,true);
+  assert.deepEqual(config.secrets,{required:['ADMIN_TOKEN','ACTIVATION_PEPPER','RECOVERY_PEPPER']});
   assert.deepEqual(config.d1_databases,[{binding:'artisys',database_name:'artisys',database_id:'db-123',migrations_dir:'cloudflare/account/migrations'}]);
   assert.deepEqual(config.r2_buckets,[{binding:'artisysr2',bucket_name:'artisyspdv'}]);
+  assert.deepEqual(config.previews,{});
+});
+
+test('preview builds never bind the production D1 or R2 resources',async()=>{
+  const {buildPreviewWranglerConfig}=await loadBuild();
+  const config=buildPreviewWranglerConfig();
+  assert.equal(config.name,'pdv-artisys');
+  assert.equal(config.main,'cloudflare/account/src/worker.mjs');
+  assert.equal('d1_databases' in config,false);
+  assert.equal('r2_buckets' in config,false);
+  assert.equal('secrets' in config,false);
   assert.deepEqual(config.previews,{});
 });
 
