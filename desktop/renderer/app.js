@@ -1043,6 +1043,21 @@ function openCategoryForm() {
     }
   }
 
+  async function openCheckoutSale(saleId) {
+    const id=String(saleId||'').trim();if(!id)throw new Error('Venda do pedido não encontrada.');
+    if(state.sale?.id&&state.sale.id!==id&&state.sale.items?.length)throw new Error('Há uma venda em andamento no Balcão. Suspenda ou finalize antes de cobrar outro pedido.');
+    let sale=await api.sale(id);
+    if(sale.status==='SUSPENDED')sale=await api.resumeSale(id);
+    if(sale.status!=='OPEN')throw new Error('Esta venda não está disponível para cobrança no Balcão.');
+    clearCheckoutDocumentContext();
+    state.sale=sale;
+    state.discountPercent=sale.subtotalCents?Number(((sale.discountCents/sale.subtotalCents)*100).toFixed(2)):0;
+    state.selectedProductId=null;
+    await navigate('checkout');
+    renderCheckout();
+    return sale;
+  }
+
   function registerBaseRoutes() {
     const ownedRoutes = {
       home: () => renderHome(),
@@ -1074,6 +1089,6 @@ function openCategoryForm() {
   }
 
   registerBaseRoutes();
-  window.PdvAppNavigation = Object.freeze({ navigate });
+  window.PdvAppNavigation = Object.freeze({ navigate,openCheckoutSale });
   void boot();
 })();
