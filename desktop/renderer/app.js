@@ -1011,22 +1011,98 @@ function openCategoryForm() {
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; window.PdvCurrentAccess=state.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      try {
+        const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId });
+        state.user = login.user;
+        window.PdvCurrentAccess=state.user;
+        updateTopbar();
+        await loadCommonData();
+        await navigate('home');
+        if (!state.config.dataServer?.selected && state.config.dataServer?.setupIntent === 'new-installation') {
+          showPrimaryRoleChoice();
+          return;
+        }
+        authOverlay.classList.add('hidden');
+        authOverlay.innerHTML = '';
+        window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' });
+      } catch (error) { showToast(error.message, 'error'); }
+    });
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
+  }
+
+  function showPrimaryRoleChoice() {
+    if(!window.PdvAccessPolicy?.hasCapability(state.user,'deployment.manage')){
+      showToast('Somente administradores autorizados podem definir o papel deste computador.','error');
+      return;
+    }
+    authOverlay.classList.remove('hidden');
+    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Configuração deste computador</h1><p>Agora escolha onde os dados desta instalação ficarão. Essa decisão pode ser alterada depois por um administrador autorizado.</p><div class="device-choice-grid"><button type="button" class="device-choice-card" data-primary-mode="local"><strong>Usar somente neste computador</strong><span>Ideal para um único caixa. Os dados ficam neste PC e nenhum acesso pela rede é aberto.</span></button><button type="button" class="device-choice-card" data-primary-mode="lan-host"><strong>Tornar este o PC principal</strong><span>Os dados ficam neste computador e outros caixas, totens e painéis autorizados podem se conectar pela rede local.</span></button></div><div class="field" data-primary-port hidden><label>Porta da rede local</label><input name="primaryPort" type="number" min="1" max="65535" value="4174"></div><div class="modal-actions"><button type="button" class="primary-button" data-confirm-primary disabled>Salvar e continuar</button></div></section>`;
+    let selectedMode='';
+    const portField=authOverlay.querySelector('[data-primary-port]');
+    const confirm=authOverlay.querySelector('[data-confirm-primary]');
+    authOverlay.querySelectorAll('[data-primary-mode]').forEach(button=>button.addEventListener('click',()=>{
+      selectedMode=button.dataset.primaryMode;
+      authOverlay.querySelectorAll('[data-primary-mode]').forEach(item=>item.classList.toggle('selected',item===button));
+      portField.hidden=selectedMode!=='lan-host';
+      confirm.disabled=false;
+    }));
+    confirm.addEventListener('click',async()=>{
+      if(!selectedMode)return;
+      confirm.disabled=true;
+      try{
+        await window.artisysDesktop.dataServer.save({mode:selectedMode,port:Number(authOverlay.querySelector('[name="primaryPort"]').value||4174)},api.sessionToken);
+        await window.artisysDesktop.dataServer.restart();
+      }catch(error){confirm.disabled=false;showToast(error.message,'error');}
+    });
+    window.PdvUiLifecycle?.emit('auth:rendered',{surface:'primary-role'});
   }
 
   function showDataServerChoice() {
     authOverlay.classList.remove('hidden');
-    authOverlay.innerHTML = `<section class="auth-card" style="max-width:620px"><div class="auth-logo">A</div><h1>Onde os dados serão salvos?</h1><p>Escolha conscientemente como esta instalação vai funcionar. O modo pode ser alterado depois em Configurações → Dados e servidor.</p><form id="data-server-form"><div class="field"><label>Modo de funcionamento</label><select name="mode"><option value="local">Somente neste computador</option><option value="lan-host">PC principal da rede local</option><option value="lan-client">Terminal conectado a um PC principal</option><option value="own-server">Servidor próprio pela internet</option></select></div><div data-server-host hidden><div class="field"><label>Porta da rede local</label><input name="port" type="number" min="1" max="65535" value="4174"></div><p><small>Outros aparelhos poderão acessar este computador somente depois da sua confirmação.</small></p></div><div data-server-client hidden><div class="field"><label>Endereço do servidor</label><input name="serverUrl" placeholder="http://192.168.0.10:4174"></div><div class="field"><label>Identificação deste terminal</label><input name="terminalId" value="PDV-01"></div><div class="field"><label>Chave de pareamento</label><input name="terminalKey" type="password" autocomplete="off"></div><button class="secondary-button" type="button" data-test-server>Testar conexão</button></div><button class="primary-button" type="submit">Salvar escolha e continuar</button></form></section>`;
+    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Como este computador será usado?</h1><p>Escolha se este PC vai iniciar uma instalação ArtiSys ou se será conectado a uma empresa já configurada.</p><div class="device-choice-grid" data-device-choice-grid><button type="button" class="device-choice-card" data-new-installation><strong>Iniciar uma nova instalação</strong><span>Este computador guardará os dados da empresa. Depois da ativação e criação do administrador, você escolhe se ele será usado sozinho ou como PC principal da rede.</span></button><button type="button" class="device-choice-card" data-connect-existing><strong>Conectar a uma instalação existente</strong><span>Use este computador como caixa, cozinha, balcão, totem ou outro terminal ligado a um PC principal já configurado.</span></button></div><form id="terminal-pairing-form" class="device-pairing-form" hidden><div class="field"><label>Endereço do PC principal</label><input name="serverUrl" placeholder="http://192.168.0.10:4174" required></div><div class="field"><label>Código de pareamento</label><input name="pairingCode" data-pairing-code inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label>Nome deste computador</label><input name="terminalName" value="Caixa 02" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-back-device-choice>Voltar</button><button type="submit" class="primary-button">Conectar</button></div><p class="ops-muted">A licença e o administrador pertencem ao PC principal. Este terminal recebe apenas uma credencial técnica protegida pelo sistema operacional.</p></form></section>`;
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'data-server' });
-    const form = authOverlay.querySelector('#data-server-form');
-    const update = () => { const mode=form.elements.mode.value; form.querySelector('[data-server-host]').hidden=mode!=='lan-host'; form.querySelector('[data-server-client]').hidden=!['lan-client','own-server'].includes(mode); form.elements.serverUrl.placeholder=mode==='own-server'?'https://pdv.suaempresa.com':'http://192.168.0.10:4174'; };
-    form.elements.mode.addEventListener('change', update); update();
-    form.querySelector('[data-test-server]').addEventListener('click', async()=>{try{await window.artisysDesktop.dataServer.test({serverUrl:form.elements.serverUrl.value});showToast('Servidor encontrado.','success');}catch(error){showToast(error.message,'error');}});
-    form.addEventListener('submit',async(event)=>{event.preventDefault();const button=form.querySelector('[type="submit"]');button.disabled=true;try{await window.artisysDesktop.dataServer.save({mode:form.elements.mode.value,port:Number(form.elements.port.value),serverUrl:form.elements.serverUrl.value,terminalId:form.elements.terminalId.value,terminalKey:form.elements.terminalKey.value});await window.artisysDesktop.dataServer.restart();}catch(error){button.disabled=false;showToast(error.message,'error');}});
+    const grid=authOverlay.querySelector('[data-device-choice-grid]');
+    const pairForm=authOverlay.querySelector('#terminal-pairing-form');
+    authOverlay.querySelector('[data-new-installation]').addEventListener('click',async()=>{
+      try{
+        const result=await window.artisysDesktop.dataServer.beginNewInstallation();
+        state.config={...state.config,dataServer:result.config};
+        await api.health();
+        const setup=await api.setupStatus();
+        if(setup.needsSetup)showSetup();
+        else showLogin('Entre como administrador para concluir a configuração deste computador.');
+      }catch(error){showToast(error.message,'error');}
+    });
+    authOverlay.querySelector('[data-connect-existing]').addEventListener('click',()=>{
+      grid.hidden=true;
+      pairForm.hidden=false;
+      pairForm.elements.serverUrl.focus();
+    });
+    authOverlay.querySelector('[data-back-device-choice]').addEventListener('click',()=>{
+      pairForm.hidden=true;
+      grid.hidden=false;
+    });
+    pairForm.addEventListener('submit',async(event)=>{
+      event.preventDefault();
+      const button=pairForm.querySelector('[type="submit"]');
+      button.disabled=true;
+      try{
+        const result=await window.artisysDesktop.dataServer.pair({
+          serverUrl:formValue(pairForm,'serverUrl'),
+          code:formValue(pairForm,'pairingCode'),
+          name:formValue(pairForm,'terminalName')
+        });
+        state.config={...state.config,dataServer:result.config};
+        showToast('Computador pareado. Reiniciando para entrar com um usuário local.','success');
+        await window.artisysDesktop.dataServer.restart();
+      }catch(error){button.disabled=false;showToast(error.message,'error');}
+    });
   }
 
-  async function restorePersistedSession() {
+    async function restorePersistedSession() {
     if (!api.sessionToken) return false;
     try {
       const session = await api.currentSession();
@@ -1071,22 +1147,30 @@ function openCategoryForm() {
     try {
       state.config = await api.initialize();
       updateTopbar();
-      if (!state.config.dataServer?.selected) {
-        renderSidebar(); document.body.dataset.activeRoute = 'home'; renderHome(); showDataServerChoice(); return;
-      }
-      await api.health();
-      setOnline(true);
-      const setup = await api.setupStatus();
       renderSidebar();
       document.body.dataset.activeRoute = 'home';
       renderHome();
+
+      const dataServer=state.config.dataServer||{};
+      if (!dataServer.selected && dataServer.setupIntent !== 'new-installation') {
+        showDataServerChoice();
+        return;
+      }
+
+      await api.health();
+      setOnline(true);
+      const setup = await api.setupStatus();
       if (setup.needsSetup) {
         showSetup();
         return;
       }
+
       const restored = await restorePersistedSession();
-      if (restored) return;
-      showLogin();
+      if (restored) {
+        if (!dataServer.selected && dataServer.setupIntent === 'new-installation') showPrimaryRoleChoice();
+        return;
+      }
+      showLogin(!dataServer.selected && dataServer.setupIntent==='new-installation'?'Entre como administrador para concluir a configuração deste computador.':'');
     } catch (error) {
       setOnline(false);
       renderSidebar();
