@@ -75,6 +75,8 @@ As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, audit
 - dispositivos de garçom, tablet de mesa, KDS e quiosque de autoatendimento com credenciais próprias;
 - QR individual por mesa com token opaco e possibilidade de rotação/revogação;
 - pedido do QR reaproveitando a mesma comanda, `restaurant.addOrder()` e despacho para cozinha;
+- compositor compartilhado de pedidos entre desktop, garçom, tablet e QR, preservando opções/adicionais e permitindo envio multi-item;
+- sessão de mesa com operador de abertura, garçom responsável, quantidade de pessoas e cliente, preservada até o faturamento no Balcão;
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
