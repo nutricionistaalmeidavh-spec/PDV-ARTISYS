@@ -64,16 +64,21 @@ class DomainEventDispatcher {
 
   async _drainPending() {
     const total = { attempted:0, dispatched:0, failed:0, failures:[] };
+    const attemptedEventIds = new Set();
 
     do {
       this._rerunRequested = false;
 
       while (true) {
-        const events = await this.outbox.listPending(this.batchSize);
-        if (!Array.isArray(events)) {
+        const listed = await this.outbox.listPending(this.batchSize);
+        if (!Array.isArray(listed)) {
           throw new TypeError('Domain event outbox listPending() must return an array');
         }
+        if (listed.length === 0) break;
+
+        const events = listed.filter(event => !attemptedEventIds.has(event?.eventId));
         if (events.length === 0) break;
+        for (const event of events) attemptedEventIds.add(event?.eventId);
 
         const result = await this._dispatchBatch(events);
         total.attempted += result.attempted;
