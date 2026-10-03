@@ -41,8 +41,18 @@ test('new installation exposes and enforces explicit commercial activation befor
     res=await fetch(`${ctx.base}/api/v1/setup/activation/verify`,{method:'POST',headers:installHeaders,body:JSON.stringify({email:'owner@example.com',code:'123456'})});
     assert.equal(res.status,200);
 
-    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'owner@example.com',password:'senha-forte-123'})});
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'other@example.com',password:'senha-forte-123'})});
+    assert.equal(res.status,409);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',password:'senha-forte-123'})});
+    assert.equal(res.status,409);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'OWNER@example.com',password:'senha-forte-123'})});
     assert.equal(res.status,201);
+    const admin=await res.json();
+    const activation=ctx.runtime.account.activation();
+    assert.equal(admin.email,'owner@example.com');
+    assert.equal(activation.ownerUserId,admin.id);
   } finally { await ctx.close(); }
 });
 

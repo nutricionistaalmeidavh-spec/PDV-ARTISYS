@@ -17,8 +17,9 @@ test('desktop API client exposes delegated return authorization', () => {
   assert.match(apiClientSource, /authorizeReturn\s*\(body\)\s*\{\s*return this\.request\('\/api\/v1\/auth\/authorize'/);
 });
 
-test('cashier flow uses one-time manager approval without replacing the PR 74 returns UI', () => {
-  assert.match(returnsSource, /const requiresApproval = \(\) => currentRole\(\) === 'cashier'/);
+test('return flow uses one-time approval when profile can manage but cannot approve directly', () => {
+  assert.match(returnsSource, /const directAllowed = \(\) => hasCapability\('returns\.approve'\)/);
+  assert.match(returnsSource, /const requiresApproval = \(\) => hasCapability\('returns\.manage'\)&&!directAllowed\(\)/);
   assert.match(returnsSource, /data-return-authorization/);
   assert.match(returnsSource, /api\.authorizeReturn\(/);
   assert.match(returnsSource, /scope:'return\.complete'/);
@@ -27,8 +28,8 @@ test('cashier flow uses one-time manager approval without replacing the PR 74 re
   assert.doesNotMatch(returnsSource, /const roleAllowed/);
 });
 
-test('manager and admin remain direct return authorizers while unsupported roles stay blocked', () => {
-  assert.match(returnsSource, /\['admin','manager'\]\.includes\(currentRole\(\)\)/);
-  assert.match(returnsSource, /const canOperate = \(\) => directAllowed\(\) \|\| requiresApproval\(\)/);
+test('direct return authorization depends on capabilities rather than role names', () => {
+  assert.match(returnsSource, /const canOperate = \(\) => hasCapability\('returns\.manage'\)/);
+  assert.doesNotMatch(returnsSource, /currentRole|\['admin','manager'\]/);
   assert.match(returnsSource, /Seu perfil não possui permissão para concluir devoluções/);
 });

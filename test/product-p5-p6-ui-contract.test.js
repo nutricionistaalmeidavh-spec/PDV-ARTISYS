@@ -19,11 +19,12 @@ test('P5 presents Core and optional areas directly without a second module manag
   assert.doesNotMatch(modules,/ops-load-establishment-modules|Gerenciar áreas|Gerenciar módulos/);
 });
 
-test('P6 keeps sidebar and Home focused on top-level workflows',()=>{
-  const roleModel=require('../desktop/renderer/home-role-model');
-  assert.deepEqual(roleModel.routesForRole('cashier'),['home','checkout','cash','post-sale','catalog']);
-  assert.deepEqual(roleModel.routesForRole('manager'),['home','checkout','cash','post-sale','catalog','financial-management']);
-  assert.deepEqual(roleModel.routesForRole('admin'),['home','checkout','cash','post-sale','catalog','financial-management']);
+test('P6 keeps sidebar and Home focused on capability-derived top-level workflows',()=>{
+  const policy=require('../desktop/renderer/access-policy');
+  const user=permissions=>({permissions});
+  assert.deepEqual(policy.routesForUser(user(['sales.create','sales.view','returns.view','cash.view','customers.view'])),['home','checkout','cash','post-sale','catalog']);
+  assert.deepEqual(policy.routesForUser(user(['sales.create','sales.view','returns.view','cash.view','customers.view','finance.view'])),['home','checkout','cash','post-sale','catalog','financial-management']);
+  assert.deepEqual(policy.routesForUser(user(['users.view','settings.view'])),['home','access','settings']);
 });
 
 test('P6 Cadastros hub exposes child tasks according to route permission',()=>{

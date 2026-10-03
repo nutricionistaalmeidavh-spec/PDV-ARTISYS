@@ -116,8 +116,8 @@ function createReturnAuthorizationRouter({
           sendJson(response, 401, { error:'Usuario ou senha de autorizacao invalidos.' });
           return true;
         }
-        if (!['manager','admin'].includes(String(verified.user.role || ''))) {
-          sendJson(response, 403, { error:'Autorizacao de gerente ou admin necessaria para devolucao.' });
+        if (!runtime.authorization.can({principal:{kind:'human',id:verified.user.id},capability:'returns.approve'})) {
+          sendJson(response, 403, { error:'Permissao para autorizar devolucoes necessaria.' });
           return true;
         }
         const issued = approvalStore.issue({
@@ -136,13 +136,16 @@ function createReturnAuthorizationRouter({
       }
 
       const result = await executeMutation(request, pathname, 201, async mutationId => {
-        let authorizedBy = { userId:session.userId, role:session.role, name:session.name || '' };
-        if (!['manager','admin'].includes(String(session.role || ''))) {
-          if (session.role !== 'cashier') {
-            const error = new Error('Permissao insuficiente.');
-            error.statusCode = 403;
-            throw error;
-          }
+        let authorizedBy = { userId:session.userId, name:session.name || '' };
+        const requesterPrincipal={kind:'human',id:session.userId};
+        const requesterCanManage=runtime.authorization.can({principal:requesterPrincipal,capability:'returns.manage'});
+        if(!requesterCanManage){
+          const error=new Error('Permissao insuficiente para registrar devolucao.');
+          error.statusCode=403;
+          throw error;
+        }
+        const requesterCanApprove=runtime.authorization.can({principal:requesterPrincipal,capability:'returns.approve'});
+        if (!requesterCanApprove) {
           const approvalToken = String(body.approvalToken || '').trim();
           if (!approvalToken) {
             const error = new Error('Autorizacao de gerente necessaria para devolucao.');
@@ -168,7 +171,7 @@ function createReturnAuthorizationRouter({
           ...returnInput,
           terminalId,
           operatorId:session.userId,
-          actor:{ userId:session.userId, role:session.role, terminalId },
+          actor:{ kind:'human', userId:session.userId, terminalId },
           authorizedBy,
           mutationId
         });

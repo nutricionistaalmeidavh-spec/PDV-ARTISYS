@@ -20,11 +20,11 @@ function createTelemetryRouter({runtime,sessionStore,requireTerminalAuth=false,b
    const session=activeSession(request,sessionStore);if(!session){sendJson(response,401,{error:'Sessao invalida ou expirada.'});return true;}
    if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE'){sendJson(response,401,{error:'Terminal nao autorizado.'});return true;}}
    if(settingMatch){
-    if(!['admin','manager'].includes(session.role)){sendJson(response,403,{error:'Permissao insuficiente.'});return true;}
+    if(!runtime.authorization.can({principal:{kind:'human',id:session.userId},capability:'settings.manage'})){sendJson(response,403,{error:'Permissao insuficiente.'});return true;}
     const key=settingMatch[1];if(!PRIVACY_SETTINGS.has(key)){sendJson(response,404,{error:'Configuracao nao encontrada.'});return true;}
     if(request.method==='DELETE'){sendJson(response,405,{error:'Configuracao de privacidade deve ser definida explicitamente.'});return true;}
     const body=await readJson(request,bodyLimitBytes);if(typeof body.value!=='boolean'){sendJson(response,422,{error:'Configuracao de privacidade exige valor booleano.'});return true;}
-    const saved=runtime.settings.set(key,body.value,{scope:'global',actor:{userId:session.userId,role:session.role,terminalId:session.terminalId||null}});
+    const saved=runtime.settings.set(key,body.value,{scope:'global',actor:{kind:'human',userId:session.userId,terminalId:session.terminalId||null}});
     if(body.value===false){if(key==='telemetry.enabled')runtime.telemetry.queue?.clear?.();else runtime.telemetry.queue?.discardEvents?.([...DIAGNOSTIC_EVENTS]);}
     sendJson(response,200,saved);return true;
    }

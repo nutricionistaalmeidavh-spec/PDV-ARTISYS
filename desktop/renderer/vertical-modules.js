@@ -38,7 +38,7 @@
   }
   async function loadModules(){const catalog=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');root.PdvModuleGate?.reconcile?.(catalog);mergeModuleCatalog(catalog);return modules;}
 
-  function moduleAllowed(module){const role=document.body.dataset.userRole;return Boolean(module&&Array.isArray(module.accessRoles)&&module.accessRoles.includes(role)&&typeof ROUTE_RENDERERS[module.routeId]==='function');}
+  function moduleAllowed(module){return Boolean(module&&module.accessCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.accessCapability)&&typeof ROUTE_RENDERERS[module.routeId]==='function');}
   const labelFor=module=>module?.name||module?.id||'';
   const areaFor=module=>module?.area&&typeof module.area==='object'?module.area:null;
   const moduleForRoute=routeId=>modules.find(module=>module.routeId===routeId)||null;
@@ -49,8 +49,8 @@
     const nav=document.getElementById('sidebar-nav');if(!nav)return;
     nav.querySelectorAll('[data-module-nav]').forEach(node=>node.remove());
     document.querySelectorAll('.restaurant-sidebar-entry').forEach(node=>node.remove());
-    if(!document.body.dataset.userRole)return;
-    const role=document.body.dataset.userRole;const destinations=new Map();
+    if(!root.PdvCurrentAccess)return;
+    const destinations=new Map();
     for(const module of modules){
       if(!module.enabled||!moduleAllowed(module))continue;
       const area=areaFor(module);if(!area)continue;
@@ -60,7 +60,7 @@
       else destinations.set(target,{target,label:labelFor(module),icon:module.icon,modules:[module]});
     }
     for(const item of destinations.values()){
-      const button=document.createElement('button');button.type='button';button.className='nav-button module-nav-button';button.dataset.moduleNav=item.target;button.dataset.moduleOpen=item.target;button.title=item.label;button.setAttribute('aria-label',item.label);button.dataset.userRole=role||'';button.innerHTML=`${root.PdvIcon?.(item.icon||'document',21)||''}<span class="module-nav-label">${escapeHtml(item.label)}</span>`;nav.appendChild(button);
+      const button=document.createElement('button');button.type='button';button.className='nav-button module-nav-button';button.dataset.moduleNav=item.target;button.dataset.moduleOpen=item.target;button.title=item.label;button.setAttribute('aria-label',item.label);button.dataset.accessCapability=item.modules[0]?.accessCapability||'';button.innerHTML=`${root.PdvIcon?.(item.icon||'document',21)||''}<span class="module-nav-label">${escapeHtml(item.label)}</span>`;nav.appendChild(button);
     }
   }
   function refreshModuleNavigation(){renderModuleNavigation();}
@@ -78,7 +78,6 @@
     if(!card||!card.isConnected)return;
     const body=card.querySelector('[data-establishment-modules-body]');
     if(!body)return;
-    const role=document.body.dataset.userRole;
     const impactCopy={
       FOOD:'Adiciona Alimentação ao menu com pedidos, Produção/KDS e canais de atendimento. Cardápio, estoque e caixa continuam compartilhados.',
       WHOLESALE:'Adiciona Atacado ao menu para políticas B2B e pedidos. O Balcão continua sendo o caixa e também aplica preço por quantidade em vendas avulsas.'
@@ -90,7 +89,7 @@
       ['Financeiro e Relatórios','Contas, DRE, indicadores e histórico operacional.']
     ];
     const moduleCard=module=>{
-      const canManage=Array.isArray(module.manageRoles)&&module.manageRoles.includes(role);
+      const canManage=Boolean(module.manageCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.manageCapability));
       const status=module.enabled?'Ativa':'Desativada';
       const included=module.id==='FOOD'?'<div class="module-included" aria-label="Recursos incluídos com Alimentação"><strong>Incluído ao ativar</strong><span>✓ Pedidos</span><span>✓ Produção / KDS</span><span>✓ Mesas, balcão, retirada, entrega e autoatendimento como canais</span></div>':'';
       const openAction=module.enabled?`<div class="vertical-actions"><button type="button" class="secondary-button" data-open-module-area="${escapeHtml(module.id)}">Abrir área</button></div>`:'';

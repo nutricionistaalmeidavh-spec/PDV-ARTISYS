@@ -19,7 +19,7 @@ function headers(device,mutationId){
 test('garçom tablet e QR compartilham configuração, observação e produção canônicas',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
-    rt.modules.setEnabled('FOOD',true,admin);
+    rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
     const user=rt.catalog.createUser({id:'admin-clean',username:'admin-clean',name:'Garçom QA',role:'admin',password:'Qa-Clean-12345!'},admin);
     const customer=rt.catalog.upsertCustomer({id:'customer-clean',name:'Cliente Multicanal'},admin);
     const product=rt.catalog.upsertProduct({id:'burger-clean',name:'Burger Multicanal',salePriceCents:2000,trackStock:false,menuEnabled:true,usageType:'DIRECT'},admin);

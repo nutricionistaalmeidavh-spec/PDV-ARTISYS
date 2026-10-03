@@ -3,6 +3,7 @@
 const { createHash }=require('node:crypto');
 const { writeAudit }=require('../audit-log');
 const { withTransaction }=require('../database/sqlite-database');
+const { principalFromActor }=require('../auth/principal-resolver');
 
 function ensureImportTables(db){
  db.exec(`CREATE TABLE IF NOT EXISTS import_batches(
@@ -34,7 +35,7 @@ function normalizeDigits(value){const text=String(value||'').replace(/\s+/g,'').
 function normalizeDoc(value){const text=String(value||'').replace(/\D+/g,'');return text||null;}
 function upper(value,fallback=''){return String(value||fallback).trim().toUpperCase();}
 
-function createImportService({db,catalog,inventory,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${Date.now()}`}={}){
+function createImportService({db,catalog,inventory,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${Date.now()}`}={}){
  if(!db||!catalog||!inventory)throw new TypeError('db, catalog and inventory are required.');ensureImportTables(db);
  const supported=new Set(['products','categories','customers','suppliers','inventory']);
  function findProduct(row){if(row.sku){const v=db.prepare('SELECT id FROM products WHERE sku=?').get(row.sku);if(v)return v.id;}if(row.barcode){const v=db.prepare('SELECT id FROM products WHERE barcode=?').get(row.barcode);if(v)return v.id;}return null;}
@@ -72,7 +73,7 @@ function createImportService({db,catalog,inventory,now=()=>new Date().toISOStrin
  }
  function applyRow(batch,row,actor){if(row.action==='SKIP')return;if(batch.type==='products'){catalog.upsertProduct({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='categories'){catalog.upsertCategory({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='customers'){catalog.upsertCustomer({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='suppliers'){catalog.upsertSupplier({...row.data,id:row.existingId||undefined},actor);return;}if(batch.type==='inventory'){const productId=row.existingId;const current=inventory.getBalance(productId);const delta=Number((row.data.quantity-current).toFixed(3));if(delta!==0)inventory.move({productId,type:current===0?'opening':(delta>0?'adjustment-in':'adjustment-out'),quantityDelta:delta,reason:'Importacao de estoque inicial',sourceType:'import',sourceId:batch.batchId},actor);}}
  function commit(batchId,{actor={}}={}){
-  const batch=getBatch(batchId);if(!batch)throw new Error('Lote de importacao nao encontrado.');if(batch.status==='COMMITTED')return batch;if(batch.status!=='PREVIEWED')throw new Error('Lote nao esta em preview.');if(batch.errors.length)throw new Error('Lote de importacao possui erros e nao pode ser confirmado.');if(!['admin','manager'].includes(String(actor.role||'')))throw new Error('Permissao insuficiente para importar dados.');
+  const batch=getBatch(batchId);if(!batch)throw new Error('Lote de importacao nao encontrado.');if(batch.status==='COMMITTED')return batch;if(batch.status!=='PREVIEWED')throw new Error('Lote nao esta em preview.');if(batch.errors.length)throw new Error('Lote de importacao possui erros e nao pode ser confirmado.');if(authorization)authorization.require({principal:principalFromActor(actor),capability:'products.manage'});
   try{
    withTransaction(db,()=>{
     for(const row of batch.rows)applyRow(batch,row,actor);

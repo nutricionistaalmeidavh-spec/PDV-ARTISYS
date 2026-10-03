@@ -15,17 +15,17 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new VerticalHttpError(401,'Sessao invalida ou expirada.');}
       if(runtime.catalog?.getUser){const user=runtime.catalog.getUser(session.userId);if(!user||!user.active){sessions.delete(token);throw new VerticalHttpError(401,'Sessao invalida ou expirada.');}session.role=user.role;session.name=user.name;}
       if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new VerticalHttpError(401,'Terminal nao autorizado.');}
-      return{actor:{userId:session.userId,role:session.role,terminalId:session.terminalId||null},terminalId:session.terminalId||null};
+      return{actor:{kind:'human',userId:session.userId,role:session.role,terminalId:session.terminalId||null},principal:{kind:'human',id:session.userId},terminalId:session.terminalId||null};
     }
-    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new VerticalHttpError(401,'Terminal nao autorizado.');return{actor:{userId:null,role:'terminal',terminalId:id},terminalId:id};}
+    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new VerticalHttpError(401,'Terminal nao autorizado.');return{actor:{kind:'device',id,surface:'terminal',terminalId:id},principal:{kind:'device',id,surface:'terminal'},terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new VerticalHttpError(401,'Token local invalido.');
-    return{actor:{userId:null,role:'system',terminalId:null},terminalId:null};
+    return{actor:{kind:'system',userId:null,terminalId:null},principal:{kind:'system',id:'system'},terminalId:null};
   }
-  function businessRole(actor,roles=['admin','manager']){const role=String(actor?.role||'');if(role==='system')return true;if(!roles.includes(role))throw new VerticalHttpError(403,'Permissao insuficiente.');return true;}
+  function requireCapability(actor,capability){const principal=actor?.kind==='human'?{kind:'human',id:actor.userId}:actor;try{return runtime.authorization.require({principal,capability});}catch(error){throw new VerticalHttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
   function moduleRule(moduleId,actor,manage=false){
     const method=manage?'requireManage':'requireAccess';
     if(typeof runtime.modules?.[method]==='function')return runtime.modules[method](moduleId,actor);
-    return businessRole(actor,manage?['admin']:['admin','manager']);
+    return requireCapability(actor,manage?'modules.manage':(moduleId==='FOOD'?'restaurant.access':'wholesale.access'));
   }
   async function mutate(request,pathname,statusCode,handler){const mutationId=String(request.headers['x-mutation-id']||'').trim();if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};return runtime.mutations.execute({mutationId,method:request.method,path:pathname},async()=>({statusCode,payload:await handler(mutationId)}));}
   return async function verticalRouter(request,response){
@@ -34,21 +34,21 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       const p=principal(request);const actor=p.actor;
       if(request.method==='GET'&&pathname==='/api/v1/vertical/modules'){json(response,200,runtime.modules.list());return true;}
 
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/option-groups'){businessRole(actor);json(response,201,runtime.catalogCustomization.upsertOptionGroup(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/options'){businessRole(actor);json(response,201,runtime.catalogCustomization.upsertOption(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/variants'){businessRole(actor);json(response,201,runtime.catalogCustomization.upsertVariant(await body(request),actor));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/combo-groups'){businessRole(actor);json(response,201,runtime.catalogCustomization.upsertComboGroup(await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/option-groups'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertOptionGroup(await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/options'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertOption(await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/variants'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertVariant(await body(request),actor));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/combo-groups'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertComboGroup(await body(request),actor));return true;}
       const linkGroup=pathname.match(/^\/api\/v1\/vertical\/catalog\/products\/([^/]+)\/option-groups\/([^/]+)$/);
-      if(request.method==='PUT'&&linkGroup){businessRole(actor);json(response,200,runtime.catalogCustomization.linkGroupToProduct(decodeURIComponent(linkGroup[1]),decodeURIComponent(linkGroup[2]),await body(request),actor));return true;}
+      if(request.method==='PUT'&&linkGroup){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.linkGroupToProduct(decodeURIComponent(linkGroup[1]),decodeURIComponent(linkGroup[2]),await body(request),actor));return true;}
       const comboItem=pathname.match(/^\/api\/v1\/vertical\/catalog\/combo-groups\/([^/]+)\/items$/);
-      if(request.method==='POST'&&comboItem){businessRole(actor);json(response,201,runtime.catalogCustomization.upsertComboItem(decodeURIComponent(comboItem[1]),await body(request),actor));return true;}
+      if(request.method==='POST'&&comboItem){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertComboItem(decodeURIComponent(comboItem[1]),await body(request),actor));return true;}
       const productConfig=pathname.match(/^\/api\/v1\/vertical\/catalog\/products\/([^/]+)\/configuration$/);
-      if(request.method==='GET'&&productConfig){businessRole(actor);json(response,200,runtime.catalogCustomization.getProductConfiguration(decodeURIComponent(productConfig[1])));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){businessRole(actor);json(response,200,runtime.catalogCustomization.priceConfiguredItem(await body(request)));return true;}
+      if(request.method==='GET'&&productConfig){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.getProductConfiguration(decodeURIComponent(productConfig[1])));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.priceConfiguredItem(await body(request)));return true;}
 
       const recipe=pathname.match(/^\/api\/v1\/vertical\/recipes\/([^/]+)$/);
-      if(request.method==='GET'&&recipe){businessRole(actor);const value=runtime.recipes.getRecipe(decodeURIComponent(recipe[1]));if(!value)throw new VerticalHttpError(404,'Ficha tecnica nao encontrada.');json(response,200,value);return true;}
-      if(request.method==='PUT'&&recipe){businessRole(actor);json(response,200,runtime.recipes.setRecipe(decodeURIComponent(recipe[1]),await body(request),actor));return true;}
+      if(request.method==='GET'&&recipe){requireCapability(actor,'products.manage');const value=runtime.recipes.getRecipe(decodeURIComponent(recipe[1]));if(!value)throw new VerticalHttpError(404,'Ficha tecnica nao encontrada.');json(response,200,value);return true;}
+      if(request.method==='PUT'&&recipe){requireCapability(actor,'products.manage');json(response,200,runtime.recipes.setRecipe(decodeURIComponent(recipe[1]),await body(request),actor));return true;}
 
       if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/profile'){moduleRule('FOOD',actor,true);json(response,201,runtime.pizzeria.upsertProfile(await body(request),actor));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/pizzeria/catalog'){moduleRule('FOOD',actor,true);const data=await body(request);let value;if(data.kind==='size')value=runtime.pizzeria.upsertSize(data,actor);else if(data.kind==='flavor')value=runtime.pizzeria.upsertFlavor(data,actor);else if(data.kind==='crust')value=runtime.pizzeria.upsertCrust(data,actor);else throw new VerticalHttpError(400,'Tipo de cadastro de pizzaria invalido.');json(response,201,value);return true;}
@@ -92,7 +92,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='PATCH'&&fastStatus){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.fastFood.updateStatus(decodeURIComponent(fastStatus[1]),data.status,actor));return true;}
 
       if(request.method==='POST'&&['/api/v1/vertical/market/price-weight','/api/v1/vertical/catalog/weight/price'].includes(pathname)){json(response,200,runtime.marketBakery.priceWeightedItem(await body(request)));return true;}
-      if(request.method==='POST'&&['/api/v1/vertical/market/weight-profile','/api/v1/vertical/catalog/weight/profile'].includes(pathname)){businessRole(actor);json(response,201,runtime.marketBakery.upsertWeightBarcodeProfile(await body(request),actor));return true;}
+      if(request.method==='POST'&&['/api/v1/vertical/market/weight-profile','/api/v1/vertical/catalog/weight/profile'].includes(pathname)){requireCapability(actor,'products.manage');json(response,201,runtime.marketBakery.upsertWeightBarcodeProfile(await body(request),actor));return true;}
       if(request.method==='POST'&&['/api/v1/vertical/market/parse-weight','/api/v1/vertical/catalog/weight/parse'].includes(pathname)){const data=await body(request);json(response,200,runtime.marketBakery.parseWeightBarcode(data.barcode,{profileId:data.profileId||null}));return true;}
       const weightedSale=pathname.match(/^\/api\/v1\/vertical\/catalog\/weight\/sales\/([^/]+)\/items$/);
       if(request.method==='POST'&&weightedSale){json(response,200,runtime.marketBakery.addWeightedItemToSale(decodeURIComponent(weightedSale[1]),await body(request),actor));return true;}

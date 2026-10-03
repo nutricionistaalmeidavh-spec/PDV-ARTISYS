@@ -18,12 +18,13 @@
     'finance-recurrences': { label: 'Recorrências', icon: 'history', phase: 'E16' },
     'finance-alerts': { label: 'Alertas financeiros', icon: 'management', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
-    sellers: { label: 'Equipe e acessos', icon: 'users' },
+    sellers: { label: 'Equipe comercial', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
     cash: { label: 'Caixa', shortLabel:'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
+    ,access: { label: 'Acessos e equipe', shortLabel:'Acessos', icon: 'users' }
     ,catalog: { label: 'Cadastros', shortLabel:'Cadastros', icon: 'document' }
     ,'post-sale': { label: 'Vendas e devoluções', shortLabel:'Vendas', icon: 'history' }
     ,'financial-management': { label: 'Gestão financeira', shortLabel:'Gestão', icon: 'management' }
@@ -194,8 +195,8 @@
 
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
-    const roleModel = window.PdvHomeRoleModel;
-    const items = roleModel?.routesForRole(state.user?.role) || ['home','checkout','products','customers','inventory','finance','reports'];
+    const accessPolicy = window.PdvAccessPolicy;
+    const items = (accessPolicy?.routesForUser(state.user) || ['home']).filter(route=>route!=='settings');
     const parentRoute = {
       finance:'financial-management',
       'finance-banks':'financial-management',
@@ -212,7 +213,7 @@
     }[state.route] || state.route;
     nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}"><span class="nav-button-icon">${icon(ROUTES[route].icon, 25)}</span><span class="nav-label">${escapeHtml(ROUTES[route].shortLabel || ROUTES[route].label)}</span></button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
-    if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
+    if (settingsButton) settingsButton.hidden = !accessPolicy?.canAccessRoute(state.user, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
     window.dispatchEvent(new CustomEvent('artisys:sidebar-rendered'));
   }
@@ -223,9 +224,11 @@
     document.getElementById('terminal-name').textContent = state.config.terminalName;
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
-    document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
+    document.getElementById('operator-role').textContent = state.user?.profile?.name || roleLabel(state.user?.role);
     document.body.dataset.userRole = state.user?.role || '';
-    window.PdvUiLifecycle?.emit('user:changed', { role:state.user?.role || '', userId:state.user?.id || '' });
+    document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
+    window.PdvCurrentAccess=state.user||null;
+    window.PdvUiLifecycle?.emit('user:changed', { profileId:state.user?.profileId || state.user?.profile?.id || '', permissions:[...(state.user?.permissions||[])], userId:state.user?.id || '' });
   }
 
   function updateClock() {
@@ -238,14 +241,27 @@
   }
 
   async function loadCommonData() {
-    const [categories, products, customers, sellers] = await Promise.all([api.categories(), api.products(), api.customers(), api.sellers()]);
+    const plan=window.PdvAccessPolicy?.commonDataLoadPlan?.(state.user)||{
+      categories:false,products:false,productPhotos:false,customers:false,sellers:false,users:false,cash:false
+    };
+    const [categories, products, customers, sellers] = await Promise.all([
+      plan.categories?api.categories():Promise.resolve([]),
+      plan.products?api.products():Promise.resolve([]),
+      plan.customers?api.customers():Promise.resolve([]),
+      plan.sellers?api.sellers():Promise.resolve([])
+    ]);
     state.categories = categories; state.products = products; state.customers = customers; state.sellers = sellers;
-    try { state.photoSyncStatus = await api.syncProductPhotos(false); monitorProductPhotoSync(); } catch (error) { state.photoSyncStatus={failed:1,lastError:error.message}; }
+    if(plan.productPhotos){
+      try { state.photoSyncStatus = await api.syncProductPhotos(false); monitorProductPhotoSync(); }
+      catch (error) { state.photoSyncStatus={failed:1,lastError:error.message}; }
+    }else state.photoSyncStatus=null;
     if (!state.selectedSellerId || !sellers.some((seller) => seller.id === state.selectedSellerId)) state.selectedSellerId = sellers.find((seller) => seller.id === state.user?.id)?.id || sellers[0]?.id || '';
-    if (['admin','manager'].includes(state.user?.role)) {
+    if (plan.users) {
       try { state.users = await api.users(true); } catch { state.users = []; }
-    }
-    try { state.cashSession = await api.openCash(state.config.terminalId); } catch { state.cashSession = null; }
+    } else state.users=[];
+    if(plan.cash){
+      try { state.cashSession = await api.openCash(state.config.terminalId); } catch { state.cashSession = null; }
+    }else state.cashSession=null;
   }
 
   async function restoreCheckoutState() {
@@ -258,7 +274,7 @@
 
   async function navigate(route) {
     if (!ROUTES[route]) route = 'home';
-    if (!window.PdvHomeRoleModel?.canAccessRoute(state.user?.role, route)) route = 'home';
+    if (!window.PdvAccessPolicy?.canAccessRoute(state.user, route)) route = 'home';
     state.route = route;
     document.body.dataset.activeRoute = route;
     delete document.body.dataset.activeModuleWorkspace;
@@ -276,7 +292,7 @@
   }
 
   function renderFlowHub(title, subtitle, cards) {
-    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvHomeRoleModel?.canAccessRoute(state.user?.role,card.route));
+    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvAccessPolicy?.canAccessRoute(state.user,card.route));
     content.innerHTML=`<section class="page flow-hub-page" data-flow-hub="${escapeHtml(title)}"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
@@ -363,7 +379,7 @@
     const weightLabel=weight?`${quantityLabel(Number(weight.grams||0))} g · ${escapeHtml(String(weight.source||'MANUAL')==='SCALE'?'balança':String(weight.source||'MANUAL')==='BARCODE'?'etiqueta':'manual')}`:null;
     const documentLabel=sourceDocument?`${escapeHtml(sourceDocument.orderNumber||sourceDocument.id||'Pedido')} · preço do pedido`:null;
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}${documentLabel?` · ${documentLabel}`:''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}${documentLabel?` · ${documentLabel}`:''}</small>`;
-    const priceButton = !sourceDocument&&['admin','manager'].includes(state.user?.role) ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
+    const priceButton = !sourceDocument&&window.PdvAccessPolicy?.hasCapability(state.user,'sales.discount') ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
     const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
     const remove=sourceDocument?'':weight?`<button type="button" data-remove-weighted="${item.id}" style="border:0;background:transparent;color:#e22;font-size:18px" aria-label="Remover pesagem">×</button>`:`<button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button>`;
     return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
@@ -582,7 +598,7 @@
 
   function renderSellers() {
     if (!isRouteActive('sellers')) return;
-    if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Equipe e acessos');
+    if (!window.PdvAccessPolicy?.hasCapability(state.user,'sellers.view')) return renderPermissionDenied('Equipe comercial');
     content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Equipe e acessos</h1><p>Pessoas, funções, áreas permitidas e comissões em um único lugar.</p></div></header><div class="data-card"><div class="empty-state">Carregando equipe…</div></div></section>`;
   }
 
@@ -942,7 +958,7 @@ function openCategoryForm() {
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; window.PdvCurrentAccess=state.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
   }
 
@@ -962,6 +978,7 @@ function openCategoryForm() {
     try {
       const session = await api.currentSession();
       state.user = session.user;
+      window.PdvCurrentAccess=state.user;
       updateTopbar();
       await loadCommonData();
       await navigate('home');
@@ -977,7 +994,7 @@ function openCategoryForm() {
     }
   }
 
-  function logout() { api.logout(); state.user = null; state.sale = null; clearCheckoutDocumentContext(); updateTopbar(); showLogin(); }
+  function logout() { api.logout(); state.user = null; window.PdvCurrentAccess=null; state.sale = null; clearCheckoutDocumentContext(); updateTopbar(); showLogin(); }
 
   async function executeShortcut(action) {
     if (!action || !state.user) return;
@@ -1033,7 +1050,7 @@ function openCategoryForm() {
       customers: () => renderCustomers(),
       sellers: () => renderSellers(),
       management: () => {
-        if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
+        if (!window.PdvAccessPolicy?.hasCapability(state.user,'management.view')) return renderPermissionDenied('Gestão');
         return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
       },
       products: () => renderProducts(),

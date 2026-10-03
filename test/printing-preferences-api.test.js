@@ -23,7 +23,16 @@ function settingsStore(seed={}){
     set:(key,value,{scope,actor})=>{values.set(key,value);writes.push({key,value,scope,actor});return {key,value,scope};}
   };
 }
-function runtime(settings){return {settings,sales:{getSaleDetails:()=>null}};}
+function runtime(settings){return {
+  settings,
+  sales:{getSaleDetails:()=>null},
+  authorization:{
+    require:({principal,capability})=>{
+      if(principal?.kind==='human'&&principal.id==='u2'&&capability==='settings.manage')return true;
+      throw Object.assign(new Error('Permissao insuficiente.'),{statusCode:403});
+    }
+  }
+};}
 function sessions(){return new Map([
   ['cashier',{userId:'u1',role:'cashier',expiresAt:Date.now()+60000}],
   ['manager',{userId:'u2',role:'manager',expiresAt:Date.now()+60000}]
@@ -54,7 +63,7 @@ test('manager can persist validated global printing preferences',async()=>{
   assert.equal(put.json.columns,42);
   assert.equal(settings.values.get('printing.deviceName'),'POS80 Printer');
   assert.equal(settings.values.get('printing.columns'),42);
-  assert.equal(settings.writes.every(row=>row.scope==='global'&&row.actor.role==='manager'),true);
+  assert.equal(settings.writes.every(row=>row.scope==='global'&&row.actor.kind==='human'&&row.actor.userId==='u2'),true);
 });
 
 test('invalid printing preference payload is rejected without partial writes',async()=>{

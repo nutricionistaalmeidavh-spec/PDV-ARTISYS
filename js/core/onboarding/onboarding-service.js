@@ -1,4 +1,5 @@
 'use strict';
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const {writeAudit}=require('../audit-log');
 const {MODULES,getModuleDefinition}=require('../modules/module-registry');
@@ -15,7 +16,7 @@ const SEGMENTS=Object.freeze({
   RETAIL:[]
 });
 
-function createOnboardingService({db,modules,now=()=>new Date().toISOString()}={}){
+function createOnboardingService({db,modules,authorization=null,now=()=>new Date().toISOString()}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
   const normalizeSegment=value=>{const segment=String(value||'GENERIC').trim().toUpperCase();if(!SEGMENTS[segment])throw new Error('Segmento inicial invalido.');return segment;};
   function getState(){
@@ -26,7 +27,7 @@ function createOnboardingService({db,modules,now=()=>new Date().toISOString()}={
   }
   function recommend(segment){const normalized=normalizeSegment(segment);return{segment:normalized,moduleIds:[...SEGMENTS[normalized]]};}
   function complete(input={},actor={}){
-    if(!['admin','system'].includes(String(actor?.role||'')))throw new Error('Permissao insuficiente para concluir configuracao inicial.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'modules.manage'});
     const segment=normalizeSegment(input.segment);const businessName=String(input.businessName||'').trim()||'Estabelecimento';const requested=Array.isArray(input.moduleIds)?[...new Set(input.moduleIds.map(id=>String(id).trim().toUpperCase()))]:recommend(segment).moduleIds;
     for(const id of requested)if(!getModuleDefinition(id))throw new Error(`Modulo desconhecido: ${id}.`);
     const requestedSet=new Set(requested);

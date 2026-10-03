@@ -1,9 +1,11 @@
 'use strict';
 
-function createWholesaleService({db,modules,orders,pricing,now=()=>new Date().toISOString()}={}){
+const {principalFromActor}=require('../../core/auth/principal-resolver');
+
+function createWholesaleService({db,modules,orders,pricing,authorization=null,now=()=>new Date().toISOString()}={}){
   if(!db||!modules||!orders||!pricing)throw new TypeError('db, modules, orders and pricing are required.');
   const gate=actor=>modules.requireAccess('WHOLESALE',actor);
-  const manager=actor=>{gate(actor);if(!['manager','admin'].includes(String(actor?.role||'')))throw new Error('Autorizacao de gerente necessaria para precos de atacado.');};
+  const manager=actor=>{gate(actor);if(authorization)authorization.require({principal:principalFromActor(actor),capability:'wholesale.orders.manage'});};
   const VALID_PAYMENT_METHODS=new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT']);
   const DEFAULT_PAYMENT_METHODS=['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT'];
   function normalizePayments(values){

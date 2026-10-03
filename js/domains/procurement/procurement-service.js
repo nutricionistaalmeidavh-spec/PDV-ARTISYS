@@ -4,10 +4,11 @@ const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity } = require('../inventory/inventory-rules');
 const { assertCents } = require('../shared/money');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 
-function createProcurementService({db,inventory,finance,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createProcurementService({db,inventory,finance,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!inventory||!finance)throw new TypeError('db, inventory and finance are required.');
-  const requireManager=actor=>{if(!['manager','admin'].includes(String(actor?.role||'')))throw new Error('Autorizacao de gerente necessaria para compras.');};
+  const requireProcurement=actor=>{if(authorization)authorization.require({principal:principalFromActor(actor),capability:'inventory.procurement'});};
   const text=v=>String(v||'').trim();
   const location=v=>text(v)||'MAIN';
   const qty=v=>roundQuantity(Number(v));
@@ -34,7 +35,7 @@ function createProcurementService({db,inventory,finance,now=()=>new Date().toISO
   function getReceiptByMutation(key){return mapReceipt(db.prepare('SELECT * FROM purchase_receipts WHERE idempotency_key=?').get(String(key)));}
 
   function createPurchaseOrder(input={},actor=null){
-    requireManager(actor);
+    requireProcurement(actor);
     const supplierId=text(input.supplierId);if(!db.prepare('SELECT id FROM suppliers WHERE id=? AND active=1').get(supplierId))throw new Error('Fornecedor nao encontrado ou inativo.');
     const stockLocationId=location(input.locationId||input.stockLocationId);if(!db.prepare('SELECT id FROM stock_locations WHERE id=? AND active=1').get(stockLocationId))throw new Error('Local de estoque nao encontrado ou inativo.');
     if(!Array.isArray(input.items)||!input.items.length)throw new Error('Pedido de compra deve possuir ao menos um item.');
@@ -51,7 +52,7 @@ function createProcurementService({db,inventory,finance,now=()=>new Date().toISO
   }
 
   function submitPurchaseOrder(id,actor=null){
-    requireManager(actor);const order=requireOrder(id);
+    requireProcurement(actor);const order=requireOrder(id);
     if(['ORDERED','PARTIALLY_RECEIVED','RECEIVED'].includes(order.status))return getPurchaseOrder(id);
     if(order.status!=='DRAFT')throw new Error(`Pedido de compra nao pode ser enviado no status ${order.status}.`);
     const ts=now();db.prepare("UPDATE purchase_orders SET status='ORDERED',ordered_at=?,updated_at=? WHERE id=?").run(ts,ts,String(id));
@@ -60,7 +61,7 @@ function createProcurementService({db,inventory,finance,now=()=>new Date().toISO
   }
 
   function receivePurchaseOrder(id,input={},actor=null){
-    requireManager(actor);
+    requireProcurement(actor);
     const mutationKey=text(input.idempotencyKey||input.mutationKey);if(!mutationKey)throw new Error('Chave de idempotencia obrigatoria no recebimento.');
     const previous=getReceiptByMutation(mutationKey);if(previous)return previous;
     return withTransaction(db,()=>{

@@ -1,6 +1,7 @@
 'use strict';
 const {randomUUID}=require('node:crypto');
 const {writeAudit}=require('../../core/audit-log');
+const {principalFromActor}=require('../../core/auth/principal-resolver');
 
 function normalizeBusinessDate(value,{required=false}={}){
   if(value===null||value===undefined||value===''){
@@ -14,9 +15,9 @@ function normalizeBusinessDate(value,{required=false}={}){
   return text;
 }
 
-function createFinanceDimensionsService({db,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createFinanceDimensionsService({db,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db)throw new TypeError('Database is required.');
-  const manager=actor=>{if(actor&& !['admin','manager','system'].includes(String(actor.role||'')))throw new Error('Autorizacao de gerente necessaria para dimensoes financeiras.');};
+  const requireFinanceManage=actor=>{if(authorization)authorization.require({principal:principalFromActor(actor),capability:'finance.manage'});};
   const bool=value=>value===false||value===0?0:1;
   const text=(value,label)=>{const result=String(value||'').trim();if(!result)throw new Error(`${label} obrigatorio.`);return result;};
   const rowGroup=row=>row&&({id:row.id,name:row.name,nature:row.nature,sortOrder:Number(row.sort_order||0),active:Boolean(row.active),createdAt:row.created_at,updatedAt:row.updated_at});
@@ -26,7 +27,7 @@ function createFinanceDimensionsService({db,now=()=>new Date().toISOString(),idF
 
   function listDreGroups({includeInactive=false}={}){return db.prepare(`SELECT * FROM finance_dre_groups${includeInactive?'':' WHERE active=1'} ORDER BY sort_order,name,id`).all().map(rowGroup);}
   function saveDreGroup(input={},actor=null){
-    manager(actor);const id=String(input.id||idFactory('dre')).trim();const name=text(input.name,'Nome do grupo DRE');const nature=String(input.nature||'').toUpperCase();
+    requireFinanceManage(actor);const id=String(input.id||idFactory('dre')).trim();const name=text(input.name,'Nome do grupo DRE');const nature=String(input.nature||'').toUpperCase();
     if(!['REVENUE','COST','EXPENSE','OTHER'].includes(nature))throw new Error('Natureza do grupo DRE invalida.');
     const sortOrder=Number(input.sortOrder||0);if(!Number.isInteger(sortOrder))throw new Error('Ordem do grupo DRE invalida.');
     const active=bool(input.active);const ts=now();const previous=db.prepare('SELECT created_at FROM finance_dre_groups WHERE id=?').get(id);
@@ -40,7 +41,7 @@ function createFinanceDimensionsService({db,now=()=>new Date().toISOString(),idF
   function listCategories({includeInactive=false}={}){return db.prepare(`SELECT * FROM financial_categories${includeInactive?'':' WHERE active=1'} ORDER BY name,id`).all().map(rowCategory);}
   function getCategory(id){return rowCategory(db.prepare('SELECT * FROM financial_categories WHERE id=?').get(String(id)));}
   function saveCategory(input={},actor=null){
-    manager(actor);const id=String(input.id||idFactory('fcat')).trim();const name=text(input.name,'Nome da categoria');const kind=String(input.kind||'').toUpperCase();
+    requireFinanceManage(actor);const id=String(input.id||idFactory('fcat')).trim();const name=text(input.name,'Nome da categoria');const kind=String(input.kind||'').toUpperCase();
     if(!['INCOME','EXPENSE','BOTH'].includes(kind))throw new Error('Tipo da categoria financeira invalido.');
     const dreGroupId=String(input.dreGroupId||'').trim()||null;if(dreGroupId&&!db.prepare('SELECT id FROM finance_dre_groups WHERE id=? AND active=1').get(dreGroupId))throw new Error('Grupo DRE nao encontrado ou inativo.');
     const active=bool(input.active);const ts=now();const previous=db.prepare('SELECT created_at FROM financial_categories WHERE id=?').get(id);
@@ -54,7 +55,7 @@ function createFinanceDimensionsService({db,now=()=>new Date().toISOString(),idF
   function listCostCenters({includeInactive=false}={}){return db.prepare(`SELECT * FROM cost_centers${includeInactive?'':' WHERE active=1'} ORDER BY name,id`).all().map(rowCenter);}
   function getCostCenter(id){return rowCenter(db.prepare('SELECT * FROM cost_centers WHERE id=?').get(String(id)));}
   function saveCostCenter(input={},actor=null){
-    manager(actor);const id=String(input.id||idFactory('cc')).trim();const name=text(input.name,'Nome do centro de custo');const active=bool(input.active);const ts=now();const previous=db.prepare('SELECT created_at FROM cost_centers WHERE id=?').get(id);
+    requireFinanceManage(actor);const id=String(input.id||idFactory('cc')).trim();const name=text(input.name,'Nome do centro de custo');const active=bool(input.active);const ts=now();const previous=db.prepare('SELECT created_at FROM cost_centers WHERE id=?').get(id);
     db.prepare(`INSERT INTO cost_centers(id,name,active,created_at,updated_at) VALUES(?,?,?,?,?)
       ON CONFLICT(id) DO UPDATE SET name=excluded.name,active=excluded.active,updated_at=excluded.updated_at`)
       .run(id,name,active,previous?.created_at||ts,ts);
