@@ -28,6 +28,8 @@ A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora
 
 `restaurant-ui.js` é carregado como módulo de renderer e usa a ponte IPC já existente (`artisys:api`). O Electron injeta o token local somente para rotas de restaurante no perfil servidor; terminais remotos usam sua credencial de terminal já pareada.
 
+A superfície desktop separa duas visões sem duplicar domínio: **Operação** concentra mapa de mesas, comanda, chamados e KDS; **Configuração**, disponível apenas para gerente/administrador, concentra setores de produção, dispositivos LAN e indicadores/exportação. A abertura do workspace sempre prioriza Operação, e a comanda selecionada é preservada ao alternar de visão.
+
 ## E36 — roteamento HTTP local
 
 `restaurant-router.js` é composto antes do router legado em `local-server.js`. Rotas não relacionadas ao restaurante continuam sendo tratadas pelo router original sem alteração de contrato. Rotas `/api/v1/restaurant/*` exigem token local ou terminal pareado; rotas `/api/v1/mobile/*` exigem credencial do dispositivo.

@@ -8,8 +8,8 @@
   if (!routeRegistry) throw new Error('PdvRouteRegistry must load before app.js.');
 
   const ROUTES = {
-    home: { label: 'Início', icon: 'home' },
-    checkout: { label: 'Balcão', icon: 'cart' },
+    home: { label: 'Início', shortLabel:'Início', icon: 'home' },
+    checkout: { label: 'Balcão', shortLabel:'Balcão', icon: 'cart' },
     products: { label: 'Cardápio', icon: 'document' },
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
@@ -20,13 +20,13 @@
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
     sellers: { label: 'Equipe e acessos', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
-    cash: { label: 'Caixa', icon: 'cash', phase: 'E14' },
+    cash: { label: 'Caixa', shortLabel:'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
-    ,catalog: { label: 'Cadastros', icon: 'document' }
-    ,'post-sale': { label: 'Vendas e devoluções', icon: 'history' }
-    ,'financial-management': { label: 'Gestão financeira', icon: 'management' }
+    ,catalog: { label: 'Cadastros', shortLabel:'Cadastros', icon: 'document' }
+    ,'post-sale': { label: 'Vendas e devoluções', shortLabel:'Vendas', icon: 'history' }
+    ,'financial-management': { label: 'Gestão financeira', shortLabel:'Gestão', icon: 'management' }
   };
 
   const state = {
@@ -40,6 +40,7 @@
     users: [],
     sellers: [],
     sale: null,
+    checkoutDocumentContext: null,
     cashSession: null,
     suspendedSales: [],
     selectedProductId: null,
@@ -207,7 +208,7 @@
       inventory:'catalog',
       sellers:'catalog'
     }[state.route] || state.route;
-    nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
+    nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}"><span class="nav-button-icon">${icon(ROUTES[route].icon, 25)}</span><span class="nav-label">${escapeHtml(ROUTES[route].shortLabel || ROUTES[route].label)}</span></button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
     if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
@@ -291,6 +292,30 @@
 
   function selectedCustomer() { return state.customers.find((customer) => customer.id === state.sale?.customerId) || null; }
 
+  function checkoutDocumentContextWhen(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
+  }
+
+  function clearCheckoutDocumentContext() { state.checkoutDocumentContext = null; }
+
+  function checkoutDocumentContextMarkup() {
+    const context=state.checkoutDocumentContext;
+    if (!context) return '';
+    const document=context.document || {};
+    if (context.type === 'ORDER') {
+      const number=document.orderNumber || document.id || 'Pedido';
+      const customer=document.customerName || selectedCustomer()?.name || 'Cliente não identificado';
+      const fulfillment=String(document.fulfillmentType || '').toUpperCase() === 'DELIVERY' ? 'Entrega' : 'Retirada';
+      const expected=document.expectedAt ? ` · previsão ${checkoutDocumentContextWhen(document.expectedAt)}` : '';
+      return `<div class="checkout-document-context" data-checkout-document-context><div><small>Pedido em atendimento</small><strong>${escapeHtml(number)} · ${escapeHtml(customer)}</strong></div><span>Atacado · ${fulfillment}${expected}</span></div>`;
+    }
+    const table=document.tableLabel || document.label || document.tableId || 'Comanda';
+    const opened=document.openedAt ? ` · aberta ${checkoutDocumentContextWhen(document.openedAt)}` : '';
+    return `<div class="checkout-document-context" data-checkout-document-context><div><small>Comanda em atendimento</small><strong>${escapeHtml(table)}</strong></div><span>Alimentação${opened}</span></div>`;
+  }
+
   function checkoutProductGridHtml() {
     const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
     return products.map((product) => productCard(product)).join('') || '<div class="empty-state">Nenhum produto encontrado.</div>';
@@ -299,7 +324,7 @@
   function renderCheckout() {
     if (!isRouteActive('checkout')) return;
     const customer = selectedCustomer(); const sale = state.sale;
-    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button><button id="checkout-documents" class="scan-button" type="button">${icon('history',18)} &nbsp; Comandas e pedidos</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${checkoutProductGridHtml()}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel"><div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
+    content.innerHTML = `<section class="checkout-layout"><div class="checkout-main"><div class="checkout-hero"><div><h1>Balcão</h1><p>Venda rápida e prática para o seu cliente</p></div><em>Agilidade no atendimento,<br>mais vendas todos os dias.</em></div><div class="checkout-tools"><label class="search-field">${icon('document')}<input id="product-search" autocomplete="off" placeholder="Buscar produto por nome, código ou código de barras..." value="${escapeHtml(state.productQuery)}"><span>▥</span></label><button id="scan-focus" class="scan-button" type="button">▥ &nbsp; Ler código (F2)</button><button id="checkout-documents" class="scan-button" type="button">${icon('history',18)} &nbsp; Comandas e pedidos</button></div><div class="category-chips"><button class="category-chip ${!state.categoryId ? 'active' : ''}" data-category="">Todos</button>${state.categories.map((category) => `<button class="category-chip ${state.categoryId === category.id ? 'active' : ''}" data-category="${category.id}">${escapeHtml(category.name)}</button>`).join('')}</div><div class="product-grid">${checkoutProductGridHtml()}</div><div class="checkout-actions"><h3>Ações da venda</h3><div class="action-grid"><button class="action-button" id="new-sale" type="button">▶ &nbsp; Iniciar venda <small>F1</small></button><button class="action-button orange" id="remove-item" type="button">⌫ &nbsp; Cancelar item <small>F3</small></button><button class="action-button red" id="cancel-sale" type="button">⊗ &nbsp; Cancelar venda <small>F4</small></button><button class="action-button blue" id="suspend-sale" type="button">Ⅱ &nbsp; Suspender <small>F6</small></button></div></div></div><aside class="sale-panel">${checkoutDocumentContextMarkup()}<div class="customer-block"><h3>Cliente <small style="color:#9aa6bb;font-weight:400">(opcional)</small></h3><label class="search-field">⌕<input id="customer-search" autocomplete="off" placeholder="Buscar cliente..." value="${escapeHtml(state.customerQuery)}"></label><div id="customer-suggestions"></div>${customer ? `<div class="customer-selected"><span class="avatar">${escapeHtml(initials(customer.name))}</span><div><strong>${escapeHtml(customer.name)}</strong><small>${escapeHtml(customer.document || 'Sem documento')}</small></div><button id="remove-customer" type="button">×</button></div>` : ''}</div><div class="cart-head"><h3>Itens da venda (${sale?.items?.length || 0})</h3><button id="clear-cart" class="secondary-button" type="button">Limpar carrinho</button></div><div class="cart-list">${sale?.items?.map((item) => cartLine(item)).join('') || '<div class="empty-state">Nenhum item na venda.</div>'}</div><div class="totals"><div class="total-row"><span>Subtotal</span><strong>${ui.formatCents(sale?.subtotalCents || 0)}</strong></div><div class="total-row"><span>Desconto</span><div class="discount-control"><span>%</span><input id="discount-percent" type="number" min="0" max="100" step="0.01" value="${state.discountPercent || 0}"><strong>${ui.formatCents(sale?.discountCents || 0)}</strong></div></div><div class="total-row grand-total"><span>Total da venda</span><strong>${ui.formatCents(sale?.totalCents || 0)}</strong></div></div><div class="payment-strip"><button class="pay-button" data-pay="cash">Dinheiro</button><button class="pay-button card" data-pay="card">Cartão</button><button class="pay-button pix" data-pay="pix">PIX</button></div><button class="finalize-button" id="finalize-sale" type="button">Finalizar venda (F12) &nbsp; ›</button></aside></section>`;
     content.querySelector('.sale-panel')?.insertAdjacentHTML('afterbegin', `<div class="customer-block"><h3>Vendedor / Garçom</h3><select id="seller-select" class="secondary-button" style="width:100%">${state.sellers.map((seller) => `<option value="${seller.id}" ${seller.id === (sale?.sellerId || state.selectedSellerId) ? 'selected' : ''}>${escapeHtml(seller.name)}</option>`).join('')}</select></div>`);
     hydrateProductPhotos();
     bindCheckoutEvents();
@@ -385,7 +410,7 @@
   function openCheckoutDocuments() {
     openModal('Comandas e pedidos', `<div class="field"><label>Localizar</label><input id="checkout-document-query" autocomplete="off" placeholder="Número do pedido, mesa, comanda ou cliente"></div><div id="checkout-document-results" class="data-card"><div class="empty-state">Carregando documentos em aberto…</div></div><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Fechar</button></div>`, { wide:true, onMount(root) {
       const input=root.querySelector('#checkout-document-query');const host=root.querySelector('#checkout-document-results');let timer=null;
-      const render=rows=>{host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${row.type==='COMMAND'?'Alimentação':'Atacado'} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{const split=button.dataset.openCheckoutDocument.indexOf(':');const type=button.dataset.openCheckoutDocument.slice(0,split);const id=button.dataset.openCheckoutDocument.slice(split+1);try{if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}button.disabled=true;const opened=await api.openCheckoutDocument(type,id);state.sale=opened.sale;state.discountPercent=0;state.selectedProductId=null;closeModal();renderCheckout();showToast(`${type==='COMMAND'?'Comanda':'Pedido'} carregado no caixa.`,'success');}catch(error){button.disabled=false;showToast(error.message,'error');}}));};
+      const render=rows=>{host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${row.type==='COMMAND'?'Alimentação':'Atacado'} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{const split=button.dataset.openCheckoutDocument.indexOf(':');const type=button.dataset.openCheckoutDocument.slice(0,split);const id=button.dataset.openCheckoutDocument.slice(split+1);try{if(state.sale?.status==='OPEN'&&state.sale.items?.length)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');if(state.sale?.status==='OPEN'&&!state.sale.items?.length){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}button.disabled=true;const opened=await api.openCheckoutDocument(type,id);state.sale=opened.sale;state.checkoutDocumentContext={type,document:opened.document};state.discountPercent=0;state.selectedProductId=null;closeModal();renderCheckout();showToast(`${type==='COMMAND'?'Comanda':'Pedido'} carregado no caixa.`,'success');}catch(error){button.disabled=false;showToast(error.message,'error');}}));};
       const load=async()=>{try{host.innerHTML='<div class="empty-state">Buscando…</div>';render(await api.checkoutDocuments(input.value));}catch(error){host.innerHTML=`<div class="empty-state">${escapeHtml(error.message)}</div>`;}};
       input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(load,180);});input.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();clearTimeout(timer);void load();}});void load();input.focus();
     }});
@@ -394,7 +419,7 @@
   async function ensureSale() {
     if (state.sale?.status === 'OPEN') return state.sale;
     const saleNumber = `${new Date().toISOString().slice(2,10).replace(/-/g,'')}-${Date.now().toString().slice(-6)}`;
-    state.sale = await api.openSale({ saleNumber, terminalId: state.config.terminalId, sellerId: state.selectedSellerId || state.user.id }); state.discountPercent = 0; return state.sale;
+    clearCheckoutDocumentContext(); state.sale = await api.openSale({ saleNumber, terminalId: state.config.terminalId, sellerId: state.selectedSellerId || state.user.id }); state.discountPercent = 0; return state.sale;
   }
 
   async function setSelectedSeller(event) {
@@ -477,17 +502,17 @@
 
   async function cancelCurrentSale() {
     if (!state.sale || !['OPEN','SUSPENDED'].includes(state.sale.status)) return showToast('Não há venda aberta para cancelar.', 'error');
-    openModal('Cancelar venda', `<p>Informe o motivo do cancelamento da venda atual.</p><div class="field"><label>Motivo</label><input id="cancel-reason" value="Cliente desistiu"></div><div class="modal-actions"><button class="secondary-button" data-close-modal>Voltar</button><button class="danger-button" id="confirm-cancel">Cancelar venda</button></div>`, { onMount(root) { root.querySelector('#confirm-cancel')?.addEventListener('click', async () => { try { await api.cancelSale(state.sale.id, root.querySelector('#cancel-reason').value); state.sale = null; state.selectedProductId = null; closeModal(); renderCheckout(); showToast('Venda cancelada.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
+    openModal('Cancelar venda', `<p>Informe o motivo do cancelamento da venda atual.</p><div class="field"><label>Motivo</label><input id="cancel-reason" value="Cliente desistiu"></div><div class="modal-actions"><button class="secondary-button" data-close-modal>Voltar</button><button class="danger-button" id="confirm-cancel">Cancelar venda</button></div>`, { onMount(root) { root.querySelector('#confirm-cancel')?.addEventListener('click', async () => { try { await api.cancelSale(state.sale.id, root.querySelector('#cancel-reason').value); state.sale = null; clearCheckoutDocumentContext(); state.selectedProductId = null; closeModal(); renderCheckout(); showToast('Venda cancelada.', 'success'); } catch (error) { showToast(error.message, 'error'); } }); } });
   }
 
   async function suspendCurrentSale() {
     if (!state.sale?.items?.length) return showToast('Adicione itens antes de suspender.', 'error');
-    try { await api.suspendSale(state.sale.id); state.sale = null; state.selectedProductId = null; state.suspendedSales = await api.sales('SUSPENDED', 30); renderCheckout(); if (isRouteActive('checkout')) showSuspendedModal(); } catch (error) { showToast(error.message, 'error'); }
+    try { await api.suspendSale(state.sale.id); state.sale = null; clearCheckoutDocumentContext(); state.selectedProductId = null; state.suspendedSales = await api.sales('SUSPENDED', 30); renderCheckout(); if (isRouteActive('checkout')) showSuspendedModal(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   function showSuspendedModal() {
     if (!isRouteActive('checkout')) return;
-    openModal('Vendas suspensas', `<div class="suspended-list">${state.suspendedSales.map((sale) => `<div class="suspended-item"><div><strong>${escapeHtml(sale.saleNumber)}</strong><small>${sale.items.length} itens · ${ui.formatCents(sale.totalCents)}</small></div><button class="primary-button" data-resume="${sale.id}">Retomar</button></div>`).join('') || '<div class="empty-state">Nenhuma venda suspensa.</div>'}</div>`, { onMount(root) { root.querySelectorAll('[data-resume]').forEach((button) => button.addEventListener('click', async () => { try { state.sale = await api.resumeSale(button.dataset.resume); state.discountPercent = state.sale.subtotalCents ? Number(((state.sale.discountCents / state.sale.subtotalCents) * 100).toFixed(2)) : 0; closeModal(); renderCheckout(); } catch (error) { showToast(error.message, 'error'); } })); } });
+    openModal('Vendas suspensas', `<div class="suspended-list">${state.suspendedSales.map((sale) => `<div class="suspended-item"><div><strong>${escapeHtml(sale.saleNumber)}</strong><small>${sale.items.length} itens · ${ui.formatCents(sale.totalCents)}</small></div><button class="primary-button" data-resume="${sale.id}">Retomar</button></div>`).join('') || '<div class="empty-state">Nenhuma venda suspensa.</div>'}</div>`, { onMount(root) { root.querySelectorAll('[data-resume]').forEach((button) => button.addEventListener('click', async () => { try { clearCheckoutDocumentContext(); state.sale = await api.resumeSale(button.dataset.resume); state.discountPercent = state.sale.subtotalCents ? Number(((state.sale.discountCents / state.sale.subtotalCents) * 100).toFixed(2)) : 0; closeModal(); renderCheckout(); } catch (error) { showToast(error.message, 'error'); } })); } });
   }
 
   async function ensureCashOpen() {
@@ -519,7 +544,7 @@
   function paymentLabel(method) { return ({ CASH: 'Dinheiro', PIX: 'PIX', DEBIT_CARD: 'Cartão débito', CREDIT_CARD: 'Cartão crédito / TEF', STORE_CREDIT: 'A prazo', OTHER: 'Outro' })[method] || method; }
 
   async function completeCurrentSale() {
-    try { const result = await api.completeSale(state.sale.id, state.paymentDraft); const completed = result.sale; closeModal(); state.sale = null; state.selectedProductId = null; state.discountPercent = 0; state.paymentDraft = []; state.products = await api.products(); showToast(`Venda ${completed.saleNumber} finalizada. Troco: ${ui.formatCents(completed.changeCents)}`, 'success'); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    try { const result = await api.completeSale(state.sale.id, state.paymentDraft); const completed = result.sale; closeModal(); state.sale = null; clearCheckoutDocumentContext(); state.selectedProductId = null; state.discountPercent = 0; state.paymentDraft = []; state.products = await api.products(); showToast(`Venda ${completed.saleNumber} finalizada. Troco: ${ui.formatCents(completed.changeCents)}`, 'success'); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   function customersListHtml() {
@@ -834,7 +859,7 @@ function openCategoryForm() {
     }
   }
 
-  function logout() { api.logout(); state.user = null; state.sale = null; updateTopbar(); showLogin(); }
+  function logout() { api.logout(); state.user = null; state.sale = null; clearCheckoutDocumentContext(); updateTopbar(); showLogin(); }
 
   async function executeShortcut(action) {
     if (!action || !state.user) return;

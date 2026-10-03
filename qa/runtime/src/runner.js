@@ -152,6 +152,10 @@ export async function runQaFlow({
         if (manifest.capture?.screenshotEachStep) {
           await page.screenshot({ path: path.join(screenshotsDir, `${label}-after.png`), fullPage: false });
         }
+        const rendererPageError = telemetry.find(event => event?.type === 'pageerror');
+        if (rendererPageError) {
+          throw new Error(`Renderer page error: ${rendererPageError.message || 'unknown renderer exception'}`);
+        }
         stepsLog.push({ index, action: step.action, name: step.name || null, status: 'passed', durationMs: Date.now() - stepStart });
         await notify({ type: 'step-end', flow: flowName, step: stepName, status: 'passed', current: index + 1, total: flow.steps.length });
         if (!frameRecorderStarted && frameRecorder && ['authenticated','app-ready'].includes(step.name)) {
@@ -197,6 +201,17 @@ export async function runQaFlow({
       await consumerProcess.stop().catch(() => {});
     }
     await fs.rm(path.join(outputDir, '.native-video'), { recursive: true, force: true }).catch(() => {});
+  }
+
+  if (status === 'passed') {
+    const rendererPageError = telemetry.find(event => event?.type === 'pageerror');
+    if (rendererPageError) {
+      status = 'failed';
+      failure = {
+        message: `Renderer page error: ${rendererPageError.message || 'unknown renderer exception'}`,
+        stack: rendererPageError.stack || null,
+      };
+    }
   }
 
   const summary = redactSecrets({

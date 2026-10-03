@@ -18,6 +18,7 @@
     const categories = main.querySelector(':scope > .category-chips');
     const productGrid = main.querySelector(':scope > .product-grid');
     const actions = main.querySelector(':scope > .checkout-actions');
+    const documentContext = panel.querySelector(':scope > [data-checkout-document-context]');
     const sellerBlock = panel.querySelector('#seller-select')?.closest('.customer-block');
     const customerBlock = panel.querySelector('#customer-search')?.closest('.customer-block');
     const cartHead = panel.querySelector(':scope > .cart-head');
@@ -35,6 +36,7 @@
     const contextRegion = document.createElement('div');
     contextRegion.className = 'sale-context-grid';
     contextRegion.dataset.checkoutSaleContext = 'true';
+    if (documentContext) contextRegion.append(documentContext);
     contextRegion.append(sellerBlock, customerBlock);
     panel.insertBefore(contextRegion, panel.firstChild);
 
