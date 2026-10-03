@@ -12,7 +12,7 @@ const {createPdvRuntime}=require('../../js/core/pdv-runtime');
 const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
-  smoke:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
+  smoke:['terminal-onboarding-pairing','price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
   full:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
   stress:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
 });
