@@ -1,87 +1,77 @@
-# Central de Licenças do PDV ArtiSys
+# Central de Licenças ArtiSys
 
-Worker comercial isolado do **PDV ArtiSys** para liberar novas instalações. Ele pertence a este repositório e ao Worker `pdv-artisys`.
+Worker comercial do **PDV ArtiSys** na conta Cloudflare `sistema-artisys`.
 
-O PDV continua local-first. Venda, estoque, caixa, usuários, senhas e dados operacionais não dependem do Cloudflare para funcionar depois da ativação.
+Este serviço é separado do core local do PDV. O PDV continua local/self-hosted; a nuvem participa somente da liberação inicial, consulta de status da licença e recuperação administrativa.
 
 ## Fluxo de liberação
 
-1. Abra `/admin` no Worker `pdv-artisys`.
+1. Acesse `/admin` no Worker `pdv-artisys`.
 2. Informe o `ADMIN_TOKEN`.
-3. Digite o e-mail do cliente e, se quiser, a validade da licença.
+3. Digite o e-mail do cliente e, opcionalmente, a validade da licença.
 4. Clique em **Gerar código**.
-5. A Central mostra um código de seis dígitos.
-6. **Você copia e envia esse código ao cliente.**
-7. No primeiro acesso ao PDV, o cliente informa o mesmo e-mail e o código.
-8. O código é consumido e a licença fica vinculada ao `installationId` daquele PDV.
-9. Depois disso o cliente cria a senha do Administrador local.
+5. A Central mostra um código de 6 dígitos e o botão **Copiar código**.
+6. **Você envia esse código ao cliente** pelo meio que preferir.
+7. No primeiro acesso, o cliente informa o mesmo e-mail + código.
+8. O código é consumido uma única vez e a instalação fica vinculada à licença.
+9. O primeiro Administrador é criado localmente no PDV; senha e hash nunca são enviados ao Cloudflare.
 
-Não há envio automático de e-mail neste fluxo.
+Não existe envio automático de e-mail neste fluxo.
 
-O código de ativação é de uso único, expira em 30 minutos e é bloqueado após cinco tentativas inválidas.
-
-## Central administrativa
+## Central
 
 - `GET /admin` — interface da Central.
-- `GET /v1/admin/licenses` — lista licenças.
-- `POST /v1/admin/licenses` — cria/libera licença e devolve o código.
-- `PATCH /v1/admin/licenses/:id` — altera status.
-- `POST /v1/admin/recovery` — gera código manual de recuperação.
+- `GET /v1/admin/licenses` — lista licenças; exige Bearer `ADMIN_TOKEN`.
+- `POST /v1/admin/licenses` — cria/libera uma licença e retorna o código.
+- `PATCH /v1/admin/licenses/:id` — altera status para `ACTIVE`, `SUSPENDED`, `CANCELLED` ou `EXPIRED`.
+- `POST /v1/admin/recovery` — gera código manual de recuperação para uma instalação ativa.
 
-As rotas `/v1/admin/*` exigem `Authorization: Bearer <ADMIN_TOKEN>`.
+## API do PDV
 
-## Endpoints usados pelo PDV
+- `GET /health`
+- `POST /v1/activation/request` — não envia código; apenas orienta a usar o código fornecido pela ArtiSys.
+- `POST /v1/activation/verify` — valida e consome o código.
+- `GET /v1/license/status?installationId=...` — retorna apenas se a licença está ativa.
+- `POST /v1/password-recovery/request`
+- `POST /v1/password-recovery/verify`
 
-- `POST /v1/activation/request` — apenas orienta que o código é fornecido pela ArtiSys; não envia mensagem.
-- `POST /v1/activation/verify` — valida e consome e-mail + código.
-- `GET /v1/license/status?installationId=...` — informa se a instalação continua ativa.
-- `POST /v1/password-recovery/request` — inicia o fluxo manual.
-- `POST /v1/password-recovery/verify` — valida o código manual de recuperação.
+## D1
 
-Senha e hash de senha nunca são enviados ao Worker.
+O Worker aceita os dois nomes de binding:
 
-## Recursos Cloudflare deste sistema
+- `artisys` — binding existente no Worker `pdv-artisys`;
+- `DB` — compatibilidade com configuração antiga.
 
-O deploy deste repositório preserva os recursos já associados ao Worker:
+Na primeira operação que precisa do banco, o Worker cria de forma idempotente as tabelas próprias da Central caso ainda não existam. Ele não apaga tabelas nem dados existentes.
 
-- Worker: `pdv-artisys`;
-- D1 binding: `artisys`;
-- R2 binding: `artisysr2`;
-- bucket R2: `artisyspdv`.
+Tabelas usadas:
 
-O Worker aceita o binding D1 `artisys` mostrado no painel atual. O alias legado `DB` continua aceito para desenvolvimento/testes.
-
-A Central inicializa de forma idempotente as tabelas que precisa no D1 dedicado. Não existe `DROP TABLE`, limpeza de banco ou criação automática de outro D1.
+- `accounts`
+- `licenses`
+- `activation_tokens`
+- `installations`
+- `password_recovery_tokens`
 
 ## Segredos de runtime
 
-Configure no Worker, em **Settings > Variables and Secrets**, como **Secret**:
+Configure em **Workers & Pages → pdv-artisys → Configurações → Variáveis e segredos**:
 
-- `ADMIN_TOKEN` — senha/token forte usado para entrar na Central;
-- `ACTIVATION_PEPPER` — segredo forte para hash dos códigos de ativação;
+- `ADMIN_TOKEN` — senha/token forte para abrir os dados da Central;
+- `ACTIVATION_PEPPER` — segredo forte usado para armazenar somente o digest dos códigos;
 - `RECOVERY_PEPPER` — segredo independente para códigos de recuperação.
 
-Não coloque esses valores no Git.
+Esses valores são segredos de **runtime**, não variáveis do build.
 
-## Build conectado ao GitHub
+## Deploy pelo repositório
 
-O painel atual executa `npm run build` na raiz. Este repositório passa a usar esse comando somente para o Worker comercial:
+O Worker conectado no Cloudflare é `pdv-artisys`, branch de produção `main`.
 
-1. executa os testes da Central;
-2. quando detecta Workers Builds (`WORKERS_CI=1`), localiza o D1 **existente** chamado `artisys`;
-3. gera temporariamente `wrangler.jsonc` apontando para `pdv-artisys`;
-4. preserva o D1 `artisys`, o R2 `artisysr2 -> artisyspdv` e variáveis do dashboard;
-5. o comando já configurado no Cloudflare, `npx wrangler deploy`, publica o Worker.
+O `package.json` da raiz possui `npm run build` apenas para validar a sintaxe e os testes da Central antes do deploy.
 
-O script **nunca executa `wrangler d1 create`**. Se não localizar exatamente o D1 existente, o build falha em vez de criar outro banco.
+**Importante:** não adicione um `wrangler.toml/jsonc` incompleto na raiz. Wrangler trata a configuração como fonte de verdade e uma configuração sem o D1/R2 reais pode remover bindings configurados pelo painel.
 
-Para contas em que o build token não puder listar D1, defina a variável de build `ARTISYS_D1_DATABASE_ID` com o ID do banco existente.
+O arquivo `wrangler.toml.example` serve apenas como referência para uma futura configuração declarativa, quando o ID real do D1 desta conta for copiado do painel.
 
-## Testes
+## Core local
 
-```bash
-npm run test:cloudflare:account
-npm run build
-```
-
-O empacotamento do PDV Windows continua separado em `npm run dist:win`.
+O Cloudflare não é dependência do funcionamento diário do PDV já ativado. Nenhum dado operacional de venda, caixa, clientes, produtos ou senha do Administrador é armazenado nesta Central.
