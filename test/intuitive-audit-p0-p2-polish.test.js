@@ -71,3 +71,15 @@ test('creation buttons use portable plus text instead of the full-width plus gly
   assert.match(catalog,/id="catalog-new-user">\+ Nova pessoa/);
   assert.doesNotMatch(catalog,/id="catalog-new-user">＋/);
 });
+
+test('mobile staff surfaces translate internal device labels for operators',()=>{
+  const mobile=read('server/mobile/app.js');
+  assert.match(mobile,/WAITER:'Garçom'/);
+  assert.match(mobile,/KITCHEN:'Cozinha'/);
+  assert.match(mobile,/TABLET:'Tablet da mesa'/);
+  assert.match(mobile,/SELF_SERVICE:'Autoatendimento'/);
+
+  const steps=flow().steps;
+  assert.equal(steps.some(step=>step.name==='equipe-mobile-tipo-traduzido'&&step.expected==='Garçom'),true);
+  assert.equal(steps.some(step=>step.name==='kds-mobile-tipo-traduzido'&&step.expected==='Cozinha'),true);
+});
