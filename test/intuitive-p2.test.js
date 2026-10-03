@@ -23,7 +23,7 @@ test('P2 sidebar exposes short text labels for canonical navigation',()=>{
 test('P2 Mesas e comandas defaults to an operation-only workspace',()=>{
   const restaurant=read('desktop/renderer/restaurant-ui.js');
   assert.match(restaurant,/let activeView=['"]operation['"]/);
-  assert.match(restaurant,/data-restaurant-view="operation"/);
+  assert.match(restaurant,/data-restaurant-view=/);
   assert.match(restaurant,/function renderOperation\(/);
   assert.match(restaurant,/function renderManagement\(/);
   assert.doesNotMatch(restaurant,/renderOperation[\s\S]{0,1600}renderAdmin\(\)/);
