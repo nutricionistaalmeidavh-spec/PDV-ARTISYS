@@ -213,3 +213,13 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - **KDS/Cozinha/Bar** é a autoridade da produção. Confirmar visualização inicia o preparo e confirmar conclusão marca o ticket pronto; o pedido agrega o estado dos setores.
 - **Mesas e comandas**, Delivery/Retirada e KDS compartilham o mesmo estado autoritativo do servidor LAN. Nenhuma tela mantém uma cópia independente que possa sobrescrever estado mais novo.
 - Telas administrativas usam hierarquia comum: cabeçalho de contexto, seção, descrição curta, ação principal e cartões/tabelas abaixo. Campos destinados ao operador usam nomes reconhecíveis em vez de IDs técnicos.
+
+
+## Implantação e primeiro acesso
+
+- Uma instalação nova começa com apenas duas decisões de produto: **Iniciar uma nova instalação** ou **Conectar a uma instalação existente**. Endereço, IDs e credenciais permanentes não aparecem como escolhas equivalentes nessa primeira tela.
+- Em uma nova instalação, ativação comercial quando exigida e criação do administrador principal acontecem antes da escolha entre **somente neste computador** e **PC principal da rede local**.
+- Um terminal secundário nunca repete ativação comercial nem cria outro administrador principal. Ele pareia com código temporário de 6 dígitos e depois usa os usuários/perfis locais da instalação principal.
+- A credencial permanente do terminal fica fora do renderer e do `data-server.json`; o Electron a guarda no `safeStorage` do sistema operacional e a injeta nas chamadas LAN.
+- Depois da configuração inicial, alterar o papel do computador, a origem dos dados ou o acesso LAN exige autorização server-side por `deployment.manage`. Ocultar controles na interface não é limite de segurança suficiente.
+- Trocas seguras entre **somente neste computador** e **PC principal** reutilizam o mesmo banco local. Um terminal remoto não pode ser simplesmente apontado para outro servidor reaproveitando a credencial anterior; a mudança exige novo pareamento/migração controlada.
