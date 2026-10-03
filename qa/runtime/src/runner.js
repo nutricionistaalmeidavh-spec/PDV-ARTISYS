@@ -25,6 +25,7 @@ function profileRuntimeContext({ manifest, rootDir, environmentName, environment
     account: preparedProfile?.account || null,
     workspace: preparedProfile?.workspace || null,
     fixtures: preparedProfile?.fixtures || [],
+    vars: {},
   };
 }
 
