@@ -133,3 +133,25 @@ test('pairing by temporary code stores only the permanent credential in safe sto
   assert.doesNotMatch(fs.readFileSync(file,'utf8'),/permanent-secret|terminalKey/);
   fs.rmSync(dir,{recursive:true,force:true});
 });
+
+
+test('deployment migration grants the new capability to existing administrators only',()=>{
+  const {createPdvRuntime}=require('../js/core/pdv-runtime');
+  const {runDeploymentCapabilityMigrations,DEPLOYMENT_CAPABILITY_SCHEMA_VERSION}=require('../js/core/database/deployment-capability-migrations');
+  const {DEFAULT_PROFILE_IDS}=require('../js/core/auth/default-profiles');
+  const runtime=createPdvRuntime();
+  try{
+    runtime.db.prepare('DELETE FROM schema_migrations WHERE version=?').run(DEPLOYMENT_CAPABILITY_SCHEMA_VERSION);
+    runtime.db.prepare('DELETE FROM profile_permissions WHERE profile_id=? AND permission_id=?')
+      .run(DEFAULT_PROFILE_IDS.ADMINISTRATOR,'deployment.manage');
+    runtime.db.prepare('DELETE FROM profile_permissions WHERE profile_id=? AND permission_id=?')
+      .run(DEFAULT_PROFILE_IDS.MANAGER,'deployment.manage');
+
+    runDeploymentCapabilityMigrations(runtime.db,()=> '2026-10-03T12:00:00.000Z');
+    assert.equal(runtime.db.prepare('SELECT COUNT(*) AS n FROM profile_permissions WHERE profile_id=? AND permission_id=?')
+      .get(DEFAULT_PROFILE_IDS.ADMINISTRATOR,'deployment.manage').n,1);
+    assert.equal(runtime.db.prepare('SELECT COUNT(*) AS n FROM profile_permissions WHERE profile_id=? AND permission_id=?')
+      .get(DEFAULT_PROFILE_IDS.MANAGER,'deployment.manage').n,0);
+    assert.equal(runDeploymentCapabilityMigrations(runtime.db),DEPLOYMENT_CAPABILITY_SCHEMA_VERSION);
+  }finally{runtime.close();}
+});
