@@ -1,6 +1,9 @@
 name: QA Multi-Device LAN
 
 on:
+  push:
+    branches:
+      - feat/qa-multi-device-lan
   workflow_dispatch:
     inputs:
       profile:
@@ -17,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: qa-multi-device-lan-${{ github.ref }}-${{ inputs.profile }}
+  group: qa-multi-device-lan-oneoff-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
