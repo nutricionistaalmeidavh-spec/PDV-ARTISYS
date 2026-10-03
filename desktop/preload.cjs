@@ -10,7 +10,6 @@ function dataServerTestInput(input = {}) {
       enriched.mode=form.elements?.mode?.value||enriched.mode;
       enriched.serverUrl=form.elements?.serverUrl?.value||enriched.serverUrl;
       enriched.terminalId=form.elements?.terminalId?.value||enriched.terminalId;
-      enriched.terminalKey=form.elements?.terminalKey?.value||enriched.terminalKey;
     }
   } catch { /* renderer DOM is optional for non-UI callers */ }
   return enriched;
@@ -21,7 +20,9 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
   dataServer: {
     state: () => ipcRenderer.invoke('artisys:data-server:state'),
-    save: (input) => ipcRenderer.invoke('artisys:data-server:save', input),
+    beginNewInstallation: () => ipcRenderer.invoke('artisys:data-server:new-installation'),
+    pair: (input) => ipcRenderer.invoke('artisys:data-server:pair', input),
+    save: (input, sessionToken = '') => ipcRenderer.invoke('artisys:data-server:save', { input, sessionToken }),
     test: (input) => ipcRenderer.invoke('artisys:data-server:test', dataServerTestInput(input)),
     restart: () => ipcRenderer.invoke('artisys:data-server:restart')
   },
