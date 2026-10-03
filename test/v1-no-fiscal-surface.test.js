@@ -108,3 +108,10 @@ test('V1 keeps regression tests for sales printing restaurant KDS wholesale and 
     assert.equal(fs.existsSync(path.join(root,file)),true,file);
   }
 });
+
+test('V1 test runner excludes legacy fiscal suites while keeping V1 guardrails', () => {
+  const runner=read('scripts/run-v1-tests.js');
+  assert.match(runner,/e20-fiscal\.test\.js/);
+  assert.match(runner,/startsWith\('fiscal-'\)/);
+  assert.equal(JSON.parse(read('package.json')).scripts.test,'node scripts/run-v1-tests.js');
+});
