@@ -68,7 +68,10 @@
     REVERSED:'Estornado',
     REFUNDED:'Reembolsado',
     APPROVED:'Aprovado',
-    REJECTED:'Recusado'
+    REJECTED:'Recusado',
+    IN_TRANSIT:'Em trânsito',
+    DISPATCHED:'Despachado',
+    PROCESSING:'Processando'
   });
   const FULFILLMENT_LABELS = Object.freeze({DELIVERY:'Entrega',PICKUP:'Retirada',TABLE:'Mesa',COUNTER:'Balcão'});
   const DEVICE_TYPE_LABELS = Object.freeze({KITCHEN:'KDS / produção',WAITER:'Garçom',TABLET:'Tablet de mesa',SELF_SERVICE:'Autoatendimento'});
