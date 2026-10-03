@@ -24,6 +24,7 @@ test('QA runtime can carry server-generated IDs, credentials and QR URLs between
   assert.match(runtime,/saveAs/);
   assert.match(runtime,/valueFrom/);
   assert.match(runtime,/urlFrom/);
+  assert.match(runtime,/desktopConfig/);
 });
 
 test('extended coverage proves useful content instead of screenshots only',()=>{
@@ -38,10 +39,16 @@ test('extended coverage proves useful content instead of screenshots only',()=>{
   ]) assert.equal(names.has(name),true,name);
 });
 
-test('CI UI gate exposes the LAN surfaces only on loopback',()=>{
+test('CI UI gate keeps LAN disabled and reuses the embedded loopback server',()=>{
   const config=JSON.parse(read('qa/artisys-qa.config.json'));
-  const env=config.environments.ci.env;
-  assert.equal(env.PDV_ENABLE_LAN,'true');
-  assert.equal(env.PDV_LAN_HOST,'127.0.0.1');
-  assert.equal(env.PDV_LAN_PORT,'4174');
+  assert.equal(config.environments.ci.env.PDV_ENABLE_LAN,'false');
+  const steps=flow().steps;
+  const capture=steps.find(step=>step.name==='capturar-servidor-local-qa');
+  const mobile=steps.find(step=>step.name==='abrir-equipe-mobile');
+  const qr=steps.find(step=>step.name==='seed-cardapio-qr-qa');
+  assert.equal(capture?.action,'desktopConfig');
+  assert.equal(capture?.saveAs?.qaApiBase,'apiBase');
+  assert.equal(mobile?.urlFrom,'qaApiBase');
+  assert.equal(mobile?.path,'/mobile');
+  assert.doesNotMatch(qr?.path||'',/port=4174/);
 });
