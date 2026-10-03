@@ -10,7 +10,7 @@
   const ROUTES = {
     home: { label: 'Início', shortLabel:'Início', icon: 'home' },
     checkout: { label: 'Balcão', shortLabel:'Balcão', icon: 'cart' },
-    products: { label: 'Cardápio', icon: 'document' },
+    products: { label: 'Produtos', icon: 'document' },
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
     finance: { label: 'Financeiro', icon: 'chart', phase: 'E16' },
@@ -921,7 +921,7 @@ function openCategoryForm() {
       products: () => renderProducts(),
       catalog: () => renderFlowHub('Cadastros','Clientes e estrutura operacional do negócio, com acesso ajustado ao perfil atual.',[
         {route:'customers',label:'Clientes',description:'Cadastro, histórico e limite de crédito.',icon:'users',tone:'green'},
-        {route:'products',label:'Cardápio e produtos',description:'Itens de venda, preços, categorias, variantes e fichas técnicas.',icon:'document',tone:'purple'},
+        {route:'products',label:'Produtos',description:'Itens de venda, preços, categorias, variantes e fichas técnicas.',icon:'document',tone:'purple'},
         {route:'inventory',label:'Estoque',description:'Saldos, insumos, movimentações, compras e logística.',icon:'cubes',tone:'teal'},
         {route:'sellers',label:'Equipe e acessos',description:'Usuários, funções, permissões e comissões.',icon:'users',tone:'orange'}
       ]),
