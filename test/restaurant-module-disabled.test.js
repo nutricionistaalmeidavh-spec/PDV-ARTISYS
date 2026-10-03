@@ -52,7 +52,7 @@ test('restaurant mobile mutations are rejected when FOOD module is disabled',asy
   const runtime=createPdvRuntime();
   t.after(()=>runtime.close());
   const device=runtime.mobileDevices.createDevice({name:'Garcom QA',deviceType:'WAITER'},{kind:'system',id:'system'});
-  runtime.modules.setEnabled('FOOD',false,{role:'admin',userId:'admin-1'});
+  runtime.modules.setEnabled('FOOD',false,{kind:'system',id:'system'});
   const router=createRestaurantRouter({runtime});
 
   const result=await call(router,'/api/v1/mobile/orders',{
