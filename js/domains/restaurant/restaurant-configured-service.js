@@ -55,6 +55,7 @@ function createConfiguredRestaurantService({db,baseService,kitchenService=null,n
         ORDER BY o.created_at,o.id,i.created_at,i.id`).all(row.id);
       if(!orderItems.length)throw new Error('Comanda sem pedidos para fechamento.');
       const sale=saleService.openSale({terminalId,operatorId},actor);
+      if(row.customer_id)saleService.setCustomer(sale.id,row.customer_id);
       for(const item of orderItems){saleService.addItem(sale.id,{productId:item.productId,quantity:item.quantity,unitPriceCents:item.unitPriceCents,configurationSnapshot:parseConfiguration(item.configurationJson)||undefined,forceSeparateLine:Boolean(item.configurationJson)});}
       db.prepare("UPDATE table_sessions SET status='CHECKOUT',checkout_sale_id=?,updated_at=? WHERE id=?").run(sale.id,now(),row.id);
       writeAudit(db,{action:'restaurant.table.checkout',entity:'table_session',entityId:row.id,actor,context:{saleId:sale.id,mutationId,configured:true}},now);
