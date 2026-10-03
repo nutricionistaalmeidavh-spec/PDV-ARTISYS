@@ -456,15 +456,18 @@
       const filterButtons=[...root.querySelectorAll('[data-checkout-document-filter]')];
       let activeFilter='';let timer=null;
       const render=rows=>{
-        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
+        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}" data-checkout-document-sale="${escapeHtml(row.saleId||'')}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
         host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
           const split=button.dataset.openCheckoutDocument.indexOf(':');
           const type=button.dataset.openCheckoutDocument.slice(0,split);
           const id=button.dataset.openCheckoutDocument.slice(split+1);
           try{
             const currentOperationalDocument=Boolean(state.checkoutDocumentContext);
-            if(state.sale?.status==='OPEN'&&state.sale.items?.length&&!currentOperationalDocument)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');
-            if(state.sale?.status==='OPEN'&&!state.sale.items?.length&&!currentOperationalDocument){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}
+            const targetSaleId=String(button.dataset.checkoutDocumentSale||'').trim();
+            const sameCanonicalSale=Boolean(targetSaleId&&state.sale?.id===targetSaleId);
+            if(state.sale?.status==='OPEN'&&state.sale.items?.length&&!currentOperationalDocument&&!sameCanonicalSale)throw new Error('Finalize, suspenda ou cancele a venda atual antes de abrir uma comanda ou pedido.');
+            if(state.sale?.status==='OPEN'&&!state.sale.items?.length&&!currentOperationalDocument&&!sameCanonicalSale){await api.cancelSale(state.sale.id,'Substituída por documento operacional');state.sale=null;}
+            if(state.sale?.status==='OPEN'&&targetSaleId&&state.sale.id===targetSaleId)state.checkoutDocumentContext={type,document:rows.find(row=>row.type===type&&String(row.id)===String(id))||null};
             button.disabled=true;
             const opened=await api.openCheckoutDocument(type,id);
             state.sale=opened.sale;
