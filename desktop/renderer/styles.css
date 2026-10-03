@@ -35,6 +35,9 @@ input, textarea { user-select: text; }
 .nav-button { width: 58px; height: 58px; border: 0; border-radius: 15px; background: transparent; color: #1a2d52; display: grid; place-items: center; transition: .15s ease; font-size: 27px; }
 .nav-button:hover { background: #edf5ff; color: var(--artisys-blue); }
 .nav-button.active { background: linear-gradient(145deg, #e8f4ff, #d9edff); color: var(--artisys-blue); box-shadow: inset 4px 0 0 #17b9df; }
+.nav-button-icon{display:grid;place-items:center;line-height:1}
+.nav-label{display:block;max-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;line-height:1.05;font-weight:750;letter-spacing:-.01em;text-align:center}
+.sidebar-nav .nav-button,.sidebar>[data-route="settings"]{grid-template-rows:auto auto;align-content:center;gap:2px;padding:5px 2px}
 .sidebar-back { flex:0 0 auto; margin: 6px 0 16px; font-size: 36px; }
 .topbar { -webkit-app-region: drag; display: flex; align-items: center; gap: 24px; background: rgba(255,255,255,.97); border-bottom: 1px solid var(--line); padding: 0 0 0 28px; min-width: 0; }
 .topbar-brand { display: flex; gap: 8px; align-items: baseline; font-size: 25px; white-space: nowrap; }
