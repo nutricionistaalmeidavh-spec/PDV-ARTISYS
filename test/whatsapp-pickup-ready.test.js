@@ -52,12 +52,13 @@ test('pickup-ready WhatsApp action is rendered by the canonical delivery rendere
   assert.match(preload,/openWhatsapp:\s*\(input\)\s*=>\s*ipcRenderer\.invoke\('artisys:external:whatsapp'/);
   assert.match(receipts,/registerWhatsappIpc/);
   assert.doesNotMatch(index,/\.\/whatsapp-pickup-ui\.js/);
-  assert.match(parity,/data-whatsapp-pickup-ready/);
-  assert.match(parity,/artisysDesktop\?\.external\?\.openWhatsapp/);
-  assert.match(parity,/fulfillmentType\s*===\s*'PICKUP'/);
-  assert.match(parity,/status\s*===\s*'READY'/);
-  assert.doesNotMatch(parity,/shell\.openExternal/);
-  assert.doesNotMatch(parity,/window\.open\s*\(/);
+  assert.match(modules,/data-delivery-whatsapp/);
+  assert.match(modules,/artisysDesktop\?\.external\?\.openWhatsapp/);
+  assert.match(modules,/fulfillmentType\s*===\s*'PICKUP'/);
+  assert.match(modules,/status\s*===\s*'READY'/);
+  assert.doesNotMatch(modules,/shell\.openExternal/);
+  assert.doesNotMatch(modules,/window\.open\s*\(/);
+  assert.doesNotMatch(parity,/data-whatsapp-pickup-ready/);
   assert.doesNotMatch(modules,/scheduleDeliveryEnhancement/);
 });
 

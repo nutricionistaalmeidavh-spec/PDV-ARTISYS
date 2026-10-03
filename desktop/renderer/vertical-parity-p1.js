@@ -15,34 +15,6 @@
   const showSettings=()=>document.querySelector('#sidebar-nav [data-route="home"]')?.click();
   const backButton=()=>'<button class="secondary-button" type="button" id="vertical-back">← Início</button>';
 
-  function normalizeDeliveryPhone(value){
-    let digits=String(value??'').replace(/\D/g,'');
-    if(digits.length>11&&digits.startsWith('55'))digits=digits.slice(2);
-    return /^\d{10,11}$/.test(digits)?digits:null;
-  }
-
-  function pickupWhatsappButton(order){
-    if(!(order.fulfillmentType === 'PICKUP' && order.status === 'READY'))return '';
-    const phone=normalizeDeliveryPhone(order.phone);
-    return `<button type="button" class="ghost" data-whatsapp-pickup-ready="${esc(order.id)}" ${phone?'':'disabled title="Cadastre um telefone com DDD (10 ou 11 números) para avisar o cliente."'}>${phone?'Avisar no WhatsApp':'WhatsApp sem telefone'}</button>`;
-  }
-
-  async function openPickupWhatsapp(order,button){
-    const openWhatsapp=window.artisysDesktop?.external?.openWhatsapp;
-    const phone=normalizeDeliveryPhone(order.phone);
-    if(typeof openWhatsapp!=='function'){toast('Abertura do WhatsApp indisponível neste terminal.',true);return;}
-    if(!phone){toast('Cadastre um telefone com DDD (10 ou 11 números) para avisar o cliente.',true);return;}
-    button.disabled=true;
-    button.textContent='Abrindo WhatsApp...';
-    try{
-      await openWhatsapp({phone,customerName:order.customerName});
-      button.textContent='WhatsApp aberto';
-    }catch(error){
-      button.disabled=false;
-      button.textContent='Tentar novamente';
-      toast(error?.message||'Falha ao abrir WhatsApp.',true);
-    }
-  }
 
   async function mountPizzeria(){
     const target=page();if(!target||title()!=='Pizzaria'||target.querySelector('#parity-pizzeria-p1'))return;
@@ -60,32 +32,6 @@
     bind('#pizza-crust-form','crust');
   }
 
-  function nextDeliveryStatus(order){
-    const delivery={NEW:'PREPARING',PREPARING:'READY',READY:'OUT_FOR_DELIVERY',OUT_FOR_DELIVERY:'DELIVERED'};
-    const pickup={NEW:'PREPARING',PREPARING:'READY',READY:'PICKED_UP'};
-    return (order.fulfillmentType==='PICKUP'?pickup:delivery)[order.status]||null;
-  }
-
-  async function mountDelivery(){
-    const target=page();if(!target||title()!=='Delivery'||target.querySelector('#parity-delivery-p1'))return;
-    const card=document.createElement('section');card.id='parity-delivery-p1';card.className='data-card';card.innerHTML=`<h2>Operação completa do delivery</h2><p class="vertical-rule">Avance o pedido, atribua entregador, cancele com motivo ou gere a venda canônica.</p><div data-delivery-ops><div class="ops-loader"></div></div><h3>Gerar venda do pedido</h3><form id="delivery-sale-form" class="vertical-form">${field('orderId','ID do pedido','text','required')}${field('productId','ID do produto','text','required')}${field('quantity','Quantidade','number','min="0.001" step="0.001" value="1" required')}${field('unitPrice','Preço unitário em R$ (opcional)','text','inputmode="decimal"')}<label class="field"><span>Operador</span><select name="operatorId" required></select></label><button class="primary-button">Criar venda</button></form><pre id="delivery-sale-output" class="vertical-output"></pre>`;target.appendChild(card);
-    let cfg=null;
-    async function load(){
-      try{
-        const [orders,users,config]=await Promise.all([api.delivery(),api.users(true),api.initialize()]);cfg=config;
-        const operator=card.querySelector('select[name="operatorId"]');operator.innerHTML=users.filter(user=>user.active!==false).map(user=>`<option value="${esc(user.id)}">${esc(user.name)} · ${esc(user.role)}</option>`).join('');
-        card.querySelector('[data-delivery-ops]').innerHTML=orders.map(order=>{const next=nextDeliveryStatus(order);const terminal=['DELIVERED','PICKED_UP','CANCELLED'].includes(order.status);return `<div class="vertical-row" data-delivery-order="${esc(order.id)}"><div><strong>${esc(order.customerName)}</strong><small>${esc(order.id)} · ${esc(order.fulfillmentType)} · ${esc(order.status)}${order.courier?` · ${esc(order.courier)}`:''}</small></div><div class="vertical-actions">${pickupWhatsappButton(order)}${next?`<button type="button" data-delivery-next="${esc(order.id)}:${esc(next)}">Avançar para ${esc(next)}</button>`:''}${order.fulfillmentType==='DELIVERY'&&!terminal?`<button type="button" data-delivery-courier="${esc(order.id)}">Entregador</button>`:''}${!terminal?`<button type="button" data-delivery-cancel="${esc(order.id)}">Cancelar</button>`:''}${!order.saleId?`<button type="button" data-delivery-prefill-sale="${esc(order.id)}">Gerar venda</button>`:`<span>Venda ${esc(order.saleId)}</span>`}</div></div>`;}).join('')||'<p class="vertical-empty">Nenhum pedido de delivery.</p>';
-        const ordersById=new Map(orders.map(order=>[String(order.id),order]));
-        card.querySelectorAll('[data-whatsapp-pickup-ready]').forEach(button=>button.addEventListener('click',async()=>{const order=ordersById.get(String(button.dataset.whatsappPickupReady||''));if(order)await openPickupWhatsapp(order,button);}));
-        card.querySelectorAll('[data-delivery-next]').forEach(button=>button.addEventListener('click',async()=>{const [id,status]=button.dataset.deliveryNext.split(':');try{await api.updateDeliveryStatus(id,status);toast('Status do delivery atualizado.');await load();}catch(error){toast(error.message,true);}}));
-        card.querySelectorAll('[data-delivery-courier]').forEach(button=>button.addEventListener('click',async()=>{const courier=window.prompt('Nome do entregador:');if(!courier)return;try{await api.assignDeliveryCourier(button.dataset.deliveryCourier,courier);toast('Entregador atribuído.');await load();}catch(error){toast(error.message,true);}}));
-        card.querySelectorAll('[data-delivery-cancel]').forEach(button=>button.addEventListener('click',async()=>{const reason=window.prompt('Motivo do cancelamento:');if(!reason)return;try{await api.cancelDelivery(button.dataset.deliveryCancel,reason);toast('Pedido cancelado.');await load();}catch(error){toast(error.message,true);}}));
-        card.querySelectorAll('[data-delivery-prefill-sale]').forEach(button=>button.addEventListener('click',()=>{card.querySelector('#delivery-sale-form [name="orderId"]').value=button.dataset.deliveryPrefillSale;card.querySelector('#delivery-sale-form [name="productId"]').focus();}));
-      }catch(error){card.querySelector('[data-delivery-ops]').innerHTML=`<div class="ops-error">${esc(error.message)}</div>`;}
-    }
-    card.querySelector('#delivery-sale-form').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);const item={productId:String(data.get('productId')||'').trim(),quantity:Number(data.get('quantity'))};const rawPrice=String(data.get('unitPrice')||'').trim();if(rawPrice)item.unitPriceCents=cents(rawPrice);try{const result=await api.createDeliverySale(String(data.get('orderId')||'').trim(),{terminalId:cfg?.terminalId,operatorId:String(data.get('operatorId')||'').trim(),items:[item]});card.querySelector('#delivery-sale-output').textContent=`Venda ${result.id} · ${money(result.totalCents)}`;toast('Venda do delivery criada.');await load();}catch(error){toast(error.message,true);}});
-    await load();
-  }
 
   async function mountMarket(){
     const target=page();if(!target||title()!=='Mercado / Conveniência / Padaria'||target.querySelector('#parity-market-p1'))return;
@@ -110,8 +56,12 @@
     }catch(error){card.querySelector('#restaurant-p1-output').textContent=error.message;}
   }
 
-  function mount(){void mountPizzeria();void mountDelivery();void mountMarket();void mountRestaurant();}
-  const content=document.getElementById('route-content');if(content)new MutationObserver(()=>queueMicrotask(mount)).observe(content,{subtree:true,childList:true});
-  document.addEventListener('DOMContentLoaded',mount,{once:true});
-  mount();
+  function mount(){void mountPizzeria();void mountMarket();void mountRestaurant();}
+  const lifecycle=window.PdvUiLifecycle;
+  const scheduleMount=()=>queueMicrotask(()=>void mount());
+  lifecycle?.on?.('route:mounted',scheduleMount);
+  lifecycle?.on?.('route:updated',scheduleMount);
+  lifecycle?.on?.('surface:mounted',scheduleMount);
+  document.addEventListener('DOMContentLoaded',scheduleMount,{once:true});
+  scheduleMount();
 })();

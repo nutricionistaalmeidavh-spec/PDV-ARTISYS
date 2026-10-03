@@ -5,6 +5,7 @@
   const registry=window.PdvRouteRegistry;
   const accessPolicy=window.PdvAccessPolicy;
   const ux=window.PdvAccessCenterModel;
+  const ui=window.PdvUiModel;
   const content=document.getElementById('route-content');
   if(!ApiClient||!registry||!accessPolicy||!ux||!content)return;
 
@@ -14,7 +15,7 @@
   let currentUser=null;
   let profileQuery='';
   let accessModel={tabs:[],load:{},actions:{}};
-  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{}};
+  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[],tables:[]};
 
   const TABS=Object.freeze([
     ['people','Pessoas'],
@@ -29,7 +30,7 @@
   function plural(value,singular,pluralForm){return `${value} ${value===1?singular:pluralForm}`;}
 
   async function load(){
-    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{}};
+    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[],tables:[]};
     const tasks=[];
     if(accessModel.load?.users)tasks.push(api.users(true).then(value=>{snapshot.users=value;}));
     if(accessModel.load?.profiles)tasks.push(api.accessProfiles(true).then(value=>{snapshot.profiles=value;}));
@@ -37,7 +38,7 @@
       snapshot.permissions=value.permissions||[];
       snapshot.permissionGroups=value.groups||{};
     }));
-    if(accessModel.load?.devices)tasks.push(api.accessDevices().then(value=>{snapshot.devices=value;}));
+    if(accessModel.load?.devices)tasks.push(Promise.all([api.accessDevices(),api.accessKitchenStations(),api.request('/api/v1/restaurant/tables').catch(()=>[])]).then(([devices,stations,tables])=>{snapshot.devices=devices;snapshot.stations=stations;snapshot.tables=tables;}));
     if(accessModel.load?.security)tasks.push(api.accessSecurity().then(value=>{snapshot.security=value;}));
     await Promise.all(tasks);
   }
@@ -56,7 +57,7 @@
   }
 
   function sectionHead(title,description,action=''){
-    return `<div class="access-section-head"><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
+    return `<div class="access-section-head admin-section-head"><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
   }
 
   function peopleView(){
@@ -119,23 +120,28 @@
 
   function devicesView(){
     const createButton=canAction('pairDevice')?'<button type="button" class="primary-button" data-new-device>Novo dispositivo</button>':'';
+    const stationName=id=>snapshot.stations.find(station=>String(station.id)===String(id))?.name||id;
     const rows=snapshot.devices.map(device=>{
       const actions=[
         canAction('blockDevice')?`<button type="button" class="secondary-button access-row-action" data-toggle-device>${device.status==='ACTIVE'?'Bloquear':'Reativar'}</button>`:'',
+        device.deviceType==='KITCHEN'&&canAction('pairDevice')?'<button type="button" class="secondary-button access-row-action" data-device-stations>Setores</button>':'',
         canAction('rotateDeviceCredential')?'<button type="button" class="secondary-button access-row-action" data-rotate-device>Nova credencial</button>':''
       ].filter(Boolean).join('');
+      const scope=device.deviceType==='KITCHEN'
+        ?(device.stationIds?.length?device.stationIds.map(stationName).join(', '):'Todos os setores')
+        :(device.scope?.type==='TABLE'?(snapshot.tables.find(table=>String(table.id)===String(device.scope.id))?.label||'Mesa vinculada'):'Estabelecimento');
       return `<tr data-device-row="${esc(device.id)}" data-device-id="${esc(device.id)}">
         <td><strong>${esc(device.name)}</strong><small>${esc(device.id)}</small></td>
-        <td>${esc(device.surface||device.deviceType)}</td>
-        <td>${device.scope?`${esc(device.scope.type)}: ${esc(device.scope.id||'estabelecimento')}`:'Estabelecimento'}</td>
-        <td><span class="access-status ${device.status==='ACTIVE'?'is-active':'is-inactive'}">${esc(device.status)}</span></td>
+        <td>${esc(ui?.deviceTypeLabel?.(device.deviceType,device.surface||device.deviceType)||device.surface||device.deviceType)}</td>
+        <td>${esc(scope)}</td>
+        <td><span class="access-status ${device.status==='ACTIVE'?'is-active':'is-inactive'}">${esc(ui?.statusLabel?.(device.status,device.status)||device.status)}</span></td>
         <td>${esc(device.lastSeenAt||'Nunca')}</td>
         <td class="access-actions-cell">${actions}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="6"><div class="access-empty">Nenhum dispositivo pareado.</div></td></tr>';
 
     return `<section class="access-surface">
-      ${sectionHead('Dispositivos','Gerencie credenciais e superfícies autorizadas.',createButton)}
+      ${sectionHead('Dispositivos','Gerencie credenciais, superfícies e os setores de produção exibidos em cada KDS.',createButton)}
       <div class="access-table-wrap"><table class="access-table">
         <thead><tr><th>Dispositivo</th><th>Superfície</th><th>Escopo</th><th>Status</th><th>Último acesso</th><th aria-label="Ações"></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -446,18 +452,58 @@
     }});
   }
 
+  function stationChoices(selected=[]){
+    const chosen=new Set((selected||[]).map(String));
+    return snapshot.stations.length
+      ?snapshot.stations.map(station=>`<label class="access-permission-row"><input type="checkbox" name="stationId" value="${esc(station.id)}" ${chosen.has(String(station.id))?'checked':''}><span><strong>${esc(station.name)}</strong><small>Mostrar pedidos enviados para este setor.</small></span></label>`).join('')
+      :'<div class="access-empty">Nenhum setor de produção cadastrado.</div>';
+  }
+
   function deviceDialog(){
-    window.PdvModal?.open?.('Novo dispositivo',`<form data-device-form><div class="field"><label>Nome</label><input name="name" required></div><div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="TABLET">Tablet de mesa</option><option value="KITCHEN">KDS / cozinha</option><option value="SELF_SERVICE">Autoatendimento</option></select></div><div class="field"><label>Mesa (somente Tablet)</label><input name="tableId" placeholder="ID da mesa"></div><div class="access-wizard-actions"><button type="button" class="secondary-button" data-device-cancel>Cancelar</button><span class="access-wizard-spacer"></span><button class="primary-button" type="submit">Parear</button></div></form>`,{onMount:modal=>{
+    window.PdvModal?.open?.('Novo dispositivo',`<form data-device-form>
+      <div class="field"><label>Nome</label><input name="name" required></div>
+      <div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="TABLET">Tablet de mesa</option><option value="KITCHEN">KDS / produção</option><option value="SELF_SERVICE">Autoatendimento</option></select></div>
+      <div class="field" data-device-table><label>Mesa</label><select name="tableId"><option value="">Selecione a mesa</option>${snapshot.tables.filter(table=>table.active!==false).map(table=>`<option value="${esc(table.id)}">${esc(table.label||'Mesa')}</option>`).join('')}</select></div>
+      <fieldset class="data-card" data-device-station-fieldset hidden><legend>Setores de produção</legend><p class="helper">Escolha Cozinha, Bar ou outros setores deste painel. Sem seleção, o KDS acompanha todos.</p>${stationChoices()}</fieldset>
+      <div class="access-wizard-actions"><button type="button" class="secondary-button" data-device-cancel>Cancelar</button><span class="access-wizard-spacer"></span><button class="primary-button" type="submit">Parear</button></div>
+    </form>`,{onMount:modal=>{
       const form=modal.querySelector('[data-device-form]');
+      const type=form.elements.deviceType;
+      const stationFieldset=form.querySelector('[data-device-station-fieldset]');
+      const tableField=form.querySelector('[data-device-table]');
+      const syncType=()=>{const tablet=type.value==='TABLET';stationFieldset.hidden=type.value!=='KITCHEN';tableField.hidden=!tablet;form.elements.tableId.required=tablet;};
+      type.addEventListener('change',syncType);syncType();
       form.querySelector('[data-device-cancel]')?.addEventListener('click',()=>window.PdvModal.close());
       form.addEventListener('submit',async event=>{
         event.preventDefault();
-        const deviceType=form.elements.deviceType.value;
+        const deviceType=type.value;
+        const stationIds=deviceType==='KITCHEN'?[...form.querySelectorAll('input[name="stationId"]:checked')].map(input=>input.value):[];
         try{
-          const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,tableId:deviceType==='TABLET'?form.elements.tableId.value:null});
+          const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,tableId:deviceType==='TABLET'?form.elements.tableId.value:null,stationIds});
           window.PdvModal.close();
           await render({state:{user:currentUser}});
           window.PdvModal?.open?.('Credencial do dispositivo',`<p>Copie esta credencial agora. Ela não será exibida novamente.</p><div class="data-card"><code>${esc(created.credential)}</code></div>`);
+        }catch(error){toast(error.message,'error');}
+      });
+    }});
+  }
+
+  function deviceStationsDialog(device){
+    window.PdvModal?.open?.('Setores do KDS',`<form data-device-stations-form>
+      <p>Defina quais filas <strong>${esc(device.name)}</strong> deve acompanhar. Sem seleção, o painel acompanha todos os setores.</p>
+      <fieldset class="data-card"><legend>Setores de produção</legend>${stationChoices(device.stationIds)}</fieldset>
+      <div class="access-wizard-actions"><button type="button" class="secondary-button" data-stations-cancel>Cancelar</button><span class="access-wizard-spacer"></span><button type="submit" class="primary-button">Salvar setores</button></div>
+    </form>`,{onMount:modal=>{
+      const form=modal.querySelector('[data-device-stations-form]');
+      form.querySelector('[data-stations-cancel]')?.addEventListener('click',()=>window.PdvModal.close());
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        const stationIds=[...form.querySelectorAll('input[name="stationId"]:checked')].map(input=>input.value);
+        try{
+          await api.setAccessDeviceKitchenStations(device.id,stationIds);
+          window.PdvModal.close();
+          await render({state:{user:currentUser}});
+          toast('Setores do KDS atualizados.','success');
         }catch(error){toast(error.message,'error');}
       });
     }});
@@ -498,6 +544,7 @@
           toast('Dispositivo atualizado.','success');
         }catch(error){toast(error.message,'error');}
       });
+      row.querySelector('[data-device-stations]')?.addEventListener('click',()=>deviceStationsDialog(device));
       row.querySelector('[data-rotate-device]')?.addEventListener('click',async()=>{
         try{
           const result=await api.rotateAccessDevice(device.id);
@@ -517,7 +564,7 @@
   }
 
   function paint({focusProfileSearch=false}={}){
-    content.innerHTML=`<section class="page access-center-page"><header class="page-head"><div><h1>Acessos e equipe</h1><p>Controle pessoas, perfis, dispositivos e segurança em um único lugar.</p></div></header>${tabs()}<div data-access-panel>${view()}</div></section>`;
+    content.innerHTML=`<section class="page access-center-page admin-surface" data-admin-surface="access"><header class="page-head"><div><h1>Acessos e equipe</h1><p>Controle pessoas, perfis, dispositivos e segurança em um único lugar.</p></div></header>${tabs()}<div data-access-panel>${view()}</div></section>`;
     bind();
     registry.updated('access',{tab:activeTab});
     if(focusProfileSearch){

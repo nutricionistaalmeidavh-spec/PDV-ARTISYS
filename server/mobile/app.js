@@ -8,7 +8,7 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const mutationId=()=>crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random()}`;
-  const labels={ACTIVE:'Ativo',FREE:'Livre',OCCUPIED:'Ocupada',BILL_REQUESTED:'Conta solicitada',CHECKOUT:'Fechamento',OPEN:'Aberto',ACKNOWLEDGED:'Em atendimento',NEW:'Novo',PREPARING:'Em preparo',READY:'Pronto',CANCELLED:'Cancelado',BLOCKED:'Bloqueado',DIRECT:'Direto'};
+  const labels={ACTIVE:'Ativo',FREE:'Livre',OCCUPIED:'Ocupada',BILL_REQUESTED:'Conta solicitada',CHECKOUT:'Em cobrança',OPEN:'Em aberto',ACKNOWLEDGED:'Em atendimento',NEW:'Novo pedido',PREPARING:'Preparando',READY:'Pedido pronto',OUT_FOR_DELIVERY:'Saiu para entrega',DELIVERED:'Entregue',PICKED_UP:'Retirado',CANCELLED:'Cancelado',BLOCKED:'Bloqueado',DIRECT:'Direto'};
   const status=value=>`<span class="status ${esc(value)}">${esc(labels[value]||value)}</span>`;
   const age=value=>{const ms=Date.now()-Date.parse(value||'');if(!Number.isFinite(ms))return'';const minutes=Math.max(0,Math.floor(ms/60000));return minutes<1?'agora':`${minutes} min`;};
   function notify(message){toast.textContent=message;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),2600);}

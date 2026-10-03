@@ -339,24 +339,47 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     db.prepare("UPDATE restaurant_orders SET status=?,updated_at=? WHERE id=? AND status<>'CANCELLED'").run(next,now(),String(orderId));
   }
 
+  function syncProductionSourceStatus(sourceType,sourceId){
+    const normalizedSource=String(sourceType||'').toUpperCase();
+    if(!PRODUCTION_SOURCES.has(normalizedSource))return null;
+    const rows=db.prepare("SELECT status,COUNT(*) AS count FROM production_tickets WHERE source_type=? AND source_id=? AND status<>'CANCELLED' GROUP BY status").all(normalizedSource,String(sourceId));
+    if(!rows.length)return null;
+    const counts=Object.fromEntries(rows.map(row=>[row.status,Number(row.count||0)]));
+    const total=rows.reduce((sum,row)=>sum+Number(row.count||0),0);
+    const next=(counts.READY||0)===total?'READY':((counts.PREPARING||0)>0||(counts.READY||0)>0)?'PREPARING':'NEW';
+    const timestamp=now();
+    if(normalizedSource==='DELIVERY')db.prepare("UPDATE delivery_orders SET status=?,updated_at=? WHERE id=? AND status IN('NEW','PREPARING','READY')").run(next,timestamp,String(sourceId));
+    if(normalizedSource==='FAST_FOOD')db.prepare("UPDATE fast_food_orders SET status=?,updated_at=? WHERE id=? AND status IN('NEW','PREPARING','READY')").run(next,timestamp,String(sourceId));
+    return next;
+  }
+
+  function cancelSourceTickets(sourceType,sourceId,actor={}){
+    const normalizedSource=String(sourceType||'').trim().toUpperCase();
+    if(!PRODUCTION_SOURCES.has(normalizedSource))throw new Error('Origem de producao invalida.');
+    const tickets=listTickets({limit:500}).filter(ticket=>ticket.sourceType===normalizedSource&&String(ticket.sourceId)===String(sourceId)&&ticket.status!=='CANCELLED');
+    return withTransaction(db,()=>tickets.map(ticket=>updateTicketStatus(ticket.id,'CANCELLED',actor)));
+  }
+
   function updateTicketStatus(id, status, actor = {}) {
     const normalized=String(status||'').toUpperCase();
     if (!TICKET_STATUSES.has(normalized)) throw new Error('Status de cozinha invalido.');
     return withTransaction(db,()=>{
       const current=getTicket(id);
       if (!current) throw new Error('Ticket de cozinha nao encontrado.');
+      if(current.status==='CANCELLED'&&normalized!=='CANCELLED')throw new Error('Ticket de cozinha cancelado nao pode ser reaberto.');
       if(current.sourceType==='RESTAURANT'){
         db.prepare('UPDATE kitchen_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
         syncOrderStatus(current.orderId);
       }else{
         db.prepare('UPDATE production_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
+        syncProductionSourceStatus(current.sourceType,current.sourceId);
       }
       writeAudit(db,{action:'restaurant.kitchen.ticket.status',entity:'kitchen_ticket',entityId:String(id),actor,context:{from:current.status,to:normalized,sourceType:current.sourceType,sourceId:current.sourceId}},now);
       return getTicket(id);
     });
   }
 
-  return { upsertStation,getStation,listStations,configureProductRoute,getProductRoute,listProductRoutes,assertOrderRouting,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,TICKET_STATUSES,PRODUCTION_SOURCES,PRODUCT_ROUTE_MODES };
+  return { upsertStation,getStation,listStations,configureProductRoute,getProductRoute,listProductRoutes,assertOrderRouting,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,cancelSourceTickets,syncProductionSourceStatus,TICKET_STATUSES,PRODUCTION_SOURCES,PRODUCT_ROUTE_MODES };
 }
 
 module.exports={createKitchenService};

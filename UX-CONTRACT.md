@@ -183,3 +183,33 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Um item sem destino continua sendo erro de configuração e nunca é convertido implicitamente para atendimento direto.
 - Quando Gestão ou Cardápio detectam um item sem destino, a ação de correção leva ao cadastro correspondente no Estoque.
 - Setores disponíveis são criados em Alimentação → Gestão; o Estoque escolhe qual setor cada item preparado utiliza.
+
+## Entrega, retirada e produção
+
+- **Entrega e retirada** é uma única área operacional com entradas visuais para Delivery e Retirada; os cards escolhem o recorte da fila, não criam fluxos concorrentes.
+- **Atendimento** registra cliente, itens e fulfillment e envia o pedido para produção. A interface não solicita IDs de pedido/produto nem replica o formulário técnico da venda.
+- **KDS** é a autoridade de preparo. Cozinha, Bar e demais setores alteram somente seus tickets `NEW → PREPARING → READY`; Delivery/Retirada exibem o estado agregado e não oferecem botões paralelos de “Preparar” ou “Pronto”.
+- Um pedido com vários setores só é **Pronto** quando todos os tickets ativos estão `READY`.
+- KDS pode ser escopado por setor em **Acessos → Dispositivos**; nenhum setor selecionado significa painel geral.
+- Depois de pronto, **Retirada** oferece WhatsApp e “Marcar retirado”; **Delivery** oferece entregador, “Saiu para entrega” e “Entregue”.
+- **Cobrar no Balcão** abre a venda canônica já vinculada ao pedido. A interface não recria itens, preços ou cliente.
+- Atualização periódica de dados pode existir para superfícies persistentes, mas montagem e descoberta de UI usam eventos/lifecycle; não se observa DOM para descobrir que a tela apareceu.
+
+
+## Arquitetura operacional canônica — Balcão e Alimentação
+
+- **Balcão** é o único checkout e a única superfície de cobrança canônica. Venda avulsa, comanda, Atacado, Delivery e Retirada chegam ao mesmo motor de venda, caixa, estoque, descontos, pagamentos e pós-venda.
+- **Alimentação** é o workspace operacional. **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada**, Autoatendimento e personalização de pizza são canais/visões do mesmo catálogo e da mesma produção, não motores de venda paralelos.
+- **Mesas e comandas** controla salão e intenção de consumo; **Entrega e retirada** controla fulfillment; **KDS** controla preparo. Nenhuma dessas superfícies pode substituir o Balcão na regra de venda.
+- O localizador **Comandas e pedidos** do Balcão pesquisa Comandas, Atacado, Delivery e Retirada. Delivery/Retirada abrem a venda já vinculada por `saleId`; buscar um pedido nunca recria itens nem reprecifica silenciosamente o documento confirmado.
+- Os estados internos permanecem enums estáveis para API/banco. Na UI brasileira, a sequência operacional é apresentada como **Novo pedido → Aguardando produção → Preparando → Pedido pronto**, seguida de **Retirado** ou **Saiu para entrega → Entregue** conforme o canal.
+- Superfícies administrativas usam a mesma hierarquia visual: cabeçalho de seção com título/explicação, cartões ou tabelas de configuração e ações no mesmo nível de leitura. Infraestrutura administrativa não é misturada aos painéis persistentes de operação.
+
+## Arquitetura operacional unificada — Balcão e Alimentação
+
+- **Balcão** é o checkout canônico. Comandas, Atacado, Delivery e Retirada são documentos operacionais pesquisáveis pelo mesmo localizador e abrem a venda canônica já existente quando houver cobrança.
+- **Alimentação** organiza os canais **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada**, **Autoatendimento** e **Personalização de pizza**. Esses canais não criam motores paralelos de venda, preço, estoque ou caixa.
+- **Entrega e retirada** é painel operacional persistente: **Novo pedido → Aguardando produção → Preparando → Pedido pronto → Retirado/Saiu para entrega → Entregue**. Os códigos internos continuam estáveis, mas nunca são apresentados crus ao operador.
+- **KDS/Cozinha/Bar** é a autoridade da produção. Confirmar visualização inicia o preparo e confirmar conclusão marca o ticket pronto; o pedido agrega o estado dos setores.
+- **Mesas e comandas**, Delivery/Retirada e KDS compartilham o mesmo estado autoritativo do servidor LAN. Nenhuma tela mantém uma cópia independente que possa sobrescrever estado mais novo.
+- Telas administrativas usam hierarquia comum: cabeçalho de contexto, seção, descrição curta, ação principal e cartões/tabelas abaixo. Campos destinados ao operador usam nomes reconhecíveis em vez de IDs técnicos.

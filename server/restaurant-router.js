@@ -94,7 +94,9 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
         });
         json(response,200,{device,tables,requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products,customers});return true;
       }
-      json(response,200,{device,tickets:runtime.kitchen.listTickets({limit:250})});return true;
+      const tickets=runtime.kitchen.listTickets({limit:250});
+      const stationIds=new Set(Array.isArray(device.stationIds)?device.stationIds:[]);
+      json(response,200,{device,tickets:stationIds.size?tickets.filter(ticket=>stationIds.has(ticket.stationId)):tickets});return true;
     }
     const waiterOpen=pathname.match(/^\/api\/v1\/mobile\/tables\/([^/]+)\/open$/);
     if(request.method==='POST'&&waiterOpen){
