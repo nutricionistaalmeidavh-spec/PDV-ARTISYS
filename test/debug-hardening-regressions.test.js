@@ -174,10 +174,11 @@ test('activation code expires within 30 minutes and locks after five wrong attem
   const released = await response.json();
   assert.ok(Date.parse(released.codeExpiresAt) - before <= 31 * 60 * 1000);
 
+  const wrongActivationCode = released.code === '000000' ? '000001' : '000000';
   for (let attempt = 0; attempt < 5; attempt += 1) {
     response = await handleRequest(workerRequest('/v1/activation/verify', {
       method:'POST',
-      body:JSON.stringify({ installationId:'install-001', email:'owner@example.com', code:'000000' })
+      body:JSON.stringify({ installationId:'install-001', email:'owner@example.com', code:wrongActivationCode })
     }), env);
     assert.equal(response.status, 400);
   }
@@ -211,10 +212,11 @@ test('password recovery locks after five wrong codes', async () => {
   assert.equal(response.status, 201);
   const recovery = await response.json();
 
+  const wrongRecoveryCode = recovery.code === '000000' ? '000001' : '000000';
   for (let attempt = 0; attempt < 5; attempt += 1) {
     response = await handleRequest(workerRequest('/v1/password-recovery/verify', {
       method:'POST',
-      body:JSON.stringify({ installationId:'install-001', email:'owner@example.com', code:'000000' })
+      body:JSON.stringify({ installationId:'install-001', email:'owner@example.com', code:wrongRecoveryCode })
     }), env);
     assert.equal(response.status, 400);
   }
