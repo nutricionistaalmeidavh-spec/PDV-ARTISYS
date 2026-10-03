@@ -193,7 +193,7 @@
     {
       "action": "expectText",
       "selector": "[data-products-canonical='true'] h1",
-      "expected": "Produtos",
+      "expected": "Cardápio",
       "name": "produtos-titulo-generico",
       "timeoutMs": 10000
     },
