@@ -1817,7 +1817,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": ".product-card",
+      "selector": ".product-card:has-text('Produto QA Atacado')",
       "name": "cardapio-qr-produtos",
       "timeoutMs": 15000
     },
@@ -1826,6 +1826,13 @@
       "selector": ".product-card",
       "expected": "Produto QA Atacado",
       "name": "cardapio-qr-produto-qa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".product-card:has-text('Coca QA')",
+      "expected": "Coca QA",
+      "name": "cardapio-qr-item-direto",
       "timeoutMs": 10000
     },
     {
