@@ -6,21 +6,12 @@
   "defaultDemo": "quick-30s",
   "defaultDemoProfile": "erp-finance-ci",
   "defaultViewport": "desktop",
-  "demoCaptureViewport": {
-    "width": 1440,
-    "height": 900
-  },
-  "capture": {
-    "video": true,
-    "screenshotEachStep": false,
-    "fps": 8
-  },
+  "demoCaptureViewport": { "width": 1440, "height": 900 },
+  "capture": { "video": true, "screenshotEachStep": false, "fps": 8 },
   "electron": {
     "entry": "desktop/main.cjs",
     "executablePath": "../node_modules/electron/dist/electron",
-    "args": [
-      "--no-sandbox"
-    ]
+    "args": ["--no-sandbox"]
   },
   "environments": {
     "ci": {
@@ -38,40 +29,17 @@
     }
   },
   "demoProfiles": {
-    "erp-finance-ci": {
-      "adapter": "runtime/adapters/erp-finance-ci.mjs"
-    }
+    "erp-finance-ci": { "adapter": "runtime/adapters/erp-finance-ci.mjs" }
   },
   "defaultFlow": "all-pages-audit",
-  "flows": {
-    "all-pages-audit": "flows/all-pages-audit.json",
-    "restaurant-table-lifecycle": "flows/restaurant-table-lifecycle.json",
-    "restaurant-multichannel-ui": "flows/restaurant-multichannel-ui.json"
-  },
+  "flows": {"all-pages-audit": "flows/all-pages-audit.json"},
   "qaProfiles": {
-    "quick": {
-      "flows": [],
-      "criticalFlows": []
-    },
-    "full": {
-      "flows": [],
-      "criticalFlows": []
-    },
-    "release": {
-      "flows": [],
-      "criticalFlows": []
-    }
+    "quick": { "flows": [], "criticalFlows": [] },
+    "full": { "flows": [], "criticalFlows": [] },
+    "release": { "flows": [], "criticalFlows": [] }
   },
   "demos": {
-    "quick-30s": {
-      "file": "demo/quick-30s.json",
-      "preset": "reels-9x16",
-      "durationTargetSec": 30
-    },
-    "overview-60s": {
-      "file": "demo/overview-60s.json",
-      "preset": "landscape-16x9",
-      "durationTargetSec": 60
-    }
+    "quick-30s": { "file": "demo/quick-30s.json", "preset": "reels-9x16", "durationTargetSec": 30 },
+    "overview-60s": { "file": "demo/overview-60s.json", "preset": "landscape-16x9", "durationTargetSec": 60 }
   }
 }
