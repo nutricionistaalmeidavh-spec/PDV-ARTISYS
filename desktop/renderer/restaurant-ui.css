@@ -15,3 +15,10 @@
 .restaurant-page :is(button,select,input):focus-visible{outline:3px solid rgba(37,99,235,.55);outline-offset:2px}
 .restaurant-page .restaurant-btn:focus-visible{outline-color:#1d4ed8}
 .restaurant-page .restaurant-empty{border:1px dashed #ccd8e7;border-radius:12px;background:rgba(255,255,255,.7)}
+
+.restaurant-view-switch{display:inline-flex;gap:4px;padding:3px;border:1px solid #dbe3ee;border-radius:12px;background:#f7f9fc}
+.restaurant-view-switch .restaurant-btn{padding:8px 11px}
+.restaurant-management{display:flex;flex-direction:column;gap:14px}
+.restaurant-management-head{padding:14px 16px;border:1px solid #dbe3ee;border-radius:14px;background:#f8fafc}
+.restaurant-management-head h2{margin:0 0 4px;color:#18365c}
+.restaurant-management-head p{margin:0;color:#64748b}
