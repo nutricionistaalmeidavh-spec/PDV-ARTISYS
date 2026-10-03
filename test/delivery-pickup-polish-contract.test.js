@@ -55,3 +55,46 @@ test('Food architecture documents one canonical order-production-checkout model'
   assert.match(architecture,/SaleService canônico|venda canônica|venda canonica/i);
   assert.match(architecture,/Delivery|Entrega e retirada/i);
 });
+
+
+test('technical vertical fields stay out of everyday operation',()=>{
+  const finalUi=read('desktop/renderer/e48-e54-ui.js');
+  const vertical=read('desktop/renderer/vertical-modules.js');
+  assert.doesNotMatch(finalUi,/ID da venda|ID da variante|ID da mesa \(modo mesa\)|ID do operador local/);
+  assert.doesNotMatch(finalUi,/new MutationObserver/);
+  assert.doesNotMatch(vertical,/new MutationObserver/);
+  assert.doesNotMatch(vertical,/Sabores \(separados por vírgula\)|input\('productId','Produto base'\)|input\('sizeId','Tamanho'\)/);
+  assert.match(finalUi,/Responsável local/);
+  assert.match(vertical,/data-pizza-profile-options/);
+});
+
+test('delivery and pickup have a real gated Electron flow including WhatsApp and Balcao search',()=>{
+  const config=JSON.parse(read('qa/artisys-qa.config.json'));
+  const pkg=JSON.parse(read('package.json'));
+  const workflow=read('.github/workflows/verify.yml');
+  assert.equal(config.flows['delivery-pickup-operational'],'flows/delivery-pickup-operational-e2e.json');
+  const flow=JSON.parse(read(path.join('qa',config.flows['delivery-pickup-operational'])));
+  const names=new Set(flow.steps.map(step=>step.name));
+  for(const name of [
+    'delivery-abrir-alimentacao','delivery-abrir-painel','retirada-criar-pedido',
+    'retirada-aguardando-producao','retirada-kds-iniciar-preparo','retirada-kds-marcar-pronto',
+    'retirada-pedido-pronto','retirada-whatsapp-disponivel','retirada-whatsapp-abrir',
+    'retirada-whatsapp-confirmado','delivery-criar-pedido','delivery-busca-balcao','delivery-abrir-no-caixa'
+  ]) assert.equal(names.has(name),true,name);
+  assert.match(pkg.scripts['qa:e2e:delivery-pickup']||'',/delivery-pickup-operational/);
+  assert.match(workflow,/Run Delivery and pickup operational E2E/);
+  assert.match(workflow,/qa:e2e:delivery-pickup/);
+});
+
+test('administrative surfaces share hierarchy markers and shared components',()=>{
+  const restaurant=read('desktop/renderer/restaurant-ui.js');
+  const access=read('desktop/renderer/access-center-ui.js');
+  const vertical=read('desktop/renderer/vertical-modules.js');
+  const styles=read('desktop/renderer/styles.css');
+  assert.match(restaurant,/data-admin-surface="restaurant"/);
+  assert.match(access,/data-admin-surface="access"/);
+  assert.match(vertical,/data-admin-surface="modules"/);
+  for(const source of [restaurant,access,vertical])assert.match(source,/admin-section-head/);
+  assert.match(styles,/Shared administrative hierarchy/);
+  assert.match(styles,/\.admin-section-grid/);
+});
