@@ -37,6 +37,41 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     return row;
   }
 
+  function requireActiveWaiter(id) {
+    if (id == null || String(id).trim() === '') return null;
+    const user = db.prepare('SELECT id,name,role,active FROM users WHERE id=?').get(String(id));
+    if (!user || !user.active) throw new Error('Garcom responsavel nao encontrado ou inativo.');
+    return user;
+  }
+
+  function requireActiveCustomer(id) {
+    if (id == null || String(id).trim() === '') return null;
+    const customer = db.prepare('SELECT id,name,active FROM customers WHERE id=?').get(String(id));
+    if (!customer || !customer.active) throw new Error('Cliente nao encontrado ou inativo.');
+    return customer;
+  }
+
+  function normalizePartySize(value) {
+    if (value == null || value === '') return null;
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 50) throw new Error('Quantidade de pessoas deve ser um inteiro entre 1 e 50.');
+    return parsed;
+  }
+
+  function productionSummary(sessionId) {
+    if (!sessionId) return { productionStatus:null, readyItems:0, preparingItems:0, newItems:0 };
+    const rows = db.prepare(`SELECT t.status,SUM(i.quantity) AS quantity
+      FROM kitchen_tickets t
+      JOIN kitchen_ticket_items i ON i.ticket_id=t.id
+      JOIN restaurant_orders o ON o.id=t.order_id
+      WHERE o.table_session_id=? AND t.status<>'CANCELLED' AND o.status<>'CANCELLED'
+      GROUP BY t.status`).all(String(sessionId));
+    const counts = Object.fromEntries(rows.map(row=>[row.status,Number(row.quantity||0)]));
+    const readyItems=counts.READY||0,preparingItems=counts.PREPARING||0,newItems=counts.NEW||0;
+    const productionStatus=preparingItems>0?'PREPARING':newItems>0?'NEW':readyItems>0?'READY':null;
+    return { productionStatus, readyItems, preparingItems, newItems };
+  }
+
   function activeSessionRow(tableId) {
     return db.prepare("SELECT * FROM table_sessions WHERE table_id=? AND status IN ('OPEN','CHECKOUT') ORDER BY opened_at DESC LIMIT 1").get(String(tableId));
   }
@@ -101,6 +136,10 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       tableLabel: row.table_label || getTable(row.table_id)?.label || row.table_id,
       status: row.status,
       openedBy: row.opened_by,
+      waiterId: row.waiter_id || null,
+      partySize: row.party_size == null ? null : Number(row.party_size),
+      customerId: row.customer_id || null,
+      customerName: row.customer_id ? db.prepare('SELECT name FROM customers WHERE id=?').get(row.customer_id)?.name || null : null,
       checkoutSaleId: row.checkout_sale_id,
       openedAt: row.opened_at,
       closedAt: row.closed_at,
@@ -131,8 +170,13 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
         ...table,
         status: !session ? 'FREE' : billRequested ? 'BILL_REQUESTED' : session.status === 'CHECKOUT' ? 'CHECKOUT' : 'OCCUPIED',
         sessionId: session?.id || null,
+        waiterId: session?.waiterId || null,
+        partySize: session?.partySize || null,
+        customerId: session?.customerId || null,
+        customerName: session?.customerName || null,
         totalCents: session?.totalCents || 0,
-        openedAt: session?.openedAt || null
+        openedAt: session?.openedAt || null,
+        ...productionSummary(session?.id)
       };
     });
   }
@@ -169,21 +213,47 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     return event;
   }
 
-  function openTable(tableId, { operatorId = null, actor = {}, mutationId = null } = {}) {
+  function openTable(tableId, { operatorId = null, waiterId = null, partySize = null, customerId = null, actor = {}, mutationId = null } = {}) {
     return withTransaction(db, () => {
       const table = requireTable(tableId);
       const existing = activeSessionRow(table.id);
       if (existing) return getSession(existing.id);
+      const waiter = requireActiveWaiter(waiterId);
+      const customer = requireActiveCustomer(customerId);
+      const normalizedPartySize = normalizePartySize(partySize);
       const id = idFactory('table-session');
       const timestamp = now();
-      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?)`)
-        .run(id, table.id, operatorId || null, timestamp, timestamp);
+      db.prepare(`INSERT INTO table_sessions(id,table_id,status,opened_by,waiter_id,party_size,customer_id,opened_at,updated_at) VALUES(?,?,'OPEN',?,?,?,?,?,?)`)
+        .run(id, table.id, operatorId || null, waiter?.id || null, normalizedPartySize, customer?.id || null, timestamp, timestamp);
       const event = insertEvent({
         type:'restaurant.table-opened', aggregate:'table-session', aggregateId:id, actor, mutationId,
-        payload:{ tableId:table.id, tableLabel:table.label, operatorId:operatorId || null }
+        payload:{ tableId:table.id, tableLabel:table.label, operatorId:operatorId || null, waiterId:waiter?.id || null, partySize:normalizedPartySize, customerId:customer?.id || null }
       });
-      writeAudit(db, { action:'restaurant.table.open', entity:'table_session', entityId:id, actor, context:{ tableId:table.id, eventId:event.eventId } }, now);
+      writeAudit(db, { action:'restaurant.table.open', entity:'table_session', entityId:id, actor, context:{ tableId:table.id, waiterId:waiter?.id || null, partySize:normalizedPartySize, customerId:customer?.id || null, eventId:event.eventId } }, now);
       return getSession(id);
+    });
+  }
+
+  function updateSessionDetails(sessionId, input = {}, actor = {}) {
+    return withTransaction(db, () => {
+      const session = db.prepare("SELECT * FROM table_sessions WHERE id=? AND status IN ('OPEN','CHECKOUT')").get(String(sessionId));
+      if (!session) throw new Error('Comanda ativa nao encontrada.');
+      const partySize = Object.prototype.hasOwnProperty.call(input,'partySize') ? normalizePartySize(input.partySize) : session.party_size;
+      const customer = Object.prototype.hasOwnProperty.call(input,'customerId') ? requireActiveCustomer(input.customerId) : (session.customer_id ? requireActiveCustomer(session.customer_id) : null);
+      db.prepare('UPDATE table_sessions SET party_size=?,customer_id=?,updated_at=? WHERE id=?').run(partySize, customer?.id || null, now(), session.id);
+      writeAudit(db, { action:'restaurant.session.details', entity:'table_session', entityId:session.id, actor, context:{ partySize, customerId:customer?.id || null } }, now);
+      return getSession(session.id);
+    });
+  }
+
+  function assignWaiter(sessionId, waiterId, actor = {}) {
+    return withTransaction(db, () => {
+      const session = db.prepare("SELECT * FROM table_sessions WHERE id=? AND status IN ('OPEN','CHECKOUT')").get(String(sessionId));
+      if (!session) throw new Error('Comanda ativa nao encontrada.');
+      const waiter = requireActiveWaiter(waiterId);
+      db.prepare('UPDATE table_sessions SET waiter_id=?,updated_at=? WHERE id=?').run(waiter?.id || null, now(), session.id);
+      writeAudit(db, { action:'restaurant.waiter.assign', entity:'table_session', entityId:session.id, actor, context:{ waiterId:waiter?.id || null } }, now);
+      return getSession(session.id);
     });
   }
 
@@ -295,6 +365,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
         FROM restaurant_order_items i JOIN restaurant_orders o ON o.id=i.order_id
         WHERE o.table_session_id=? AND o.status<>'CANCELLED' GROUP BY i.product_id`).all(row.id);
       const sale = saleService.openSale({ terminalId, operatorId }, actor);
+      if (row.customer_id) saleService.setCustomer(sale.id, row.customer_id);
       for (const item of aggregate) saleService.addItem(sale.id, { productId:item.productId, quantity:item.quantity });
       db.prepare("UPDATE table_sessions SET status='CHECKOUT',checkout_sale_id=?,updated_at=? WHERE id=?").run(sale.id, now(), row.id);
       writeAudit(db, { action:'restaurant.table.checkout', entity:'table_session', entityId:row.id, actor, context:{ saleId:sale.id, mutationId } }, now);
@@ -329,6 +400,8 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     getTable,
     listTables,
     openTable,
+    updateSessionDetails,
+    assignWaiter,
     getSession,
     currentSession,
     addOrder,

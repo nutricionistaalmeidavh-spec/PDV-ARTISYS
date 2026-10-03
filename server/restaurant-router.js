@@ -39,6 +39,25 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     return Array.isArray(items)?items:[];
   }
 
+  function prepareMenuItems(items=[]){
+    return requireMenuItems(items).map(item=>{
+      const configured=Boolean(item.variantId)||(Array.isArray(item.selections)&&item.selections.length)||(Array.isArray(item.comboSelections)&&item.comboSelections.length);
+      if(!configured)return item;
+      const pricing=runtime.catalogCustomization.priceConfiguredItem({
+        productId:item.productId,
+        variantId:item.variantId||undefined,
+        selections:Array.isArray(item.selections)?item.selections:[],
+        comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[]
+      });
+      return{...item,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot};
+    });
+  }
+
+  function mobileProducts(){
+    if(runtime.publicOrdering?.listMenu)return runtime.publicOrdering.listMenu({includeHidden:true});
+    return runtime.catalog.listProducts().filter(p=>p.menuEnabled).map(p=>({id:p.id,name:p.name,categoryId:p.categoryId,categoryName:p.categoryName,salePriceCents:p.salePriceCents,unit:p.unit,configuration:{groups:[],variants:[],combos:[]}}));
+  }
+
   async function mutate(request,pathname,statusCode,handler){
     const mutationId=String(request.headers['x-mutation-id']||'').trim();
     if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};
@@ -46,6 +65,10 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   }
 
   function serveMobile(pathname,response){
+    if(pathname==='/mobile/order-composer.js'){
+      const full=path.join(__dirname,'..','shared','order-composer.js');if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
+      text(response,200,fs.readFileSync(full,'utf8'),'application/javascript; charset=utf-8');return true;
+    }
     const files={'/mobile':'index.html','/mobile/':'index.html','/mobile/index.html':'index.html','/mobile/app.js':'app.js','/mobile/styles.css':'styles.css'};
     const file=files[pathname];if(!file)return false;
     const full=path.join(mobileDir,file);if(!fs.existsSync(full)){text(response,404,'Interface mobile nao instalada.');return true;}
@@ -59,7 +82,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const principal=mobilePrincipal(request);
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
-      const device=principal.device;const products=runtime.catalog.listProducts().filter(p=>p.menuEnabled).map(p=>({id:p.id,name:p.name,categoryId:p.categoryId,categoryName:p.categoryName,salePriceCents:p.salePriceCents,unit:p.unit}));
+      const device=principal.device;const products=mobileProducts();const customers=runtime.catalog.listCustomers().filter(customer=>customer.active!==false).map(customer=>({id:customer.id,name:customer.name}));
       if(device.deviceType==='TABLET'){
         const table=runtime.restaurant.getTable(device.tableId);const session=table?runtime.restaurant.currentSession(table.id):null;
         json(response,200,{device,table,session,products});return true;
@@ -69,13 +92,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
           const session=table.sessionId?runtime.restaurant.getSession(table.sessionId):null;
           return{...table,orders:session?.orders||[]};
         });
-        json(response,200,{device,tables,requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products});return true;
+        json(response,200,{device,tables,requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products,customers});return true;
       }
       json(response,200,{device,tickets:runtime.kitchen.listTickets({limit:250})});return true;
     }
     const waiterOpen=pathname.match(/^\/api\/v1\/mobile\/tables\/([^/]+)\/open$/);
     if(request.method==='POST'&&waiterOpen){
-      const p=mobilePrincipal(request,['WAITER']);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(waiterOpen[1]),{operatorId:p.device.userId||null,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
+      const p=mobilePrincipal(request,['WAITER']);const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(waiterOpen[1]),{operatorId:p.device.userId||null,waiterId:p.device.userId||null,partySize:data.partySize??null,customerId:data.customerId||null,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
     }
     const waiterTransfer=pathname.match(/^\/api\/v1\/mobile\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&waiterTransfer){
@@ -87,7 +110,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
         const session=runtime.restaurant.currentSession(p.device.tableId);if(!session)throw new RestaurantHttpError(409,'Mesa sem comanda aberta.');sessionId=session.id;
       }
       if(!sessionId)throw new RestaurantHttpError(400,'Comanda obrigatoria.');
-      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:requireMenuItems(data.items||[]),note:data.note||'',source:p.device.deviceType==='TABLET'?'TABLET':'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
+      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:prepareMenuItems(data.items||[]),note:data.note||'',source:p.device.deviceType==='TABLET'?'TABLET':'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
       json(response,result.statusCode,result.payload);return true;
     }
     if(request.method==='POST'&&pathname==='/api/v1/mobile/service'){
@@ -107,11 +130,15 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
     const tableOpen=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/open$/);
-    if(request.method==='POST'&&tableOpen){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&tableOpen){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,waiterId:data.waiterId||null,partySize:data.partySize??null,customerId:data.customerId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
     const tableService=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/service$/);
     if(request.method==='POST'&&tableService){const data=await body(request);json(response,201,runtime.restaurant.requestService(decodeURIComponent(tableService[1]),data.requestType,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
     if(request.method==='GET'&&sessionGet){const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
+    const waiterAssign=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/waiter$/);
+    if(request.method==='PATCH'&&waiterAssign){const data=await body(request);json(response,200,runtime.restaurant.assignWaiter(decodeURIComponent(waiterAssign[1]),data.waiterId||null,actor));return true;}
+    const sessionDetails=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/details$/);
+    if(request.method==='PATCH'&&sessionDetails){const data=await body(request);json(response,200,runtime.restaurant.updateSessionDetails(decodeURIComponent(sessionDetails[1]),{partySize:data.partySize,customerId:data.customerId},actor));return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
     if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:requireMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
