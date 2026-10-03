@@ -18,9 +18,9 @@ function srtTimestamp(seconds) {
 
 function escapeSubtitlePath(file) {
   const raw = String(file);
-  const resolved = /^[A-Za-z]:[\\\\/]/.test(raw) ? raw : path.resolve(raw);
+  const resolved = /^[A-Za-z]:[\\/]/.test(raw) ? raw : path.resolve(raw);
   return resolved
-    .replaceAll('\\\\', '/')
+    .replaceAll('\\', '/')
     .replaceAll(':', '\\:')
     .replaceAll("'", "\\'");
 }
