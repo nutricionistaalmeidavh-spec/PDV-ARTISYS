@@ -22,14 +22,11 @@ class DomainEventDispatcher {
     this.bus = bus;
     this.outbox = outbox;
     this.batchSize = batchSize;
+    this._dispatchPromise = null;
+    this._rerunRequested = false;
   }
 
-  async dispatchPending() {
-    const events = await this.outbox.listPending(this.batchSize);
-    if (!Array.isArray(events)) {
-      throw new TypeError('Domain event outbox listPending() must return an array');
-    }
-
+  async _dispatchBatch(events) {
     let dispatched = 0;
     let failed = 0;
     const failures = [];
@@ -62,12 +59,54 @@ class DomainEventDispatcher {
       dispatched += 1;
     }
 
-    return {
-      attempted: events.length,
-      dispatched,
-      failed,
-      failures
-    };
+    return { attempted:events.length, dispatched, failed, failures };
+  }
+
+  async _drainPending() {
+    const total = { attempted:0, dispatched:0, failed:0, failures:[] };
+    const attemptedEventIds = new Set();
+
+    do {
+      this._rerunRequested = false;
+
+      while (true) {
+        const listed = await this.outbox.listPending(this.batchSize);
+        if (!Array.isArray(listed)) {
+          throw new TypeError('Domain event outbox listPending() must return an array');
+        }
+        if (listed.length === 0) break;
+
+        const events = listed.filter(event => !attemptedEventIds.has(event?.eventId));
+        if (events.length === 0) break;
+        for (const event of events) attemptedEventIds.add(event?.eventId);
+
+        const result = await this._dispatchBatch(events);
+        total.attempted += result.attempted;
+        total.dispatched += result.dispatched;
+        total.failed += result.failed;
+        total.failures.push(...result.failures);
+
+        // Failed events intentionally stay pending for a later retry. Stop this
+        // drain here so the same failing event is not retried in a tight loop.
+        if (result.failed > 0) break;
+      }
+    } while (this._rerunRequested && total.failed === 0);
+
+    return total;
+  }
+
+  async dispatchPending() {
+    if (this._dispatchPromise) {
+      this._rerunRequested = true;
+      return this._dispatchPromise;
+    }
+
+    this._dispatchPromise = this._drainPending();
+    try {
+      return await this._dispatchPromise;
+    } finally {
+      this._dispatchPromise = null;
+    }
   }
 }
 

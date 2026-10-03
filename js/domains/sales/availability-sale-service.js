@@ -22,6 +22,25 @@ function createAvailabilitySaleService({db,baseSales,logistics,stockRequirements
     db.prepare("UPDATE sales_order_fulfillments SET status='COMPLETED',completed_at=? WHERE id=?").run(ts,fulfillment.id);
   }
   function requirements(items){const expanded=typeof stockRequirementsResolver==='function'?stockRequirementsResolver(items||[]):(items||[]);const totals=new Map();for(const item of expanded||[]){const id=String(item.productId);totals.set(id,roundQuantity((totals.get(id)||0)+Number(item.quantity||0)));}return totals;}
+  function pendingCommittedQuantity(productId,locationId){
+    const rows=db.prepare(`SELECT e.payload_json AS payloadJson
+      FROM domain_events e
+      LEFT JOIN domain_event_effects fx ON fx.event_id=e.event_id AND fx.effect_key='inventory.sale-completed'
+      WHERE e.type='sale.completed' AND fx.event_id IS NULL`).all();
+    let quantity=0;
+    for(const row of rows){
+      let payload=null;try{payload=JSON.parse(row.payloadJson||'{}');}catch{continue;}
+      const eventLocation=String(payload?.stockLocationId||'MAIN');
+      if(eventLocation!==String(locationId||'MAIN'))continue;
+      for(const item of Array.isArray(payload?.items)?payload.items:[]){
+        const stockItems=Array.isArray(item?.stockItems)&&item.stockItems.length?item.stockItems:[{productId:item?.productId,quantity:item?.quantity}];
+        for(const stockItem of stockItems){
+          if(String(stockItem?.productId||'')===String(productId))quantity=roundQuantity(quantity+Number(stockItem?.quantity||0));
+        }
+      }
+    }
+    return roundQuantity(quantity);
+  }
   function openSale(input={},actor=null){const sale=baseSales.openSale(input,actor);const locationId=String(input.stockLocationId||'MAIN').trim()||'MAIN';const location=db.prepare('SELECT id FROM stock_locations WHERE id=? AND active=1').get(locationId);if(!location){baseSales.cancelSale(sale.id,{reason:'Local de estoque invalido',actor:actor||{}});throw new Error('Local de estoque nao encontrado ou inativo.');}db.prepare('UPDATE sales SET stock_location_id=?,updated_at=? WHERE id=?').run(locationId,new Date().toISOString(),sale.id);return enrich(baseSales.getSale(sale.id));}
   function completeSale(id,input={}){
     return withTransaction(db,()=>{
@@ -38,7 +57,7 @@ function createAvailabilitySaleService({db,baseSales,logistics,stockRequirements
           }
         }
       }
-      for(const [productId,quantity] of requirements(sale.items)){const tracked=db.prepare('SELECT track_stock AS tracked,name FROM products WHERE id=?').get(productId);if(!tracked?.tracked)continue;const availability=logistics.getAvailability(productId,locationId,{excludeSourceType:source?.type||null,excludeSourceId:source?.id||null});if(quantity>availability.availableQuantity)throw new Error(`Estoque disponivel insuficiente para ${tracked.name}. Disponivel: ${availability.availableQuantity}.`);}
+      for(const [productId,quantity] of requirements(sale.items)){const tracked=db.prepare('SELECT track_stock AS tracked,name FROM products WHERE id=?').get(productId);if(!tracked?.tracked)continue;const availability=logistics.getAvailability(productId,locationId,{excludeSourceType:source?.type||null,excludeSourceId:source?.id||null});const pendingCommitted=pendingCommittedQuantity(productId,locationId);const availableQuantity=roundQuantity(availability.availableQuantity-pendingCommitted);if(quantity>availableQuantity)throw new Error(`Estoque disponivel insuficiente para ${tracked.name}. Disponivel: ${Math.max(availableQuantity,0)}.`);}
       if(source?.type&&source?.id)logistics.bindSourceReservationsToSale(source.type,source.id,id);
       const completed=enrich(baseSales.completeSale(id,{...input,reservationSource:source}));
       finalizeOrderFulfillment(linkedFulfillment);

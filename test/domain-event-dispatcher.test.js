@@ -94,3 +94,72 @@ test('waits for asynchronous effects before marking the outbox event dispatched'
   assert.equal(result.dispatched, 1);
   assert.equal(result.failed, 0);
 });
+
+
+test('coalesces concurrent dispatch requests and drains events inserted while dispatching', async () => {
+  const { DomainEventDispatcher } = require(dispatcherPath);
+  const bus = new DomainEventBus();
+  const events = [sampleEvent('evt-coalesce-1')];
+  const dispatched = new Set();
+  const deliveries = [];
+  let listPendingCalls = 0;
+  let firstStartedResolve;
+  let releaseFirstResolve;
+  const firstStarted = new Promise(resolve => { firstStartedResolve = resolve; });
+  const releaseFirst = new Promise(resolve => { releaseFirstResolve = resolve; });
+
+  const outbox = {
+    async listPending(limit) {
+      listPendingCalls += 1;
+      return events.filter(event => !dispatched.has(event.eventId)).slice(0, limit);
+    },
+    async markDispatched(eventId) { dispatched.add(eventId); },
+    async recordFailure() {}
+  };
+
+  bus.subscribe('sale.completed', async event => {
+    deliveries.push(event.eventId);
+    if (event.eventId === 'evt-coalesce-1' && deliveries.filter(id => id === event.eventId).length === 1) {
+      firstStartedResolve();
+      await releaseFirst;
+    }
+  });
+
+  const dispatcher = new DomainEventDispatcher({ bus, outbox, batchSize:10 });
+  const first = dispatcher.dispatchPending();
+  await firstStarted;
+
+  events.push(sampleEvent('evt-coalesce-2'));
+  const followers = Array.from({ length:25 }, () => dispatcher.dispatchPending());
+  releaseFirstResolve();
+
+  await Promise.all([first, ...followers]);
+
+  assert.deepEqual(deliveries.sort(), ['evt-coalesce-1', 'evt-coalesce-2']);
+  assert.deepEqual([...dispatched].sort(), ['evt-coalesce-1', 'evt-coalesce-2']);
+  assert.ok(listPendingCalls <= 5, 'concurrent callers should share one drain instead of rescanning the outbox');
+});
+
+
+test('does not redeliver the same event when an outbox adapter returns a stale pending row', async () => {
+  const { DomainEventDispatcher } = require(dispatcherPath);
+  const bus = new DomainEventBus();
+  const event = sampleEvent('evt-stale-1');
+  const deliveries = [];
+  let reads = 0;
+  const outbox = {
+    async listPending() {
+      reads += 1;
+      return reads <= 3 ? [event] : [];
+    },
+    async markDispatched() {},
+    async recordFailure() {}
+  };
+  bus.subscribe('sale.completed', value => deliveries.push(value.eventId));
+
+  const dispatcher = new DomainEventDispatcher({ bus, outbox, batchSize:10 });
+  const result = await dispatcher.dispatchPending();
+
+  assert.deepEqual(deliveries, ['evt-stale-1']);
+  assert.equal(result.dispatched, 1);
+});
