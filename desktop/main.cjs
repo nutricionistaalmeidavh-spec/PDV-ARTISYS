@@ -313,7 +313,7 @@ function registerIpc() {
     fetchImpl:(url,options)=>fetchWithTimeout(url,options,5000),
     timeoutMs:5000
   }));
-  ipcMain.handle('artisys:data-server:restart', () => { app.relaunch(); app.exit(0); });
+  ipcMain.handle('artisys:data-server:restart', () => { if(process.env.ARTISYS_QA==='1'&&process.env.ARTISYS_QA_NO_RELAUNCH==='1')return {restartRequired:true,suppressed:true}; app.relaunch(); app.exit(0); return {restartRequired:true}; });
 
   ipcMain.handle('artisys:api', async (_event, request = {}) => {
     const method = String(request.method || 'GET').toUpperCase();
