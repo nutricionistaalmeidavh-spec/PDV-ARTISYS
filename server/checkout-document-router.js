@@ -20,14 +20,14 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
       for(const table of runtime.restaurant.listTables()){
         if(!table.sessionId)continue;
         const session=runtime.restaurant.getSession(table.sessionId);if(!session||!['OPEN','CHECKOUT'].includes(session.status))continue;
-        const hay=[table.label,table.id,session.id].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
+        const hay=[table.label,table.id,session.id,'mesa','comanda'].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
         rows.push({type:'COMMAND',id:session.id,number:table.label,label:`${table.label} · Comanda`,status:session.status,totalCents:session.totalCents,customerName:null,saleId:session.checkoutSaleId||null,openedAt:session.openedAt});
       }
     }
     if(runtime.modules?.isEnabled('WHOLESALE')){
       for(const order of runtime.orders.listOrders({origin:'WHOLESALE'})){
         if(!['CONFIRMED','PARTIALLY_FULFILLED'].includes(order.status))continue;
-        const hay=[order.orderNumber,order.id,order.customerName].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
+        const hay=[order.orderNumber,order.id,order.customerName,'pedido','atacado','pedido atacado'].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
         rows.push({type:'ORDER',id:order.id,number:order.orderNumber||order.id,label:`${order.orderNumber||order.id} · Pedido Atacado`,status:order.status,totalCents:order.items.reduce((sum,item)=>sum+Math.round(Number(item.pendingQuantity||0)*Number(item.unitPriceCents||0)),0),customerName:order.customerName||null,saleId:null,openedAt:order.createdAt});
       }
     }
