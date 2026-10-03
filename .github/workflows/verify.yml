@@ -111,6 +111,11 @@ jobs:
         run: |
           rm -rf qa-artifacts-access
           xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow access-center-partial-permissions --environment ci --viewport compactDesktop --output qa-artifacts-access
+      - name: Run ergonomic Access Center E2E
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-access-ergonomic
+          xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow access-center-ergonomic --environment ci --viewport compactDesktop --output qa-artifacts-access-ergonomic
       - name: Run responsive UI E2E at 1024x768
         shell: bash
         run: xvfb-run -a npm run qa:e2e:tablet
@@ -122,5 +127,6 @@ jobs:
           path: |
             qa-artifacts
             qa-artifacts-access
+            qa-artifacts-access-ergonomic
           if-no-files-found: warn
           retention-days: 14
