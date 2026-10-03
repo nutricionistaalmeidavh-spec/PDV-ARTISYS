@@ -133,7 +133,7 @@
 
   function navigateManagement() {
     if(root.PdvAppNavigation?.navigate){
-      void root.PdvAppNavigation.navigate('management');
+      void root.PdvAppNavigation?.navigate?.('management');
       return;
     }
     void root.PdvErpFinanceUi?.renderManagement?.();
