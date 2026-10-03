@@ -158,7 +158,7 @@ class D1AccountStore{
 }
 
 function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.DB||env.artisys);}
-async function readyStore(env){const store=await readyStore(env);if(typeof store.ensureSchema==='function')await store.ensureSchema();return store;}
+async function readyStore(env){const store=resolveStore(env);if(typeof store.ensureSchema==='function')await store.ensureSchema();return store;}
 function activeInstallation(record,now){if(!record)return false;if(record.status&&record.status!=='ACTIVE')return false;if(record.expiresAt&&record.expiresAt<=now)return false;return true;}
 function recoveryPepper(env){return String(env.RECOVERY_PEPPER||env.ACTIVATION_PEPPER||'').trim();}
 
@@ -309,7 +309,7 @@ async function adminRoute(request,env,url){
 
 async function licenseStatus(url,env){
   const installationId=normalizeInstallationId(url.searchParams.get('installationId'));if(!installationId)return json({error:'Instalacao invalida.'},400);
-  const record=await resolveStore(env).findInstallation(installationId);const now=new Date().toISOString();
+  const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
   return json({active:activeInstallation(record,now)});
 }
 
