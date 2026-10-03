@@ -93,12 +93,14 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
   function saveManagedUser(input={},actor=null){
     const id=String(input.id||'').trim();const existing=id?catalog.getUser(id):null;
     requireCapability(actor,existing?'users.edit':'users.create');
+    if(existing&&String(input.password||'').trim())requireCapability(actor,'users.reset_password');
     const requestedActive=asBoolean(input.active,existing?.active??true);
     if((existing&&requestedActive!==existing.active)||(!existing&&!requestedActive))requireCapability(actor,'users.disable');
 
     const targetProfile=profileForInput(input,existing);
     if(profiles&&(!targetProfile||!targetProfile.active))throw domainError(409,'Perfil de acesso invalido ou inativo.');
-    assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId));
+    const changesProfile=!existing||String(targetProfile?.id||'')!==String(existing.profileId||'');
+    if(changesProfile)assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId||input.role));
     const requestedRole=targetProfile?.legacyRole||String(input.role||existing?.role||'cashier').trim().toLowerCase();
 
     ensureAdminMutationSafe(existing,targetProfile,requestedActive,actor);
