@@ -8,8 +8,8 @@
   if (!routeRegistry) throw new Error('PdvRouteRegistry must load before app.js.');
 
   const ROUTES = {
-    home: { label: 'Início', icon: 'home' },
-    checkout: { label: 'Balcão', icon: 'cart' },
+    home: { label: 'Início', shortLabel:'Início', icon: 'home' },
+    checkout: { label: 'Balcão', shortLabel:'Balcão', icon: 'cart' },
     products: { label: 'Cardápio', icon: 'document' },
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
@@ -20,13 +20,13 @@
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
     sellers: { label: 'Equipe e acessos', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
-    cash: { label: 'Caixa', icon: 'cash', phase: 'E14' },
+    cash: { label: 'Caixa', shortLabel:'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
-    ,catalog: { label: 'Cadastros', icon: 'document' }
-    ,'post-sale': { label: 'Vendas e devoluções', icon: 'history' }
-    ,'financial-management': { label: 'Gestão financeira', icon: 'management' }
+    ,catalog: { label: 'Cadastros', shortLabel:'Cadastros', icon: 'document' }
+    ,'post-sale': { label: 'Vendas e devoluções', shortLabel:'Vendas', icon: 'history' }
+    ,'financial-management': { label: 'Gestão financeira', shortLabel:'Gestão', icon: 'management' }
   };
 
   const state = {
@@ -208,7 +208,7 @@
       inventory:'catalog',
       sellers:'catalog'
     }[state.route] || state.route;
-    nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}">${icon(ROUTES[route].icon, 25)}</button>`).join('');
+    nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}"><span class="nav-button-icon">${icon(ROUTES[route].icon, 25)}</span><span class="nav-label">${escapeHtml(ROUTES[route].shortLabel || ROUTES[route].label)}</span></button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
     if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
