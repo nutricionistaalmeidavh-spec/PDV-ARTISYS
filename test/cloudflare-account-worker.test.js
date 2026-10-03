@@ -42,8 +42,8 @@ test('health and admin panel are exposed without exposing admin data',async()=>{
 test('admin panel makes manual code delivery explicit and uses no email delivery flow',async()=>{
   const {handleRequest}=await loadWorker();const e=env();
   const panel=await handleRequest(request('/admin'),e);const html=await panel.text();
-  assert.match(html,/Voce envia o codigo ao cliente/i);
-  assert.match(html,/Copiar codigo/i);
+  assert.match(html,/Voc[eê] envia o c[oó]digo ao cliente/i);
+  assert.match(html,/Copiar c[oó]digo/i);
   assert.doesNotMatch(html,/enviar por e-mail|email service|EMAIL_FROM/i);
 });
 
