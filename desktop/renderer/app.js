@@ -699,7 +699,7 @@
     }catch(error){showToast(error.message,'error');}
   }
 
-  function recipeStatusMeta(product) {  function recipeStatusMeta(product) {
+  function recipeStatusMeta(product) {
     if (!product?.prepared) return null;
     if (product.recipeStockStatus === 'OUT') return { label:'Indisponível por insumo', detail:'Sem insumo suficiente para uma porção' };
     if (product.recipeStockStatus === 'LOW') return { label:'Insumo baixo', detail:`Até ${Number(product.recipeCapacity || 0)} porção(ões)` };
