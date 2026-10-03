@@ -117,10 +117,59 @@
     }
 
     if(!root.querySelector('#p1-terminal-admin-panel')){
-      const card=document.createElement('section');card.id='p1-terminal-admin-panel';card.className='ops-card';card.innerHTML='<div class="ops-card-head"><div><h2>Terminais LAN</h2><p class="ops-muted">Gere um código temporário para parear outro terminal e bloqueie/reative terminais cadastrados.</p></div><div class="ops-actions"><button class="ops-primary" data-create-pairing-code>Novo código</button><button class="ops-secondary" data-terminal-refresh>Atualizar</button></div></div><div data-pairing-output></div><div data-terminal-body></div>';root.appendChild(card);
-      async function loadTerminals(){const host=card.querySelector('[data-terminal-body]');try{const rows=await api.request('/api/v1/terminals');host.innerHTML=`<div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Terminal</th><th>Versão</th><th>Último acesso</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(terminal=>`<tr><td><strong>${esc(terminal.name||terminal.terminalId)}</strong><small>${esc(terminal.terminalId)}</small></td><td>${esc(terminal.appVersion||'—')}</td><td>${when(terminal.lastSeenAt)}</td><td>${esc(statusLabel(terminal.status))}</td><td><button class="ops-link ${terminal.status==='ACTIVE'?'danger':''}" data-terminal-status="${esc(terminal.terminalId)}" data-next-status="${terminal.status==='ACTIVE'?'BLOCKED':'ACTIVE'}">${terminal.status==='ACTIVE'?'Bloquear':'Reativar'}</button></td></tr>`).join('')||'<tr><td colspan="5">Nenhum terminal pareado.</td></tr>'}</tbody></table></div>`;card.querySelectorAll('[data-terminal-status]').forEach(button=>button.addEventListener('click',async()=>{try{await api.request(`/api/v1/terminals/${encodeURIComponent(button.dataset.terminalStatus)}`,{method:'PATCH',body:{status:button.dataset.nextStatus}});toast('Status do terminal atualizado.');await loadTerminals();}catch(error){toast(error.message,true);}}));}catch(error){host.innerHTML=`<div class="ops-error">${esc(error.message)}</div>`;}}
-      card.querySelector('[data-terminal-refresh]')?.addEventListener('click',()=>void loadTerminals());
-      card.querySelector('[data-create-pairing-code]')?.addEventListener('click',async()=>{const host=card.querySelector('[data-pairing-output]');try{const result=await api.request('/api/v1/lan/pairing-codes',{method:'POST',body:{ttlSeconds:300}});host.innerHTML=`<div class="ops-status-line"><strong>Código ${esc(result.code)}</strong><span>Expira em ${when(result.expiresAt)}. Informe este código apenas ao terminal que será pareado.</span></div>`;}catch(error){toast(error.message,true);}});void loadTerminals();
+      const card=document.createElement('section');card.id='p1-terminal-admin-panel';card.className='ops-card';
+      card.innerHTML='<div class="ops-card-head"><div><h2>Computador principal e terminais</h2><p class="ops-muted">Veja o endereço da rede, autorize novos computadores e bloqueie ou reative terminais já pareados.</p></div><button class="ops-secondary" data-terminal-refresh>Atualizar</button></div><div data-principal-state></div><div data-pairing-output></div><div data-terminal-body></div>';
+      root.appendChild(card);
+      const canPair=Boolean(window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,'devices.pair'));
+      const canBlock=Boolean(window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,'devices.block'));
+      const canManageDeployment=Boolean(window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,'deployment.manage'));
+
+      async function loadTerminals(){
+        const host=card.querySelector('[data-terminal-body]');
+        try{
+          const rows=await api.request('/api/v1/terminals');
+          host.innerHTML=`<div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Terminal</th><th>Versão</th><th>Último acesso</th><th>Status</th><th></th></tr></thead><tbody>${rows.map(terminal=>`<tr><td><strong>${esc(terminal.name||terminal.terminalId)}</strong><small>${esc(terminal.terminalId)}</small></td><td>${esc(terminal.appVersion||'—')}</td><td>${when(terminal.lastSeenAt)}</td><td>${esc(statusLabel(terminal.status))}</td><td>${canBlock?`<button class="ops-link ${terminal.status==='ACTIVE'?'danger':''}" data-terminal-status="${esc(terminal.terminalId)}" data-next-status="${terminal.status==='ACTIVE'?'BLOCKED':'ACTIVE'}">${terminal.status==='ACTIVE'?'Bloquear':'Reativar'}</button>`:''}</td></tr>`).join('')||'<tr><td colspan="5">Nenhum terminal pareado.</td></tr>'}</tbody></table></div>`;
+          card.querySelectorAll('[data-terminal-status]').forEach(button=>button.addEventListener('click',async()=>{
+            try{
+              await api.request(`/api/v1/terminals/${encodeURIComponent(button.dataset.terminalStatus)}`,{method:'PATCH',body:{status:button.dataset.nextStatus}});
+              toast('Status do terminal atualizado.');
+              await loadTerminals();
+            }catch(error){toast(error.message,true);}
+          }));
+        }catch(error){host.innerHTML=`<div class="ops-error">${esc(error.message)}</div>`;}
+      }
+
+      async function loadPrincipalState(){
+        const host=card.querySelector('[data-principal-state]');
+        try{
+          const state=await window.artisysDesktop.dataServer.state();
+          const lanAddresses=Array.isArray(state.lanAddresses)?state.lanAddresses:[];
+          if(state.mode!=='lan-host'){
+            host.innerHTML='<div class="ops-status-line"><strong>PC principal: INATIVO</strong><span>Este computador não está atendendo terminais pela rede local. A função pode ser ativada em Dados e servidor por um administrador autorizado.</span></div>';
+            card.querySelector('[data-pairing-output]').innerHTML='';
+            card.querySelector('[data-terminal-body]').innerHTML='';
+            return;
+          }
+          const endpoint=lanAddresses.length?lanAddresses.map(address=>`${esc(address)}:${Number(state.lanPort||state.port||4174)}`).join(' · '):`porta ${Number(state.lanPort||state.port||4174)}`;
+          host.innerHTML=`<div class="ops-status-line"><strong>PC principal: ATIVO</strong><span>${endpoint}</span></div><div class="ops-actions">${canPair?'<button class="ops-primary" data-create-pairing-code>Adicionar terminal</button>':''}${canManageDeployment?'<button class="ops-secondary danger" data-disable-lan>Desativar acesso pela rede</button>':''}</div>`;
+          host.querySelector('[data-create-pairing-code]')?.addEventListener('click',async()=>{
+            const output=card.querySelector('[data-pairing-output]');
+            try{
+              const result=await api.request('/api/v1/lan/pairing-codes',{method:'POST',body:{ttlSeconds:300}});
+              output.innerHTML=`<div class="ops-status-line"><strong>Código ${esc(result.code)}</strong><span>Expira em ${when(result.expiresAt)}. No computador novo, escolha “Conectar a uma instalação existente” e informe este código.</span></div>`;
+            }catch(error){toast(error.message,true);}
+          });
+          host.querySelector('[data-disable-lan]')?.addEventListener('click',async()=>{
+            try{
+              await window.artisysDesktop.dataServer.save({mode:'local'},api.sessionToken);
+              await window.artisysDesktop.dataServer.restart();
+            }catch(error){toast(error.message,true);}
+          });
+          await loadTerminals();
+        }catch(error){host.innerHTML=`<div class="ops-error">${esc(error.message)}</div>`;}
+      }
+      card.querySelector('[data-terminal-refresh]')?.addEventListener('click',()=>void loadPrincipalState());
+      void loadPrincipalState();
     }
 
     if(!root.querySelector('#p2-import-batch-panel')){
