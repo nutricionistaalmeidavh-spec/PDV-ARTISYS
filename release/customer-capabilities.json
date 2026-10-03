@@ -3,7 +3,12 @@
   "description": "Fonte de verdade para rastrear capacidades do backend ate a superficie do cliente. Infraestrutura interna e explicitamente classificada como internal.",
   "backendIgnore": [
     "js/domains/workshop/workshop-service.js",
-    "js/domains/services/services-service.js"
+    "js/domains/services/services-service.js",
+    "js/domains/fiscal/fiscal-configuration-service.js",
+    "js/domains/fiscal/fiscal-production-service.js",
+    "js/domains/fiscal/fiscal-recovery-service.js",
+    "js/domains/fiscal/fiscal-service.js",
+    "js/domains/nfse/nfse-service.js"
   ],
   "capabilities": [
     {
