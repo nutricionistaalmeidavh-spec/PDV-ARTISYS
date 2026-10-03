@@ -156,3 +156,37 @@ test('checkout document search excludes delivery orders that do not yet have a c
 
   assert.deepEqual(await search(router,'delivery'),[]);
 });
+
+
+test('checkout opens delivery through its existing canonical sale without recreating order or items',async()=>{
+  let resumed=0;
+  const order={id:'pickup-17',customerName:'João Retira',fulfillmentType:'PICKUP',status:'READY',saleId:'sale-pickup'};
+  const runtime={
+    sales:{
+      getSale:id=>id==='sale-pickup'?{id,status:'SUSPENDED',totalCents:4290}:null,
+      resumeSale:id=>{resumed++;return{id,status:'OPEN',totalCents:4290};}
+    },
+    modules:{isEnabled:name=>name==='FOOD'},
+    restaurant:{listTables:()=>[]},
+    orders:{listOrders:()=>[]},
+    delivery:{list:()=>[order],get:id=>id===order.id?order:null}
+  };
+  const router=createCheckoutDocumentRouter({
+    runtime,
+    sessionStore:new Map([['test-token',{userId:'user-1',role:'cashier',terminalId:'terminal-1',expiresAt:Date.now()+60_000}]])
+  });
+  const req=Readable.from([]);
+  req.url='/api/v1/checkout/documents/delivery/pickup-17/open';
+  req.method='POST';
+  req.headers={host:'localhost',authorization:'Bearer test-token'};
+  const res=responseCapture();
+
+  assert.equal(await router(req,res),true);
+  assert.equal(res.statusCode,200);
+  const payload=JSON.parse(res.body);
+  assert.equal(payload.type,'DELIVERY');
+  assert.equal(payload.document.id,'pickup-17');
+  assert.equal(payload.sale.id,'sale-pickup');
+  assert.equal(payload.sale.status,'OPEN');
+  assert.equal(resumed,1);
+});
