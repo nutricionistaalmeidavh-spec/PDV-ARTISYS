@@ -164,6 +164,62 @@ async function assertRestaurant(page,state){
   },state);
 }
 
+
+async function setupRestaurantChannels(page){
+  return page.evaluate(async()=>{
+    const api=new window.PdvApiClient.ApiClient();const auth=await api.currentSession();const config=await api.initialize();const operatorId=auth.user.id;
+    await api.setModule('FOOD',true);
+    const product={id:'qa-channel-product',name:'QA Channel Burger',sku:'QA-CHANNEL-1',salePriceCents:2000,costCents:800,trackStock:false,menuEnabled:true,usageType:'DIRECT'};
+    await api.saveProduct(product);
+    await api.createOptionGroup({id:'qa-channel-group',name:'QA Adicionais',selectionType:'MULTIPLE',minSelections:0,maxSelections:2});
+    await api.createOption({id:'qa-channel-option',groupId:'qa-channel-group',name:'QA Bacon',priceDeltaCents:300});
+    await api.request('/api/v1/vertical/catalog/products/qa-channel-product/option-groups/qa-channel-group',{method:'PUT',body:{required:false,sortOrder:1}});
+    await api.saveCustomer({id:'qa-channel-customer',name:'QA Cliente Multicanal',phone:'16999990002'});
+    for(const [id,label] of [['qa-channel-waiter','QA Mesa Garcom'],['qa-channel-tablet','QA Mesa Tablet'],['qa-channel-qr','QA Mesa QR']]){
+      await api.request('/api/v1/restaurant/tables',{method:'POST',body:{id,label,seats:4}});
+    }
+    const station=await api.request('/api/v1/restaurant/kitchen/stations',{method:'POST',body:{id:'qa-channel-station',name:'QA Cozinha Canais'}});
+    await api.request('/api/v1/restaurant/kitchen/assignments',{method:'POST',body:{productId:product.id,stationId:station.id||'qa-channel-station'}});
+    async function device(id,name,deviceType,extra={}){
+      const existing=(await api.request('/api/v1/restaurant/devices')).find(row=>row.id===id);
+      if(existing)return api.request('/api/v1/restaurant/devices/'+encodeURIComponent(id)+'/rotate',{method:'POST',body:{}});
+      return api.request('/api/v1/restaurant/devices',{method:'POST',body:{id,name,deviceType,...extra}});
+    }
+    const waiter=await device('qa-channel-device-waiter','QA Garcom UI','WAITER',{userId:operatorId});
+    const tablet=await device('qa-channel-device-tablet','QA Tablet UI','TABLET',{tableId:'qa-channel-tablet'});
+    const kds=await device('qa-channel-device-kds','QA KDS UI','KITCHEN');
+    const tabletTable=(await api.request('/api/v1/restaurant/tables')).find(row=>row.id==='qa-channel-tablet');
+    if(tabletTable?.status==='FREE')await api.request('/api/v1/restaurant/tables/qa-channel-tablet/open',{method:'POST',body:{operatorId,waiterId:operatorId,partySize:2},mutationId:api.mutationId()});
+    await api.request('/api/v1/vertical/self-service/public-ordering/config',{method:'PUT',body:{autoOpenTable:true}});
+    const qr=await api.request('/api/v1/vertical/self-service/public-ordering/tables/qa-channel-qr/qr?host=127.0.0.1&port=4174');
+    return{operatorId,terminalId:config.terminalId,productId:product.id,optionId:'qa-channel-option',customerId:'qa-channel-customer',waiter,tablet,kds,qrUrl:qr.url};
+  });
+}
+
+async function loginRestaurantChannel(page,state,key){
+  const device=state?.[key];if(!device?.id||!device?.credential)throw new Error('Credencial QA do canal nao encontrada: '+key);
+  await page.evaluate(device=>{localStorage.setItem('artisys.deviceId',device.id);localStorage.setItem('artisys.deviceKey',device.credential);},device);
+  await page.reload({waitUntil:'domcontentloaded'});
+}
+
+async function openRestaurantQr(page,state){
+  if(!state?.qrUrl)throw new Error('URL QA do QR nao encontrada.');
+  await page.goto(state.qrUrl,{waitUntil:'domcontentloaded'});
+}
+
+async function assertRestaurantChannels(page,state){
+  return page.evaluate(async state=>{
+    const headers={'x-device-id':state.kds.id,'x-device-key':state.kds.credential};
+    const response=await fetch('/api/v1/mobile/context',{headers});
+    if(!response.ok)throw new Error('Nao foi possivel consultar KDS QA.');
+    const data=await response.json();const tickets=(data.tickets||[]).filter(ticket=>ticket.items?.some(item=>item.productName==='QA Channel Burger'));
+    if(tickets.length<3)throw new Error('Esperados 3 tickets multicanal, encontrados '+tickets.length);
+    const notes=tickets.flatMap(ticket=>ticket.items||[]).map(item=>item.note).filter(Boolean);
+    for(const expected of ['garcom QA','tablet QA','QR QA'])if(!notes.includes(expected))throw new Error('Observacao multicanal ausente: '+expected);
+    return{tickets:tickets.length,notes};
+  },state);
+}
+
 export default {
   capabilities:{
     'finance.setup':async({page,step,runtimeContext})=>{const state=await setup(page,step.scenario);runtimeContext.erpFinanceState=state;},
@@ -172,6 +228,11 @@ export default {
     'finance.openFinance':async({page})=>{await page.locator("[data-route='finance']").click();await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});},
     'restaurant.setup':async({page,runtimeContext})=>{runtimeContext.restaurantState=await setupRestaurant(page);},
     'restaurant.finish':async({page,runtimeContext})=>{runtimeContext.restaurantState=await finishRestaurant(page,runtimeContext.restaurantState||{});},
-    'restaurant.assert':async({page,runtimeContext})=>{runtimeContext.restaurantResult=await assertRestaurant(page,runtimeContext.restaurantState||{});}
+    'restaurant.assert':async({page,runtimeContext})=>{runtimeContext.restaurantResult=await assertRestaurant(page,runtimeContext.restaurantState||{});},
+    'restaurant.channels.setup':async({page,runtimeContext})=>{runtimeContext.restaurantChannels=await setupRestaurantChannels(page);},
+    'restaurant.channels.loginWaiter':async({page,runtimeContext})=>{await loginRestaurantChannel(page,runtimeContext.restaurantChannels||{},'waiter');},
+    'restaurant.channels.loginTablet':async({page,runtimeContext})=>{await loginRestaurantChannel(page,runtimeContext.restaurantChannels||{},'tablet');},
+    'restaurant.channels.openQr':async({page,runtimeContext})=>{await openRestaurantQr(page,runtimeContext.restaurantChannels||{});},
+    'restaurant.channels.assert':async({page,runtimeContext})=>{runtimeContext.restaurantChannelsResult=await assertRestaurantChannels(page,runtimeContext.restaurantChannels||{});}
   }
 };
