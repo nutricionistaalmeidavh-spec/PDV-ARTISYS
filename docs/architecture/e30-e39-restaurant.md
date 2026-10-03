@@ -12,7 +12,7 @@ O servidor autoritativo permanece local. Desktop, terminais e dispositivos móve
 
 ## E31 — mesas e comandas
 
-`restaurant-service.js` mantém `restaurant_tables`, `table_sessions`, `restaurant_orders` e itens. Uma mesa pode ter somente uma sessão ativa. `checkoutToSale()` agrega os itens ativos da comanda e cria uma venda normal, preservando preço em centavos e o fluxo existente de pagamento.
+`restaurant-service.js` mantém `restaurant_tables`, `table_sessions`, `restaurant_orders` e itens. Uma mesa pode ter somente uma sessão ativa. A sessão separa o operador que abriu a mesa do garçom responsável e preserva quantidade de pessoas e cliente opcional; trocar o responsável não reescreve a autoria da abertura. O desktop usa um compositor de pedido multi-item antes do envio e as superfícies mobile/QR reutilizam o mesmo contrato de composição. `checkoutToSale()` agrega os itens ativos da comanda, preserva o cliente da sessão e cria uma venda normal pelo fluxo canônico de pagamento.
 
 ## E32 — cozinha/KDS
 
@@ -22,13 +22,13 @@ O servidor autoritativo permanece local. Desktop, terminais e dispositivos móve
 
 `mobile-device-service.js` gera uma credencial aleatória exibida somente na criação/rotação e persiste apenas `scrypt(hash + salt)`. Dispositivos podem ser bloqueados ou ter a chave rotacionada. Tipos suportados: `WAITER`, `TABLET`, `KITCHEN`.
 
-A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom opera mesas/comandas e o KDS altera apenas tickets de cozinha. A visão do garçom mantém os pedidos da mesa visíveis: itens `DIRECT` aparecem como atendimento direto e os itens de produção acompanham o estado agregado `NEW → PREPARING → READY` retornado pelo mesmo pedido canônico.
+A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom pode abrir atendimento informando pessoas e cliente, registra pedidos pelo compositor compartilhado e mantém a comanda visível. Tablet, QR e autoatendimento usam o mesmo formato de itens/configurações; o KDS altera apenas tickets de cozinha. Itens `DIRECT` aparecem como atendimento direto e itens de produção acompanham o estado agregado `NEW → PREPARING → READY` retornado pelo mesmo pedido canônico.
 
 ## E35 — workspace desktop
 
 `restaurant-ui.js` é carregado como módulo de renderer e usa a ponte IPC já existente (`artisys:api`). O Electron injeta o token local somente para rotas de restaurante no perfil servidor; terminais remotos usam sua credencial de terminal já pareada.
 
-A superfície desktop separa duas visões sem duplicar domínio: **Operação** concentra mapa de mesas, comanda, chamados e KDS; **Configuração**, disponível apenas para gerente/administrador, concentra setores de produção, dispositivos LAN e indicadores/exportação. A abertura do workspace sempre prioriza Operação, e a comanda selecionada é preservada ao alternar de visão.
+A superfície desktop separa duas visões sem duplicar domínio: **Operação** concentra mapa de mesas, contexto do atendimento, compositor multi-item, comanda, chamados, KDS, pré-conta, fechamento e movimentações (divisão/cobrança, transferência/cancelamento de itens, junção e transferência de comandas); **Configuração**, disponível apenas para gerente/administrador, concentra setores de produção, dispositivos LAN e indicadores/exportação. A abertura do workspace sempre prioriza Operação, e a comanda selecionada é preservada ao alternar de visão.
 
 ## E36 — roteamento HTTP local
 
@@ -40,7 +40,7 @@ A superfície desktop separa duas visões sem duplicar domínio: **Operação** 
 
 ## E38 — confiabilidade
 
-Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. A suíte cobre fluxo completo, credenciais, revogação, LAN e concorrência de abertura de mesa.
+Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. O gate de UI cobre o ciclo transacional abrir mesa → contexto/responsável → pedido multi-item → KDS → conta → Caixa → venda concluída → mesa livre e também os canais garçom/tablet/QR usando o mesmo compositor.
 
 ## E39 — release
 
@@ -49,4 +49,4 @@ A versão de pacote é 1.1.0. A migração de release avança o schema para v5 d
 
 ## Gate do módulo no boundary HTTP
 
-As rotas desktop e mobile específicas de Restaurante autenticam o chamador e, em seguida, exigem `modules.requireEnabled('RESTAURANT')`. Com o módulo desligado, novas operações específicas são rejeitadas com `MODULE_DISABLED`; o serviço interno permanece disponível para drenar efeitos duráveis já persistidos. O renderer reconcilia o estado no foco, retorno de visibilidade e em intervalo local para refletir mudanças feitas por outro terminal.
+As rotas desktop e mobile específicas de Restaurante autenticam o chamador e, em seguida, exigem a área `FOOD` / Alimentação habilitada. Com o módulo desligado, novas operações específicas são rejeitadas com `MODULE_DISABLED`; o serviço interno permanece disponível para drenar efeitos duráveis já persistidos. O renderer reconcilia o estado no foco, retorno de visibilidade e em intervalo local para refletir mudanças feitas por outro terminal.
