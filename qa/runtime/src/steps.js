@@ -308,11 +308,16 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       await target.waitFor({state:'visible',timeout:step.timeoutMs});
       const measurement=await target.evaluate((element,minRatio)=>{
         const rgba=value=>{
-          const match=String(value||'').match(/rgba?\\(([^)]+)\\)/i);
-          if(!match)return null;
-          const parts=match[1].split(',').map(part=>Number(part.trim()));
-          if(parts.length<3||parts.slice(0,3).some(value=>!Number.isFinite(value)))return null;
-          return {r:parts[0],g:parts[1],b:parts[2],a:Number.isFinite(parts[3])?parts[3]:1};
+          const canvas=document.createElement('canvas');
+          canvas.width=1;
+          canvas.height=1;
+          const context=canvas.getContext('2d',{willReadFrequently:true});
+          if(!context)return null;
+          context.clearRect(0,0,1,1);
+          context.fillStyle=String(value||'transparent');
+          context.fillRect(0,0,1,1);
+          const pixel=context.getImageData(0,0,1,1).data;
+          return {r:pixel[0],g:pixel[1],b:pixel[2],a:pixel[3]/255};
         };
         const composite=(front,back)=>({
           r:front.r*front.a+back.r*(1-front.a),
