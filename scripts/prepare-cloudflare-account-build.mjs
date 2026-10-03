@@ -42,6 +42,7 @@ export function buildWranglerConfig({
     main:'cloudflare/account/src/worker.mjs',
     compatibility_date:'2026-10-03',
     keep_vars:true,
+    secrets:{required:['ADMIN_TOKEN','ACTIVATION_PEPPER','RECOVERY_PEPPER']},
     d1_databases:[{
       binding:'artisys',
       database_name:databaseName,
@@ -52,6 +53,16 @@ export function buildWranglerConfig({
       binding:'artisysr2',
       bucket_name:r2BucketName
     }],
+    previews:{}
+  };
+}
+
+export function buildPreviewWranglerConfig(){
+  return {
+    name:'pdv-artisys',
+    main:'cloudflare/account/src/worker.mjs',
+    compatibility_date:'2026-10-03',
+    keep_vars:true,
     previews:{}
   };
 }
@@ -81,6 +92,11 @@ export async function main({cwd=process.cwd(),env=process.env}={}){
   validateAccountWorker({cwd,env});
   if(env.WORKERS_CI!=='1'){
     console.log('Cloudflare Workers CI nao detectado; configuracao de deploy nao foi gerada.');
+    return;
+  }
+  if(env.WORKERS_CI_BRANCH&&env.WORKERS_CI_BRANCH!=='main'){
+    const target=writeWranglerConfig(buildPreviewWranglerConfig(),{cwd});
+    console.log(`Configuracao de preview preparada em ${path.relative(cwd,target)} sem acesso ao D1 de producao.`);
     return;
   }
   const target=prepareCloudflareConfig({cwd,env});
