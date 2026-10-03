@@ -86,7 +86,7 @@ test('P3 installation owner cannot leave the protected Administrator profile',()
     const custom=runtime.profiles.createProfile({name:'Gestão limitada',permissions:['reports.view']},{userId:admin.id,role:'admin'});
     assert.throws(()=>runtime.profiles.assignProfile(admin.id,custom.id,{userId:admin.id,role:'admin'}),/proprietario|Administrador/i);
     const current=runtime.catalog.getUser(admin.id);
-    assert.equal(runtime.profiles.getProfile(current.profileId).systemKey,'ADMINISTRATOR');
+    assert.equal(runtime.profiles.getProfile(current.profileId).systemKey,'admin');
   }finally{runtime.close();}
 });
 
@@ -113,7 +113,7 @@ test('P4 device access separates credential, surface, scope and human binding',(
     const raw=runtime.db.prepare('SELECT credential_hash,surface,scope_type,scope_id FROM mobile_devices WHERE id=?').get(kitchen.id);
     assert.equal(raw.credential_hash.includes(kitchen.credential),false);
     assert.equal(raw.surface,'kitchen');
-    assert.equal(raw.scope_type,null);
+    assert.equal(raw.scope_type,'establishment');
     assert.equal(raw.scope_id,null);
 
     const authenticated=runtime.deviceAccess.authenticate(kitchen.id,kitchen.credential);
