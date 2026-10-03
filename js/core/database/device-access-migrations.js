@@ -26,9 +26,14 @@ function applyDeviceAccessMigration(db){
       WHEN device_type='WAITER' THEN 'waiter'
       WHEN device_type='TABLET' THEN 'table'
       WHEN device_type='KITCHEN' THEN 'kitchen'
+      WHEN device_type='SELF_SERVICE' THEN 'self-service'
       ELSE lower(device_type)
     END
     WHERE surface IS NULL OR surface='';
+
+    UPDATE mobile_devices
+    SET scope_type='establishment',scope_id=NULL
+    WHERE device_type IN('WAITER','KITCHEN','SELF_SERVICE') AND scope_type IS NULL;
 
     UPDATE mobile_devices
     SET scope_type='table',scope_id=table_id

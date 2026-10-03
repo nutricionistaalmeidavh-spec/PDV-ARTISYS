@@ -38,7 +38,7 @@ const DEFAULT_PROFILES=Object.freeze([
     id:DEFAULT_PROFILE_IDS.ADMINISTRATOR,
     name:'Administrador',
     slug:'administrador',
-    systemKey:'ADMINISTRATOR',
+    systemKey:'admin',
     legacyRole:'admin',
     protected:true,
     permissions:DEFAULT_PROFILE_PERMISSIONS.ADMINISTRATOR
@@ -47,7 +47,7 @@ const DEFAULT_PROFILES=Object.freeze([
     id:DEFAULT_PROFILE_IDS.MANAGER,
     name:'Gerente',
     slug:'gerente',
-    systemKey:'MANAGER',
+    systemKey:'manager',
     legacyRole:'manager',
     protected:false,
     permissions:DEFAULT_PROFILE_PERMISSIONS.MANAGER
@@ -56,7 +56,7 @@ const DEFAULT_PROFILES=Object.freeze([
     id:DEFAULT_PROFILE_IDS.OPERATOR,
     name:'Operador',
     slug:'operador',
-    systemKey:'OPERATOR',
+    systemKey:'operator',
     legacyRole:'cashier',
     protected:false,
     permissions:DEFAULT_PROFILE_PERMISSIONS.OPERATOR

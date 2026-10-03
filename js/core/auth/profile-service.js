@@ -62,6 +62,11 @@ function createProfileService({
     return mapProfile(db.prepare('SELECT * FROM profiles WHERE id=?').get(String(id||'')));
   }
 
+  function getProfileBySystemKey(systemKey){
+    const key=String(systemKey||'').trim().toLowerCase();
+    return mapProfile(db.prepare('SELECT * FROM profiles WHERE lower(system_key)=?').get(key));
+  }
+
   function listProfiles({includeInactive=false}={}){
     const rows=includeInactive
       ? db.prepare('SELECT * FROM profiles ORDER BY protected DESC,name,id').all()
@@ -191,6 +196,7 @@ function createProfileService({
 
   return {
     getProfile,
+    getProfileBySystemKey,
     listProfiles,
     createProfile,
     updateProfile,

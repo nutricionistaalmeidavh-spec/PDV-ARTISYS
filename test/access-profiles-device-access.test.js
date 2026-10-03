@@ -20,9 +20,9 @@ test('P3 clean install bootstraps canonical profiles and users receive profile_i
   const runtime=fixture();
   try{
     const profiles=runtime.profiles.listProfiles({includeInactive:true});
-    const adminProfile=profiles.find(profile=>profile.systemKey==='ADMINISTRATOR');
-    const managerProfile=profiles.find(profile=>profile.systemKey==='MANAGER');
-    const operatorProfile=profiles.find(profile=>profile.systemKey==='OPERATOR');
+    const adminProfile=profiles.find(profile=>profile.systemKey==='admin');
+    const managerProfile=profiles.find(profile=>profile.systemKey==='manager');
+    const operatorProfile=profiles.find(profile=>profile.systemKey==='operator');
 
     assert.ok(adminProfile);
     assert.ok(managerProfile);
@@ -71,7 +71,7 @@ test('P3 creates configurable profiles, enforces anti-escalation and assigns saf
       /Permissao insuficiente|AUTHORIZATION_DENIED/i
     );
 
-    const adminProfile=runtime.profiles.listProfiles().find(profile=>profile.systemKey==='ADMINISTRATOR');
+    const adminProfile=runtime.profiles.listProfiles().find(profile=>profile.systemKey==='admin');
     assert.throws(()=>runtime.profiles.updateProfile(adminProfile.id,{name:'Admin alterado'},{userId:admin.id,role:'admin'}),/protegido/i);
     assert.throws(()=>runtime.profiles.deleteProfile(adminProfile.id,{userId:admin.id,role:'admin'}),/protegido/i);
   }finally{runtime.close();}
@@ -103,11 +103,11 @@ test('P4 device access separates credential, surface, scope and human binding',(
 
     assert.equal(waiter.surface,'waiter');
     assert.equal(waiter.userId,admin.id);
-    assert.equal(waiter.scope,null);
+    assert.deepEqual(waiter.scope,{type:'establishment',id:null});
     assert.equal(tablet.surface,'table');
     assert.deepEqual(tablet.scope,{type:'table',id:table.id});
     assert.equal(kitchen.surface,'kitchen');
-    assert.equal(kitchen.scope,null);
+    assert.deepEqual(kitchen.scope,{type:'establishment',id:null});
     assert.equal(kiosk.surface,'self-service');
 
     const raw=runtime.db.prepare('SELECT credential_hash,surface,scope_type,scope_id FROM mobile_devices WHERE id=?').get(kitchen.id);
@@ -118,7 +118,7 @@ test('P4 device access separates credential, surface, scope and human binding',(
 
     const authenticated=runtime.deviceAccess.authenticate(kitchen.id,kitchen.credential);
     assert.equal(authenticated.ok,true);
-    assert.deepEqual(authenticated.principal,{kind:'device',id:kitchen.id,surface:'kitchen',userId:null});
+    assert.deepEqual(authenticated.principal,{kind:'device',id:kitchen.id,surface:'kitchen',userId:null,scope:{type:'establishment',id:null}});
     assert.equal(runtime.authorization.can({principal:authenticated.principal,capability:'kitchen.update_status'}),true);
     assert.equal(runtime.authorization.can({principal:authenticated.principal,capability:'finance.manage'}),false);
 

@@ -9,7 +9,7 @@ const DEVICE_STATUSES = new Set(['ACTIVE','BLOCKED']);
 function hashSecret(secret,salt){return scryptSync(String(secret),String(salt),32).toString('hex');}
 function safeEqualHex(left,right){try{const a=Buffer.from(String(left),'hex');const b=Buffer.from(String(right),'hex');return a.length===b.length&&timingSafeEqual(a,b);}catch{return false;}}
 function canonicalSurface(type){const value=String(type||'').trim().toUpperCase();if(value==='WAITER')return'waiter';if(value==='TABLET')return'table';if(value==='KITCHEN')return'kitchen';if(value==='SELF_SERVICE')return'self-service';return value.toLowerCase().replace(/_/g,'-');}
-function scopeFor(type,tableId){if(String(type).toUpperCase()==='TABLET'&&tableId)return{type:'table',id:String(tableId)};return null;}
+function scopeFor(type,tableId){if(String(type).toUpperCase()==='TABLET'&&tableId)return{type:'table',id:String(tableId)};return{type:'establishment',id:null};}
 
 function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactory=prefix=>`${prefix}-${randomUUID()}`,secretFactory=()=>randomBytes(32).toString('base64url')}={}){
   if(!db)throw new TypeError('Database is required.');
@@ -19,7 +19,7 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     if(!row)return null;
     const deviceType=row.device_type==='KITCHEN'&&isSelfService(row.id)?'SELF_SERVICE':row.device_type;
     const surface=row.surface||canonicalSurface(deviceType);
-    const scope=row.scope_type&&row.scope_id?{type:row.scope_type,id:row.scope_id}:scopeFor(deviceType,row.table_id);
+    const scope=row.scope_type?{type:row.scope_type,id:row.scope_id||null}:scopeFor(deviceType,row.table_id);
     return {id:row.id,name:row.name,deviceType,surface,scope,tableId:row.table_id,userId:row.user_id,status:row.status,lastSeenAt:row.last_seen_at,createdBy:row.created_by,createdAt:row.created_at,updatedAt:row.updated_at};
   }
 
@@ -44,10 +44,10 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     const tableId=input.tableId?String(input.tableId):null;const userId=input.userId?String(input.userId):null;
     validateBinding(requestedType,tableId,userId);
     const id=String(input.id||idFactory('mobile')).trim();const credential=String(secretFactory());const salt=randomBytes(16).toString('hex');const timestamp=now();
-    const storedType=requestedType==='SELF_SERVICE'?'KITCHEN':requestedType;
+    const storedType=requestedType;
     const surface=canonicalSurface(requestedType);const scope=scopeFor(requestedType,tableId);
     db.prepare(`INSERT INTO mobile_devices(id,name,device_type,surface,scope_type,scope_id,table_id,user_id,credential_hash,credential_salt,status,last_seen_at,created_by,created_at,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,'ACTIVE',NULL,?,?,?)`).run(id,name,storedType,surface,scope?.type||null,scope?.id||null,tableId,userId,hashSecret(credential,salt),salt,actor?.userId||null,timestamp,timestamp);
+      VALUES(?,?,?,?,?,?,?,?,?,?,'ACTIVE',NULL,?,?,?)`).run(id,name,storedType,surface,scope.type,scope.id,tableId,userId,hashSecret(credential,salt),salt,actor?.userId||null,timestamp,timestamp);
     if(requestedType==='SELF_SERVICE'){
       db.prepare(`INSERT INTO self_service_profiles(device_id,mode,table_id,operator_id,created_at,updated_at) VALUES(?,'PICKUP',NULL,NULL,?,?)`).run(id,timestamp,timestamp);
     }
@@ -75,6 +75,12 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     return{ok:true,device:mapDevice({...row,last_seen_at:timestamp,updated_at:timestamp})};
   }
 
+  function authenticatePrincipal(deviceId,credential){
+    const auth=authenticate(deviceId,credential);if(!auth.ok)return auth;
+    const device=auth.device;
+    return{ok:true,device,principal:{kind:'device',id:device.id,surface:device.surface,userId:device.userId||null,scope:device.scope}};
+  }
+
   function setStatus(deviceId,status,actor={}){
     const normalized=String(status||'').toUpperCase();if(!DEVICE_STATUSES.has(normalized))throw new Error('Status de dispositivo invalido.');
     const row=requireDevice(deviceId);db.prepare('UPDATE mobile_devices SET status=?,updated_at=? WHERE id=?').run(normalized,now(),row.id);
@@ -89,7 +95,7 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     return{...getDevice(row.id),credential};
   }
 
-  return{createDevice,listDevices,getDevice,authenticate,setStatus,rotateCredential,DEVICE_TYPES,DEVICE_STATUSES};
+  return{createDevice,listDevices,getDevice,authenticate,authenticatePrincipal,setStatus,rotateCredential,DEVICE_TYPES,DEVICE_STATUSES};
 }
 
 module.exports={createMobileDeviceService};

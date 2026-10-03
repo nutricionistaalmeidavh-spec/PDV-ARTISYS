@@ -26,6 +26,15 @@ function cleanSurface(value){
   return text||null;
 }
 
+function normalizeScope(value){
+  if(!value||typeof value!=='object')return null;
+  const type=String(value.type||'').trim().toLowerCase();
+  if(!type)return null;
+  const id=cleanId(value.id);
+  if(type!=='establishment'&&!id)return null;
+  return {type,id:id||null};
+}
+
 function normalizePrincipal(input){
   if(!input||typeof input!=='object')return null;
   const kind=String(input.kind||'').trim().toLowerCase();
@@ -47,6 +56,7 @@ function normalizePrincipal(input){
     if(!surface)return null;
     const principal={kind,id,surface,userId:cleanId(input.userId)};
     if(principal.userId===null)principal.userId=null;
+    const scope=normalizeScope(input.scope);if(scope)principal.scope=scope;
     if(input.legacyDeviceType)principal.legacyDeviceType=String(input.legacyDeviceType).trim().toUpperCase();
     return principal;
   }
