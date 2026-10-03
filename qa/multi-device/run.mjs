@@ -172,8 +172,11 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       const opened=await state.cashA.request('/api/v1/sales',{method:'POST',body:{saleNumber:'QA-PRICE-SALE'},expected:201});
       const sale=await state.cashA.request('/api/v1/sales/'+opened.body.id+'/items',{method:'POST',body:{productId:'qa-price',quantity:1},expected:200});
       assert(sale.body.items[0]?.unitPriceCents===1250,'Venda nova nao capturou o preco atualizado',{item:sale.body.items[0]});
+      const completed=await state.cashA.request('/api/v1/sales/'+opened.body.id+'/complete',{method:'POST',headers:{'x-mutation-id':'qa-price-complete'},body:{payments:[{method:'PIX',amountCents:1250}]},expected:200});
+      assert(completed.body.sale.status==='COMPLETED','Venda com preco atualizado nao concluiu',{sale:completed.body.sale});
+      assert(completed.body.sale.totalCents===1250,'Venda concluiu com total diferente do preco atualizado',{sale:completed.body.sale});
       state.priceSaleId=opened.body.id;
-      return{priceCents:product.salePriceCents,saleUnitPriceCents:sale.body.items[0].unitPriceCents};
+      return{priceCents:product.salePriceCents,saleUnitPriceCents:sale.body.items[0].unitPriceCents,saleTotalCents:completed.body.sale.totalCents};
     });
 
     await scenario('sale-stock-decrement',async()=>{
@@ -219,10 +222,14 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       assert(attempts.every(item=>item.status===200),'Reenvio idempotente nao retornou resultado canonico',{attempts});
       const inventory=await state.admin.request('/api/v1/inventory/qa-idem',{expected:200});
       const movements=movementCount(runtime.db,'qa-idem');
+      const payments=runtime.db.prepare('SELECT COUNT(*) AS n FROM payments WHERE sale_id=?').get(opened.body.id).n;
+      const events=runtime.db.prepare("SELECT COUNT(*) AS n FROM domain_events WHERE aggregate_id=? AND type='sale.completed'").get(opened.body.id).n;
       assert(inventory.body.quantity===1,'Reenvio baixou estoque mais de uma vez',{inventory:inventory.body,movements});
       assert(movements===1,'Reenvio criou movimento de estoque duplicado',{movements});
+      assert(payments===1,'Reenvio duplicou pagamento',{payments});
+      assert(events===1,'Reenvio duplicou evento sale.completed',{events});
       state.idempotentSaleId=opened.body.id;
-      return{statuses:attempts.map(item=>item.status),finalStock:inventory.body.quantity,movements};
+      return{statuses:attempts.map(item=>item.status),finalStock:inventory.body.quantity,movements,payments,events};
     });
 
     await scenario('cash-session-isolation',async()=>{
@@ -244,33 +251,88 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       runtime.restaurant.upsertTable({id:'qa-table',label:'Mesa QA',seats:4,active:true},actor);
       runtime.kitchen.upsertStation({id:'qa-station',name:'Cozinha QA',active:true},actor);
       runtime.kitchen.assignProduct('qa-food','qa-station',actor);
-      const waiter=runtime.mobileDevices.createDevice({id:'qa-waiter-device',name:'Garcom QA',deviceType:'WAITER',userId:'qa-waiter'},actor);
+      const waiterA=runtime.mobileDevices.createDevice({id:'qa-waiter-device',name:'Garcom QA',deviceType:'WAITER',userId:'qa-waiter'},actor);
+      const waiterB=runtime.mobileDevices.createDevice({id:'qa-waiter-device-2',name:'Garcom QA 2',deviceType:'WAITER',userId:'qa-waiter-2'},actor);
       const kitchen=runtime.mobileDevices.createDevice({id:'qa-kds-device',name:'KDS QA',deviceType:'KITCHEN'},actor);
-      const waiterHttp=deviceClient(base,waiter);
+      const waiterAHttp=deviceClient(base,waiterA);
+      const waiterBHttp=deviceClient(base,waiterB);
       const kitchenHttp=deviceClient(base,kitchen);
-      const opened=await waiterHttp('/api/v1/mobile/tables/qa-table/open',{method:'POST',headers:{'x-mutation-id':'qa-table-open'},body:{partySize:2},expected:201});
-      const order=await waiterHttp('/api/v1/mobile/orders',{method:'POST',headers:{'x-mutation-id':'qa-waiter-order'},body:{sessionId:opened.body.id,items:[{productId:'qa-food',quantity:1}]},expected:201});
+      state.waiterHttp=waiterAHttp;
+      state.kitchenHttp=kitchenHttp;
+      const opened=await waiterAHttp('/api/v1/mobile/tables/qa-table/open',{method:'POST',headers:{'x-mutation-id':'qa-table-open'},body:{partySize:2},expected:201});
+      const [orderAResponse,orderBResponse]=await Promise.all([
+        waiterAHttp('/api/v1/mobile/orders',{method:'POST',headers:{'x-mutation-id':'qa-waiter-order-a'},body:{sessionId:opened.body.id,items:[{productId:'qa-food',quantity:1}]},expected:201}),
+        waiterBHttp('/api/v1/mobile/orders',{method:'POST',headers:{'x-mutation-id':'qa-waiter-order-b'},body:{sessionId:opened.body.id,items:[{productId:'qa-food',quantity:1}]},expected:201})
+      ]);
+      const orderA=orderAResponse.body.order;
+      const orderB=orderBResponse.body.order;
+      assert(orderA.id!==orderB.id,'Pedidos concorrentes de garcons colidiram',{orderA,orderB});
+      const sessionAfterOrders=runtime.restaurant.getSession(opened.body.id);
+      assert(sessionAfterOrders.orders.some(item=>item.id===orderA.id)&&sessionAfterOrders.orders.some(item=>item.id===orderB.id),'Um dos pedidos concorrentes foi perdido',{orders:sessionAfterOrders.orders});
+
       const kds=await kitchenHttp('/api/v1/mobile/context',{expected:200});
-      const ticket=kds.body.tickets.find(item=>item.orderId===order.body.order.id)||kds.body.tickets[0];
-      assert(ticket,'Pedido do garcom nao apareceu no KDS',{tickets:kds.body.tickets,order:order.body.order});
-      await kitchenHttp('/api/v1/mobile/kitchen/tickets/'+ticket.id,{method:'PATCH',body:{status:'PREPARING'},expected:200});
-      await kitchenHttp('/api/v1/mobile/kitchen/tickets/'+ticket.id,{method:'PATCH',body:{status:'READY'},expected:200});
-      const session=runtime.restaurant.getSession(opened.body.id);
-      const storedOrder=session.orders.find(item=>item.id===order.body.order.id);
-      assert(storedOrder?.status==='READY','Status READY do KDS nao voltou para a comanda',{storedOrder});
+      const tickets=kds.body.tickets.filter(item=>item.orderId===orderA.id||item.orderId===orderB.id);
+      assert(tickets.length===2,'Os dois pedidos nao chegaram ao KDS',{tickets:kds.body.tickets});
+      for(const ticket of tickets){
+        await kitchenHttp('/api/v1/mobile/kitchen/tickets/'+ticket.id,{method:'PATCH',body:{status:'PREPARING'},expected:200});
+        await kitchenHttp('/api/v1/mobile/kitchen/tickets/'+ticket.id,{method:'PATCH',body:{status:'READY'},expected:200});
+      }
+      state.restaurantTicketId=tickets[0].id;
+      const ready=runtime.restaurant.getSession(opened.body.id);
+      const readyOrders=ready.orders.filter(item=>item.id===orderA.id||item.id===orderB.id);
+      assert(readyOrders.length===2&&readyOrders.every(item=>item.status==='READY'),'Status READY do KDS nao voltou para todos os pedidos',{orders:readyOrders});
+
+      const checkout=await state.cashA.request('/api/v1/restaurant/sessions/'+opened.body.id+'/checkout',{
+        method:'POST',
+        headers:{'x-mutation-id':'qa-restaurant-checkout'},
+        body:{operatorId:'qa-cash-a'},
+        expected:200
+      });
+      assert(checkout.body.sale.totalCents===3600,'Checkout da mesa somou valor incorreto',{sale:checkout.body.sale});
+      const completed=await state.cashA.request('/api/v1/sales/'+checkout.body.sale.id+'/complete',{
+        method:'POST',
+        headers:{'x-mutation-id':'qa-restaurant-payment'},
+        body:{payments:[{method:'PIX',amountCents:3600}]},
+        expected:200
+      });
+      assert(completed.body.dispatch?.failed===0,'Fechamento do restaurante teve falha de efeito',{dispatch:completed.body.dispatch});
+      const finalSession=runtime.restaurant.getSession(opened.body.id);
+      const finalTable=runtime.restaurant.getTable('qa-table');
+      const finalStock=runtime.inventory.getBalance('qa-food');
+      assert(finalSession.status==='CLOSED','Comanda nao fechou apos pagamento',{session:finalSession});
+      assert(finalTable.status==='FREE','Mesa nao voltou a ficar livre',{table:finalTable});
+      assert(finalStock===3,'Restaurante nao baixou duas unidades do estoque',{finalStock});
       state.restaurantSessionId=opened.body.id;
-      return{sessionId:opened.body.id,orderId:order.body.order.id,ticketId:ticket.id,status:storedOrder.status};
+      return{sessionId:opened.body.id,orders:2,tickets:tickets.length,status:finalSession.status,tableStatus:finalTable.status,finalStock};
     });
 
     await scenario('self-service-order',async()=>{
       const device=runtime.mobileDevices.createDevice({id:'qa-self-device',name:'Totem QA',deviceType:'SELF_SERVICE'},actor);
       runtime.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'qa-cash-a'},actor);
       const selfHttp=deviceClient(base,device);
+      state.selfHttp=selfHttp;
       const context=await selfHttp('/api/v1/mobile/context',{expected:200});
       assert(context.body.profile?.mode==='PICKUP','Totem nao carregou perfil PICKUP',{context:context.body});
-      const submitted=await selfHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':'qa-self-order'},body:{items:[{productId:'qa-food',quantity:1}]},expected:201});
-      assert(submitted.body.order,'Totem nao criou pedido',{response:submitted.body});
-      return{orderId:submitted.body.order.id,mode:context.body.profile.mode,paymentMode:context.body.paymentMode};
+      assert(context.body.paymentMode==='MANUAL_AT_COUNTER','Totem mudou contrato de pagamento',{context:context.body});
+      const mutationId='qa-self-order';
+      const [first,second]=await Promise.all([
+        selfHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':mutationId},body:{items:[{productId:'qa-food',quantity:1}]},expected:201}),
+        selfHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':mutationId},body:{items:[{productId:'qa-food',quantity:1}]},expected:201})
+      ]);
+      assert(first.body.order?.id===second.body.order?.id,'Reenvio do totem criou pedidos diferentes',{first:first.body,second:second.body});
+      assert(first.body.order?.saleId===second.body.order?.saleId,'Reenvio do totem criou vendas diferentes',{first:first.body,second:second.body});
+      const count=runtime.db.prepare('SELECT COUNT(*) AS n FROM fast_food_orders WHERE id=?').get(first.body.order.id).n;
+      assert(count===1,'Totem duplicou fast_food_order',{count});
+      return{orderId:first.body.order.id,mode:context.body.profile.mode,paymentMode:context.body.paymentMode,duplicates:count-1};
+    });
+
+    await scenario('authorization-boundaries',async()=>{
+      assert(state.kitchenHttp&&state.waiterHttp&&state.restaurantTicketId,'Cenario restaurante deve preparar clientes de dispositivo.');
+      const kdsSelf=await state.kitchenHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':'qa-kds-self-forbidden'},body:{items:[{productId:'qa-food',quantity:1}]}});
+      assert(kdsSelf.status===403,'KDS conseguiu criar pedido de autoatendimento',{response:kdsSelf});
+      const waiterKds=await state.waiterHttp('/api/v1/mobile/kitchen/tickets/'+state.restaurantTicketId,{method:'PATCH',body:{status:'READY'}});
+      assert(waiterKds.status===403,'Garcom conseguiu operar rota exclusiva de KDS',{response:waiterKds});
+      return{kdsToSelfService:kdsSelf.status,waiterToKds:waiterKds.status};
     });
 
     await scenario('stress-last-unit-races',async()=>{
@@ -298,15 +360,21 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     });
 
     await scenario('database-invariants',async()=>{
+      const integrity=runtime.db.prepare('PRAGMA integrity_check').all().map(row=>Object.values(row)[0]);
+      const foreignKeys=runtime.db.prepare('PRAGMA foreign_key_check').all();
       const negative=runtime.db.prepare('SELECT COUNT(*) AS n FROM inventory_location_balances WHERE quantity<0').get().n;
       const orphanPayments=runtime.db.prepare('SELECT COUNT(*) AS n FROM payments p LEFT JOIN sales s ON s.id=p.sale_id WHERE s.id IS NULL').get().n;
       const completedWithoutPayment=runtime.db.prepare("SELECT COUNT(*) AS n FROM sales s WHERE s.status='COMPLETED' AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.sale_id=s.id)").get().n;
       const completedWithoutCashSession=runtime.db.prepare("SELECT COUNT(*) AS n FROM sales WHERE status='COMPLETED' AND cash_session_id IS NULL").get().n;
+      const duplicateEffects=runtime.db.prepare('SELECT COUNT(*) AS n FROM (SELECT event_id,effect_key,COUNT(*) AS c FROM domain_event_effects GROUP BY event_id,effect_key HAVING c>1)').get().n;
+      assert(integrity.length===1&&integrity[0]==='ok','SQLite integrity_check falhou',{integrity});
+      assert(foreignKeys.length===0,'SQLite foreign_key_check encontrou inconsistencias',{foreignKeys});
       assert(negative===0,'Existe estoque negativo no banco',{negative});
       assert(orphanPayments===0,'Existem pagamentos orfaos',{orphanPayments});
       assert(completedWithoutPayment===0,'Existe venda concluida sem pagamento',{completedWithoutPayment});
       assert(completedWithoutCashSession===0,'Existe venda concluida sem sessao de caixa',{completedWithoutCashSession});
-      return{negativeStockRows:negative,orphanPayments,completedWithoutPayment,completedWithoutCashSession};
+      assert(duplicateEffects===0,'Existem efeitos de dominio duplicados',{duplicateEffects});
+      return{integrity:'ok',foreignKeyViolations:foreignKeys.length,negativeStockRows:negative,orphanPayments,completedWithoutPayment,completedWithoutCashSession,duplicateEffects};
     });
   }finally{
     await server.stop().catch(()=>{});
