@@ -1,4 +1,5 @@
 'use strict';
+const {principalFromActor}=require('../auth/principal-resolver');
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -120,7 +121,7 @@ function createBackupService({ db, dbPath, backupDir, now=()=>new Date().toISOSt
   }
 
   function prepareRestore(id,{actor={}}={}) {
-    if (String(actor.role||'') !== 'admin') throw new Error('Restore exige usuario administrador.');
+    if(authorization)authorization.require({principal:principalFromActor(actor),capability:'settings.manage'});
     const validation = validateBackup(id);
     if (!validation.valid) throw new Error(`Backup invalido para restore: ${validation.errors.join(' ')}`);
     const safety = createBackup('pre-restore',{prune:false});

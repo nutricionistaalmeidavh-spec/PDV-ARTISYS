@@ -6,11 +6,12 @@ const { ensureIntegritySchema } = require('../../core/database/integrity-migrati
 const { assertCents } = require('../shared/money');
 const { normalizeMethod } = require('../payments/payment-rules');
 const { roundQuantity } = require('../inventory/inventory-rules');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 
 const VALID_REFUND_METHODS = new Set(['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT','OTHER']);
 function parseConfiguration(value){try{return value?JSON.parse(value):null;}catch{return null;}}
 
-function createReturnService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, commissionService = null, cashSessionResolver = null } = {}) {
+function createReturnService({ db, outbox, now = () => new Date().toISOString(), idFactory = p => `${p}-${randomUUID()}`, commissionService = null, cashSessionResolver = null, authorization = null } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
   ensureIntegritySchema(db);
 
@@ -57,9 +58,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
     return rows.map(mapReturn);
   }
 
-  function assertManager(actor) {
-    if (!['manager','admin'].includes(String(actor?.role || ''))) throw new Error('Autorizacao de gerente necessaria para devolucao.');
-  }
+  function assertManage(actor) { if(authorization)authorization.require({principal:principalFromActor(actor),capability:'returns.manage'}); }
 
   function resolveCashSession(terminalId) {
     if(typeof cashSessionResolver!=='function')return null;
@@ -178,7 +177,7 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
   }
 
   function cancelReturn(id, { reason = '', actor = {}, mutationId = null } = {}) {
-    assertManager(actor);
+    assertManage(actor);
     const text = String(reason).trim();
     if (!text) throw new Error('Informe o motivo do cancelamento da devolucao.');
     return withTransaction(db, () => {

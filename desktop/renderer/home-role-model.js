@@ -31,20 +31,5 @@
     };
   }
 
-  // Compatibilidade visual temporária para testes antigos; não é usada como boundary de autorização.
-  const LEGACY_USERS=Object.freeze({
-    cashier:Object.freeze({profileName:'Operador',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view'])}),
-    manager:Object.freeze({profileName:'Gerente',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view','inventory.view','finance.view','reports.view','management.view','sellers.view'])}),
-    admin:Object.freeze({profileName:'Administrador',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view','inventory.view','finance.view','reports.view','management.view','sellers.view','settings.view'])})
-  });
-  function legacyUser(role){return LEGACY_USERS[role]||LEGACY_USERS.cashier;}
-  function canAccessRoute(role,route){return Boolean(policy?.canAccessRoute?.(legacyUser(role),route));}
-  function routesForRole(role){return ['home','checkout','cash','post-sale','catalog','financial-management'].filter(route=>canAccessRoute(role,route));}
-  function homeForRole(role,baseTiles=[]){
-    const normalized=Object.hasOwn(LEGACY_USERS,role)?role:'cashier';
-    const view=homeForUser(legacyUser(normalized),baseTiles);
-    return{...view,role:normalized,label:legacyUser(normalized).profileName};
-  }
-
-  return Object.freeze({HUB_TILES,TOP_LEVEL,homeForUser,canAccessRoute,routesForRole,homeForRole});
+  return Object.freeze({HUB_TILES,TOP_LEVEL,homeForUser});
 });

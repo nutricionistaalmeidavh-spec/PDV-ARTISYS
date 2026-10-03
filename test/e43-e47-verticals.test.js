@@ -79,10 +79,10 @@ test('E44 transfers selected items between open table sessions without moving th
   rt.close();
 });
 
-test('E44 item cancellation requires manager or admin and a reason',()=>{
+test('E44 item cancellation requires restaurant.orders.cancel and a reason',()=>{
   const rt=runtime();seed(rt);const table=rt.restaurant.upsertTable({id:'tc',label:'C'},admin);const session=rt.restaurant.openTable(table.id,{operatorId:'admin-1',actor:admin});
   const order=rt.restaurant.addOrder(session.id,{items:[{productId:'burger',quantity:1}],actor:admin});
-  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'erro',{userId:'cash',role:'cashier'}),/gerente/i);
+  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'erro',{userId:'cash',role:'cashier'}),/permiss/i);
   assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'',admin),/motivo/i);
   assert.equal(rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'Pedido duplicado',admin).cancelled,true);
   rt.close();

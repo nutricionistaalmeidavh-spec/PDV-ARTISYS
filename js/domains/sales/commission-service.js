@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { assertCents } = require('../shared/money');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 
 function validateBps(value) {
   const result = Number(value);
@@ -11,7 +12,7 @@ function validateBps(value) {
   return result;
 }
 
-function createCommissionService({ db, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
+function createCommissionService({ db, authorization = null, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db) throw new TypeError('Database is required.');
 
   function requireSeller(id) {
@@ -106,7 +107,7 @@ function createCommissionService({ db, now = () => new Date().toISOString(), idF
   }
 
   function pay(input = {}, actor = {}) {
-    if (!['manager','admin'].includes(String(actor.role||''))) throw new Error('Autorizacao de gerente necessaria para pagar comissao.');
+    if (authorization) authorization.require({principal:principalFromActor(actor),capability:'finance.manage'});
     const seller = requireSeller(input.sellerId); const amount = assertCents(Number(input.amountCents),'amountCents');
     if (amount <= 0) throw new Error('Pagamento de comissao deve ser maior que zero.');
     if (amount > outstanding(seller.id)) throw new Error('Pagamento excede a comissao em aberto.');

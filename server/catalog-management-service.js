@@ -71,7 +71,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     if(!profiles)return null;
     if(input.profileId)return profiles.getProfile(input.profileId);
     const role=String(input.role||existing?.role||'cashier').toLowerCase();
-    const key=role==='admin'?'ADMINISTRATOR':role==='manager'?'MANAGER':'OPERATOR';
+    const key=role==='admin'?'admin':role==='manager'?'manager':'operator';
     return profiles.getProfileBySystemKey(key);
   }
 
