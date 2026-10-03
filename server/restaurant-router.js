@@ -65,7 +65,11 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
         json(response,200,{device,table,session,products});return true;
       }
       if(device.deviceType==='WAITER'){
-        json(response,200,{device,tables:runtime.restaurant.listTables(),requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products});return true;
+        const tables=runtime.restaurant.listTables().map(table=>{
+          const session=table.sessionId?runtime.restaurant.getSession(table.sessionId):null;
+          return{...table,orders:session?.orders||[]};
+        });
+        json(response,200,{device,tables,requests:runtime.restaurant.listServiceRequests({status:'OPEN'}),products});return true;
       }
       json(response,200,{device,tickets:runtime.kitchen.listTickets({limit:250})});return true;
     }
@@ -123,6 +127,8 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/stations'){json(response,201,runtime.kitchen.upsertStation(await body(request),actor));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/assignments'){json(response,200,runtime.kitchen.listAssignments());return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/assignments'){const data=await body(request);json(response,200,runtime.kitchen.assignProduct(data.productId,data.stationId,actor));return true;}
+    if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/routing'){json(response,200,runtime.kitchen.listProductRoutes());return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/restaurant/kitchen/routing'){const data=await body(request);json(response,200,runtime.kitchen.configureProductRoute(data.productId,{mode:data.mode,stationId:data.stationId||null},actor));return true;}
     const unassign=pathname.match(/^\/api\/v1\/restaurant\/kitchen\/assignments\/([^/]+)$/);
     if(request.method==='DELETE'&&unassign){json(response,200,runtime.kitchen.unassignProduct(decodeURIComponent(unassign[1]),actor));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/tickets'){json(response,200,runtime.kitchen.listTickets(filters(url,['status','stationId','limit'])));return true;}
