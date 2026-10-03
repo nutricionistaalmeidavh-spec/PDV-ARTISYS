@@ -29,7 +29,7 @@ test('P3 fresh installs bootstrap canonical profiles and bind new users by profi
     assert.equal(admin.permissions.includes('public.menu.view'),false);
     assert.equal(manager.permissions.includes('returns.approve'),true);
     assert.equal(operator.permissions.includes('returns.manage'),true);
-    assert.equal(runtime.db.prepare('SELECT name FROM schema_migrations WHERE version=23').get()?.name,'pdv_access_capability_returns_approval_v23');
+    assert.equal(runtime.db.prepare('SELECT name FROM schema_migrations WHERE version=27').get()?.name,'pdv_access_capability_returns_approval_v27');
 
     const user=runtime.catalog.createUser({
       id:'u1',username:'op',name:'Operador',role:'cashier',password:'senha-forte-123'
