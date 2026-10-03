@@ -18,12 +18,13 @@ Depois de integrado na branch padrao:
 ## Perfis
 
 - `smoke`: propagacao de preco, baixa de estoque, corrida pela ultima unidade, idempotencia e invariantes finais.
-- `full`: inclui dois caixas, isolamento de sessao, dois garcons concorrentes na mesma comanda, KDS, checkout no caixa, pagamento, baixa de estoque, totem, fronteiras de permissao e invariantes de banco.
+- `full`: inclui dois caixas, um Electron de caixa remoto ligado ao mesmo servidor, isolamento de sessao, dois garcons concorrentes na mesma comanda, KDS, checkout no caixa, pagamento, baixa de estoque, totem, fronteiras de permissao e invariantes de banco.
 - `stress`: executa o perfil completo e repete 50 corridas concorrentes pela ultima unidade.
 
 ## Invariantes obrigatorios
 
-- **price-propagation**: alteracao administrativa de preco precisa aparecer para uma nova venda no caixa.
+- **price-propagation**: alteracao administrativa de preco precisa ser usada por uma nova venda no caixa.
+- **cashier-ui-price-propagation**: um Electron remoto real deve mostrar o preco antigo no Balcao, receber a alteracao administrativa apos recarregar dados e mostrar/usar o novo preco no card e no carrinho.
 - **sale-stock-decrement**: venda concluida precisa baixar o estoque exatamente uma vez.
 - **last-unit-race**: com saldo 1 e dois caixas tentando concluir ao mesmo tempo, apenas uma venda pode concluir.
 - **idempotent-completion**: reenvio com o mesmo `mutationId` nao pode duplicar pagamento, venda ou baixa.
@@ -40,7 +41,8 @@ Cada execucao grava em `qa-artifacts/multi-device`:
 - `report.json`: resultado estruturado por cenario;
 - `summary.md`: resumo usado tambem no GitHub Step Summary;
 - `events.jsonl`: trilha de inicio, sucesso e falha de cada cenario;
-- `final.sqlite`: banco final para auditoria pos-teste.
+- `final.sqlite`: banco final para auditoria pos-teste;
+- `screenshots/cashier-price-before.png` e `cashier-price-after.png`: evidencia visual da propagacao de preco no caixa remoto quando o perfil inclui UI.
 
 O artifact e enviado mesmo quando algum cenario falha.
 
@@ -48,8 +50,8 @@ O artifact e enviado mesmo quando algum cenario falha.
 
 ```bash
 npm run qa:multi-device -- --profile smoke --output qa-artifacts/multi-device
-npm run qa:multi-device -- --profile full --output qa-artifacts/multi-device
-npm run qa:multi-device -- --profile stress --output qa-artifacts/multi-device
+xvfb-run -a npm run qa:multi-device -- --profile full --output qa-artifacts/multi-device
+xvfb-run -a npm run qa:multi-device -- --profile stress --output qa-artifacts/multi-device
 ```
 
 O teste usa `127.0.0.1` para representar o transporte da LAN dentro do runner, mas os clientes desktop passam pelo mesmo pareamento e autenticacao de terminal usados na rede real. Isso valida contratos HTTP, concorrencia, persistencia, isolamento de terminal e efeitos de dominio. Firewall do Windows, roteador, perda fisica de Wi-Fi e hardware real continuam sendo validacoes de bancada.
