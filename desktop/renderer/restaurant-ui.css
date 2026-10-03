@@ -16,6 +16,31 @@
 .restaurant-page .restaurant-btn:focus-visible{outline-color:#1d4ed8}
 .restaurant-page .restaurant-empty{border:1px dashed #ccd8e7;border-radius:12px;background:rgba(255,255,255,.7)}
 
+.restaurant-view-tabs{display:flex;gap:8px;padding:4px;border:1px solid #dbe4ef;border-radius:12px;background:#f6f8fb;width:max-content}
+.restaurant-view-tabs button{border:0;border-radius:9px;padding:9px 16px;background:transparent;color:#5d6a7d;font-weight:800;cursor:pointer}
+.restaurant-view-tabs button.active{background:#172033;color:#fff;box-shadow:0 4px 12px rgba(23,32,51,.16)}
+.restaurant-operator-label{display:grid;gap:4px;color:#637087;font-size:11px;font-weight:800}
+.restaurant-operator-label select{min-width:180px}
+.restaurant-section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+.restaurant-section-head h2{margin-bottom:3px}.restaurant-section-head p{margin:0;color:#78859a;font-size:13px}
+.restaurant-floor{padding:20px;background:linear-gradient(115deg,#f1f6ff 0%,#fff 72%);border-color:#cad9ee}
+.restaurant-table-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.restaurant-table-head strong{margin:0}.restaurant-table.OCCUPIED{border-color:#b9cef0}.restaurant-table.BILL_REQUESTED{border-color:#edc47d;background:#fffaf1}.restaurant-table.CHECKOUT{border-color:#d8b77e;background:#fff8eb}
+.restaurant-session{border-color:#b9cbe3;box-shadow:0 12px 32px rgba(23,58,103,.08)}
+.restaurant-waiter-bar{display:flex;align-items:end;gap:10px;padding:12px;margin:4px 0 16px;border-radius:12px;background:#f5f8fc;border:1px solid #dfe7f1}
+.restaurant-waiter-bar label{display:grid;gap:5px;min-width:260px;color:#536078;font-size:12px;font-weight:800}.restaurant-waiter-bar select{border:1px solid #d6dde7;border-radius:9px;padding:9px;background:#fff}.restaurant-waiter-bar>span{margin-left:auto;align-self:center;color:#78859a;font-size:12px}
+.restaurant-session-layout{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:18px}.restaurant-session-total{display:flex;justify-content:space-between;padding-top:14px;font-size:18px}
+.restaurant-form-row{display:grid;grid-template-columns:minmax(110px,.4fr) minmax(0,1fr);gap:10px}
+.restaurant-draft{margin-top:12px;border:1px solid #dde5ef;border-radius:12px;overflow:hidden}.restaurant-draft-line{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:11px 12px;border-bottom:1px solid #edf1f5}.restaurant-draft-line small{display:block;color:#78859a;margin-top:4px}.restaurant-draft-line .restaurant-btn{padding:6px 9px}.restaurant-draft-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#f7f9fc}.restaurant-draft-footer strong{font-size:18px}.restaurant-empty.compact{padding:14px;border:0;border-radius:0}
+.restaurant-advanced{margin-top:18px;border-top:1px solid #e1e6ee;padding-top:14px}.restaurant-advanced>summary{cursor:pointer;font-weight:800;color:#273449}.restaurant-help{color:#78859a;font-size:13px}.restaurant-advanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.restaurant-action-card{padding:14px;border:1px solid #e0e6ee;border-radius:12px;background:#fbfcfe}.restaurant-action-card h3{font-size:15px}.restaurant-action-card small{color:#78859a}
+.restaurant-settings-intro{background:#f8fafc}.restaurant-settings-table-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}.restaurant-settings-table-list>div{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;background:#fff}.restaurant-settings-table-list>div span:nth-child(2){margin-left:auto;color:#78859a;font-size:12px}
+@media(max-width:1050px){.restaurant-session-layout,.restaurant-advanced-grid{grid-template-columns:1fr}.restaurant-waiter-bar{align-items:stretch;flex-direction:column}.restaurant-waiter-bar>span{margin-left:0}.restaurant-form-row{grid-template-columns:1fr}}
+
+.restaurant-production-state{display:flex!important;align-items:center;gap:6px;min-height:25px}.restaurant-ready-count{font-size:11px;font-weight:800;color:#23713d}.restaurant-status.NEW{background:#eef2f6;color:#4b5870}.restaurant-status.PREPARING{background:#fff1d8;color:#9b5d10}.restaurant-status.READY{background:#e3f7ea;color:#23713d}
+.restaurant-waiter-bar input,.restaurant-waiter-bar select{border:1px solid #d6dde7;border-radius:9px;padding:9px;background:#fff;color:#172033}.restaurant-waiter-bar label{min-width:180px}
+.restaurant-form textarea{min-height:84px;resize:vertical;border:1px solid #d6dde7;border-radius:10px;padding:10px;background:#fff;color:#172033;font:inherit}
+.restaurant-config-modal .modal-body{max-height:min(70vh,680px);overflow:auto}.restaurant-config-modal fieldset{display:grid;gap:8px;border:1px solid #e0e6ee;border-radius:12px;padding:12px}.restaurant-config-modal legend{font-weight:800;color:#273449;padding:0 4px}.restaurant-config-choice{display:grid!important;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:8px;border-radius:9px;background:#f8fafc}.restaurant-config-choice input{margin:0}.restaurant-config-choice small{color:#78859a;font-weight:700}
+
 .restaurant-view-switch{display:inline-flex;gap:4px;padding:3px;border:1px solid #dbe3ee;border-radius:12px;background:#f7f9fc}
 .restaurant-view-switch .restaurant-btn{padding:8px 11px}
 .restaurant-management{display:flex;flex-direction:column;gap:14px}
