@@ -46,6 +46,8 @@ test('future QA updates remain explicit and local-first',()=>{
   assert.match(pkg.scripts['qa:e2e:p0'],/--flow all-pages-audit/);
   assert.match(pkg.scripts['qa:e2e:p0'],/--flow restaurant-table-lifecycle/);
   assert.match(pkg.scripts['qa:e2e:p0'],/qa-artifacts\/restaurant-table-lifecycle/);
+  assert.match(pkg.scripts['qa:e2e:p0'],/--flow restaurant-multichannel-ui/);
+  assert.match(pkg.scripts['qa:e2e:p0'],/qa-artifacts\/restaurant-multichannel-ui/);
   const sync=readText('scripts/sync-artisys-qa.mjs');
   assert.match(sync,/ARTISYS_QA_SOURCE/);
   assert.match(sync,/qa\/artisys-qa\.config\.json/);
@@ -71,6 +73,7 @@ test('current Electron QA manifest uses the isolated QA desktop wrapper',()=>{
   assert.equal(fs.existsSync(path.join(root,'qa/desktop/main.cjs')),true);
   const flow=readJson('qa/flows/all-pages-audit.json');
   const restaurant=readJson('qa/flows/restaurant-table-lifecycle.json');
+  const channels=readJson('qa/flows/restaurant-multichannel-ui.json');
   assert.equal(flow.metadata.qaAutoAdmin,true);
   assert.equal(flow.steps.some(step=>step.action==='expectNoHorizontalOverflow'),true);
   assert.equal(flow.steps.some(step=>step.name==='balcao-finalizar-visivel'),true);
@@ -78,4 +81,8 @@ test('current Electron QA manifest uses the isolated QA desktop wrapper',()=>{
   assert.equal(restaurant.steps.some(step=>step.name==='comanda-aberta'),true);
   assert.equal(restaurant.steps.some(step=>step.name==='mesa-liberada'),true);
   assert.equal(restaurant.steps.some(step=>step.name==='configuracao-separada'),true);
+  assert.equal(restaurant.steps.some(step=>step.name==='card-producao-pronto'),true);
+  assert.equal(channels.steps.some(step=>step.name==='garcom-pedido-novo'),true);
+  assert.equal(channels.steps.some(step=>step.name==='tablet-pedido-historico'),true);
+  assert.equal(channels.steps.some(step=>step.name==='qr-pedido-historico'),true);
 });
