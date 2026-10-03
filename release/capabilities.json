@@ -56,5 +56,7 @@
   "audit-health-sanitized-logs",
   "diagnostic-zip",
   "persistent-pilot-readiness-checklist",
-  "server-terminal-and-terminal-deployment-profiles"
+  "server-terminal-and-terminal-deployment-profiles",
+  "restaurant-session-waiter-party-customer-context",
+  "restaurant-shared-multichannel-order-composer"
 ]
