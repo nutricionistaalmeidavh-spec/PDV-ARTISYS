@@ -64,8 +64,8 @@ test('tutorial roadmap defines 36 sparse micro-tutorials capped at 30 seconds', 
 
   const windowsArgs = buildTutorialEditArgs('raw.mp4', 'final.mp4', 'C:\\tutorials\\captions.srt');
   const windowsFilter = windowsArgs[windowsArgs.indexOf('-vf') + 1];
+  assert.ok(windowsFilter.includes("C\\\\:/tutorials/captions.srt"));
   assert.doesNotMatch(windowsFilter, /\\\\tutorials\\\\/);
-  assert.match(windowsFilter, /C\\\\:/);
 });
 
 test('package scripts expose local validation and FFmpeg editing without paid dependencies', () => {
@@ -74,4 +74,8 @@ test('package scripts expose local validation and FFmpeg editing without paid de
   assert.equal(pkg.scripts['qa:tutorials:edit'], 'node scripts/tutorial-videos.mjs edit');
   assert.equal(pkg.devDependencies.playwright, '1.63.0');
   assert.equal(pkg.dependencies.ffmpeg, undefined);
+
+  const cli = fs.readFileSync(path.join(root, 'scripts/tutorial-videos.mjs'), 'utf8');
+  assert.match(cli, /ffprobe/);
+  assert.match(cli, /catalog\.maxDurationSec/);
 });
