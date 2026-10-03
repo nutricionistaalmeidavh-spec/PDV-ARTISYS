@@ -137,14 +137,15 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
       LEFT JOIN kitchen_stations ks ON ks.id=r.station_id
       WHERE p.id=? AND p.active=1`).get(String(productId));
     if(!row||!row.mode)return null;
-    return{
+    const route={
       productId:row.productId,
       productName:row.productName,
       mode:row.mode,
       stationId:row.stationId||null,
-      stationName:row.stationName||null,
-      stationActive:row.mode==='PRODUCTION'?Boolean(row.stationActive):undefined
+      stationName:row.stationName||null
     };
+    if(row.mode==='PRODUCTION')route.stationActive=Boolean(row.stationActive);
+    return route;
   }
 
   function listProductRoutes() {
@@ -184,7 +185,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
         .run(product.id,normalized,station?.id||null,now());
       writeAudit(db,{action:'restaurant.kitchen.product.route',entity:'product',entityId:product.id,actor,context:{mode:normalized,stationId:station?.id||null,stationName:station?.name||null}},now);
       const route=getProductRoute(product.id);
-      if(route&&Object.hasOwn(route,'stationActive'))delete route.stationActive;
+      if(route&&route.mode==='PRODUCTION')delete route.stationActive;
       return route;
     });
   }
