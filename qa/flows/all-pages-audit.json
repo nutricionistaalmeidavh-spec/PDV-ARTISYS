@@ -749,6 +749,58 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-produto-direto-qa",
+      "body": {
+        "id": "qa-direct-product",
+        "name": "Coca QA",
+        "sku": "QA-COCA-01",
+        "salePriceCents": 700,
+        "costCents": 300,
+        "trackStock": false,
+        "menuEnabled": true,
+        "active": true
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/stations",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-setor-producao-qa",
+      "body": {
+        "id": "qa-station-bar",
+        "name": "Bar QA",
+        "printEnabled": false
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/routing",
+      "method": "POST",
+      "expectedStatus": 200,
+      "name": "seed-rota-producao-qa",
+      "body": {
+        "productId": "qa-wholesale-product",
+        "mode": "PRODUCTION",
+        "stationId": "qa-station-bar"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/routing",
+      "method": "POST",
+      "expectedStatus": 200,
+      "name": "seed-rota-direta-qa",
+      "body": {
+        "productId": "qa-direct-product",
+        "mode": "DIRECT"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/wholesale/tiers",
       "method": "POST",
       "expectedStatus": 201,
@@ -1524,6 +1576,50 @@
       "timeoutMs": 10000
     },
     {
+      "action": "click",
+      "selector": "[data-add='qa-direct-product']",
+      "name": "garcom-adicionar-item-direto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-add='qa-wholesale-product']",
+      "name": "garcom-adicionar-item-producao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#send-order",
+      "name": "garcom-registrar-pedido-misto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "expected": "Coca QA",
+      "name": "garcom-comanda-item-direto",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "expected": "direto",
+      "name": "garcom-comanda-direto-rotulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "expected": "Produto QA Atacado",
+      "name": "garcom-comanda-item-producao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "equipe-mobile-pedido-misto",
+      "fullPage": true
+    },
+    {
       "action": "screenshot",
       "name": "equipe-mobile",
       "fullPage": true
@@ -1572,6 +1668,58 @@
     },
     {
       "action": "expectText",
+      "selector": ".kitchen-board",
+      "expected": "Produto QA Atacado",
+      "name": "kds-recebe-item-producao",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-ticket-novo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "kds-mobile-novo",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='PREPARING']",
+      "name": "kds-iniciar-preparo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.PREPARING",
+      "name": "kds-ticket-em-preparo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "kds-mobile-em-preparo",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='READY']",
+      "name": "kds-marcar-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.READY",
+      "name": "kds-ticket-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "kds-mobile-pronto",
+      "fullPage": true
+    },
+    {
+      "action": "expectText",
       "selector": ".staff-head",
       "expected": "KDS local",
       "name": "kds-mobile-contexto",
@@ -1586,6 +1734,67 @@
       "action": "expectNoHorizontalOverflow",
       "name": "kds-mobile-sem-overflow",
       "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#logout",
+      "name": "kds-mobile-sair-apos-pronto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "garcom-retorno-login",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "valueFrom": "qaWaiterId",
+      "name": "garcom-retorno-id"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "valueFrom": "qaWaiterKey",
+      "name": "garcom-retorno-chave"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "garcom-retorno-conectar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".waiter-layout",
+      "name": "garcom-retorno-conectado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "expected": "Pronto",
+      "name": "garcom-ve-pedido-pronto",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "expected": "Coca QA",
+      "name": "garcom-mantem-item-direto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "equipe-mobile-pedido-pronto",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#logout",
+      "name": "garcom-retorno-sair",
       "timeoutMs": 10000
     },
     {
