@@ -79,7 +79,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     if(!authorization||!profile)return;
     const principal=principalFromActor(actor);
     if(principal?.kind==='system')return;
-    if(explicit)requireCapability(actor,'profiles.assign');
+    if(explicit||profile.protected)requireCapability(actor,'profiles.assign');
     for(const permission of profile.permissions||[]){
       if(!authorization.can({principal,capability:permission}))throw domainError(403,'Nao e permitido atribuir um perfil com permissoes superiores as do usuario atual.');
     }
