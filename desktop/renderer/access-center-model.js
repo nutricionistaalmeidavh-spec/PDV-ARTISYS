@@ -19,32 +19,34 @@
   function permissionGroups({permissions=[],groups={},selectedIds=[],query=''}={}){
     const selected=new Set((selectedIds||[]).map(value=>text(value)));
     const needle=normalized(query);
-    const buckets=new Map();
+    const allBuckets=new Map();
+    const visibleBuckets=new Map();
 
     for(const permission of permissions||[]){
       if(!permission||permission.group==='public')continue;
+      const item={...permission,selected:selected.has(text(permission.id))};
+      if(!allBuckets.has(permission.group))allBuckets.set(permission.group,[]);
+      allBuckets.get(permission.group).push(item);
+
       const haystack=normalized([permission.id,permission.label,permission.description,groupDefinition(groups,permission.group).label].join(' '));
       if(needle&&!haystack.includes(needle))continue;
-      if(!buckets.has(permission.group))buckets.set(permission.group,[]);
-      buckets.get(permission.group).push({
-        ...permission,
-        selected:selected.has(text(permission.id))
-      });
+      if(!visibleBuckets.has(permission.group))visibleBuckets.set(permission.group,[]);
+      visibleBuckets.get(permission.group).push(item);
     }
 
     const orderedGroupIds=Object.keys(groups||{}).filter(id=>id!=='public');
-    for(const id of buckets.keys())if(!orderedGroupIds.includes(id))orderedGroupIds.push(id);
+    for(const id of allBuckets.keys())if(!orderedGroupIds.includes(id))orderedGroupIds.push(id);
 
     return orderedGroupIds
-      .filter(id=>buckets.has(id))
+      .filter(id=>visibleBuckets.has(id))
       .map(id=>{
         const definition=groupDefinition(groups,id);
-        const items=buckets.get(id)||[];
+        const allItems=allBuckets.get(id)||[];
         return {
           ...definition,
-          permissions:items,
-          total:items.length,
-          selected:items.filter(item=>item.selected).length
+          permissions:visibleBuckets.get(id)||[],
+          total:allItems.length,
+          selected:allItems.filter(item=>item.selected).length
         };
       });
   }
