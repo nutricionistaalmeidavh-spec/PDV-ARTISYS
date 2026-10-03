@@ -1639,6 +1639,13 @@
     },
     {
       "action": "expectText",
+      "selector": ".staff-head .eyebrow",
+      "expected": "Garçom",
+      "name": "equipe-mobile-tipo-traduzido",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
       "selector": ".staff-head",
       "expected": "Garçom QA",
       "name": "equipe-mobile-identidade",
@@ -1734,6 +1741,13 @@
       "selector": ".kitchen-board",
       "name": "kds-mobile-lanes",
       "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".staff-head .eyebrow",
+      "expected": "Cozinha",
+      "name": "kds-mobile-tipo-traduzido",
+      "timeoutMs": 10000
     },
     {
       "action": "expectText",
