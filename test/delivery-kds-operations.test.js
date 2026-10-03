@@ -90,6 +90,8 @@ test('cancelling delivery cancels its active production tickets and KDS cannot r
     assert.equal(cancelled.status,'CANCELLED');
     assert.equal(ctx.runtime.kitchen.getTicket(ticket.id).status,'CANCELLED');
     assert.equal(ctx.runtime.delivery.get(order.id).status,'CANCELLED');
+    assert.throws(()=>ctx.runtime.kitchen.updateTicketStatus(ticket.id,'PREPARING',admin),/cancelado/i);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'CANCELLED');
   }finally{ctx.close();}
 });
 
