@@ -85,3 +85,14 @@ test('P2 public resource principals receive only explicit public capabilities',(
   assert.equal(resolvePermissions(publicTable).includes('public.order.create'),true);
   assert.equal(resolvePermissions(publicTable).includes('users.view'),false);
 });
+
+
+test('P2 runtime exposes canonical authorization service without replacing legacy gates yet',()=>{
+  const {createPdvRuntime}=require('../js/core/pdv-runtime');
+  const runtime=createPdvRuntime({dbPath:':memory:'});
+  try{
+    assert.ok(runtime.authorization);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'a1',legacyRole:'admin'},capability:'profiles.edit'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'c1',legacyRole:'cashier'},capability:'finance.manage'}),false);
+  }finally{runtime.close();}
+});
