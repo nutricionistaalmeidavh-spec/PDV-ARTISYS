@@ -1,0 +1,51 @@
+{
+  "name": "12-fechar-caixa",
+  "title": "Fechar caixa",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "cash-close"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-tela-caixa",
+      "holdMs": 700
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.cashPromptAction",
+      "cashAction": "close",
+      "responses": [
+        "100,00"
+      ],
+      "waitMs": 900,
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "caixa-fechado",
+      "expected": "Caixa fechado",
+      "timeoutMs": 10000,
+      "holdMs": 1200
+    }
+  ]
+}
