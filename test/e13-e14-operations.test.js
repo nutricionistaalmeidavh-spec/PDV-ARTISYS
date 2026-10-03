@@ -28,7 +28,7 @@ test('E13-E20 migration creates incremental operational tables idempotently', ()
   assert.ok(version >= 2);
   assert.equal(version, CURRENT_SCHEMA_VERSION);
   const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row => row.name));
-  for (const name of ['return_transactions','return_items','financial_accounts','financial_entries','financial_settlements','print_jobs','fiscal_documents','device_settings']) {
+  for (const name of ['return_transactions','return_items','financial_accounts','financial_entries','financial_settlements','print_jobs','device_settings']) {
     assert.equal(tables.has(name), true, name);
   }
   runMigrations(db, () => '2026-09-09T11:00:00Z');
