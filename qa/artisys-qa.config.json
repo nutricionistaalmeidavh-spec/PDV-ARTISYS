@@ -45,7 +45,8 @@
   "defaultFlow": "all-pages-audit",
   "flows": {
     "all-pages-audit": "flows/all-pages-audit.json",
-    "restaurant-table-lifecycle": "flows/restaurant-table-lifecycle.json"
+    "restaurant-table-lifecycle": "flows/restaurant-table-lifecycle.json",
+    "restaurant-multichannel-ui": "flows/restaurant-multichannel-ui.json"
   },
   "qaProfiles": {
     "quick": {
