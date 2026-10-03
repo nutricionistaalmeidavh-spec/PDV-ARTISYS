@@ -57,7 +57,7 @@
   }
 
   function sectionHead(title,description,action=''){
-    return `<div class="access-section-head"><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
+    return `<div class="access-section-head admin-section-head"><div><h2>${esc(title)}</h2><p>${esc(description)}</p></div>${action}</div>`;
   }
 
   function peopleView(){
@@ -564,7 +564,7 @@
   }
 
   function paint({focusProfileSearch=false}={}){
-    content.innerHTML=`<section class="page access-center-page"><header class="page-head"><div><h1>Acessos e equipe</h1><p>Controle pessoas, perfis, dispositivos e segurança em um único lugar.</p></div></header>${tabs()}<div data-access-panel>${view()}</div></section>`;
+    content.innerHTML=`<section class="page access-center-page admin-surface" data-admin-surface="access"><header class="page-head"><div><h1>Acessos e equipe</h1><p>Controle pessoas, perfis, dispositivos e segurança em um único lugar.</p></div></header>${tabs()}<div data-access-panel>${view()}</div></section>`;
     bind();
     registry.updated('access',{tab:activeTab});
     if(focusProfileSearch){
