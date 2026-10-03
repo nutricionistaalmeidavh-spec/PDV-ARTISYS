@@ -22,8 +22,10 @@ test('P0 tutorial demos are executable QA flows mapped to the tutorial catalog',
     assert.equal(demo.profile,'tutorials-p0');
     const flow=json(path.join('qa',demo.file));
     assert.equal(flow.metadata?.qaAutoAdmin,true,tutorial.id);
-    assert.equal(flow.steps[0]?.action,'capability',tutorial.id);
-    assert.equal(flow.steps[0]?.name,'tutorial.setup',tutorial.id);
+    assert.equal(flow.steps[0]?.action,'authenticateLocalQa',tutorial.id);
+    assert.equal(flow.steps[1]?.action,'capability',tutorial.id);
+    assert.equal(flow.steps[1]?.name,'tutorial.setup',tutorial.id);
+    assert.ok(flow.steps.some(step=>step.name==='app-ready'),tutorial.id);
     assert.ok(flow.steps.some(step=>step.action==='expectVisible'||step.action==='expectText'),tutorial.id);
   }
 });
