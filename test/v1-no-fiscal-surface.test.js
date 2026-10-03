@@ -64,3 +64,28 @@ test('V1 infrastructure has no fiscal telemetry, diagnostics, restore companions
   assert.doesNotMatch(read('js/core/pilot/pilot-service.js'), /fiscal-test|category:'fiscal'/);
   assert.doesNotMatch(read('js/core/pdv-event-types.js'), /FISCAL_|fiscal\./);
 });
+
+test('V1 installer excludes fiscal code and external fiscal resources', () => {
+  const pkg=JSON.parse(read('package.json'));
+  assert.deepEqual(pkg.build.extraResources, []);
+  const files=pkg.build.files.join('\n');
+  for(const marker of ['!desktop/fiscal-*.cjs','!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
+  assert.equal(Object.keys(pkg.scripts).some(key=>key.startsWith('fiscal:')||key.startsWith('test:fiscal:')),false);
+});
+
+test('V1 release manifests advertise non-fiscal printing but no fiscal or NFS-e capability', () => {
+  const capabilities=JSON.parse(read('release/customer-capabilities.json'));
+  const ids=capabilities.capabilities.map(item=>item.id);
+  assert.equal(ids.some(id=>id.startsWith('fiscal.')||id==='infra.fiscal-extension'||id==='nfse.operations'),false);
+  const printing=capabilities.capabilities.find(item=>item.id==='printing.customer-documents');
+  assert.ok(printing);
+  assert.ok(printing.declaredCapabilities.includes('non-fiscal-sale-prebill-kitchen-and-cash-printing'));
+  const operations=JSON.parse(read('release/customer-operations.json')).operations.map(item=>item.id);
+  assert.equal(operations.some(id=>id.startsWith('fiscal.')||id.startsWith('nfse.')),false);
+});
+
+test('V1 QA flow has no fiscal pages and keeps operational regression surfaces', () => {
+  const qa=read('qa/flows/all-pages-audit.json');
+  assert.doesNotMatch(qa,/fiscal-config-workspace|fiscal-monitor-panel|nfse-workspace|settings-category='fiscal'/);
+  for(const marker of ['wholesale','restaurant','kds','financial-management','returns']) assert.match(qa,new RegExp(marker,'i'));
+});
