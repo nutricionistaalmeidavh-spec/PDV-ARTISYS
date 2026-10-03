@@ -12,17 +12,17 @@ O servidor autoritativo permanece local. Desktop, terminais e dispositivos móve
 
 ## E31 — mesas e comandas
 
-`restaurant-service.js` mantém `restaurant_tables`, `table_sessions`, `restaurant_orders` e itens. Uma mesa pode ter somente uma sessão ativa. `checkoutToSale()` agrega os itens ativos da comanda e cria uma venda normal, preservando preço em centavos e o fluxo existente de pagamento.
+`restaurant-service.js` mantém `restaurant_tables`, `table_sessions`, `restaurant_orders` e itens. Uma mesa pode ter somente uma sessão ativa. A sessão preserva separadamente operador de abertura, garçom responsável, quantidade de pessoas e cliente opcional. `checkoutToSale()` agrega os itens ativos da comanda, herda o cliente quando informado e cria uma venda normal no fluxo canônico de pagamento.
 
 ## E32 — cozinha/KDS
 
-`kitchen-service.js` mantém setores, vínculo produto→setor e tickets. `restaurant.order-created` é roteado por efeito idempotente. A restrição única `(order_id, station_id)` evita duplicidade de ticket mesmo se um efeito for reprocessado. Impressão de produção usa IDs determinísticos por ticket.
+`kitchen-service.js` mantém setores, vínculo produto→setor e tickets. `restaurant.order-created` é roteado por efeito idempotente. A restrição única `(order_id, station_id)` evita duplicidade de ticket mesmo se um efeito for reprocessado. O mapa de mesas projeta `NEW`, `PREPARING`, `READY` e quantidades prontas a partir dos tickets do KDS, inclusive quando estações diferentes estão em estados distintos. Impressão de produção usa IDs determinísticos por ticket.
 
 ## E33/E34 — dispositivos LAN
 
 `mobile-device-service.js` gera uma credencial aleatória exibida somente na criação/rotação e persiste apenas `scrypt(hash + salt)`. Dispositivos podem ser bloqueados ou ter a chave rotacionada. Tipos suportados: `WAITER`, `TABLET`, `KITCHEN`.
 
-A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom opera mesas/comandas e o KDS altera apenas tickets de cozinha.
+A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora qualquer `tableId` informado pelo cliente e usa exclusivamente a mesa gravada no vínculo do dispositivo. O garçom abre atendimento com pessoas e cliente opcional, opera mesas/comandas e o KDS altera apenas tickets de cozinha. Desktop, garçom, tablet e `/m/:token` carregam `shared/order-composer.js`; cada superfície pode apresentar a configuração de forma própria, mas produz o mesmo payload canônico de quantidade, observação, variação, opções e combo. O servidor recalcula o preço configurado antes de persistir.
 
 ## E35 — workspace desktop
 
@@ -38,7 +38,7 @@ A interface `/mobile` é composta apenas por HTML/CSS/JS locais. O tablet ignora
 
 ## E38 — confiabilidade
 
-Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. A suíte cobre fluxo completo, credenciais, revogação, LAN e concorrência de abertura de mesa.
+Operações críticas aceitam `x-mutation-id` e reutilizam `processed_mutations`. Eventos de domínio continuam persistidos na outbox. Tickets de cozinha e jobs de impressão têm chaves idempotentes próprias. A suíte cobre fluxo completo, credenciais, revogação, LAN, concorrência de abertura de mesa e E2E de interface para desktop, garçom, tablet e QR, com pedidos configurados chegando ao KDS.
 
 ## E39 — release
 
