@@ -25,12 +25,32 @@ async function readCatalog() {
   return JSON.parse(await fs.readFile(catalogPath, 'utf8'));
 }
 
-function run(command, args) {
+function run(command, args, { captureStdout = false } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit' });
+    const child = spawn(command, args, { stdio: captureStdout ? ['ignore', 'pipe', 'pipe'] : 'inherit' });
+    let stdout = '';
+    let stderr = '';
+    if (captureStdout) {
+      child.stdout.on('data', chunk => { stdout += chunk; });
+      child.stderr.on('data', chunk => { stderr += chunk; });
+    }
     child.once('error', reject);
-    child.once('close', code => code === 0 ? resolve() : reject(new Error(`${command} exited with code ${code}`)));
+    child.once('close', code => code === 0
+      ? resolve(captureStdout ? stdout : undefined)
+      : reject(new Error(`${command} exited with code ${code}${stderr ? `: ${stderr}` : ''}`)));
   });
+}
+
+async function probeDuration(file) {
+  const stdout = await run('ffprobe', [
+    '-v', 'error',
+    '-show_entries', 'format=duration',
+    '-of', 'default=noprint_wrappers=1:nokey=1',
+    file,
+  ], { captureStdout: true });
+  const seconds = Number(String(stdout).trim());
+  if (!Number.isFinite(seconds) || seconds <= 0) throw new Error(`Could not determine media duration: ${file}`);
+  return seconds;
 }
 
 async function main() {
@@ -61,11 +81,21 @@ async function main() {
       ? path.resolve(String(args.output))
       : path.join(root, 'qa-artifacts', 'tutorials', tutorial.outputFile);
     const subtitleFile = `${outputFile}.captions.srt`;
+    const sourceDurationSec = await probeDuration(inputFile);
+    if (sourceDurationSec > catalog.maxDurationSec + 0.05) {
+      throw new Error(`Tutorial source exceeds ${catalog.maxDurationSec}s: ${sourceDurationSec.toFixed(2)}s`);
+    }
 
     await fs.mkdir(path.dirname(outputFile), { recursive: true });
     await fs.writeFile(subtitleFile, renderTutorialSrt(tutorial), 'utf8');
     try {
       await run('ffmpeg', buildTutorialEditArgs(inputFile, outputFile, subtitleFile));
+      const finalDurationSec = await probeDuration(outputFile);
+      if (finalDurationSec > catalog.maxDurationSec + 0.05) {
+        await fs.rm(outputFile, { force: true });
+        throw new Error(`Edited tutorial exceeds ${catalog.maxDurationSec}s: ${finalDurationSec.toFixed(2)}s`);
+      }
+      console.log(`TUTORIAL_DURATION=${finalDurationSec.toFixed(3)}s`);
     } finally {
       await fs.rm(subtitleFile, { force: true });
     }
