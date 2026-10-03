@@ -24,9 +24,9 @@ Use the existing clean, high-contrast register interface. Runtime CSS owns the e
 | Navigation/deep surface | `--navy`, `--navy-2` | `#081a35`, `#102a52` |
 | Main text | `--ink` | `#10172f` |
 | Supporting text | `--muted` | `#62718d` |
-| Subtle accessible text | `--text-subtle` | `#60708a` |
-| Dividers | `--line` | `#dfe6f1` |
-| Surface | `--surface`, `--surface-soft` | `#ffffff`, `#f6f8fc` |
+| Subtle accessible text | `--text-subtle`, `--text-label`, `--text-tertiary` | `#60708a`, `#53627f`, `#65748d` |
+| Dividers | `--line`, `--line-soft` | `#dfe6f1`, `#edf1f6` |
+| Surface | `--surface`, `--surface-soft`, `--surface-subtle`, `--surface-selected` | `#ffffff`, `#f6f8fc`, `#f7f9fc`, `#f5f8fc` |
 | Positive / destructive / attention | `--success`, `--danger`, `--orange` | `#12b76a`, `#ef3340`, `#ff7a00` |
 | Card corner | `--radius` | `18px` |
 | Card elevation | `--shadow` | `0 12px 32px rgba(33, 56, 94, .12)` |
