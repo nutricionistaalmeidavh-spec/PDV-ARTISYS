@@ -14,6 +14,10 @@ test('Cardápio uses publication-oriented labels instead of product-creation wor
   assert.match(app,/id="new-product">\+ Adicionar ao Cardápio<\/button>/);
   assert.match(app,/product\.prepared\?'Ver ficha técnica':'Ver cadastro'/);
   assert.doesNotMatch(app,/>Ver origem<\/button>/);
+
+  const dense=read('desktop/renderer/products-dense-view.js');
+  assert.match(dense,/product\.prepared\s*\?\s*'Ver ficha técnica'\s*:\s*'Ver cadastro'/);
+  assert.doesNotMatch(dense,/>Ver origem<\/button>/);
 });
 
 test('restaurant ordering uses generic production wording for mixed direct and KDS items',()=>{
