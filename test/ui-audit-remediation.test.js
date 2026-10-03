@@ -81,6 +81,16 @@ test('navigation labels remain readable and shell scripts do not block HTML pars
   for(const [,attrs] of scripts)assert.match(attrs,/\bdefer\b/);
 });
 
+
+test('tablet desktop shell collapses secondary topbar context and checkout tools without clipping',()=>{
+  const css=read('desktop/renderer/ux-home-checkout.css');
+  assert.match(css,/@media \(max-width:1100px\)[\s\S]*#network-status[\s\S]*\.clock[\s\S]*display:none/s);
+  assert.match(css,/@media \(max-width:1100px\)[\s\S]*\.checkout-tools\s*\{[^}]*grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/s);
+  assert.match(css,/@media \(max-width:1100px\)[\s\S]*\.checkout-tools \.search-field\s*\{[^}]*grid-column:1\/-1/s);
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  assert.equal(flow.steps.some(step=>step.action==='expectNoHorizontalOverflow'&&step.selector==='#app-topbar'),true);
+});
+
 test('QA verifies finalization is inside the viewport and runs compact plus tablet desktop coverage',()=>{
   const steps=read('qa/runtime/src/steps.js');
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
