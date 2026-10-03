@@ -125,7 +125,9 @@ test('product production route can be read before the item enters the menu',asyn
 
     server=createLocalServer({runtime:ctx.runtime,host:'127.0.0.1',port:0,token:'local-secret',requireTerminalAuth:false});
     const address=await server.start();
-    const response=await fetch(`http://${address.host}:${address.port}/api/v1/restaurant/kitchen/routing/water`);
+    const response=await fetch(`http://${address.host}:${address.port}/api/v1/restaurant/kitchen/routing/water`,{
+      headers:{'x-pdv-token':'local-secret'}
+    });
 
     assert.equal(response.status,200);
     assert.deepEqual(await response.json(),{
