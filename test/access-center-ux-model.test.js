@@ -27,6 +27,11 @@ test('Access Center UX groups permissions by business label and supports search'
   const filtered=model.permissionGroups({permissions,groups,selectedIds:['sales.view'],query:'caixa'});
   assert.deepEqual(filtered.map(group=>group.id),['cash']);
   assert.deepEqual(filtered[0].permissions.map(permission=>permission.id),['cash.view']);
+
+  const searched=model.permissionGroups({permissions,groups,selectedIds:['sales.view'],query:'realizar'});
+  assert.deepEqual(searched.map(group=>({id:group.id,selected:group.selected,total:group.total,visible:group.permissions.map(permission=>permission.id)})),[
+    {id:'sales',selected:1,total:2,visible:['sales.create']}
+  ]);
 });
 
 test('Access Center UX summarizes profile usage and deletion safety',()=>{
