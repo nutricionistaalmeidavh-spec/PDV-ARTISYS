@@ -41,6 +41,20 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectText",
+      "selector": "#sidebar-nav [data-route='checkout'] .nav-label",
+      "expected": "Balcão",
+      "name": "nav-balcao-rotulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#sidebar-nav [data-route='financial-management'] .nav-label",
+      "expected": "Gestão",
+      "name": "nav-gestao-rotulo",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "home-sem-overflow",
@@ -724,6 +738,48 @@
       "action": "expectVisible",
       "selector": ".restaurant-page",
       "name": "mesas-comandas-workspace",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-restaurant-view='operation']",
+      "name": "mesas-comandas-operacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-restaurant-view-target='management']",
+      "name": "mesas-comandas-abrir-gestao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-restaurant-view='management'] [data-restaurant-management]",
+      "name": "mesas-comandas-gestao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-restaurant-management]",
+      "expected": "Configuração e indicadores",
+      "name": "mesas-comandas-gestao-titulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "alimentacao-mesas-comandas-gestao",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-restaurant-view-target='operation']",
+      "name": "mesas-comandas-voltar-operacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-restaurant-view='operation']",
+      "name": "mesas-comandas-operacao-restaurada",
       "timeoutMs": 10000
     },
     {
