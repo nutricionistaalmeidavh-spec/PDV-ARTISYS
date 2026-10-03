@@ -75,6 +75,7 @@
   });
   const FULFILLMENT_LABELS = Object.freeze({DELIVERY:'Entrega',PICKUP:'Retirada',TABLE:'Mesa',COUNTER:'Balcão'});
   const DEVICE_TYPE_LABELS = Object.freeze({KITCHEN:'KDS / produção',WAITER:'Garçom',TABLET:'Tablet de mesa',SELF_SERVICE:'Autoatendimento'});
+  const ROLE_LABELS = Object.freeze({admin:'Administrador',manager:'Gerente',cashier:'Operador',waiter:'Garçom',kitchen:'Produção'});
   const PAYMENT_METHOD_LABELS = Object.freeze({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',STORE_CREDIT:'Crédito da loja',OTHER:'Outro'});
 
   function statusLabel(value,fallback='Em andamento') {
@@ -90,6 +91,11 @@
   function deviceTypeLabel(value,fallback='Dispositivo') {
     const key=String(value||'').trim().toUpperCase();
     return DEVICE_TYPE_LABELS[key]||fallback;
+  }
+
+  function roleLabel(value,fallback='Equipe') {
+    const key=String(value||'').trim().toLowerCase();
+    return ROLE_LABELS[key]||fallback;
   }
 
   function paymentMethodLabel(value,fallback='Outro') {
@@ -174,10 +180,12 @@
     STATUS_LABELS,
     FULFILLMENT_LABELS,
     DEVICE_TYPE_LABELS,
+    ROLE_LABELS,
     PAYMENT_METHOD_LABELS,
     statusLabel,
     fulfillmentLabel,
     deviceTypeLabel,
+    roleLabel,
     paymentMethodLabel,
     resolveShortcut,
     formatCents,
