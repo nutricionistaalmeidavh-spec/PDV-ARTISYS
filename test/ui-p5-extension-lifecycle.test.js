@@ -55,7 +55,7 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
 test('remaining complex observers stay scoped while delivery surfaces use lifecycle',()=>{
   const expected=[
     ['desktop/renderer/backend-parity-ui.js',1],
-    ['desktop/renderer/e48-e54-ui.js',2],
+    ['desktop/renderer/e48-e54-ui.js',0],
     ['desktop/renderer/enterprise-depth-ui.js',1],
     ['desktop/renderer/restaurant-public-ordering-ui.js',1],
     ['desktop/renderer/ui-parity-p0-p2.js',1]
@@ -70,5 +70,7 @@ test('remaining complex observers stay scoped while delivery surfaces use lifecy
   for(const file of ['desktop/renderer/vertical-modules.js','desktop/renderer/vertical-parity-p1.js']){
     assert.doesNotMatch(read(file),/new MutationObserver\b/,file);
   }
-  assert.equal(total,6);
+  const finalModules=read('desktop/renderer/e48-e54-ui.js');
+  for(const marker of ['PdvUiLifecycle','route:mounted','route:updated','surface:mounted']) assert.ok(finalModules.includes(marker),marker);
+  assert.equal(total,4);
 });
