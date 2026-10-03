@@ -67,3 +67,25 @@ test('P1 active optional areas expose a direct continuation action in settings',
   assert.match(modules,/data-open-module-area/);
   assert.match(modules,/Abrir área/);
 });
+
+
+test('P1 admin Home exposes Configurações without adding it to cashier or manager Home',()=>{
+  const model=require('../desktop/renderer/home-role-model');
+  const ui=require('../desktop/renderer/ui-model');
+  const routes=role=>model.homeForRole(role,ui.HOME_TILES).sections.flatMap(section=>section.tiles.map(tile=>tile.route));
+  assert.equal(routes('admin').includes('settings'),true);
+  assert.equal(routes('manager').includes('settings'),false);
+  assert.equal(routes('cashier').includes('settings'),false);
+  assert.equal(model.HUB_TILES.settings.label,'Configurações');
+});
+
+test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{
+  const app=read('desktop/renderer/app.js');
+  const css=read('desktop/renderer/classic-home-ui.css');
+  assert.match(app,/data-flow-hub="\$\{escapeHtml\(title\)\}"/);
+  assert.match(app,/renderFlowHub\('Cadastros','Clientes, produtos, estoque e equipe\.'/);
+  assert.match(app,/description:'Saldos e movimentações\.'/);
+  assert.match(app,/description:'Pessoas, funções e permissões\.'/);
+  assert.match(css,/flow-hub-page\[data-flow-hub="Cadastros"\] \.home-tile \{ min-height:104px/);
+  assert.match(css,/@media \(min-width:621px\)[\s\S]*flow-hub-page\[data-flow-hub="Cadastros"\] \.flow-hub-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+});
