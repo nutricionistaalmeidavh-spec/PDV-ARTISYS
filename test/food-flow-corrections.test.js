@@ -36,7 +36,7 @@ test('Balcão e senhas creates a canonical sale-backed order with products inste
   assert.doesNotMatch(modules,/createFastFood\(\{\}\)/);
   assert.match(modules,/fast-food-order-form/);
   assert.match(modules,/fast-food-product-form/);
-  assert.match(modules,/fastFoodCart\.toOrderItems\(\)/);
+  assert.match(modules,/pricedCartItems\(fastFoodCart\)/);
   assert.match(modules,/createFastFood\(\{[\s\S]*terminalId:[\s\S]*operatorId:[\s\S]*items:/);
 });
 
@@ -44,7 +44,7 @@ test('Delivery composes products before creating its canonical sale and no longe
   const modules=read('desktop/renderer/vertical-modules.js');
   const parity=read('desktop/renderer/vertical-parity-p1.js');
   assert.match(modules,/delivery-product-form/);
-  assert.match(modules,/deliveryCart\.toOrderItems\(\)/);
+  assert.match(modules,/pricedCartItems\(deliveryCart\)/);
   assert.match(modules,/createDeliverySale\(/);
   assert.doesNotMatch(parity,/ID do pedido/);
   assert.doesNotMatch(parity,/ID do produto/);
