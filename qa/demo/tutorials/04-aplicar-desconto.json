@@ -1,0 +1,68 @@
+{
+  "name": "04-aplicar-desconto",
+  "title": "Aplicar desconto",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "base"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "abrir-balcao",
+      "holdMs": 600
+    },
+    {
+      "action": "fill",
+      "selector": "#product-search",
+      "name": "buscar-produto",
+      "value": "Produto Tutorial",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-add-product='tutorial-product']",
+      "name": "adicionar-produto",
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#discount-percent",
+      "name": "informar-desconto",
+      "value": "10",
+      "holdMs": 600
+    },
+    {
+      "action": "press",
+      "selector": "#discount-percent",
+      "name": "aplicar-desconto",
+      "key": "Tab",
+      "holdMs": 800
+    },
+    {
+      "action": "expectText",
+      "selector": ".discount-control",
+      "name": "desconto-aplicado",
+      "expected": "R$ 1,00",
+      "timeoutMs": 10000,
+      "holdMs": 1000
+    }
+  ]
+}
