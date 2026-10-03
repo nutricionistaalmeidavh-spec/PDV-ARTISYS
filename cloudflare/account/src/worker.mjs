@@ -236,7 +236,85 @@ async function verifyPasswordRecovery(request,env){
   return json({verified:true,accountEmail:email,installationId});
 }
 
-function adminAuthorized(request,env){const expected=String(env.ADMIN_TOKEN||'').trim();const provided=String(request.headers.get('authorization')||'').replace(/^Bearer\s+/i,'').trim();return Boolean(expected)&&provided===expected;}
+
+async function createAdminSession(request,env){
+  const expected=String(env.ADMIN_TOKEN||'').trim();
+  if(!expected)return json({error:'ADMIN_TOKEN ausente.'},503);
+  const body=await readBody(request);
+  const provided=String(body.token||'');
+  if(!provided||!(await secureEqual(provided,expected)))return json({error:'Credencial administrativa invalida.'},401);
+  const store=await readyStore(env);
+  const token=randomSessionToken();
+  const tokenDigest=await adminSessionDigest(env,token);
+  const createdAt=new Date().toISOString();
+  const expiresAt=new Date(Date.now()+ADMIN_SESSION_TTL_MS).toISOString();
+  await store.createAdminSession({tokenDigest,createdAt,expiresAt});
+  return new Response(null,{status:204,headers:{
+    'cache-control':'no-store',
+    'set-cookie':sessionCookie(token,Math.floor(ADMIN_SESSION_TTL_MS/1000))
+  }});
+}
+
+async function adminSessionAuthorized(request,env){
+  const token=cookieValue(request,ADMIN_SESSION_COOKIE);
+  if(!token)return false;
+  const digest=await adminSessionDigest(env,token);
+  if(!digest)return false;
+  const store=await readyStore(env);
+  return Boolean(await store.findAdminSession({digest,now:new Date().toISOString()}));
+}
+
+async function revokeAdminSession(request,env){
+  const token=cookieValue(request,ADMIN_SESSION_COOKIE);
+  if(token){
+    const digest=await adminSessionDigest(env,token);
+    if(digest){const store=await readyStore(env);await store.deleteAdminSession(digest);}
+  }
+  return new Response(null,{status:204,headers:{
+    'cache-control':'no-store',
+    'set-cookie':sessionCookie('',0)
+  }});
+}
+
+function loginHtml(){return `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar | Central de Licenças ArtiSys</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18181b;background:#f4f5f7}
+*{box-sizing:border-box}body{margin:0}.wrap{min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(440px,100%);background:#fff;border:1px solid #dddfe4;border-radius:18px;padding:24px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+h1{margin:0 0 8px;font-size:26px}.sub{margin:0 0 22px;color:#64646f}.field{display:flex;flex-direction:column;gap:7px}label{font-weight:700;font-size:14px}
+input,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:12px}button{cursor:pointer;font-weight:750;background:#18181b;color:#fff;border-color:#18181b;margin-top:12px;width:100%}
+.error{min-height:20px;margin-top:12px;color:#b42318;font-size:14px}.hint{font-size:12px;color:#71717a;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap"><div class="card">
+  <h1>Entrar na Central</h1>
+  <p class="sub">Acesso restrito à administração de licenças ArtiSys.</p>
+  <div class="field"><label for="token">Senha administrativa</label><input id="token" type="password" autocomplete="current-password" autofocus></div>
+  <button id="login" type="button" onclick="login()">Entrar</button>
+  <div id="error" class="error"></div>
+  <div class="hint">A credencial é usada somente para criar a sessão segura e não fica armazenada nesta página.</div>
+</div></div>
+<script>
+async function login(){
+  const input=document.querySelector('#token'),button=document.querySelector('#login'),error=document.querySelector('#error');
+  error.textContent='';button.disabled=true;
+  try{
+    const r=await fetch('/v1/admin/session',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({token:input.value})});
+    input.value='';
+    if(!r.ok){let j={};try{j=await r.json()}catch{}throw Error(j.error||'Falha ao entrar.');}
+    location.reload();
+  }catch(e){error.textContent=e.message;}finally{button.disabled=false;}
+}
+document.querySelector('#token').addEventListener('keydown',event=>{if(event.key==='Enter')login();});
+</script>
+</body>
+</html>`;}
+
 function adminHtml(){return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -245,7 +323,7 @@ function adminHtml(){return `<!doctype html>
 <title>Central de Licenças ArtiSys</title>
 <style>
 :root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#18181b;background:#f4f5f7}
-*{box-sizing:border-box}body{margin:0}.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 48px}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 48px}.top{display:flex;gap:14px;justify-content:space-between;align-items:flex-start}
 h1{margin:0 0 6px;font-size:30px}h2{margin:0 0 14px;font-size:18px}.sub{margin:0 0 22px;color:#64646f}
 .card{background:#fff;border:1px solid #dddfe4;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
@@ -255,21 +333,12 @@ button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color
 .code{font-size:34px;letter-spacing:7px;font-weight:850;margin:8px 0}.manual{font-weight:700;margin:4px 0}
 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:700px}td,th{padding:10px;border-bottom:1px solid #ececf0;text-align:left;white-space:nowrap}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.muted{color:#71717a}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 9px;font-size:12px}
-@media(max-width:640px){.wrap{padding:18px 12px}.card{padding:16px}.field{min-width:100%}.code{font-size:30px}}
+@media(max-width:640px){.wrap{padding:18px 12px}.card{padding:16px}.field{min-width:100%}.code{font-size:30px}.top{align-items:center}.top h1{font-size:25px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Central de Licenças ArtiSys</h1>
-  <p class="sub">Libere o acesso do cliente manualmente. A Central gera o código e você envia o código ao cliente.</p>
-
-  <div class="card">
-    <h2>Acesso administrativo</h2>
-    <div class="row">
-      <div class="field"><label for="token">Token administrativo</label><input id="token" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN"></div>
-      <button type="button" onclick="load()">Entrar / atualizar</button>
-    </div>
-  </div>
+  <div class="top"><div><h1>Central de Licenças ArtiSys</h1><p class="sub">Libere o acesso do cliente manualmente. A Central gera o código e você envia o código ao cliente.</p></div><button type="button" class="secondary" onclick="logout()">Sair</button></div>
 
   <div class="card">
     <h2>Liberar novo acesso</h2>
@@ -289,25 +358,38 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
 
   <div class="card">
     <h2>Licenças</h2>
-    <div id="list" class="muted">Informe o token administrativo para carregar.</div>
+    <div id="list" class="muted">Carregando...</div>
   </div>
 </div>
 <script>
-const h=()=>({'content-type':'application/json','authorization':'Bearer '+document.querySelector('#token').value});
-async function api(p,o={}){const r=await fetch(p,{...o,headers:{...h(),...(o.headers||{})}});let j={};try{j=await r.json()}catch{}if(!r.ok)throw Error(j.error||'Falha');return j}
+async function api(p,o={}){
+  const r=await fetch(p,{...o,credentials:'same-origin',headers:{'content-type':'application/json',...(o.headers||{})}});
+  if(r.status===401){location.reload();throw Error('Sessão expirada.');}
+  let j={};try{j=await r.json()}catch{}
+  if(!r.ok)throw Error(j.error||'Falha');
+  return j;
+}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>'}catch(e){alert(e.message)}}
 async function release(){try{const email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
 async function copyCode(){const code=document.querySelector('#released-code').textContent.trim();if(!code)return;try{await navigator.clipboard.writeText(code)}catch{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}}
 async function recovery(installationId,email){try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Código de recuperação: '+j.code+' (15 min). Você envia esse código ao cliente.')}catch(e){alert(e.message)}}
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
+async function logout(){try{await fetch('/v1/admin/session',{method:'DELETE',credentials:'same-origin'});}finally{location.reload();}}
+load();
 </script>
 </body>
 </html>`;}
+
 async function adminRoute(request,env,url){
-  if(request.method==='GET'&&url.pathname==='/admin')return new Response(adminHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+  if(request.method==='POST'&&url.pathname==='/v1/admin/session')return createAdminSession(request,env);
+  if(request.method==='DELETE'&&url.pathname==='/v1/admin/session')return revokeAdminSession(request,env);
+  if(request.method==='GET'&&url.pathname==='/admin'){
+    const authorized=await adminSessionAuthorized(request,env);
+    return new Response(authorized?adminHtml():loginHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+  }
   if(!url.pathname.startsWith('/v1/admin/'))return null;
-  if(!adminAuthorized(request,env))return json({error:'Nao autorizado.'},401);
+  if(!(await adminSessionAuthorized(request,env)))return json({error:'Nao autorizado.'},401);
   const store=await readyStore(env);
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
