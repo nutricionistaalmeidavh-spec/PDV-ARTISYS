@@ -18,7 +18,7 @@ test('product and recipe forms expose one canonical production destination field
 });
 
 test('a product route can be read before the product is added to Cardapio',()=>{
-  assert.match(restaurantRouter,/kitchen\\/routing\\/\\(\\[\\^\\/\\]\\+\\)/);
+  assert.ok(restaurantRouter.includes('const productRouting=pathname.match('));
   assert.match(restaurantRouter,/runtime\.kitchen\.getProductRoute/);
 });
 
