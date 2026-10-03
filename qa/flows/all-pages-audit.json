@@ -62,6 +62,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#app-topbar",
+      "name": "topbar-sem-overflow",
+      "tolerancePx": 2,
+      "timeoutMs": 10000
+    },
+    {
       "action": "click",
       "selector": "button[data-route='checkout']",
       "name": "balcao",
