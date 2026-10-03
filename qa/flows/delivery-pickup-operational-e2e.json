@@ -362,14 +362,21 @@
       "timeoutMs": 10000
     },
     {
+      "action": "press",
+      "selector": "#checkout-document-query",
+      "key": "Enter",
+      "name": "delivery-buscar-confirmar",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectVisible",
-      "selector": "[data-open-checkout-document^='DELIVERY:']",
+      "selector": ".data-row:has-text('Cliente Delivery QA') [data-open-checkout-document^='DELIVERY:']",
       "name": "delivery-resultado-balcao",
       "timeoutMs": 10000
     },
     {
       "action": "click",
-      "selector": "[data-open-checkout-document^='DELIVERY:']",
+      "selector": ".data-row:has-text('Cliente Delivery QA') [data-open-checkout-document^='DELIVERY:']",
       "name": "delivery-abrir-no-caixa",
       "timeoutMs": 10000
     },
