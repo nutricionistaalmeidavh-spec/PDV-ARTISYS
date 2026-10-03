@@ -74,3 +74,62 @@ test('multi-device QA declares the real onboarding, blocking and reactivation El
   assert.match(runner,/ACTIVE/);
   assert.match(contract,/terminal-onboarding-pairing/);
 });
+
+
+test('terminal identity is generated once per installation without reading hardware identifiers',()=>{
+  const fs=require('node:fs');
+  const os=require('node:os');
+  const path=require('node:path');
+  const {createTerminalIdentityStore}=require('../desktop/terminal-identity.cjs');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-terminal-identity-'));
+  const store=createTerminalIdentityStore({userDataPath:dir,randomUUID:()=> '123e4567-e89b-12d3-a456-426614174000'});
+  const first=store.getOrCreate();
+  const second=store.getOrCreate();
+  assert.deepEqual(second,first);
+  assert.match(first.terminalId,/^PDV-[A-Z0-9]+$/);
+  assert.match(first.fingerprint,/^install-/);
+  assert.doesNotMatch(read('desktop/terminal-identity.cjs'),/networkInterfaces|mac|serial|wmic|motherboard/i);
+  fs.rmSync(dir,{recursive:true,force:true});
+});
+
+test('pairing by temporary code stores only the permanent credential in safe storage',async()=>{
+  const fs=require('node:fs');
+  const os=require('node:os');
+  const path=require('node:path');
+  const {pairDataServerTerminal}=require('../desktop/data-server-runtime.cjs');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-pair-by-code-'));
+  const file=path.join(dir,'data-server.json');
+  let secret='';
+  const credentialStore={
+    status:()=>({configured:Boolean(secret),encryptionAvailable:true}),
+    save:value=>{secret=String(value);return{configured:true};},
+    load:()=>secret||null
+  };
+  const identityStore={getOrCreate:()=>({terminalId:'PDV-ABC123',fingerprint:'install-123',createdAt:'2026-10-03T12:00:00.000Z'})};
+  const calls=[];
+  const fetchImpl=async(url,options={})=>{
+    calls.push({url:String(url),options});
+    if(String(url).includes('/api/v1/lan/handshake'))return{ok:true,status:200,json:async()=>({compatible:true,minimumTerminalVersion:'1.4.0'})};
+    return{ok:true,status:201,json:async()=>({terminalId:'PDV-ABC123',name:'Caixa 02',status:'ACTIVE',credential:'permanent-secret'})};
+  };
+  const result=await pairDataServerTerminal({
+    db:null,
+    filePath:file,
+    input:{serverUrl:'http://192.168.0.10:4174',code:'583291',name:'Caixa 02'},
+    currentConfig:{mode:'local',selected:false},
+    credentialStore,
+    identityStore,
+    fetchImpl,
+    appVersion:'1.4.23'
+  });
+  assert.equal(result.config.mode,'lan-client');
+  assert.equal(result.config.terminalId,'PDV-ABC123');
+  assert.equal(secret,'permanent-secret');
+  assert.equal(calls.length,2);
+  assert.match(calls[1].url,/\/api\/v1\/lan\/pair$/);
+  assert.deepEqual(JSON.parse(calls[1].options.body),{
+    code:'583291',terminalId:'PDV-ABC123',name:'Caixa 02',fingerprint:'install-123',appVersion:'1.4.23'
+  });
+  assert.doesNotMatch(fs.readFileSync(file,'utf8'),/permanent-secret|terminalKey/);
+  fs.rmSync(dir,{recursive:true,force:true});
+});
