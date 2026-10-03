@@ -3,6 +3,8 @@ const RECOVERY_TTL_MS=15*60*1000;
 const RECOVERY_RESEND_MS=60*1000;
 const ACTIVATION_MAX_ATTEMPTS=5;
 const RECOVERY_MAX_ATTEMPTS=5;
+const ADMIN_SESSION_TTL_MS=8*60*60*1000;
+const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
@@ -12,6 +14,13 @@ function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(byte
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
 async function runDdl(db,sqlText){for(const sql of String(sqlText||'').split(';').map(x=>x.trim()).filter(Boolean))await db.prepare(sql).run();}
+function randomSessionToken(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');}
+async function sha256Hex(value){const data=new TextEncoder().encode(String(value));const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
+async function secureEqual(a,b){const [left,right]=await Promise.all([sha256Hex(String(a||'')),sha256Hex(String(b||''))]);let diff=0;for(let i=0;i<left.length;i++)diff|=left.charCodeAt(i)^right.charCodeAt(i);return diff===0&&String(a||'').length===String(b||'').length;}
+async function adminSessionDigest(env,token){const secret=String(env.ADMIN_TOKEN||'').trim();if(!secret)return null;return sha256Hex(`${secret}:admin-session:${String(token||'')}`);}
+function cookieValue(request,name){const raw=String(request.headers.get('cookie')||'');for(const part of raw.split(';')){const index=part.indexOf('=');if(index<0)continue;const key=part.slice(0,index).trim();if(key===name)return part.slice(index+1).trim();}return '';}
+function sessionCookie(token,maxAgeSeconds){const value=token||'';return `${ADMIN_SESSION_COOKIE}=${value}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAgeSeconds}`;}
+
 
 class D1AccountStore{
   constructor(db){if(!db)throw new Error('D1 DB binding ausente.');this.db=db;this.schemaReady=false;}
@@ -64,6 +73,12 @@ class D1AccountStore{
       used_at TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY(account_id) REFERENCES accounts(id)
+    );
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      token_digest TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      revoked_at TEXT
     );`);
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
@@ -76,7 +91,8 @@ class D1AccountStore{
     CREATE INDEX IF NOT EXISTS idx_installations_license ON installations(license_id);
     CREATE INDEX IF NOT EXISTS idx_password_recovery_email_created ON password_recovery_tokens(email_normalized,created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_password_recovery_expiry ON password_recovery_tokens(expires_at,used_at);
-    CREATE INDEX IF NOT EXISTS idx_password_recovery_installation ON password_recovery_tokens(installation_id,email_normalized,expires_at,used_at);`);
+    CREATE INDEX IF NOT EXISTS idx_password_recovery_installation ON password_recovery_tokens(installation_id,email_normalized,expires_at,used_at);
+    CREATE INDEX IF NOT EXISTS idx_admin_sessions_expiry ON admin_sessions(expires_at,revoked_at);`);
     this.schemaReady=true;
   }
   async findAccount(email){
@@ -118,6 +134,9 @@ class D1AccountStore{
   }
   async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
+  async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
+  async findAdminSession({digest,now}){const row=await this.db.prepare('SELECT token_digest,expires_at FROM admin_sessions WHERE token_digest=? AND revoked_at IS NULL AND expires_at>? LIMIT 1').bind(digest,now).first();return row?{tokenDigest:row.token_digest,expiresAt:row.expires_at}:null;}
+  async deleteAdminSession(digest){await this.db.prepare('DELETE FROM admin_sessions WHERE token_digest=?').bind(digest).run();}
   async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){
     const row=await this.db.prepare(`SELECT i.account_id,a.email_normalized AS email,l.status,l.expires_at FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(installationId).first();
     if(!row||row.email!==email||row.status!=='ACTIVE'||(row.expires_at&&row.expires_at<=createdAt))return null;
