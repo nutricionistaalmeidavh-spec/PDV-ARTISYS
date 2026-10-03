@@ -98,6 +98,15 @@
     return ROLE_LABELS[key]||fallback;
   }
 
+  function selectCheckoutRestoreSale(openSales=[],documents=[],terminalId='',operatorId='') {
+    const linkedSaleIds=new Set((Array.isArray(documents)?documents:[]).map(document=>String(document?.saleId||'').trim()).filter(Boolean));
+    return (Array.isArray(openSales)?openSales:[]).find(sale=>
+      String(sale?.terminalId||'')===String(terminalId||'')
+      && String(sale?.operatorId||'')===String(operatorId||'')
+      && !linkedSaleIds.has(String(sale?.id||''))
+    )||null;
+  }
+
   function paymentMethodLabel(value,fallback='Outro') {
     const key=String(value||'').trim().toUpperCase();
     return PAYMENT_METHOD_LABELS[key]||fallback;
@@ -186,6 +195,7 @@
     fulfillmentLabel,
     deviceTypeLabel,
     roleLabel,
+    selectCheckoutRestoreSale,
     paymentMethodLabel,
     resolveShortcut,
     formatCents,
