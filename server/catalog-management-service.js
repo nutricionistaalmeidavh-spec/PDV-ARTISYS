@@ -100,7 +100,11 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     const targetProfile=profileForInput(input,existing);
     if(profiles&&(!targetProfile||!targetProfile.active))throw domainError(409,'Perfil de acesso invalido ou inativo.');
     const changesProfile=!existing||String(targetProfile?.id||'')!==String(existing.profileId||'');
-    if(changesProfile)assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId||input.role));
+    const defaultOperator=profiles?.getProfileBySystemKey?.('operator')||null;
+    const requiresProfileAssignment=Boolean(input.profileId)||
+      Boolean(existing&&changesProfile)||
+      Boolean(!existing&&targetProfile&&defaultOperator&&targetProfile.id!==defaultOperator.id);
+    if(changesProfile)assertCanGrantProfile(actor,targetProfile,requiresProfileAssignment);
     const requestedRole=targetProfile?.legacyRole||String(input.role||existing?.role||'cashier').trim().toLowerCase();
 
     ensureAdminMutationSafe(existing,targetProfile,requestedActive,actor);
