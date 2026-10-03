@@ -988,6 +988,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "desktopConfig",
+      "name": "capturar-servidor-local-qa",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
       "action": "desktopApiRequest",
       "path": "/api/v1/restaurant/devices",
       "method": "POST",
@@ -1021,7 +1028,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-table-1/qr?host=127.0.0.1&port=4174",
+      "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-table-1/qr",
       "method": "GET",
       "expectedStatus": 200,
       "name": "seed-cardapio-qr-qa",
@@ -1037,8 +1044,9 @@
     },
     {
       "action": "goto",
-      "url": "http://127.0.0.1:4174/mobile",
-      "name": "abrir-equipe-mobile"
+      "name": "abrir-equipe-mobile",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile"
     },
     {
       "action": "waitFor",
