@@ -499,7 +499,7 @@
     {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
-      "name": "relatorios-sem-overflow",
+      "name": "gestao-relatorios-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
     },
@@ -1221,6 +1221,248 @@
       "expectedStatus": 200,
       "expectedPayloadIncludes": "CANCELLED",
       "name": "cancelamento-persistido"
+    },
+    {
+      "action": "click",
+      "selector": "#sidebar-nav button[data-route='financial-management']",
+      "name": "abrir-gestao-para-relatorios",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='reports']",
+      "name": "abrir-relatorios-qa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".report-v2-page",
+      "name": "relatorios-ui",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".report-v2-page",
+      "expected": "Relatórios comerciais",
+      "name": "relatorios-conteudo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "relatorios-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor-local-qa",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/devices",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-garcom-mobile-qa",
+      "body": {
+        "id": "qa-waiter-mobile",
+        "name": "Garçom QA",
+        "deviceType": "WAITER"
+      },
+      "saveAs": {
+        "qaWaiterId": "id",
+        "qaWaiterKey": "credential"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/devices",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-kds-mobile-qa",
+      "body": {
+        "id": "qa-kitchen-mobile",
+        "name": "Cozinha QA",
+        "deviceType": "KITCHEN"
+      },
+      "saveAs": {
+        "qaKitchenId": "id",
+        "qaKitchenKey": "credential"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-table-1/qr",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "seed-cardapio-qr-qa",
+      "saveAs": {
+        "qaPublicMenuUrl": "url"
+      }
+    },
+    {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-equipe-mobile"
+    },
+    {
+      "action": "goto",
+      "name": "abrir-equipe-mobile",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "equipe-mobile-login",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "valueFrom": "qaWaiterId",
+      "name": "equipe-mobile-id"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "valueFrom": "qaWaiterKey",
+      "name": "equipe-mobile-chave"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "equipe-mobile-conectar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".waiter-layout",
+      "name": "equipe-mobile-conectada",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".staff-head",
+      "expected": "Garçom QA",
+      "name": "equipe-mobile-identidade",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "equipe-mobile",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "equipe-mobile-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#logout",
+      "name": "equipe-mobile-sair",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "kds-mobile-login",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "valueFrom": "qaKitchenId",
+      "name": "kds-mobile-id"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "valueFrom": "qaKitchenKey",
+      "name": "kds-mobile-chave"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "kds-mobile-conectar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".kitchen-board",
+      "name": "kds-mobile-lanes",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".staff-head",
+      "expected": "KDS local",
+      "name": "kds-mobile-contexto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "kds-mobile",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "kds-mobile-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "setViewportSize",
+      "width": 412,
+      "height": 915,
+      "name": "viewport-cardapio-qr"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "qaPublicMenuUrl",
+      "name": "abrir-cardapio-qr"
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-badge",
+      "expected": "Mesa QA 1",
+      "name": "cardapio-qr-mesa",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".product-card",
+      "name": "cardapio-qr-produtos",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".product-card",
+      "expected": "Produto QA Atacado",
+      "name": "cardapio-qr-produto-qa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "cardapio-qr",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "cardapio-qr-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
     }
   ]
 }
