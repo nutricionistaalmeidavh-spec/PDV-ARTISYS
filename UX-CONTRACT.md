@@ -173,3 +173,13 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Grades de cartões verticais preservam **duas colunas entre 761px e 1100px** quando o conteúdo permite; uma coluna é reservada a viewports estreitos.
 - Textos auxiliares em superfícies operacionais usam os tokens acessíveis do design system, com contraste de texto normal compatível com WCAG AA em fundo claro.
 - Ajuda contextual de Restaurante e Relatórios deve ser concisa e não competir verticalmente com formulários, tabelas ou ações primárias.
+
+
+## P2 — fonte única do destino de produção
+
+- **Alimentação → Gestão** administra infraestrutura de produção: setores/KDS, impressoras e dispositivos LAN. Essa superfície não edita o destino de produtos.
+- O destino operacional de **produto** e **ficha técnica** é configurado exclusivamente no cadastro canônico do **Estoque**: `DIRECT` para atendimento sem KDS ou `PRODUCTION + stationId` para produção.
+- **Cardápio**, Mesas/comandas, pedidos e KDS apenas consomem essa configuração. Nenhuma dessas superfícies oferece um segundo editor para a mesma rota.
+- Um item sem destino continua sendo erro de configuração e nunca é convertido implicitamente para atendimento direto.
+- Quando Gestão ou Cardápio detectam um item sem destino, a ação de correção leva ao cadastro correspondente no Estoque.
+- Setores disponíveis são criados em Alimentação → Gestão; o Estoque escolhe qual setor cada item preparado utiliza.
