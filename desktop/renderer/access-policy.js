@@ -5,6 +5,13 @@
   if(typeof module==='object'&&module.exports)module.exports=model;
   if(root)root.PdvAccessPolicy=model;
 })(typeof window!=='undefined'?window:null,()=>{
+  const ACCESS_CENTER_TABS=Object.freeze([
+    Object.freeze({id:'people',capability:'users.view'}),
+    Object.freeze({id:'profiles',capability:'profiles.view'}),
+    Object.freeze({id:'devices',capability:'devices.view'}),
+    Object.freeze({id:'security',capability:'security.view'})
+  ]);
+
   const ROUTE_CAPABILITIES=Object.freeze({
     home:Object.freeze([]),
     checkout:Object.freeze(['sales.create']),
@@ -22,7 +29,7 @@
     management:Object.freeze(['management.view']),
     sellers:Object.freeze(['sellers.view']),
     settings:Object.freeze(['settings.view']),
-    access:Object.freeze(['users.view','profiles.view','devices.view','security.view']),
+    access:Object.freeze(ACCESS_CENTER_TABS.map(tab=>tab.capability)),
     catalog:Object.freeze(['customers.view','products.view','inventory.view','sellers.view']),
     'post-sale':Object.freeze(['sales.view','returns.view']),
     'financial-management':Object.freeze(['finance.view','reports.view','management.view']),
@@ -44,6 +51,35 @@
     return permissionsOf(user).has(String(capability||'').trim().toLowerCase());
   }
 
+  function accessCenterModel(user){
+    const tabs=ACCESS_CENTER_TABS.filter(tab=>hasCapability(user,tab.capability)).map(tab=>tab.id);
+    const profileCatalogVisible=hasCapability(user,'profiles.view');
+    return Object.freeze({
+      tabs:Object.freeze(tabs),
+      load:Object.freeze({
+        users:hasCapability(user,'users.view'),
+        profiles:profileCatalogVisible,
+        permissions:profileCatalogVisible,
+        devices:hasCapability(user,'devices.view'),
+        security:hasCapability(user,'security.view')
+      }),
+      actions:Object.freeze({
+        createPerson:hasCapability(user,'users.create'),
+        editPerson:hasCapability(user,'users.edit'),
+        disablePerson:hasCapability(user,'users.disable'),
+        resetPassword:hasCapability(user,'users.reset_password'),
+        assignProfile:profileCatalogVisible&&hasCapability(user,'profiles.assign'),
+        createProfile:profileCatalogVisible&&hasCapability(user,'profiles.create'),
+        editProfile:profileCatalogVisible&&hasCapability(user,'profiles.edit'),
+        deleteProfile:profileCatalogVisible&&hasCapability(user,'profiles.delete'),
+        pairDevice:hasCapability(user,'devices.view')&&hasCapability(user,'devices.pair'),
+        blockDevice:hasCapability(user,'devices.view')&&hasCapability(user,'devices.block'),
+        rotateDeviceCredential:hasCapability(user,'devices.view')&&hasCapability(user,'devices.rotate_credential'),
+        revokeSession:hasCapability(user,'security.view')&&hasCapability(user,'sessions.revoke')
+      })
+    });
+  }
+
   function canAccessRoute(user,route){
     if(!user)return false;
     const required=ROUTE_CAPABILITIES[String(route||'').trim()];
@@ -55,5 +91,5 @@
 
   function routesForUser(user){return TOP_LEVEL_ROUTES.filter(route=>canAccessRoute(user,route));}
 
-  return Object.freeze({ROUTE_CAPABILITIES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,canAccessRoute,routesForUser});
+  return Object.freeze({ACCESS_CENTER_TABS,ROUTE_CAPABILITIES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,accessCenterModel,canAccessRoute,routesForUser});
 });
