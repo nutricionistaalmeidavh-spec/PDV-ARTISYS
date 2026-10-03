@@ -359,6 +359,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     return withTransaction(db,()=>{
       const current=getTicket(id);
       if (!current) throw new Error('Ticket de cozinha nao encontrado.');
+      if(current.status==='CANCELLED'&&normalized!=='CANCELLED')throw new Error('Ticket de producao cancelado nao pode ser reaberto.');
       if(current.sourceType==='RESTAURANT'){
         db.prepare('UPDATE kitchen_tickets SET status=?,updated_at=? WHERE id=?').run(normalized,now(),String(id));
         syncOrderStatus(current.orderId);
