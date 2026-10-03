@@ -11,8 +11,8 @@ const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
   smoke:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
-  full:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','database-invariants'],
-  stress:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','stress-last-unit-races','database-invariants']
+  full:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
+  stress:['price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','stress-last-unit-races','database-invariants']
 });
 
 function parseArgs(argv){
@@ -60,11 +60,12 @@ function requestFactory(base,defaults={}){
   };
 }
 
-async function login(base,installToken,{username,password,terminalId}){
-  const request=requestFactory(base,{headers:{'x-pdv-token':installToken}});
-  const response=await request('/api/v1/auth/login',{method:'POST',body:{username,password,terminalId},expected:200});
+async function login(base,{username,password,terminal}){
+  const terminalHeaders={'x-terminal-id':terminal.terminalId,'x-terminal-key':terminal.credential};
+  const request=requestFactory(base,{headers:terminalHeaders});
+  const response=await request('/api/v1/auth/login',{method:'POST',body:{username,password,terminalId:terminal.terminalId},expected:200});
   const token=response.body.sessionToken;
-  return {terminalId,token,request:requestFactory(base,{headers:{authorization:'Bearer '+token}})};
+  return {terminalId:terminal.terminalId,token,request:requestFactory(base,{headers:{authorization:'Bearer '+token,...terminalHeaders}})};
 }
 
 function deviceClient(base,device){
@@ -90,20 +91,27 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   const log=(event,data={})=>fs.appendFileSync(logPath,JSON.stringify({at:new Date().toISOString(),event,...data})+'\n');
 
   const dbPath=path.join(outputDir,'final.sqlite');
+  const packageVersion=JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)),'..','..','package.json'),'utf8')).version;
   let idSeq=0;
   let nowSeq=0;
   const runtime=createPdvRuntime({
     dbPath,
-    appVersion:'qa-multi-device',
-    serverVersion:'qa-multi-device',
+    appVersion:packageVersion,
+    serverVersion:packageVersion,
     idFactory:prefix=>'qa-'+prefix+'-'+(++idSeq),
     now:()=>new Date(Date.UTC(2026,9,3,18,0,0)+(nowSeq++)*1000).toISOString()
   });
-  const installToken='qa-multi-device-install-token';
-  const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false});
+  const installToken='qa-local-fixture';
+  const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:true});
   const actor={userId:'qa-admin',role:'admin',terminalId:'ADMIN-01'};
   const results=[];
   const state={};
+
+  function pairTerminal(terminalId,name){
+    const pairing=runtime.terminals.createPairingCode({createdBy:'qa-admin',ttlSeconds:3600});
+    const paired=runtime.terminals.pairTerminal({code:pairing.code,terminalId,name,fingerprint:'qa-'+terminalId,appVersion:packageVersion});
+    return{terminalId,name,credential:paired.credential};
+  }
 
   async function scenario(name,fn){
     if(!selected.includes(name))return;
@@ -120,10 +128,11 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   }
 
   try{
-    runtime.catalog.createUser({id:'qa-admin',username:'qa-admin',name:'QA Administrador',role:'admin',password:'QaAdmin-12345!'});
-    runtime.catalog.createUser({id:'qa-cash-a',username:'qa-cash-a',name:'QA Caixa A',role:'cashier',password:'QaCashA-12345!'});
-    runtime.catalog.createUser({id:'qa-cash-b',username:'qa-cash-b',name:'QA Caixa B',role:'cashier',password:'QaCashB-12345!'});
-    runtime.catalog.createUser({id:'qa-waiter',username:'qa-waiter',name:'QA Garcom',role:'cashier',password:'QaWaiter-12345!'});
+    runtime.catalog.createUser({id:'qa-admin',username:'qa-admin',name:'QA Administrador',role:'admin',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-cash-a',username:'qa-cash-a',name:'QA Caixa A',role:'cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-cash-b',username:'qa-cash-b',name:'QA Caixa B',role:'cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-waiter',username:'qa-waiter',name:'QA Garcom',role:'cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-waiter-2',username:'qa-waiter-2',name:'QA Garcom 2',role:'cashier',password:'qa-test-password'});
 
     runtime.catalog.upsertCategory({id:'qa-category',name:'QA Multi-Device'},actor);
     const seedProducts=[
@@ -131,19 +140,24 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       {id:'qa-stock',sku:'QA-STOCK',name:'Produto Estoque',salePriceCents:1000,costCents:400,trackStock:true,menuEnabled:true},
       {id:'qa-last',sku:'QA-LAST',name:'Ultima Unidade',salePriceCents:700,costCents:250,trackStock:true,menuEnabled:true},
       {id:'qa-idem',sku:'QA-IDEM',name:'Produto Idempotencia',salePriceCents:900,costCents:300,trackStock:true,menuEnabled:true},
-      {id:'qa-food',sku:'QA-FOOD',name:'Prato QA',salePriceCents:1800,costCents:700,trackStock:false,menuEnabled:true}
+      {id:'qa-food',sku:'QA-FOOD',name:'Prato QA',salePriceCents:1800,costCents:700,trackStock:true,menuEnabled:true}
     ];
     for(const product of seedProducts)runtime.catalog.upsertProduct({...product,categoryId:'qa-category',active:true},actor);
     runtime.inventory.move({productId:'qa-stock',type:'opening',quantityDelta:5,reason:'QA seed'},actor);
     runtime.inventory.move({productId:'qa-last',type:'opening',quantityDelta:1,reason:'QA seed'},actor);
     runtime.inventory.move({productId:'qa-idem',type:'opening',quantityDelta:2,reason:'QA seed'},actor);
+    runtime.inventory.move({productId:'qa-food',type:'opening',quantityDelta:5,reason:'QA seed'},actor);
+
+    state.adminTerminal=pairTerminal('ADMIN-01','Administracao QA');
+    state.cashATerminal=pairTerminal('CAIXA-01','Caixa QA 1');
+    state.cashBTerminal=pairTerminal('CAIXA-02','Caixa QA 2');
 
     const address=await server.start();
     const base='http://'+address.host+':'+address.port;
     state.base=base;
-    state.admin=await login(base,installToken,{username:'qa-admin',password:'QaAdmin-12345!',terminalId:'ADMIN-01'});
-    state.cashA=await login(base,installToken,{username:'qa-cash-a',password:'QaCashA-12345!',terminalId:'CAIXA-01'});
-    state.cashB=await login(base,installToken,{username:'qa-cash-b',password:'QaCashB-12345!',terminalId:'CAIXA-02'});
+    state.admin=await login(base,{username:'qa-admin',password:'qa-test-password',terminal:state.adminTerminal});
+    state.cashA=await login(base,{username:'qa-cash-a',password:'qa-test-password',terminal:state.cashATerminal});
+    state.cashB=await login(base,{username:'qa-cash-b',password:'qa-test-password',terminal:state.cashBTerminal});
 
     const cashAOpen=await state.cashA.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-open-cash-a'},body:{initialCashCents:10000},expected:201});
     const cashBOpen=await state.cashB.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-open-cash-b'},body:{initialCashCents:10000},expected:201});
