@@ -105,3 +105,24 @@ Delivery e retirada compartilham uma única superfície operacional em **Aliment
 Dispositivos `KITCHEN` podem ser vinculados a um ou mais setores de produção. Um dispositivo sem setores selecionados continua sendo um KDS geral por compatibilidade; com setores selecionados, `/mobile/context` projeta somente os tickets desses setores.
 
 A superfície canônica e suas extensões usam `PdvUiLifecycle` / eventos semânticos. Delivery/retirada não dependem de `MutationObserver` para montagem ou sincronização.
+
+
+## Arquitetura canônica de Balcão e Alimentação
+
+A separação de telas representa responsabilidades, não domínios de venda concorrentes:
+
+```text
+Alimentação
+├─ Mesas e comandas ─┐
+├─ Entrega e retirada ├─> Pedido / produção canônicos ─> Balcão ─> SaleService
+├─ Balcão e senhas ──┤              │
+└─ Autoatendimento ──┘              └─> KDS por setor
+```
+
+- **Mesas e comandas** cuida do salão e das comandas.
+- **Entrega e retirada** é um painel persistente de fulfillment.
+- **KDS** é a fonte de verdade de `NEW → PREPARING → READY` para itens de produção.
+- **Balcão** é o único checkout. Ele pesquisa Comandas, pedidos de Atacado, Delivery e Retirada e abre a venda canônica existente quando houver `saleId`.
+- Delivery/Retirada não possuem motor de preço, desconto, estoque, pagamento ou pós-venda próprio.
+- Enums técnicos continuam estáveis no domínio; rótulos expostos ao operador são localizados em português, por exemplo **Novo pedido**, **Preparando** e **Pedido pronto**.
+- Campos de operação devem usar entidades reconhecíveis (produto, mesa, pessoa, setor). IDs técnicos podem existir em credenciais e APIs, mas não como dado a ser digitado para executar uma tarefa cotidiana.
