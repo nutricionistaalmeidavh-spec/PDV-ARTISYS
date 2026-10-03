@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 
 const require=createRequire(import.meta.url);
 const {createPdvRuntime}=require('../../js/core/pdv-runtime');
@@ -164,7 +165,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     await scenario('sale-stock-decrement',async()=>{
       const opened=await state.cashA.request('/api/v1/sales',{method:'POST',body:{saleNumber:'QA-STOCK-SALE'},expected:201});
       await state.cashA.request('/api/v1/sales/'+opened.body.id+'/items',{method:'POST',body:{productId:'qa-stock',quantity:2},expected:200});
-      const completed=await state.cashA.request('/api/v1/sales/'+opened.body.id+'/complete',{method:'POST',headers:{'x-mutation-id':'qa-stock-complete'},body:{payments:[{method:'PIX',amountCents:2000}]},expected:200});
+      const completed=await state.cashA.request('/api/v1/sales/'+opened.body.id+'/complete',{method:'POST',headers:{'x-mutation-id':'qa-stock-complete'},body:{payments:[{method:'CASH',amountCents:2000}]},expected:200});
       const inventory=await state.admin.request('/api/v1/inventory/qa-stock',{expected:200});
       assert(completed.body.sale.status==='COMPLETED','Venda de estoque nao concluiu',{sale:completed.body.sale});
       assert(inventory.body.quantity===3,'Venda nao baixou exatamente duas unidades',{inventory:inventory.body});
@@ -321,7 +322,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   return report;
 }
 
-const invoked=process.argv[1]&&path.resolve(process.argv[1])===path.resolve(new URL(import.meta.url).pathname);
+const invoked=process.argv[1]&&path.resolve(process.argv[1])===path.resolve(fileURLToPath(import.meta.url));
 if(invoked){
   const options=parseArgs(process.argv.slice(2));
   runMultiDeviceQa(options).then(report=>{
