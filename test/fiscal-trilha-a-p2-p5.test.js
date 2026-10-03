@@ -41,8 +41,8 @@ test('P4 is also present in the canonical product create/edit modal and waits fo
  assert.doesNotThrow(()=>new Function(src),'product fiscal extension must parse');
 });
 
-test('P2-P5 scripts remain loaded by the current desktop shell',()=>{
+test('P2-P5 legacy modules remain available but are not loaded by the V1 desktop shell',()=>{
  const html=read('desktop/renderer/index.html');
- ['fiscal-config-api-client.js','fiscal-config-ui.js','product-fiscal-fields.js','fiscal-config.css'].forEach(x=>assert.ok(html.includes(x),x));
+ ['fiscal-config-api-client.js','fiscal-config-ui.js','product-fiscal-fields.js','fiscal-config.css'].forEach(x=>assert.equal(html.includes(x),false,x));
  assert.equal(html.includes('\\n  <script'),false,'shell must not contain escaped newline artifacts');
 });
