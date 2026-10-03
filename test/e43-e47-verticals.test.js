@@ -15,6 +15,10 @@ function seed(rt){
   rt.catalog.upsertProduct({id:'ham',name:'Presunto kg',salePriceCents:4000,unit:'KG',trackStock:true},admin);
   rt.inventory.move({productId:'soda',type:'opening',quantityDelta:100,reason:'seed'},admin);
   rt.inventory.move({productId:'ham',type:'opening',quantityDelta:50,reason:'seed'},admin);
+  const station=rt.kitchen.upsertStation({id:'cozinha',name:'Cozinha',printEnabled:false},admin);
+  rt.kitchen.configureProductRoute('pizza',{mode:'PRODUCTION',stationId:station.id},admin);
+  rt.kitchen.configureProductRoute('burger',{mode:'PRODUCTION',stationId:station.id},admin);
+  rt.kitchen.configureProductRoute('soda',{mode:'DIRECT'},admin);
 }
 
 test('E43 pizza customization is a capability of Alimentação',()=>{
