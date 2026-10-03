@@ -26,7 +26,8 @@ test('P2 Mesas e comandas defaults to an operation-only workspace',()=>{
   assert.match(restaurant,/data-restaurant-view=/);
   assert.match(restaurant,/function renderOperation\(/);
   assert.match(restaurant,/function renderManagement\(/);
-  assert.doesNotMatch(restaurant,/renderOperation[\s\S]{0,1600}renderAdmin\(\)/);
+  const operationBody=restaurant.slice(restaurant.indexOf('function renderOperation('),restaurant.indexOf('function renderManagement('));
+  assert.doesNotMatch(operationBody,/renderAdmin\(\)|renderReport\(\)/);
 });
 
 test('P2 management surface is explicit and role-gated',()=>{
