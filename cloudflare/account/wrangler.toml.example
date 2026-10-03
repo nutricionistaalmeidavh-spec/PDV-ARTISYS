@@ -1,11 +1,12 @@
 name = "pdv-artisys"
 main = "src/worker.mjs"
-compatibility_date = "2026-09-25"
+compatibility_date = "2026-10-03"
 keep_vars = true
 
-# Referência somente. Antes de transformar este arquivo em wrangler.toml,
-# copie do painel o ID do D1 já associado ao Worker pdv-artisys.
+# Referência equivalente ao wrangler.jsonc da raiz.
+# Os recursos já estão associados ao Worker pdv-artisys no painel.
 [[d1_databases]]
 binding = "artisys"
-database_name = "artisys"
-database_id = "REPLACE_WITH_EXISTING_D1_DATABASE_ID"
+
+[[r2_buckets]]
+binding = "artisysr2"
