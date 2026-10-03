@@ -22,6 +22,11 @@ test('a product route can be read before the product is added to Cardapio',()=>{
   assert.match(restaurantRouter,/runtime\.kitchen\.getProductRoute/);
 });
 
+test('product and recipe validate destination before creating a new catalog record',()=>{
+  assert.match(app,/await requireProductionDestination\(root\); const saved=await api\.saveProduct/);
+  assert.match(app,/await requireProductionDestination\(root\);savedProduct=await api\.saveProduct/);
+});
+
 test('Cardapio addition requires choosing the same production destination',()=>{
   assert.match(app,/function openMenuDestinationForm\(/);
   assert.match(app,/Destino do pedido/);
