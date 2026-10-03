@@ -47,6 +47,28 @@ test('delivery keeps its item snapshot before creating the canonical sale',()=>{
   }finally{ctx.close();}
 });
 
+test('delivery item snapshot keeps the confirmed price if the catalog changes before checkout',()=>{
+  const ctx=fixture();
+  try{
+    const order=ctx.runtime.delivery.create({customerName:'Preço salvo',fulfillmentType:'PICKUP',paymentMethod:'PIX',items:[{productId:'burger',quantity:1}]},admin);
+    ctx.runtime.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2600,trackStock:false,menuEnabled:true},admin);
+    const sale=ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
+    assert.equal(sale.items[0].unitPriceCents,2000);
+    assert.equal(sale.totalCents,2000);
+  }finally{ctx.close();}
+});
+
+test('direct-only pickup becomes ready without fabricating a KDS ticket',()=>{
+  const ctx=fixture();
+  try{
+    ctx.runtime.kitchen.configureProductRoute('burger',{mode:'DIRECT'},admin);
+    const order=ctx.runtime.delivery.create({customerName:'Direto',fulfillmentType:'PICKUP',paymentMethod:'PIX',items:[{productId:'burger',quantity:1}]},admin);
+    ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'READY');
+    assert.equal(ctx.runtime.kitchen.listTickets().filter(ticket=>ticket.sourceType==='DELIVERY'&&ticket.sourceId===order.id).length,0);
+  }finally{ctx.close();}
+});
+
 test('delivery production status is driven by all KDS tickets, not by the delivery panel',()=>{
   const ctx=fixture();
   try{
