@@ -11,7 +11,7 @@ test('P17 keeps NFe model55 in fiscal core while P18 NFS-e remains a separate mo
 });
 
 test('P18 local authenticated API exposes NFS-e issue/query/reconcile without secret material',()=>{
- const router=read('server/nfse-router.js');const local=read('server/local-server.js');for(const marker of ['/api/v1/nfse/documents','/reconcile','/events'])assert.match(router,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.match(local,/createNfseRouter/);assert.doesNotMatch(router,/pfx|passphrase|password/i);
+ const router=read('server/nfse-router.js');const local=read('server/local-server.js');for(const marker of ['/api/v1/nfse/documents','/reconcile','/events'])assert.match(router,new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));assert.doesNotMatch(local,/createNfseRouter/);assert.doesNotMatch(router,/pfx|passphrase|password/i);
 });
 
 test('Bloco 8 remains integrated on the complete branch',()=>{

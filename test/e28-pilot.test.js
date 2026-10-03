@@ -22,8 +22,8 @@ test('pilot updates persist evidence and audit actor with admin/manager RBAC',()
 test('BLOCKED_EXTERNAL is reported as external blocker and never as READY',()=>{const {db,pilot}=fixture();try{
  for(const item of pilot.listChecks())pilot.updateCheck(item.key,{status:'READY',actor:{userId:'admin',role:'admin'}});
  assert.equal(pilot.readiness().status,'READY');
- pilot.updateCheck('fiscal-test',{status:'BLOCKED_EXTERNAL',note:'Credencial fiscal real ainda nao fornecida.',actor:{userId:'admin',role:'admin'}});
- const readiness=pilot.readiness();assert.equal(readiness.status,'BLOCKED_EXTERNAL');assert.equal(readiness.ready,false);assert.deepEqual(readiness.externalBlockers.map(x=>x.key),['fiscal-test']);
+ pilot.updateCheck('scale-test',{status:'BLOCKED_EXTERNAL',note:'Balança física ainda não disponível para validação.',actor:{userId:'admin',role:'admin'}});
+ const readiness=pilot.readiness();assert.equal(readiness.status,'BLOCKED_EXTERNAL');assert.equal(readiness.ready,false);assert.deepEqual(readiness.externalBlockers.map(x=>x.key),['scale-test']);
 }finally{db.close();}});
 
 test('internal BLOCKED has precedence and incomplete checklist is not release-ready',()=>{const {db,pilot}=fixture();try{

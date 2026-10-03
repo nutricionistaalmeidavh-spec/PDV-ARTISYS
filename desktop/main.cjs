@@ -18,11 +18,6 @@ const { createHardwareController, registerHardwareIpc } = require('./hardware-br
 const { createPdvHardwareRuntime } = require('./hardware-runtime.cjs');
 const { createHardwareConfigStore } = require('./hardware-config-store.cjs');
 const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
-const { createFiscalConnectionStore, createFiscalProviderResolver, registerFiscalIpc } = require('./fiscal-bridge.cjs');
-const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
-const { createNfseProviderResolver } = require('./nfse-provider-resolver.cjs');
-const { createFiscalSidecarRuntime } = require('./fiscal-sidecar-runtime.cjs');
-const { resolveFiscalRuntimePaths } = require('./fiscal-runtime-paths.cjs');
 const { loadDataServerConfig, saveDataServerConfig, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
 const { migrateLegacyDataServerCredential, saveDataServerSelection, testDataServerTarget } = require('./data-server-runtime.cjs');
 
@@ -35,11 +30,6 @@ let bootstrapConfig = null;
 let terminalCredentialStore = null;
 let hardwareController = null;
 let hardwareConfigStore = null;
-let fiscalStore = null;
-let fiscalCredentialStore = null;
-let fiscalSidecar = null;
-let fiscalProviderResolver = async () => null;
-let nfseProviderResolver = async () => null;
 let printWorker = null;
 let printWorkerBusy = false;
 let installationWasExisting = true;
@@ -84,8 +74,6 @@ async function startEmbeddedServer() {
     productPhotoDir:path.join(app.getPath('userData'),'product-photos'),
     appVersion:productVersion,
     serverVersion:productVersion,
-    fiscalProviderResolver,
-    nfseProviderResolver,
     installationId,
     accountEndpoint:bootstrapConfig?.accountEndpoint || '',
     requireCommercialActivation:bootstrapConfig?.requireCommercialActivation === true,
@@ -319,19 +307,6 @@ function registerIpc() {
     getParentWindow:()=>mainWindow
   });
   registerReceiptIpc({ipcMain,actions:receiptActions,isTrustedSender:trustedSender});
-  registerFiscalIpc({
-    ipcMain,
-    store:fiscalStore,
-    credentialStore:fiscalCredentialStore,
-    isTrustedSender:trustedSender,
-    resolveSession:sessionToken=>receiptApiRequest('/api/v1/auth/session',{sessionToken}),
-    providerResolver:fiscalProviderResolver,
-    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null,
-    dialog,
-    getParentWindow:()=>mainWindow,
-    onCertificateSaved:status=>runtime?.fiscalConfiguration?.saveCertificateMetadata?.({certificateName:status.certificateName,...(status.certificate||{})}),
-    isProductionEnabled:()=>runtime?.fiscalProduction?.getActivation?.().enabled===true
-  });
   registerImportIpc({ ipcMain, dialog, getParentWindow:()=>mainWindow, isTrustedSender:trustedSender });
   const photoClient=createProductPhotoClient({cacheDir:path.join(app.getPath('userData'),'photo-cache',bootstrapConfig?.terminalId||'PDV-01'),getApiBase:()=>apiBase,getTerminalHeaders:()=>bootstrapConfig?.profile==='terminal'?{'x-terminal-id':bootstrapConfig.terminalId,'x-terminal-key':bootstrapConfig.terminalKey}:{}});
   registerProductPhotoIpc({ipcMain,dialog,nativeImage,client:photoClient,getParentWindow:()=>mainWindow,isTrustedSender:trustedSender});
@@ -356,11 +331,6 @@ async function shutdown() {
     localServer = null;
     if (runtime) runtime.close();
     runtime = null;
-    if (fiscalSidecar) {
-      try { await fiscalSidecar.stop(); }
-      catch (error) { console.error(error); }
-    }
-    fiscalSidecar = null;
   }
 }
 
@@ -387,28 +357,7 @@ app.whenReady().then(async () => {
     bootstrapConfig = publicBootstrap;
   }
   validateBootstrapConfig(bootstrapConfig);
-  fiscalStore = createFiscalConnectionStore({ app, safeStorage });
-  fiscalCredentialStore = createFiscalCredentialStore({ app, safeStorage });
-  fiscalProviderResolver = createFiscalProviderResolver({
-    store:fiscalStore,
-    credentialStore:fiscalCredentialStore,
-    sidecarBaseUrlResolver:()=>fiscalSidecar?.getBaseUrl() || null
-  });
-  nfseProviderResolver = createNfseProviderResolver({credentialStore:fiscalCredentialStore,env:process.env});
-
   if (!isExternalMode(dataServerConfig) && shouldStartEmbeddedServer(bootstrapConfig)) {
-    const fiscalRuntimePaths = resolveFiscalRuntimePaths({ app, processObj:process, dirname:__dirname });
-    fiscalSidecar = createFiscalSidecarRuntime({
-      env:process.env,
-      entryPath:fiscalRuntimePaths.sidecarEntryPath,
-      cwd:fiscalRuntimePaths.runtimeDir,
-      onError:error => console.error(error)
-    });
-    try {
-      await fiscalSidecar.start();
-    } catch (error) {
-      console.error('Fiscal sidecar indisponivel; PDV continuara sem emissao local.', error);
-    }
     await startEmbeddedServer();
   } else {
     apiBase = isExternalMode(dataServerConfig) ? dataServerConfig.serverUrl : bootstrapConfig.apiBase.replace(/\/+$/, '');

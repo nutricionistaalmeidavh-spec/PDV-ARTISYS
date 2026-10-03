@@ -9,9 +9,6 @@
   "Compras, recebimentos, reservas, transferências e pedidos da Fase 9 são locais e não constituem contabilidade por partidas dobradas, fiscal de entrada, multiempresa ou sincronização entre servidores independentes.",
   "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
   "O cardápio por QR abre um token opaco específico da mesa. A superfície da equipe registra manifest e service worker somente em HTTPS ou localhost; em HTTP na LAN continua sendo uma aplicação web comum e não é apresentada como PWA instalável.",
-  "A linha fiscal integrada contém a fundação P0-P16 já implementada, incluindo configuração tributária, ACBr local, máquina de estados, reconciliação, monitor, XML/DANFE, cancelamento, gate de produção e contingência. Isso não equivale a homologação real na SEFAZ sem certificado, CSC, credenciamento e evidência externa do cliente.",
-  "O runtime fiscal P20 é empacotado como recurso externo ao ASAR. O projeto não redistribui automaticamente binários ACBr de terceiros; instalação e validação final dependem da licença e do ambiente do cliente.",
-  "Fiscal Packs P21 são arquivos locais versionados e validados; sua instalação não exige servidor, SaaS ou assinatura. Um pack incompatível ou inválido deve ser rejeitado antes de substituir o pack ativo.",
   "Pagamentos são registrados manualmente; não há TEF, PinPad, adquirente, API bancária nem confirmação automática de PIX.",
   "Autoatendimento cria pedidos/vendas locais, mas não processa pagamento eletrônico integrado; o pagamento permanece manual no caixa.",
   "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver, firmware e conexão disponíveis no terminal onde serão usados.",
@@ -19,5 +16,6 @@
   "Nenhum modelo físico específico deve ser declarado homologado sem evidência real registrada. Modelo ainda não testado fisicamente usa UNTESTED_MODEL; somente equipamento realmente testado com evidência usa FIELD_VERIFIED.",
   "Formatos ou comandos proprietários de balança podem exigir configuração de porta, baud rate, comando e janela de resposta; um formato específico só deve ser anunciado como FIELD_VERIFIED após validação documentada no equipamento real.",
   "Terminais e dispositivos móveis dependem da disponibilidade do servidor central na LAN; a versão 1.4.23 não usa sincronização em nuvem como substituto do servidor local.",
-  "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha."
+  "Restaurações são preparadas e validadas antes da troca e aplicadas no próximo início controlado do servidor para preservar o banco ativo em caso de falha.",
+  "A V1 não emite NFC-e, NF-e ou NFS-e e não integra SEFAZ/ACBr. Vendas, pedidos, comandas, cozinha/KDS e caixa utilizam somente documentos e impressões não fiscais."
 ]

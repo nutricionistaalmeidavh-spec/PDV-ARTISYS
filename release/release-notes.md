@@ -14,7 +14,7 @@ Patch da linha 1.4 que corrige corridas assíncronas de renderização capazes d
 
 - suíte `release` validada com **19/19 flows** aprovados e zero falhas;
 - E2E compacto de checkout e exceções UX aprovados;
-- certificação fiscal cumulativa P25 aprovada;
+- V1 consolidada sem emissão fiscal integrada; comprovantes e fluxos de impressão permanecem explicitamente NÃO FISCAIS;
 - builds Legacy para Windows 7/8 validadas em x64 e ia32;
 - instalador Windows x64 moderno continua sujeito ao smoke test do workflow de release antes da publicação.
 
