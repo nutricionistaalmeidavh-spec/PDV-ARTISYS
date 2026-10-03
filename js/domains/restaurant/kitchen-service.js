@@ -353,6 +353,21 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     return next;
   }
 
+  function cancelSourceTickets(sourceType,sourceId,actor={}){
+    const normalizedSource=String(sourceType||'').trim().toUpperCase();
+    const normalizedSourceId=String(sourceId||'').trim();
+    if(!PRODUCTION_SOURCES.has(normalizedSource))throw new Error('Origem de producao invalida.');
+    if(!normalizedSourceId)throw new Error('Identificador da origem de producao obrigatorio.');
+    return withTransaction(db,()=>{
+      const active=db.prepare("SELECT id,status FROM production_tickets WHERE source_type=? AND source_id=? AND status<>'CANCELLED' ORDER BY id").all(normalizedSource,normalizedSourceId);
+      if(!active.length)return[];
+      const timestamp=now();
+      db.prepare("UPDATE production_tickets SET status='CANCELLED',updated_at=? WHERE source_type=? AND source_id=? AND status<>'CANCELLED'").run(timestamp,normalizedSource,normalizedSourceId);
+      writeAudit(db,{action:'restaurant.kitchen.source.cancel',entity:'production_source',entityId:normalizedSourceId,actor,context:{sourceType:normalizedSource,ticketCount:active.length}},now);
+      return active.map(ticket=>getProductionTicket(ticket.id));
+    });
+  }
+
   function updateTicketStatus(id, status, actor = {}) {
     const normalized=String(status||'').toUpperCase();
     if (!TICKET_STATUSES.has(normalized)) throw new Error('Status de cozinha invalido.');
@@ -372,7 +387,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     });
   }
 
-  return { upsertStation,getStation,listStations,configureProductRoute,getProductRoute,listProductRoutes,assertOrderRouting,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,syncProductionSourceStatus,TICKET_STATUSES,PRODUCTION_SOURCES,PRODUCT_ROUTE_MODES };
+  return { upsertStation,getStation,listStations,configureProductRoute,getProductRoute,listProductRoutes,assertOrderRouting,assignProduct,unassignProduct,listAssignments,routeOrder,routeProduction,getTicket,listTickets,updateTicketStatus,syncProductionSourceStatus,cancelSourceTickets,TICKET_STATUSES,PRODUCTION_SOURCES,PRODUCT_ROUTE_MODES };
 }
 
 module.exports={createKitchenService};
