@@ -90,3 +90,29 @@ test('recovery code can only be generated for the activated installation and is 
   const replay=await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com',code:recovery.code})}),e);
   assert.equal(replay.status,400);
 });
+
+test('D1 schema bootstrap executes each DDL statement individually',async()=>{
+  const {D1AccountStore}=await loadWorker();
+  const prepared=[];
+  const db={
+    exec(){throw new Error('multi-statement exec must not be used for schema bootstrap');},
+    prepare(sql){
+      prepared.push(sql);
+      return {
+        bind(){return this;},
+        async run(){return {success:true};},
+        async all(){
+          if(sql.includes('activation_tokens'))return {results:[{name:'attempts'}]};
+          if(sql.includes('password_recovery_tokens'))return {results:[{name:'installation_id'}]};
+          return {results:[]};
+        },
+        async first(){return null;}
+      };
+    }
+  };
+  await new D1AccountStore(db).ensureSchema();
+  assert.ok(prepared.some(sql=>/^CREATE TABLE IF NOT EXISTS accounts/i.test(sql)));
+  assert.ok(prepared.some(sql=>/^CREATE INDEX IF NOT EXISTS idx_licenses_account_status/i.test(sql)));
+  assert.equal(prepared.filter(sql=>/^CREATE TABLE/i.test(sql)).length,5);
+  assert.equal(prepared.filter(sql=>/^CREATE INDEX/i.test(sql)).length,8);
+});
