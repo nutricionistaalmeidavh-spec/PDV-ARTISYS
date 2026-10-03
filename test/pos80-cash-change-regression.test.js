@@ -5,7 +5,6 @@ const fs=require('node:fs');
 const path=require('node:path');
 const ui=require('../desktop/renderer/ui-model');
 const {renderSaleReceipt}=require('../js/domains/printing/receipt-renderer');
-const {renderDanfeNfce}=require('../js/domains/fiscal/danfe-nfce-renderer');
 const {createPromotionSaleService}=require('../js/domains/sales/promotion-sale-service');
 const {createElectronPrinterDriver}=require('../vendor/artisys-printing/src/drivers/electron-printer');
 const printingPreferences=require('../js/domains/printing/printing-preferences');
@@ -72,16 +71,6 @@ test('sale receipt projection exposes readable operator and customer names from 
   const details=sales.getSaleDetails('s1');
   assert.equal(details.operatorName,'Administrador');
   assert.equal(details.customerName,'Cliente Teste');
-});
-
-test('DANFE NFC-e prints friendly cash payment and change from canonical sale values',()=>{
-  const text=renderDanfeNfce({document:{
-    documentType:'nfce',lifecycleStatus:'AUTHORIZED',accessKey:'1'.repeat(44),authorizationProtocol:'123',providerResponse:{},
-    requestPayload:{issuer:{tradeName:'B1 Limpe'},identification:{number:'1',series:'1'},items:[],totals:{subtotalCents:199,discountCents:0,totalCents:199,changeCents:801},payments:[{method:'CASH',amountCents:1000}]}
-  },width:48});
-  assert.match(text,/Pagamento Dinheiro: R\$ 10,00/);
-  assert.match(text,/Troco: R\$ 8,01/);
-  assert.doesNotMatch(text,/Pagamento CASH/);
 });
 
 test('electron POS80 receipt centers the printable sheet inside the physical 80 mm page',async()=>{

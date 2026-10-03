@@ -17,7 +17,7 @@
     "capability:check:phase3": "node scripts/check-customer-capability-parity.js",
     "capability:check:release": "node scripts/check-customer-capability-parity.js --require-100",
     "docs:check": "node scripts/check-docs-consistency.js",
-    "test": "node scripts/run-v1-tests.js",
+    "test": "node --test test/*.test.js",
     "test:telemetry:cloudflare": "npm --prefix cloudflare/telemetry test",
     "telemetry:cloudflare:setup": "node scripts/setup-cloudflare-telemetry.mjs",
     "test:restaurant": "node --test test/e30-e39-restaurant.test.js",
@@ -60,17 +60,7 @@
       "server/**/*",
       "release/**/*",
       "vendor/**/*",
-      "package.json",
-      "!desktop/fiscal-*.cjs",
-      "!desktop/nfse-provider-resolver.cjs",
-      "!desktop/renderer/fiscal-*",
-      "!desktop/renderer/nfse-*",
-      "!desktop/renderer/product-fiscal-fields.js",
-      "!js/domains/fiscal/**/*",
-      "!js/domains/nfse/**/*",
-      "!js/core/database/fiscal-migrations.js",
-      "!server/fiscal-*.js",
-      "!server/nfse-router.js"
+      "package.json"
     ],
     "asarUnpack": [
       "node_modules/serialport/**/*",

@@ -29,10 +29,7 @@ test('P3 shell surfaces use semantic lifecycle without DOM observers',()=>{
 
 test('P4 Settings extensions use route lifecycle and publish semantic updates',()=>{
   for(const [file,extension] of [
-    ['desktop/renderer/admin-ops.js','admin-ops'],
-    ['desktop/renderer/fiscal-config-ui.js','fiscal-config'],
-    ['desktop/renderer/fiscal-monitor.js','fiscal-monitor'],
-    ['desktop/renderer/nfse-ui.js','nfse']
+    ['desktop/renderer/admin-ops.js','admin-ops']
   ]){
     const source=read(file);
     assert.match(source,/PdvUiLifecycle/,`${file}: lifecycle required`);

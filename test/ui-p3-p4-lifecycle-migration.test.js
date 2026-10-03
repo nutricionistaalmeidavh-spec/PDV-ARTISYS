@@ -26,12 +26,9 @@ test('P3 shell surfaces use semantic lifecycle without MutationObserver',()=>{
   assert.match(operational,/routeRegistry\.updated\('sales',\{surface:'sale-detail'\}\)/);
 });
 
-test('P4 Admin Fiscal NFS-e and Settings hub use lifecycle and announce settings extensions',()=>{
+test('P4 Admin and Settings hub use lifecycle and announce settings extensions',()=>{
   const extensions=[
-    ['desktop/renderer/admin-ops.js','admin-ops'],
-    ['desktop/renderer/fiscal-config-ui.js','fiscal-config'],
-    ['desktop/renderer/fiscal-monitor.js','fiscal-monitor'],
-    ['desktop/renderer/nfse-ui.js','nfse']
+    ['desktop/renderer/admin-ops.js','admin-ops']
   ];
   for(const [file,extension] of extensions){
     const source=read(file);
@@ -45,9 +42,6 @@ test('P4 Admin Fiscal NFS-e and Settings hub use lifecycle and announce settings
   assert.match(hub,/route:mounted/);
   assert.match(hub,/route:updated/);
   assert.doesNotMatch(hub,/MutationObserver|legacyObserver/);
-  for(const file of ['desktop/renderer/fiscal-config-ui.js','desktop/renderer/fiscal-monitor.js','desktop/renderer/nfse-ui.js']){
-    assert.match(read(file),/settingsCategory='fiscal'/,`${file}: explicit fiscal category required`);
-  }
 });
 
 test('auth lifecycle is published only after canonical setup and login form bindings',()=>{
