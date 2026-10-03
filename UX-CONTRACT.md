@@ -204,3 +204,12 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - O localizador **Comandas e pedidos** do Balcão pesquisa Comandas, Atacado, Delivery e Retirada. Delivery/Retirada abrem a venda já vinculada por `saleId`; buscar um pedido nunca recria itens nem reprecifica silenciosamente o documento confirmado.
 - Os estados internos permanecem enums estáveis para API/banco. Na UI brasileira, a sequência operacional é apresentada como **Novo pedido → Aguardando produção → Preparando → Pedido pronto**, seguida de **Retirado** ou **Saiu para entrega → Entregue** conforme o canal.
 - Superfícies administrativas usam a mesma hierarquia visual: cabeçalho de seção com título/explicação, cartões ou tabelas de configuração e ações no mesmo nível de leitura. Infraestrutura administrativa não é misturada aos painéis persistentes de operação.
+
+## Arquitetura operacional unificada — Balcão e Alimentação
+
+- **Balcão** é o checkout canônico. Comandas, Atacado, Delivery e Retirada são documentos operacionais pesquisáveis pelo mesmo localizador e abrem a venda canônica já existente quando houver cobrança.
+- **Alimentação** organiza os canais **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada**, **Autoatendimento** e **Personalização de pizza**. Esses canais não criam motores paralelos de venda, preço, estoque ou caixa.
+- **Entrega e retirada** é painel operacional persistente: **Novo pedido → Aguardando produção → Preparando → Pedido pronto → Retirado/Saiu para entrega → Entregue**. Os códigos internos continuam estáveis, mas nunca são apresentados crus ao operador.
+- **KDS/Cozinha/Bar** é a autoridade da produção. Confirmar visualização inicia o preparo e confirmar conclusão marca o ticket pronto; o pedido agrega o estado dos setores.
+- **Mesas e comandas**, Delivery/Retirada e KDS compartilham o mesmo estado autoritativo do servidor LAN. Nenhuma tela mantém uma cópia independente que possa sobrescrever estado mais novo.
+- Telas administrativas usam hierarquia comum: cabeçalho de contexto, seção, descrição curta, ação principal e cartões/tabelas abaixo. Campos destinados ao operador usam nomes reconhecíveis em vez de IDs técnicos.
