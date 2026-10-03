@@ -194,6 +194,7 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.match(vertical,/data-delivery-view="DELIVERY"/);
   assert.match(vertical,/data-delivery-view="PICKUP"/);
   assert.match(vertical,/Enviar para produção/);
+  assert.match(vertical,/Aguardando produção/);
   assert.match(vertical,/production\.stations/);
   assert.match(vertical,/openCheckoutSale/);
   assert.match(checkout,/openCheckoutSale/);
