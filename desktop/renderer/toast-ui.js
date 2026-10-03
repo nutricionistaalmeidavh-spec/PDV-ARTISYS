@@ -8,7 +8,7 @@
   const ERROR_DURATION_MS = 6000;
   const DEFAULT_DURATION_MS = 3500;
   const EXIT_DURATION_MS = 180;
-  const MAX_VISIBLE = 2;
+  const MAX_VISIBLE = 1;
   const timers = new WeakMap();
   const nativeAppendChild = toastRoot.appendChild.bind(toastRoot);
 
@@ -137,6 +137,19 @@
   }
 
   installLegacyAppendBridge();
+
+  function bindRouteLifecycle() {
+    const lifecycle=window.PdvUiLifecycle;
+    if (!lifecycle?.on) return;
+    lifecycle.on('route:before', () => {
+      activeToasts()
+        .filter((node) => node.dataset.toastType !== 'error')
+        .forEach((node) => removeToast(node, { animate:false }));
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',bindRouteLifecycle,{once:true});
+  else bindRouteLifecycle();
 
   window.PdvToast = Object.freeze({
     show,
