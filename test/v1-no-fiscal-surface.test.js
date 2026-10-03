@@ -89,3 +89,22 @@ test('V1 QA flow has no fiscal pages and keeps operational regression surfaces',
   assert.doesNotMatch(qa,/fiscal-config-workspace|fiscal-monitor-panel|nfse-workspace|settings-category='fiscal'/);
   for(const marker of ['wholesale','restaurant','kds','financial-management','returns']) assert.match(qa,new RegExp(marker,'i'));
 });
+
+test('V1 preserves non-fiscal receipt, kitchen and cash printing implementation', () => {
+  const service=read('js/domains/printing/non-fiscal-service.js');
+  const renderer=read('js/domains/printing/non-fiscal-renderer.js');
+  const effects=read('js/domains/printing/non-fiscal-effects.js');
+  const main=read('desktop/main.cjs');
+  assert.match(service,/SALE_RECEIPT/);
+  assert.match(service,/KITCHEN_TICKET/);
+  assert.match(renderer,/CUPOM NAO FISCAL|NÃO FISCAL|NAO FISCAL/i);
+  assert.match(effects,/cash/i);
+  assert.match(main,/startPrintWorker/);
+  assert.match(main,/runtime\.printing\.listJobs/);
+});
+
+test('V1 keeps regression tests for sales printing restaurant KDS wholesale and backup', () => {
+  for(const file of ['test/e19-printing.test.js','test/e30-e39-restaurant.test.js','test/wholesale-p3.test.js','test/post-sale-completion-wiring.test.js']) {
+    assert.equal(fs.existsSync(path.join(root,file)),true,file);
+  }
+});
