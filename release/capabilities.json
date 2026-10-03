@@ -58,6 +58,5 @@
   "persistent-pilot-readiness-checklist",
   "server-terminal-and-terminal-deployment-profiles",
   "restaurant-session-waiter-party-customer-context",
-  "restaurant-shared-multichannel-order-composer",
-  "restaurant-table-lifecycle-transactional-e2e"
+  "restaurant-shared-multichannel-order-composer"
 ]
