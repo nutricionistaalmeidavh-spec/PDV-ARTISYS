@@ -61,10 +61,18 @@
     PRINTED:'Impresso',
     FAILED:'Falhou',
     EXPIRED:'Expirado',
-    DIRECT:'Direto'
+    DIRECT:'Direto',
+    PREVIEWED:'Pré-visualizado',
+    COMMITTED:'Confirmado',
+    IMPORTED:'Importado',
+    REVERSED:'Estornado',
+    REFUNDED:'Reembolsado',
+    APPROVED:'Aprovado',
+    REJECTED:'Recusado'
   });
   const FULFILLMENT_LABELS = Object.freeze({DELIVERY:'Entrega',PICKUP:'Retirada',TABLE:'Mesa',COUNTER:'Balcão'});
   const DEVICE_TYPE_LABELS = Object.freeze({KITCHEN:'KDS / produção',WAITER:'Garçom',TABLET:'Tablet de mesa',SELF_SERVICE:'Autoatendimento'});
+  const PAYMENT_METHOD_LABELS = Object.freeze({CASH:'Dinheiro',PIX:'PIX',DEBIT_CARD:'Cartão de débito',CREDIT_CARD:'Cartão de crédito',STORE_CREDIT:'Crédito da loja',OTHER:'Outro'});
 
   function statusLabel(value,fallback='Em andamento') {
     const key=String(value||'').trim().toUpperCase();
@@ -79,6 +87,11 @@
   function deviceTypeLabel(value,fallback='Dispositivo') {
     const key=String(value||'').trim().toUpperCase();
     return DEVICE_TYPE_LABELS[key]||fallback;
+  }
+
+  function paymentMethodLabel(value,fallback='Outro') {
+    const key=String(value||'').trim().toUpperCase();
+    return PAYMENT_METHOD_LABELS[key]||fallback;
   }
 
   function resolveShortcut(key, route) {
@@ -158,9 +171,11 @@
     STATUS_LABELS,
     FULFILLMENT_LABELS,
     DEVICE_TYPE_LABELS,
+    PAYMENT_METHOD_LABELS,
     statusLabel,
     fulfillmentLabel,
     deviceTypeLabel,
+    paymentMethodLabel,
     resolveShortcut,
     formatCents,
     parseCurrencyToCents,
