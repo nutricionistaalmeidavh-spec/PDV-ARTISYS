@@ -13,7 +13,71 @@ async function digestToken({pepper,email,code}){const data=new TextEncoder().enc
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
 
 class D1AccountStore{
-  constructor(db){if(!db)throw new Error('D1 DB binding ausente.');this.db=db;}
+  constructor(db){if(!db)throw new Error('D1 DB binding ausente.');this.db=db;this.schemaReady=false;}
+  async ensureSchema(){
+    if(this.schemaReady)return;
+    await this.db.exec(`CREATE TABLE IF NOT EXISTS accounts (
+      id TEXT PRIMARY KEY,
+      email_normalized TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS licenses (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('ACTIVE','SUSPENDED','CANCELLED','EXPIRED')),
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      metadata_json TEXT,
+      FOREIGN KEY(account_id) REFERENCES accounts(id)
+    );
+    CREATE TABLE IF NOT EXISTS activation_tokens (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      license_id TEXT NOT NULL,
+      installation_id TEXT NOT NULL,
+      token_digest TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(account_id) REFERENCES accounts(id),
+      FOREIGN KEY(license_id) REFERENCES licenses(id)
+    );
+    CREATE TABLE IF NOT EXISTS installations (
+      installation_id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      license_id TEXT NOT NULL,
+      activated_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      FOREIGN KEY(account_id) REFERENCES accounts(id),
+      FOREIGN KEY(license_id) REFERENCES licenses(id)
+    );
+    CREATE TABLE IF NOT EXISTS password_recovery_tokens (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      email_normalized TEXT NOT NULL,
+      installation_id TEXT,
+      token_digest TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY(account_id) REFERENCES accounts(id)
+    );`);
+    const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
+    if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
+    const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
+    if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
+    await this.db.exec(`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
+    CREATE INDEX IF NOT EXISTS idx_activation_tokens_lookup ON activation_tokens(account_id,token_digest,expires_at,used_at);
+    CREATE INDEX IF NOT EXISTS idx_activation_tokens_installation ON activation_tokens(installation_id,created_at);
+    CREATE INDEX IF NOT EXISTS idx_activation_tokens_attempts ON activation_tokens(account_id,expires_at,used_at,attempts);
+    CREATE INDEX IF NOT EXISTS idx_installations_license ON installations(license_id);
+    CREATE INDEX IF NOT EXISTS idx_password_recovery_email_created ON password_recovery_tokens(email_normalized,created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_password_recovery_expiry ON password_recovery_tokens(expires_at,used_at);
+    CREATE INDEX IF NOT EXISTS idx_password_recovery_installation ON password_recovery_tokens(installation_id,email_normalized,expires_at,used_at);`);
+    this.schemaReady=true;
+  }
   async findAccount(email){
     const row=await this.db.prepare('SELECT id,email_normalized AS email FROM accounts WHERE email_normalized=? LIMIT 1').bind(email).first();
     return row?{id:row.id,email:row.email}:null;
@@ -94,6 +158,7 @@ class D1AccountStore{
 }
 
 function resolveStore(env){return env.ACCOUNT_STORE||new D1AccountStore(env.DB||env.artisys);}
+async function readyStore(env){const store=await readyStore(env);if(typeof store.ensureSchema==='function')await store.ensureSchema();return store;}
 function activeInstallation(record,now){if(!record)return false;if(record.status&&record.status!=='ACTIVE')return false;if(record.expiresAt&&record.expiresAt<=now)return false;return true;}
 function recoveryPepper(env){return String(env.RECOVERY_PEPPER||env.ACTIVATION_PEPPER||'').trim();}
 
@@ -107,7 +172,7 @@ async function verifyActivation(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
   if(!email||!installationId||!/^\d{6}$/.test(code))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'Servico de ativacao indisponivel.'},503);
-  const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
+  const store=await readyStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
   const token=typeof store.findActivationCandidate==='function'
     ? await store.findActivationCandidate({email,now})
     : await store.findActivationToken({email,digest,now});
@@ -129,7 +194,7 @@ async function verifyActivation(request,env){
 async function requestPasswordRecovery(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
   if(!email||!installationId)return json({accepted:true},202);
-  const record=await resolveStore(env).findInstallation(installationId);const now=new Date().toISOString();
+  const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
   if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
   return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
 }
@@ -138,7 +203,7 @@ async function verifyPasswordRecovery(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
   if(!email||!installationId||!/^[0-9]{6}$/.test(code))return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   const pepper=recoveryPepper(env);if(!pepper)return json({error:'Servico de recuperacao indisponivel.'},503);
-  const store=resolveStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
+  const store=await readyStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
   const token=typeof store.findRecoveryCandidate==='function'
     ? await store.findRecoveryCandidate({email,installationId,now})
     : await store.findRecoveryToken({email,installationId,digest,now});
@@ -223,7 +288,7 @@ async function adminRoute(request,env,url){
   if(request.method==='GET'&&url.pathname==='/admin')return new Response(adminHtml(),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
   if(!url.pathname.startsWith('/v1/admin/'))return null;
   if(!adminAuthorized(request,env))return json({error:'Nao autorizado.'},401);
-  const store=resolveStore(env);
+  const store=await readyStore(env);
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
     const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
