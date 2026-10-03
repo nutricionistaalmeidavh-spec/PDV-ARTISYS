@@ -327,9 +327,12 @@
   root.addEventListener('click',event=>{const target=event.target.closest?.('[data-module-nav]');if(!target)return;const id=target.dataset.moduleNav;if(!areaForRoute(id)&&!moduleForRoute(id))return;event.preventDefault();event.stopImmediatePropagation();void renderWorkspace(id);},true);
   root.addEventListener('artisys:modules-state-changed',event=>{if(!mergeModuleCatalog(event.detail?.catalog))return;renderModuleNavigation();const card=settingsModulesCard();if(card?.querySelector('[data-module-toggle]'))renderSettingsModules(card);});
   root.addEventListener('artisys:sidebar-rendered',()=>{void refreshModuleNavigation();});
-  new MutationObserver(()=>{void refreshModuleNavigation();}).observe(document.body,{attributes:true,attributeFilter:['data-user-role']});
-  if(content)new MutationObserver(()=>{mountSettingsModules();scheduleSanitize();}).observe(content,{subtree:true,childList:true});
-  document.addEventListener('DOMContentLoaded',()=>{mountSettingsModules();scheduleSanitize();},{once:true});
+  const syncMountedSurface=()=>{mountSettingsModules();scheduleSanitize();};
+  lifecycle?.on?.('user:changed',()=>{void refreshModuleNavigation();syncMountedSurface();});
+  lifecycle?.on?.('route:mounted',syncMountedSurface);
+  lifecycle?.on?.('route:updated',syncMountedSurface);
+  lifecycle?.on?.('surface:mounted',syncMountedSurface);
+  document.addEventListener('DOMContentLoaded',syncMountedSurface,{once:true});
   mountSettingsModules();
   void refreshModuleNavigation();
   root.PdvVerticalModules=Object.freeze({openWorkspace:renderWorkspace,refreshNavigation:refreshModuleNavigation,renderSettingsModules});
