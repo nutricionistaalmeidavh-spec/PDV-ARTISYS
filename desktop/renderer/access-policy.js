@@ -80,6 +80,19 @@
     });
   }
 
+  function commonDataLoadPlan(user){
+    const products=hasCapability(user,'products.view');
+    return Object.freeze({
+      categories:products,
+      products,
+      productPhotos:products,
+      customers:hasCapability(user,'customers.view'),
+      sellers:hasCapability(user,'sellers.view'),
+      users:hasCapability(user,'users.view'),
+      cash:hasCapability(user,'cash.view')
+    });
+  }
+
   function canAccessRoute(user,route){
     if(!user)return false;
     const required=ROUTE_CAPABILITIES[String(route||'').trim()];
@@ -91,5 +104,5 @@
 
   function routesForUser(user){return TOP_LEVEL_ROUTES.filter(route=>canAccessRoute(user,route));}
 
-  return Object.freeze({ACCESS_CENTER_TABS,ROUTE_CAPABILITIES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,accessCenterModel,canAccessRoute,routesForUser});
+  return Object.freeze({ACCESS_CENTER_TABS,ROUTE_CAPABILITIES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,accessCenterModel,commonDataLoadPlan,canAccessRoute,routesForUser});
 });
