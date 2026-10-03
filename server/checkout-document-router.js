@@ -4,6 +4,8 @@ class CheckoutDocumentHttpError extends Error{constructor(statusCode,message){su
 function json(res,status,payload){res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(payload));}
 function bearer(req){const value=String(req.headers.authorization||'');return value.startsWith('Bearer ')?value.slice(7).trim():'';}
 function match(pathname,pattern){const p=pattern.split('/').filter(Boolean),a=pathname.split('/').filter(Boolean);if(p.length!==a.length)return null;const out={};for(let i=0;i<p.length;i++){if(p[i].startsWith(':'))out[p[i].slice(1)]=decodeURIComponent(a[i]);else if(p[i]!==a[i])return null;}return out;}
+function normalizeSearch(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');}
+function matchesSearch(parts,query){const q=normalizeSearch(query);if(!q)return true;const hay=normalizeSearch(parts.filter(Boolean).join(' '));return q.split(' ').every(token=>hay.includes(token));}
 
 function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminalAuth=false}={}){
   if(!runtime?.sales||!runtime?.orders||!runtime?.restaurant)throw new TypeError('checkout document runtime services are required.');
@@ -15,19 +17,19 @@ function createCheckoutDocumentRouter({runtime,sessionStore=null,requireTerminal
     return{userId:session.userId,role:session.role,terminalId:session.terminalId||null};
   }
   function search(query=''){
-    const q=String(query||'').trim().toLowerCase();const rows=[];
+    const q=normalizeSearch(query);const rows=[];
     if(runtime.modules?.isEnabled('FOOD')){
       for(const table of runtime.restaurant.listTables()){
         if(!table.sessionId)continue;
         const session=runtime.restaurant.getSession(table.sessionId);if(!session||!['OPEN','CHECKOUT'].includes(session.status))continue;
-        const hay=[table.label,table.id,session.id].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
+        if(!matchesSearch([table.label,table.id,session.id,'mesa mesas comanda comandas alimentacao'],q))continue;
         rows.push({type:'COMMAND',id:session.id,number:table.label,label:`${table.label} · Comanda`,status:session.status,totalCents:session.totalCents,customerName:null,saleId:session.checkoutSaleId||null,openedAt:session.openedAt});
       }
     }
     if(runtime.modules?.isEnabled('WHOLESALE')){
       for(const order of runtime.orders.listOrders({origin:'WHOLESALE'})){
         if(!['CONFIRMED','PARTIALLY_FULFILLED'].includes(order.status))continue;
-        const hay=[order.orderNumber,order.id,order.customerName].join(' ').toLowerCase();if(q&&!hay.includes(q))continue;
+        if(!matchesSearch([order.orderNumber,order.id,order.customerName,'pedido pedidos atacado pedido atacado pedidos atacado pedido de atacado pedidos de atacado'],q))continue;
         rows.push({type:'ORDER',id:order.id,number:order.orderNumber||order.id,label:`${order.orderNumber||order.id} · Pedido Atacado`,status:order.status,totalCents:order.items.reduce((sum,item)=>sum+Math.round(Number(item.pendingQuantity||0)*Number(item.unitPriceCents||0)),0),customerName:order.customerName||null,saleId:null,openedAt:order.createdAt});
       }
     }
