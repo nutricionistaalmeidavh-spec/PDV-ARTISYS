@@ -72,6 +72,7 @@ test('Phase 7 release gate: admin operations are exposed in customer-visible des
 
   for(const marker of [
     'ops-admin-control-center','ops-backup-now','data-backup-validate','data-backup-restore',
+    'ops-backup-pending','ops-backup-restore-modal','Restaurar este backup','Restauração pendente',
     'ops-import-pick','ops-import-preview','ops-import-commit','ops-create-diagnostics'
   ]) assert.match(admin,new RegExp(marker));
 

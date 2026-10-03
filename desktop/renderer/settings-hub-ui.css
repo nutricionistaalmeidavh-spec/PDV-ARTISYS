@@ -69,3 +69,13 @@
 .module-config-summary > .vertical-settings { order:0; }
 .module-config-summary > .core-area-summary { order:1; }
 
+
+/* Backup e recuperação: estados guiados, mantendo os tokens visuais do hub ArtiSys. */
+.ops-backup-latest{display:flex;align-items:center;justify-content:space-between;margin:12px 0;padding:12px 14px;border:1px solid #dbe6f3;border-radius:12px;background:#f8fbff}
+.ops-backup-latest>div{display:grid;gap:3px}.ops-backup-latest small{color:#67758a}.ops-backup-latest strong{color:#173258;font-size:14px}.ops-backup-latest span{color:#536981;font-size:12px}
+.ops-backup-notice{display:grid;gap:4px;margin:12px 0;padding:12px 14px;border:1px solid #c9dcf6;border-left:4px solid #2878e5;border-radius:12px;background:#f5f9ff;color:#1e3556}
+.ops-backup-notice span{color:#536981;font-size:13px;line-height:1.45}.ops-backup-notice.warning{border-color:#f0d49b;border-left-color:#d7901d;background:#fff9ed;color:#684711}.ops-backup-notice.warning span{color:#745b32}
+.ops-restore-modal[hidden]{display:none!important}.ops-restore-modal{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:24px}.ops-restore-backdrop{position:absolute;inset:0;background:rgba(12,26,46,.54)}
+.ops-restore-dialog{position:relative;width:min(520px,calc(100vw - 32px));display:grid;gap:16px;padding:22px;border:1px solid #d5e0ef;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(16,38,69,.24)}
+.ops-restore-dialog h3{margin:0;color:#142b4b;font-size:20px}.ops-restore-dialog p{margin:5px 0 0;color:#66758c;font-size:13px}.ops-restore-dialog .ops-details{margin:0}.restore-actions{justify-content:flex-end}.ops-primary.danger{background:#b42318;border-color:#b42318;color:#fff}
+@media(max-width:620px){.ops-restore-modal{padding:12px}.ops-restore-dialog{padding:18px}.restore-actions{flex-direction:column-reverse}.restore-actions button{width:100%}}
