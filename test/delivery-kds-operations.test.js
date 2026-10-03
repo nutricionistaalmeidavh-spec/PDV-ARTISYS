@@ -5,6 +5,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
+const {createLocalServer}=require('../server/local-server');
 
 const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
 
@@ -80,6 +81,41 @@ test('KDS devices can be scoped to one or more production stations',()=>{
   }finally{ctx.close();}
 });
 
+test('delivery projection exposes each production station and its current status',()=>{
+  const ctx=fixture();
+  try{
+    const order=ctx.runtime.delivery.create({customerName:'Caio',fulfillmentType:'PICKUP',paymentMethod:'PIX'},admin);
+    ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin',items:[{productId:'burger',quantity:1},{productId:'juice',quantity:1}]},admin);
+    const first=ctx.runtime.delivery.get(order.id);
+    assert.deepEqual(first.production.stations.map(item=>[item.id,item.name,item.status]),[
+      ['bar','Bar','NEW'],
+      ['kitchen','Cozinha','NEW']
+    ]);
+    const barTicket=ctx.runtime.kitchen.listTickets().find(ticket=>ticket.sourceType==='DELIVERY'&&ticket.sourceId===order.id&&ticket.stationId==='bar');
+    ctx.runtime.kitchen.updateTicketStatus(barTicket.id,'PREPARING',admin);
+    const updated=ctx.runtime.delivery.get(order.id);
+    assert.equal(updated.production.status,'PREPARING');
+    assert.equal(updated.production.stations.find(item=>item.id==='bar').status,'PREPARING');
+    assert.equal(updated.production.stations.find(item=>item.id==='kitchen').status,'NEW');
+  }finally{ctx.close();}
+});
+
+test('mobile KDS context returns only tickets assigned to the device stations',async()=>{
+  const ctx=fixture();let server;
+  try{
+    const order=ctx.runtime.delivery.create({customerName:'Dani',fulfillmentType:'PICKUP',paymentMethod:'PIX'},admin);
+    ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin',items:[{productId:'burger',quantity:1},{productId:'juice',quantity:1}]},admin);
+    const device=ctx.runtime.mobileDevices.createDevice({id:'kds-bar-api',name:'KDS Bar',deviceType:'KITCHEN',stationIds:['bar']},admin);
+    server=createLocalServer({runtime:ctx.runtime,host:'127.0.0.1',port:0,token:'local-secret',requireTerminalAuth:false});
+    const address=await server.start();
+    const response=await fetch(`http://${address.host}:${address.port}/api/v1/mobile/context`,{headers:{'x-device-id':device.id,'x-device-key':device.credential}});
+    assert.equal(response.status,200);
+    const payload=await response.json();
+    assert.ok(payload.tickets.length>=1);
+    assert.ok(payload.tickets.every(ticket=>ticket.stationId==='bar'));
+  }finally{if(server)await server.stop();ctx.close();}
+});
+
 test('delivery and pickup UI is one operational surface without legacy DOM observation or technical sale IDs',()=>{
   const vertical=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-modules.js'),'utf8');
   const parity=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-parity-p1.js'),'utf8');
@@ -91,5 +127,9 @@ test('delivery and pickup UI is one operational surface without legacy DOM obser
   assert.doesNotMatch(parity,/ID do pedido/);
   assert.doesNotMatch(parity,/ID do produto/);
   assert.doesNotMatch(parity,/Avançar para PREPARING|Avançar para READY/);
-  assert.match(parity,/Avisar no WhatsApp/);
+  assert.match(vertical+parity,/Avisar no WhatsApp/);
+  assert.match(vertical,/data-delivery-view="DELIVERY"/);
+  assert.match(vertical,/data-delivery-view="PICKUP"/);
+  assert.match(vertical,/Enviar para produção/);
+  assert.match(vertical,/production\.stations/);
 });
