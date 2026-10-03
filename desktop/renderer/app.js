@@ -18,7 +18,7 @@
     'finance-recurrences': { label: 'Recorrências', icon: 'history', phase: 'E16' },
     'finance-alerts': { label: 'Alertas financeiros', icon: 'management', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
-    sellers: { label: 'Equipe e acessos', icon: 'users' },
+    sellers: { label: 'Equipe comercial', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
     cash: { label: 'Caixa', shortLabel:'Caixa', icon: 'cash', phase: 'E14' },
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
@@ -224,7 +224,7 @@
     document.getElementById('terminal-name').textContent = state.config.terminalName;
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
-    document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
+    document.getElementById('operator-role').textContent = state.user?.profile?.name || roleLabel(state.user?.role);
     document.body.dataset.userRole = state.user?.role || '';
     document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
     window.PdvCurrentAccess=state.user||null;
@@ -366,7 +366,7 @@
     const weightLabel=weight?`${quantityLabel(Number(weight.grams||0))} g · ${escapeHtml(String(weight.source||'MANUAL')==='SCALE'?'balança':String(weight.source||'MANUAL')==='BARCODE'?'etiqueta':'manual')}`:null;
     const documentLabel=sourceDocument?`${escapeHtml(sourceDocument.orderNumber||sourceDocument.id||'Pedido')} · preço do pedido`:null;
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}${documentLabel?` · ${documentLabel}`:''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}${documentLabel?` · ${documentLabel}`:''}</small>`;
-    const priceButton = !sourceDocument&&['admin','manager'].includes(state.user?.role) ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
+    const priceButton = !sourceDocument&&window.PdvAccessPolicy?.hasCapability(state.user,'sales.discount') ? `<button type="button" class="secondary-button" data-price-item="${item.id}" style="padding:4px 7px;margin-top:4px">Alterar preço</button>` : '';
     const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
     const remove=sourceDocument?'':weight?`<button type="button" data-remove-weighted="${item.id}" style="border:0;background:transparent;color:#e22;font-size:18px" aria-label="Remover pesagem">×</button>`:`<button type="button" data-remove="${item.productId}" style="border:0;background:transparent;color:#e22;font-size:18px">×</button>`;
     return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
@@ -585,7 +585,7 @@
 
   function renderSellers() {
     if (!isRouteActive('sellers')) return;
-    if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Equipe e acessos');
+    if (!window.PdvAccessPolicy?.hasCapability(state.user,'sellers.view')) return renderPermissionDenied('Equipe comercial');
     content.innerHTML = `<section class="page"><header class="page-head"><div><h1>Equipe e acessos</h1><p>Pessoas, funções, áreas permitidas e comissões em um único lugar.</p></div></header><div class="data-card"><div class="empty-state">Carregando equipe…</div></div></section>`;
   }
 
@@ -999,7 +999,7 @@ function openCategoryForm() {
       customers: () => renderCustomers(),
       sellers: () => renderSellers(),
       management: () => {
-        if (!['admin','manager'].includes(state.user?.role)) return renderPermissionDenied('Gestão');
+        if (!window.PdvAccessPolicy?.hasCapability(state.user,'management.view')) return renderPermissionDenied('Gestão');
         return window.PdvErpFinanceUi?.renderManagement?.() || renderPlaceholder('management');
       },
       products: () => renderProducts(),

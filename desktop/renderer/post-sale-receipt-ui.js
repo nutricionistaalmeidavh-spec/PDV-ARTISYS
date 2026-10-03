@@ -181,7 +181,7 @@
         api.currentSession().catch(() => null)
       ]);
       if (!currentRouteIsSettings() || !document.getElementById('printing-settings-card')) return;
-      const canEdit = ['admin','manager'].includes(String(current?.user?.role || ''));
+      const canEdit = Array.isArray(current?.user?.permissions)&&current.user.permissions.includes('settings.manage');
       const noPrinters = !(printers || []).length;
       card.innerHTML = `<div class="ops-card-head"><div><h2>Impressão do comprovante</h2><p>Selecione a impressora térmica e o tamanho físico do papel. O PDF é gerado localmente e não depende desta lista.</p></div><span class="ops-badge ${noPrinters ? 'status-failed' : 'status-ok'}">${noPrinters ? 'SEM IMPRESSORA WINDOWS' : `${printers.length} IMPRESSORA(S)`}</span></div>
         <form id="printing-settings-form" class="ops-form printing-settings-form">
@@ -196,7 +196,7 @@
           <div class="ops-actions printing-field-wide"><button id="printing-save" class="ops-primary" type="submit">Salvar impressão</button><button id="printing-test" class="ops-secondary" type="button">Imprimir teste</button><span id="printing-settings-status" class="ops-muted" aria-live="polite"></span></div>
         </form>
         ${noPrinters ? '<p class="printing-no-printer">Nenhuma impressora do Windows foi encontrada. Você ainda pode usar <strong>Salvar PDF</strong> após concluir a venda.</p>' : ''}
-        ${canEdit ? '' : '<p class="ops-muted">Seu perfil pode consultar estas opções; somente gerente ou administrador pode alterá-las.</p>'}`;
+        ${canEdit ? '' : '<p class="ops-muted">Seu perfil pode consultar estas opções; é necessária a permissão de gerenciar configurações para alterá-las.</p>'}`;
 
       const form = card.querySelector('#printing-settings-form');
       const status = card.querySelector('#printing-settings-status');
