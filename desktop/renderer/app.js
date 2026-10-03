@@ -594,7 +594,7 @@
   }
 
   function productionDestinationMarkup() {
-    return `<div class="field wide" data-production-destination data-available="loading"><label>Destino do pedido</label><select name="productionDestination" disabled><option value="">Carregando destinos…</option></select><small>Escolha “Sem KDS — garçom entrega” para itens prontos. Para produção, selecione o KDS responsável.</small></div>`;
+    return `<div class="field wide" data-production-destination data-available="loading"><label>Destino do pedido</label><select name="productionDestination" disabled><option value="">Carregando destinos…</option></select><small>Escolha “Sem KDS — garçom entrega” para itens prontos. Para itens preparados: Produção · enviar ao KDS selecionado.</small></div>`;
   }
 
   function productionDestinationLabel(productId) {
@@ -631,7 +631,7 @@
       select.value=current;
       select.disabled=false;
       host.dataset.available='true';
-      host.hidden=false;
+      host.hidden=root.querySelector('#product-usage-type')?.value==='INGREDIENT';
       return route||null;
     } catch {
       host.dataset.available='false';
