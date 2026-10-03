@@ -93,7 +93,7 @@ test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{
 
 test('P2 flow hubs use compact card density consistently',()=>{
   const css=read('desktop/renderer/classic-home-ui.css');
-  assert.match(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:108px[^}]*padding:14px 16px/);
+  assert.match(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:112px[^}]*padding:14px 16px/);
   assert.doesNotMatch(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:132px/);
 });
 
