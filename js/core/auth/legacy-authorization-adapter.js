@@ -1,51 +1,51 @@
 'use strict';
 
-const { PERMISSIONS }=require('./permission-registry');
-
-const idsByPrefix=(...prefixes)=>PERMISSIONS
-  .map(permission=>permission.id)
-  .filter(id=>prefixes.some(prefix=>id===prefix||id.startsWith(prefix+'.')));
-
-const STAFF_PERMISSION_IDS=Object.freeze(
-  PERMISSIONS.map(permission=>permission.id).filter(id=>!id.startsWith('public.'))
-);
+const {DEFAULT_PROFILE_PERMISSIONS}=require('./default-profiles');
 
 const LEGACY_ROLE_PERMISSIONS=Object.freeze({
-  admin:Object.freeze([...STAFF_PERMISSION_IDS]),
-  manager:Object.freeze([
-    ...idsByPrefix('sales','returns','cash','customers','products','suppliers','sellers','inventory','restaurant','wholesale','finance','reports','management'),
-    'users.view','users.create','users.edit','users.reset_password',
-    'devices.view','devices.pair','devices.block','devices.rotate_credential',
-    'modules.view','settings.view','settings.manage'
-  ].filter((id,index,array)=>array.indexOf(id)===index)),
-  cashier:Object.freeze([
-    'sales.view','sales.create',
-    'returns.view','returns.manage',
-    'cash.view','cash.open','cash.close','cash.supply','cash.withdraw',
-    'customers.view','customers.manage',
-    'products.view'
-  ])
+  admin:DEFAULT_PROFILE_PERMISSIONS.ADMINISTRATOR,
+  manager:DEFAULT_PROFILE_PERMISSIONS.MANAGER,
+  cashier:DEFAULT_PROFILE_PERMISSIONS.OPERATOR
 });
 
-const DEVICE_TYPE_PERMISSIONS=Object.freeze({
-  WAITER:Object.freeze([
+const DEVICE_SURFACE_PERMISSIONS=Object.freeze({
+  waiter:Object.freeze([
     'restaurant.access','restaurant.orders.view','restaurant.orders.create',
     'restaurant.orders.transfer','restaurant.tables.manage'
   ]),
-  TABLET:Object.freeze([
+  table:Object.freeze([
     'restaurant.access','restaurant.orders.view','restaurant.orders.create'
   ]),
-  KITCHEN:Object.freeze([
+  kitchen:Object.freeze([
     'restaurant.access','kitchen.view','kitchen.update_status'
   ]),
-  SELF_SERVICE:Object.freeze([
+  'self-service':Object.freeze([
     'restaurant.access','restaurant.orders.create'
-  ])
+  ]),
+  terminal:Object.freeze([])
+});
+
+const DEVICE_TYPE_PERMISSIONS=Object.freeze({
+  WAITER:DEVICE_SURFACE_PERMISSIONS.waiter,
+  TABLET:DEVICE_SURFACE_PERMISSIONS.table,
+  KITCHEN:DEVICE_SURFACE_PERMISSIONS.kitchen,
+  SELF_SERVICE:DEVICE_SURFACE_PERMISSIONS['self-service'],
+  TERMINAL:DEVICE_SURFACE_PERMISSIONS.terminal
 });
 
 const PUBLIC_RESOURCE_PERMISSIONS=Object.freeze({
   table:Object.freeze(['public.menu.view','public.order.create'])
 });
+
+function surfaceFromDeviceType(type){
+  const normalized=String(type||'').trim().toUpperCase().replace(/-/g,'_');
+  if(normalized==='WAITER')return'waiter';
+  if(normalized==='TABLET')return'table';
+  if(normalized==='KITCHEN')return'kitchen';
+  if(normalized==='SELF_SERVICE')return'self-service';
+  if(normalized==='TERMINAL')return'terminal';
+  return normalized.toLowerCase().replace(/_/g,'-');
+}
 
 function principalFromLegacyActor(actor={},context={}){
   const role=String(actor?.role||'').trim().toLowerCase();
@@ -64,7 +64,7 @@ function principalFromLegacyActor(actor={},context={}){
     return {
       kind:'device',
       id,
-      surface:type.toLowerCase().replace(/_/g,'-'),
+      surface:String(device?.surface||surfaceFromDeviceType(type)),
       userId:device?.userId?String(device.userId):(actor?.userId?String(actor.userId):null),
       legacyDeviceType:type
     };
@@ -84,6 +84,8 @@ function createLegacyPermissionResolver(){
     }
 
     if(principal.kind==='device'){
+      const surface=String(principal.surface||'').toLowerCase();
+      if(DEVICE_SURFACE_PERMISSIONS[surface])return DEVICE_SURFACE_PERMISSIONS[surface];
       return DEVICE_TYPE_PERMISSIONS[String(principal.legacyDeviceType||'').toUpperCase()]||[];
     }
 
@@ -97,8 +99,10 @@ function createLegacyPermissionResolver(){
 
 module.exports={
   LEGACY_ROLE_PERMISSIONS,
+  DEVICE_SURFACE_PERMISSIONS,
   DEVICE_TYPE_PERMISSIONS,
   PUBLIC_RESOURCE_PERMISSIONS,
   createLegacyPermissionResolver,
-  principalFromLegacyActor
+  principalFromLegacyActor,
+  surfaceFromDeviceType
 };

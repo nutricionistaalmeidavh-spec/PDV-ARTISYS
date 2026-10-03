@@ -587,6 +587,12 @@
       "backend": [
         {
           "path": "js/core/auth/authorization-service.js"
+        },
+        {
+          "path": "js/core/auth/profile-service.js"
+        },
+        {
+          "path": "js/core/auth/device-access-service.js"
         }
       ],
       "api": [],
