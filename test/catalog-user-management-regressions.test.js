@@ -132,28 +132,20 @@ test('HTTP RBAC reserves admin promotion and user deactivation to admins',async(
   }finally{await ctx.close();}
 });
 
-test('desktop wiring exposes complete user management and logical deletion controls',()=>{
+test('desktop wiring exposes the native Access Center and preserves logical deletion APIs',()=>{
   const read=rel=>fs.readFileSync(path.join(__dirname,'..',rel),'utf8');
   const managementApi=read('desktop/renderer/catalog-user-management-api.js');
   const html=read('desktop/renderer/index.html');
-  const managementUi=read('desktop/renderer/catalog-user-management-ui.js');
+  const accessUi=read('desktop/renderer/access-center-ui.js');
   for(const marker of ['removeCategory','removeCustomer','removeSupplier','removeUser'])assert.match(managementApi,new RegExp(`p\\.${marker}=`));
   assert.match(html,/catalog-user-management-api\.js/);
-  assert.match(html,/catalog-user-management-ui\.js/);
-  assert.match(managementUi,/Equipe e acessos/);
-  assert.match(managementUi,/Papéis e permissões/);
-  assert.match(managementUi,/Nova senha/);
-  assert.match(managementUi,/data-remove-customer/);
-  assert.match(managementUi,/data-remove-category/);
-  assert.match(managementUi,/data-remove-supplier/);
-  assert.match(managementUi,/data-remove-user/);
-  assert.doesNotMatch(managementUi,/content\.innerHTML=`<section class="page" id="catalog-user-management-users"/,'user management must preserve the existing seller page');
-  assert.match(managementUi,/PdvUiLifecycle/);
-  assert.match(managementUi,/route:mounted/);
-  assert.match(managementUi,/route:updated/);
-  assert.match(managementUi,/surface:mounted/);
-  assert.doesNotMatch(managementUi,/new MutationObserver/);
-  assert.doesNotMatch(managementUi,/if\(root\.dataset\.catalogDeletionEnhanced==='1'\)return/);
+  assert.match(html,/access-center-ui\.js/);
+  assert.doesNotMatch(html,/catalog-user-management-ui\.js/);
+  assert.match(accessUi,/Acessos e equipe/);
+  for(const label of ['Pessoas','Perfis','Dispositivos','Segurança'])assert.match(accessUi,new RegExp(label));
+  assert.doesNotMatch(accessUi,/Comiss[oõ]es/i);
+  assert.match(accessUi,/PdvRouteRegistry/);
+  assert.match(accessUi,/register\('access'/);
   assert.doesNotThrow(()=>new Function(managementApi));
-  assert.doesNotThrow(()=>new Function(managementUi));
+  assert.doesNotThrow(()=>new Function(accessUi));
 });

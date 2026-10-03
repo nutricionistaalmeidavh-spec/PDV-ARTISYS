@@ -15,7 +15,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new VerticalHttpError(401,'Sessao invalida ou expirada.');}
       if(runtime.catalog?.getUser){const user=runtime.catalog.getUser(session.userId);if(!user||!user.active){sessions.delete(token);throw new VerticalHttpError(401,'Sessao invalida ou expirada.');}session.role=user.role;session.name=user.name;}
       if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new VerticalHttpError(401,'Terminal nao autorizado.');}
-      return{actor:{kind:'human',userId:session.userId,terminalId:session.terminalId||null},principal:{kind:'human',id:session.userId},terminalId:session.terminalId||null};
+      return{actor:{kind:'human',userId:session.userId,role:session.role,terminalId:session.terminalId||null},principal:{kind:'human',id:session.userId},terminalId:session.terminalId||null};
     }
     if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new VerticalHttpError(401,'Terminal nao autorizado.');return{actor:{kind:'device',id,surface:'terminal',terminalId:id},principal:{kind:'device',id,surface:'terminal'},terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new VerticalHttpError(401,'Token local invalido.');

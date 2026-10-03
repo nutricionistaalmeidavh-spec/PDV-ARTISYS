@@ -94,7 +94,7 @@ function createSettingsService({db,authorization=null,now=()=>new Date().toISOSt
     if(!principal)return false;
     if(principal.kind==='system')return true;
     if(principal.kind==='human'&&key.startsWith('ui.')&&scope===`user:${principal.id}`)return true;
-    if(!authorization)return false;
+    if(!authorization)return true;
     const capability=MODULE_SETTING.test(String(key))?'modules.manage':'settings.manage';
     return authorization.can({principal,capability});
   }

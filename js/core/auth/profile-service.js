@@ -16,12 +16,15 @@ function createProfilePermissionResolver({db,fallback=()=>[]}={}){
   if(!db)throw new TypeError('Database is required.');
   return function resolvePermissions(principal,context={}){
     if(principal?.kind==='human'){
-      return db.prepare(`SELECT pp.permission_id
+      const rows=db.prepare(`SELECT pp.permission_id
         FROM users u
         JOIN profiles p ON p.id=u.profile_id AND p.active=1
         JOIN profile_permissions pp ON pp.profile_id=p.id
         WHERE u.id=? AND u.active=1
-        ORDER BY pp.permission_id`).all(String(principal.id)).map(row=>row.permission_id);
+        ORDER BY pp.permission_id`).all(String(principal.id));
+      if(rows.length)return rows.map(row=>row.permission_id);
+      if(principal.legacyRole)return fallback(principal,context);
+      return [];
     }
     return fallback(principal,context);
   };

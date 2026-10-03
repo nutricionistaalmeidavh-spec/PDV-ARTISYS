@@ -8,8 +8,8 @@ function principalFromActor(actor={}){
   if(kind==='public-resource'&&actor.id)return{...actor,kind:'public-resource',id:String(actor.id)};
   if(kind==='device'&&actor.id)return{...actor,kind:'device',id:String(actor.id)};
   const userId=String(actor.id||actor.userId||'').trim();
-  if(kind==='human'&&userId)return{kind:'human',id:userId};
-  if(userId)return{kind:'human',id:userId};
+  if(kind==='human'&&userId)return legacyRole?{kind:'human',id:userId,legacyRole}:{kind:'human',id:userId};
+  if(userId)return legacyRole?{kind:'human',id:userId,legacyRole}:{kind:'human',id:userId};
   return null;
 }
 

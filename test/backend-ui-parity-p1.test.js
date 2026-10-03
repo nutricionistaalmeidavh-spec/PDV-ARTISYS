@@ -25,6 +25,7 @@ async function call(handler,input){const res=response();await handler(request(in
 function runtime(calls){
   return{
     logger:{log(){}},
+    authorization:{require(){return true;},can(){return true;}},
     modules:{list(){return[];}},
     restaurantSettlement:{
       createEqualSettlement(id,data,actor){calls.push({op:'equal',id,data,actor});return{settlement:{id:'settlement-1'}};},
@@ -53,7 +54,7 @@ test('restaurant equal split receives the authenticated manager actor and termin
   assert.equal(res.statusCode,201);
   assert.equal(calls[0].op,'equal');
   assert.equal(calls[0].data.terminalId,'PDV-01');
-  assert.deepEqual(calls[0].actor,{userId:'manager-1',role:'manager',terminalId:'PDV-01'});
+  assert.deepEqual(calls[0].actor,{kind:'human',userId:'manager-1',role:'manager',terminalId:'PDV-01'});
 });
 
 test('manager identity reaches protected restaurant item cancellation',async()=>{

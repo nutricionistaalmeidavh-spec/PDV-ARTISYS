@@ -19,7 +19,7 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
     return session;
   }
   function requireCapability(session,capability){try{return runtime.authorization.require({principal:{kind:'human',id:session.userId},capability});}catch(error){throw new HttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
-  function actor(session){return{kind:'human',userId:session.userId,terminalId:session.terminalId||null};}
+  function actor(session){return{kind:'human',userId:session.userId,role:session.role,terminalId:session.terminalId||null};}
   function userWithAccess(user){const access=runtime.profiles?.getUserAccess?.(user.id)||{profile:null,permissions:[]};return{...user,profile:access.profile,permissions:access.permissions};}
   function checkInstallToken(request){if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new HttpError(401,'Token de instalacao invalido.');}
   async function dispatch(){return runtime.dispatchPending();}

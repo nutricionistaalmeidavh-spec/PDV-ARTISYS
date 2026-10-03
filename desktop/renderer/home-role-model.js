@@ -10,7 +10,7 @@
     catalog:Object.freeze({key:'catalog',label:'Cadastros',description:'Clientes, produtos, estoque e equipe',route:'catalog',tone:'purple',icon:'document'}),
     'post-sale':Object.freeze({key:'post-sale',label:'Vendas e devoluções',description:'Histórico, comprovantes e devoluções',route:'post-sale',tone:'slate',icon:'history'}),
     'financial-management':Object.freeze({key:'financial-management',label:'Gestão financeira',description:'DRE, relatórios e financeiro',route:'financial-management',tone:'rose',icon:'management'}),
-    access:Object.freeze({key:'access',label:'Acessos e equipe',description:'Pessoas, perfis, dispositivos e segurança',route:'access',tone:'blue',icon:'users'}),
+    access:Object.freeze({key:'access',label:'Acessos e equipe',description:'Pessoas, perfis, dispositivos e segurança',route:'access',tone:'amber',icon:'users'}),
     settings:Object.freeze({key:'settings',label:'Configurações',description:'Empresa, áreas e preferências operacionais',route:'settings',tone:'sky',icon:'settings'})
   });
 
@@ -35,7 +35,7 @@
   const LEGACY_USERS=Object.freeze({
     cashier:Object.freeze({profileName:'Operador',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view'])}),
     manager:Object.freeze({profileName:'Gerente',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view','inventory.view','finance.view','reports.view','management.view','sellers.view'])}),
-    admin:Object.freeze({profileName:'Administrador',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view','inventory.view','finance.view','reports.view','management.view','sellers.view','users.view','profiles.view','devices.view','security.view','settings.view'])})
+    admin:Object.freeze({profileName:'Administrador',permissions:Object.freeze(['sales.create','sales.view','returns.view','cash.view','products.view','customers.view','inventory.view','finance.view','reports.view','management.view','sellers.view','settings.view'])})
   });
   function legacyUser(role){return LEGACY_USERS[role]||LEGACY_USERS.cashier;}
   function canAccessRoute(role,route){return Boolean(policy?.canAccessRoute?.(legacyUser(role),route));}
