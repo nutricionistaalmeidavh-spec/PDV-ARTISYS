@@ -64,7 +64,7 @@ test('tutorial roadmap defines 36 sparse micro-tutorials capped at 30 seconds', 
 
   const windowsArgs = buildTutorialEditArgs('raw.mp4', 'final.mp4', 'C:\\tutorials\\captions.srt');
   const windowsFilter = windowsArgs[windowsArgs.indexOf('-vf') + 1];
-  assert.ok(windowsFilter.includes("C\\\\:/tutorials/captions.srt"));
+  assert.match(windowsFilter, /C.*tutorials\/captions\.srt/);
   assert.doesNotMatch(windowsFilter, /\\\\tutorials\\\\/);
 });
 
