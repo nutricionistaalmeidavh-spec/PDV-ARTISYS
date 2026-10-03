@@ -29,7 +29,7 @@ function publicSupplier(row) {
   } : null;
 }
 
-function createCatalogManagementService({ db, catalog, now = () => new Date().toISOString() } = {}) {
+function createCatalogManagementService({ db, catalog, account=null, now = () => new Date().toISOString() } = {}) {
   if (!db) throw new TypeError('Database is required.');
   if (!catalog) throw new TypeError('Catalog service is required.');
 
@@ -66,12 +66,16 @@ function createCatalogManagementService({ db, catalog, now = () => new Date().to
     return publicSupplier(db.prepare('SELECT * FROM suppliers WHERE id=?').get(supplierId));
   }
 
+  function ownerUserId(){return String(account?.activation?.()?.ownerUserId||'').trim()||null;}
+
   function activeAdminCount() {
     return Number(db.prepare("SELECT COUNT(*) AS count FROM users WHERE active=1 AND role='admin'").get()?.count||0);
   }
 
   function ensureAdminMutationSafe(existing, nextRole, nextActive, actor) {
     if(!existing)return;
+    const ownerId=ownerUserId();
+    if(ownerId&&existing.id===ownerId&&(nextRole!=='admin'||!nextActive))throw domainError(409,'O administrador proprietario da instalacao nao pode ser rebaixado ou desativado.');
     if(existing.id===String(actor?.userId||'')&&!nextActive)throw domainError(409,'Nao e permitido desativar o proprio usuario.');
     const removesLastAdmin=Boolean(existing.active)&&existing.role==='admin'&&(nextRole!=='admin'||!nextActive)&&activeAdminCount()<=1;
     if(removesLastAdmin)throw domainError(409,'Nao e permitido remover ou desativar o ultimo administrador ativo.');

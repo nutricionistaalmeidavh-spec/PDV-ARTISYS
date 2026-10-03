@@ -84,8 +84,9 @@ function createPdvRuntime({
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
   runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runAccountIdentityMigrations(db,now);runIntegrityMigrations(db,now);
-  const catalog=createCatalogService({db,now,idFactory});Object.assign(catalog,createCatalogManagementService({db,catalog,now}));
+  const catalog=createCatalogService({db,now,idFactory});
   const account=createAccountService({db,installationId,endpoint:accountEndpoint,requireCommercialActivation,fetchImpl:accountFetchImpl,countUsers:()=>catalog.countUsers(),now});
+  Object.assign(catalog,createCatalogManagementService({db,catalog,account,now}));
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
   const productPhotos=createProductPhotoService({db,storageDir:resolvedProductPhotoDir,now});productPhotos.cleanupExpired();
   const catalogCustomization=createCatalogCustomizationService({db,now,idFactory});

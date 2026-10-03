@@ -35,7 +35,12 @@ function createSetupAccountRouter({runtime,installationToken='',bodyLimitBytes=1
         if(runtime.catalog.countUsers()!==0){sendJson(response,409,{error:'Configuracao inicial ja concluida.'});return true;}
         if(accountStatus().required){sendJson(response,409,{error:'Ativacao comercial pendente para esta nova instalacao.'});return true;}
         const body=await readJson(request,bodyLimitBytes);
-        const user=runtime.catalog.createUser({...body,role:'admin',active:true},{userId:'setup',role:'system',terminalId:null});
+        const activation=accountStatus().activation;
+        const requiredEmail=activation?.accountEmail ? String(activation.accountEmail).trim().toLowerCase() : null;
+        const requestedEmail=String(body.email||'').trim().toLowerCase();
+        if(requiredEmail&&requestedEmail!==requiredEmail){sendJson(response,409,{error:'O administrador principal deve usar o e-mail liberado para esta instalacao.'});return true;}
+        const user=runtime.catalog.createUser({...body,email:requiredEmail||body.email,role:'admin',active:true},{userId:'setup',role:'system',terminalId:null});
+        if(requiredEmail&&runtime.account?.bindOwnerUser)runtime.account.bindOwnerUser(user.id);
         sendJson(response,201,user);return true;
       }
       return false;

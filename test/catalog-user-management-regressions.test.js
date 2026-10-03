@@ -64,6 +64,21 @@ test('user password reset works and self or last-admin deactivation is blocked',
   }finally{runtime.close();}
 });
 
+
+test('installation owner cannot be demoted or deactivated even when another admin exists',()=>{
+  const runtime=runtimeFixture();
+  try{
+    runtime.db.prepare("INSERT INTO installation_activation(installation_id,account_email,license_id,activated_at,activation_source,metadata_json,owner_user_id) VALUES(?,?,?,?,?,?,?)")
+      .run('local','owner@example.com','lic-owner','2026-09-29T12:00:00.000Z','test','{}','admin1');
+    runtime.catalog.upsertUser({id:'admin1',username:'admin',name:'Administrador',role:'admin',email:'owner@example.com',active:true},adminActor);
+    runtime.catalog.createUser({id:'admin2',username:'admin2',name:'Administrador 2',role:'admin',password:'senha-admin2-123'},adminActor);
+    assert.throws(()=>runtime.catalog.saveManagedUser({id:'admin1',username:'admin',name:'Administrador',role:'manager',email:'owner@example.com',active:true},adminActor),/proprietario/i);
+    assert.throws(()=>runtime.catalog.removeUser('admin1',{userId:'admin2',role:'admin'}),/proprietario/i);
+    assert.equal(runtime.catalog.getUser('admin1').role,'admin');
+    assert.equal(runtime.catalog.getUser('admin1').active,true);
+  }finally{runtime.close();}
+});
+
 async function httpFixture(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-catalog-users-'));
   let seq=0;
