@@ -28,6 +28,59 @@
     F12: { type: 'checkout.finalize' }
   });
 
+  const STATUS_LABELS = Object.freeze({
+    NEW:'Novo pedido',
+    WAITING_PRODUCTION:'Aguardando produção',
+    PREPARING:'Preparando',
+    READY:'Pedido pronto',
+    OUT_FOR_DELIVERY:'Saiu para entrega',
+    DELIVERED:'Entregue',
+    PICKED_UP:'Retirado',
+    DRAFT:'Rascunho',
+    QUOTED:'Orçamento',
+    CONFIRMED:'Confirmado',
+    PARTIALLY_FULFILLED:'Parcialmente atendido',
+    FULFILLED:'Atendido',
+    ORDERED:'Pedido realizado',
+    PARTIALLY_RECEIVED:'Recebido parcialmente',
+    RECEIVED:'Recebido',
+    OPEN:'Em aberto',
+    SUSPENDED:'Suspensa',
+    COMPLETED:'Concluída',
+    CANCELLED:'Cancelado',
+    ACTIVE:'Ativo',
+    INACTIVE:'Inativo',
+    BLOCKED:'Bloqueado',
+    FREE:'Livre',
+    OCCUPIED:'Ocupada',
+    BILL_REQUESTED:'Conta solicitada',
+    CHECKOUT:'Em cobrança',
+    ACKNOWLEDGED:'Em atendimento',
+    PENDING:'Pendente',
+    PRINTING:'Imprimindo',
+    PRINTED:'Impresso',
+    FAILED:'Falhou',
+    EXPIRED:'Expirado',
+    DIRECT:'Direto'
+  });
+  const FULFILLMENT_LABELS = Object.freeze({DELIVERY:'Entrega',PICKUP:'Retirada',TABLE:'Mesa',COUNTER:'Balcão'});
+  const DEVICE_TYPE_LABELS = Object.freeze({KITCHEN:'KDS / produção',WAITER:'Garçom',TABLET:'Tablet de mesa',SELF_SERVICE:'Autoatendimento'});
+
+  function statusLabel(value,fallback='Em andamento') {
+    const key=String(value||'').trim().toUpperCase();
+    return STATUS_LABELS[key]||fallback;
+  }
+
+  function fulfillmentLabel(value,fallback='Atendimento') {
+    const key=String(value||'').trim().toUpperCase();
+    return FULFILLMENT_LABELS[key]||fallback;
+  }
+
+  function deviceTypeLabel(value,fallback='Dispositivo') {
+    const key=String(value||'').trim().toUpperCase();
+    return DEVICE_TYPE_LABELS[key]||fallback;
+  }
+
   function resolveShortcut(key, route) {
     const normalized = String(key || '').toUpperCase();
     if (route === 'checkout' && CHECKOUT_SHORTCUTS[normalized]) return { ...CHECKOUT_SHORTCUTS[normalized] };
@@ -102,6 +155,12 @@
     HOME_TILES,
     GLOBAL_SHORTCUTS,
     CHECKOUT_SHORTCUTS,
+    STATUS_LABELS,
+    FULFILLMENT_LABELS,
+    DEVICE_TYPE_LABELS,
+    statusLabel,
+    fulfillmentLabel,
+    deviceTypeLabel,
     resolveShortcut,
     formatCents,
     parseCurrencyToCents,
