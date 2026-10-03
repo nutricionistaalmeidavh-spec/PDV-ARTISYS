@@ -181,8 +181,8 @@ function createProfileService({
     }
 
     const compatibilityRole=profile.legacyRole||'cashier';
-    if(user.role==='admin'&&compatibilityRole!=='admin'){
-      const activeAdmins=Number(db.prepare("SELECT COUNT(*) AS count FROM users WHERE active=1 AND role='admin'").get()?.count||0);
+    if(user.profile_id===DEFAULT_PROFILE_IDS.ADMINISTRATOR&&profile.id!==DEFAULT_PROFILE_IDS.ADMINISTRATOR){
+      const activeAdmins=Number(db.prepare('SELECT COUNT(*) AS count FROM users WHERE active=1 AND profile_id=?').get(DEFAULT_PROFILE_IDS.ADMINISTRATOR)?.count||0);
       if(activeAdmins<=1)throw new Error('Nao e permitido remover o ultimo administrador ativo.');
     }
 

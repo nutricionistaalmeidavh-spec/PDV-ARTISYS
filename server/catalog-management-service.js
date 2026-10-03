@@ -56,22 +56,27 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
   }
 
   function ownerUserId(){return String(account?.activation?.()?.ownerUserId||'').trim()||null;}
-  function activeAdminCount(){return Number(db.prepare("SELECT COUNT(*) AS count FROM users WHERE active=1 AND role='admin'").get()?.count||0);}
+  function administratorProfile(){return profiles?.getProfileBySystemKey?.('admin')||null;}
+  function activeAdminCount(){const admin=administratorProfile();if(!admin)return 0;return Number(db.prepare('SELECT COUNT(*) AS count FROM users WHERE active=1 AND profile_id=?').get(admin.id)?.count||0);}
 
-  function ensureAdminMutationSafe(existing,nextRole,nextActive,actor){
+  function ensureAdminMutationSafe(existing,targetProfile,nextActive,actor){
     if(!existing)return;
+    const adminProfile=administratorProfile();
+    const currentProfileId=existing.profileId||db.prepare('SELECT profile_id FROM users WHERE id=?').get(existing.id)?.profile_id||null;
+    const nextProfileId=targetProfile?.id||currentProfileId;
     const ownerId=ownerUserId();
-    if(ownerId&&existing.id===ownerId&&(nextRole!=='admin'||!nextActive))throw domainError(409,'O administrador proprietario da instalacao nao pode ser rebaixado ou desativado.');
+    if(ownerId&&existing.id===ownerId&&(nextProfileId!==adminProfile?.id||!nextActive))throw domainError(409,'O administrador proprietario da instalacao nao pode ser rebaixado ou desativado.');
     if(existing.id===String(actor?.userId||actor?.id||'')&&!nextActive)throw domainError(409,'Nao e permitido desativar o proprio usuario.');
-    const removesLastAdmin=Boolean(existing.active)&&existing.role==='admin'&&(nextRole!=='admin'||!nextActive)&&activeAdminCount()<=1;
+    const removesLastAdmin=Boolean(existing.active)&&currentProfileId===adminProfile?.id&&(nextProfileId!==adminProfile.id||!nextActive)&&activeAdminCount()<=1;
     if(removesLastAdmin)throw domainError(409,'Nao e permitido remover ou desativar o ultimo administrador ativo.');
   }
 
   function profileForInput(input,existing){
     if(!profiles)return null;
     if(input.profileId)return profiles.getProfile(input.profileId);
-    const role=String(input.role||existing?.role||'cashier').toLowerCase();
-    const key=role==='admin'?'admin':role==='manager'?'manager':'operator';
+    if(existing?.profileId&&!input.role)return profiles.getProfile(existing.profileId);
+    const legacyRole=String(input.role||existing?.role||'cashier').toLowerCase();
+    const key=legacyRole==='admin'?'admin':legacyRole==='manager'?'manager':'operator';
     return profiles.getProfileBySystemKey(key);
   }
 
@@ -96,7 +101,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId));
     const requestedRole=targetProfile?.legacyRole||String(input.role||existing?.role||'cashier').trim().toLowerCase();
 
-    ensureAdminMutationSafe(existing,requestedRole,requestedActive,actor);
+    ensureAdminMutationSafe(existing,targetProfile,requestedActive,actor);
     return catalog.upsertUser({...input,profileId:targetProfile?.id||input.profileId,role:requestedRole,active:requestedActive},actor);
   }
 
@@ -104,7 +109,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     requireCapability(actor,'users.disable');
     const userId=String(id||'').trim();const user=catalog.getUser(userId);
     if(!user)throw domainError(404,'Usuario nao encontrado.');if(!user.active)return user;
-    ensureAdminMutationSafe(user,user.role,false,actor);
+    ensureAdminMutationSafe(user,profiles?.getProfile?.(user.profileId),false,actor);
     const timestamp=now();db.prepare('UPDATE users SET active=0,updated_at=? WHERE id=?').run(timestamp,userId);
     writeAudit(db,{action:'user.remove',entity:'user',entityId:userId,actor,context:{username:user.username,name:user.name,profileId:user.profileId||null,mode:'soft-delete'}},now);
     return catalog.getUser(userId);
