@@ -16,6 +16,7 @@
   let sanitizeScheduled=false;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'\"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));}
+  function statusLabel(value){return root.PdvUiModel?.statusLabel?.(value,String(value||''))||String(value||'');}
   function notify(message,error=false){if(root.PdvToast?.show){root.PdvToast.show(message,error?'error':'success');return;}const toastRoot=document.getElementById('toast-root');if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3200);}
   function sanitizeLegacyPaymentCopy(target=document){
     if(!target)return;
@@ -230,7 +231,6 @@
   async function renderDelivery(){
     const content=document.getElementById('route-content');if(!content)return;
     const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-    const statusLabel=value=>({NEW:'Novo',PREPARING:'Em produção',READY:'Pronto',OUT_FOR_DELIVERY:'Em entrega',DELIVERED:'Entregue',PICKED_UP:'Retirado',CANCELLED:'Cancelado'})[value]||value;
     const phoneForWhatsapp=value=>{const digits=normalizeNationalPhoneInput(value);return /^\d{10,11}$/.test(digits)?digits:null;};
     let view='ALL';let orders=[];let products=[];let users=[];let config=null;let cart=[];let refreshTimer=null;
     try{[orders,products,users,config]=await Promise.all([withTimeout(api.delivery()),withTimeout(api.products(false)),withTimeout(api.users(true)),withTimeout(api.initialize())]);}catch(error){notify(error.message,true);}
@@ -303,7 +303,7 @@
       content.querySelectorAll('[data-delivery-view]').forEach(button=>button.classList.toggle('active',button.dataset.deliveryView===view));
       const filtered=orders.filter(order=>view==='ALL'||order.fulfillmentType===view).filter(order=>order.status!=='CANCELLED');
       const laneKey=order=>order.status==='NEW'&&order.saleId?'WAITING_PRODUCTION':order.status;
-      const lanes=[['NEW','Novos'],['WAITING_PRODUCTION','Aguardando produção'],['PREPARING','Em produção'],['READY','Prontos']];if(view!=='PICKUP')lanes.push(['OUT_FOR_DELIVERY','Em entrega']);
+      const lanes=[['NEW','Novos pedidos'],['WAITING_PRODUCTION','Aguardando produção'],['PREPARING','Preparando'],['READY','Pedidos prontos']];if(view!=='PICKUP')lanes.push(['OUT_FOR_DELIVERY','Em entrega']);
       const board=content.querySelector('[data-delivery-board]');if(!board)return;board.innerHTML=lanes.map(([key,label])=>`<section class="delivery-lane" data-delivery-lane="${key}"><header><span>${label}</span><strong>${filtered.filter(order=>laneKey(order)===key).length}</strong></header><div>${filtered.filter(order=>laneKey(order)===key).map(orderCard).join('')||'<p class="vertical-empty">Nenhum pedido.</p>'}</div></section>`).join('');bindOrderActions(board);
     }
     async function refreshOrders(){try{orders=await withTimeout(api.delivery());renderOrders();}catch(error){notify('Não foi possível atualizar os pedidos. '+error.message,true);}}
@@ -316,7 +316,7 @@
 
   async function renderFastFood(){
     const content=document.getElementById('route-content');let orders=[];try{orders=await withTimeout(api.fastFood());}catch(error){notify(error.message,true);}
-    content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Fast-food / Lanchonete</h1><p>Senha diária e fila local de produção.</p></div>${backButton()}</header><div class="data-card"><button id="fast-new" class="primary-button" type="button">Nova senha</button></div><div class="data-card"><h2>Fila</h2>${orders.map(order=>`<div class="vertical-row"><strong>Senha ${order.dailyNumber}</strong><span>${escapeHtml(order.status)}</span><div class="vertical-actions">${order.status==='NEW'?`<button data-fast-status="${order.id}:PREPARING">Preparar</button>`:''}${order.status==='PREPARING'?`<button data-fast-status="${order.id}:READY">Pronto</button>`:''}${order.status==='READY'?`<button data-fast-status="${order.id}:DELIVERED">Entregue</button>`:''}</div></div>`).join('')||'<p class="vertical-empty">Fila vazia.</p>'}</div></section>`;bindBack();
+    content.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Fast-food / Lanchonete</h1><p>Senha diária e fila local de produção.</p></div>${backButton()}</header><div class="data-card"><button id="fast-new" class="primary-button" type="button">Nova senha</button></div><div class="data-card"><h2>Fila</h2>${orders.map(order=>`<div class="vertical-row"><strong>Senha ${order.dailyNumber}</strong><span>${escapeHtml(statusLabel(order.status))}</span><div class="vertical-actions">${order.status==='NEW'?`<button data-fast-status="${order.id}:PREPARING">Preparar</button>`:''}${order.status==='PREPARING'?`<button data-fast-status="${order.id}:READY">Pronto</button>`:''}${order.status==='READY'?`<button data-fast-status="${order.id}:DELIVERED">Entregue</button>`:''}</div></div>`).join('')||'<p class="vertical-empty">Fila vazia.</p>'}</div></section>`;bindBack();
     document.getElementById('fast-new').addEventListener('click',async()=>{try{await withTimeout(api.createFastFood({}));renderFastFood();}catch(error){notify(error.message,true);}});content.querySelectorAll('[data-fast-status]').forEach(button=>button.addEventListener('click',async()=>{const[id,status]=button.dataset.fastStatus.split(':');try{await withTimeout(api.updateFastFoodStatus(id,status));renderFastFood();}catch(error){notify(error.message,true);}}));
   }
 
