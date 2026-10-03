@@ -7,7 +7,7 @@ const root=path.resolve(__dirname,'..');
 const app=fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
 const restaurantRouter=fs.readFileSync(path.join(root,'server/restaurant-router.js'),'utf8');
 
-test('product and recipe forms expose one canonical production destination field',()=>{
+test('product and recipe forms expose one canonical production destination field in Estoque',()=>{
   assert.match(app,/function productionDestinationMarkup\(/);
   assert.match(app,/Sem KDS — garçom entrega/);
   assert.match(app,/Produção · enviar ao KDS/);
@@ -27,13 +27,17 @@ test('product and recipe validate destination before creating a new catalog reco
   assert.match(app,/await requireProductionDestination\(root\);savedProduct=await api\.saveProduct/);
 });
 
-test('Cardapio addition requires choosing the same production destination',()=>{
-  assert.match(app,/function openMenuDestinationForm\(/);
-  assert.match(app,/Destino do pedido/);
-  assert.match(app,/openMenuDestinationForm\(product/);
+test('Cardapio only consumes the canonical destination and sends missing configuration to Estoque',()=>{
+  assert.match(app,/function ensureMenuProductHasDestination\(/);
+  assert.match(app,/function openInventoryConfigurationRequired\(/);
+  assert.match(app,/PdvCatalogAdmin\?\.openInventoryItem\?\.\(product\.id\)/);
+  assert.doesNotMatch(app,/function openMenuDestinationForm\(/);
+  assert.doesNotMatch(app,/data-product-destination-edit/);
 });
 
-test('menu list exposes the configured destination without duplicating it in catalog',()=>{
+test('menu list exposes destination read-only and inventory has one deep-link editor',()=>{
   assert.match(app,/productionDestinationLabel\(/);
   assert.match(app,/data-production-destination/);
+  assert.match(app,/function openInventoryItem\(productId\)/);
+  assert.match(app,/PdvCatalogAdmin = Object\.freeze\(\{[^}]*openInventoryItem/s);
 });

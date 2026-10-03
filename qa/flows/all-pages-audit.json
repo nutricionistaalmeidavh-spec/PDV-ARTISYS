@@ -892,6 +892,11 @@
       "timeoutMs": 10000
     },
     {
+      "action": "screenshot",
+      "name": "alimentacao-mesas-comandas",
+      "fullPage": true
+    },
+    {
       "action": "click",
       "selector": "[data-restaurant-view-target='management']",
       "name": "mesas-comandas-abrir-gestao",
@@ -908,6 +913,20 @@
       "selector": "[data-restaurant-management]",
       "expected": "Configuração e indicadores",
       "name": "mesas-comandas-gestao-titulo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-restaurant-management]",
+      "expected": "Setores de produção",
+      "name": "gestao-setores-producao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-restaurant-management]",
+      "expected": "Dispositivos LAN",
+      "name": "gestao-dispositivos-lan",
       "timeoutMs": 10000
     },
     {
@@ -931,67 +950,63 @@
       "timeoutMs": 10000
     },
     {
-      "action": "click",
-      "selector": "[data-routing-review]",
-      "name": "gestao-revisar-primeiro-destino-pendente",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectValue",
-      "selector": "#assignment-form select[name='productId']",
-      "expected": "qa-pending-route-product",
-      "name": "gestao-seleciona-produto-pendente",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectText",
-      "selector": "[data-product-routing-list]",
-      "expected": "Coca QA",
-      "name": "gestao-rota-direta-produto",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectText",
-      "selector": "[data-product-routing-list]",
-      "expected": "Atendimento direto",
-      "name": "gestao-rota-direta-rotulo",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectText",
-      "selector": "[data-product-routing-list]",
-      "expected": "Produto QA Atacado",
-      "name": "gestao-rota-producao-produto",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectText",
-      "selector": "[data-product-routing-list]",
-      "expected": "Produção",
-      "name": "gestao-rota-producao-rotulo",
-      "timeoutMs": 10000
-    },
-    {
       "action": "screenshot",
       "name": "alimentacao-mesas-comandas-gestao",
       "fullPage": true
     },
     {
       "action": "click",
-      "selector": "[data-restaurant-view-target='operation']",
-      "name": "mesas-comandas-voltar-operacao",
+      "selector": "[data-routing-review]",
+      "name": "gestao-revisar-primeiro-destino-pendente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#product-form",
+      "name": "estoque-edicao-destino-pendente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectValue",
+      "selector": "#product-form input[name='name']",
+      "expected": "Água QA sem destino",
+      "name": "estoque-produto-pendente-correto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "estoque-destino-pendente",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#product-form [data-close-modal]",
+      "name": "estoque-fechar-produto-pendente",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-module-nav='FOOD']",
+      "name": "voltar-alimentacao-pos-correcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-module-workspace='FOOD']",
+      "name": "alimentacao-workspace-pos-correcao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "reabrir-mesas-comandas-pos-correcao",
       "timeoutMs": 10000
     },
     {
       "action": "expectVisible",
       "selector": "[data-restaurant-view='operation']",
-      "name": "mesas-comandas-operacao-restaurada",
+      "name": "mesas-comandas-voltar-operacao",
       "timeoutMs": 10000
-    },
-    {
-      "action": "screenshot",
-      "name": "alimentacao-mesas-comandas",
-      "fullPage": true
     },
     {
       "action": "click",

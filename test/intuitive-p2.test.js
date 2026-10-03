@@ -39,7 +39,7 @@ test('P2 management surface is explicit and role-gated',()=>{
   assert.match(restaurant,/if\(!canManageRestaurant\(\)\).*activeView=['"]operation['"]/);
 });
 
-test('P2 E2E covers labeled navigation and the operation-management split',()=>{
+test('P2 E2E covers labeled navigation, management infrastructure and inventory remediation',()=>{
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   const names=new Set(flow.steps.map(step=>step.name));
   for(const name of [
@@ -48,6 +48,12 @@ test('P2 E2E covers labeled navigation and the operation-management split',()=>{
     'mesas-comandas-operacao',
     'mesas-comandas-abrir-gestao',
     'mesas-comandas-gestao',
-    'mesas-comandas-voltar-operacao'
+    'gestao-setores-producao',
+    'gestao-dispositivos-lan',
+    'gestao-alerta-destinos-pendentes',
+    'gestao-revisar-primeiro-destino-pendente',
+    'estoque-edicao-destino-pendente',
+    'estoque-produto-pendente-correto',
+    'estoque-destino-pendente'
   ]) assert.equal(names.has(name),true,name);
 });
