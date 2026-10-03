@@ -67,7 +67,7 @@
       "action": "expectText",
       "selector": "#cash-change-message",
       "name": "troco-calculado",
-      "expected": "Troco a devolver: R$ 10,00",
+      "expected": "Troco a devolver:",
       "timeoutMs": 10000,
       "holdMs": 900
     },

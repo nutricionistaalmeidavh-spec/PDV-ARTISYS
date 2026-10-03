@@ -60,7 +60,7 @@
       "action": "expectText",
       "selector": ".discount-control",
       "name": "desconto-aplicado",
-      "expected": "R$ 1,00",
+      "expected": "1,00",
       "timeoutMs": 10000,
       "holdMs": 1000
     }

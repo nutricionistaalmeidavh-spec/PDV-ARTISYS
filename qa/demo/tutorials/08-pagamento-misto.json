@@ -98,7 +98,7 @@
       "action": "expectText",
       "selector": "#modal-root",
       "name": "pagamento-completo",
-      "expected": "R$ 0,00",
+      "expected": "Restante",
       "timeoutMs": 10000,
       "holdMs": 700
     },

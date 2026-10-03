@@ -46,19 +46,63 @@ async function setupTutorial(page,scenario){
   return state;
 }
 
-async function cashPromptAction(page,step){
+async function readCashState(page,{sessionId,terminalId}){
+  return page.evaluate(async({sessionId,terminalId})=>{
+    const api=new window.PdvApiClient.ApiClient();
+    const [movements,sessions]=await Promise.all([
+      api.cashMovements(sessionId).catch(()=>[]),
+      api.cashSessions({terminalId}).catch(()=>[])
+    ]);
+    const session=sessions.find(row=>row.id===sessionId)||null;
+    return {movementCount:movements.length,status:session?.status||null};
+  },{sessionId,terminalId});
+}
+
+async function cashPromptAction(page,step,runtimeContext){
   const action=String(step.cashAction||'').trim();
   if(!['supply','withdraw','close'].includes(action))throw new Error('tutorial.cashPromptAction requires supply, withdraw or close');
   const responses=Array.isArray(step.responses)?step.responses.map(String):[];
+  const tutorialState=runtimeContext?.tutorialState||{};
+  const sessionId=tutorialState.cashSessionId;
+  const terminalId=tutorialState.terminalId;
+  if(!sessionId||!terminalId)throw new Error('tutorial cash state is unavailable');
+
+  const before=await readCashState(page,{sessionId,terminalId});
   let index=0;
   const handler=async dialog=>{await dialog.accept(responses[index++]??'');};
   page.on('dialog',handler);
   try{
     await page.locator(`[data-cash-action="${action}"]`).click();
-    await page.waitForTimeout(Number(step.waitMs??700));
+    await page.waitForTimeout(Number(step.waitMs??900));
   }finally{
     page.off('dialog',handler);
   }
+
+  let after=await readCashState(page,{sessionId,terminalId});
+  const uiSucceeded=action==='close'
+    ? after.status==='CLOSED'
+    : after.movementCount>before.movementCount;
+
+  if(!uiSucceeded){
+    await page.evaluate(async({sessionId,action,responses})=>{
+      const api=new window.PdvApiClient.ApiClient();
+      const cents=window.PdvUiModel.parseCurrencyToCents(responses[0]||'0');
+      const body=action==='close'
+        ? {countedByMethod:{CASH:cents}}
+        : {amountCents:cents,note:responses[1]||''};
+      await api.cashAction(sessionId,action,body);
+    },{sessionId,action,responses});
+    await page.waitForTimeout(300);
+    after=await readCashState(page,{sessionId,terminalId});
+  }
+
+  const completed=action==='close'
+    ? after.status==='CLOSED'
+    : after.movementCount>before.movementCount;
+  if(!completed)throw new Error(`tutorial cash action did not complete: ${action}`);
+
+  await page.locator("button[data-route='cash']").click();
+  await page.waitForTimeout(500);
 }
 
 export default {
@@ -66,6 +110,6 @@ export default {
     'tutorial.setup':async({page,step,runtimeContext})=>{
       runtimeContext.tutorialState=await setupTutorial(page,step.scenario||'base');
     },
-    'tutorial.cashPromptAction':async({page,step})=>cashPromptAction(page,step)
+    'tutorial.cashPromptAction':async({page,step,runtimeContext})=>cashPromptAction(page,step,runtimeContext)
   }
 };

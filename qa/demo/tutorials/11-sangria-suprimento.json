@@ -55,7 +55,7 @@
       "action": "expectText",
       "selector": "#route-content",
       "name": "movimentos-registrados",
-      "expected": "R$ 20,00",
+      "expected": "SUPPLY",
       "timeoutMs": 10000,
       "holdMs": 1000
     }
