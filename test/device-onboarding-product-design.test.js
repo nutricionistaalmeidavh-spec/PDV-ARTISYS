@@ -164,3 +164,22 @@ test('paired terminals cannot silently retarget the permanent credential to anot
   assert.match(settings,/credencial atual nunca é reaproveitada em outro servidor/);
   assert.match(settings,/const external=\['lan-client','own-server'\]\.includes\(value\.mode\)/);
 });
+
+
+test('generic deployment save requires a fresh pairing flow before selecting a remote server',()=>{
+  const fs=require('node:fs');
+  const os=require('node:os');
+  const path=require('node:path');
+  const {saveDataServerSelection}=require('../desktop/data-server-runtime.cjs');
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-remote-enrollment-'));
+  const file=path.join(dir,'data-server.json');
+  const store={load:()=> 'paired-value',save:()=>({configured:true}),status:()=>({configured:true,encryptionAvailable:true})};
+  assert.throws(()=>saveDataServerSelection({
+    db:null,
+    filePath:file,
+    input:{mode:'lan-client',serverUrl:'http://192.168.0.11:4174',terminalId:'PDV-ABC123'},
+    currentConfig:{selected:true,mode:'lan-client',serverUrl:'http://192.168.0.10:4174',terminalId:'PDV-ABC123'},
+    credentialStore:store
+  }),/novo pareamento/i);
+  fs.rmSync(dir,{recursive:true,force:true});
+});
