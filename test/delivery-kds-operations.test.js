@@ -27,6 +27,26 @@ function fixture(){
   return {runtime,kitchen,bar,close:()=>runtime.close()};
 }
 
+test('delivery keeps its item snapshot before creating the canonical sale',()=>{
+  const ctx=fixture();
+  try{
+    const order=ctx.runtime.delivery.create({
+      customerName:'Pedido salvo',fulfillmentType:'PICKUP',paymentMethod:'PIX',
+      items:[{productId:'burger',quantity:2,note:'sem cebola'}]
+    },admin);
+    assert.equal(order.saleId,null);
+    assert.equal(order.items.length,1);
+    assert.equal(order.items[0].productId,'burger');
+    assert.equal(order.items[0].quantity,2);
+    assert.equal(order.items[0].note,'sem cebola');
+
+    const sale=ctx.runtime.delivery.createSale(order.id,{terminalId:'PDV-01',operatorId:'admin'},admin);
+    assert.equal(sale.items.length,1);
+    assert.equal(sale.items[0].productId,'burger');
+    assert.equal(ctx.runtime.delivery.get(order.id).saleId,sale.id);
+  }finally{ctx.close();}
+});
+
 test('delivery production status is driven by all KDS tickets, not by the delivery panel',()=>{
   const ctx=fixture();
   try{
