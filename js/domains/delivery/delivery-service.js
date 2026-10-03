@@ -32,6 +32,7 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
       });
   }
   function map(row){if(!row)return null;let address=null;try{address=row.address_json?JSON.parse(row.address_json):null;}catch{}return{id:row.id,saleId:row.sale_id,customerId:row.customer_id,customerName:row.customer_name,phone:row.phone,fulfillmentType:row.fulfillment_type,address,region:row.region,feeCents:row.fee_cents,courier:row.courier,manualEta:row.manual_eta,paymentMethod:row.payment_method,note:row.note,status:row.status,items:orderItems(row.id),production:productionState(row.id),cancelReason:row.cancel_reason,createdAt:row.created_at,updatedAt:row.updated_at};}
+  function get(id){gate();const row=db.prepare('SELECT * FROM delivery_orders WHERE id=?').get(String(id));if(!row)throw new Error('Pedido de delivery nao encontrado.');return map(row);}
   function normalizeOrderItem(input={}){
     const productId=String(input.productId||'').trim();if(!productId)throw new Error('Produto obrigatorio no pedido.');
     const product=db.prepare('SELECT id,name,sale_price_cents AS salePriceCents FROM products WHERE id=? AND active=1').get(productId);if(!product)throw new Error('Produto nao encontrado ou inativo.');
