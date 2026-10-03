@@ -27,7 +27,7 @@ function headers(token){return {authorization:`Bearer ${token}`,'content-type':'
 test('runtime exposes E13-E20 operational services',()=>{
   const runtime=createPdvRuntime();
   try {
-    for(const key of ['inventory','cash','sales','returns','finance','reports','printing','fiscal']) assert.ok(runtime[key],key);
+    for(const key of ['inventory','cash','sales','returns','finance','reports','printing']) assert.ok(runtime[key],key);
   } finally { runtime.close(); }
 });
 
@@ -35,9 +35,13 @@ test('authenticated API exposes operational E13-E20 families',async()=>{
   const ctx=await setup();
   try {
     const token=await login(ctx.base);
-    for(const endpoint of ['/api/v1/inventory','/api/v1/cash/sessions','/api/v1/sales/history','/api/v1/returns','/api/v1/finance/summary','/api/v1/reports/sales','/api/v1/print/jobs','/api/v1/fiscal/documents']) {
+    for(const endpoint of ['/api/v1/inventory','/api/v1/cash/sessions','/api/v1/sales/history','/api/v1/returns','/api/v1/finance/summary','/api/v1/reports/sales','/api/v1/print/jobs']) {
       const response=await fetch(`${ctx.base}${endpoint}`,{headers:headers(token)});
       assert.equal(response.status,200,endpoint);
+    }
+    for(const endpoint of ['/api/v1/fiscal/documents','/api/v1/nfse/documents']) {
+      const response=await fetch(`${ctx.base}${endpoint}`,{headers:headers(token)});
+      assert.equal(response.status,404,endpoint);
     }
     const unauth=await fetch(`${ctx.base}/api/v1/reports/sales`);
     assert.equal(unauth.status,401);
@@ -51,7 +55,8 @@ test('desktop loads real operational renderers instead of E13-E20 placeholders',
   const operational=fs.readFileSync(path.join(root,'operational-pages.js'),'utf8');
   assert.match(index,/operational-pages\.js/);
   for(const name of ['renderInventory','renderCash','renderSalesHistory','renderReturns','renderFinance','renderReports']) assert.match(operational,new RegExp(`function ${name}\\b`));
-  for(const method of ['inventoryBalances','cashSessions','salesHistory','returns','financeSummary','reportSales','printJobs','fiscalDocuments']) assert.match(api,new RegExp(`${method}\\s*\\(`));
+  for(const method of ['inventoryBalances','cashSessions','salesHistory','returns','financeSummary','reportSales','printJobs']) assert.match(api,new RegExp(`${method}\\s*\\(`));
+  assert.doesNotMatch(api,/fiscalDocuments|requestFiscalIssue|retryFiscalIssue/);
   assert.doesNotMatch(operational,/Módulo previsto para E1[3-9]|Módulo previsto para E20/);
 });
 
