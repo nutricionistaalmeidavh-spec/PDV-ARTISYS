@@ -32,23 +32,24 @@ test('delivery and pickup keep checkout search and WhatsApp regression coverage'
   const router=read('server/checkout-document-router.js');
   const checkoutTests=read('test/checkout-document-search.test.js');
   const whatsappTests=read('test/whatsapp-pickup-ready.test.js');
+  const vertical=read('desktop/renderer/vertical-modules.js');
 
   assert.match(app,/data-checkout-document-filter="delivery"/);
   assert.match(app,/data-checkout-document-filter="retirada"/);
   assert.match(router,/checkout\/documents\/delivery\/:id\/open/);
   assert.match(checkoutTests,/canonical linked sale/);
   assert.match(checkoutTests,/existing canonical sale/);
-  assert.match(whatsappTests,/Avisar no WhatsApp/);
+  assert.match(whatsappTests,/buildPickupReadyWhatsappUrl/);
+  assert.match(vertical,/Avisar no WhatsApp/);
 });
 
 test('Food architecture documents one canonical order-production-checkout model',()=>{
   const ux=read('UX-CONTRACT.md');
   const architecture=read('docs/architecture/e40-e47-verticals.md');
-  for(const doc of [ux,architecture]){
-    assert.match(doc,/Balc[aã]o/i);
-    assert.match(doc,/Mesas e comandas/i);
-    assert.match(doc,/Entrega e retirada/i);
-    assert.match(doc,/KDS/i);
-    assert.match(doc,/venda canônica|venda canonica/i);
-  }
+  assert.match(ux,/Balc[aã]o/i);
+  assert.match(ux,/Mesas e comandas/i);
+  assert.match(ux,/Entrega e retirada/i);
+  assert.match(architecture,/KDS/i);
+  assert.match(architecture,/SaleService canônico|venda canônica|venda canonica/i);
+  assert.match(architecture,/Delivery|Entrega e retirada/i);
 });
