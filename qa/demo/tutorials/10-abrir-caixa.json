@@ -1,0 +1,54 @@
+{
+  "name": "10-abrir-caixa",
+  "title": "Abrir caixa",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "cash-closed"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-tela-caixa",
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#ops-open-cash input[name='amount']",
+      "name": "informar-fundo",
+      "value": "100,00",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#ops-open-cash button[type='submit']",
+      "name": "confirmar-abertura",
+      "holdMs": 900
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "caixa-aberto",
+      "expected": "Caixa aberto",
+      "timeoutMs": 10000,
+      "holdMs": 1200
+    }
+  ]
+}
