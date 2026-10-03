@@ -23,7 +23,8 @@ Use the existing clean, high-contrast register interface. Runtime CSS owns the e
 | Secondary blue | `--artisys-blue-2` | `#10a7ff` |
 | Navigation/deep surface | `--navy`, `--navy-2` | `#081a35`, `#102a52` |
 | Main text | `--ink` | `#10172f` |
-| Supporting text | `--muted` | `#71809f` |
+| Supporting text | `--muted` | `#62718d` |
+| Subtle accessible text | `--text-subtle` | `#60708a` |
 | Dividers | `--line` | `#dfe6f1` |
 | Surface | `--surface`, `--surface-soft` | `#ffffff`, `#f6f8fc` |
 | Positive / destructive / attention | `--success`, `--danger`, `--orange` | `#12b76a`, `#ef3340`, `#ff7a00` |
@@ -54,7 +55,7 @@ Restaurant has three intentionally different surfaces that share the same canoni
 - **Equipe (`/mobile`)**: credentialed staff surface. Waiter prioritizes the floor/table map and service calls; kitchen uses status lanes for `Novo`, `Em preparo`, and `Pronto`; paired table/kiosk modes remain available.
 - **Desktop Restaurante**: remains the management surface. Public-menu settings and per-table QR controls extend the existing Restaurant page instead of creating a separate product shell.
 
-All three surfaces reuse the ArtiSys blue/navy/ink/muted/line/surface tokens and system typography. Mobile CSS may duplicate the exact token values because it is served independently from the Electron renderer, but it must not introduce a competing theme. Customer product cards expose name, public description, photo, price, availability and safe option labels only. Recipe composition, costs, stock internals, SKU/barcode metadata and credentials are never rendered into the public surface.
+All three surfaces reuse the ArtiSys blue/navy/ink/muted/line/surface tokens and system typography. Supporting text on light surfaces must preserve WCAG AA contrast; touch controls use a 44×44px minimum hit area. Mobile CSS may duplicate the exact token values because it is served independently from the Electron renderer, but it must not introduce a competing theme. Customer product cards expose name, public description, photo, price, availability and safe option labels only. Recipe composition, costs, stock internals, SKU/barcode metadata and credentials are never rendered into the public surface.
 
 The customer path uses 44px-or-larger touch actions, sticky search/category navigation, app-owned dialogs for configuration and cart review, visible focus, reduced-motion support, and local failure messages that preserve the cart. The staff PWA shell is registered only on secure contexts (HTTPS or localhost); ordinary LAN HTTP remains a usable browser surface without claiming installability.
 
