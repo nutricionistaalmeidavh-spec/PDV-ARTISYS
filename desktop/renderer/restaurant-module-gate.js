@@ -25,7 +25,7 @@
     if(!enabled&&currentRoute===moduleId){
       const current=moduleCatalog.find(module=>module.id===moduleId);
       const area=current?.area;
-      const areaStillAvailable=area?.navigation==='group'&&moduleCatalog.some(module=>module.area?.id===area.id&&module.enabled&&module.accessRoles?.includes(document.body.dataset.userRole));
+      const areaStillAvailable=area?.navigation==='group'&&moduleCatalog.some(module=>module.area?.id===area.id&&module.enabled&&module.accessCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.accessCapability));
       if(areaStillAvailable)root.PdvVerticalModules?.openWorkspace?.(area.routeId);
       else document.querySelector('#sidebar-nav [data-route="home"]')?.click();
     }

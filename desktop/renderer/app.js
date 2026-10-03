@@ -24,6 +24,7 @@
     sales: { label: 'Últimas vendas', icon: 'history', phase: 'E15' },
     returns: { label: 'Devolução', icon: 'return', phase: 'E15' },
     settings: { label: 'Configurações', icon: 'settings', phase: 'E23' }
+    ,access: { label: 'Acessos e equipe', shortLabel:'Acessos', icon: 'users' }
     ,catalog: { label: 'Cadastros', shortLabel:'Cadastros', icon: 'document' }
     ,'post-sale': { label: 'Vendas e devoluções', shortLabel:'Vendas', icon: 'history' }
     ,'financial-management': { label: 'Gestão financeira', shortLabel:'Gestão', icon: 'management' }
@@ -194,8 +195,8 @@
 
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
-    const roleModel = window.PdvHomeRoleModel;
-    const items = roleModel?.routesForRole(state.user?.role) || ['home','checkout','products','customers','inventory','finance','reports'];
+    const accessPolicy = window.PdvAccessPolicy;
+    const items = accessPolicy?.routesForUser(state.user) || ['home'];
     const parentRoute = {
       finance:'financial-management',
       'finance-banks':'financial-management',
@@ -212,7 +213,7 @@
     }[state.route] || state.route;
     nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}"><span class="nav-button-icon">${icon(ROUTES[route].icon, 25)}</span><span class="nav-label">${escapeHtml(ROUTES[route].shortLabel || ROUTES[route].label)}</span></button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
-    if (settingsButton) settingsButton.hidden = !roleModel?.canAccessRoute(state.user?.role, 'settings');
+    if (settingsButton) settingsButton.hidden = !accessPolicy?.canAccessRoute(state.user, 'settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
     window.dispatchEvent(new CustomEvent('artisys:sidebar-rendered'));
   }
@@ -225,7 +226,9 @@
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = roleLabel(state.user?.role);
     document.body.dataset.userRole = state.user?.role || '';
-    window.PdvUiLifecycle?.emit('user:changed', { role:state.user?.role || '', userId:state.user?.id || '' });
+    document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
+    window.PdvCurrentAccess=state.user||null;
+    window.PdvUiLifecycle?.emit('user:changed', { profileId:state.user?.profileId || state.user?.profile?.id || '', permissions:[...(state.user?.permissions||[])], userId:state.user?.id || '' });
   }
 
   function updateClock() {
@@ -242,7 +245,7 @@
     state.categories = categories; state.products = products; state.customers = customers; state.sellers = sellers;
     try { state.photoSyncStatus = await api.syncProductPhotos(false); monitorProductPhotoSync(); } catch (error) { state.photoSyncStatus={failed:1,lastError:error.message}; }
     if (!state.selectedSellerId || !sellers.some((seller) => seller.id === state.selectedSellerId)) state.selectedSellerId = sellers.find((seller) => seller.id === state.user?.id)?.id || sellers[0]?.id || '';
-    if (['admin','manager'].includes(state.user?.role)) {
+    if (window.PdvAccessPolicy?.hasCapability(state.user,'users.view')) {
       try { state.users = await api.users(true); } catch { state.users = []; }
     }
     try { state.cashSession = await api.openCash(state.config.terminalId); } catch { state.cashSession = null; }
@@ -258,7 +261,7 @@
 
   async function navigate(route) {
     if (!ROUTES[route]) route = 'home';
-    if (!window.PdvHomeRoleModel?.canAccessRoute(state.user?.role, route)) route = 'home';
+    if (!window.PdvAccessPolicy?.canAccessRoute(state.user, route)) route = 'home';
     state.route = route;
     document.body.dataset.activeRoute = route;
     delete document.body.dataset.activeModuleWorkspace;
@@ -276,7 +279,7 @@
   }
 
   function renderFlowHub(title, subtitle, cards) {
-    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvHomeRoleModel?.canAccessRoute(state.user?.role,card.route));
+    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvAccessPolicy?.canAccessRoute(state.user,card.route));
     content.innerHTML=`<section class="page flow-hub-page" data-flow-hub="${escapeHtml(title)}"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
@@ -904,7 +907,7 @@ function openCategoryForm() {
   function showLogin(message = '') {
     authOverlay.classList.remove('hidden');
     authOverlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>ArtiSys PDV</h1><p>${escapeHtml(message || 'Entre para iniciar a operação local.')}</p><form id="login-form"><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="current-password" required></div><button class="primary-button" type="submit">Entrar</button></form></section>`;
-    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
+    authOverlay.querySelector('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); const form = event.currentTarget; try { const login = await api.login({ username: formValue(form,'username'), password: formValue(form,'password'), terminalId: state.config.terminalId }); state.user = login.user; window.PdvCurrentAccess=state.user; updateTopbar(); await loadCommonData(); await navigate('home'); authOverlay.classList.add('hidden'); authOverlay.innerHTML = ''; window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' }); } catch (error) { showToast(error.message, 'error'); } });
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'login' });
   }
 
@@ -924,6 +927,7 @@ function openCategoryForm() {
     try {
       const session = await api.currentSession();
       state.user = session.user;
+      window.PdvCurrentAccess=state.user;
       updateTopbar();
       await loadCommonData();
       await navigate('home');
@@ -939,7 +943,7 @@ function openCategoryForm() {
     }
   }
 
-  function logout() { api.logout(); state.user = null; state.sale = null; clearCheckoutDocumentContext(); updateTopbar(); showLogin(); }
+  function logout() { api.logout(); state.user = null; window.PdvCurrentAccess=null; state.sale = null; clearCheckoutDocumentContext(); updateTopbar(); showLogin(); }
 
   async function executeShortcut(action) {
     if (!action || !state.user) return;

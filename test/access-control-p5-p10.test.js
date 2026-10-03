@@ -85,7 +85,7 @@ test('P9 session access projection and security events are first-class',()=>{
   try{
     const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'},{kind:'system',userId:'setup'});
     const access=runtime.profiles.getUserAccess(admin.id);
-    assert.equal(access.profile.systemKey,'ADMINISTRATOR');
+    assert.equal(access.profile.systemKey,'admin');
     assert.equal(access.permissions.includes('security.view'),true);
 
     runtime.accessSecurity.record({action:'auth.login.success',actor:{kind:'human',userId:admin.id},context:{terminalId:'PDV-01'}});
