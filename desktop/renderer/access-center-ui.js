@@ -5,6 +5,7 @@
   const registry=window.PdvRouteRegistry;
   const accessPolicy=window.PdvAccessPolicy;
   const ux=window.PdvAccessCenterModel;
+  const ui=window.PdvUiModel;
   const content=document.getElementById('route-content');
   if(!ApiClient||!registry||!accessPolicy||!ux||!content)return;
 
@@ -131,9 +132,9 @@
         :(device.scope?`${device.scope.type}: ${device.scope.id||'estabelecimento'}`:'Estabelecimento');
       return `<tr data-device-row="${esc(device.id)}" data-device-id="${esc(device.id)}">
         <td><strong>${esc(device.name)}</strong><small>${esc(device.id)}</small></td>
-        <td>${esc(device.surface||device.deviceType)}</td>
+        <td>${esc(ui?.deviceTypeLabel?.(device.deviceType,device.surface||device.deviceType)||device.surface||device.deviceType)}</td>
         <td>${esc(scope)}</td>
-        <td><span class="access-status ${device.status==='ACTIVE'?'is-active':'is-inactive'}">${esc(device.status)}</span></td>
+        <td><span class="access-status ${device.status==='ACTIVE'?'is-active':'is-inactive'}">${esc(ui?.statusLabel?.(device.status,device.status)||device.status)}</span></td>
         <td>${esc(device.lastSeenAt||'Nunca')}</td>
         <td class="access-actions-cell">${actions}</td>
       </tr>`;
