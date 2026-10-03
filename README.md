@@ -75,6 +75,8 @@ As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, audit
 - dispositivos de garçom, tablet de mesa, KDS e quiosque de autoatendimento com credenciais próprias;
 - QR individual por mesa com token opaco e possibilidade de rotação/revogação;
 - pedido do QR reaproveitando a mesma comanda, `restaurant.addOrder()` e despacho para cozinha;
+- mesas/comandas preservam quantidade de pessoas, cliente opcional e garçom responsável; o mapa projeta o estado real dos tickets de produção sem exigir abertura da comanda;
+- desktop, garçom, tablet e QR compartilham o mesmo modelo de carrinho para quantidade, observação, variantes, opções e combos, com preço final sempre revalidado pelo servidor;
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
 - importação CSV/XLSX com preview, erros por linha e commit idempotente;
@@ -173,7 +175,7 @@ npm run release:manifest -- --output dist/release-manifest.json --artifact dist/
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
 
-O gate atual de UI é `npm run qa:e2e:p0`: ele executa `all-pages-audit` para as superfícies principais e `restaurant-table-lifecycle` para o ciclo transacional de mesas/comandas, no Electron real em 1366×768. Os fluxos validam controles críticos, overflow e resultados operacionais e mantêm screenshots/trace como evidência do CI; não há comparação visual pixel a pixel.
+O gate atual de UI é `npm run qa:e2e:p0`: ele executa `all-pages-audit`, `restaurant-table-lifecycle` e `restaurant-multichannel-ui`. Além do ciclo desktop de mesa/comanda, o gate navega nas superfícies reais de garçom, tablet e QR e confirma pedidos configurados chegando ao KDS. Os fluxos mantêm screenshots/trace como evidência do CI; não há comparação visual pixel a pixel.
 
 Os fluxos legados anteriores continuam aposentados. Novos cenários E2E devem partir da interface atual e verificar um resultado operacional útil antes de entrarem no gate.
 
