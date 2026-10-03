@@ -26,3 +26,22 @@
 .restaurant-routing-alert{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid #e7b768;border-radius:14px;background:#fff8e8;color:#6f4510}
 .restaurant-routing-alert>div{min-width:0}.restaurant-routing-alert strong{display:block;font-size:16px;color:#7a4607}.restaurant-routing-alert small{display:block;margin-top:4px;color:#8b5c20;white-space:normal;overflow-wrap:anywhere}.restaurant-routing-alert p{margin:6px 0 0;font-size:12px;color:#795729}.restaurant-row[data-routing-pending-product]{padding-inline:10px;border:1px solid #efd8ab;border-radius:10px;background:#fffbf2}.restaurant-status.PENDING{background:#fff0cf;color:#8a5610}
 @media(max-width:720px){.restaurant-routing-alert{align-items:stretch;flex-direction:column}.restaurant-routing-alert .restaurant-btn{align-self:flex-start}}
+
+
+/* Restaurant flow completion: session context, multi-item draft and configured items. */
+.restaurant-form-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.restaurant-production-state{display:flex!important;align-items:center;gap:6px;min-height:25px}
+.restaurant-ready-count{font-size:11px;font-weight:800;color:#23713d}
+.restaurant-status.NEW{background:#eef2f6;color:#4b5870}
+.restaurant-status.PREPARING{background:#fff1d8;color:#9b5d10}
+.restaurant-status.READY{background:#e3f7ea;color:#23713d}
+.restaurant-form textarea{min-height:84px;resize:vertical;border:1px solid #d6dde7;border-radius:10px;padding:10px;background:#fff;color:#172033;font:inherit}
+.restaurant-config-modal .modal-body{max-height:min(70vh,680px);overflow:auto}
+.restaurant-config-modal fieldset{display:grid;gap:8px;border:1px solid #e0e6ee;border-radius:12px;padding:12px}
+.restaurant-config-modal legend{font-weight:800;color:#273449;padding:0 4px}
+.restaurant-config-choice{display:grid!important;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:8px;border-radius:9px;background:#f8fafc}
+.restaurant-config-choice input{margin:0}
+.restaurant-config-choice small{color:#78859a;font-weight:700}
+[data-draft-items]{margin-top:10px}
+[data-draft-line] .restaurant-actions{align-items:center;flex-wrap:nowrap}
+@media(max-width:1050px){.restaurant-form-row{grid-template-columns:1fr}}
