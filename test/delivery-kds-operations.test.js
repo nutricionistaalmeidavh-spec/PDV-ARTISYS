@@ -1,0 +1,95 @@
+'use strict';
+
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {createPdvRuntime}=require('../js/core/pdv-runtime');
+
+const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+
+function fixture(){
+  let seq=0;
+  const runtime=createPdvRuntime({
+    dbPath:':memory:',
+    now:()=>`2026-10-03T21:00:${String(seq++).padStart(2,'0')}.000Z`,
+    idFactory:prefix=>`${prefix}-${++seq}`
+  });
+  runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
+  runtime.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,trackStock:false,menuEnabled:true},admin);
+  runtime.catalog.upsertProduct({id:'juice',name:'Suco',salePriceCents:900,trackStock:false,menuEnabled:true},admin);
+  runtime.modules.setEnabled('FOOD',true,admin);
+  const kitchen=runtime.kitchen.upsertStation({id:'kitchen',name:'Cozinha',printEnabled:false},admin);
+  const bar=runtime.kitchen.upsertStation({id:'bar',name:'Bar',printEnabled:false},admin);
+  runtime.kitchen.configureProductRoute('burger',{mode:'PRODUCTION',stationId:kitchen.id},admin);
+  runtime.kitchen.configureProductRoute('juice',{mode:'PRODUCTION',stationId:bar.id},admin);
+  return {runtime,kitchen,bar,close:()=>runtime.close()};
+}
+
+test('delivery production status is driven by all KDS tickets, not by the delivery panel',()=>{
+  const ctx=fixture();
+  try{
+    const order=ctx.runtime.delivery.create({customerName:'Ana',fulfillmentType:'PICKUP',paymentMethod:'PIX'},admin);
+    ctx.runtime.delivery.createSale(order.id,{
+      terminalId:'PDV-01',
+      operatorId:'admin',
+      items:[{productId:'burger',quantity:1},{productId:'juice',quantity:1}]
+    },admin);
+
+    const tickets=ctx.runtime.kitchen.listTickets().filter(ticket=>ticket.sourceType==='DELIVERY'&&ticket.sourceId===order.id);
+    assert.equal(tickets.length,2);
+
+    const kitchenTicket=tickets.find(ticket=>ticket.stationId===ctx.kitchen.id);
+    const barTicket=tickets.find(ticket=>ticket.stationId===ctx.bar.id);
+
+    ctx.runtime.kitchen.updateTicketStatus(kitchenTicket.id,'PREPARING',admin);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'PREPARING');
+
+    ctx.runtime.kitchen.updateTicketStatus(kitchenTicket.id,'READY',admin);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'PREPARING','one ready sector must not make the whole order ready');
+
+    ctx.runtime.kitchen.updateTicketStatus(barTicket.id,'PREPARING',admin);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'PREPARING');
+
+    ctx.runtime.kitchen.updateTicketStatus(barTicket.id,'READY',admin);
+    assert.equal(ctx.runtime.delivery.get(order.id).status,'READY');
+
+    assert.equal(ctx.runtime.delivery.updateStatus(order.id,'PICKED_UP',admin).status,'PICKED_UP');
+  }finally{ctx.close();}
+});
+
+test('delivery panel cannot impersonate production by manually advancing NEW or PREPARING',()=>{
+  const ctx=fixture();
+  try{
+    const order=ctx.runtime.delivery.create({customerName:'Bia',fulfillmentType:'DELIVERY',address:{street:'Rua A'},paymentMethod:'PIX'},admin);
+    assert.throws(()=>ctx.runtime.delivery.updateStatus(order.id,'PREPARING',admin),/KDS|produ/i);
+  }finally{ctx.close();}
+});
+
+test('KDS devices can be scoped to one or more production stations',()=>{
+  const ctx=fixture();
+  try{
+    const device=ctx.runtime.mobileDevices.createDevice({
+      id:'kds-bar',
+      name:'KDS Bar',
+      deviceType:'KITCHEN',
+      stationIds:[ctx.bar.id]
+    },admin);
+    assert.deepEqual(device.stationIds,[ctx.bar.id]);
+    assert.deepEqual(ctx.runtime.mobileDevices.getDevice(device.id).stationIds,[ctx.bar.id]);
+  }finally{ctx.close();}
+});
+
+test('delivery and pickup UI is one operational surface without legacy DOM observation or technical sale IDs',()=>{
+  const vertical=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-modules.js'),'utf8');
+  const parity=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','vertical-parity-p1.js'),'utf8');
+
+  assert.match(vertical,/Entrega e retirada/);
+  assert.match(vertical,/Delivery/);
+  assert.match(vertical,/Retirada/);
+  assert.doesNotMatch(parity,/new MutationObserver/);
+  assert.doesNotMatch(parity,/ID do pedido/);
+  assert.doesNotMatch(parity,/ID do produto/);
+  assert.doesNotMatch(parity,/Avançar para PREPARING|Avançar para READY/);
+  assert.match(parity,/Avisar no WhatsApp/);
+});
