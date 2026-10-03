@@ -62,3 +62,21 @@ test('all-pages QA traverses DRE, all Financeiro subareas and Relatórios',()=>{
     'relatorios-visivel'
   ]) assert.equal(names.has(name),true,name);
 });
+
+
+test('all-pages QA completes a real return and confirms it durably',()=>{
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  const names=new Set(flow.steps.map(step=>step.name));
+  for(const name of [
+    'devolucao-venda-concluida-selecionada',
+    'devolucao-item-selecionado',
+    'devolucao-motivo-preenchido',
+    'devolucao-confirmada',
+    'devolucao-status-concluido',
+    'devolucao-persistida'
+  ]) assert.equal(names.has(name),true,name);
+  const durable=flow.steps.find(step=>step.name==='devolucao-persistida');
+  assert.equal(durable?.action,'desktopApiRequest');
+  assert.equal(durable?.path,'/api/v1/returns');
+  assert.match(String(durable?.expectedPayloadIncludes||''),/Devolução QA/);
+});
