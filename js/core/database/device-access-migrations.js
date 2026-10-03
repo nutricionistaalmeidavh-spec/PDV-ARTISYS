@@ -2,8 +2,8 @@
 
 const {withTransaction}=require('./sqlite-database');
 
-const DEVICE_ACCESS_SCHEMA_VERSION=22;
-const DEVICE_ACCESS_MIGRATION_NAME='pdv_device_access_v22';
+const DEVICE_ACCESS_SCHEMA_VERSION=26;
+const DEVICE_ACCESS_MIGRATION_NAME='pdv_device_access_v26';
 
 function columns(db,table){
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row=>row.name));

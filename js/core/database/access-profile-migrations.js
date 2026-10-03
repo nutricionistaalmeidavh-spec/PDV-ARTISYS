@@ -3,8 +3,8 @@
 const {withTransaction}=require('./sqlite-database');
 const {DEFAULT_PROFILES}=require('../auth/default-profiles');
 
-const ACCESS_PROFILE_SCHEMA_VERSION=21;
-const ACCESS_PROFILE_MIGRATION_NAME='pdv_access_profiles_v21';
+const ACCESS_PROFILE_SCHEMA_VERSION=25;
+const ACCESS_PROFILE_MIGRATION_NAME='pdv_access_profiles_v25';
 
 function columns(db,table){
   return new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(row=>row.name));

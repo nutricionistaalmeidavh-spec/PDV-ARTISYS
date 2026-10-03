@@ -2,8 +2,8 @@
 
 const { withTransaction } = require('./sqlite-database');
 
-const ACCOUNT_IDENTITY_SCHEMA_VERSION = 20;
-const ACCOUNT_IDENTITY_MIGRATION_NAME = 'pdv_auth_account_ownership_v20';
+const ACCOUNT_IDENTITY_SCHEMA_VERSION = 24;
+const ACCOUNT_IDENTITY_MIGRATION_NAME = 'pdv_auth_account_ownership_v24';
 
 function tableColumns(db, tableName) {
   return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map(row => row.name));

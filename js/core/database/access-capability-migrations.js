@@ -3,8 +3,8 @@
 const {withTransaction}=require('./sqlite-database');
 const {DEFAULT_PROFILE_IDS}=require('../auth/default-profiles');
 
-const ACCESS_CAPABILITY_SCHEMA_VERSION=23;
-const ACCESS_CAPABILITY_MIGRATION_NAME='pdv_access_capability_returns_approval_v23';
+const ACCESS_CAPABILITY_SCHEMA_VERSION=27;
+const ACCESS_CAPABILITY_MIGRATION_NAME='pdv_access_capability_returns_approval_v27';
 
 function runAccessCapabilityMigrations(db,now=()=>new Date().toISOString()){
   if(!db)throw new TypeError('Database is required.');
@@ -16,7 +16,7 @@ function runAccessCapabilityMigrations(db,now=()=>new Date().toISOString()){
   if(db.prepare('SELECT 1 FROM schema_migrations WHERE version=?').get(ACCESS_CAPABILITY_SCHEMA_VERSION))return ACCESS_CAPABILITY_SCHEMA_VERSION;
   const hasProfiles=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='profiles'").get());
   const hasPermissions=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='profile_permissions'").get());
-  if(!hasProfiles||!hasPermissions)throw new Error('Migracao de capabilities requer perfis de acesso v21.');
+  if(!hasProfiles||!hasPermissions)throw new Error('Migracao de capabilities requer perfis de acesso v25.');
 
   withTransaction(db,()=>{
     const timestamp=now();
