@@ -218,15 +218,18 @@
         query:state.query
       });
       const visible=state.query?matched:matched.filter(group=>group.id===state.activeGroup);
-      const sections=visible.map(group=>`<section class="access-permission-section" data-permission-section="${esc(group.id)}">
+      const sections=visible.map(group=>{
+        const bulkAction=ux.permissionGroupBulkAction({selected:group.selected,total:group.total,query:state.query});
+        return `<section class="access-permission-section" data-permission-section="${esc(group.id)}">
         <div class="access-permission-section-head"><div><h4>${esc(group.label)}</h4><small>${group.selected} de ${group.total} selecionadas</small></div>
-          <button type="button" class="secondary-button access-compact-button" data-toggle-permission-group="${esc(group.id)}">${group.selected===group.total&&group.total>0?'Limpar grupo':'Selecionar grupo'}</button>
+          ${bulkAction?`<button type="button" class="secondary-button access-compact-button" data-toggle-permission-group="${esc(group.id)}">${esc(bulkAction.label)}</button>`:''}
         </div>
         <div class="access-permission-list">${group.permissions.map(permission=>`<label class="access-permission-row">
           <input type="checkbox" name="permission" value="${esc(permission.id)}" ${state.selected.has(permission.id)?'checked':''}>
           <span><strong>${esc(permission.label)}</strong><small>${esc(permission.description)}</small></span>
         </label>`).join('')}</div>
-      </section>`).join('')||'<div class="access-empty">Nenhuma permissão encontrada.</div>';
+      </section>`;
+      }).join('')||'<div class="access-empty">Nenhuma permissão encontrada.</div>';
 
       return `<div class="access-permission-editor">
         <aside class="access-permission-groups" aria-label="Áreas de permissão">
