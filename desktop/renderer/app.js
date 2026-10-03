@@ -666,10 +666,16 @@
     return (state.productionRoutes||[]).find(item=>item.productId===product.id)?.mode||null;
   }
 
-  function openInventoryItem(productId) {
-    const product=state.products.find(item=>item.id===productId);
+  async function openInventoryItem(productId) {
+    let product=state.products.find(item=>item.id===productId);
+    if(!product){
+      try{
+        state.products=await api.products(true);
+        product=state.products.find(item=>item.id===productId);
+      }catch{}
+    }
     if(!product)return false;
-    if(product.prepared){void openRecipeForm(product);return true;}
+    if(product.prepared){await openRecipeForm(product);return true;}
     openProductForm(product);
     return true;
   }
@@ -680,7 +686,7 @@
       root.querySelector('[data-open-inventory-item]')?.addEventListener('click',async()=>{
         closeModal();
         await window.PdvAppNavigation?.navigate?.('inventory');
-        window.PdvCatalogAdmin?.openInventoryItem?.(product.id);
+        await window.PdvCatalogAdmin?.openInventoryItem?.(product.id);
       });
     }});
   }
@@ -714,7 +720,7 @@
   function bindProductRows(root = content) {
     root.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
     root.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
-    root.querySelectorAll('[data-product-inventory-route]').forEach(button=>button.addEventListener('click',async()=>{await window.PdvAppNavigation?.navigate?.('inventory');window.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.productInventoryRoute);}));
+    root.querySelectorAll('[data-product-inventory-route]').forEach(button=>button.addEventListener('click',async()=>{await window.PdvAppNavigation?.navigate?.('inventory');await window.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.productInventoryRoute);}));
     root.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openMenuSourceDetails(state.products.find((product) => product.id === button.dataset.editProduct))));
     root.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
   }
