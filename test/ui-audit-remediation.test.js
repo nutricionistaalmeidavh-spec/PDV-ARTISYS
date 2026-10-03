@@ -111,10 +111,16 @@ test('mobile and public menu are explicit QA-gated surfaces',()=>{
   assert.match(surfaceTest,/\/m\/\$\{access\.token\}/);
 });
 
-test('shared semantic UI colors are represented by tokens instead of checkout inline color literals',()=>{
+test('shared semantic UI colors are represented by tokens instead of repeated raw literals',()=>{
   const css=read('desktop/renderer/styles.css');
+  const checkout=read('desktop/renderer/ux-home-checkout.css');
   const app=read('desktop/renderer/app.js');
-  for(const token of ['text-subtle','surface-raised','surface-hover'])assert.match(css,new RegExp(`--${token}:`));
+  for(const token of ['text-subtle','text-label','line-soft','surface-raised','surface-hover','surface-subtle','surface-selected']) {
+    assert.match(css,new RegExp(`--${token}:`));
+  }
+  assert.ok((css.match(/#edf1f6/gi)||[]).length<=1,'soft divider must be tokenized after declaration');
+  assert.ok((css.match(/#53627f/gi)||[]).length<=1,'label text must be tokenized after declaration');
+  assert.doesNotMatch(checkout,/#edf1f6|#53627f/i);
   assert.match(app,/class="optional-label"/);
   assert.doesNotMatch(app,/style="color:#9aa6bb/);
 });
