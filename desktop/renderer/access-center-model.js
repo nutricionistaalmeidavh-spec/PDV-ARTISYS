@@ -51,6 +51,13 @@
       });
   }
 
+  function permissionGroupBulkAction({selected=0,total=0,query=''}={}){
+    if(normalized(query)||Number(total)<=0)return null;
+    return Number(selected)===Number(total)
+      ? {action:'clear',label:'Limpar grupo'}
+      : {action:'select',label:'Selecionar grupo'};
+  }
+
   function profileUsageCount(users=[],profileId){
     return (users||[]).filter(user=>String(user?.profileId||'')===String(profileId||'')).length;
   }
@@ -94,6 +101,7 @@
 
   return Object.freeze({
     permissionGroups,
+    permissionGroupBulkAction,
     profileUsageCount,
     profileDeleteState,
     filterProfiles,
