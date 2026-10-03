@@ -33,6 +33,12 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
     'cash-session-isolation',
     'restaurant-kds-flow',
     'self-service-order',
+    'authorization-boundaries',
     'database-invariants'
   ]) assert.ok(runner.includes(invariant),invariant);
+  assert.match(runner,/requireTerminalAuth:true/,'LAN QA must authenticate paired terminals');
+  assert.match(runner,/\/api\/v1\/restaurant\/sessions\/'\+opened\.body\.id\+'\/checkout/,'restaurant QA must reach checkout');
+  assert.match(runner,/qa-waiter-device-2/,'restaurant QA must cover concurrent waiters');
+  assert.match(runner,/PRAGMA integrity_check/,'QA must validate SQLite integrity');
+  assert.match(runner,/PRAGMA foreign_key_check/,'QA must validate foreign keys');
 });
