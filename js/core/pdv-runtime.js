@@ -13,6 +13,7 @@ const { runSalesEnhancementMigrations }=require('./database/sales-enhancement-mi
 const { runCommercialMediaMigrations }=require('./database/commercial-media-migrations');
 const { runAccountIdentityMigrations }=require('./database/account-identity-migrations');
 const { runIntegrityMigrations }=require('./database/integrity-migrations');
+const { runRestaurantFlowMigrations }=require('./database/restaurant-flow-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -83,7 +84,7 @@ function createPdvRuntime({
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
   const settings=createSettingsService({db,now});const modules=createModuleService({db,settings,now});const onboarding=createOnboardingService({db,modules,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,now,idFactory});
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runAccountIdentityMigrations(db,now);runIntegrityMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runAccountIdentityMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);
   const catalog=createCatalogService({db,now,idFactory});Object.assign(catalog,createCatalogManagementService({db,catalog,now}));
   const account=createAccountService({db,installationId,endpoint:accountEndpoint,requireCommercialActivation,fetchImpl:accountFetchImpl,countUsers:()=>catalog.countUsers(),now});
   const resolvedProductPhotoDir=dbPath!==':memory:'?(productPhotoDir||path.join(path.dirname(dbPath),'product-photos')):productPhotoDir;
