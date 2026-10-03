@@ -13,8 +13,9 @@ function runProductionOperationsMigrations(db,now=()=>new Date().toISOString()){
     applied_at TEXT NOT NULL
   )`);
   const applied=Boolean(db.prepare('SELECT 1 FROM schema_migrations WHERE version=?').get(PRODUCTION_OPERATIONS_SCHEMA_VERSION));
-  const present=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mobile_device_kitchen_stations'").get());
-  if(applied&&present)return PRODUCTION_OPERATIONS_SCHEMA_VERSION;
+  const stationScopePresent=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mobile_device_kitchen_stations'").get());
+  const deliveryItemsPresent=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='delivery_order_items'").get());
+  if(applied&&stationScopePresent&&deliveryItemsPresent)return PRODUCTION_OPERATIONS_SCHEMA_VERSION;
   withTransaction(db,()=>{
     db.exec(`
       CREATE TABLE IF NOT EXISTS mobile_device_kitchen_stations (
