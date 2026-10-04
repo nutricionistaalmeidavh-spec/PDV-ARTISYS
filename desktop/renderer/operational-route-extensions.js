@@ -13,7 +13,7 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const qty=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
-  const toast=(message,error=false)=>{if(window.PdvToast?.show){window.PdvToast.show(message,error?'error':'success');return;}const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3200);};
+  const toast=(message,error=false)=>window.PdvToast?.show?.(message,error?'error':'success');
   const currentPage=()=>document.getElementById('route-content')?.querySelector('.ops-page,.page');
   const field=(name,label,type='text',extra='')=>`<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${esc(type)}" ${extra}></label>`;
 
