@@ -4,6 +4,8 @@ const { openDatabase }=require('../js/core/database/sqlite-database');
 const { runMigrations }=require('../js/core/database/migrations');
 const { runReleaseMigrations }=require('../js/core/database/release-migrations');
 const { runVerticalMigrations }=require('../js/core/database/vertical-migrations');
+const {runSalesEnhancementMigrations}=require('../js/core/database/sales-enhancement-migrations');
+const {runCommercialMediaMigrations}=require('../js/core/database/commercial-media-migrations');
 const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
 const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { SqliteOutboxStore }=require('../js/core/database/outbox-store');
@@ -13,7 +15,7 @@ const { calculateSaleTotals }=require('../js/domains/sales/pricing');
 const { createSaleService }=require('../js/domains/sales/sale-service');
 
 function setup(){
-  const db=openDatabase(':memory:');runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);runAccessProfileMigrations(db);runCanonicalAccessMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;
+  const db=openDatabase(':memory:');runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);runSalesEnhancementMigrations(db);runCommercialMediaMigrations(db);runAccessProfileMigrations(db);runCanonicalAccessMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;
   const catalog=createCatalogService({db,now:()=> '2026-09-09T15:00:00Z',idFactory:ids});
   catalog.createUser({id:'u1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-forte-123'});
   catalog.createUser({id:'m1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-forte-456'});
