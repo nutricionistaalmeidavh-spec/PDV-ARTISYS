@@ -3,22 +3,21 @@
 const { randomBytes, randomUUID, scryptSync, timingSafeEqual } = require('node:crypto');
 const { writeAudit } = require('../../core/audit-log');
 
-const DEVICE_TYPES = new Set(['WAITER','KITCHEN','SELF_SERVICE']);
+const DEVICE_TYPES = new Set(['WAITER','KITCHEN']);
 const DEVICE_STATUSES = new Set(['ACTIVE','BLOCKED']);
 
 function hashSecret(secret,salt){return scryptSync(String(secret),String(salt),32).toString('hex');}
 function safeEqualHex(left,right){try{const a=Buffer.from(String(left),'hex');const b=Buffer.from(String(right),'hex');return a.length===b.length&&timingSafeEqual(a,b);}catch{return false;}}
-function canonicalSurface(type){const value=String(type||'').trim().toUpperCase();if(value==='WAITER')return'waiter';if(value==='KITCHEN')return'kitchen';if(value==='SELF_SERVICE')return'self-service';return value.toLowerCase().replace(/_/g,'-');}
+function canonicalSurface(type){const value=String(type||'').trim().toUpperCase();if(value==='WAITER')return'waiter';if(value==='KITCHEN')return'kitchen';return value.toLowerCase().replace(/_/g,'-');}
 function scopeFor(){return{type:'establishment',id:null};}
 
 function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactory=prefix=>`${prefix}-${randomUUID()}`,secretFactory=()=>randomBytes(32).toString('base64url')}={}){
   if(!db)throw new TypeError('Database is required.');
 
-  function isSelfService(id){try{return Boolean(db.prepare('SELECT 1 FROM self_service_profiles WHERE device_id=?').get(String(id)));}catch{return false;}}
   function stationIdsForDevice(id){try{return db.prepare('SELECT station_id AS stationId FROM mobile_device_kitchen_stations WHERE device_id=? ORDER BY station_id').all(String(id)).map(row=>row.stationId);}catch{return [];}}
   function mapDevice(row){
     if(!row)return null;
-    const deviceType=row.device_type==='KITCHEN'&&isSelfService(row.id)?'SELF_SERVICE':row.device_type;
+    const deviceType=row.device_type;
     const surface=row.surface||canonicalSurface(deviceType);
     const scope=row.scope_type?{type:row.scope_type,id:row.scope_id||null}:scopeFor(deviceType,row.table_id);
     return {id:row.id,name:row.name,deviceType,surface,scope,tableId:row.table_id,userId:row.user_id,stationIds:deviceType==='KITCHEN'?stationIdsForDevice(row.id):[],status:row.status,lastSeenAt:row.last_seen_at,createdBy:row.created_by,createdAt:row.created_at,updatedAt:row.updated_at};
@@ -63,9 +62,7 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     const clauses=[];const params=[];
     if(deviceType){
       const type=String(deviceType).toUpperCase();if(!DEVICE_TYPES.has(type))throw new Error('Tipo de dispositivo invalido.');
-      if(type==='SELF_SERVICE')clauses.push('EXISTS (SELECT 1 FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id)');
-      else if(type==='KITCHEN')clauses.push("device_type='KITCHEN' AND NOT EXISTS (SELECT 1 FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id)");
-      else{clauses.push('device_type=?');params.push(type);}
+      clauses.push('device_type=?');params.push(type);
     }
     if(status){const value=String(status).toUpperCase();if(!DEVICE_STATUSES.has(value))throw new Error('Status de dispositivo invalido.');clauses.push('status=?');params.push(value);}
     return db.prepare(`SELECT * FROM mobile_devices${clauses.length?` WHERE ${clauses.join(' AND ')}`:''} ORDER BY name,id`).all(...params).map(mapDevice);
