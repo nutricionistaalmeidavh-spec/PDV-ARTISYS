@@ -7,7 +7,7 @@ const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {VERTICAL_SCHEMA_VERSION}=require('../js/core/database/vertical-migrations');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 function setup(){
   let seq=0;
   const rt=createPdvRuntime({
@@ -16,7 +16,7 @@ function setup(){
     now:()=>`2026-09-11T10:${String(Math.floor(seq/60)).padStart(2,'0')}:${String(seq%60).padStart(2,'0')}.000Z`,
     appVersion:'1.3.0',serverVersion:'1.3.0'
   });
-  rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
+  rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'},admin);
   rt.catalog.upsertCustomer({id:'cust-1',name:'Cliente Teste',phone:'16999999999'},admin);
   rt.cash.openSession({id:'cash-PDV-01',terminalId:'PDV-01',operatorId:'admin',initialCashCents:0,actor:admin});
   return rt;
