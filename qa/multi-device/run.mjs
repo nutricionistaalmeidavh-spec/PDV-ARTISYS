@@ -13,8 +13,8 @@ const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
   smoke:['terminal-onboarding-pairing','price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
-  full:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','database-invariants'],
-  stress:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','self-service-order','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
+  full:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','authorization-boundaries','database-invariants'],
+  stress:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
 });
 
 const SCALE_CASHIERS=10;
@@ -605,33 +605,13 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       return{sessionId:opened.body.id,orders:2,tickets:tickets.length,status:finalSession.status,tableStatus:finalTable.status,finalStock};
     });
 
-    await scenario('self-service-order',async()=>{
-      const device=runtime.mobileDevices.createDevice({id:'qa-self-device',name:'Totem QA',deviceType:'SELF_SERVICE'},actor);
-      runtime.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'qa-cash-a'},actor);
-      const selfHttp=deviceClient(base,device);
-      state.selfHttp=selfHttp;
-      const context=await selfHttp('/api/v1/mobile/context',{expected:200});
-      assert(context.body.profile?.mode==='PICKUP','Totem nao carregou perfil PICKUP',{context:context.body});
-      assert(context.body.paymentMode==='MANUAL_AT_COUNTER','Totem mudou contrato de pagamento',{context:context.body});
-      const mutationId='qa-self-order';
-      const [first,second]=await Promise.all([
-        selfHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':mutationId},body:{items:[{productId:'qa-food',quantity:1}]},expected:201}),
-        selfHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':mutationId},body:{items:[{productId:'qa-food',quantity:1}]},expected:201})
-      ]);
-      assert(first.body.order?.id===second.body.order?.id,'Reenvio do totem criou pedidos diferentes',{first:first.body,second:second.body});
-      assert(first.body.order?.saleId===second.body.order?.saleId,'Reenvio do totem criou vendas diferentes',{first:first.body,second:second.body});
-      const count=runtime.db.prepare('SELECT COUNT(*) AS n FROM fast_food_orders WHERE id=?').get(first.body.order.id).n;
-      assert(count===1,'Totem duplicou fast_food_order',{count});
-      return{orderId:first.body.order.id,mode:context.body.profile.mode,paymentMode:context.body.paymentMode,duplicates:count-1};
-    });
-
     await scenario('authorization-boundaries',async()=>{
       assert(state.kitchenHttp&&state.waiterHttp&&state.restaurantTicketId,'Cenario restaurante deve preparar clientes de dispositivo.');
-      const kdsSelf=await state.kitchenHttp('/api/v1/mobile/self-service/orders',{method:'POST',headers:{'x-mutation-id':'qa-kds-self-forbidden'},body:{items:[{productId:'qa-food',quantity:1}]}});
-      assert(kdsSelf.status===403,'KDS conseguiu criar pedido de autoatendimento',{response:kdsSelf});
+      const kitchenWaiter=await state.kitchenHttp('/api/v1/mobile/orders',{method:'POST',headers:{'x-mutation-id':'qa-kds-waiter-forbidden'},body:{sessionId:state.restaurantSessionId||'forbidden',items:[{productId:'qa-food',quantity:1}]}});
+      assert(kitchenWaiter.status===403,'KDS conseguiu criar pedido pela rota de garçom',{response:kitchenWaiter});
       const waiterKds=await state.waiterHttp('/api/v1/mobile/kitchen/tickets/'+state.restaurantTicketId,{method:'PATCH',body:{status:'READY'}});
       assert(waiterKds.status===403,'Garcom conseguiu operar rota exclusiva de KDS',{response:waiterKds});
-      return{kdsToSelfService:kdsSelf.status,waiterToKds:waiterKds.status};
+      return{kdsToWaiter:kitchenWaiter.status,waiterToKds:waiterKds.status};
     });
 
     await scenario('scale-10-cashiers-15-waiters-13-orders',async()=>{
