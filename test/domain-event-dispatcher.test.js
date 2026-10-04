@@ -13,7 +13,7 @@ function sampleEvent(id = 'evt-1') {
     aggregate: 'sale',
     aggregateId: 'sale-1',
     occurredAt: '2026-09-09T14:00:00-03:00',
-    actor: { userId: 'cashier-1', role: 'cashier', terminalId: 'pdv-01' },
+    actor: { userId: 'cashier-1', profileId:'profile-cashier', terminalId: 'pdv-01' },
     source: 'terminal',
     mutationId: null,
     payload: { total: 120.5 }

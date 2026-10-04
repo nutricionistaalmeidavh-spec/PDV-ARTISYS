@@ -98,7 +98,7 @@ test('catalog endpoints support categories customers sellers and stock-aware pro
     assert.equal((await json(res))[0].document, '12345678900');
 
     res = await fetch(`${ctx.base}/api/v1/users`, {
-      method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'seller1', username: 'maria', name: 'Maria Silva', role: 'cashier', password: 'senha-vendedor-123' })
+      method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'seller1', username: 'maria', name: 'Maria Silva', profileId:'profile-cashier', password: 'senha-vendedor-123' })
     });
     assert.equal(res.status, 201);
     res = await fetch(`${ctx.base}/api/v1/users`, { headers: headers(token) });
@@ -139,7 +139,7 @@ test('checkout API supports customer assignment quantity discount suspend resume
     assert.equal(res.status, 201);
     res = await fetch(`${ctx.base}/api/v1/products`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'p1', sku: '1', name: 'Produto', salePriceCents: 1000 }) });
     assert.equal(res.status, 201);
-    res = await fetch(`${ctx.base}/api/v1/users`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'seller1', username: 'vendedor', name: 'Vendedor 1', role: 'cashier', password: 'senha-vendedor-123' }) });
+    res = await fetch(`${ctx.base}/api/v1/users`, { method: 'POST', headers: headers(token), body: JSON.stringify({ id: 'seller1', username: 'vendedor', name: 'Vendedor 1', profileId:'profile-cashier', password: 'senha-vendedor-123' }) });
     assert.equal(res.status, 201);
     res = await fetch(`${ctx.base}/api/v1/sellers`, { headers: headers(token) });
     assert.ok((await json(res)).some((seller) => seller.id === 'seller1'));

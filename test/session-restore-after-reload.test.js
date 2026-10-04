@@ -15,7 +15,7 @@ async function fixture() {
     id: 'admin-session',
     username: 'admin',
     name: 'Admin Sessao',
-    role: 'admin',
+    profileId:'profile-administrator',
     password: 'senha-admin-123'
   });
   const server = createLocalServer({
