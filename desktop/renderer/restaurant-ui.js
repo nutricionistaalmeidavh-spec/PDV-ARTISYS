@@ -12,7 +12,7 @@
   function toast(message,type=''){root.PdvToast?.show?.(message,type);}
   function status(value){const fallback={CLOSED:'Encerrado',DIRECT:'Atendimento direto'}[String(value||'').toUpperCase()]||String(value||'');const label=ui?.statusLabel?.(value,fallback)||fallback;return `<span class="restaurant-status ${esc(value)}">${esc(label)}</span>`;}
   const deviceTypeLabel=value=>ui?.deviceTypeLabel?.(value,String(value||'Dispositivo'))||String(value||'Dispositivo');
-  const sourceLabel=value=>({WAITER:'Garçom',TABLET:'Tablet da mesa',SELF_SERVICE:'Autoatendimento',PUBLIC_QR:'Cardápio QR',POS:'Balcão',COUNTER:'Balcão',DELIVERY:'Delivery',PICKUP:'Retirada'})[String(value||'').toUpperCase()]||String(value||'Pedido');
+  const sourceLabel=value=>({WAITER:'Garçom',TABLE:'Mesa',PUBLIC_QR:'Cardápio QR',POS:'Balcão',COUNTER:'Balcão',DELIVERY:'Delivery',PICKUP:'Retirada'})[String(value||'').toUpperCase()]||String(value||'Pedido');
   function orderStatus(order){const production=(order?.items||[]).filter(item=>item.productionMode==='PRODUCTION');return (order?.items||[]).length&&!production.length?status('DIRECT'):status(order?.status||'NEW');}
   function canManageRestaurant(){return Boolean(root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'restaurant.access')&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'settings.manage'));}
   function userName(id){return data.users.find(user=>user.id===id)?.name||'Sem responsável';}
