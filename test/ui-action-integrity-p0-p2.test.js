@@ -18,8 +18,8 @@ test('all desktop renderer product UI avoids native alert, confirm and prompt di
   assert.deepEqual(offenders,[]);
 });
 
-test('backend parity destructive actions use the canonical form dialog and persist through API owners',()=>{
-  const source=read('desktop/renderer/backend-parity-ui.js');
+test('operational route extensions use the canonical form dialog and persist through API owners',()=>{
+  const source=read('desktop/renderer/operational-route-extensions.js');
   assert.match(source,/const ux=window\.ArtisysUxComponents/);
   assert.match(source,/title:'Cancelar devolução'/);
   assert.match(source,/onConfirm:data=>api\.cancelReturn\([^,]+,String\(data\.reason\|\|''\)\.trim\(\)\)/);
