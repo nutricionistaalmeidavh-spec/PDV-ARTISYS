@@ -41,10 +41,10 @@ test('terminal stock binding and local stock read model are operable through aut
 });
 
 test('P0 customer operations are wired to visible desktop actions',()=>{
-  const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','backend-parity-ui.js'),'utf8');
+  const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','operational-route-extensions.js'),'utf8');
   const index=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','index.html'),'utf8');
   new Function(ui);
-  assert.match(index,/backend-parity-ui\.js/);
+  assert.match(index,/operational-route-extensions\.js/);
   for(const marker of [
     'Estoque por local','bindTerminalStockLocation','Cancelar devolução','createFinanceAccount','reverseFinanceSettlement',
   ]) assert.ok(ui.includes(marker),`UI parity marker ausente: ${marker}`);
