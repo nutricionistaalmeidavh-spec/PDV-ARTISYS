@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-version=auto
-requested_at=2026-10-04T17:24:00Z
-reason=manual-release-after-pr-168-waiter-direction-a
+requested_at=2026-10-04T17:25:00Z
+reason=immediate-release-after-waiter-direction-a-merge
+source_commit=ed0cdb6dfb35a569e844858be4060bc934a1d521
