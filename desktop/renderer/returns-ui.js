@@ -28,7 +28,7 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   };
-  const hasCapability = capability => Array.isArray(state.session?.user?.permissions)&&state.session.user.permissions.includes(capability);
+  const hasCapability = capability => Boolean(window.PdvAccessPolicy?.hasCapability(state.session?.user,capability));
   const directAllowed = () => hasCapability('returns.approve');
   const requiresApproval = () => hasCapability('returns.manage')&&!directAllowed();
   const canOperate = () => hasCapability('returns.manage');
