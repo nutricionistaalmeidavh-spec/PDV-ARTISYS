@@ -13,8 +13,8 @@ function fixture(){
   const idFactory=prefix=>`${prefix}-${++seq}`;
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-restaurant-main-clean-'));
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),now,idFactory});
-  const operator=runtime.catalog.createUser({id:'op1',username:'op1-clean',name:'Operador',role:'cashier',password:'senha-forte-123'});
-  const waiter=runtime.catalog.createUser({id:'w1',username:'w1-clean',name:'Garçom',role:'cashier',password:'senha-forte-456'});
+  const operator=runtime.catalog.createUser({id:'op1',username:'op1-clean',name:'Operador',profileId:'profile-cashier',password:'senha-forte-123'});
+  const waiter=runtime.catalog.createUser({id:'w1',username:'w1-clean',name:'Garçom',profileId:'profile-cashier',password:'senha-forte-456'});
   const customer=runtime.catalog.upsertCustomer({id:'c1',name:'Cliente Mesa'});
   const product=runtime.catalog.upsertProduct({id:'p1',name:'Prato',sku:'P1',salePriceCents:2500,costCents:1000,trackStock:false,menuEnabled:true});
   const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',seats:4});
@@ -31,27 +31,27 @@ test('mesa preserva operador, garçom responsável, pessoas e cliente até o che
       waiterId:fx.waiter.id,
       partySize:3,
       customerId:fx.customer.id,
-      actor:{userId:fx.operator.id,role:'cashier'}
+      actor:{userId:fx.operator.id,profileId:'profile-cashier'}
     });
     assert.equal(session.openedBy,fx.operator.id);
     assert.equal(session.waiterId,fx.waiter.id);
     assert.equal(session.partySize,3);
     assert.equal(session.customerId,fx.customer.id);
 
-    fx.runtime.restaurant.addOrder(session.id,{items:[{productId:fx.product.id,quantity:2}],actor:{userId:fx.operator.id,role:'cashier'}});
+    fx.runtime.restaurant.addOrder(session.id,{items:[{productId:fx.product.id,quantity:2}],actor:{userId:fx.operator.id,profileId:'profile-cashier'}});
     await fx.runtime.dispatchPending();
 
     const table=fx.runtime.restaurant.listTables().find(row=>row.id===fx.table.id);
     assert.equal(table.productionStatus,'NEW');
     assert.equal(table.newItems,2);
 
-    const reassigned=fx.runtime.restaurant.assignWaiter(session.id,fx.operator.id,{userId:fx.operator.id,role:'cashier'});
+    const reassigned=fx.runtime.restaurant.assignWaiter(session.id,fx.operator.id,{userId:fx.operator.id,profileId:'profile-cashier'});
     assert.equal(reassigned.waiterId,fx.operator.id);
 
     const result=fx.runtime.restaurant.checkoutToSale(session.id,{
       terminalId:'PDV-01',
       operatorId:fx.operator.id,
-      actor:{userId:fx.operator.id,role:'cashier',terminalId:'PDV-01'}
+      actor:{userId:fx.operator.id,profileId:'profile-cashier',terminalId:'PDV-01'}
     },fx.runtime.sales);
     assert.equal(result.sale.customerId,fx.customer.id);
   }finally{fx.close();}

@@ -42,7 +42,7 @@ test('receipt endpoint prefers the immutable original queued snapshot over curre
     settings:settings({'printing.paperMm':80,'printing.columnsMode':'auto','store.name':'Loja Alterada'}),
     printing:{getOriginalSaleReceipt:saleId=>saleId==='sale-1'?original:null}
   };
-  const sessions=new Map([['session-1',{userId:'cashier-1',role:'cashier',expiresAt:Date.now()+60_000}]]);
+  const sessions=new Map([['session-1',{userId:'cashier-1',profileId:'profile-cashier',expiresAt:Date.now()+60_000}]]);
   const route=createReceiptRouter({runtime,sessionStore:sessions,env:{}});
   const res=responseCapture();
   assert.equal(await route(request('/api/v1/sales/sale-1/receipt'),res),true);
@@ -57,7 +57,7 @@ test('receipt endpoint falls back to live projection before the print side effec
     settings:settings({'printing.paperMm':80,'printing.columnsMode':'auto','store.name':'Loja Atual'}),
     printing:{getOriginalSaleReceipt:()=>null}
   };
-  const sessions=new Map([['session-1',{userId:'cashier-1',role:'cashier',expiresAt:Date.now()+60_000}]]);
+  const sessions=new Map([['session-1',{userId:'cashier-1',profileId:'profile-cashier',expiresAt:Date.now()+60_000}]]);
   const route=createReceiptRouter({runtime,sessionStore:sessions,env:{}});
   const res=responseCapture();
   await route(request('/api/v1/sales/sale-1/receipt'),res);
@@ -83,7 +83,7 @@ test('cashier can create and finish an auditable manual print attempt only for i
       markFailed:(id,error)=>{calls.push(['failed',id,error]);return {...jobs.get(id),status:'FAILED',attempts:1,lastError:error};}
     }
   };
-  const sessions=new Map([['session-1',{userId:'cashier-1',role:'cashier',expiresAt:Date.now()+60_000}]]);
+  const sessions=new Map([['session-1',{userId:'cashier-1',profileId:'profile-cashier',expiresAt:Date.now()+60_000}]]);
   const route=createReceiptRouter({runtime,sessionStore:sessions,env:{}});
 
   let res=responseCapture();
@@ -112,7 +112,7 @@ test('manual print result rejects non-manual jobs and records a sanitized failur
   const manual={id:'manual-2',type:'REPRINT',entityType:'sale',entityId:'sale-1',status:'PENDING',payload:{text:'x',paperMm:80,manual:true,reprintOf:'original'}};
   let lastError='';
   const runtime={sales:{getSaleDetails:()=>completedSale()},settings:settings(),printing:{getOriginalSaleReceipt:()=>null,createManualAttempt:()=>manual,getJob:id=>id==='job-1'?bad:manual,markPrinted:()=>manual,markFailed:(id,error)=>{lastError=error;return {...manual,status:'FAILED',lastError:error};}}};
-  const sessions=new Map([['session-1',{userId:'cashier-1',role:'cashier',expiresAt:Date.now()+60_000}]]);
+  const sessions=new Map([['session-1',{userId:'cashier-1',profileId:'profile-cashier',expiresAt:Date.now()+60_000}]]);
   const route=createReceiptRouter({runtime,sessionStore:sessions,env:{}});
 
   let res=responseCapture();

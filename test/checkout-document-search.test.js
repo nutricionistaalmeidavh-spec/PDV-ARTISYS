@@ -72,7 +72,7 @@ function fixture(){
   };
   const sessionStore=new Map([['test-token',{
     userId:'user-1',
-    role:'cashier',
+    profileId:'profile-cashier',
     terminalId:'terminal-1',
     expiresAt:Date.now()+60_000
   }]]);
@@ -151,7 +151,7 @@ test('checkout document search excludes delivery orders that do not yet have a c
       orders:{listOrders:()=>[]},
       delivery:{list:()=>[{id:'draft-delivery',customerName:'Sem envio',fulfillmentType:'DELIVERY',status:'NEW',saleId:null,createdAt:'2026-10-03T16:00:00.000Z'}]}
     },
-    sessionStore:new Map([['test-token',{userId:'user-1',role:'cashier',terminalId:'terminal-1',expiresAt:Date.now()+60_000}]])
+    sessionStore:new Map([['test-token',{userId:'user-1',profileId:'profile-cashier',terminalId:'terminal-1',expiresAt:Date.now()+60_000}]])
   });
 
   assert.deepEqual(await search(router,'delivery'),[]);
@@ -173,7 +173,7 @@ test('checkout opens delivery through its existing canonical sale without recrea
   };
   const router=createCheckoutDocumentRouter({
     runtime,
-    sessionStore:new Map([['test-token',{userId:'user-1',role:'cashier',terminalId:'terminal-1',expiresAt:Date.now()+60_000}]])
+    sessionStore:new Map([['test-token',{userId:'user-1',profileId:'profile-cashier',terminalId:'terminal-1',expiresAt:Date.now()+60_000}]])
   });
   const req=Readable.from([]);
   req.url='/api/v1/checkout/documents/delivery/pickup-17/open';

@@ -40,7 +40,7 @@ test('sale receipt effect snapshots branding into durable print job for safe rep
   const bus=new DomainEventBus();const effectStore=new SqliteEffectStore(db);
   const values={'store.name':'Loja Configurada','store.address':'Av. Central, 10','store.phone':'(16) 99999-9999','store.logoDataUrl':PNG};
   registerPrintEffects({bus,effectStore,printService:print,saleService:{getSaleDetails:id=>id==='s1'?sale():null},settings:{get:(key,{defaultValue})=>Object.hasOwn(values,key)?values[key]:defaultValue},storeName:'Fallback'});
-  const event={eventId:'evt-branding-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-12T12:00:00Z',actor:{userId:'u1',role:'cashier',terminalId:'T1'},source:'server',mutationId:null,payload:{terminalId:'T1'}};
+  const event={eventId:'evt-branding-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-12T12:00:00Z',actor:{userId:'u1',profileId:'profile-cashier',terminalId:'T1'},source:'server',mutationId:null,payload:{terminalId:'T1'}};
   const result=await bus.publishAsync(event);assert.equal(result.failures.length,0);
   const [job]=print.listJobs({entityId:'s1'});assert.match(job.payload.text,/Loja Configurada/);assert.match(job.payload.text,/Av\. Central, 10/);assert.equal(job.payload.logoDataUrl,PNG);
   const reprint=print.reprint(job.id);assert.equal(reprint.payload.logoDataUrl,PNG);assert.equal(reprint.payload.reprintOf,job.id);

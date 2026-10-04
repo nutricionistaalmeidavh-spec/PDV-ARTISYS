@@ -34,8 +34,8 @@ function runtime(settings){return {
   }
 };}
 function sessions(){return new Map([
-  ['cashier',{userId:'u1',role:'cashier',expiresAt:Date.now()+60000}],
-  ['manager',{userId:'u2',role:'manager',expiresAt:Date.now()+60000}]
+  ['cashier',{userId:'u1',profileId:'profile-cashier',expiresAt:Date.now()+60000}],
+  ['manager',{userId:'u2',profileId:'profile-manager',expiresAt:Date.now()+60000}]
 ]);}
 async function call(router,opts){const req=request(opts);const res=response();assert.equal(await router(req,res),true);return {...res.state,json:res.state.body?JSON.parse(res.state.body):null};}
 
