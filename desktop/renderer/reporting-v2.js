@@ -126,17 +126,6 @@
     return revenue ? Number(((Number(row?.estimatedMarginCents||0)/revenue)*100).toFixed(2)) : 0;
   }
 
-  function previousPeriod(fromDate,toDate) {
-    const start=canonicalDateObject(fromDate);
-    const end=canonicalDateObject(toDate);
-    const days=Math.max(1,Math.round((end-start)/86400000)+1);
-    const previousEnd=new Date(start);
-    previousEnd.setUTCDate(previousEnd.getUTCDate()-1);
-    const previousStart=new Date(previousEnd);
-    previousStart.setUTCDate(previousStart.getUTCDate()-(days-1));
-    return {fromDate:dateValueUtc(previousStart),toDate:dateValueUtc(previousEnd)};
-  }
-
   function comparisonPercent(current,previous) {
     const base=Number(previous||0),value=Number(current||0);
     if(base===0)return value===0?0:null;
@@ -225,7 +214,7 @@
     const lowMargin=(sales.lowMarginProducts||[]).slice(0,5);
     const categories=(sales.categorySales||[]).slice(0,8);
     const previousLabel=previousRange
-      ? `${root.PdvBusinessDate.formatDatePtBr(previousRange.fromDate)} a ${root.PdvBusinessDate.formatDatePtBr(previousRange.toDate)}`
+      ? `${root.PdvBusinessDate.formatDatePtBr(previousRange.previousFrom)} a ${root.PdvBusinessDate.formatDatePtBr(previousRange.previousTo)}`
       : 'sem base comparativa';
     return `<section class="ops-card report-print-section report-v2-manager-summary">
       <div class="ops-card-head"><div><h2>Resultado do período</h2><p class="ops-muted">Comparação com período anterior: ${escapeHtml(previousLabel)}.</p></div></div>
@@ -359,10 +348,10 @@
 
     const basePeriod = { from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString() };
     const salesFilters = { ...basePeriod,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : '' };
-    const previousRange = previousPeriod(state.fromDate,state.toDate);
+    const previousRange = root.PdvBusinessDate.equivalentPreviousPeriod(state.fromDate,state.toDate);
     const previousPeriodFilters = {
-      from:new Date(`${previousRange.fromDate}T00:00:00`).toISOString(),
-      to:new Date(`${previousRange.toDate}T23:59:59.999`).toISOString(),
+      from:new Date(`${previousRange.previousFrom}T00:00:00`).toISOString(),
+      to:new Date(`${previousRange.previousTo}T23:59:59.999`).toISOString(),
       sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : ''
     };
     let sales,previousSales=null,inventory,cash,sellers,commissions=null,products=[],rules=[];
