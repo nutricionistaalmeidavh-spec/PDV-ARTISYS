@@ -80,10 +80,10 @@ As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, audit
 - a troca de uma instalação local para servidor externo é bloqueada quando há dados operacionais locais sem migração;
 - interface móvel da equipe self-hosted em `/mobile`;
 - cardápio público por mesa em `/m/:token`, aberto por QR sem credencial de dispositivo;
-- dispositivos de garçom, tablet de mesa, KDS e quiosque de autoatendimento com credenciais próprias;
+- dispositivos de garçom e KDS, além de autoatendimento pareado com **mesa fixa (`SELF_SERVICE + TABLE`)** ou **retirada (`SELF_SERVICE + PICKUP`)**, todos com credenciais próprias;
 - QR individual por mesa com token opaco e possibilidade de rotação/revogação;
 - pedido do QR reaproveitando a mesma comanda, `restaurant.addOrder()` e despacho para cozinha;
-- compositor local compartilhado entre desktop, garçom, tablet e QR, preservando quantidade, observações e configurações do produto;
+- compositor local compartilhado entre desktop, garçom, autoatendimento e QR, preservando quantidade, observações e configurações do produto;
 - sessão de mesa preservando operador de abertura, garçom responsável, quantidade de pessoas e cliente até o checkout canônico;
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
@@ -180,7 +180,7 @@ npm run qa:web-surfaces
 npm run qa:e2e:p0
 npm run qa:e2e:tablet
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-*-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-2.0.1-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
