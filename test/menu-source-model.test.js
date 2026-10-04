@@ -8,7 +8,7 @@ const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 test('new stock products and technical-sheet products are not added to Cardapio implicitly',()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});
