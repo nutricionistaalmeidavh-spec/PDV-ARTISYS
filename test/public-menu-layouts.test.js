@@ -76,8 +76,8 @@ test('desktop selector and customer menu keep one canonical renderer while intro
   assert.match(desktop,/Moderno e compacto/);
   assert.match(desktop,/Visual gastronômico/);
   assert.match(desktop,/name="menuLayout"/);
-  assert.match(desktop,/value="COMPACT"/);
-  assert.match(desktop,/value="PREMIUM"[^>]*disabled/);
+  assert.match(desktop,/layoutOption\(\{value:'COMPACT'/);
+  assert.match(desktop,/layoutOption\(\{value:'PREMIUM'[\s\S]*disabled:true/);
   assert.match(desktop,/menuLayout:/);
   assert.match(desktopCss,/\.menu-layout-selector/);
   assert.match(desktopCss,/\.menu-layout-preview/);
