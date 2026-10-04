@@ -46,11 +46,13 @@ test('toast CSS supports compact close affordance and exit animation', () => {
   assert.ok(stylesSource.includes('max-width: 360px'), 'toast width must be more compact than the legacy 420px surface');
 });
 
-test('legacy toast producers are centralized without rewriting their business flows', () => {
+test('shared toast API is canonical and no longer monkey-patches appendChild', () => {
   const source = readToastSource();
-  assert.ok(source.includes('installLegacyAppendBridge'), 'shared manager must adopt legacy toast append calls');
-  assert.ok(source.includes('toastRoot.appendChild = function appendManagedToast'), 'toast root must route legacy appendChild calls through the shared policy');
-  assert.ok(source.includes('nativeAppendChild(node)'), 'managed nodes must bypass the compatibility bridge without recursion');
+  assert.match(source,/window\.PdvToast\s*=\s*Object\.freeze/);
+  assert.match(source,/\bshow\b/);
+  assert.doesNotMatch(source,/installLegacyAppendBridge/);
+  assert.doesNotMatch(source,/toastRoot\.appendChild\s*=/);
+  assert.ok(source.includes('nativeAppendChild(node)'), 'the shared manager must append its own managed nodes directly');
 });
 
 test('manual close control keeps exact success text compatible with existing observers', () => {
