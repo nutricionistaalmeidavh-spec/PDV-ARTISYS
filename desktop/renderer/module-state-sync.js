@@ -4,8 +4,7 @@
   const root=window;
   if(root.PdvModuleStateSync)return;
   const lifecycle=root.PdvUiLifecycle;
-  const routeRegistry=root.PdvRouteRegistry;
-  if(!lifecycle||!routeRegistry)return;
+  if(!lifecycle)return;
 
   function routeContent(){return document.getElementById('route-content');}
   function annotateWorkspace(){
