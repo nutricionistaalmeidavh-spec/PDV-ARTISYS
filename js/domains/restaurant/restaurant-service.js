@@ -6,7 +6,7 @@ const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity } = require('../inventory/inventory-rules');
 
 const ACTIVE_SESSION_STATUSES = ['OPEN', 'CHECKOUT'];
-const ORDER_SOURCES = new Set(['DESKTOP', 'WAITER', 'TABLET']);
+const ORDER_SOURCES = new Set(['DESKTOP', 'WAITER', 'TABLE']);
 const SERVICE_TYPES = new Set(['WAITER', 'BILL']);
 const SERVICE_STATUSES = new Set(['OPEN', 'ACKNOWLEDGED', 'CLOSED']);
 
