@@ -23,9 +23,9 @@ test('runtime exposes account service but keeps it disabled by default',()=>{
   finally{ctx.close();}
 });
 
-test('runtime can configure optional commercial services without gating a new installation',()=>{
+test('runtime can explicitly enable commercial activation for a new installation',()=>{
   const ctx=createPdvRuntime({installationId:'install-2',accountEndpoint:'https://account.example',requireCommercialActivation:true,accountFetchImpl:async()=>({ok:true,status:200,json:async()=>({})})});
-  try{assert.equal(ctx.account.status().required,false);}
+  try{assert.equal(ctx.account.status().required,true);}
   finally{ctx.close();}
 });
 
@@ -49,7 +49,7 @@ test('new configured installation verifies activation remotely and persists only
   };
   try {
     const account = createAccountService({ db:ctx.db, installationId:'install-1', requireCommercialActivation:true, endpoint:'https://account.example/', fetchImpl, countUsers:()=>ctx.catalog.countUsers(), now:()=> '2026-09-25T21:00:00.000Z' });
-    assert.equal(account.status().required, false);
+    assert.equal(account.status().required, true);
     await account.requestActivation(' Owner@Example.COM ');
     const activation = await account.verifyActivation({ email:'Owner@Example.COM', code:'123456' });
     assert.equal(activation.licenseId, 'lic-1');
