@@ -54,11 +54,11 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
 
 test('all remaining complex extensions consume lifecycle without DOM observers',()=>{
   const files=[
-    'desktop/renderer/backend-parity-ui.js',
+    'desktop/renderer/operational-route-extensions.js',
     'desktop/renderer/e48-e54-ui.js',
     'desktop/renderer/enterprise-depth-ui.js',
     'desktop/renderer/restaurant-public-ordering-ui.js',
-    'desktop/renderer/ui-parity-p0-p2.js',
+    'desktop/renderer/operational-detail-extensions.js',
     'desktop/renderer/vertical-modules.js',
     'desktop/renderer/vertical-parity-p1.js'
   ];
