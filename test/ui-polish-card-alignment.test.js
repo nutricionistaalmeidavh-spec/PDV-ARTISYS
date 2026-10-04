@@ -27,8 +27,8 @@ test('settings cards and switches keep copy away from edges and controls aligned
 
 test('access checkboxes align consistently with labels and descriptions',()=>{
   const css=read('desktop/renderer/access-center-ui.css');
-  assert.match(css,/\.access-permission-row\s*\{[^}]*grid-template-columns:20px minmax\(0,1fr\)[^}]*gap:12px[^}]*padding:12px 14px/s);
-  assert.match(css,/\.access-permission-row input\s*\{[^}]*width:18px[^}]*height:18px[^}]*margin:1px 0 0/s);
-  assert.match(css,/\.access-toggle-row\s*\{[^}]*grid-template-columns:20px minmax\(0,1fr\)[^}]*gap:12px[^}]*align-items:center[^}]*padding:14px/s);
-  assert.match(css,/\.access-toggle-row input\s*\{[^}]*width:18px[^}]*height:18px[^}]*margin:0/s);
+  assert.match(css,/\.access-permission-row\s*\{[^}]*grid-template-columns:\s*20px minmax\(0,1fr\)[^}]*gap:\s*12px[^}]*padding:\s*12px 14px/s);
+  assert.match(css,/\.access-permission-row input\s*\{[^}]*width:\s*18px[^}]*height:\s*18px[^}]*margin:\s*1px 0 0/s);
+  assert.match(css,/\.access-toggle-row\s*\{[^}]*grid-template-columns:\s*20px minmax\(0,1fr\)[^}]*gap:\s*12px[^}]*align-items:\s*center[^}]*padding:\s*14px/s);
+  assert.match(css,/\.access-toggle-row input\s*\{[^}]*width:\s*18px[^}]*height:\s*18px[^}]*margin:\s*0/s);
 });
