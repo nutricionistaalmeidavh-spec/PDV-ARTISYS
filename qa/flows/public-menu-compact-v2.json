@@ -3,6 +3,24 @@
   "description": "Captura real do cardápio público Compacto V2 no QR canônico.",
   "steps": [
     {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "compact-bootstrap",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "compact-entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "compact-autenticado",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
       "action": "desktopApiRequest",
       "path": "/api/v1/products",
       "method": "POST",
