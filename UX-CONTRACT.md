@@ -74,8 +74,8 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 ## Restaurante: equipe móvel e PWA
 
-- `/mobile` is staff-only and continues to use paired device credentials. Customer QR users must never be directed to the device login screen.
-- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. After submission, the selected table keeps its command visible: `DIRECT` items are labelled as direct service, while production items reflect the canonical order state (`Novo → Em preparo → Pronto`). Kitchen mode prioritizes the same production lanes and never receives `DIRECT` items. Paired table and self-service kiosk modes retain their existing device contracts.
+- `/mobile` is the credentialed paired-device entry point for waiter, KDS and self-service. Customer QR users must never be directed to the device login screen.
+- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. After submission, the selected table keeps its command visible: `DIRECT` items are labelled as direct service, while production items reflect the canonical order state (`Novo → Em preparo → Pronto`). Kitchen mode prioritizes the same production lanes and never receives `DIRECT` items. Customer-facing fixed hardware is exclusively `SELF_SERVICE`: `TABLE` resolves the persisted table/comanda and exposes waiter/bill actions; `PICKUP` represents counter pickup and omits table actions.
 - Staff mutations disable the initiating control while pending and use pessimistic confirmation. Background refresh is single-flight and must not erase a local in-progress cart.
 - Manifest/service worker registration occurs only in secure contexts (HTTPS or localhost). LAN HTTP remains supported as an ordinary web application and is not labelled installable PWA.
 - Service-worker caching is limited to the staff application shell. `/api/` requests remain network-authoritative and are never satisfied from an offline cache.
