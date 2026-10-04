@@ -32,8 +32,8 @@ test('P3 fresh installs bootstrap canonical profiles and bind new users by profi
     assert.equal(runtime.db.prepare('SELECT name FROM schema_migrations WHERE version=27').get()?.name,'pdv_access_capability_returns_approval_v27');
 
     const user=runtime.catalog.createUser({
-      id:'u1',username:'op',name:'Operador',profileId:'profile-cashier',password:'senha-forte-123'
-    },{userId:'setup',role:'system'});
+      id:'u1',username:'op',name:'Operador',profileId:'profile-operator',password:'senha-forte-123'
+    },{kind:'system',id:'system'});
     assert.equal(user.profileId,operator.id);
 
     const stored=runtime.db.prepare('SELECT profile_id FROM users WHERE id=?').get(user.id);
@@ -41,12 +41,12 @@ test('P3 fresh installs bootstrap canonical profiles and bind new users by profi
   }finally{runtime.close();}
 });
 
-test('P3 custom profiles drive canonical human authorization independently of legacy role',()=>{
+test('P3 custom profiles drive canonical human authorization from persisted profiles',()=>{
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
-    },{userId:'setup',role:'system'});
+    },{kind:'system',id:'system'});
     const custom=runtime.accessProfiles.createProfile({
       name:'Consulta de estoque',
       permissions:['products.view','inventory.view']
@@ -57,7 +57,6 @@ test('P3 custom profiles drive canonical human authorization independently of le
 
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:user.id},capability:'inventory.view'}),true);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:user.id},capability:'sales.create'}),false);
-    assert.equal(runtime.catalog.getUser(user.id).role,'cashier');
     assert.equal(runtime.catalog.getUser(user.id).profileId,custom.id);
   }finally{runtime.close();}
 });
@@ -67,7 +66,7 @@ test('P3 blocks capability escalation and protects the Administrator profile',()
   try{
     const admin=runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
-    },{userId:'setup',role:'system'});
+    },{kind:'system',id:'system'});
     const manager=runtime.catalog.createUser({
       id:'manager1',username:'manager',name:'Gerente',profileId:'profile-manager',password:'senha-manager-123'
     },{userId:admin.id,profileId:'profile-administrator'});
@@ -94,7 +93,7 @@ test('P4 devices expose authentication, surface, scope and optional human bindin
   try{
     const admin=runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
-    },{userId:'setup',role:'system'});
+    },{kind:'system',id:'system'});
     const waiterUser=runtime.catalog.createUser({
       id:'waiter1',username:'garcom',name:'Garcom',profileId:'profile-cashier',password:'senha-garcom-123'
     },{userId:admin.id,profileId:'profile-administrator'});
@@ -124,7 +123,7 @@ test('P4 device authorization uses surface capabilities and resource scope',()=>
   try{
     const admin=runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
-    },{userId:'setup',role:'system'});
+    },{kind:'system',id:'system'});
     const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,profileId:'profile-administrator'});
     const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET',tableId:table.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});

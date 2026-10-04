@@ -141,9 +141,8 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   const userColumns=new Set(db.prepare('PRAGMA table_info(users)').all().map(column=>column.name));
   const hasAccountIdentity=['email','email_normalized','password_changed_at'].every(name=>userColumns.has(name));
   const hasProfiles=userColumns.has('profile_id')&&tableExists('profiles');
-  if(!hasProfiles)throw new Error('Schema canonico de perfis nao inicializado.');
-
   function resolveUserProfile(input,existing=null){
+    if(!hasProfiles)throw new Error('Schema canonico de perfis nao inicializado.');
     const requested=input.profileId!==undefined&&input.profileId!==null?String(input.profileId).trim():'';
     const profileId=requested||String(existing?.profile_id||'').trim();
     if(!profileId)throw new Error('Perfil de acesso obrigatorio.');

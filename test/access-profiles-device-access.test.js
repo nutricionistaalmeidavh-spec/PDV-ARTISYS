@@ -62,7 +62,7 @@ test('P3 creates configurable profiles, enforces anti-escalation and assigns saf
 
     const assigned=runtime.profiles.assignProfile(operator.id,waiterProfile.id,{userId:admin.id,profileId:'profile-administrator'});
     assert.equal(assigned.profileId,waiterProfile.id);
-    assert.equal(assigned.role,'cashier');
+    assert.equal(assigned.profileId,waiterProfile.id);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:operator.id},capability:'restaurant.orders.create'}),true);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:operator.id},capability:'finance.manage'}),false);
 
@@ -134,10 +134,10 @@ test('P4 blocking and credential rotation remain device-authentication concerns'
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS Cozinha',deviceType:'KITCHEN'});
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,kitchen.credential).ok,true);
 
-    runtime.mobileDevices.setStatus(kitchen.id,'BLOCKED',{userId:'system',role:'system'});
+    runtime.mobileDevices.setStatus(kitchen.id,'BLOCKED',{kind:'system',id:'system'});
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,kitchen.credential).ok,false);
 
-    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{userId:'system',role:'system'});
+    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{kind:'system',id:'system'});
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,kitchen.credential).ok,false);
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,rotated.credential).ok,true);
   }finally{runtime.close();}

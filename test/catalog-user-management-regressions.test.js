@@ -74,7 +74,7 @@ test('installation owner cannot be demoted or deactivated even when another admi
     runtime.catalog.createUser({id:'admin2',username:'admin2',name:'Administrador 2',profileId:'profile-administrator',password:'senha-admin2-123'},adminActor);
     assert.throws(()=>runtime.catalog.saveManagedUser({id:'admin1',username:'admin',name:'Administrador',profileId:'profile-manager',email:'owner@example.com',active:true},adminActor),/proprietario/i);
     assert.throws(()=>runtime.catalog.removeUser('admin1',{userId:'admin2',profileId:'profile-administrator'}),/proprietario/i);
-    assert.equal(runtime.catalog.getUser('admin1').role,'admin');
+    assert.equal(runtime.catalog.getUser('admin1').profileId,'profile-administrator');
     assert.equal(runtime.catalog.getUser('admin1').active,true);
   }finally{runtime.close();}
 });

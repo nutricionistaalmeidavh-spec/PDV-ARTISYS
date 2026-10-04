@@ -43,7 +43,7 @@ test('failed password validation preserves the recovery key and user profile',()
     assert.throws(()=>service.recover({username:'cashier',key,password:'short'}),/10 caracteres/);
     service.recover({username:'cashier',key,password:'new-password-123'});
     assert.deepEqual(runtime.db.prepare('SELECT profile_id FROM users WHERE id=?').get(user.id),before);
-    assert.equal(runtime.catalog.getUser(user.id).role,'cashier');
+    assert.equal(runtime.catalog.getUser(user.id).profileId,'profile-cashier');
   }finally{runtime.close();}
 });
 
