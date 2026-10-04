@@ -20,7 +20,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
     return{actor:{kind:'system',id:'system',terminalId:null},terminalId:null};
   }
   async function mutate(request,pathname,statusCode,handler){const mutationId=String(request.headers['x-mutation-id']||'').trim();if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};return runtime.mutations.execute({mutationId,method:request.method,path:pathname},async()=>({statusCode,payload:await handler(mutationId)}));}
-  function tableAccess(request,url,tableId,{rotate=false,input={}}={}){const p=principal(request);const ordering=publicOrdering();const access=rotate?ordering.rotateTableAccess(tableId,p.actor):ordering.issueTableAccess(tableId,p.actor);const host=String(input.host||url.searchParams.get('host')||String(request.headers.host||'127.0.0.1').split(':')[0]).trim();const port=Number(input.port||url.searchParams.get('port')||String(request.headers.host||'').split(':')[1]||4174);const lan=runtime.mobileAccess.getLanAccess({host,port,protocol:input.protocol||url.searchParams.get('protocol')||'http:',path:`/m/${access.token}`});return{tableId:access.tableId,url:lan.url,qrSvg:lan.qrSvg,security:lan.security,warning:lan.warning};}
+  function tableAccess(request,url,tableId,{rotate=false,input={}}={}){const p=principal(request);const ordering=runtime.publicOrdering;const access=rotate?ordering.rotateTableAccess(tableId,p.actor):ordering.issueTableAccess(tableId,p.actor);const host=String(input.host||url.searchParams.get('host')||String(request.headers.host||'127.0.0.1').split(':')[0]).trim();const port=Number(input.port||url.searchParams.get('port')||String(request.headers.host||'').split(':')[1]||4174);const lan=runtime.mobileAccess.getLanAccess({host,port,protocol:input.protocol||url.searchParams.get('protocol')||'http:',path:`/m/${access.token}`});return{tableId:access.tableId,url:lan.url,qrSvg:lan.qrSvg,security:lan.security,warning:lan.warning};}
 
   return async function e48e54Router(request,response){
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
@@ -36,7 +36,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       if(request.method==='POST'&&retailSale){json(response,200,runtime.retail.addVariantToSale(decodeURIComponent(retailSale[1]),await body(request),actor));return true;}
 
       if(request.method==='POST'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,201,runtime.selfService.createConfiguredDevice(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,200,runtime.selfService.listConfiguredDevices());return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,200,runtime.selfService.listConfiguredDevices());return true;}\n      if(request.method==='POST'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,201,runtime.selfService.createConfiguredDevice(await body(request),actor));return true;}
       const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
       if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}
       if(request.method==='GET'&&selfConfig){json(response,200,runtime.selfService.context(decodeURIComponent(selfConfig[1])));return true;}
