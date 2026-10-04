@@ -55,6 +55,10 @@ test('createUser stores a password hash, validates profile and authenticates sec
   assert.equal(service.verifyUserPassword('admin','Senha-forte-123').ok, true);
   assert.equal(service.verifyUserPassword('admin','errada').ok, false);
   assert.throws(() => service.createUser({ id:'u2', username:'x', name:'X', profileId:'profile-inexistente', password:'1234567890' }), /Perfil de acesso nao encontrado|inativo/);
+  const inheritedLegacyRole = Object.assign(Object.create({ role:'manager' }), { id:'u3', username:'inherited', name:'Herdado', profileId:'profile-manager', password:'Senha-forte-123' });
+  const inheritedUser = service.createUser(inheritedLegacyRole);
+  assert.equal(inheritedUser.profileId, 'profile-manager');
+  assert.throws(() => service.createUser({ id:'u4', username:'legacy', name:'Legado', role:'manager', profileId:'profile-manager', password:'Senha-forte-123' }), /Campo role legado/);
   db.close();
 });
 

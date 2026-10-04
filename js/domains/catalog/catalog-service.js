@@ -322,7 +322,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   }
 
   function createUser(input = {}, actor = null) {
-    if(input.role!==undefined)throw new Error('Campo role legado nao e suportado; informe profileId.');
+    if(Object.prototype.hasOwnProperty.call(input,'role'))throw new Error('Campo role legado nao e suportado; informe profileId.');
     const profile=resolveUserProfile(input,null);
     const password = String(input.password || '');
     if (password.length < 10) throw new Error('Senha deve possuir pelo menos 10 caracteres.');
@@ -350,7 +350,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   function upsertUser(input = {}, actor = null) {
     const id = String(input.id || '').trim();
     if (!id) return createUser(input, actor);
-    if(input.role!==undefined)throw new Error('Campo role legado nao e suportado; informe profileId.');
+    if(Object.prototype.hasOwnProperty.call(input,'role'))throw new Error('Campo role legado nao e suportado; informe profileId.');
     const username = String(input.username || '').trim().toLowerCase();
     const name = String(input.name || '').trim();
     if (!username || !name) throw new Error('Usuario e nome sao obrigatorios.');

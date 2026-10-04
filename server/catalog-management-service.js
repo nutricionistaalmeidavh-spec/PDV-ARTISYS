@@ -73,7 +73,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
 
   function profileForInput(input,existing){
     if(!profiles)throw domainError(500,'Servico canonico de perfis indisponivel.');
-    if(input.role!==undefined)throw domainError(400,'Campo role legado nao e suportado; informe profileId.');
+    if(Object.prototype.hasOwnProperty.call(input,'role'))throw domainError(400,'Campo role legado nao e suportado; informe profileId.');
     if(input.profileId)return profiles.getProfile(input.profileId);
     if(existing?.profileId)return profiles.getProfile(existing.profileId);
     return profiles.getProfileBySystemKey('operator');
