@@ -136,7 +136,7 @@
     root.dataset.settingsPage='true';
     hub=document.createElement('section');hub.id='settings-hub';hub.className='settings-hub';hub.innerHTML=`<nav class="settings-hub-nav" aria-label="Áreas de configuração">${categories.map(([id,label,description])=>`<button type="button" data-settings-category="${id}" class="${id===active?'active':''}" aria-pressed="${id===active}"><strong>${label}</strong><span>${description}</span></button>`).join('')}</nav><div class="settings-hub-current" aria-live="polite"></div>`;
     root.querySelector('.ops-head')?.insertAdjacentElement('afterend',hub);
-    hub.querySelectorAll('[data-settings-category]').forEach(button=>button.addEventListener('click',()=>{active=button.dataset.settingsCategory;apply(root,hub);}));
+    hub.querySelectorAll('[data-settings-category]').forEach(button=>button.addEventListener('click',()=>{active=button.dataset.settingsCategory;apply(root,hub);lifecycle.emit('settings:select',{category:active});}));
     return hub;
   }
   function apply(root,hub){
