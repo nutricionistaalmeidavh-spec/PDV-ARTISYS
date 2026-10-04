@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = requir
 const path = require('node:path');
 const { networkInterfaces } = require('node:os');
 const { publicNetworkState, testPublicNetwork } = require('./public-network.cjs');
-const { createLanDiscovery } = require('./lan-discovery.cjs');
+const { createLanDiscovery, discoverLanServers } = require('./lan-discovery.cjs');
 const { installationState, acknowledgeInstallation, archiveInstallation } = require('./installation-lifecycle.cjs');
 const { version: productVersion } = require('../package.json');
 const { existsSync } = require('node:fs');
@@ -147,7 +147,7 @@ async function startEmbeddedServer() {
     try {
       await lanServer.start();
       lanDiscovery?.stop();
-      lanDiscovery=createLanDiscovery({identity:terminalIdentityStore.getOrCreate().fingerprint,port:lanPort});
+      lanDiscovery=createLanDiscovery({identity:terminalIdentityStore.getOrCreate().fingerprint,port:lanPort,displayName:bootstrapConfig?.storeName||'PC principal ArtiSys'});
     } catch (error) {
       console.error('Servidor LAN configurado, mas indisponível.', error);
       try { await lanServer.stop(); } catch {}
@@ -327,6 +327,7 @@ function registerIpc() {
   ipcMain.handle('artisys:public-network:state', async () => publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer),stableHost:await lanDiscovery?.state()||''}));
   ipcMain.handle('artisys:public-network:test', (_event,input={}) => testPublicNetwork({state:publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer)}),host:input.host,port:input.port}));
 
+  ipcMain.handle('artisys:data-server:discover', () => discoverLanServers());
   ipcMain.handle('artisys:data-server:state', () => publicDataServerState());
   ipcMain.handle('artisys:data-server:new-installation', () => {
     if(dataServerConfig?.selected||Number(runtime?.catalog?.countUsers?.()||0)>0)throw new Error('A configuração inicial deste computador já foi concluída.');

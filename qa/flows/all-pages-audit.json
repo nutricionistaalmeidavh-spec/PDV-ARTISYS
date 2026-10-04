@@ -619,7 +619,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": "#ops-store-receipt-card",
+      "selector": "#settings-company-store",
       "name": "configuracoes-loja-visivel",
       "timeoutMs": 10000
     },

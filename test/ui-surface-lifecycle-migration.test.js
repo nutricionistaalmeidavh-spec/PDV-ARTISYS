@@ -12,7 +12,6 @@ test('checkout and settings enhancements consume semantic lifecycle instead of D
   for (const relative of [
     'desktop/renderer/ux-home-checkout.js',
     'desktop/renderer/seller-select-sync.js',
-    'desktop/renderer/store-branding-ui.js',
     'desktop/renderer/post-sale-receipt-ui.js',
     'desktop/renderer/telemetry-ui.js'
   ]) {
@@ -41,7 +40,7 @@ test('canonical renderers publish checkout and settings update signals', () => {
 
 test('migrated Settings extensions declare explicit categories instead of title guessing', () => {
   assert.match(read('desktop/renderer/settings-hub-ui.js'), /dataset\.settingsCategory/);
-  assert.match(read('desktop/renderer/store-branding-ui.js'), /settingsCategory='company'/);
+  assert.match(read('desktop/renderer/admin-ops.js'), /data-settings-category="company"/);
   assert.match(read('desktop/renderer/post-sale-receipt-ui.js'), /settingsCategory = 'printing'/);
   assert.match(read('desktop/renderer/telemetry-ui.js'), /settingsCategory='privacy'/);
   assert.match(read('desktop/renderer/vertical-modules.js'), /settingsCategory='modules'/);

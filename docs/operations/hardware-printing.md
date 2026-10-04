@@ -24,7 +24,7 @@ Até existir evidência de teste com uma unidade física, a implementação comp
 
 ## Gaveta
 
-Para gaveta serial, configure `PDV_DRAWER_PORT` e opcionalmente `PDV_DRAWER_BAUD`. O comando padrão usa o pulso ESC/POS do módulo compartilhado. Abertura por impressora térmica pode ser habilitada com `PDV_PRINTER_OPEN_DRAWER=true` quando o driver suportar.
+Para gaveta serial, use **Configurações > Impressão e periféricos > Gaveta**: detecte as portas, selecione a porta serial e a velocidade do equipamento, salve e use **Salvar e testar** para enviar o pulso de abertura. A seleção é persistida em `hardware.json` e reaplicada no próximo início. `PDV_DRAWER_PORT` e `PDV_DRAWER_BAUD` permanecem disponíveis apenas para implantação/diagnóstico avançado. O comando padrão usa o pulso ESC/POS do módulo compartilhado. Abertura por impressora térmica pode ser habilitada com `PDV_PRINTER_OPEN_DRAWER=true` quando o driver suportar.
 
 A E54.1 simula desconexão durante o pulso, garante o fechamento controlado da porta e valida que uma tentativa posterior consegue abrir a gaveta sem reiniciar o PDV.
 

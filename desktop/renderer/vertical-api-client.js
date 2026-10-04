@@ -45,6 +45,8 @@
     cancelDelivery(id,reason){return this.request(`/api/v1/vertical/delivery/${e(id)}/cancel`,{method:'POST',body:{reason}});},
     assignDeliveryCourier(id,courier){return this.request(`/api/v1/vertical/delivery/${e(id)}/courier`,{method:'PATCH',body:{courier}});},
     createDeliverySale(id,body){return this.request(`/api/v1/vertical/delivery/${e(id)}/sale`,{method:'POST',body});},
+    foodOrders(){return this.request('/api/v1/vertical/food/orders');},
+    updateLegacyFoodOrderStatus(id,status){return this.request(`/api/v1/vertical/food/legacy-orders/${e(id)}/status`,{method:'PATCH',body:{status}});},
     fastFood(filters={}){return this.request(`/api/v1/vertical/fast-food${this.params(filters)}`);},
     createFastFood(body={}){return this.request('/api/v1/vertical/fast-food',{method:'POST',body,mutationId:this.mutationId()});},
     updateFastFoodStatus(id,status){return this.request(`/api/v1/vertical/fast-food/${e(id)}/status`,{method:'PATCH',body:{status}});},

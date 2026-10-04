@@ -9,8 +9,8 @@ O terminal executa a interface e os adaptadores locais de hardware, mas usa o PC
 3. O ArtiSys mostra um código temporário de 6 dígitos, válido por poucos minutos e utilizável uma única vez.
 4. No computador novo, instale o mesmo pacote Windows x64 e abra o ArtiSys.
 5. Escolha **Conectar a uma instalação existente**.
-6. Informe o endereço do PC principal, o código temporário e um nome amigável para o computador.
-7. O Electron gera uma identidade local estável, envia o código ao PC principal e recebe uma credencial exclusiva do terminal.
+6. O ArtiSys procura automaticamente PCs principais disponíveis na mesma rede. Selecione a loja encontrada, informe o código temporário e um nome amigável para o computador. Endereço manual fica em **Configuração avançada** apenas para redes que bloqueiam descoberta local.
+7. O Electron gera uma identidade local estável, envia o código ao PC principal selecionado e recebe uma credencial exclusiva do terminal.
 8. A credencial permanente é guardada pelo `safeStorage` do sistema operacional e não aparece na interface nem no `data-server.json`.
 9. Depois do pareamento, o terminal reinicia e mostra somente o login dos usuários locais já cadastrados no PC principal.
 

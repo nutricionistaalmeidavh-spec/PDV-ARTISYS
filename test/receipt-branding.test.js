@@ -104,9 +104,16 @@ test('thermal printer emits PNG logo buffer before receipt text when driver supp
   assert.equal(result.success,true);assert.deepEqual(calls.slice(0,4),['center',['logo','89504e470d0a1a0a'],'left',['text','cupom']]);
 });
 
-test('desktop branding UI and runtime wiring stay syntax-valid and connected to settings',()=>{
-  const uiPath=path.join(__dirname,'../desktop/renderer/store-branding-ui.js');
+test('canonical company settings own receipt branding and runtime wiring stays connected',()=>{
+  const uiPath=path.join(__dirname,'../desktop/renderer/admin-ops.js');
   const checked=spawnSync(process.execPath,['--check',uiPath],{encoding:'utf8'});assert.equal(checked.status,0,checked.stderr);
+  const ui=fs.readFileSync(uiPath,'utf8');
+  assert.match(ui,/id="settings-company-store"/);
+  assert.match(ui,/store\.address/);
+  assert.match(ui,/store\.phone/);
+  assert.match(ui,/store\.logoDataUrl/);
+  const index=fs.readFileSync(path.join(__dirname,'../desktop/renderer/index.html'),'utf8');
+  assert.doesNotMatch(index,/store-branding-ui\.js/);
   const runtime=fs.readFileSync(path.join(__dirname,'../js/core/pdv-runtime.js'),'utf8');
   assert.match(runtime,/registerPrintEffects\(\{bus,effectStore,printService:printing,saleService:sales,settings,\.\.\.receiptOptions\}\)/);
 });

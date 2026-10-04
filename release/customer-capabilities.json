@@ -218,7 +218,8 @@
           "path": "desktop/renderer/operational-pages.js"
         },
         {
-          "path": "desktop/renderer/store-branding-ui.js"
+          "path": "desktop/renderer/admin-ops.js",
+          "marker": "settings-company-store"
         }
       ]
     },
@@ -307,10 +308,10 @@
       "status": "supported",
       "targetPhase": 6,
       "declaredCapabilities": [
-        "shared-kds-routing-for-delivery-and-fast-food",
+        "shared-kds-routing-for-food-orders",
         "optional-pizzeria-size-flavors-crust-and-pricing-policy",
-        "optional-delivery-and-pickup-workflow",
-        "optional-fast-food-daily-order-queue",
+        "food-delivery-pickup-counter-workflow",
+        "food-unified-orders-with-optional-daily-ticket-and-legacy-history",
         "optional-market-bakery-weighted-items-and-orders",
         "optional-retail-variants-sku-barcode-and-variant-stock",
         "optional-self-service-paired-device-ordering"
