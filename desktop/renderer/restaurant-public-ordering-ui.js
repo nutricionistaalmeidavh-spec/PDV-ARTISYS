@@ -6,7 +6,7 @@
   let mounting=false;let model=null;let currentQrTableId=null;
   const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  function toast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function toast(message,type=''){if(root.PdvToast?.show){root.PdvToast.show(message,type);return;}if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
   async function request(path,options={}){return api.request(path,options);}
   async function load(){await api.initialize();const [config,menu,tables]=await Promise.all([request('/api/v1/vertical/self-service/public-ordering/config'),request('/api/v1/vertical/self-service/public-ordering/menu'),request('/api/v1/restaurant/tables')]);const network=await root.artisysDesktop.publicNetwork.state();return{config,menu,tables,network};}
   function hostValue(){return model?.network?.host||'';}
@@ -32,7 +32,5 @@
   async function mount(){const page=content?.querySelector('.restaurant-page');if(!page||page.querySelector('[data-public-ordering-panel]')||mounting)return;mounting=true;try{model=await load();if(!content.querySelector('.restaurant-page'))return;const panel=document.createElement('div');panel.innerHTML=panelHtml();const node=panel.firstElementChild;const mapCard=content.querySelector('.restaurant-page>.restaurant-card');if(mapCard)mapCard.after(node);else content.querySelector('.restaurant-page')?.appendChild(node);bind(node);}catch(error){if(error?.code!=='MODULE_DISABLED')toast(`Cardápio público: ${error.message}`,'error');}finally{mounting=false;}}
   const refreshTimer=setInterval(async()=>{if(!model||!content?.querySelector('[data-public-ordering-panel]'))return;try{const previous=model.network.baseUrl;model.network=await root.artisysDesktop.publicNetwork.state();const summary=content.querySelector('.public-network-summary');if(summary){const paragraphs=summary.querySelectorAll('p');if(paragraphs[0])paragraphs[0].textContent=model.network.enabled?model.network.baseUrl:model.network.reason;const address=summary.querySelector('[data-public-current-address]');if(address)address.textContent=`Endereço atual na rede: ${model.network.currentAddress||model.network.host}`;}if(previous!==model.network.baseUrl&&currentQrTableId)await openQr(currentQrTableId);}catch{}},5000);
   root.addEventListener('beforeunload',()=>clearInterval(refreshTimer));
-  const lifecycle=root.PdvUiLifecycle;
-  lifecycle?.on('surface:mounted',detail=>{if(detail.surface==='restaurant')void mount();});
-  if(content?.querySelector('.restaurant-page'))void mount();
+  root.PdvRestaurantPublicOrderingUi=Object.freeze({mount});
 })();
