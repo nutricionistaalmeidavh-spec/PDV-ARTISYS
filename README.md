@@ -180,7 +180,7 @@ npm run qa:web-surfaces
 npm run qa:e2e:p0
 npm run qa:e2e:tablet
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-2.0.1-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-*-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
