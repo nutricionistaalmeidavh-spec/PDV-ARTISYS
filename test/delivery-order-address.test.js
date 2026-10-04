@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
 
-const actor={userId:'manager',role:'manager',terminalId:'PDV-01'};
+const actor={userId:'manager',profileId:'profile-manager',terminalId:'PDV-01'};
 const address={
   postalCode:'14020-010',street:'Rua das Flores',number:'123',complement:'Sala 2',
   district:'Centro',city:'Ribeirao Preto',state:'SP',reference:'Ao lado da praca'
@@ -14,7 +14,7 @@ const address={
 function setup(){
   let seq=0;
   const runtime=createPdvRuntime({now:()=> '2026-09-20T15:00:00.000Z',idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'manager',username:'manager',name:'Gerente',role:'manager',password:'senha-forte-123'},actor);
+  runtime.catalog.createUser({id:'manager',username:'manager',name:'Gerente',profileId:'profile-manager',password:'senha-forte-123'},actor);
   runtime.catalog.upsertCustomer({id:'customer',name:'Cliente Entrega',phone:'16999999999',address},actor);
   runtime.catalog.upsertProduct({id:'product',name:'Produto',salePriceCents:1200,costCents:600,trackStock:false},actor);
   return runtime;

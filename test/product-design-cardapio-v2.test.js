@@ -6,7 +6,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 function runtime(){return createPdvRuntime({dbPath:':memory:'});}
 function read(relative){return fs.readFileSync(path.join(__dirname,'..',relative),'utf8');}

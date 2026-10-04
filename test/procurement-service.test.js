@@ -3,11 +3,11 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
 
-const actor={userId:'u1',role:'manager',terminalId:'T1'};
+const actor={userId:'u1',profileId:'profile-manager',terminalId:'T1'};
 function setup(){
   let seq=0;
   const runtime=createPdvRuntime({now:()=> '2026-09-20T12:00:00.000Z',idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',role:'manager',password:'senha-forte-123'},actor);
+  runtime.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-forte-123'},actor);
   runtime.catalog.upsertSupplier({id:'s1',name:'Fornecedor 1'},actor);
   runtime.catalog.upsertProduct({id:'p1',name:'Produto 1',salePriceCents:1500,costCents:600,trackStock:true},actor);
   runtime.inventory.move({productId:'p1',type:'opening',quantityDelta:10},actor);

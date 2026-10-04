@@ -4,14 +4,14 @@ const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 function seed(runtime) {
-  runtime.catalog.createUser({id:'mgr',username:'gerente',name:'Gerente',role:'manager',password:'senha-gerente-123'},{kind:'system',id:'system'});
+  runtime.catalog.createUser({id:'mgr',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-gerente-123'},{kind:'system',id:'system'});
   runtime.catalog.upsertCategory({ id:'cat1', name:'Geral' });
   runtime.catalog.upsertProduct({ id:'p1', sku:'SKU-1', name:'Produto A', salePriceCents:1000, costCents:500, trackStock:true, minimumStock:1 });
   runtime.inventory.move({ productId:'p1', type:'opening', quantityDelta:5, reason:'saldo inicial' });
 }
 
-function cashActor() { return { userId:'mgr', role:'manager', terminalId:'PDV-01' }; }
-function cashierActor() { return { userId:'cashier1', role:'cashier', terminalId:'PDV-01' }; }
+function cashActor() { return { userId:'mgr', profileId:'profile-manager', terminalId:'PDV-01' }; }
+function cashierActor() { return { userId:'cashier1', profileId:'profile-cashier', terminalId:'PDV-01' }; }
 
 async function completeSale(runtime) {
   runtime.cash.openSession({ terminalId:'PDV-01', operatorId:'mgr', initialCashCents:0, actor:cashActor() });
@@ -91,7 +91,7 @@ test('partial returns preserve original sale and restore stock/cash once per ret
 test('return persists cashier operator separately from delegated manager authorizer', async () => {
   const runtime = createPdvRuntime();
   seed(runtime);
-  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
   const sale = await completeSale(runtime);
   const created = runtime.returns.createReturn({
     saleId:sale.id,
@@ -101,7 +101,7 @@ test('return persists cashier operator separately from delegated manager authori
     items:[{ saleItemId:sale.items[0].id, quantity:1 }],
     refunds:[{ method:'CASH', amountCents:1000 }],
     actor:cashierActor(),
-    authorizedBy:{ userId:'mgr', role:'manager', name:'Gerente' }
+    authorizedBy:{ userId:'mgr', profileId:'profile-manager', name:'Gerente' }
   });
   assert.equal(created.operatorId, 'cashier1');
   assert.equal(created.authorizedById, 'mgr');
@@ -112,9 +112,9 @@ test('return persists cashier operator separately from delegated manager authori
 test('return rejects delegated authorization from a non-manager role', async () => {
   const runtime = createPdvRuntime();
   seed(runtime);
-  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
   const sale = await completeSale(runtime);
-  runtime.catalog.createUser({ id:'cashier2', username:'caixa2', name:'Outro caixa', role:'cashier', password:'senha-caixa2-123' },{kind:'system',id:'system'});
+  runtime.catalog.createUser({ id:'cashier2', username:'caixa2', name:'Outro caixa', profileId:'profile-cashier', password:'senha-caixa2-123' },{kind:'system',id:'system'});
   assert.throws(() => runtime.returns.createReturn({
     saleId:sale.id,
     terminalId:'PDV-01',
@@ -123,7 +123,7 @@ test('return rejects delegated authorization from a non-manager role', async () 
     items:[{ saleItemId:sale.items[0].id, quantity:1 }],
     refunds:[{ method:'CASH', amountCents:1000 }],
     actor:cashierActor(),
-    authorizedBy:{ userId:'cashier2', role:'cashier', name:'Outro caixa' }
+    authorizedBy:{ userId:'cashier2', profileId:'profile-cashier', name:'Outro caixa' }
   }), /permiss|autoriza/i);
   runtime.close();
 });
