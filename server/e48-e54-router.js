@@ -24,7 +24,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
 
   return async function e48e54Router(request,response){
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;
-    const prefixes=['/api/v1/vertical/retail','/api/v1/vertical/self-service','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
+    const prefixes=['/api/v1/vertical/retail','/api/v1/restaurant/public-ordering','/api/v1/vertical/onboarding','/api/v1/vertical/mobile-access','/api/v1/vertical/hardware-compatibility'];
     if(!prefixes.some(prefix=>pathname.startsWith(prefix)))return false;
     try{
       const p=principal(request);const actor=p.actor;
@@ -35,19 +35,14 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       const retailSale=pathname.match(/^\/api\/v1\/vertical\/retail\/sales\/([^/]+)\/variant$/);
       if(request.method==='POST'&&retailSale){json(response,200,runtime.retail.addVariantToSale(decodeURIComponent(retailSale[1]),await body(request),actor));return true;}
 
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,201,runtime.selfService.createConfiguredDevice(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,200,runtime.selfService.listConfiguredDevices());return true;}
-      const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
-      if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}
-      if(request.method==='GET'&&selfConfig){json(response,200,runtime.selfService.context(decodeURIComponent(selfConfig[1])));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,runtime.publicOrdering.getConfig());return true;}
-      if(request.method==='PUT'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/menu'){json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
-      const publicMenuProduct=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/menu\/([^/]+)$/);
+      if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.getConfig());return true;}
+      if(request.method==='PUT'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/menu'){json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
+      const publicMenuProduct=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/menu\/([^/]+)$/);
       if(request.method==='PATCH'&&publicMenuProduct){json(response,200,runtime.publicOrdering.updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
-      const publicTableQr=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/tables\/([^/]+)\/qr$/);
+      const publicTableQr=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr$/);
       if(request.method==='GET'&&publicTableQr){json(response,200,tableAccess(request,url,decodeURIComponent(publicTableQr[1])));return true;}
-      const publicTableQrRotate=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
+      const publicTableQrRotate=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
       if(request.method==='POST'&&publicTableQrRotate){json(response,200,tableAccess(request,url,decodeURIComponent(publicTableQrRotate[1]),{rotate:true,input:await body(request)}));return true;}
 
       if(request.method==='GET'&&pathname==='/api/v1/vertical/onboarding'){json(response,200,runtime.onboarding.getState());return true;}
