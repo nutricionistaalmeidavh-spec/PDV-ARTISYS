@@ -38,6 +38,7 @@
     const operationActions=activeView==='operation'?`<select id="restaurant-operator" class="ops-input compact" aria-label="Operador da comanda">${data.users.map(u=>`<option value="${esc(u.id)}" ${u.id===op?'selected':''}>${esc(u.name)} · ${esc(roleLabel(u.role))}</option>`).join('')}</select><button class="restaurant-btn" data-new-table>Nova mesa</button>`:'';
     content.innerHTML=`<section class="restaurant-page" data-restaurant-view="${esc(activeView)}"><header class="restaurant-head"><div><h1>Mesas e comandas</h1><p>${activeView==='operation'?'Abra mesas, registre pedidos e acompanhe atendimento e produção.':'Configure produção e dispositivos e consulte os indicadores da operação.'}</p></div><div class="restaurant-actions">${back}${viewSwitch}${operationActions}<button class="restaurant-btn secondary" data-refresh>Atualizar</button></div></header>${activeView==='management'?renderManagement():renderOperation()}</section>`;
     bind();
+    void root.PdvRestaurantPublicOrderingUi?.mount?.();
     root.PdvUiLifecycle?.emit?.('surface:mounted',{surface:'restaurant',view:activeView});
     if(activeView==='operation'&&selectedSessionId)void renderSession(selectedSessionId);
   }
