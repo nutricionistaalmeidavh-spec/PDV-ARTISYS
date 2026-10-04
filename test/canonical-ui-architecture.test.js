@@ -34,6 +34,8 @@ test('legacy parity and reporting UI bridges are retired from the desktop entryp
     'ui-parity-p0-p2.js',
     'reporting-v2-legacy-export.js'
   ]) assert.equal(index.includes(retired),false,retired);
+  assert.match(index,/operational-route-extensions\.js/);
+  assert.match(index,/operational-detail-extensions\.js/);
 });
 
 test('retired parity bridge files are removed after ownership migration',()=>{
