@@ -15,7 +15,7 @@
   const deviceTypeLabel=value=>ui?.deviceTypeLabel?.(value,String(value||'Dispositivo'))||String(value||'Dispositivo');
   const sourceLabel=value=>({WAITER:'Garçom',TABLET:'Tablet da mesa',SELF_SERVICE:'Autoatendimento',PUBLIC_QR:'Cardápio QR',POS:'Balcão',COUNTER:'Balcão',DELIVERY:'Delivery',PICKUP:'Retirada'})[String(value||'').toUpperCase()]||String(value||'Pedido');
   function orderStatus(order){const production=(order?.items||[]).filter(item=>item.productionMode==='PRODUCTION');return (order?.items||[]).length&&!production.length?status('DIRECT'):status(order?.status||'NEW');}
-  function canManageRestaurant(){return ['admin','manager'].includes(String(document.body.dataset.userRole||''));}
+  function canManageRestaurant(){return Boolean(root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'restaurant.access')&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'settings.manage'));}
   function userName(id){return data.users.find(user=>user.id===id)?.name||'Sem responsável';}
   function elapsed(value){if(!value)return'';const ms=Date.now()-Date.parse(value);if(!Number.isFinite(ms)||ms<0)return'';const minutes=Math.floor(ms/60000);return minutes<60?`${minutes} min`:`${Math.floor(minutes/60)}h ${minutes%60}min`;}
   function operatorId(){const saved=localStorage.getItem('artisys.restaurant.operatorId');const valid=data.users.find(user=>user.id===saved&&user.active!==false);const chosen=valid||data.users.find(user=>user.role==='cashier'&&user.active!==false)||data.users.find(user=>user.active!==false);if(chosen&&saved!==chosen.id)localStorage.setItem('artisys.restaurant.operatorId',chosen.id);return chosen?.id||'';}
