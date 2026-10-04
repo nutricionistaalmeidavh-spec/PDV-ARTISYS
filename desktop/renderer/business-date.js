@@ -33,6 +33,22 @@
     return {year,month,day};
   }
 
+  function equivalentPreviousPeriod(from,to) {
+    const start=parseCanonicalDate(from),end=parseCanonicalDate(to);
+    const fromDate=new Date(Date.UTC(start.year,start.month-1,start.day));
+    const toDate=new Date(Date.UTC(end.year,end.month-1,end.day));
+    if(fromDate>toDate) throw new Error('Período inválido para comparação.');
+    const days=Math.floor((toDate-fromDate)/86400000)+1;
+    const previousTo=new Date(fromDate);
+    previousTo.setUTCDate(previousTo.getUTCDate()-1);
+    const previousFrom=new Date(previousTo);
+    previousFrom.setUTCDate(previousFrom.getUTCDate()-(days-1));
+    return {
+      previousFrom:`${previousFrom.getUTCFullYear()}-${pad(previousFrom.getUTCMonth()+1)}-${pad(previousFrom.getUTCDate())}`,
+      previousTo:`${previousTo.getUTCFullYear()}-${pad(previousTo.getUTCMonth()+1)}-${pad(previousTo.getUTCDate())}`
+    };
+  }
+
   function formatDatePtBr(value) {
     if (!String(value ?? '').trim()) return '';
     const {year,month,day}=parseCanonicalDate(value);
@@ -67,5 +83,5 @@
     return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
   }
 
-  return Object.freeze({ localBusinessDate,formatDatePtBr,parseDatePtBr,formatDateTimePtBr,parseDateTimePtBr });
+  return Object.freeze({ localBusinessDate,equivalentPreviousPeriod,formatDatePtBr,parseDatePtBr,formatDateTimePtBr,parseDateTimePtBr });
 });
