@@ -1917,7 +1917,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-waiter-table-tab='order'].active",
+      "selector": "[data-waiter-tab='menu'].active",
       "name": "garcom-pedido-no-contexto-da-mesa",
       "timeoutMs": 10000
     },
@@ -1952,24 +1952,6 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectVisible",
-      "selector": "#waiter-open-cart",
-      "name": "garcom-barra-pedido-visivel",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "click",
-      "selector": "#waiter-open-cart",
-      "name": "garcom-abrir-pedido",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectVisible",
-      "selector": ".waiter-order-drawer",
-      "name": "garcom-drawer-pedido-visivel",
-      "timeoutMs": 10000
-    },
-    {
       "action": "click",
       "selector": "#send-order",
       "name": "garcom-registrar-pedido-misto",
@@ -1977,7 +1959,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-waiter-table-tab='check']",
+      "selector": "[data-waiter-tab='orders']",
       "name": "garcom-abrir-comanda-apos-envio",
       "timeoutMs": 15000
     },
@@ -2168,18 +2150,6 @@
       "timeoutMs": 15000
     },
     {
-      "action": "click",
-      "selector": "[data-table='qa-table-1']",
-      "name": "garcom-retorno-abrir-mesa",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "click",
-      "selector": "[data-waiter-tab='orders']",
-      "name": "garcom-retorno-abrir-comanda",
-      "timeoutMs": 10000
-    },
-    {
       "action": "waitFor",
       "selector": "[data-waiter-table].ready",
       "state": "visible",
@@ -2194,7 +2164,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-waiter-table-tab='check']",
+      "selector": "[data-waiter-tab='orders']",
       "name": "garcom-abrir-comanda-pronta",
       "timeoutMs": 10000
     },
