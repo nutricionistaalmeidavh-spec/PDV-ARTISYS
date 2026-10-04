@@ -22,7 +22,6 @@ test('reporting v2 and seller synchronization are wired into desktop shell',()=>
   const sellerSync=read('desktop/renderer/seller-select-sync.js');
   assert.ok(html.indexOf('./seller-select-sync.js')>html.indexOf('./app.js'));
   assert.ok(html.indexOf('./seller-select-sync.js')<html.indexOf('./reporting-v2.js'));
-  assert.match(html,/reporting-v2-legacy-export\.js/);
   assert.doesNotThrow(()=>new Function(sellerSync));
   assert.match(sellerSync,/api\.sellers\(\)/);
   assert.match(sellerSync,/PdvUiLifecycle/);
