@@ -38,6 +38,7 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       const retailSale=pathname.match(/^\/api\/v1\/vertical\/retail\/sales\/([^/]+)\/variant$/);
       if(request.method==='POST'&&retailSale){json(response,200,runtime.retail.addVariantToSale(decodeURIComponent(retailSale[1]),await body(request),actor));return true;}
 
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,200,runtime.selfService.listConfiguredDevices());return true;}
       const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
       if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}
       if(request.method==='GET'&&selfConfig){json(response,200,runtime.selfService.context(decodeURIComponent(selfConfig[1])));return true;}
