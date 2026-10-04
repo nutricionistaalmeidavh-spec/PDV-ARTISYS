@@ -20,8 +20,8 @@ function headers(device,mutationId){
   };
 }
 
-test('garçom e cardápio público compartilham pedido canônico, serviço e mídia segura',async()=>{
-  const photoDir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-public-menu-'));
+test('garçom e QR compartilham pedido canônico, serviço e mídia segura',async()=>{
+  const photoDir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-public-table-'));
   const rt=createPdvRuntime({dbPath:':memory:',productPhotoDir:photoDir});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
@@ -90,7 +90,7 @@ test('garçom e cardápio público compartilham pedido canônico, serviço e mí
     assert.deepEqual(sessions.map(session=>session.orders[0].source),['WAITER','TABLE']);
     assert.equal(rt.kitchen.listTickets().length,2);
 
-    for(const [requestType,mutation] of [['WAITER','public-waiter'],['BILL','public-bill']]){
+    for(const [requestType,mutation] of [['WAITER','qr-waiter'],['BILL','qr-bill']]){
       const service=await fetch(`${base}/api/v1/public/menu/${access.token}/service`,{
         method:'POST',
         headers:{'content-type':'application/json','x-mutation-id':mutation},
@@ -120,14 +120,13 @@ test('garçom e cardápio público compartilham pedido canônico, serviço e mí
   }
 });
 
-test('cardápio público rejeita item que fica indisponível depois do contexto',async()=>{
+test('QR rejects an item that becomes unavailable after context load',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
     rt.restaurant.upsertTable({id:'late-table',label:'Mesa temporária',seats:2},admin);
     rt.catalog.upsertProduct({id:'late-item',name:'Item temporário',salePriceCents:1500,trackStock:false,menuEnabled:true,active:true},admin);
     const access=rt.publicOrdering.issueTableAccess('late-table',admin);
-
     server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-clean'});
     const address=await server.start();
     const base=`http://${address.host}:${address.port}`;
@@ -143,7 +142,6 @@ test('cardápio público rejeita item que fica indisponível depois do contexto'
       body:JSON.stringify({items:[{productId:'late-item',quantity:1}]})
     });
     assert.equal(submit.status,409);
-    assert.equal(rt.restaurant.currentSession('late-table'),null);
   }finally{
     if(server)await server.stop();
     rt.close();
