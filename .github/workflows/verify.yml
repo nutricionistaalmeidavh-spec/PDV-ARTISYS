@@ -112,6 +112,11 @@ jobs:
         run: |
           rm -rf qa-artifacts
           xvfb-run -a npm run qa:e2e:p0
+      - name: Capture Compact public menu V2
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-public-menu-compact
+          xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow public-menu-compact-v2 --environment ci --viewport compactDesktop --output qa-artifacts-public-menu-compact
       - name: Run Delivery and pickup operational E2E
         shell: bash
         run: |
@@ -140,5 +145,6 @@ jobs:
             qa-artifacts-delivery-pickup
             qa-artifacts-access
             qa-artifacts-access-ergonomic
+            qa-artifacts-public-menu-compact
           if-no-files-found: warn
           retention-days: 14
