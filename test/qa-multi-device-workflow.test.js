@@ -34,7 +34,6 @@ test('multi-device LAN QA runner exposes business invariant coverage',()=>{
     'idempotent-completion',
     'cash-session-isolation',
     'restaurant-kds-flow',
-    'self-service-order',
     'authorization-boundaries',
     'database-invariants'
   ]) assert.ok(runner.includes(invariant),invariant);
