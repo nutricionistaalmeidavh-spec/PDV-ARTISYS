@@ -23,6 +23,8 @@ test('operational status labels use Brazilian Portuguese without changing intern
   assert.equal(ui.fulfillmentLabel('PICKUP'),'Retirada');
   assert.equal(ui.deviceTypeLabel('KITCHEN'),'KDS / produção');
   assert.equal(ui.deviceTypeLabel('WAITER'),'Garçom');
+  assert.equal(ui.deviceTypeLabel('SELF_SERVICE'),'Autoatendimento');
+  assert.equal(ui.deviceTypeLabel('TABLET'),'Dispositivo');
   assert.equal(ui.paymentMethodLabel('CASH'),'Dinheiro');
   assert.equal(ui.paymentMethodLabel('CREDIT_CARD'),'Cartão de crédito');
 });
