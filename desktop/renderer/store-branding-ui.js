@@ -60,7 +60,7 @@
   async function mount(){
     if(mounting||!content)return;
     const page=content.querySelector('.ops-page');
-    if(!page||page.dataset.storeBrandingMounted==='true')return;
+    if(!page||page.querySelector('#ops-store-receipt-card'))return;
     const heading=page.querySelector('.ops-head h1');
     if(!heading||heading.textContent.trim()!=='Configurações')return;
     mounting=true;
@@ -75,7 +75,6 @@
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
     const selectedCategory=page.querySelector('#settings-hub [data-settings-category][aria-pressed="true"]')?.dataset.settingsCategory;
     if(selectedCategory)card.hidden=selectedCategory!=='company';
-    page.dataset.storeBrandingMounted='true';
     root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'store-branding-loading'});
     try{
       const [rows,cfg]=await Promise.all([api.settings({scope:'global',prefix:'store.'}),api.initialize().catch(()=>null)]);
@@ -114,7 +113,7 @@
       if(card.isConnected){
         card.removeAttribute('aria-busy');
         card.innerHTML=`<div class="ops-card-head"><div><h2>Dados da loja e cupom não fiscal</h2><p class="ops-muted">Os dados locais não puderam ser carregados agora.</p></div><button type="button" class="ops-secondary" data-store-branding-retry>Tentar novamente</button></div><div class="ops-empty" role="alert">${escapeHtml(error.message||'Falha ao carregar configuração local.')}</div>`;
-        card.querySelector('[data-store-branding-retry]')?.addEventListener('click',()=>{page.dataset.storeBrandingMounted='false';card.remove();void mount();});
+        card.querySelector('[data-store-branding-retry]')?.addEventListener('click',()=>{card.remove();void mount();});
       }
       showToast(`Não foi possível carregar os dados do cupom: ${error.message}`,'error');
     }finally{mounting=false;}
@@ -123,6 +122,5 @@
   const onRouteChange=({route})=>{if(route==='settings')void mount();};
   lifecycle.on('route:mounted',onRouteChange);
   lifecycle.on('route:updated',onRouteChange);
-  lifecycle.on('settings:select',({category})=>{if(category==='company')void mount();});
   if(document.body.dataset.activeRoute==='settings')void mount();
 })();
