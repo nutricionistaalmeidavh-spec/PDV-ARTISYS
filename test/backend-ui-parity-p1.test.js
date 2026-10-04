@@ -38,7 +38,7 @@ function runtime(calls){
   };
 }
 
-function sessions(){return new Map([['token-manager',{userId:'manager-1',role:'manager',terminalId:'PDV-01',expiresAt:Date.now()+60_000}]]);}
+function sessions(){return new Map([['token-manager',{userId:'manager-1',profileId:'profile-manager',terminalId:'PDV-01',expiresAt:Date.now()+60_000}]]);}
 
 test('vertical P1 routes reject unauthenticated access when sharing the desktop session store',async()=>{
   const calls=[];const handler=createVerticalRouter({runtime:runtime(calls),sessionStore:sessions()});
@@ -54,14 +54,14 @@ test('restaurant equal split receives the authenticated manager actor and termin
   assert.equal(res.statusCode,201);
   assert.equal(calls[0].op,'equal');
   assert.equal(calls[0].data.terminalId,'PDV-01');
-  assert.deepEqual(calls[0].actor,{kind:'human',userId:'manager-1',role:'manager',terminalId:'PDV-01'});
+  assert.deepEqual(calls[0].actor,{kind:'human',userId:'manager-1',terminalId:'PDV-01'});
 });
 
 test('manager identity reaches protected restaurant item cancellation',async()=>{
   const calls=[];const handler=createVerticalRouter({runtime:runtime(calls),sessionStore:sessions()});
   const res=await call(handler,{method:'POST',path:'/api/v1/vertical/restaurant/order-items/item-1/cancel',token:'token-manager',body:{reason:'duplicado'}});
   assert.equal(res.statusCode,200);
-  assert.equal(calls[0].actor.role,'manager');
+  assert.equal(calls[0].actor.userId,'manager-1');
   assert.equal(calls[0].reason,'duplicado');
 });
 

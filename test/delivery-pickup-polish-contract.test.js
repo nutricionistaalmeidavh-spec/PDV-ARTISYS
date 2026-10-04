@@ -16,12 +16,11 @@ test('user-facing operational states are translated through the canonical UI mod
   const access=read('desktop/renderer/access-center-ui.js');
 
   for(const marker of ["NEW:'Novo pedido'","PREPARING:'Preparando'","READY:'Pedido pronto'","OUT_FOR_DELIVERY:'Saiu para entrega'","PICKED_UP:'Retirado'","DELIVERED:'Entregue'"]) assert.match(model,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
-  assert.match(model,/function roleLabel/);
   assert.match(vertical,/statusLabel\(order\.status\)/);
   assert.doesNotMatch(vertical,/<span>\$\{escapeHtml\(order\.status\)\}<\/span>/);
   assert.match(restaurant,/ui\?\.statusLabel/);
   assert.match(restaurant,/ui\?\.deviceTypeLabel/);
-  assert.match(restaurant,/ui\?\.roleLabel/);
+  assert.doesNotMatch(restaurant,/roleLabel|user\.role/);
   assert.match(operational,/ui\?\.statusLabel/);
   assert.match(access,/ui\?\.statusLabel/);
   assert.match(access,/ui\?\.deviceTypeLabel/);

@@ -33,7 +33,7 @@
         "id": "qa-access-manager",
         "username": "qa-access-manager",
         "name": "Gerente QA Acessos",
-        "role": "manager",
+        "profileId": "profile-manager",
         "password": "QaAccessManager-12345!",
         "active": true
       }

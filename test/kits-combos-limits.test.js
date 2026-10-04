@@ -37,7 +37,7 @@ test('kit cannot contain another kit even when nested kit is inactive',()=>{
 
 test('exclusive combo activation clears an earlier manual discount safely',()=>{
   let seq=0;const rt=createPdvRuntime({idFactory:p=>`${p}-${++seq}`,now:()=> '2026-09-12T12:00:00.000Z'});
-  rt.catalog.createUser({id:'u1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-forte-123'});
+  rt.catalog.createUser({id:'u1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-forte-123'});
   rt.catalog.upsertProduct({id:'p',name:'Produto',salePriceCents:399,trackStock:false});
   rt.kitsCombos.upsertPromotionalCombo({id:'exclusive',name:'3 por 10',selectionMode:'SAME_PRODUCT',requiredQuantity:3,bundlePriceCents:1000,allowManualDiscount:false,productIds:['p']});
   rt.sales.openSale({id:'s1',saleNumber:'1',terminalId:'T1',operatorId:'u1'});

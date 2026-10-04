@@ -8,7 +8,7 @@ const {createFinanceDimensionsService}=require('../js/domains/finance/finance-di
 const {createFinanceService}=require('../js/domains/finance/finance-service');
 const {createReportingService}=require('../js/domains/reports/historical-reporting-service');
 const {createFinanceManagementService}=require('../js/domains/finance/finance-management');
-const admin={userId:'admin',role:'admin'};
+const admin={userId:'admin',profileId:'profile-administrator'};
 function fixture(now='2026-09-20T12:00:00.000Z'){
  const db=openDatabase(':memory:');runMigrations(db,()=>now);runErpFinanceMigrations(db,()=>now);let seq=0;
  const dimensions=createFinanceDimensionsService({db,now:()=>now,idFactory:p=>`${p}-${++seq}`});

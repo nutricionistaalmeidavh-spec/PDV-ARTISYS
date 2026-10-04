@@ -37,7 +37,7 @@ test('secret-like settings are rejected and critical writes require settings.man
  const {db,now,authorization}=fixture();try{
   const settings=createSettingsService({db,authorization,now});
   for(const key of ['fiscal.token','lan.secret','api.password','authorization.header','terminal.credential']){
-   assert.throws(()=>settings.set(key,'x',{scope:'global',actor:{userId:'a',role:'admin'}}),/segredo|sensivel/i);
+   assert.throws(()=>settings.set(key,'x',{scope:'global',actor:{userId:'a',profileId:'profile-administrator'}}),/segredo|sensivel/i);
   }
   assert.throws(()=>settings.set('store.name','X',{scope:'global',actor:{kind:'human',userId:'cash'}}),/permissao/i);
   assert.doesNotThrow(()=>settings.set('ui.compactMode',true,{scope:'user:cash',actor:{kind:'human',userId:'cash'}}));

@@ -36,15 +36,6 @@ function applyAccountIdentityMigration(db) {
   `);
   ensureColumn(db, 'installation_activation', 'owner_user_id', 'TEXT REFERENCES users(id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_installation_activation_owner ON installation_activation(owner_user_id)');
-  db.prepare(`UPDATE installation_activation
-    SET owner_user_id=(
-      SELECT u.id FROM users u
-      WHERE u.role='admin' AND u.active=1 AND u.email_normalized=installation_activation.account_email
-      LIMIT 1
-    )
-    WHERE owner_user_id IS NULL
-      AND 1=(SELECT COUNT(*) FROM users u WHERE u.role='admin' AND u.active=1 AND u.email_normalized=installation_activation.account_email)`)
-    .run();
 }
 
 function migrationApplied(db) {

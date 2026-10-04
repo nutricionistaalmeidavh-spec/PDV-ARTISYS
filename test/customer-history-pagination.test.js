@@ -20,8 +20,8 @@ function timestamp(index, base = Date.UTC(2026, 0, 1)) {
 test('customer-specific history remains accurate after more than 200 newer global sales and paginates without overlap', () => {
   const runtime = createPdvRuntime();
   try {
-    runtime.db.prepare("INSERT INTO users (id,username,name,role,password_hash,password_salt,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
-      .run('mgr','gerente','Gerente','manager','hash','salt',1,'2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z');
+    runtime.db.prepare("INSERT INTO users (id,username,name,profile_id,password_hash,password_salt,active,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)")
+      .run('mgr','gerente','Gerente','profile-manager','hash','salt',1,'2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z');
     runtime.catalog.upsertCustomer({ id:'target', name:'Cliente Antigo', active:true });
     runtime.catalog.upsertCustomer({ id:'other', name:'Cliente Recente', active:true });
 

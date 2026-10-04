@@ -3,12 +3,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
-const manager={userId:'u1',role:'manager',terminalId:'T1'};
+const manager={userId:'u1',profileId:'profile-manager',terminalId:'T1'};
 function setup(){
   let seq=0;
   const runtime=createPdvRuntime({now:()=> '2026-09-20T10:00:00.000Z',idFactory:p=>`${p}-${++seq}`});
   runtime.catalog.upsertCategory({id:'c1',name:'Geral'},manager);
-  runtime.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',role:'manager',password:'senha-forte'},manager);
+  runtime.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-forte'},manager);
   runtime.catalog.upsertProduct({id:'p1',name:'Produto',categoryId:'c1',unit:'UN',salePriceCents:1000,costCents:600,trackStock:true,minimumStock:0},manager);
   return runtime;
 }

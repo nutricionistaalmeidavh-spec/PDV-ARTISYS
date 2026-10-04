@@ -18,22 +18,22 @@ test('pilot seeds required field checks idempotently with explicit states',()=>{
 }finally{db.close();}});
 
 test('pilot updates persist evidence and enforce settings.manage capability',()=>{const {db,pilot}=fixture();try{
- const updated=pilot.updateCheck('lan-test',{status:'READY',note:'Ping e handshake OK',evidence:{terminalId:'PDV-02',latencyMs:5},actor:{userId:'mgr',role:'manager'}});assert.equal(updated.status,'READY');assert.equal(updated.note,'Ping e handshake OK');assert.equal(updated.evidence.terminalId,'PDV-02');assert.equal(updated.updatedBy,'mgr');
- assert.throws(()=>pilot.updateCheck('sale-test',{status:'READY',actor:{userId:'cash',role:'cashier'}}),/permiss/i);assert.throws(()=>pilot.updateCheck('sale-test',{status:'FAKE',actor:{userId:'admin',role:'admin'}}),/estado/i);
+ const updated=pilot.updateCheck('lan-test',{status:'READY',note:'Ping e handshake OK',evidence:{terminalId:'PDV-02',latencyMs:5},actor:{userId:'mgr',profileId:'profile-manager'}});assert.equal(updated.status,'READY');assert.equal(updated.note,'Ping e handshake OK');assert.equal(updated.evidence.terminalId,'PDV-02');assert.equal(updated.updatedBy,'mgr');
+ assert.throws(()=>pilot.updateCheck('sale-test',{status:'READY',actor:{userId:'cash',profileId:'profile-cashier'}}),/permiss/i);assert.throws(()=>pilot.updateCheck('sale-test',{status:'FAKE',actor:{userId:'admin',profileId:'profile-administrator'}}),/estado/i);
  const audit=db.prepare("SELECT action,entity_id FROM audit_log WHERE action='pilot.check.update' ORDER BY id DESC LIMIT 1").get();assert.equal(audit.entity_id,'lan-test');
 }finally{db.close();}});
 
 test('BLOCKED_EXTERNAL is reported as external blocker and never as READY',()=>{const {db,pilot}=fixture();try{
- for(const item of pilot.listChecks())pilot.updateCheck(item.key,{status:'READY',actor:{userId:'admin',role:'admin'}});
+ for(const item of pilot.listChecks())pilot.updateCheck(item.key,{status:'READY',actor:{userId:'admin',profileId:'profile-administrator'}});
  assert.equal(pilot.readiness().status,'READY');
- pilot.updateCheck('scale-test',{status:'BLOCKED_EXTERNAL',note:'BalanÃƒÂ§a fÃƒÂ­sica ainda nÃƒÂ£o disponÃƒÂ­vel para validaÃƒÂ§ÃƒÂ£o.',actor:{userId:'admin',role:'admin'}});
+ pilot.updateCheck('scale-test',{status:'BLOCKED_EXTERNAL',note:'BalanÃƒÂ§a fÃƒÂ­sica ainda nÃƒÂ£o disponÃƒÂ­vel para validaÃƒÂ§ÃƒÂ£o.',actor:{userId:'admin',profileId:'profile-administrator'}});
  const readiness=pilot.readiness();assert.equal(readiness.status,'BLOCKED_EXTERNAL');assert.equal(readiness.ready,false);assert.deepEqual(readiness.externalBlockers.map(x=>x.key),['scale-test']);
 }finally{db.close();}});
 
 test('internal BLOCKED has precedence and incomplete checklist is not release-ready',()=>{const {db,pilot}=fixture();try{
  let state=pilot.readiness();assert.equal(state.status,'NOT_STARTED');assert.equal(state.ready,false);
- pilot.updateCheck('identify-server',{status:'READY',actor:{userId:'admin',role:'admin'}});state=pilot.readiness();assert.equal(state.status,'IN_PROGRESS');
- pilot.updateCheck('lan-test',{status:'BLOCKED',note:'Falha interna',actor:{userId:'admin',role:'admin'}});state=pilot.readiness();assert.equal(state.status,'BLOCKED');assert.equal(state.ready,false);assert.equal(state.blockers[0].key,'lan-test');
+ pilot.updateCheck('identify-server',{status:'READY',actor:{userId:'admin',profileId:'profile-administrator'}});state=pilot.readiness();assert.equal(state.status,'IN_PROGRESS');
+ pilot.updateCheck('lan-test',{status:'BLOCKED',note:'Falha interna',actor:{userId:'admin',profileId:'profile-administrator'}});state=pilot.readiness();assert.equal(state.status,'BLOCKED');assert.equal(state.ready,false);assert.equal(state.blockers[0].key,'lan-test');
 }finally{db.close();}});
 
 

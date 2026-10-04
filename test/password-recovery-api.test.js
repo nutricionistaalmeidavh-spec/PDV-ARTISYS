@@ -11,7 +11,7 @@ const installHeaders={'content-type':'application/json','x-pdv-token':'installat
 async function start(){
   const calls=[];
   const runtime=createPdvRuntime({now:()=> '2026-09-26T12:00:00.000Z'});
-  const user=runtime.catalog.createUser({username:'admin',name:'Admin',role:'admin',email:'owner@example.com',password:'senha-antiga-123'});
+  const user=runtime.catalog.createUser({username:'admin',name:'Admin',profileId:'profile-administrator',email:'owner@example.com',password:'senha-antiga-123'});
   const fetchImpl=async(url,options={})=>{
     const body=JSON.parse(options.body||'{}');calls.push({url,body});
     if(url.endsWith('/v1/password-recovery/request'))return{ok:true,status:202,json:async()=>({accepted:true})};

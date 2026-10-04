@@ -11,9 +11,9 @@ async function fixture({lan=false}={}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-phase9-auth-'));
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`,serverVersion:'1.4.0',minimumTerminalVersion:'1.0.0'});
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'});
-  runtime.catalog.createUser({id:'manager1',username:'manager',name:'Gerente',role:'manager',password:'senha-manager-123'});
-  runtime.catalog.createUser({id:'cashier1',username:'cashier',name:'Operador',role:'cashier',password:'senha-cashier-123'});
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'});
+  runtime.catalog.createUser({id:'manager1',username:'manager',name:'Gerente',profileId:'profile-manager',password:'senha-manager-123'});
+  runtime.catalog.createUser({id:'cashier1',username:'cashier',name:'Operador',profileId:'profile-cashier',password:'senha-cashier-123'});
   runtime.catalog.upsertProduct({id:'p1',name:'Produto P0',sku:'P0',salePriceCents:2000,costCents:800,trackStock:true,minimumStock:0});
   runtime.catalog.upsertCustomer({id:'c1',name:'Cliente P0'});
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install-secret',requireTerminalAuth:lan});

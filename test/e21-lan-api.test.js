@@ -11,7 +11,7 @@ async function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdv-lan-api-'));
   let seq = 0;
   const runtime = createPdvRuntime({ dbPath: path.join(dir, 'pdv.sqlite'), idFactory: p => `${p}-${++seq}`, serverVersion: '1.0.0', minimumTerminalVersion: '1.0.0' });
-  runtime.catalog.createUser({ id:'admin1', username:'admin', name:'Admin', role:'admin', password:'senha-forte-123' });
+  runtime.catalog.createUser({ id:'admin1', username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
   const server = createLocalServer({ runtime, host:'127.0.0.1', port:0, token:'server-install-secret', requireTerminalAuth:true });
   const address = await server.start();
   return { dir, runtime, server, base:`http://${address.host}:${address.port}`, async close(){ await server.stop(); runtime.close(); fs.rmSync(dir,{recursive:true,force:true}); } };

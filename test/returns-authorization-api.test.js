@@ -9,7 +9,7 @@ const MANAGER_PASSWORD = 'Manager-local-123!';
 const CASHIER_PASSWORD = 'Cashier-local-123!';
 const OTHER_CASHIER_PASSWORD = 'Other-cashier-123!';
 
-function managerActor() { return { userId:'manager1', role:'manager', terminalId:'PDV-01' }; }
+function managerActor() { return { userId:'manager1', profileId:'profile-manager', terminalId:'PDV-01' }; }
 
 async function createCompletedSale(runtime, { id, saleNumber, quantity = 2 } = {}) {
   const sale = runtime.sales.openSale({ id, saleNumber, terminalId:'PDV-01', operatorId:'manager1' }, managerActor());
@@ -22,9 +22,9 @@ async function createCompletedSale(runtime, { id, saleNumber, quantity = 2 } = {
 
 async function setup() {
   const runtime = createPdvRuntime();
-  runtime.catalog.createUser({ id:'manager1', username:'gerente', name:'Gerente QA', role:'manager', password:MANAGER_PASSWORD });
-  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa QA', role:'cashier', password:CASHIER_PASSWORD });
-  runtime.catalog.createUser({ id:'cashier2', username:'outrocaixa', name:'Outro Caixa', role:'cashier', password:OTHER_CASHIER_PASSWORD });
+  runtime.catalog.createUser({ id:'manager1', username:'gerente', name:'Gerente QA', profileId:'profile-manager', password:MANAGER_PASSWORD });
+  runtime.catalog.createUser({ id:'cashier1', username:'caixa', name:'Caixa QA', profileId:'profile-cashier', password:CASHIER_PASSWORD });
+  runtime.catalog.createUser({ id:'cashier2', username:'outrocaixa', name:'Outro Caixa', profileId:'profile-cashier', password:OTHER_CASHIER_PASSWORD });
   runtime.catalog.upsertCategory({ id:'cat1', name:'Geral' });
   runtime.catalog.upsertProduct({ id:'p1', sku:'RET-1', name:'Produto devolucao', salePriceCents:1000, costCents:500, trackStock:false });
   runtime.cash.openSession({ terminalId:'PDV-01', operatorId:'manager1', initialCashCents:0, actor:managerActor() });
@@ -105,7 +105,7 @@ test('authorization endpoint authenticates requester and accepts only active man
     assert.equal(response.status, 200);
     const approval = await response.json();
     assert.ok(approval.approvalToken);
-    assert.deepEqual(approval.authorizedBy, { id:'manager1', name:'Gerente QA', role:'manager' });
+    assert.deepEqual(approval.authorizedBy, { id:'manager1', name:'Gerente QA', profileId:'profile-manager' });
     assert.ok(approval.expiresAt);
   } finally { await ctx.cleanup(); }
 });

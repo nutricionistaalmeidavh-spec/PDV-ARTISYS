@@ -45,11 +45,7 @@ function normalizePrincipal(input){
   const id=cleanId(input.id);
   if(!id)return null;
 
-  if(kind==='human'){
-    const principal={kind,id};
-    if(input.legacyRole)principal.legacyRole=String(input.legacyRole).trim().toLowerCase();
-    return principal;
-  }
+  if(kind==='human')return {kind,id};
 
   if(kind==='device'){
     const surface=cleanSurface(input.surface);
@@ -57,7 +53,6 @@ function normalizePrincipal(input){
     const principal={kind,id,surface,userId:cleanId(input.userId)};
     if(principal.userId===null)principal.userId=null;
     const scope=normalizeScope(input.scope);if(scope)principal.scope=scope;
-    if(input.legacyDeviceType)principal.legacyDeviceType=String(input.legacyDeviceType).trim().toUpperCase();
     return principal;
   }
 

@@ -8,13 +8,13 @@ const { execFileSync } = require('node:child_process');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 const NOW = '2026-09-20T15:00:00.000Z';
-const actor = { userId:'u1', role:'manager', terminalId:'T1' };
+const actor = { userId:'u1', profileId:'profile-manager', terminalId:'T1' };
 
 function fixture() {
   let seq = 0;
   const runtime = createPdvRuntime({ now:() => NOW, idFactory:prefix => `${prefix}-${++seq}` });
   runtime.catalog.upsertCategory({ id:'c1', name:'Geral' }, actor);
-  runtime.catalog.createUser({ id:'u1', username:'gerente', name:'Gerente', role:'manager', password:'senha-forte' }, actor);
+  runtime.catalog.createUser({ id:'u1', username:'gerente', name:'Gerente', profileId:'profile-manager', password:'senha-forte' }, actor);
   runtime.catalog.upsertProduct({ id:'p1', name:'Produto', categoryId:'c1', unit:'UN', salePriceCents:1000, costCents:500, trackStock:true, minimumStock:5, active:true }, actor);
   runtime.inventory.move({ productId:'p1', locationId:'MAIN', type:'opening', quantityDelta:10, reason:'Abertura' }, actor);
   runtime.cash.openSession({ id:'cash-T1', terminalId:'T1', operatorId:'u1', initialCashCents:0, actor });

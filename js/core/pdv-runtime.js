@@ -22,6 +22,7 @@ const { runAccessCapabilityMigrations }=require('./database/access-capability-mi
 const { runFoodOrderMigrations }=require('./database/food-order-migrations');
 const { runProductionOperationsMigrations }=require('./database/production-operations-migrations');
 const { runDeploymentCapabilityMigrations }=require('./database/deployment-capability-migrations');
+const { runCanonicalAccessMigrations }=require('./database/canonical-access-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -83,7 +84,7 @@ const { createSystemHealth }=require('./observability/system-health');
 const { createDiagnosticPackage }=require('./observability/diagnostic-package');
 const { createPilotService }=require('./pilot/pilot-service');
 const { createAuthorizationService }=require('./auth/authorization-service');
-const { createLegacyPermissionResolver }=require('./auth/legacy-authorization-adapter');
+const { permissionsForPublicResource }=require('./auth/public-resource-access');
 const { createProfileService,createProfilePermissionResolver }=require('./auth/profile-service');
 const { createDeviceAccessService,deviceResourcePolicy }=require('./auth/device-access-service');
 const { createAccessSecurityService }=require('./auth/access-security-service');
@@ -96,14 +97,16 @@ function createPdvRuntime({
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runHardwareMigrations(db,now);runSaleObservationMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);
-  const legacyPermissionResolver=createLegacyPermissionResolver();
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);
   let deviceAccess=null;
-  const profilePermissionResolver=createProfilePermissionResolver({db,fallback:(principal,context)=>{
+  const profilePermissionResolver=createProfilePermissionResolver({db});
+  const resolvePermissions=principal=>{
+    if(principal?.kind==='human')return profilePermissionResolver(principal);
     if(principal?.kind==='device'&&deviceAccess)return deviceAccess.permissionsForPrincipal(principal);
-    return legacyPermissionResolver(principal,context);
-  }});
-  const authorization=createAuthorizationService({resolvePermissions:profilePermissionResolver,resourcePolicy:deviceResourcePolicy});
+    if(principal?.kind==='public-resource')return permissionsForPublicResource(principal);
+    return[];
+  };
+  const authorization=createAuthorizationService({resolvePermissions,resourcePolicy:deviceResourcePolicy});
   const settings=createSettingsService({db,authorization,now});
   const modules=createModuleService({db,settings,authorization,now});
   const onboarding=createOnboardingService({db,modules,authorization,now});const mobileAccess=createMobileAccessService();const hardwareCompatibility=createHardwareCompatibilityService({db,authorization,now,idFactory});

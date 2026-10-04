@@ -2,11 +2,15 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { openDatabase } = require('../js/core/database/sqlite-database');
 const { runMigrations } = require('../js/core/database/migrations');
+const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
+const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { createCatalogService } = require('../js/domains/catalog/catalog-service');
 
 function setup() {
   const db = openDatabase(':memory:');
   runMigrations(db);
+  runAccessProfileMigrations(db);
+  runCanonicalAccessMigrations(db);
   return { db, service: createCatalogService({ db, now: () => '2026-09-09T15:00:00Z', idFactory: prefix => `${prefix}-1` }) };
 }
 
@@ -41,16 +45,16 @@ test('customer and supplier documents are normalized before persistence', () => 
   db.close();
 });
 
-test('createUser stores a password hash, validates role and authenticates securely', () => {
+test('createUser stores a password hash, validates profile and authenticates securely', () => {
   const { db, service } = setup();
-  const user = service.createUser({ id:'u1', username:'admin', name:'Administrador', role:'admin', password:'Senha-forte-123' });
-  assert.equal(user.role, 'admin');
+  const user = service.createUser({ id:'u1', username:'admin', name:'Administrador', profileId:'profile-administrator', password:'Senha-forte-123' });
+  assert.equal(user.profileId, 'profile-administrator');
   const raw = db.prepare('SELECT password_hash AS hash,password_salt AS salt FROM users WHERE id=?').get('u1');
   assert.notEqual(raw.hash, 'Senha-forte-123');
   assert.ok(raw.salt);
   assert.equal(service.verifyUserPassword('admin','Senha-forte-123').ok, true);
   assert.equal(service.verifyUserPassword('admin','errada').ok, false);
-  assert.throws(() => service.createUser({ id:'u2', username:'x', name:'X', role:'owner', password:'1234567890' }), /Perfil de usuario invalido/);
+  assert.throws(() => service.createUser({ id:'u2', username:'x', name:'X', profileId:'profile-inexistente', password:'1234567890' }), /Perfil de acesso nao encontrado|inativo/);
   db.close();
 });
 

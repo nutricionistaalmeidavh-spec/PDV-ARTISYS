@@ -32,7 +32,7 @@ test('runtime can configure optional commercial services without gating a new in
 test('existing local installation bypasses commercial activation even when configured', () => {
   const ctx = runtime();
   try {
-    ctx.catalog.createUser({ username:'admin', name:'Admin', role:'admin', password:'senha-forte-123' });
+    ctx.catalog.createUser({ username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
     const account = createAccountService({ db:ctx.db, installationId:'install-1', requireCommercialActivation:true, endpoint:'https://account.example', countUsers:()=>ctx.catalog.countUsers() });
     assert.equal(account.status().required, false);
   } finally { ctx.close(); }

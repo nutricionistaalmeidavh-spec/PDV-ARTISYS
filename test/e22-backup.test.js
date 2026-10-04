@@ -47,7 +47,7 @@ test('corrupted backup is rejected and cannot schedule restore', () => {
     const validation = service.validateBackup(backup.id);
     assert.equal(validation.valid, false);
     assert.match(validation.errors.join(' '), /checksum|sha/i);
-    assert.throws(() => service.prepareRestore(backup.id,{actor:{userId:'admin1',role:'admin'}}), /invalido|integridade|checksum/i);
+    assert.throws(() => service.prepareRestore(backup.id,{actor:{userId:'admin1',profileId:'profile-administrator'}}), /invalido|integridade|checksum/i);
   } finally { f.close(); }
 });
 
@@ -69,7 +69,7 @@ test('restore is prepared first and applied atomically only on next startup', ()
     const service = createBackupService({ db:f.db, dbPath:f.dbPath, backupDir:f.backupDir, now:f.now });
     const backup = service.createBackup('baseline');
     f.db.prepare("INSERT INTO categories(id,name,active,created_at,updated_at) VALUES ('after','Depois',1,?,?)").run(f.now(),f.now());
-    const prepared = service.prepareRestore(backup.id,{actor:{userId:'admin1',role:'admin'}});
+    const prepared = service.prepareRestore(backup.id,{actor:{userId:'admin1',profileId:'profile-administrator'}});
     assert.equal(prepared.pending, true);
     assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM categories WHERE id='after'").get().n, 1);
     f.db.close();

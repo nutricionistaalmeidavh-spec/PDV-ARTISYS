@@ -8,7 +8,7 @@ const {createLocalServer}=require('../server/local-server');
 test('offline key is hashed, rotated, consumed once and never logged',()=>{
   const runtime=createPdvRuntime();
   try{
-    const user=runtime.catalog.createUser({username:'admin',name:'Admin',role:'admin',password:'old-password-123'});
+    const user=runtime.catalog.createUser({username:'admin',name:'Admin',profileId:'profile-administrator',password:'old-password-123'});
     const service=createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
     assert.throws(()=>service.issue({userId:user.id,password:'wrong'}),/senha atual/);
     const first=service.issue({userId:user.id,password:'old-password-123'}).key;
@@ -36,20 +36,20 @@ test('recovery rate limit survives recreating the service and rejects username s
 test('failed password validation preserves the recovery key and user profile',()=>{
   const runtime=createPdvRuntime();
   try{
-    const user=runtime.catalog.createUser({username:'cashier',name:'Caixa',role:'cashier',password:'old-password-123'});
+    const user=runtime.catalog.createUser({username:'cashier',name:'Caixa',profileId:'profile-cashier',password:'old-password-123'});
     const before=runtime.db.prepare('SELECT profile_id FROM users WHERE id=?').get(user.id);
     const service=createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
     const {key}=service.issue({userId:user.id,password:'old-password-123'});
     assert.throws(()=>service.recover({username:'cashier',key,password:'short'}),/10 caracteres/);
     service.recover({username:'cashier',key,password:'new-password-123'});
     assert.deepEqual(runtime.db.prepare('SELECT profile_id FROM users WHERE id=?').get(user.id),before);
-    assert.equal(runtime.catalog.getUser(user.id).role,'cashier');
+    assert.equal(runtime.catalog.getUser(user.id).profileId,'profile-cashier');
   }finally{runtime.close();}
 });
 
 test('offline API requires password challenge for generation and revokes active sessions after recovery',async()=>{
   const runtime=createPdvRuntime();
-  runtime.catalog.createUser({username:'admin',name:'Admin',role:'admin',password:'old-password-123'});
+  runtime.catalog.createUser({username:'admin',name:'Admin',profileId:'profile-administrator',password:'old-password-123'});
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install'});
   const address=await server.start();const base=`http://${address.host}:${address.port}`;
   const post=(path,body,token)=>fetch(base+path,{method:'POST',headers:{'content-type':'application/json','x-pdv-token':'install',...(token?{authorization:`Bearer ${token}`}:{})},body:JSON.stringify(body)});

@@ -12,19 +12,17 @@ function slugify(value){
     .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 }
 
-function createProfilePermissionResolver({db,fallback=()=>[]}={}){
+function createProfilePermissionResolver({db}={}){
   if(!db)throw new TypeError('Database is required.');
-  return function resolvePermissions(principal,context={}){
-    if(principal?.kind==='human'){
-      const rows=db.prepare(`SELECT pp.permission_id
-        FROM users u
-        JOIN profiles p ON p.id=u.profile_id AND p.active=1
-        JOIN profile_permissions pp ON pp.profile_id=p.id
-        WHERE u.id=? AND u.active=1
-        ORDER BY pp.permission_id`).all(String(principal.id));
-      return rows.map(row=>row.permission_id);
-    }
-    return fallback(principal,context);
+  return function resolvePermissions(principal){
+    if(principal?.kind!=='human')return[];
+    const rows=db.prepare(`SELECT pp.permission_id
+      FROM users u
+      JOIN profiles p ON p.id=u.profile_id AND p.active=1
+      JOIN profile_permissions pp ON pp.profile_id=p.id
+      WHERE u.id=? AND u.active=1
+      ORDER BY pp.permission_id`).all(String(principal.id));
+    return rows.map(row=>row.permission_id);
   };
 }
 
@@ -50,7 +48,6 @@ function createProfileService({
       name:row.name,
       slug:row.slug,
       systemKey:row.system_key||null,
-      legacyRole:row.legacy_role||null,
       protected:Boolean(row.protected),
       active:Boolean(row.active),
       permissions:permissionsForProfile(row.id),
@@ -130,8 +127,8 @@ function createProfileService({
     const slug=slugify(input.slug||name);
     if(!slug)throw new Error('Identificador do perfil invalido.');
     const timestamp=now();
-    db.prepare(`INSERT INTO profiles(id,name,slug,system_key,legacy_role,protected,active,created_at,updated_at)
-      VALUES(?,?,?,NULL,NULL,0,1,?,?)`).run(id,name,slug,timestamp,timestamp);
+    db.prepare(`INSERT INTO profiles(id,name,slug,system_key,protected,active,created_at,updated_at)
+      VALUES(?,?,?,NULL,0,1,?,?)`).run(id,name,slug,timestamp,timestamp);
     replacePermissions(id,permissions,timestamp);
     writeAudit(db,{action:'profile.create',entity:'profile',entityId:id,actor,context:{name,permissions}},now);
     return getProfile(id);
@@ -180,19 +177,18 @@ function createProfileService({
       throw new Error('O administrador proprietario deve permanecer no perfil Administrador.');
     }
 
-    const compatibilityRole=profile.legacyRole||'cashier';
     if(user.profile_id===DEFAULT_PROFILE_IDS.ADMINISTRATOR&&profile.id!==DEFAULT_PROFILE_IDS.ADMINISTRATOR){
       const activeAdmins=Number(db.prepare('SELECT COUNT(*) AS count FROM users WHERE active=1 AND profile_id=?').get(DEFAULT_PROFILE_IDS.ADMINISTRATOR)?.count||0);
       if(activeAdmins<=1)throw new Error('Nao e permitido remover o ultimo administrador ativo.');
     }
 
     const timestamp=now();
-    db.prepare('UPDATE users SET profile_id=?,role=?,updated_at=? WHERE id=?')
-      .run(profile.id,compatibilityRole,timestamp,user.id);
+    db.prepare('UPDATE users SET profile_id=?,updated_at=? WHERE id=?')
+      .run(profile.id,timestamp,user.id);
     writeAudit(db,{action:'profile.assign',entity:'user',entityId:user.id,actor,context:{profileId:profile.id,profileName:profile.name}},now);
     const row=db.prepare('SELECT * FROM users WHERE id=?').get(user.id);
     const result={
-      id:row.id,username:row.username,name:row.name,role:row.role,profileId:row.profile_id,
+      id:row.id,username:row.username,name:row.name,profileId:row.profile_id,
       active:Boolean(row.active),createdAt:row.created_at,updatedAt:row.updated_at
     };
     if(row.email)result.email=row.email;

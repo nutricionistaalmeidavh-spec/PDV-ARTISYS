@@ -108,10 +108,6 @@
     return `${quantityLabel(count)} ${count===1?singular:plural}`;
   }
 
-  function roleLabel(role) {
-    return ({ admin: 'Administrador', manager: 'Gerente', cashier: 'Operador' })[role] || role || '';
-  }
-
   function initials(name) {
     return String(name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   }
@@ -229,8 +225,7 @@
     document.getElementById('terminal-name').textContent = state.config.terminalName;
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
-    document.getElementById('operator-role').textContent = state.user?.profile?.name || roleLabel(state.user?.role);
-    document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
+    document.getElementById('operator-role').textContent = state.user?.profile?.name || 'Equipe';
     window.PdvCurrentAccess=state.user||null;
     window.PdvUiLifecycle?.emit('user:changed', { profileId:state.user?.profileId || state.user?.profile?.id || '', permissions:[...(state.user?.permissions||[])], userId:state.user?.id || '' });
   }
@@ -1185,7 +1180,7 @@ function openCategoryForm() {
 
   function bindGlobalEvents() {
     document.querySelectorAll('[data-window]').forEach((button) => button.addEventListener('click', () => window.artisysDesktop.window[button.dataset.window]?.()));
-    document.getElementById('operator-button').addEventListener('click', () => { if (!state.user) return; openModal('Operador', `<div class="operator-modal-content"><div class="auth-logo operator-modal-avatar">${escapeHtml(initials(state.user.name))}</div><h3>${escapeHtml(state.user.name)}</h3><p>${escapeHtml(roleLabel(state.user.role))}</p><button id="logout-button" class="danger-button">Sair desta sessão</button></div>`, { onMount(root) { root.querySelector('#logout-button').addEventListener('click', () => { closeModal(); logout(); }); } }); });
+    document.getElementById('operator-button').addEventListener('click', () => { if (!state.user) return; openModal('Operador', `<div class="operator-modal-content"><div class="auth-logo operator-modal-avatar">${escapeHtml(initials(state.user.name))}</div><h3>${escapeHtml(state.user.name)}</h3><p>${escapeHtml(state.user.profile?.name||'Equipe')}</p><button id="logout-button" class="danger-button">Sair desta sessão</button></div>`, { onMount(root) { root.querySelector('#logout-button').addEventListener('click', () => { closeModal(); logout(); }); } }); });
     document.addEventListener('keydown', (event) => { if (!/^F\d+$/.test(event.key)) return; const action = ui.resolveShortcut(event.key, document.body.dataset.activeRoute || state.route); if (action) { event.preventDefault(); void executeShortcut(action); } });
   }
 

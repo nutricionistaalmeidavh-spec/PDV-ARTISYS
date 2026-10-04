@@ -5,11 +5,11 @@ const assert=require('node:assert/strict');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
 
 function ids(){let n=0;return prefix=>`${prefix}-${++n}`;}
-function actor(){return{userId:'admin-1',role:'admin',terminalId:'pdv-1'};}
+function actor(){return{userId:'admin-1',profileId:'profile-administrator',terminalId:'pdv-1'};}
 function runtime(){return createPdvRuntime({dbPath:':memory:',idFactory:ids(),now:(()=>{let i=0;return()=>`2026-09-11T00:00:${String(i++).padStart(2,'0')}.000Z`;})()});}
 
 function seed(rt){
-  rt.catalog.createUser({id:'admin-1',username:'admin',name:'Admin',role:'admin',password:'1234567890'},actor());
+  rt.catalog.createUser({id:'admin-1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'1234567890'},actor());
   rt.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,costCents:800,trackStock:false},actor());
   rt.catalog.upsertProduct({id:'cheese',name:'Queijo',salePriceCents:300,costCents:100,trackStock:true},actor());
   rt.catalog.upsertProduct({id:'bread',name:'Pao',salePriceCents:200,costCents:80,trackStock:true},actor());
@@ -78,8 +78,8 @@ test('E42 direct module settings enforce boolean type and admin permission',()=>
   const rt=runtime();seed(rt);const admin=actor();
   assert.throws(()=>rt.settings.set('modules.PIZZERIA.enabled',true,{scope:'global',actor:admin}),/desconhecido/i);
   assert.throws(()=>rt.settings.set('modules.FOOD.enabled','true',{scope:'global',actor:admin}),/booleano/i);
-  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'cashier',role:'cashier'}}),/Permissao insuficiente/);
-  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'manager',role:'manager'}}),/Permissao insuficiente/);
+  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'cashier',profileId:'profile-cashier'}}),/Permissao insuficiente/);
+  assert.throws(()=>rt.settings.set('modules.FOOD.enabled',false,{scope:'global',actor:{userId:'manager',profileId:'profile-manager'}}),/Permissao insuficiente/);
   rt.settings.set('modules.WHOLESALE.enabled',true,{scope:'global',actor:admin});
   assert.deepEqual(rt.modules.list().map(module=>module.id),['FOOD','WHOLESALE']);
   rt.settings.set('modules.WHOLESALE.enabled',false,{scope:'global',actor:admin});

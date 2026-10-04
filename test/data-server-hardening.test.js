@@ -78,7 +78,7 @@ test('local data guard detects finance data even without sales products or custo
     assert.equal(summary.hasData, false);
     runtime.finance.createEntry({
       id:'fin-only', kind:'PAYABLE', description:'Conta sem catálogo', amountCents:1000, dueAt:'2026-10-10T12:00:00Z'
-    }, { userId:'admin', role:'admin' });
+    }, { userId:'admin', profileId:'profile-administrator' });
     assert.equal(runtime.db.prepare('SELECT COUNT(*) AS total FROM sales').get().total, 0);
     assert.equal(runtime.db.prepare('SELECT COUNT(*) AS total FROM products').get().total, 0);
     assert.equal(runtime.db.prepare('SELECT COUNT(*) AS total FROM customers').get().total, 0);

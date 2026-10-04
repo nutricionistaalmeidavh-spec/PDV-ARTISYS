@@ -40,7 +40,7 @@ test('sale completed inventory effect is idempotent on retry', async () => {
   const {db,inventory}=setup(); inventory.move({productId:'p1',type:'opening',quantityDelta:5});
   const bus=new DomainEventBus(); const effectStore=new SqliteEffectStore(db);
   registerInventoryEffects({bus,inventoryService:inventory,effectStore});
-  const evt={eventId:'evt-sale-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T15:01:00Z',actor:{userId:'u1',role:'cashier'},source:'server',payload:{items:[{productId:'p1',quantity:2}]}};
+  const evt={eventId:'evt-sale-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T15:01:00Z',actor:{userId:'u1',profileId:'profile-cashier'},source:'server',payload:{items:[{productId:'p1',quantity:2}]}};
   assert.equal((await bus.publishAsync(evt)).failures.length,0);
   assert.equal(inventory.getBalance('p1'),3);
   assert.equal((await bus.publishAsync(evt)).failures.length,0);
@@ -52,7 +52,7 @@ test('sale completed inventory effect is idempotent on retry', async () => {
 test('sale cancelled inventory effect restores stock once', async () => {
   const {db,inventory}=setup(); inventory.move({productId:'p1',type:'opening',quantityDelta:3});
   const bus=new DomainEventBus(); const effectStore=new SqliteEffectStore(db); registerInventoryEffects({bus,inventoryService:inventory,effectStore});
-  const evt={eventId:'evt-cancel-1',type:'sale.cancelled',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T15:02:00Z',actor:{userId:'u1',role:'manager'},source:'server',payload:{items:[{productId:'p1',quantity:2}]}};
+  const evt={eventId:'evt-cancel-1',type:'sale.cancelled',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T15:02:00Z',actor:{userId:'u1',profileId:'profile-manager'},source:'server',payload:{items:[{productId:'p1',quantity:2}]}};
   await bus.publishAsync(evt); await bus.publishAsync(evt);
   assert.equal(inventory.getBalance('p1'),5);
   assert.equal(inventory.listMovements('p1').filter(m=>m.type==='sale-cancel').length,1);

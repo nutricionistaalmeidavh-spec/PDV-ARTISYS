@@ -20,7 +20,7 @@ const request = {
   terminalId:'PDV-01',
   saleId:'sale1'
 };
-const approver = { userId:'manager1', role:'manager', name:'Gerente QA' };
+const approver = { userId:'manager1', profileId:'profile-manager', name:'Gerente QA' };
 
 test('approval is scoped, single-use and returns only approver identity', () => {
   const { store } = fixture();

@@ -12,7 +12,7 @@ const {createFinanceService}=require('../js/domains/finance/finance-service');
 const {createFinanceManagementService}=require('../js/domains/finance/finance-management');
 const {createReconciliation}=require('../js/domains/finance/reconciliation');
 
-const admin={userId:'admin-p0',role:'admin'};
+const admin={userId:'admin-p0',profileId:'profile-administrator'};
 const now='2026-10-02T12:00:00.000Z';
 
 function fixture(){

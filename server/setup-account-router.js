@@ -1,6 +1,7 @@
 'use strict';
 const {withTransaction}=require('../js/core/database/sqlite-database');
 const {createLocalRecoveryService}=require('../js/core/auth/local-recovery-service');
+const {DEFAULT_PROFILE_IDS}=require('../js/core/auth/default-profiles');
 
 function sendJson(response,statusCode,payload){
   response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -38,7 +39,7 @@ function createSetupAccountRouter({runtime,installationToken='',bodyLimitBytes=1
         const body=await readJson(request,bodyLimitBytes);
         const localRecovery=runtime.localRecovery||createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
         const {user,recoveryKey}=withTransaction(runtime.db,()=>{
-          const user=runtime.catalog.createUser({...body,email:body.email,role:'admin',active:true},{userId:'setup',role:'system',terminalId:null});
+          const user=runtime.catalog.createUser({...body,email:body.email,profileId:DEFAULT_PROFILE_IDS.ADMINISTRATOR,active:true},{kind:'system',id:'system'});
           const recoveryKey=localRecovery.issue({userId:user.id,password:body.password}).key;
           return {user,recoveryKey};
         });

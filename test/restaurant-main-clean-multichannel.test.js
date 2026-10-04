@@ -5,7 +5,7 @@ const assert=require('node:assert/strict');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 
-const admin={userId:'admin-clean',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin-clean',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 function headers(device,mutationId){
   return {
@@ -20,7 +20,7 @@ test('garçom tablet e QR compartilham configuração, observação e produção
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
-    const user=rt.catalog.createUser({id:'admin-clean',username:'admin-clean',name:'Garçom QA',role:'admin',password:'Qa-Clean-12345!'},admin);
+    const user=rt.catalog.createUser({id:'admin-clean',username:'admin-clean',name:'Garçom QA',profileId:'profile-administrator',password:'Qa-Clean-12345!'},admin);
     const customer=rt.catalog.upsertCustomer({id:'customer-clean',name:'Cliente Multicanal'},admin);
     const product=rt.catalog.upsertProduct({id:'burger-clean',name:'Burger Multicanal',salePriceCents:2000,trackStock:false,menuEnabled:true,usageType:'DIRECT'},admin);
     const group=rt.catalogCustomization.upsertOptionGroup({id:'extras-clean',name:'Extras',selectionType:'MULTIPLE',minSelections:0,maxSelections:2},admin);

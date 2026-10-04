@@ -1,6 +1,6 @@
 # P2 — Canonical Authorization Service
 
-P2 introduces one fail-closed authorization engine without replacing the legacy gates yet.
+P2 defines the fail-closed authorization engine now used by the canonical access model.
 
 ## Canonical decision
 
@@ -27,11 +27,9 @@ Unknown capabilities, malformed principals, resolver failures and policy failure
 
 The core service does not interpret `admin`, `manager`, `cashier` or device-type business rules.
 
-## Legacy compatibility adapter
+## Canonical permission sources
 
-`legacy-authorization-adapter.js` translates the current actor model into canonical principals and provides temporary permission projections for the existing roles/device types.
-
-This adapter is intentionally removable. P3 will replace human role resolution with persisted profiles and profile permissions.
+Human principals resolve permissions only from persisted `profile_id` + `profile_permissions`. Devices use the device-access policy and public resources use the explicit public-resource permission map. There is no role-to-permission compatibility adapter in the runtime.
 
 ## Security properties
 
@@ -44,4 +42,4 @@ This adapter is intentionally removable. P3 will replace human role resolution w
 
 ## Migration status
 
-P2 exposes `runtime.authorization`, but existing route/module/UI gates remain unchanged. Their migration is staged in P4/P5/P7/P8 so P2 itself does not create an authorization behavior regression.
+The runtime, HTTP routes and protected UI surfaces use the canonical authorization service. Human role names are not authorization inputs; official profiles are presets over the same canonical permission registry.

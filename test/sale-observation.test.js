@@ -13,8 +13,8 @@ test('observacao impressa quebra palavras conforme a largura do cupom', () => { 
 test('runtime persiste observacao vinculada a venda e cliente', () => {
   const runtime = createPdvRuntime({ dbPath:':memory:', now:()=> '2026-09-15T12:00:00.000Z' });
   try {
-    const actor={ userId:'u1', role:'cashier', terminalId:'PDV-01' };
-    runtime.catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+    const actor={ userId:'u1', profileId:'profile-cashier', terminalId:'PDV-01' };
+    runtime.catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
     runtime.catalog.upsertCustomer({ id:'c1', name:'Cliente Teste' });
     runtime.catalog.upsertProduct({ id:'p1', sku:'P1', name:'Produto', salePriceCents:1000, minimumStock:0 });
     runtime.inventory.move({ productId:'p1', type:'opening', quantityDelta:10 });

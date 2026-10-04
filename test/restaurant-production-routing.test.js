@@ -5,12 +5,12 @@ const assert=require('node:assert/strict');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
 const { createLocalServer }=require('../server/local-server');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 function fixture(){
   let seq=0;
   const runtime=createPdvRuntime({now:()=> '2026-10-03T12:00:00.000Z',idFactory:prefix=>`${prefix}-${++seq}`});
-  runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+  runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
   runtime.catalog.upsertProduct({id:'coke',name:'Coca-Cola lata',sku:'COCA',salePriceCents:700,costCents:300,trackStock:false,menuEnabled:true});
   runtime.catalog.upsertProduct({id:'juice',name:'Suco de laranja',sku:'SUCO',salePriceCents:1200,costCents:500,trackStock:false,menuEnabled:true});
   runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',seats:4},admin);

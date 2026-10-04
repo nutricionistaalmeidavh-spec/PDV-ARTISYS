@@ -7,7 +7,7 @@ const {runErpFinanceMigrations}=require('../js/core/database/erp-finance-migrati
 const {createFinanceService}=require('../js/domains/finance/finance-service');
 const {createFinanceDimensionsService}=require('../js/domains/finance/finance-dimensions');
 
-const admin={userId:'admin-1',role:'admin'};
+const admin={userId:'admin-1',profileId:'profile-administrator'};
 function fixture(){
   const db=openDatabase(':memory:');
   runMigrations(db,()=> '2026-09-23T12:00:00.000Z');

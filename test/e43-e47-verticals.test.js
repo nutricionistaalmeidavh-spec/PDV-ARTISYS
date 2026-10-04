@@ -5,10 +5,10 @@ const assert=require('node:assert/strict');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
 
 function ids(){let n=0;return prefix=>`${prefix}-${++n}`;}
-const admin={userId:'admin-1',role:'admin',terminalId:'pdv-1'};
+const admin={userId:'admin-1',profileId:'profile-administrator',terminalId:'pdv-1'};
 function runtime(){return createPdvRuntime({dbPath:':memory:',idFactory:ids(),now:(()=>{let i=0;return()=>`2026-09-11T01:${String(Math.floor(i/60)).padStart(2,'0')}:${String(i++%60).padStart(2,'0')}.000Z`;})()});}
 function seed(rt){
-  rt.catalog.createUser({id:'admin-1',username:'admin',name:'Admin',role:'admin',password:'1234567890'},admin);
+  rt.catalog.createUser({id:'admin-1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'1234567890'},admin);
   rt.catalog.upsertProduct({id:'pizza',name:'Pizza',salePriceCents:3000,trackStock:false},admin);
   rt.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,trackStock:false},admin);
   rt.catalog.upsertProduct({id:'soda',name:'Refrigerante',salePriceCents:700,trackStock:true},admin);
@@ -82,7 +82,7 @@ test('E44 transfers selected items between open table sessions without moving th
 test('E44 item cancellation requires restaurant.orders.cancel and a reason',()=>{
   const rt=runtime();seed(rt);const table=rt.restaurant.upsertTable({id:'tc',label:'C'},admin);const session=rt.restaurant.openTable(table.id,{operatorId:'admin-1',actor:admin});
   const order=rt.restaurant.addOrder(session.id,{items:[{productId:'burger',quantity:1}],actor:admin});
-  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'erro',{userId:'cash',role:'cashier'}),/permiss/i);
+  assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'erro',{userId:'cash',profileId:'profile-cashier'}),/permiss/i);
   assert.throws(()=>rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'',admin),/motivo/i);
   assert.equal(rt.restaurantSettlement.cancelOrderItem(order.items[0].id,'Pedido duplicado',admin).cancelled,true);
   rt.close();

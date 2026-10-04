@@ -8,7 +8,7 @@ const { createLocalServer } = require('../server/local-server');
 
 async function start({ existing=false, offline=false }={}) {
   const runtime=createPdvRuntime({ now:()=> '2026-09-25T22:00:00.000Z', idFactory:(prefix)=>`${prefix}-${Math.random()}` });
-  if(existing) runtime.catalog.createUser({username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+  if(existing) runtime.catalog.createUser({username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
   const fetchImpl=offline
     ? async()=>{ throw new Error('offline'); }
     : async(url)=> url.endsWith('/request')

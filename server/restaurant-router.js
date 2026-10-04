@@ -17,17 +17,17 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(requireTerminalAuth){
       const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');
       const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new RestaurantHttpError(401,'Terminal nao autorizado.');
-      return{kind:'terminal',terminalId:id,actor:{userId:null,role:'terminal',terminalId:id}};
+      return{kind:'terminal',terminalId:id,actor:{kind:'device',id,surface:'terminal',userId:null,terminalId:id}};
     }
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new RestaurantHttpError(401,'Token local invalido.');
-    return{kind:'local',terminalId:null,actor:{userId:null,role:'system',terminalId:null}};
+    return{kind:'local',terminalId:null,actor:{kind:'system',id:'system',terminalId:null}};
   }
 
   function mobilePrincipal(request,types=null){
     const id=String(request.headers['x-device-id']||'').trim();const key=String(request.headers['x-device-key']||'');
     const auth=runtime.deviceAccess?.authenticate?runtime.deviceAccess.authenticate(id,key):runtime.mobileDevices.authenticate(id,key);if(!auth.ok)throw new RestaurantHttpError(401,'Dispositivo nao autorizado.');
     if(types&&!types.includes(auth.device.deviceType))throw new RestaurantHttpError(403,'Dispositivo sem permissao para esta operacao.');
-    return{device:auth.device,principal:auth.principal||null,scope:auth.scope||auth.device.scope||null,actor:{userId:auth.device.userId||null,role:`mobile-${auth.device.deviceType.toLowerCase()}`,terminalId:null}};
+    return{device:auth.device,principal:auth.principal||null,scope:auth.scope||auth.device.scope||null,actor:{...(auth.principal||{}),terminalId:null}};
   }
 
   function requireRestaurantEnabled(){runtime.modules?.requireEnabled('FOOD');}

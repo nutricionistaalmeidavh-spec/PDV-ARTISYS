@@ -11,7 +11,7 @@ async function setup() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'pdv-e13e20-'));
   let seq = 0;
   const runtime = createPdvRuntime({ dbPath:path.join(dir,'pdv.sqlite'), idFactory:p=>`${p}-${++seq}` });
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
   const server = createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install-secret'});
   const address = await server.start();
   return { dir, runtime, server, base:`http://${address.host}:${address.port}`, async cleanup(){await server.stop();runtime.close();fs.rmSync(dir,{recursive:true,force:true});} };

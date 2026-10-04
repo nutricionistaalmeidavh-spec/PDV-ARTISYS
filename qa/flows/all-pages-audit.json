@@ -1516,8 +1516,9 @@
       "timeoutMs": 15000
     },
     {
-      "action": "expectVisible",
+      "action": "waitFor",
       "selector": ".erp-management-page",
+      "state": "visible",
       "name": "a11y-relatorios-gestao-teclado-confirmado",
       "timeoutMs": 15000
     },

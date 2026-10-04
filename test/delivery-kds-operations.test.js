@@ -7,7 +7,7 @@ const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 function fixture(){
   let seq=0;
@@ -16,7 +16,7 @@ function fixture(){
     now:()=>new Date(Date.UTC(2026,9,3,21,0,0,seq++)).toISOString(),
     idFactory:prefix=>`${prefix}-${++seq}`
   });
-  runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
+  runtime.catalog.createUser({id:'admin',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'},admin);
   runtime.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,trackStock:false,menuEnabled:true},admin);
   runtime.catalog.upsertProduct({id:'juice',name:'Suco',salePriceCents:900,trackStock:false,menuEnabled:true},admin);
   runtime.modules.setEnabled('FOOD',true,admin);

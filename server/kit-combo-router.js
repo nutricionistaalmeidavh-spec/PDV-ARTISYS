@@ -8,9 +8,9 @@ async function body(request,limit=1024*1024){let size=0;const chunks=[];for awai
 function createKitComboRouter({runtime,installationToken='',requireTerminalAuth=false}={}){
   if(!runtime?.kitsCombos) throw new TypeError('runtime.kitsCombos is required.');
   function principal(request){
-    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new KitComboHttpError(401,'Terminal nao autorizado.');return{userId:null,role:'terminal',terminalId:id};}
+    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new KitComboHttpError(401,'Terminal nao autorizado.');return{kind:'device',id,surface:'terminal',userId:null,terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new KitComboHttpError(401,'Token local invalido.');
-    return{userId:null,role:'system',terminalId:null};
+    return{kind:'system',id:'system',terminalId:null};
   }
   return async function kitComboRouter(request,response){
     const url=new URL(request.url||'/',`http://${request.headers.host||'localhost'}`);const pathname=url.pathname;

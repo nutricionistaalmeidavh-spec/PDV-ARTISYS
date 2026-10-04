@@ -31,7 +31,7 @@ onRuntimeTelemetryAttached((telemetry, runtime) => {
       get: (key, options) => runtime.settings.get(key, options),
       set: (key, value) => runtime.settings.set(key, value, {
         scope: 'global',
-        actor: { role: 'system', userId: 'updater-consent' }
+        actor: { kind:'system', id:'system' }
       })
     },
     updater: service,

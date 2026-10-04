@@ -6,7 +6,7 @@ const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
 
-const admin={userId:'qa-admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'qa-admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 const system={kind:'system',id:'system'};
 
 test('QA gate serves staff mobile and public QR menu from the real local server',async t=>{

@@ -4,6 +4,10 @@ const { openDatabase }=require('../js/core/database/sqlite-database');
 const { runMigrations }=require('../js/core/database/migrations');
 const { runReleaseMigrations }=require('../js/core/database/release-migrations');
 const { runVerticalMigrations }=require('../js/core/database/vertical-migrations');
+const {runSalesEnhancementMigrations}=require('../js/core/database/sales-enhancement-migrations');
+const {runCommercialMediaMigrations}=require('../js/core/database/commercial-media-migrations');
+const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
+const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { SqliteOutboxStore }=require('../js/core/database/outbox-store');
 const { createCatalogService }=require('../js/domains/catalog/catalog-service');
 const { createInventoryService }=require('../js/domains/inventory/inventory-service');
@@ -11,10 +15,10 @@ const { calculateSaleTotals }=require('../js/domains/sales/pricing');
 const { createSaleService }=require('../js/domains/sales/sale-service');
 
 function setup(){
-  const db=openDatabase(':memory:');runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;
+  const db=openDatabase(':memory:');runMigrations(db);runReleaseMigrations(db);runVerticalMigrations(db);runSalesEnhancementMigrations(db);runCommercialMediaMigrations(db);runAccessProfileMigrations(db);runCanonicalAccessMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;
   const catalog=createCatalogService({db,now:()=> '2026-09-09T15:00:00Z',idFactory:ids});
-  catalog.createUser({id:'u1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-forte-123'});
-  catalog.createUser({id:'m1',username:'gerente',name:'Gerente',role:'manager',password:'senha-forte-456'});
+  catalog.createUser({id:'u1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-forte-123'});
+  catalog.createUser({id:'m1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-forte-456'});
   catalog.upsertProduct({id:'p1',sku:'1',name:'Teclado',salePriceCents:10000,minimumStock:1});
   catalog.upsertProduct({id:'p2',sku:'2',name:'Mouse',salePriceCents:5000,minimumStock:1});
   catalog.upsertCustomer({id:'c1',name:'Maria',creditLimitCents:20000,creditUsedCents:5000});
@@ -46,7 +50,7 @@ test('sale lifecycle supports open add update remove discount suspend and resume
 test('completeSale persists multiple payments and sale.completed outbox without changing stock',async()=>{
   const {db,inventory,outbox,sales}=setup();
   sales.openSale({id:'s1',saleNumber:'000001',terminalId:'pdv-01',operatorId:'u1',customerId:'c1'}); sales.addItem('s1',{productId:'p1',quantity:1});
-  const completed=sales.completeSale('s1',{payments:[{method:'CASH',amountCents:7000},{method:'STORE_CREDIT',amountCents:3000}],actor:{userId:'u1',role:'cashier',terminalId:'pdv-01'},mutationId:'mut-1'});
+  const completed=sales.completeSale('s1',{payments:[{method:'CASH',amountCents:7000},{method:'STORE_CREDIT',amountCents:3000}],actor:{userId:'u1',profileId:'profile-cashier',terminalId:'pdv-01'},mutationId:'mut-1'});
   assert.equal(completed.status,'COMPLETED'); assert.equal(completed.totalCents,10000); assert.equal(completed.payments.length,2);
   assert.equal(inventory.getBalance('p1'),5,'stock must be changed only by EventBus effect');
   assert.equal(db.prepare('SELECT credit_used_cents AS value FROM customers WHERE id=?').get('c1').value,8000);
@@ -57,19 +61,19 @@ test('completeSale persists multiple payments and sale.completed outbox without 
 test('completeSale rejects insufficient payment, insufficient stock and duplicate completion atomically',async()=>{
   const {db,outbox,sales}=setup();
   sales.openSale({id:'s1',saleNumber:'000001',terminalId:'pdv-01',operatorId:'u1'});sales.addItem('s1',{productId:'p1',quantity:1});
-  assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:5000}],actor:{userId:'u1',role:'cashier'}}),/Pagamento insuficiente/);
+  assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:5000}],actor:{userId:'u1',profileId:'profile-cashier'}}),/Pagamento insuficiente/);
   assert.equal((await outbox.listPending(10)).length,0); assert.equal(sales.getSale('s1').status,'OPEN');
-  sales.updateItemQuantity('s1','p1',6);assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:60000}],actor:{userId:'u1',role:'cashier'}}),/Estoque insuficiente/);
-  sales.updateItemQuantity('s1','p1',1);sales.completeSale('s1',{payments:[{method:'CASH',amountCents:10000}],actor:{userId:'u1',role:'cashier'}});
-  assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:10000}],actor:{userId:'u1',role:'cashier'}}),/nao esta aberta/);
+  sales.updateItemQuantity('s1','p1',6);assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:60000}],actor:{userId:'u1',profileId:'profile-cashier'}}),/Estoque insuficiente/);
+  sales.updateItemQuantity('s1','p1',1);sales.completeSale('s1',{payments:[{method:'CASH',amountCents:10000}],actor:{userId:'u1',profileId:'profile-cashier'}});
+  assert.throws(()=>sales.completeSale('s1',{payments:[{method:'CASH',amountCents:10000}],actor:{userId:'u1',profileId:'profile-cashier'}}),/nao esta aberta/);
   db.close();
 });
 
 test('cancelSale preserves history, reverses credit and emits sale.cancelled without restoring stock directly',async()=>{
   const {db,inventory,outbox,sales}=setup();
   sales.openSale({id:'s1',saleNumber:'000001',terminalId:'pdv-01',operatorId:'u1',customerId:'c1'});sales.addItem('s1',{productId:'p1',quantity:1});
-  sales.completeSale('s1',{payments:[{method:'STORE_CREDIT',amountCents:10000}],actor:{userId:'u1',role:'cashier'}});
-  const cancelled=sales.cancelSale('s1',{reason:'Cliente desistiu',actor:{userId:'m1',role:'manager',terminalId:'pdv-01'}});
+  sales.completeSale('s1',{payments:[{method:'STORE_CREDIT',amountCents:10000}],actor:{userId:'u1',profileId:'profile-cashier'}});
+  const cancelled=sales.cancelSale('s1',{reason:'Cliente desistiu',actor:{userId:'m1',profileId:'profile-manager',terminalId:'pdv-01'}});
   assert.equal(cancelled.status,'CANCELLED'); assert.equal(cancelled.cancelReason,'Cliente desistiu'); assert.equal(cancelled.items.length,1);
   assert.equal(db.prepare('SELECT credit_used_cents AS value FROM customers WHERE id=?').get('c1').value,5000);
   assert.equal(inventory.getBalance('p1'),5);

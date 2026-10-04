@@ -16,11 +16,11 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       const token=bearer(request);const session=sessions.get(token);
       if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new FinalVerticalHttpError(401,'Sessao invalida ou expirada.');}
       if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new FinalVerticalHttpError(401,'Terminal nao autorizado.');}
-      return{actor:{userId:session.userId,role:session.role,terminalId:session.terminalId||null},terminalId:session.terminalId||null};
+      return{actor:{kind:'human',userId:session.userId,terminalId:session.terminalId||null},terminalId:session.terminalId||null};
     }
-    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new FinalVerticalHttpError(401,'Terminal nao autorizado.');return{actor:{userId:null,role:'terminal',terminalId:id},terminalId:id};}
+    if(requireTerminalAuth){const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new FinalVerticalHttpError(401,'Terminal nao autorizado.');return{actor:{kind:'device',id,surface:'terminal',userId:null,terminalId:id},terminalId:id};}
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new FinalVerticalHttpError(401,'Token local invalido.');
-    return{actor:{userId:null,role:'system',terminalId:null},terminalId:null};
+    return{actor:{kind:'system',id:'system',terminalId:null},terminalId:null};
   }
   async function mutate(request,pathname,statusCode,handler){const mutationId=String(request.headers['x-mutation-id']||'').trim();if(!mutationId||!runtime.mutations)return{statusCode,payload:await handler(mutationId||null)};return runtime.mutations.execute({mutationId,method:request.method,path:pathname},async()=>({statusCode,payload:await handler(mutationId)}));}
   function tableAccess(request,url,tableId,{rotate=false,input={}}={}){const p=principal(request);const ordering=publicOrdering();const access=rotate?ordering.rotateTableAccess(tableId,p.actor):ordering.issueTableAccess(tableId,p.actor);const host=String(input.host||url.searchParams.get('host')||String(request.headers.host||'127.0.0.1').split(':')[0]).trim();const port=Number(input.port||url.searchParams.get('port')||String(request.headers.host||'').split(':')[1]||4174);const lan=runtime.mobileAccess.getLanAccess({host,port,protocol:input.protocol||url.searchParams.get('protocol')||'http:',path:`/m/${access.token}`});return{tableId:access.tableId,url:lan.url,qrSvg:lan.qrSvg,security:lan.security,warning:lan.warning};}

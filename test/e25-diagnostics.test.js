@@ -30,7 +30,7 @@ test('diagnostic package is a valid safe ZIP with only public support data',()=>
     logger.log({level:'error',subsystem:'fiscal',message:'Falha controlada',context:{saleId:'s1',token:'NAO_PODE_VAZAR',authorization:'Bearer SEGREDO'}});
     const health=createSystemHealth({db,version:'0.9.0'});
     const diagnostics=createDiagnosticPackage({db,health,settings,logger,diagnosticsDir:path.join(dir,'diagnostics'),version:'0.9.0',now,idFactory:()=> 'diag-1'});
-    const result=diagnostics.createPackage({actor:{userId:'admin',role:'admin'}});
+    const result=diagnostics.createPackage({actor:{userId:'admin',profileId:'profile-administrator'}});
     assert.equal(result.id,'diag-1');assert.match(result.fileName,/\.zip$/);assert.equal(result.sha256.length,64);assert.ok(result.size>0);assert.ok(fs.existsSync(result.filePath));
     const raw=fs.readFileSync(result.filePath);assert.equal(raw.readUInt32LE(0),0x04034b50);
     const entries=listStoredZipEntries(raw);const names=entries.map(e=>e.name).sort();

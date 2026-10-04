@@ -36,6 +36,20 @@ test('P6 Cadastros hub exposes child tasks according to route permission',()=>{
   assert.match(app,/delete document\.body\.dataset\.activeModuleWorkspace/);
 });
 
+test('settings access card is gated only by canonical capabilities',()=>{
+  const settings=read('desktop/renderer/settings-hub-ui.js');
+  const app=read('desktop/renderer/app.js');
+  assert.match(settings,/\['users\.view','profiles\.view'\]\.some\(capability=>window\.PdvAccessPolicy\?\.hasCapability\(window\.PdvCurrentAccess,capability\)\)/);
+  assert.match(settings,/data-settings-route="access"/);
+  assert.doesNotMatch(settings,/dataset\.userRole|\['admin','manager'\]/);
+  assert.doesNotMatch(app,/dataset\.userRole|dataset\.userPermissions/);
+  const restaurant=read('desktop/renderer/restaurant-ui.js');
+  assert.doesNotMatch(restaurant,/dataset\.userRole|\['admin','manager'\]/);
+  const management=read('desktop/renderer/erp-finance-ui.js');
+  assert.match(management,/PdvAccessPolicy\?\.hasCapability\(access,'management\.view'\)/);
+  assert.doesNotMatch(management,/dataset\.userRole|\['admin','manager'\]|\.user\?\.role/);
+});
+
 test('QA audit covers optional areas and universal checkout documents',()=>{
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   const names=new Set(flow.steps.map(step=>step.name));

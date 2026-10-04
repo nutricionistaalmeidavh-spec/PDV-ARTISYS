@@ -72,19 +72,18 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
   }
 
   function profileForInput(input,existing){
-    if(!profiles)return null;
+    if(!profiles)throw domainError(500,'Servico canonico de perfis indisponivel.');
+    if(input.role!==undefined)throw domainError(400,'Campo role legado nao e suportado; informe profileId.');
     if(input.profileId)return profiles.getProfile(input.profileId);
-    if(existing?.profileId&&!input.role)return profiles.getProfile(existing.profileId);
-    const legacyRole=String(input.role||existing?.role||'cashier').toLowerCase();
-    const key=legacyRole==='admin'?'admin':legacyRole==='manager'?'manager':'operator';
-    return profiles.getProfileBySystemKey(key);
+    if(existing?.profileId)return profiles.getProfile(existing.profileId);
+    return profiles.getProfileBySystemKey('operator');
   }
 
   function assertCanGrantProfile(actor,profile,explicit=false){
     if(!authorization||!profile)return;
     const principal=principalFromActor(actor);
     if(principal?.kind==='system')return;
-    if(explicit||profile.protected)requireCapability(actor,'profiles.assign');
+    if(explicit)requireCapability(actor,'profiles.assign');
     for(const permission of profile.permissions||[]){
       if(!authorization.can({principal,capability:permission}))throw domainError(403,'Nao e permitido atribuir um perfil com permissoes superiores as do usuario atual.');
     }
@@ -100,15 +99,10 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     const targetProfile=profileForInput(input,existing);
     if(profiles&&(!targetProfile||!targetProfile.active))throw domainError(409,'Perfil de acesso invalido ou inativo.');
     const changesProfile=!existing||String(targetProfile?.id||'')!==String(existing.profileId||'');
-    const defaultOperator=profiles?.getProfileBySystemKey?.('operator')||null;
-    const requiresProfileAssignment=Boolean(input.profileId)||
-      Boolean(existing&&changesProfile)||
-      Boolean(!existing&&targetProfile&&defaultOperator&&targetProfile.id!==defaultOperator.id);
-    if(changesProfile)assertCanGrantProfile(actor,targetProfile,requiresProfileAssignment);
-    const requestedRole=targetProfile?.legacyRole||String(input.role||existing?.role||'cashier').trim().toLowerCase();
+    if(changesProfile)assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId));
 
     ensureAdminMutationSafe(existing,targetProfile,requestedActive,actor);
-    return catalog.upsertUser({...input,profileId:targetProfile?.id||input.profileId,role:requestedRole,active:requestedActive},actor);
+    return catalog.upsertUser({...input,profileId:targetProfile.id,active:requestedActive},actor);
   }
 
   function removeUser(id,actor=null){

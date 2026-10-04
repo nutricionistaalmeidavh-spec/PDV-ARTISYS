@@ -30,9 +30,9 @@ function createCatalogManagementRouter({runtime,sessionStore=null,requireTermina
     if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new CatalogManagementHttpError(401,'Sessao invalida ou expirada.');}
     const current=runtime.catalog.getUser(session.userId);
     if(!current||!current.active){sessions.delete(token);throw new CatalogManagementHttpError(401,'Sessao invalida ou expirada.');}
-    session.role=current.role;session.name=current.name;
+    session.name=current.name;
     if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new CatalogManagementHttpError(401,'Terminal nao autorizado.');}
-    return{kind:'human',userId:session.userId,role:session.role,terminalId:session.terminalId||null};
+    return{kind:'human',userId:session.userId,terminalId:session.terminalId||null};
   }
 
   function requireCapability(actor,capability){try{return runtime.authorization.require({principal:{kind:'human',id:actor.userId},capability});}catch(error){throw new CatalogManagementHttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
@@ -40,7 +40,7 @@ function createCatalogManagementRouter({runtime,sessionStore=null,requireTermina
     for(const [token,session] of sessions.entries()){
       if(session.userId!==user.id)continue;
       if(!user.active)sessions.delete(token);
-      else{session.role=user.role;session.name=user.name;}
+      else{session.name=user.name;}
     }
   }
 

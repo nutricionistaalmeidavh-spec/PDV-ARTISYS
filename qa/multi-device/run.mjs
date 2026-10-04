@@ -190,7 +190,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   });
   const installToken='qa-local-fixture';
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:true});
-  const actor={userId:'qa-admin',role:'admin',terminalId:'ADMIN-01'};
+  const actor={kind:'human',userId:'qa-admin',terminalId:'ADMIN-01'};
   const results=[];
   const state={};
 
@@ -215,11 +215,11 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
   }
 
   try{
-    runtime.catalog.createUser({id:'qa-admin',username:'qa-admin',name:'QA Administrador',role:'admin',password:'qa-test-password'});
-    runtime.catalog.createUser({id:'qa-cash-a',username:'qa-cash-a',name:'QA Caixa A',role:'cashier',password:'qa-test-password'});
-    runtime.catalog.createUser({id:'qa-cash-b',username:'qa-cash-b',name:'QA Caixa B',role:'cashier',password:'qa-test-password'});
-    runtime.catalog.createUser({id:'qa-waiter',username:'qa-waiter',name:'QA Garcom',role:'cashier',password:'qa-test-password'});
-    runtime.catalog.createUser({id:'qa-waiter-2',username:'qa-waiter-2',name:'QA Garcom 2',role:'cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-admin',username:'qa-admin',name:'QA Administrador',profileId:'profile-administrator',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-cash-a',username:'qa-cash-a',name:'QA Caixa A',profileId:'profile-cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-cash-b',username:'qa-cash-b',name:'QA Caixa B',profileId:'profile-cashier',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-waiter',username:'qa-waiter',name:'QA Garcom',profileId:'profile-waiter',password:'qa-test-password'});
+    runtime.catalog.createUser({id:'qa-waiter-2',username:'qa-waiter-2',name:'QA Garcom 2',profileId:'profile-waiter',password:'qa-test-password'});
 
     runtime.catalog.upsertCategory({id:'qa-category',name:'QA Multi-Device'},actor);
     runtime.modules.setEnabled('FOOD',true,actor);
@@ -649,7 +649,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
         const userId='qa-scale-cash-user-'+suffix;
         const username='qa-scale-cash-'+suffix;
         const terminal=pairTerminal('SCALE-CAIXA-'+suffix,'Caixa Escala '+suffix);
-        runtime.catalog.createUser({id:userId,username,name:'Caixa Escala '+suffix,role:'cashier',password:'qa-test-password'});
+        runtime.catalog.createUser({id:userId,username,name:'Caixa Escala '+suffix,profileId:'profile-cashier',password:'qa-test-password'});
         const client=await login(base,{username,password:'qa-test-password',terminal});
         const opened=await client.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-scale-open-cash-'+suffix},body:{initialCashCents:0},expected:201});
         cashierFixtures.push({index:i,userId,terminal,client,session:opened.body.session});
@@ -660,7 +660,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       for(let i=1;i<=SCALE_WAITERS;i+=1){
         const suffix=String(i).padStart(2,'0');
         const userId='qa-scale-waiter-user-'+suffix;
-        runtime.catalog.createUser({id:userId,username:'qa-scale-waiter-'+suffix,name:'Garcom Escala '+suffix,role:'cashier',password:'qa-test-password'});
+        runtime.catalog.createUser({id:userId,username:'qa-scale-waiter-'+suffix,name:'Garcom Escala '+suffix,profileId:'profile-waiter',password:'qa-test-password'});
         const device=runtime.mobileDevices.createDevice({id:'qa-scale-waiter-device-'+suffix,name:'Garcom Escala '+suffix,deviceType:'WAITER',userId},actor);
         waiterFixtures.push({index:i,userId,device,client:deviceClient(base,device)});
       }
@@ -766,7 +766,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       for(let i=1;i<=SCALE_WAITERS;i+=1){
         const suffix=String(i).padStart(2,'0');
         const userId='qa-ramp-waiter-user-'+suffix;
-        runtime.catalog.createUser({id:userId,username:'qa-ramp-waiter-'+suffix,name:'Garcom Rampa '+suffix,role:'cashier',password:'qa-test-password'});
+        runtime.catalog.createUser({id:userId,username:'qa-ramp-waiter-'+suffix,name:'Garcom Rampa '+suffix,profileId:'profile-waiter',password:'qa-test-password'});
         const device=runtime.mobileDevices.createDevice({id:'qa-ramp-waiter-device-'+suffix,name:'Garcom Rampa '+suffix,deviceType:'WAITER',userId},actor);
         waiters.push({index:i,client:deviceClient(base,device)});
       }

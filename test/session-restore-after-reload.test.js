@@ -15,7 +15,7 @@ async function fixture() {
     id: 'admin-session',
     username: 'admin',
     name: 'Admin Sessao',
-    role: 'admin',
+    profileId:'profile-administrator',
     password: 'senha-admin-123'
   });
   const server = createLocalServer({
@@ -63,7 +63,8 @@ test('authenticated session can be recovered after renderer reload', async () =>
     const payload = await response.json();
     assert.equal(payload.user.id, 'admin-session');
     assert.equal(payload.user.name, 'Admin Sessao');
-    assert.equal(payload.user.role, 'admin');
+    assert.equal(payload.user.profileId, 'profile-administrator');
+    assert.equal(payload.user.profile?.systemKey, 'admin');
     assert.equal(payload.terminalId, 'PDV-01');
   } finally {
     await ctx.close();

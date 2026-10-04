@@ -39,7 +39,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
 
   function requireActiveWaiter(id) {
     if (id == null || String(id).trim() === '') return null;
-    const user = db.prepare('SELECT id,name,role,active FROM users WHERE id=?').get(String(id));
+    const user = db.prepare('SELECT id,name,active FROM users WHERE id=?').get(String(id));
     if (!user || !user.active) throw new Error('Garcom responsavel nao encontrado ou inativo.');
     return user;
   }

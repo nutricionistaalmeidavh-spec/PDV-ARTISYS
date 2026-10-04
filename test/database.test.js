@@ -13,7 +13,7 @@ function event(id = 'evt-1') {
     aggregate: 'sale',
     aggregateId: 'sale-1',
     occurredAt: '2026-09-09T15:00:00.000Z',
-    actor: { userId: 'cashier-1', role: 'cashier', terminalId: 'pdv-01' },
+    actor: { userId: 'cashier-1', profileId:'profile-cashier', terminalId: 'pdv-01' },
     source: 'server',
     mutationId: 'mut-1',
     payload: { totalCents: 10000 }
@@ -105,7 +105,7 @@ test('audit sanitizer removes secrets and writeAudit persists compact context', 
   assert.deepEqual(clean, { username:'victor', nested:{ value:42 } });
   const db = openDatabase(':memory:');
   runMigrations(db);
-  writeAudit(db, { action:'product.upsert', entity:'product', entityId:'p1', actor:{ userId:'u1', role:'admin' }, context:{ barcode:'789', secret:'nope' } });
+  writeAudit(db, { action:'product.upsert', entity:'product', entityId:'p1', actor:{ userId:'u1', profileId:'profile-administrator' }, context:{ barcode:'789', secret:'nope' } });
   const row = db.prepare('SELECT action,entity,entity_id AS entityId,context_json AS contextJson FROM audit_log').get();
   assert.equal(row.action, 'product.upsert');
   assert.equal(row.entityId, 'p1');

@@ -76,7 +76,7 @@ test('sale completed print effect queues exactly one durable canonical snapshot 
   const bus=new DomainEventBus();const effectStore=new SqliteEffectStore(db);
   const settings={get:(key,{defaultValue})=>key==='printing.paperMm'?80:key==='printing.columnsMode'?'auto':defaultValue};
   registerPrintEffects({bus,effectStore,printService:print,saleService:{getSaleDetails:id=>id==='s1'?sale():null},settings,storeName:'Loja ArtiSys'});
-  const event={eventId:'evt-sale-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T12:00:00Z',actor:{userId:'u1',role:'cashier',terminalId:'T1'},source:'server',mutationId:null,payload:{terminalId:'T1'}};
+  const event={eventId:'evt-sale-1',type:'sale.completed',aggregate:'sale',aggregateId:'s1',occurredAt:'2026-09-09T12:00:00Z',actor:{userId:'u1',profileId:'profile-cashier',terminalId:'T1'},source:'server',mutationId:null,payload:{terminalId:'T1'}};
   let result=await bus.publishAsync(event);assert.equal(result.failures.length,0);
   result=await bus.publishAsync(event);assert.equal(result.failures.length,0);
   const jobs=print.listJobs({entityId:'s1'});assert.equal(jobs.length,1);assert.equal(jobs[0].id,'receipt-evt-sale-1');assert.match(jobs[0].payload.text,/CUPOM NAO FISCAL/);

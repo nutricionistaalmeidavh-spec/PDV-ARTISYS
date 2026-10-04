@@ -4,9 +4,9 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 
-const admin={userId:'admin',role:'admin',terminalId:'PDV-01'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 function setup(){let seq=0;const rt=createPdvRuntime({dbPath:':memory:',idFactory:p=>`${p}-${++seq}`,now:()=>`2026-09-11T04:00:${String(seq).padStart(2,'0')}.000Z`});
-  rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'},admin);
+  rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'},admin);
   rt.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,trackStock:false},admin);
   rt.catalog.upsertProduct({id:'ham',name:'Presunto kg',salePriceCents:4000,unit:'KG',trackStock:true},admin);
   rt.inventory.move({productId:'ham',type:'opening',quantityDelta:10,reason:'seed'},admin);
