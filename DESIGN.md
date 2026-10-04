@@ -36,6 +36,8 @@ Typography uses `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe
 ## Layout and interaction
 
 - Preserve the desktop frame, persistent top context, scrollable route region, and persistent navigation/footer.
+- Desktop shell density is canonical: the top context uses a 72px track and the footer a 44px track; shell compaction must not reduce interactive controls below 44px.
+- Primary operational actions use `--artisys-blue`; secondary actions use a quiet light surface with a visible border. Keep danger styling reserved for destructive intent.
 - Use a consistent page header and align related cards in responsive grids; avoid oversized stacked cards when screen width permits side-by-side comparison.
 - Keep the approved Home and explicitly approved grouped pages unchanged.
 - Cards are for a meaningful destination or summary; do not duplicate the same action across cards and navigation.
