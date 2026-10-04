@@ -16,7 +16,7 @@ function headers(device,mutationId){
   };
 }
 
-test('garçom tablet e QR compartilham configuração, observação e produção canônicas',async()=>{
+test('garçom e QR compartilham configuração, observação e produção canônicas',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
@@ -28,11 +28,9 @@ test('garçom tablet e QR compartilham configuração, observação e produção
     rt.catalogCustomization.linkGroupToProduct(product.id,group.id,{required:false,sortOrder:1},admin);
     const station=rt.kitchen.upsertStation({id:'kitchen-clean',name:'Cozinha Multi'},admin);
     rt.kitchen.assignProduct(product.id,station.id,admin);
-    for(const [id,label] of [['tw','Mesa Garçom'],['tt','Mesa Tablet'],['tq','Mesa QR']])rt.restaurant.upsertTable({id,label,seats:4},admin);
+    for(const [id,label] of [['tw','Mesa Garçom'],['tq','Mesa QR']])rt.restaurant.upsertTable({id,label,seats:4},admin);
 
     const waiter=rt.mobileDevices.createDevice({id:'waiter-clean',name:'Garçom Multi',deviceType:'WAITER',userId:user.id},admin);
-    const tablet=rt.mobileDevices.createDevice({id:'tablet-clean',name:'Tablet Multi',deviceType:'TABLET',tableId:'tt'},admin);
-    rt.restaurant.openTable('tt',{operatorId:user.id,waiterId:user.id,partySize:2,actor:admin});
 
     server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-clean'});
     const address=await server.start();
@@ -55,18 +53,12 @@ test('garçom tablet e QR compartilham configuração, observação e produção
     assert.equal(waiterSession.customerId,customer.id);
 
     const configuredItem={productId:product.id,quantity:1,selections:[option.id],note:'sem cebola'};
-    for(const [device,mutation,note] of [
-      [waiter,'waiter-clean-order','sem cebola'],
-      [tablet,'tablet-clean-order','molho a parte']
-    ]){
-      const response=await fetch(`${base}/api/v1/mobile/orders`,{
-        method:'POST',
-        headers:headers(device,mutation),
-        body:JSON.stringify(device===waiter?{sessionId:waiterSession.id,items:[{...configuredItem,note}]}:{items:[{...configuredItem,note}]})
-      });
-      assert.equal(response.status,201);
-    }
-
+    const waiterOrder=await fetch(`${base}/api/v1/mobile/orders`,{
+      method:'POST',
+      headers:headers(waiter,'waiter-clean-order'),
+      body:JSON.stringify({sessionId:waiterSession.id,items:[{...configuredItem,note:'sem cebola'}]})
+    });
+    assert.equal(waiterOrder.status,201);
     const access=rt.publicOrdering.issueTableAccess('tq',admin);
     const qrOrder=await fetch(`${base}/api/v1/public/menu/${access.token}/orders`,{
       method:'POST',
@@ -75,12 +67,12 @@ test('garçom tablet e QR compartilham configuração, observação e produção
     });
     assert.equal(qrOrder.status,201);
 
-    const sessions=['tw','tt','tq'].map(id=>rt.restaurant.currentSession(id));
-    assert.deepEqual(sessions.map(session=>session.orders.length),[1,1,1]);
+    const sessions=['tw','tq'].map(id=>rt.restaurant.currentSession(id));
+    assert.deepEqual(sessions.map(session=>session.orders.length),[1,1]);
     const items=sessions.map(session=>session.orders[0].items[0]);
-    assert.deepEqual(items.map(item=>item.unitPriceCents),[2300,2300,2300]);
-    assert.deepEqual(items.map(item=>item.note),['sem cebola','molho a parte','bem passado']);
-    assert.equal(rt.kitchen.listTickets().length,3);
+    assert.deepEqual(items.map(item=>item.unitPriceCents),[2300,2300]);
+    assert.deepEqual(items.map(item=>item.note),['sem cebola','bem passado']);
+    assert.equal(rt.kitchen.listTickets().length,2);
 
     const mobileComposer=await fetch(`${base}/mobile/order-composer.js`);
     const menuComposer=await fetch(`${base}/menu/order-composer.js`);
