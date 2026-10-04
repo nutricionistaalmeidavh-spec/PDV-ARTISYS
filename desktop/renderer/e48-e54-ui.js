@@ -20,32 +20,60 @@
     await search('');
   }
 
-  async function renderSelfService(){
-    const root=content();let tables=[];let users=[];
-    try{[tables,users]=await Promise.all([req('/api/v1/restaurant/tables'),api.users(true)]);}catch(error){notify(error.message,true);}
-    const tableOptions=(tables||[]).filter(table=>table.active!==false).map(table=>`<option value="${esc(table.id)}">${esc(table.label||table.id)}</option>`).join('');
-    const userOptions=(users||[]).filter(user=>user.active!==false).map(user=>`<option value="${esc(user.id)}">${esc(user.name)} · ${esc(ui?.roleLabel?.(user.role,user.role)||user.role||'Equipe')}</option>`).join('');
-    root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Autoatendimento</h1><p>Configure o dispositivo pelo local de atendimento e pela pessoa responsável, sem códigos técnicos.</p></div>${back()}</header><div class="data-card"><form id="self-create" class="vertical-form">${field('name','Nome do dispositivo')}<label class="field"><span>Atendimento</span><select name="mode"><option value="PICKUP">Retirada no balcão</option><option value="TABLE">Mesa fixa</option></select></label><label class="field" data-self-table><span>Mesa</span><select name="tableId"><option value="">Selecione a mesa</option>${tableOptions}</select></label><label class="field" data-self-operator><span>Responsável local</span><select name="operatorId"><option value="">Selecione a pessoa</option>${userOptions}</select></label><button class="primary-button">Criar e configurar</button></form><div id="self-output" class="vertical-output" aria-live="polite"></div></div><div class="data-card"><button id="self-access" class="secondary-button">Exibir QR de acesso local</button></div></section>`;bindBack();
-    const form=document.getElementById('self-create');const tableField=form.querySelector('[data-self-table]');const operatorField=form.querySelector('[data-self-operator]');
-    const updateMode=()=>{const table=form.elements.mode.value==='TABLE';tableField.hidden=!table;operatorField.hidden=table;form.elements.tableId.required=table;form.elements.operatorId.required=!table;};form.elements.mode.addEventListener('change',updateMode);updateMode();
-    form.addEventListener('submit',async event=>{event.preventDefault();const d=new FormData(event.currentTarget);try{const device=await req('/api/v1/restaurant/devices',{method:'POST',body:{name:d.get('name'),deviceType:'SELF_SERVICE'}});const profile=await req(`/api/v1/vertical/self-service/devices/${e(device.id)}`,{method:'PUT',body:{mode:d.get('mode'),tableId:d.get('mode')==='TABLE'?(d.get('tableId')||null):null,operatorId:d.get('mode')==='PICKUP'?(d.get('operatorId')||null):null}});const modeLabel=profile.mode==='TABLE'?'Mesa fixa':'Retirada no balcão';document.getElementById('self-output').innerHTML=`<strong>Dispositivo configurado para ${esc(modeLabel)}.</strong><p>Use a credencial abaixo somente neste dispositivo.</p><code>Identificação: ${esc(device.id)}</code><br><code>Chave: ${esc(device.credential)}</code><p>Guarde a chave: ela não é exibida novamente.</p>`;notify('Autoatendimento configurado.');}catch(error){notify(error.message,true);}});
-    document.getElementById('self-access').addEventListener('click',renderMobileAccess);
+  function selfDeviceStatusLabel(device){
+    const status=String(device?.status||'').toUpperCase();
+    if(status==='ACTIVE')return'Ativo';
+    if(status==='BLOCKED')return'Bloqueado';
+    return status||'Sem status';
+  }
+  function selfDeviceLastSeenLabel(value){
+    if(!value)return'Ainda não conectado';
+    const date=new Date(value);
+    return Number.isNaN(date.getTime())?'Último acesso registrado':`Último acesso: ${date.toLocaleString('pt-BR')}`;
+  }
+  function selfDeviceRows(devices=[]){
+    return devices.map(device=>{
+      const binding=device.mode==='TABLE'
+        ?`Mesa: ${esc(device.tableLabel||device.locationLabel||'Mesa fixa')}`
+        :`Responsável local: ${esc(device.operatorName||'Não identificado')}`;
+      return `<div class="vertical-row" data-self-device="${esc(device.id)}"><div><strong>${esc(device.name)}</strong><span>${esc(device.locationLabel||'Autoatendimento')} · ${binding}</span><small>${esc(selfDeviceStatusLabel(device))} · ${esc(selfDeviceLastSeenLabel(device.lastSeenAt))}</small></div></div>`;
+    }).join('')||'<div class="vertical-empty"><strong>Nenhum dispositivo configurado.</strong><p>Crie o primeiro autoatendimento abaixo.</p></div>';
+  }
+  async function showMobileAccess(){
+    const modal=window.PdvModal;
+    if(!modal?.open){notify('Acesso local indisponível nesta tela.',true);return;}
+    modal.open('Acesso local do autoatendimento','<div id="self-access-output" aria-live="polite"><p class="vertical-rule">Detectando o PC principal…</p></div>',{onMount:modalRoot=>{
+      const output=modalRoot.querySelector('#self-access-output');
+      void (async()=>{
+        try{
+          const network=await window.artisysDesktop.publicNetwork.state();
+          if(!network?.enabled){
+            output.innerHTML=`<div class="vertical-empty"><strong>Ative este computador como PC principal.</strong><p>${esc(network?.reason||'O acesso pela rede local não está disponível.')}</p><button type="button" class="secondary-button" data-configure-principal>Configurar PC principal</button></div>`;
+            output.querySelector('[data-configure-principal]')?.addEventListener('click',()=>{modal.close();window.PdvAppNavigation?.navigate?.('settings');window.PdvUiLifecycle?.emit('settings:select',{category:'units'});});
+            return;
+          }
+          await window.artisysDesktop.publicNetwork.test({host:network.host,port:network.port});
+          const result=await req(`/api/v1/vertical/mobile-access?host=${e(network.host)}&port=${e(network.port)}&path=${e('/mobile')}`);
+          output.innerHTML=`<p><strong>Acesso pronto na rede da loja.</strong></p><p>Escaneie no aparelho do autoatendimento. O QR abre o acesso local; depois use a identificação e a chave exibidas quando o dispositivo foi criado.</p><div style="max-width:260px">${result.qrSvg}</div><p class="vertical-rule">${esc(result.warning||'Abra o QR em um aparelho conectado à mesma rede local.')}</p>`;
+        }catch(error){
+          output.innerHTML=`<p class="vertical-rule">${esc(error.message||'Não foi possível gerar o acesso local.')}</p>`;
+          notify(error.message,true);
+        }
+      })();
+    }});
   }
 
-  async function renderMobileAccess(){
-    const root=content();root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Acesso local do dispositivo</h1><p>O ArtiSys usa automaticamente o endereço do PC principal na rede local.</p></div>${back()}</header><div class="data-card"><div id="access-output" aria-live="polite"><p class="vertical-rule">Detectando o PC principal…</p></div></div></section>`;bindBack();
-    const output=document.getElementById('access-output');
-    try{
-      const network=await window.artisysDesktop.publicNetwork.state();
-      if(!network?.enabled){
-        output.innerHTML=`<div class="vertical-empty"><strong>Ative este computador como PC principal.</strong><p>${esc(network?.reason||'O acesso pela rede local não está disponível.')}</p><button type="button" class="secondary-button" data-configure-principal>Configurar PC principal</button></div>`;
-        output.querySelector('[data-configure-principal]')?.addEventListener('click',()=>{window.PdvAppNavigation?.navigate?.('settings');window.PdvUiLifecycle?.emit('settings:select',{category:'units'});});
-        return;
-      }
-      await window.artisysDesktop.publicNetwork.test({host:network.host,port:network.port});
-      const result=await req(`/api/v1/vertical/mobile-access?host=${e(network.host)}&port=${e(network.port)}&path=${e('/mobile')}`);
-      output.innerHTML=`<p><strong>Acesso pronto na rede da loja.</strong></p><div style="max-width:260px">${result.qrSvg}</div><p class="vertical-rule">${esc(result.warning||'Abra o QR em um aparelho conectado à mesma rede local.')}</p>`;
-    }catch(error){output.innerHTML=`<p class="vertical-rule">${esc(error.message||'Não foi possível gerar o acesso local.')}</p>`;notify(error.message,true);}
+  async function renderSelfService(){
+    const root=content();let tables=[];let users=[];let devices=[];
+    try{[tables,users,devices]=await Promise.all([req('/api/v1/restaurant/tables'),api.users(true),req('/api/v1/vertical/self-service/devices')]);}catch(error){notify(error.message,true);}
+    const tableOptions=(tables||[]).filter(table=>table.active!==false).map(table=>`<option value="${esc(table.id)}">${esc(table.label||table.id)}</option>`).join('');
+    const userOptions=(users||[]).filter(user=>user.active!==false).map(user=>`<option value="${esc(user.id)}">${esc(user.name)} · ${esc(ui?.roleLabel?.(user.role,user.role)||user.role||'Equipe')}</option>`).join('');
+    root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Autoatendimento</h1><p>Configure o dispositivo pelo local de atendimento e pela pessoa responsável, sem códigos técnicos.</p></div>${back()}</header><div class="data-card"><div class="admin-section-head"><div><h2>Dispositivos configurados</h2><p>Nome, local e responsável ficam vinculados ao mesmo autoatendimento.</p></div><button id="self-access" class="secondary-button" type="button">Exibir QR de acesso local</button></div><div id="self-devices">${selfDeviceRows(devices)}</div></div><div class="data-card"><div class="admin-section-head"><div><h2>Novo dispositivo</h2><p>Crie a identidade que será usada por este totem.</p></div></div><form id="self-create" class="vertical-form">${field('name','Nome do dispositivo')}<label class="field"><span>Atendimento</span><select name="mode"><option value="PICKUP">Retirada no balcão</option><option value="TABLE">Mesa fixa</option></select></label><label class="field" data-self-table><span>Mesa</span><select name="tableId"><option value="">Selecione a mesa</option>${tableOptions}</select></label><label class="field" data-self-operator><span>Responsável local</span><select name="operatorId"><option value="">Selecione a pessoa</option>${userOptions}</select></label><button class="primary-button">Criar e configurar</button></form><div id="self-output" class="vertical-output" aria-live="polite"></div></div></section>`;bindBack();
+    const refreshDevices=async()=>{try{const rows=await req('/api/v1/vertical/self-service/devices');const list=document.getElementById('self-devices');if(list)list.innerHTML=selfDeviceRows(rows);}catch(error){notify(error.message,true);}};
+    const form=document.getElementById('self-create');const tableField=form.querySelector('[data-self-table]');const operatorField=form.querySelector('[data-self-operator]');
+    const updateMode=()=>{const table=form.elements.mode.value==='TABLE';tableField.hidden=!table;operatorField.hidden=table;form.elements.tableId.required=table;form.elements.operatorId.required=!table;};form.elements.mode.addEventListener('change',updateMode);updateMode();
+    form.addEventListener('submit',async event=>{event.preventDefault();const submit=event.currentTarget.querySelector('button[type="submit"],button:not([type])');const idle=submit?.textContent||'Criar e configurar';if(submit){submit.disabled=true;submit.textContent='Criando…';}const d=new FormData(event.currentTarget);try{const device=await req('/api/v1/restaurant/devices',{method:'POST',body:{name:d.get('name'),deviceType:'SELF_SERVICE'}});const profile=await req(`/api/v1/vertical/self-service/devices/${e(device.id)}`,{method:'PUT',body:{mode:d.get('mode'),tableId:d.get('mode')==='TABLE'?(d.get('tableId')||null):null,operatorId:d.get('mode')==='PICKUP'?(d.get('operatorId')||null):null}});const modeLabel=profile.mode==='TABLE'?'Mesa fixa':'Retirada no balcão';document.getElementById('self-output').innerHTML=`<strong>${esc(device.name)} configurado para ${esc(modeLabel)}.</strong><p>Use a credencial abaixo somente neste dispositivo.</p><code>Identificação: ${esc(device.id)}</code><br><code>Chave: ${esc(device.credential)}</code><p>Guarde a chave: ela não é exibida novamente.</p><button type="button" class="secondary-button" data-self-access-created>Exibir QR de acesso local</button>`;document.querySelector('[data-self-access-created]')?.addEventListener('click',showMobileAccess);await refreshDevices();notify('Autoatendimento configurado.');}catch(error){notify(error.message,true);}finally{if(submit){submit.disabled=false;submit.textContent=idle;}}});
+    document.getElementById('self-access')?.addEventListener('click',showMobileAccess);
   }
 
   async function renderHardware(){
