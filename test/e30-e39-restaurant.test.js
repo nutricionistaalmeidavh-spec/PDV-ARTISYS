@@ -69,7 +69,8 @@ test('E33-E36: mobile credentials are hashed, revocable and authorize only the l
   const ctx=fixture({persistent:true});const {runtime,user,table}=ctx;let server;
   try{
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garcom 1',deviceType:'WAITER',userId:user.id});
-    const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa 1',deviceType:'TABLET',tableId:table.id});
+    const self=runtime.mobileDevices.createDevice({id:'self1',name:'Mesa fixa 1',deviceType:'SELF_SERVICE'});
+    runtime.selfService.configureDevice(self.id,{mode:'TABLE',tableId:table.id},{userId:user.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'kd1',name:'KDS',deviceType:'KITCHEN'});
     const stored=runtime.db.prepare('SELECT credential_hash AS hash FROM mobile_devices WHERE id=?').get(waiter.id);assert.equal(stored.hash.includes(waiter.credential),false);
     server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'local-secret',requireTerminalAuth:false});const address=await server.start();const base=`http://${address.host}:${address.port}`;
@@ -78,17 +79,17 @@ test('E33-E36: mobile credentials are hashed, revocable and authorize only the l
     assert.equal((await fetch(`${base}/api/v1/restaurant/tables`,{headers:{'x-pdv-token':'local-secret'}})).status,200);
     const waiterHeaders={'x-device-id':waiter.id,'x-device-key':waiter.credential,'content-type':'application/json','x-mutation-id':'open-table-1'};
     const opened=await fetch(`${base}/api/v1/mobile/tables/${table.id}/open`,{method:'POST',headers:waiterHeaders,body:'{}'});assert.equal(opened.status,201);
-    const tabletHeaders={'x-device-id':tablet.id,'x-device-key':tablet.credential,'content-type':'application/json','x-mutation-id':'tablet-order-1'};
-    const tabletContext=await fetch(`${base}/api/v1/mobile/context`,{headers:tabletHeaders});assert.equal(tabletContext.status,200);assert.ok((await tabletContext.json()).session);
-    const order=await fetch(`${base}/api/v1/mobile/orders`,{method:'POST',headers:tabletHeaders,body:JSON.stringify({items:[{productId:'p1',quantity:1}]})});assert.equal(order.status,201);
+    const selfHeaders={'x-device-id':self.id,'x-device-key':self.credential,'content-type':'application/json','x-mutation-id':'self-order-1'};
+    const selfContext=await fetch(`${base}/api/v1/mobile/context`,{headers:selfHeaders});assert.equal(selfContext.status,200);assert.ok((await selfContext.json()).session);
+    const order=await fetch(`${base}/api/v1/mobile/self-service/orders`,{method:'POST',headers:selfHeaders,body:JSON.stringify({items:[{productId:'p1',quantity:1}]})});assert.equal(order.status,201);
+    const persisted=runtime.db.prepare('SELECT source FROM restaurant_orders ORDER BY created_at DESC LIMIT 1').get();assert.equal(persisted.source,'TABLE');
     const kctx=await fetch(`${base}/api/v1/mobile/context`,{headers:{'x-device-id':kitchen.id,'x-device-key':kitchen.credential}});assert.equal(kctx.status,200);assert.equal((await kctx.json()).tickets.length,1);
-    runtime.mobileDevices.setStatus(tablet.id,'BLOCKED',{userId:'admin'});
-    const blocked=await fetch(`${base}/api/v1/mobile/context`,{headers:tabletHeaders});assert.equal(blocked.status,401);
-    const rotated=runtime.mobileDevices.rotateCredential(tablet.id,{userId:'admin'});assert.notEqual(rotated.credential,tablet.credential);assert.equal(runtime.mobileDevices.authenticate(tablet.id,tablet.credential).ok,false);assert.equal(runtime.mobileDevices.authenticate(tablet.id,rotated.credential).ok,true);
+    runtime.mobileDevices.setStatus(self.id,'BLOCKED',{userId:'admin'});
+    const blocked=await fetch(`${base}/api/v1/mobile/context`,{headers:selfHeaders});assert.equal(blocked.status,401);
+    const rotated=runtime.mobileDevices.rotateCredential(self.id,{userId:'admin'});assert.notEqual(rotated.credential,self.credential);assert.equal(runtime.mobileDevices.authenticate(self.id,self.credential).ok,false);assert.equal(runtime.mobileDevices.authenticate(self.id,rotated.credential).ok,true);
   }finally{if(server)await server.stop();ctx.close();}
 });
-
-test('E38: repeated mutation id produces one waiter open and one tablet order',async()=>{
+test('E38: repeated mutation id produces one waiter table open',async()=>{
   const ctx=fixture({persistent:true});const {runtime,user,table}=ctx;let server;
   try{
     const waiter=runtime.mobileDevices.createDevice({id:'w2',name:'Garcom 2',deviceType:'WAITER',userId:user.id});
@@ -98,4 +99,17 @@ test('E38: repeated mutation id produces one waiter open and one tablet order',a
     const [a,b]=await Promise.all([req(),req()]);assert.equal(a.status,201);assert.equal(b.status,201);assert.deepEqual(await a.json(),await b.json());
     assert.equal(runtime.db.prepare("SELECT COUNT(*) AS n FROM table_sessions WHERE table_id=? AND status='OPEN'").get(table.id).n,1);
   }finally{if(server)await server.stop();ctx.close();}
+});
+
+test('E33 canonical schema and sources no longer expose TABLET',()=>{
+  const ctx=fixture();
+  try{
+    const {runtime}=ctx;
+    const deviceSql=runtime.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='mobile_devices'").get().sql;
+    const orderSql=runtime.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='restaurant_orders'").get().sql;
+    assert.doesNotMatch(deviceSql,/TABLET/);
+    assert.match(orderSql,/TABLE/);
+    assert.doesNotMatch(orderSql,/TABLET/);
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'legacy-tablet',name:'Legacy',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+  }finally{ctx.close();}
 });
