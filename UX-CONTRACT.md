@@ -234,3 +234,11 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - A sequência opcional é alocada atomicamente no banco local e compartilhada com integrações legadas. O dia usa `store.timeZone` no escopo global, com padrão `America/Sao_Paulo`.
 - A fila principal mostra somente pedidos em andamento. Concluídos e cancelados ficam em Histórico com data e hora. Registros antigos de senhas permanecem preservados, e os ainda abertos oferecem somente ações para concluir a operação anterior.
 - Se o pedido foi salvo mas falhou o envio à produção, a interface preserva o pedido e oferece reenviar o mesmo registro, evitando duplicar pedido e senha.
+
+## Autoatendimento pareado
+
+- Há uma única criação funcional de autoatendimento, na área de Autoatendimento.
+- `SELF_SERVICE + TABLE` representa hardware fixo vinculado a uma mesa e oferece pedido, chamar garçom e pedir conta.
+- `SELF_SERVICE + PICKUP` representa retirada no balcão e não expõe ações de mesa.
+- O QR público da mesa permanece um acesso separado e responsivo; abrir o mesmo QR em um tablet não cria outro fluxo.
+- O catálogo do autoatendimento reutiliza a projeção segura e a direção visual do cardápio público, incluindo busca, categorias, fotos/fallback, configuração do item e carrinho recuperável.
