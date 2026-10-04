@@ -17,7 +17,7 @@
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
   ];
   let active='company';let scheduled=false;
-  const page=()=>{const node=content.querySelector('.ops-page');return node?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'?node:null;};
+  const page=root=>{const node=root?.matches?.('.ops-page')?root:(root?.querySelector?.('.ops-page')||content.querySelector('.ops-page'));return node?.querySelector('.ops-head h1')?.textContent?.trim()==='Configurações'?node:null;};
   const categoryFor=card=>{
     const declared=String(card.dataset.settingsCategory||'');
     if(categories.some(([id])=>id===declared))return declared;
@@ -36,12 +36,13 @@
     return'diagnostics';
   };
   function addTeamCard(root){
-    if(!window.PdvAccessPolicy?.canAccessRoute(window.PdvCurrentAccess,'access'))return;
+    const canOpenAccess=['users.view','profiles.view'].some(capability=>window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,capability));
+    if(!canOpenAccess)return;
     if(root.querySelector('#settings-team-access'))return;
     const card=document.createElement('section');card.id='settings-team-access';card.className='ops-card';
     card.innerHTML='<div class="ops-card-head"><div><h2>Equipe e permissões</h2><p class="ops-muted">Cadastre pessoas, defina login, função e áreas liberadas.</p></div><button type="button" class="ops-primary" data-settings-route="access">Abrir Equipe e acessos</button></div>';
     root.appendChild(card);
-    card.querySelector('[data-settings-route="access"]')?.addEventListener('click',()=>document.querySelector('#sidebar-nav [data-route="access"]')?.click());
+    card.querySelector('[data-settings-route="access"]')?.addEventListener('click',()=>void window.PdvAppNavigation?.navigate?.('access'));
   }
   function addDataServerCard(root){
     if(root.querySelector('#settings-data-server'))return;
@@ -150,10 +151,9 @@
     const selected=categories.find(([id])=>id===active);const count=root.querySelectorAll(`[data-settings-section="${active}"]`).length;
     const summary=count?`${selected[1]} · ${count} área${count===1?'':'s'}`:`${selected[1]} · nenhuma configuração disponível para este perfil`;const status=hub.querySelector('.settings-hub-current');if(status.textContent!==summary)status.textContent=summary;
   }
-  function mount(){scheduled=false;const root=page();if(!root)return;const hub=ensureHub(root);apply(root,hub);}
-  const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(mount);};
-  const onRouteChange=({route})=>{if(route==='settings')schedule();};
-  lifecycle.on('route:mounted',onRouteChange);
-  lifecycle.on('route:updated',onRouteChange);
-  if(document.body.dataset.activeRoute==='settings')schedule();
+  function mount(root){scheduled=false;const settingsRoot=page(root);if(!settingsRoot)return;const hub=ensureHub(settingsRoot);apply(settingsRoot,hub);}
+  const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(()=>mount());};
+  const onRouteUpdate=({route})=>{if(route==='settings')schedule();};
+  lifecycle.on('route:updated',onRouteUpdate);
+  window.PdvSettingsHub=Object.freeze({mount});
 })();

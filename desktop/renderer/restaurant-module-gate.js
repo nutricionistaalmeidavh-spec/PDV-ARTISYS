@@ -17,26 +17,6 @@
   function isEnabled(id){return moduleStates.get(normalizeId(id))===true;}
   function isResolved(id){return moduleStates.has(normalizeId(id));}
 
-  function applyLauncherState(id){
-    const moduleId=normalizeId(id);
-    if(!moduleId||!isResolved(moduleId))return;
-    const enabled=isEnabled(moduleId);
-    const currentRoute=document.body.dataset.activeModuleWorkspace;
-    if(!enabled&&currentRoute===moduleId){
-      const current=moduleCatalog.find(module=>module.id===moduleId);
-      const area=current?.area;
-      const areaStillAvailable=area?.navigation==='group'&&moduleCatalog.some(module=>module.area?.id===area.id&&module.enabled&&module.accessCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.accessCapability));
-      if(areaStillAvailable)root.PdvVerticalModules?.openWorkspace?.(area.routeId);
-      else document.querySelector('#sidebar-nav [data-route="home"]')?.click();
-    }
-    document.querySelectorAll(`[data-module-open="${moduleId}"], [data-module-nav="${moduleId}"]`).forEach(launcher=>{
-      launcher.hidden=!enabled;
-      launcher.setAttribute('aria-hidden',enabled?'false':'true');
-      if(enabled){launcher.removeAttribute('tabindex');launcher.removeAttribute('aria-disabled');}
-      else{launcher.setAttribute('tabindex','-1');launcher.setAttribute('aria-disabled','true');}
-    });
-  }
-
   function emitStateChanged(changedIds){
     if(!changedIds.length)return;
     root.dispatchEvent(new CustomEvent('artisys:modules-state-changed',{
@@ -51,7 +31,6 @@
     const changed=!moduleStates.has(moduleId)||moduleStates.get(moduleId)!==value;
     moduleStates.set(moduleId,value);
     moduleCatalog=moduleCatalog.map(module=>module.id===moduleId?{...module,enabled:value}:module);
-    applyLauncherState(moduleId);
     if(changed&&emit)emitStateChanged([moduleId]);
     return value;
   }
@@ -65,7 +44,6 @@
       const value=Boolean(module?.enabled);
       if(!moduleStates.has(moduleId)||moduleStates.get(moduleId)!==value)changedIds.push(moduleId);
       moduleStates.set(moduleId,value);
-      applyLauncherState(moduleId);
     }
     emitStateChanged(changedIds);
     return snapshot();
@@ -84,15 +62,6 @@
     })();
     try{return await refreshInFlight;}finally{refreshInFlight=null;}
   }
-
-  root.addEventListener('click',event=>{
-    const target=event.target?.closest?.('[data-module-open]');
-    if(!target)return;
-    const moduleId=normalizeId(target.getAttribute('data-module-open'));
-    if(!moduleId||!isResolved(moduleId)||isEnabled(moduleId))return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  },true);
 
   const originalSaveSetting=ApiClient.prototype.saveSetting;
   if(typeof originalSaveSetting==='function'&&!originalSaveSetting.__moduleGateWrapped){

@@ -66,7 +66,7 @@ test('P0 KDS expands to desktop lanes and keeps compact mobile mode',()=>{
 
 test('P1 active optional areas expose a direct continuation action in settings',()=>{
   const modules=read('desktop/renderer/vertical-modules.js');
-  assert.match(modules,/data-open-module-area/);
+  assert.match(modules,/data-open-module-route/);
   assert.match(modules,/Abrir área/);
 });
 

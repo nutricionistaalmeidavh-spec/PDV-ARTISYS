@@ -20,25 +20,6 @@
 @media(max-width:1100px){.food-module-grid{grid-template-columns:1fr}}
 
 
-.module-nav-button {
-  grid-template-rows:auto auto;
-  align-content:center;
-  gap:2px;
-  padding:5px 2px;
-}
-.module-nav-button .module-nav-label {
-  display:block;
-  max-width:54px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:9px;
-  line-height:1.05;
-  font-weight:750;
-  letter-spacing:-.01em;
-  text-align:center;
-}
-
 
 .vertical-page>.data-card>h2{margin-top:4px;margin-bottom:12px;line-height:1.25}
 

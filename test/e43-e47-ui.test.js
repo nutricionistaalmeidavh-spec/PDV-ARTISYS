@@ -32,11 +32,12 @@ test('vertical UI exposes one Alimentação module with operational capabilities
   assert.match(source,/saveSetting/);
 });
 
-test('commercial desktop extension sanitizes legacy TEF wording to manual credit copy',()=>{
+test('manual credit wording is owned by the checkout source without DOM sanitizers',()=>{
+  const app=read('desktop/renderer/app.js');
   const source=read('desktop/renderer/vertical-modules.js');
-  assert.match(source,/sanitizeLegacyPaymentCopy/);
-  assert.match(source,/Cartão crédito \/ TEF/);
-  assert.match(source,/Cartão crédito/);
+  assert.match(app,/CREDIT_CARD: 'Cartão crédito'/);
+  assert.doesNotMatch(app,/Cartão crédito \/ TEF/);
+  assert.doesNotMatch(source,/sanitizeLegacyPaymentCopy|createTreeWalker/);
   assert.match(read('docs/superpowers/specs/2026-09-10-e40-e54-modular-verticals-design.md'),/NÃO FISCAL/);
 });
 
@@ -56,11 +57,11 @@ test('business areas are activated in settings and opened from authorized naviga
   assert.match(source,/MODULE_REQUEST_TIMEOUT_MS/);
   assert.match(source,/withTimeout/);
   assert.match(source,/Tentar novamente/);
-  assert.match(source,/button\.dataset\.moduleNav=item\.target/);
+  assert.match(source,/routeRegistry\.register\('FOOD',\{owner:'vertical-modules'/);
   assert.match(source,/O menu lateral se atualiza imediatamente/);
   assert.match(source,/Áreas do estabelecimento/);
   assert.match(source,/Núcleo ArtiSys/);
-  assert.match(source,/#sidebar-nav \[data-route="home"\]/);
+  assert.match(source,/PdvAppNavigation\?\.navigate\?\./);
   assert.doesNotMatch(source,/Abrir módulo|Gerenciar áreas|Gerenciar módulos/);
 });
 
@@ -71,7 +72,7 @@ test('Alimentação is one direct module and production is not a separate toggle
   assert.match(registry,/navigation:'module'/);
   assert.match(registry,/\{id:'FOOD',name:'Alimentação'/);
   assert.doesNotMatch(registry,/\{id:'PIZZERIA'|\{id:'DELIVERY'|\{id:'FAST_FOOD'|\{id:'MARKET_BAKERY'|\{id:'RETAIL'|\{id:'SELF_SERVICE'/);
-  assert.match(source,/dataset\.moduleNav=item\.target/);
+  assert.match(source,/routeRegistry\.register\('FOOD'/);
   assert.match(source,/module\.id==='FOOD'/);
   assert.doesNotMatch(source,/data-module-toggle="PRODUCTION"|data-module-toggle="KDS"/);
 });

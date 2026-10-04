@@ -3,7 +3,7 @@
   "probes": {
     "FOOD": {
       "critical": true,
-      "launcherSelector": "#sidebar-nav [data-module-nav=\"FOOD\"]",
+      "launcherSelector": "#sidebar-nav [data-route=\"FOOD\"]",
       "protectedProbe": {
         "path": "/api/v1/restaurant/tables",
         "method": "GET"
@@ -14,7 +14,7 @@
     },
     "WHOLESALE": {
       "critical": true,
-      "launcherSelector": "[data-module-nav=\"WHOLESALE\"]",
+      "launcherSelector": "[data-route=\"WHOLESALE\"]",
       "protectedProbe": {
         "path": "/api/v1/wholesale/orders",
         "method": "GET"

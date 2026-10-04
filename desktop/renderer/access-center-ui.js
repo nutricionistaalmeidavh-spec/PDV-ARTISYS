@@ -593,5 +593,5 @@
     }
   }
 
-  if(!registry.has('access'))registry.register('access',{owner:'access-center',render});
+  registry.register('access',{owner:'access-center',render});
 })();

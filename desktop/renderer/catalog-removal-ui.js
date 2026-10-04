@@ -14,7 +14,7 @@
   const removedCustomerIds=new Set();
 
   const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  const can=capability=>Array.isArray(currentUser?.permissions)&&currentUser.permissions.includes(capability);
+  const can=capability=>Boolean(window.PdvAccessPolicy?.hasCapability(currentUser,capability));
   const toast=(message,type='')=>window.PdvToast?.show?.(message,type);
 
   async function session(){

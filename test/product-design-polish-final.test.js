@@ -66,12 +66,13 @@ test('checkout context preserves readable seller and customer identity',()=>{
   assert.match(css,/\.customer-selected (?:strong|div)[^}]*min-width:0/s);
 });
 
-test('optional module navigation has persistent visible labels and accessible names',()=>{
+test('optional module navigation reuses canonical sidebar labels and accessible names',()=>{
+  const app=read('desktop/renderer/app.js');
   const modules=read('desktop/renderer/vertical-modules.js');
-  const css=read('desktop/renderer/vertical-modules.css');
-  assert.match(modules,/module-nav-label/);
-  assert.match(modules,/aria-label/);
-  assert.match(css,/\.module-nav-button \.module-nav-label/);
+  assert.match(app,/FOOD: \{ label: 'Alimentação'/);
+  assert.match(app,/WHOLESALE: \{ label: 'Atacado'/);
+  assert.match(app,/aria-label="\$\{ROUTES\[route\]\.label\}"/);
+  assert.doesNotMatch(modules,/module-nav-label|data-module-nav/);
 });
 
 test('managed toasts announce atomically and remain bounded',()=>{
