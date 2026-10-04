@@ -1,5 +1,6 @@
 'use strict';
 
+const {storeDateKey,storeTimeZone}=require('../shared/store-date');
 const { randomUUID }=require('node:crypto');
 const { withTransaction }=require('../../core/database/sqlite-database');
 const { writeAudit }=require('../../core/audit-log');
@@ -9,8 +10,8 @@ const TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CANCELLED']
 function createFastFoodService({db,modules,sales=null,kitchen=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
   const gate=()=>modules.requireEnabled('FOOD');
-  const dateKey=ts=>String(ts).slice(0,10);
-  const map=row=>row&&({id:row.id,saleId:row.sale_id,dailyNumber:row.daily_number,status:row.status,note:row.note,createdAt:row.created_at,updatedAt:row.updated_at});
+  const dateKey=ts=>storeDateKey(ts,storeTimeZone(db));
+  const map=row=>row&&({id:row.id,saleId:row.sale_id,orderDate:row.order_date,dailyNumber:row.daily_number,status:row.status,note:row.note,createdAt:row.created_at,updatedAt:row.updated_at});
 
   function get(id){
     gate();
@@ -24,7 +25,9 @@ function createFastFoodService({db,modules,sales=null,kitchen=null,now=()=>new D
     return withTransaction(db,()=>{
       const ts=now();
       const day=dateKey(ts);
-      const number=Number(db.prepare('SELECT COALESCE(MAX(daily_number),0)+1 AS next FROM fast_food_orders WHERE order_date=?').get(day)?.next||1);
+      const legacyMax=Number(db.prepare('SELECT COALESCE(MAX(daily_number),0) AS n FROM fast_food_orders WHERE order_date=?').get(day)?.n||0);
+      db.prepare('INSERT INTO food_daily_counters(order_date,last_number) VALUES(?,?) ON CONFLICT(order_date) DO UPDATE SET last_number=MAX(last_number,excluded.last_number)').run(day,legacyMax);
+      const number=db.prepare('UPDATE food_daily_counters SET last_number=last_number+1 WHERE order_date=? RETURNING last_number').get(day).last_number;
       const id=String(input.id||idFactory('fast-order'));
       const items=Array.isArray(input.items)?input.items:[];
       let saleId=input.saleId?String(input.saleId):null;

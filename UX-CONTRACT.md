@@ -223,3 +223,11 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - A credencial permanente do terminal fica fora do renderer e do `data-server.json`; o Electron a guarda no `safeStorage` do sistema operacional e a injeta nas chamadas LAN.
 - Depois da configuração inicial, alterar o papel do computador, a origem dos dados ou o acesso LAN exige autorização server-side por `deployment.manage`. Ocultar controles na interface não é limite de segurança suficiente.
 - Trocas seguras entre **somente neste computador** e **PC principal** reutilizam o mesmo banco local. Um terminal remoto não pode ser simplesmente apontado para outro servidor reaproveitando a credencial anterior; a mudança exige novo pareamento/migração controlada.
+
+## Pedidos de balcão, entrega e retirada
+
+- Alimentação apresenta um único destino **Pedidos** para balcão, retirada e entrega; o antigo destino Fast-food abre esse mesmo workspace. Novos pedidos incluem itens e usam o serviço de pedidos, a venda canônica e o KDS compartilhado.
+- O canal `COUNTER` usa a finalização de retirada, mantendo identidade de canal separada da logística. Senha diária é uma identificação opcional, nunca um pedido vazio criado pela interface.
+- A sequência opcional é alocada atomicamente no banco local e compartilhada com integrações legadas. O dia usa `store.timeZone` no escopo global, com padrão `America/Sao_Paulo`.
+- A fila principal mostra somente pedidos em andamento. Concluídos e cancelados ficam em Histórico com data e hora. Registros antigos de senhas permanecem preservados, e os ainda abertos oferecem somente ações para concluir a operação anterior.
+- Se o pedido foi salvo mas falhou o envio à produção, a interface preserva o pedido e oferece reenviar o mesmo registro, evitando duplicar pedido e senha.

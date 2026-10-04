@@ -18,6 +18,16 @@ function tempFile() {
   return path.join(dir, 'data-server.json');
 }
 
+test('switching a local installation to principal PC opens the LAN listener', () => {
+  const file=tempFile();
+  const principal=saveDataServerSelection({filePath:file,currentConfig:{mode:'local',host:'127.0.0.1'},input:{mode:'lan-host',port:4297}});
+  assert.equal(principal.host,'0.0.0.0');
+  assert.equal(principal.port,4297);
+  assert.equal(config.loadDataServerConfig(file).host,'0.0.0.0');
+  const local=saveDataServerSelection({filePath:file,currentConfig:principal,input:{mode:'local'}});
+  assert.equal(local.host,'127.0.0.1');
+});
+
 function memoryCredentialStore(initial='') {
   let secret = initial;
   return {

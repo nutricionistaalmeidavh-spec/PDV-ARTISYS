@@ -46,7 +46,9 @@ test('P0 food workspace is an operational hub instead of a second configuration 
   assert.doesNotMatch(modules,/Como o estabelecimento atende/);
   assert.doesNotMatch(modules,/Incluído na área/);
   assert.match(modules,/data-food-capability="RESTAURANT"/);
-  assert.match(modules,/data-food-capability="FAST_FOOD"/);
+  assert.doesNotMatch(modules,/data-food-capability="FAST_FOOD"/);
+  assert.equal((modules.match(/data-food-capability="DELIVERY"/g)||[]).length,1);
+  assert.match(modules,/<strong>Pedidos<\/strong>/);
   assert.match(modules,/data-food-capability="DELIVERY"/);
   assert.match(modules,/data-food-capability="SELF_SERVICE"/);
   assert.match(css,/\.food-workspace \.food-module-card\{[^}]*min-height:118px/);

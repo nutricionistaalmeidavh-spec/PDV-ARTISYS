@@ -71,7 +71,8 @@ function saveDataServerSelection({db,filePath,input={},currentConfig={},credenti
     if(!credentialStore?.save)throw new Error('Armazenamento seguro da credencial do terminal indisponivel.');
     credentialStore.save(terminalKey);
   }
-  return saveDataServerConfig(filePath,{...currentConfig,...input,mode:candidateMode,terminalKey});
+  const host=candidateMode==='local'?'127.0.0.1':candidateMode==='lan-host'&&currentConfig.mode!=='lan-host'?(String(input.host||'').trim()||'0.0.0.0'):(input.host||currentConfig.host);
+  return saveDataServerConfig(filePath,{...currentConfig,...input,host,mode:candidateMode,terminalKey});
 }
 
 async function testDataServerTarget({input={},currentConfig={},credentialStore,fetchImpl=globalThis.fetch,timeoutMs=5000}={}){

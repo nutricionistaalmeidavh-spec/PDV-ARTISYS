@@ -59,6 +59,14 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     };
   }
 
+  function productionSourceLabel(row) {
+    if(row.source_type!=='DELIVERY')return 'Balcão';
+    const order=db.prepare('SELECT channel,fulfillment_type,ticket_number FROM delivery_orders WHERE id=?').get(row.source_id);
+    const channel=order?.channel||order?.fulfillment_type;
+    const label=channel==='COUNTER'?'Balcão':channel==='PICKUP'?'Retirada':'Entrega';
+    return order?.ticket_number?`${label} · Senha ${order.ticket_number}`:label;
+  }
+
   function mapProductionTicket(row) {
     if (!row) return null;
     const items = db.prepare(`SELECT id,product_id AS productId,product_name AS productName,quantity,configuration_json AS configurationJson,note
@@ -76,7 +84,7 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
       printerName: row.printer_name,
       printEnabled: Boolean(row.print_enabled),
       tableSessionId: null,
-      tableLabel: row.source_type === 'DELIVERY' ? 'Delivery' : 'Balcao',
+      tableLabel: productionSourceLabel(row),
       status: row.status,
       note: row.note,
       createdAt: row.created_at,

@@ -56,3 +56,18 @@ test('hardware config store persists only normalized local scale fields', () => 
   const raw=JSON.parse(fs.readFileSync(filePath,'utf8'));
   assert.deepEqual(raw,{scale:saved});
 });
+
+test('saving either device preserves the other configuration across restarts',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-hw-both-'));
+  const filePath=path.join(dir,'hardware.json');
+  try {
+    const store=createHardwareConfigStore({filePath});
+    store.saveScale({port:'COM7'});
+    store.saveDrawer({port:'COM8',baud:19200});
+    store.saveScale({profile:'urano-pop-s',port:'COM9'});
+    const restored=createHardwareConfigStore({filePath}).load();
+    assert.deepEqual(restored.drawer,{port:'COM8',baud:19200});
+    assert.equal(restored.scale.port,'COM9');
+    assert.throws(()=>store.saveDrawer({port:'COM1',baud:-1}),/invalida/);
+  } finally {fs.rmSync(dir,{recursive:true,force:true});}
+});

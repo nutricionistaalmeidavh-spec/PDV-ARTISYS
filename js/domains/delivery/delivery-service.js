@@ -1,5 +1,6 @@
 'use strict';
 
+const {storeDateKey,storeTimeZone}=require('../shared/store-date');
 const { randomUUID }=require('node:crypto');
 const { withTransaction }=require('../../core/database/sqlite-database');
 const { writeAudit }=require('../../core/audit-log');
@@ -31,7 +32,7 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
         return{...row,configurationSnapshot};
       });
   }
-  function map(row){if(!row)return null;let address=null;try{address=row.address_json?JSON.parse(row.address_json):null;}catch{}return{id:row.id,saleId:row.sale_id,customerId:row.customer_id,customerName:row.customer_name,phone:row.phone,fulfillmentType:row.fulfillment_type,address,region:row.region,feeCents:row.fee_cents,courier:row.courier,manualEta:row.manual_eta,paymentMethod:row.payment_method,note:row.note,status:row.status,items:orderItems(row.id),production:productionState(row.id),cancelReason:row.cancel_reason,createdAt:row.created_at,updatedAt:row.updated_at};}
+  function map(row){if(!row)return null;let address=null;try{address=row.address_json?JSON.parse(row.address_json):null;}catch{}return{id:row.id,saleId:row.sale_id,customerId:row.customer_id,customerName:row.customer_name,phone:row.phone,fulfillmentType:row.fulfillment_type,channel:row.channel||row.fulfillment_type,ticketNumber:row.ticket_number||null,ticketDate:row.ticket_date||null,address,region:row.region,feeCents:row.fee_cents,courier:row.courier,manualEta:row.manual_eta,paymentMethod:row.payment_method,note:row.note,status:row.status,items:orderItems(row.id),production:productionState(row.id),cancelReason:row.cancel_reason,createdAt:row.created_at,updatedAt:row.updated_at};}
   function get(id){gate();const row=db.prepare('SELECT * FROM delivery_orders WHERE id=?').get(String(id));if(!row)throw new Error('Pedido de delivery nao encontrado.');return map(row);}
   function normalizeOrderItem(input={}){
     const productId=String(input.productId||'').trim();if(!productId)throw new Error('Produto obrigatorio no pedido.');
@@ -50,15 +51,24 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
   }
   function create(input={},actor={}){
     gate();
-    const id=String(input.id||idFactory('delivery'));const customerName=String(input.customerName||'').trim();if(!customerName)throw new Error('Nome do cliente obrigatorio.');
-    const fulfillmentType=String(input.fulfillmentType||'DELIVERY').toUpperCase();if(!['DELIVERY','PICKUP'].includes(fulfillmentType))throw new Error('Tipo de atendimento invalido.');
+    const channel=String(input.channel||input.fulfillmentType||'DELIVERY').toUpperCase();if(!['COUNTER','PICKUP','DELIVERY'].includes(channel))throw new Error('Canal de atendimento inválido.');
+    const id=String(input.id||idFactory('delivery'));const customerName=String(input.customerName||(channel==='COUNTER'?'Cliente no balcão':'')).trim();if(!customerName)throw new Error('Nome do cliente obrigatorio.');
+    const fulfillmentType=(channel==='COUNTER'?'PICKUP':channel);if(!['DELIVERY','PICKUP'].includes(fulfillmentType))throw new Error('Tipo de atendimento invalido.');
     if(fulfillmentType==='DELIVERY'&&(!input.address||typeof input.address!=='object'))throw new Error('Endereco obrigatorio para delivery.');
-    const fee=assertCents(Number(input.feeCents??0),'feeCents');if(fee<0)throw new Error('Taxa de entrega invalida.');
+    const fee=assertCents(Number(fulfillmentType==='DELIVERY'?input.feeCents??0:0),'feeCents');if(fee<0)throw new Error('Taxa de entrega invalida.');
     const paymentMethod=input.paymentMethod?String(input.paymentMethod).toUpperCase():null;if(paymentMethod&&!MANUAL_PAYMENT_METHODS.has(paymentMethod))throw new Error('Forma de pagamento manual invalida.');
     const items=Array.isArray(input.items)?input.items:[];if(items.length&&kitchen?.assertOrderRouting)kitchen.assertOrderRouting(items);
     const ts=now();
     return withTransaction(db,()=>{
       db.prepare(`INSERT INTO delivery_orders(id,sale_id,customer_id,customer_name,phone,fulfillment_type,address_json,region,fee_cents,courier,manual_eta,payment_method,note,status,cancel_reason,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,'NEW',NULL,?,?)`).run(id,null,input.customerId||null,customerName,String(input.phone||'').trim()||null,fulfillmentType,input.address?JSON.stringify(input.address):null,String(input.region||'').trim()||null,fee,String(input.courier||'').trim()||null,String(input.manualEta||'').trim()||null,paymentMethod,String(input.note||'').trim()||null,ts,ts);
+      let ticketNumber=null;let ticketDate=null;
+      if(input.useTicket===true){
+        ticketDate=storeDateKey(ts,storeTimeZone(db));
+        const legacyMax=Number(db.prepare('SELECT COALESCE(MAX(daily_number),0) AS n FROM fast_food_orders WHERE order_date=?').get(ticketDate).n);
+        db.prepare('INSERT INTO food_daily_counters(order_date,last_number) VALUES(?,?) ON CONFLICT(order_date) DO UPDATE SET last_number=MAX(last_number,excluded.last_number)').run(ticketDate,legacyMax);
+        ticketNumber=db.prepare('UPDATE food_daily_counters SET last_number=last_number+1 WHERE order_date=? RETURNING last_number').get(ticketDate).last_number;
+      }
+      db.prepare('UPDATE delivery_orders SET channel=?,ticket_date=?,ticket_number=? WHERE id=?').run(channel,ticketDate,ticketNumber,id);
       if(items.length)persistOrderItems(id,items,ts);
       writeAudit(db,{action:'delivery.create',entity:'delivery_order',entityId:id,actor,context:{fulfillmentType,feeCents:fee,paymentMethod,itemCount:items.length}},now);
       return get(id);

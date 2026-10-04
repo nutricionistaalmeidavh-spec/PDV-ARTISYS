@@ -6,6 +6,7 @@
   const ApiClient=window.PdvApiClient?.ApiClient;
   if(!content||!lifecycle||!ApiClient)return;
   const api=new ApiClient();
+  const currentSessionToken=()=>window.sessionStorage?.getItem('artisys.sessionToken')||'';
   const categories=[
     ['company','Empresa','Dados da empresa e implantação'],
     ['team','Equipe e permissões','Pessoas, papéis e acessos'],
@@ -103,10 +104,31 @@
           mode:form.elements.mode.value,
           port:Number(form.elements.port.value),
           serverUrl:form.elements.serverUrl.value
-        },api.sessionToken);
+        },currentSessionToken());
         await window.artisysDesktop.dataServer.restart();
       }catch(error){window.ToastUI?.show?.(error.message,'error');}
     });
+  }
+  function addRecoveryCard(root){
+    if(root.querySelector('#settings-local-recovery'))return;
+    const card=document.createElement('section');card.id='settings-local-recovery';card.className='ops-card';card.dataset.settingsCategory='team';
+    card.innerHTML='<div class="ops-card-head"><div><h2>Recuperação local da sua senha</h2><p class="ops-muted">Guarde uma chave de uso único para recuperar seu acesso sem internet ou e-mail. Gerar outra chave invalida a anterior.</p></div></div><form class="field-grid" data-local-recovery-form><label class="field"><span>Sua senha atual</span><input name="password" type="password" autocomplete="current-password" required></label><div class="modal-actions"><button class="primary-button" type="submit">Gerar chave de recuperação</button></div></form><div data-recovery-key-output hidden></div>';
+    root.appendChild(card);
+    card.querySelector('form').addEventListener('submit',async event=>{
+      event.preventDefault();const form=event.currentTarget;const button=form.querySelector('button');button.disabled=true;
+      try {const result=await api.request('/api/v1/auth/password-recovery/local-key',{method:'POST',body:{password:form.elements.password.value}});form.reset();const output=card.querySelector('[data-recovery-key-output]');output.hidden=false;output.innerHTML='<p>Guarde esta chave fora deste computador. Ela só será mostrada agora e poderá ser usada uma vez.</p><code data-recovery-key></code><div class="modal-actions"><button type="button" class="secondary-button" data-recovery-copy>Copiar chave</button><button type="button" class="secondary-button" data-recovery-save>Salvar arquivo</button><button type="button" class="secondary-button" data-recovery-hide>Já guardei</button></div>';output.querySelector('[data-recovery-key]').textContent=result.key;
+      output.querySelector('[data-recovery-copy]').addEventListener('click',()=>navigator.clipboard.writeText(result.key).catch(()=>window.ToastUI?.show?.('Selecione e copie a chave exibida.','error')));
+      output.querySelector('[data-recovery-save]').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([`ArtiSys — chave de recuperação local\n${result.key}\nGuarde em local seguro. Uso único.\n`],{type:'text/plain'}));const link=document.createElement('a');link.href=url;link.download='ArtiSys-chave-recuperacao.txt';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
+      output.querySelector('[data-recovery-hide]').addEventListener('click',()=>{output.replaceChildren();output.hidden=true;});
+      }catch(error){window.ToastUI?.show?.(error.message,'error');}finally{button.disabled=false;}
+    });
+  }
+  function addNewStoreCard(root){
+    if(root.querySelector('#settings-new-store')||!window.PdvAccessPolicy?.hasCapability(window.PdvCurrentAccess,'deployment.manage'))return;
+    const card=document.createElement('section');card.id='settings-new-store';card.className='ops-card';card.dataset.settingsCategory='units';
+    card.innerHTML='<div class="ops-card-head"><div><h2>Iniciar outra loja neste computador</h2><p class="ops-muted">Cria uma instalação separada. Os dados da loja atual ficam arquivados, com backup de segurança.</p></div><button type="button" class="secondary-button" data-new-store-open>Iniciar nova instalação</button></div><dialog class="new-store-dialog"><form data-new-store-form><h2>Iniciar uma nova loja?</h2><p>O ArtiSys verificará um backup, arquivará os dados e reiniciará no primeiro acesso. Os terminais da loja atual perderão a conexão com este PC.</p><label class="field"><span>Digite NOVA LOJA para confirmar</span><input name="confirmation" required autocomplete="off" pattern="NOVA LOJA"></label><p data-new-store-error role="alert"></p><div class="modal-actions"><button type="button" class="secondary-button" data-new-store-cancel>Cancelar</button><button type="submit" class="primary-button">Criar backup e iniciar nova loja</button></div></form></dialog>';
+    root.appendChild(card);const dialog=card.querySelector('dialog');card.querySelector('[data-new-store-open]').addEventListener('click',()=>dialog.showModal());card.querySelector('[data-new-store-cancel]').addEventListener('click',()=>dialog.close());
+    card.querySelector('form').addEventListener('submit',async event=>{event.preventDefault();const form=event.currentTarget;const button=form.querySelector('[type="submit"]');button.disabled=true;try{await window.artisysDesktop.installation.newStore(form.elements.confirmation.value,currentSessionToken());}catch(error){card.querySelector('[data-new-store-error]').textContent=error.message;button.disabled=false;}});
   }
   function ensureHub(root){
     let hub=root.querySelector('#settings-hub');
@@ -120,6 +142,8 @@
   function apply(root,hub){
     addTeamCard(root);
     addDataServerCard(root);
+    addRecoveryCard(root);
+    addNewStoreCard(root);
     root.querySelectorAll('.ops-card').forEach(card=>{if(card.closest('#settings-hub'))return;card.dataset.settingsSection=categoryFor(card);card.hidden=card.dataset.settingsSection!==active;});
     root.querySelectorAll('.ops-grid,.vertical-layout').forEach(group=>{if(group.closest('#settings-hub'))return;const cards=[...group.querySelectorAll(':scope > .ops-card,:scope > section,.vertical-settings,.vertical-enabled')];if(cards.length)group.hidden=!cards.some(card=>!card.hidden);});
     hub.querySelectorAll('[data-settings-category]').forEach(button=>{const selected=button.dataset.settingsCategory===active;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));});
@@ -131,5 +155,6 @@
   const onRouteChange=({route})=>{if(route==='settings')schedule();};
   lifecycle.on('route:mounted',onRouteChange);
   lifecycle.on('route:updated',onRouteChange);
+  lifecycle.on('settings:select',({category})=>{if(categories.some(([id])=>id===category)){active=category;schedule();}});
   if(document.body.dataset.activeRoute==='settings')schedule();
 })();

@@ -26,6 +26,14 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     test: (input) => ipcRenderer.invoke('artisys:data-server:test', dataServerTestInput(input)),
     restart: () => ipcRenderer.invoke('artisys:data-server:restart')
   },
+  installation: {
+    acknowledge: () => ipcRenderer.invoke('artisys:installation:acknowledge'),
+    newStore: (confirmation,sessionToken='') => ipcRenderer.invoke('artisys:installation:new-store',{confirmation,sessionToken})
+  },
+  publicNetwork: {
+    state: () => ipcRenderer.invoke('artisys:public-network:state'),
+    test: (input) => ipcRenderer.invoke('artisys:public-network:test',input)
+  },
   imports: {
     pickFile: () => ipcRenderer.invoke('artisys:imports:pick')
   },
@@ -41,6 +49,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     listSerialPorts: () => ipcRenderer.invoke('artisys:hardware:ports'),
     listPrinters: () => ipcRenderer.invoke('artisys:hardware:printers'),
     diagnostics: () => ipcRenderer.invoke('artisys:hardware:diagnostics'),
+    configureDrawer: (input) => ipcRenderer.invoke('artisys:hardware:drawer-configure', input),
     configureScale: (input) => ipcRenderer.invoke('artisys:hardware:scale-configure', input),
     readWeight: () => ipcRenderer.invoke('artisys:hardware:scale-read'),
     tare: () => ipcRenderer.invoke('artisys:hardware:scale-tare'),

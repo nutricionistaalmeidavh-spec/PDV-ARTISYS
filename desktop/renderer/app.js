@@ -1027,6 +1027,7 @@ function openCategoryForm() {
         }
         authOverlay.classList.add('hidden');
         authOverlay.innerHTML = '';
+        reviewSavedDeployment();
         window.PdvUiLifecycle?.emit('auth:hidden', { reason:'authenticated' });
       } catch (error) { showToast(error.message, 'error'); }
     });
@@ -1062,7 +1063,7 @@ function openCategoryForm() {
 
   function showDataServerChoice() {
     authOverlay.classList.remove('hidden');
-    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Como este computador será usado?</h1><p>Escolha se este PC vai iniciar uma instalação ArtiSys ou se será conectado a uma empresa já configurada.</p><div class="device-choice-grid" data-device-choice-grid><button type="button" class="device-choice-card" data-new-installation><strong>Iniciar uma nova instalação</strong><span>Este computador guardará os dados da empresa. Depois da ativação e criação do administrador, você escolhe se ele será usado sozinho ou como PC principal da rede.</span></button><button type="button" class="device-choice-card" data-connect-existing><strong>Conectar a uma instalação existente</strong><span>Use este computador como caixa, cozinha, balcão, totem ou outro terminal ligado a um PC principal já configurado.</span></button></div><form id="terminal-pairing-form" class="device-pairing-form" hidden><div class="field"><label>Endereço do PC principal</label><input name="serverUrl" placeholder="http://192.168.0.10:4174" required></div><div class="field"><label>Código de pareamento</label><input name="pairingCode" data-pairing-code inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label>Nome deste computador</label><input name="terminalName" value="Caixa 02" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-back-device-choice>Voltar</button><button type="submit" class="primary-button">Conectar</button></div><p class="ops-muted">A licença e o administrador pertencem ao PC principal. Este terminal recebe apenas uma credencial técnica protegida pelo sistema operacional.</p></form></section>`;
+    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Como este computador será usado?</h1><p>Escolha se este PC vai iniciar uma instalação ArtiSys ou se será conectado a uma empresa já configurada.</p><div class="device-choice-grid" data-device-choice-grid><button type="button" class="device-choice-card" data-new-installation><strong>Iniciar uma nova instalação</strong><span>Este computador guardará os dados da empresa. Depois da criação do administrador, você escolhe se ele será usado sozinho ou como PC principal da rede.</span></button><button type="button" class="device-choice-card" data-connect-existing><strong>Conectar a uma instalação existente</strong><span>Use este computador como caixa, cozinha, balcão, totem ou outro terminal ligado a um PC principal já configurado.</span></button></div><form id="terminal-pairing-form" class="device-pairing-form" hidden><div class="field"><label>Endereço do PC principal</label><input name="serverUrl" placeholder="http://192.168.0.10:4174" required></div><div class="field"><label>Código de pareamento</label><input name="pairingCode" data-pairing-code inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label>Nome deste computador</label><input name="terminalName" value="Caixa 02" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-back-device-choice>Voltar</button><button type="submit" class="primary-button">Conectar</button></div><p class="ops-muted">Os dados e o administrador pertencem ao PC principal. Este terminal recebe apenas uma credencial técnica protegida pelo sistema operacional.</p></form></section>`;
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'data-server' });
     const grid=authOverlay.querySelector('[data-device-choice-grid]');
     const pairForm=authOverlay.querySelector('#terminal-pairing-form');
@@ -1142,6 +1143,31 @@ function openCategoryForm() {
     document.addEventListener('keydown', (event) => { if (!/^F\d+$/.test(event.key)) return; const action = ui.resolveShortcut(event.key, document.body.dataset.activeRoute || state.route); if (action) { event.preventDefault(); void executeShortcut(action); } });
   }
 
+  function showExistingInstallation(){
+    authOverlay.classList.remove('hidden');
+    authOverlay.innerHTML=`<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Encontramos uma instalação existente</h1><p>Seus usuários, pedidos e configurações foram preservados. Reinstalar ou atualizar o ArtiSys mantém os dados da loja.</p><div class="device-choice-grid"><button type="button" class="device-choice-card" data-existing-continue><strong>Continuar com meus dados</strong><span>Entrar normalmente nesta loja.</span></button><button type="button" class="device-choice-card" data-existing-review><strong>Revisar o papel deste computador</strong><span>Após entrar, confira se este PC deve trabalhar sozinho ou atender a rede.</span></button></div></section>`;
+    const continueWith=async review=>{try{await window.artisysDesktop.installation.acknowledge();if(review)sessionStorage.setItem('artisys.reviewDeployment','1');await completeBoot();}catch(error){showToast(error.message,'error');}};
+    authOverlay.querySelector('[data-existing-continue]').addEventListener('click',()=>void continueWith(false));
+    authOverlay.querySelector('[data-existing-review]').addEventListener('click',()=>void continueWith(true));
+    window.PdvUiLifecycle?.emit('auth:rendered',{surface:'existing-installation'});
+  }
+  function reviewSavedDeployment(){
+    if(sessionStorage.getItem('artisys.reviewDeployment')!=='1')return;
+    sessionStorage.removeItem('artisys.reviewDeployment');
+    void navigate('settings').then(()=>window.PdvUiLifecycle?.emit('settings:select',{category:'units'}));
+  }
+  async function completeBoot(){
+    const dataServer=state.config.dataServer||{};
+    if(!dataServer.selected&&dataServer.setupIntent!=='new-installation'){showDataServerChoice();return;}
+    await api.health();setOnline(true);const setup=await api.setupStatus();
+    if(setup.needsSetup){showSetup();return;}
+    const restored = await restorePersistedSession();
+    if(restored&&!dataServer.selected&&dataServer.setupIntent==='new-installation')showPrimaryRoleChoice();
+    else if(restored)reviewSavedDeployment();
+    if (restored) return;
+    showLogin(!dataServer.selected&&dataServer.setupIntent==='new-installation'?'Entre como administrador para concluir a configuração deste computador.':'');
+  }
+
   async function boot() {
     hydrateStaticIcons(); bindGlobalEvents(); updateClock(); setInterval(updateClock, 30000);
     try {
@@ -1151,24 +1177,8 @@ function openCategoryForm() {
       document.body.dataset.activeRoute = 'home';
       renderHome();
 
-      const dataServer=state.config.dataServer||{};
-      if (!dataServer.selected && dataServer.setupIntent !== 'new-installation') {
-        showDataServerChoice();
-        return;
-      }
-
-      await api.health();
-      setOnline(true);
-      const setup = await api.setupStatus();
-      if (setup.needsSetup) {
-        showSetup();
-        return;
-      }
-
-      const restored = await restorePersistedSession();
-      if (restored && !dataServer.selected && dataServer.setupIntent === 'new-installation') showPrimaryRoleChoice();
-      if (restored) return;
-      showLogin(!dataServer.selected && dataServer.setupIntent==='new-installation'?'Entre como administrador para concluir a configuração deste computador.':'');
+      if(state.config.installation?.reviewNeeded&&state.config.dataServer?.selected){showExistingInstallation();return;}
+      await completeBoot();
     } catch (error) {
       setOnline(false);
       renderSidebar();
