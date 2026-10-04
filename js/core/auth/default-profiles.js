@@ -93,17 +93,17 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
 
 const definitions=[
   ['ADMINISTRATOR','Administrador','administrador','admin',true],
-  ['MANAGER','Gerente','gerente','manager',false],
-  ['SUPERVISOR','Supervisor','supervisor','supervisor',false],
-  ['CASHIER','Caixa','caixa','cashier',false],
-  ['OPERATOR','Operador de PDV','operador-pdv','operator',false],
-  ['WAITER','Garçom / Atendente','garcom-atendente','waiter',false],
-  ['KITCHEN','Cozinha / Produção','cozinha-producao','kitchen',false],
-  ['STOCKKEEPER','Estoquista','estoquista','stockkeeper',false],
-  ['PURCHASING','Compras','compras','purchasing',false],
-  ['FINANCE','Financeiro','financeiro','finance',false],
-  ['DELIVERY','Delivery / Expedição','delivery-expedicao','delivery',false],
-  ['READ_ONLY','Consulta / Auditoria','consulta-auditoria','read-only',false]
+  ['MANAGER','Gerente','gerente','manager',true],
+  ['SUPERVISOR','Supervisor','supervisor','supervisor',true],
+  ['CASHIER','Caixa','caixa','cashier',true],
+  ['OPERATOR','Operador de PDV','operador-pdv','operator',true],
+  ['WAITER','Garçom / Atendente','garcom-atendente','waiter',true],
+  ['KITCHEN','Cozinha / Produção','cozinha-producao','kitchen',true],
+  ['STOCKKEEPER','Estoquista','estoquista','stockkeeper',true],
+  ['PURCHASING','Compras','compras','purchasing',true],
+  ['FINANCE','Financeiro','financeiro','finance',true],
+  ['DELIVERY','Delivery / Expedição','delivery-expedicao','delivery',true],
+  ['READ_ONLY','Consulta / Auditoria','consulta-auditoria','read-only',true]
 ];
 
 const DEFAULT_PROFILES=Object.freeze(definitions.map(([key,name,slug,systemKey,protectedProfile])=>Object.freeze({
