@@ -125,7 +125,7 @@
   function selfServiceProducts(list,canOrder=true){
     const categories=(context?.categories||[]).length?context.categories:[...new Set((list||[]).map(item=>item.categoryName||'Outros'))];
     const cards=(list||[]).map(product=>{
-      const available=product.available!==false;
+      const unavailable=product.available===false;const available=!unavailable;
       const photo=product.photo?`<img class="self-service-product-photo" src="/api/v1/mobile/self-service/products/${encodeURIComponent(product.id)}/photo" alt="" loading="lazy">`:`<div class="self-service-product-fallback" aria-hidden="true">${esc(String(product.name||'?').trim().charAt(0).toUpperCase()||'?')}</div>`;
       const disabled=!available||!canOrder;
       const action=!available?'Indisponível':hasConfiguration(product)?'Escolher':'Adicionar';
