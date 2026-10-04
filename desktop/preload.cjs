@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
   dataServer: {
     state: () => ipcRenderer.invoke('artisys:data-server:state'),
+    discover: () => ipcRenderer.invoke('artisys:data-server:discover'),
     beginNewInstallation: () => ipcRenderer.invoke('artisys:data-server:new-installation'),
     pair: (input) => ipcRenderer.invoke('artisys:data-server:pair', input),
     save: (input, sessionToken = '') => ipcRenderer.invoke('artisys:data-server:save', { input, sessionToken }),
