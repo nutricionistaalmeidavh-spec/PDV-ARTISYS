@@ -7,10 +7,8 @@ const {
   createAuthorizationService,
   normalizePrincipal
 }=require('../js/core/auth/authorization-service');
-const {
-  createLegacyPermissionResolver,
-  principalFromLegacyActor
-}=require('../js/core/auth/legacy-authorization-adapter');
+const {permissionsForPublicResource}=require('../js/core/auth/public-resource-access');
+const {DEFAULT_PROFILE_IDS}=require('../js/core/auth/default-profiles');
 
 test('P2 canonical principals distinguish humans devices system and public resources',()=>{
   assert.deepEqual(normalizePrincipal({kind:'human',id:'u1'}),{kind:'human',id:'u1'});
@@ -59,31 +57,11 @@ test('P2 require returns authorization decision or throws a stable 403 error',()
   assert.equal(authorization.require({principal:{kind:'system'},capability:'finance.manage'}),true);
 });
 
-test('P2 legacy adapter keeps role knowledge outside the canonical authorization core',()=>{
-  const resolvePermissions=createLegacyPermissionResolver();
-  const admin=principalFromLegacyActor({userId:'a1',role:'admin'});
-  const manager=principalFromLegacyActor({userId:'m1',role:'manager'});
-  const cashier=principalFromLegacyActor({userId:'c1',role:'cashier'});
-  const kitchen=principalFromLegacyActor({userId:null,role:'mobile-kitchen'},{device:{id:'kds1',deviceType:'KITCHEN'}});
-  const system=principalFromLegacyActor({userId:'setup',role:'system'});
-
-  assert.deepEqual(admin,{kind:'human',id:'a1',legacyRole:'admin'});
-  assert.equal(resolvePermissions(admin).includes('profiles.edit'),true);
-  assert.equal(resolvePermissions(manager).includes('reports.view'),true);
-  assert.equal(resolvePermissions(manager).includes('profiles.edit'),false);
-  assert.equal(resolvePermissions(cashier).includes('sales.create'),true);
-  assert.equal(resolvePermissions(cashier).includes('finance.manage'),false);
-  assert.deepEqual(kitchen,{kind:'device',id:'kds1',surface:'kitchen',userId:null,legacyDeviceType:'KITCHEN'});
-  assert.equal(resolvePermissions(kitchen).includes('kitchen.update_status'),true);
-  assert.deepEqual(system,{kind:'system',id:'system'});
-});
-
 test('P2 public resource principals receive only explicit public capabilities',()=>{
-  const resolvePermissions=createLegacyPermissionResolver();
   const publicTable={kind:'public-resource',id:'opaque-token',resourceType:'table',resourceId:'t1'};
-  assert.equal(resolvePermissions(publicTable).includes('public.menu.view'),true);
-  assert.equal(resolvePermissions(publicTable).includes('public.order.create'),true);
-  assert.equal(resolvePermissions(publicTable).includes('users.view'),false);
+  assert.equal(permissionsForPublicResource(publicTable).includes('public.menu.view'),true);
+  assert.equal(permissionsForPublicResource(publicTable).includes('public.order.create'),true);
+  assert.equal(permissionsForPublicResource(publicTable).includes('users.view'),false);
 });
 
 
@@ -91,11 +69,11 @@ test('P2 runtime exposes canonical authorization service and P3 resolves humans 
   const {createPdvRuntime}=require('../js/core/pdv-runtime');
   const runtime=createPdvRuntime({dbPath:':memory:'});
   try{
-    const admin=runtime.catalog.createUser({id:'a1',username:'admin-p2',name:'Admin P2',role:'admin',password:'senha-admin-p2'});
-    const cashier=runtime.catalog.createUser({id:'c1',username:'cashier-p2',name:'Cashier P2',role:'cashier',password:'senha-cashier-p2'});
+    const admin=runtime.catalog.createUser({id:'a1',username:'admin-p2',name:'Admin P2',profileId:DEFAULT_PROFILE_IDS.ADMINISTRATOR,password:'senha-admin-p2'});
+    const cashier=runtime.catalog.createUser({id:'c1',username:'cashier-p2',name:'Cashier P2',profileId:DEFAULT_PROFILE_IDS.CASHIER,password:'senha-cashier-p2'});
     assert.ok(runtime.authorization);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:admin.id},capability:'profiles.edit'}),true);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'finance.manage'}),false);
-    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'ghost',legacyRole:'admin'},capability:'profiles.edit'}),false);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:'ghost'},capability:'profiles.edit'}),false);
   }finally{runtime.close();}
 });
