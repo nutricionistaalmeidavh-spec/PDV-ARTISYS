@@ -18,6 +18,7 @@ test('counter daily tickets increment atomically and reset on the store-local da
     runtime.modules.setEnabled('FOOD',true,system);
     runtime.settings.set('store.timeZone','America/Sao_Paulo',{scope:'global',actor:system});
     runtime.catalog.upsertProduct({id:'burger',name:'Burger',salePriceCents:2000,trackStock:false,menuEnabled:true},system);
+    runtime.kitchen.configureProductRoute('burger',{mode:'DIRECT'},system);
 
     const first=runtime.delivery.create({channel:'COUNTER',useTicket:true,items:[{productId:'burger',quantity:1}]},system);
     const second=runtime.delivery.create({channel:'COUNTER',useTicket:true,items:[{productId:'burger',quantity:1}]},system);
