@@ -112,7 +112,6 @@
     card.innerHTML=`<div class="ops-card-head"><div><h2>Áreas do estabelecimento</h2><p class="ops-muted">O núcleo de venda, caixa, catálogo, estoque, clientes, financeiro e relatórios é único. Aqui você ativa somente fluxos adicionais.</p></div><span class="vertical-rule">Uma operação · um caixa · áreas opcionais</span></div><div data-establishment-modules-body><div class="ops-loader" role="status" aria-live="polite" aria-busy="true"></div><p class="ops-muted">Carregando áreas do estabelecimento…</p></div>`;
     const firstGrid=page.querySelector('.ops-grid');
     if(firstGrid)page.insertBefore(card,firstGrid);else page.appendChild(card);
-    root.PdvRouteRegistry?.updated('settings',{surface:'settings-extension',extension:'vertical-modules'});
     void loadAndRenderSettingsModules(card);
   }
 
