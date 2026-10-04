@@ -4,6 +4,7 @@
   const root=window;
   const {ApiClient}=root.PdvApiClient;
   const api=new ApiClient();
+  const ux=root.ArtisysUxComponents;
   const content=document.getElementById('route-content');
   const lifecycle=root.PdvUiLifecycle;
   const routeRegistry=root.PdvRouteRegistry;
@@ -162,7 +163,29 @@
       });
       modal.querySelector('[data-restore-confirm]')?.focus();
     }
-    panel.querySelectorAll('[data-pilot-status]').forEach(select=>select.addEventListener('change',async()=>{try{const note=select.value.startsWith('BLOCKED')?(prompt('Registre a causa/dependência:','')||null):select.value==='NOT_APPLICABLE'?(prompt('Por que não se aplica a esta loja?','')||null):null;await api.updatePilotCheck(select.dataset.pilotStatus,{status:select.value,note});toast('Checklist atualizado.','success');panel.remove();await mount();}catch(error){toast(error.message,'error');}}));
+    panel.querySelectorAll('[data-pilot-status]').forEach(select=>select.addEventListener('change',async()=>{
+      const status=select.value;
+      const needsNote=status.startsWith('BLOCKED')||status==='NOT_APPLICABLE';
+      try{
+        let note=null;
+        if(needsNote){
+          if(!ux?.openFormDialog){toast('Diálogo de justificativa indisponível.','error');panel.remove();await mount();return;}
+          const blocked=status.startsWith('BLOCKED');
+          const result=await ux.openFormDialog({
+            title:blocked?'Registrar bloqueio':'Marcar como não aplicável',
+            description:blocked?'Explique a causa ou dependência antes de atualizar o checklist.':'Explique por que este item não se aplica a esta loja.',
+            confirmLabel:'Salvar status',
+            body:'<label>Justificativa<textarea name="note" class="ops-input" rows="3"></textarea></label>',
+            validate:data=>String(data.note||'').trim()?null:{message:'Informe a justificativa.',field:'note'},
+            onConfirm:data=>String(data.note||'').trim()
+          });
+          if(!result.confirmed){panel.remove();await mount();return;}
+          note=result.value;
+        }
+        await api.updatePilotCheck(select.dataset.pilotStatus,{status,note});
+        toast('Checklist atualizado.','success');panel.remove();await mount();
+      }catch(error){toast(error.message,'error');panel.remove();await mount();}
+    }));
     let selected=null;panel.querySelector('#ops-import-pick')?.addEventListener('click',async()=>{try{selected=await root.artisysDesktop.imports.pickFile();if(!selected)return;panel.querySelector('#ops-import-file').textContent=`${selected.name} · ${(selected.size/1024).toFixed(1)} KB`;panel.querySelector('#ops-import-preview').disabled=false;}catch(error){toast(error.message,'error');}});
     panel.querySelector('#ops-import-form')?.addEventListener('submit',async event=>{event.preventDefault();if(!selected)return;const form=new FormData(event.currentTarget);try{const preview=await api.importPreview({type:form.get('type'),format:selected.format,content:selected.content,collisionPolicy:form.get('collisionPolicy')});const host=panel.querySelector('#ops-import-preview-result');host.innerHTML=`<div class="ops-status-line">${badge(preview.summary.invalid?'COM ERROS':'PRONTO')}<span>${preview.summary.total} linhas · ${preview.summary.valid} válidas · ${preview.summary.invalid} inválidas</span>${preview.summary.invalid?'<span>Corrija o arquivo antes do commit.</span>':`<button class="ops-primary" id="ops-import-commit">Confirmar importação</button>`}</div>`;host.querySelector('#ops-import-commit')?.addEventListener('click',async()=>{try{await api.commitImport(preview.batchId);toast('Importação concluída.','success');}catch(error){toast(error.message,'error');}});}catch(error){toast(error.message,'error');}});
     panel.querySelector('#ops-create-diagnostics')?.addEventListener('click',async()=>{try{const result=await api.createDiagnostics();toast(`Diagnóstico gerado: ${result.fileName}`,'success');}catch(error){toast(error.message,'error');}});
