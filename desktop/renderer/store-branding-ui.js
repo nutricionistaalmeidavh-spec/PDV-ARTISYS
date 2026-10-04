@@ -14,7 +14,6 @@
   const MAX_LOGO_DATA_LENGTH=699000;
   let pendingLogoDataUrl=null;
   let removeLogo=false;
-  let mounting=false;
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
   function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
@@ -58,12 +57,11 @@
   }
 
   async function mount(){
-    if(mounting||!content)return;
+    if(!content)return;
     const page=content.querySelector('.ops-page');
     if(!page||page.querySelector('#ops-store-receipt-card'))return;
     const heading=page.querySelector('.ops-head h1');
     if(!heading||heading.textContent.trim()!=='Configurações')return;
-    mounting=true;
     const card=document.createElement('section');
     card.className='ops-card';
     card.id='ops-store-receipt-card';
@@ -116,7 +114,7 @@
         card.querySelector('[data-store-branding-retry]')?.addEventListener('click',()=>{card.remove();void mount();});
       }
       showToast(`Não foi possível carregar os dados do cupom: ${error.message}`,'error');
-    }finally{mounting=false;}
+    }
   }
 
   const onRouteChange=({route})=>{if(route==='settings')void mount();};
