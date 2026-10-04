@@ -1,5 +1,5 @@
 'use strict';
-const { createReportingService: createBaseReportingService } = require('./reporting-service');
+const { createReportingService: createBaseReportingService,categorySalesFromProducts,lowMarginProductsFromProducts } = require('./reporting-service');
 
 function parseDate(value, fallback) {
   if (value == null || value === '') return fallback;
@@ -124,6 +124,8 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     }
     result.estimatedCostCents = (result.productSales || []).reduce((sum, item) => sum + Number(item.estimatedCostCents || 0), 0);
     result.estimatedMarginCents = Number(result.netSalesCents || 0) - result.estimatedCostCents;
+    result.categorySales = categorySalesFromProducts(result.productSales || []);
+    result.lowMarginProducts = lowMarginProductsFromProducts(result.productSales || []);
     const bases = new Set((result.productSales || []).map(item => item.costBasis));
     result.costBasis = bases.has('MIXED') || bases.size > 1 ? 'MIXED' : (bases.values().next().value || 'HISTORICAL_SNAPSHOT');
     result.hasEstimatedCost = result.costBasis !== 'HISTORICAL_SNAPSHOT';
