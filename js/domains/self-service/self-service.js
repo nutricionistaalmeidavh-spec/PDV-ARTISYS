@@ -91,6 +91,15 @@ function createSelfService({db,modules,mobileDevices,restaurant,fastFood,publicO
     };
   }
 
+  function requestService(deviceId,requestType,actor={},mutationId=null){
+    gate();
+    const state=context(deviceId);
+    if(state.profile.mode!=='TABLE')throw new Error('Solicitacao de atendimento disponivel apenas no autoatendimento de mesa.');
+    const type=String(requestType||'').toUpperCase();
+    if(!['WAITER','BILL'].includes(type))throw new Error('Tipo de solicitacao invalido.');
+    return restaurant.requestService(state.profile.tableId,type,{deviceId:state.device.id,actor,mutationId});
+  }
+
   function submitOrder(deviceId,input={},actor={},mutationId=null){
     gate();
     const state=context(deviceId);
