@@ -25,7 +25,7 @@ test('user-facing operational states are translated through the canonical UI mod
   assert.match(access,/ui\?\.statusLabel/);
   assert.match(access,/ui\?\.deviceTypeLabel/);
   assert.doesNotMatch(access,/<input name="tableId"/);
-  assert.match(access,/<select name="tableId"/);
+  assert.doesNotMatch(access,/<select name="tableId"/);
 });
 
 test('delivery and pickup keep checkout search and WhatsApp regression coverage',()=>{
