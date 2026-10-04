@@ -104,7 +104,16 @@ function createSelfService({db,modules,mobileDevices,restaurant,fastFood,publicO
     return fastFood.create({terminalId:'SELF-SERVICE',operatorId:state.profile.operatorId,items:normalized,note:String(input.note||'').trim()},actor);
   }
 
-  return{createConfiguredDevice,configureDevice,getProfile:profile,listConfiguredDevices,context,submitOrder};
+  function requestService(deviceId,requestType,actor={},mutationId=null){
+    gate();
+    const state=context(deviceId);
+    if(state.profile.mode!=='TABLE')throw new Error('Solicitacao de atendimento disponivel apenas no autoatendimento em mesa.');
+    const type=String(requestType||'').toUpperCase();
+    if(!['WAITER','BILL'].includes(type))throw new Error('Tipo de solicitacao invalido.');
+    return restaurant.requestService(state.profile.tableId,type,{deviceId:state.device.id,actor,mutationId});
+  }
+
+  return{createConfiguredDevice,configureDevice,getProfile:profile,listConfiguredDevices,context,submitOrder,requestService};
 }
 
 module.exports={createSelfService};
