@@ -36,25 +36,13 @@ function createSelfServiceMobileRouter({runtime}={}){
         response.writeHead(200,{'content-type':photo.mimeType,'content-length':photo.bytes.length,'cache-control':'private, max-age=86400',etag});
         response.end(photo.bytes);return true;
       }
-      if(request.method==='POST'&&pathname==='/api/v1/mobile/self-service/service'){
-        const data=await body(request);
-        const result=await mutate(request,pathname,201,mutationId=>runtime.selfService.requestService(p.device.id,data.requestType,p.actor,mutationId));
-        json(response,result.statusCode,result.payload);return true;
-      }
-      const photoMatch=pathname.match(/^\/api\/v1\/mobile\/self-service\/products\/([^/]+)\/photo$/);
-      if(request.method==='GET'&&photoMatch){
-        const productId=decodeURIComponent(photoMatch[1]);
-        const product=runtime.publicOrdering.listMenu().find(item=>String(item.id)===String(productId));
-        if(!product?.photo)throw new SelfServiceHttpError(404,'Foto nao encontrada.');
-        const photo=runtime.productPhotos.read(productId,'thumbnail');const etag=`"${photo.sha256}"`;
-        if(request.headers['if-none-match']===etag){response.writeHead(304,{etag,'cache-control':'private, max-age=86400'});response.end();return true;}
-        response.writeHead(200,{'content-type':photo.mimeType,'content-length':photo.bytes.length,'cache-control':'private, max-age=86400',etag});response.end(photo.bytes);return true;
-      }
       if(request.method==='POST'&&pathname==='/api/v1/mobile/self-service/orders'){
         const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.selfService.submitOrder(p.device.id,data,p.actor,mutationId);const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;
       }
       if(request.method==='POST'&&pathname==='/api/v1/mobile/self-service/service'){
-        const data=await body(request);const result=await mutate(request,pathname,201,mutationId=>runtime.selfService.requestService(p.device.id,data.requestType,p.actor,mutationId));json(response,result.statusCode,result.payload);return true;
+        const data=await body(request);
+        const result=await mutate(request,pathname,201,mutationId=>runtime.selfService.requestService(p.device.id,data.requestType,p.actor,mutationId));
+        json(response,result.statusCode,result.payload);return true;
       }
       throw new SelfServiceHttpError(404,'Rota de autoatendimento nao encontrada.');
     }catch(error){const status=error.statusCode||(error.code==='MODULE_DISABLED'?409:400);json(response,status,{error:error.message||'Erro interno.',code:error.code||undefined});return true;}
