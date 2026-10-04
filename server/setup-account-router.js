@@ -36,14 +36,19 @@ function createSetupAccountRouter({runtime,installationToken='',bodyLimitBytes=1
       if(request.method==='POST'&&pathname==='/api/v1/setup/admin'){
         checkInstallToken(request);
         if(runtime.catalog.countUsers()!==0){sendJson(response,409,{error:'Configuracao inicial ja concluida.'});return true;}
+        if(accountStatus().required){sendJson(response,409,{error:'Ativacao comercial pendente para esta nova instalacao.'});return true;}
         const body=await readJson(request,bodyLimitBytes);
+        const activation=accountStatus().activation;
+        const requiredEmail=activation?.accountEmail ? String(activation.accountEmail).trim().toLowerCase() : null;
+        const requestedEmail=String(body.email||'').trim().toLowerCase();
+        if(requiredEmail&&requestedEmail!==requiredEmail){sendJson(response,409,{error:'O administrador principal deve usar o e-mail liberado para esta instalacao.'});return true;}
         const localRecovery=runtime.localRecovery||createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
         const {user,recoveryKey}=withTransaction(runtime.db,()=>{
-          const user=runtime.catalog.createUser({...body,email:body.email,profileId:DEFAULT_PROFILE_IDS.ADMINISTRATOR,active:true},{kind:'system',id:'system'});
+          const user=runtime.catalog.createUser({...body,email:requiredEmail||body.email,profileId:DEFAULT_PROFILE_IDS.ADMINISTRATOR,active:true},{kind:'system',id:'system'});
           const recoveryKey=localRecovery.issue({userId:user.id,password:body.password}).key;
           return {user,recoveryKey};
         });
-        if(accountStatus().activated&&user.email&&String(user.email).toLowerCase()===String(accountStatus().activation?.accountEmail||'').toLowerCase()&&runtime.account?.bindOwnerUser)runtime.account.bindOwnerUser(user.id);
+        if(requiredEmail&&runtime.account?.bindOwnerUser)runtime.account.bindOwnerUser(user.id);
         sendJson(response,201,{...user,recoveryKey});return true;
       }
       return false;
