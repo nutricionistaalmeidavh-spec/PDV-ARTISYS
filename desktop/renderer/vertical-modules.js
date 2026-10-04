@@ -102,8 +102,8 @@
     }finally{loadingSettingsCards.delete(card);}
   }
 
-  function mountSettingsModules(root=settingsPage()){
-    const page=settingsPage(root);
+  function mountSettingsModules(pageRoot=settingsPage()){
+    const page=settingsPage(pageRoot);
     if(!page||page.querySelector('#ops-establishment-modules-card'))return;
     const card=document.createElement('section');
     card.className='ops-card';
