@@ -87,14 +87,14 @@ function createPasswordRecoveryRouter({runtime,sessionStore=new Map(),bodyLimitB
           id:user.id,
           username:user.username,
           name:user.name,
-          role:user.role,
+          profileId:user.profile_id,
           email:user.email,
           active:Boolean(user.active),
           password
-        },{userId:'password-recovery',role:'system',terminalId:null});
+        },{kind:'system',id:'system'});
         writeAudit(runtime.db,{
           action:'user.password.reset',entity:'user',entityId:user.id,
-          actor:{userId:'password-recovery',role:'system'},context:{method:'email-code'}
+          actor:{kind:'system',id:'system'},context:{method:'email-code'}
         });
         revokeUserSessions(user.id);
         sendJson(response,200,{reset:true});return true;
