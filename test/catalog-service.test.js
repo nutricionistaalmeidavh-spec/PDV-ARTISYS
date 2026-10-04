@@ -43,7 +43,7 @@ test('customer and supplier documents are normalized before persistence', () => 
 
 test('createUser stores a password hash, validates role and authenticates securely', () => {
   const { db, service } = setup();
-  const user = service.createUser({ id:'u1', username:'admin', name:'Administrador', role:'admin', password:'Senha-forte-123' });
+  const user = service.createUser({ id:'u1', username:'admin', name:'Administrador', profileId:'profile-administrator', password:'Senha-forte-123' });
   assert.equal(user.role, 'admin');
   const raw = db.prepare('SELECT password_hash AS hash,password_salt AS salt FROM users WHERE id=?').get('u1');
   assert.notEqual(raw.hash, 'Senha-forte-123');
