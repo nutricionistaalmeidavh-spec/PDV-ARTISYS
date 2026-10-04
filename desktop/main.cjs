@@ -11,6 +11,7 @@ const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes, createHash } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
+const { DEFAULT_PROFILE_IDS } = require('../js/core/auth/default-profiles');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
@@ -129,10 +130,10 @@ async function startEmbeddedServer() {
       id:'qa-admin',
       username:'qaadmin',
       name:'QA Administrador',
-      role:'admin',
+      profileId:DEFAULT_PROFILE_IDS.ADMINISTRATOR,
       password:'QaLocalOnly-12345!',
       active:true
-    });
+    },{kind:'system',id:'system'});
   }
 
   localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
