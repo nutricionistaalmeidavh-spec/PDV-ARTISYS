@@ -37,16 +37,6 @@
     select.value=selected;
   }
 
-  function fillBaudSelect(select,value){
-    if(!select)return;
-    const baud=Number(value||9600);
-    const standard=[9600,19200,38400,57600,115200];
-    if(!standard.includes(baud)){
-      const option=document.createElement('option');option.value=String(baud);option.textContent=`${baud} bps (configurada)`;select.appendChild(option);
-    }
-    select.value=String(baud);
-  }
-
   async function loadConfiguration(){
     const api=hardware();
     if(!api)return;
@@ -73,7 +63,7 @@
     const drawerBaud=document.getElementById('drawer-baud');
     if(drawerPort&&drawerBaud){
       fillPortSelect(drawerPort,String(drawer.port||''),ports);
-      fillBaudSelect(drawerBaud,drawer.baud||9600);
+      drawerBaud.value=String(Number(drawer.baud||9600));
       setStatus('drawer-config-status',drawer.configured?`Gaveta configurada em ${drawer.port} · ${drawer.baud||9600} bps`:'Gaveta não configurada.');
     }
     return diagnostics;
@@ -147,7 +137,7 @@
       <p>Para gavetas seriais compatíveis com pulso ESC/POS, selecione a porta detectada e a velocidade informada pelo equipamento.</p>
       <div class="vertical-form">
         <label class="field"><span>Porta serial</span><select id="drawer-port"><option value="">Carregando portas...</option></select></label>
-        <label class="field"><span>Velocidade</span><select id="drawer-baud"><option value="9600">9600 bps</option><option value="19200">19200 bps</option><option value="38400">38400 bps</option><option value="57600">57600 bps</option><option value="115200">115200 bps</option></select></label>
+        <label class="field"><span>Velocidade (bps)</span><input id="drawer-baud" type="number" min="1" step="1" value="9600" inputmode="numeric"></label>
         <div class="vertical-actions"><button type="button" id="drawer-refresh-ports" class="secondary-button">Detectar portas</button><button type="button" id="drawer-save" class="primary-button">Salvar configuração</button><button type="button" id="drawer-save-test">Salvar e testar</button></div>
         <p id="drawer-config-status" class="vertical-rule" aria-live="polite"></p>
       </div>`;
