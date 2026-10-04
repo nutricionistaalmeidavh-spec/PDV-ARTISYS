@@ -22,7 +22,7 @@ function createLocalRecoveryService({db,catalog,now=()=>Date.now()}={}){
     const key=randomBytes(32).toString('hex');
     withTransaction(db,()=>{
       db.prepare('INSERT OR REPLACE INTO local_recovery_keys VALUES(?,?,?)').run(user.id,digest(key).toString('hex'),now());
-      writeAudit(db,{action:'auth.recovery.key.rotated',entity:'user',entityId:user.id,actor:{userId:user.id,role:'human'},context:{method:'local-key'}});
+      writeAudit(db,{action:'auth.recovery.key.rotated',entity:'user',entityId:user.id,actor:{kind:'human',userId:user.id},context:{method:'local-key'}});
     });
     return {key};
   }
@@ -36,9 +36,9 @@ function createLocalRecoveryService({db,catalog,now=()=>Date.now()}={}){
       const expected=row?Buffer.from(row.key_hash,'hex'):Buffer.alloc(32);
       const actual=digest(String(key||'').trim());
       if(!timingSafeEqual(expected,actual)||!row)throw new Error('Usuário ou chave de recuperação inválidos.');
-      catalog.upsertUser({id:user.id,username:user.username,name:user.name,role:user.role,profileId:user.profile_id,email:user.email,active:true,password},{userId:'local-recovery',role:'system'});
+      catalog.upsertUser({id:user.id,username:user.username,name:user.name,profileId:user.profile_id,email:user.email,active:true,password},{kind:'system',id:'system'});
       db.prepare('DELETE FROM local_recovery_keys WHERE user_id=?').run(user.id);
-      writeAudit(db,{action:'auth.password.recovered',entity:'user',entityId:user.id,actor:{userId:'local-recovery',role:'system'},context:{method:'local-key'}});
+      writeAudit(db,{action:'auth.password.recovered',entity:'user',entityId:user.id,actor:{kind:'system',id:'system'},context:{method:'local-key'}});
       return {userId:user.id};
     });
   }
