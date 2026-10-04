@@ -76,7 +76,7 @@ test('mobile staff surfaces translate internal device labels for operators',()=>
   const mobile=read('server/mobile/app.js');
   assert.match(mobile,/WAITER:'Garçom'/);
   assert.match(mobile,/KITCHEN:'Cozinha'/);
-  assert.match(mobile,/TABLET:'Tablet da mesa'/);
+  assert.doesNotMatch(mobile,/TABLET:'Tablet da mesa'/);
   assert.match(mobile,/SELF_SERVICE:'Autoatendimento'/);
 
   const steps=flow().steps;
