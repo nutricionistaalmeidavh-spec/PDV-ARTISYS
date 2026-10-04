@@ -84,9 +84,11 @@ Fluxo:
    - Retirada no balcão.
 4. Se Mesa fixa: escolher mesa.
 5. Se Retirada: escolher responsável local.
-6. Criar e configurar atomicamente do ponto de vista da experiência.
+6. Criar e configurar em uma única transação de domínio: dispositivo + perfil `TABLE/PICKUP`; se a configuração falhar, nenhum dispositivo parcial fica persistido.
 7. Mostrar credencial uma única vez e acesso local/QR.
 8. Atualizar imediatamente a lista de dispositivos configurados.
+
+`selfService.createConfiguredDevice(...)` será o caminho canônico de criação: abre transação, cria a credencial/dispositivo, persiste o perfil e confirma somente ao final. O serviço genérico de dispositivos não deve criar um perfil `PICKUP` incompleto por efeito colateral.
 
 Falha na configuração não deve deixar o operador acreditando que o dispositivo ficou pronto. O formulário preserva as escolhas e oferece nova tentativa.
 
@@ -160,7 +162,9 @@ Não copiar elementos de mesa que não pertencem ao contexto.
 
 ### Compartilhamento de dados e apresentação
 
-O autoatendimento deve consumir a mesma projeção segura de menu usada pelo cardápio público para:
+A projeção segura do cardápio deve ser uma dependência canônica do runtime, reutilizada pelo cardápio público e pelo autoatendimento. Não manter uma segunda sanitização de produto dentro de `self-service.js`.
+
+O autoatendimento deve consumir essa mesma projeção para:
 
 - descrição pública;
 - foto;
@@ -169,7 +173,7 @@ O autoatendimento deve consumir a mesma projeção segura de menu usada pelo car
 - categoria;
 - configuração segura.
 
-Evitar manter duas funções independentes que decidam quais dados de produto o cliente pode ver.
+`publicOrdering` deve deixar de ser criado ad hoc pelo roteador de self-service e passar a ser um serviço canônico do runtime, disponível antes da construção de `selfService`. Assim, `selfService` reutiliza `listMenu()`/projeção segura sem acoplar seu domínio ao roteador HTTP.
 
 A apresentação pode reutilizar CSS/componentes compartilhados quando isso reduzir divergência, mas não deve acoplar autenticação pública por token ao dispositivo pareado. Autenticação e contexto continuam específicos de cada canal.
 
