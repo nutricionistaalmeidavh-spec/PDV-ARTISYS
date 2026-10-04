@@ -33,7 +33,8 @@
         "ARTISYS_QA_SIMULATE_PRINTER": "1",
         "ARTISYS_QA_NO_PRINTERS": "1",
         "PDV_ENABLE_LAN": "false",
-        "PDV_AUTO_PRINT": "false"
+        "PDV_AUTO_PRINT": "false",
+        "PDV_REQUIRE_COMMERCIAL_ACTIVATION": "false"
       }
     }
   },
