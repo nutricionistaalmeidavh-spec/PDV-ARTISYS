@@ -67,3 +67,15 @@ test('operational surfaces use the same blue action hierarchy and denser rhythm'
   assert.match(css,/\.ops-primary\{background:var\(--artisys-blue\)/);
   assert.match(css,/\.ops-secondary\{[^}]*border:1px solid/s);
 });
+
+
+test('all-pages Actions QA exercises reverse settlement through UI and verifies persistence',()=>{
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  const steps=flow.steps;
+  assert.ok(steps.some(step=>step.action==='capability'&&step.name==='finance.setup'&&step.scenario==='ui-reverse-settlement'));
+  assert.ok(steps.some(step=>step.action==='capability'&&step.name==='finance.openReverseDialog'));
+  assert.ok(steps.some(step=>step.action==='fill'&&step.selector===".ux-dialog textarea[name='reason']"));
+  assert.ok(steps.some(step=>step.action==='click'&&step.selector==='.ux-dialog .ux-dialog__confirm'));
+  assert.ok(steps.some(step=>step.action==='expectText'&&step.expected==='Baixa estornada.'));
+  assert.ok(steps.some(step=>step.action==='capability'&&step.name==='finance.assert'));
+});
