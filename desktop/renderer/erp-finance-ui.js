@@ -14,8 +14,9 @@
   const metric=(label,value,hint='')=>`<article class="ops-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${hint?`<small>${esc(hint)}</small>`:''}</article>`;
   function toast(message,type=''){root.PdvToast?.show?.(message,type)||console[type==='error'?'error':'log'](message);}
   async function renderManagement(filters={}){
-    const initialized=await api.initialize();const role=initialized?.user?.role||document.body.dataset.userRole;
-    if(!['admin','manager'].includes(role)){document.body.dataset.activeRoute='management';content.innerHTML='<section class="page"><div class="empty-state"><h1>Acesso restrito</h1><p>A área Gestão está disponível para gerentes e administradores.</p></div></section>';return;}
+    const initialized=await api.initialize();
+    const access=root.PdvCurrentAccess||initialized?.user||null;
+    if(!root.PdvAccessPolicy?.hasCapability(access,'management.view')){document.body.dataset.activeRoute='management';content.innerHTML='<section class="page"><div class="empty-state"><h1>Acesso restrito</h1><p>Seu perfil não possui acesso à área Gestão.</p></div></section>';return;}
     const from=filters.from||monthStart(),to=filters.to||today(),basis=filters.basis||'cash';
     document.body.dataset.activeRoute='management';
     const previous=equivalentPreviousPeriod(from,to);
