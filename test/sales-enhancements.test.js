@@ -6,6 +6,7 @@ const { openDatabase } = require('../js/core/database/sqlite-database');
 const { runMigrations } = require('../js/core/database/migrations');
 const { runReleaseMigrations } = require('../js/core/database/release-migrations');
 const { runVerticalMigrations } = require('../js/core/database/vertical-migrations');
+const {runCommercialMediaMigrations}=require('../js/core/database/commercial-media-migrations');
 const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
 const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { runKitComboMigrations } = require('../js/core/database/kit-combo-migrations');
@@ -26,6 +27,7 @@ function setup() {
   runHardwareMigrations(db);
   runSaleObservationMigrations(db);
   runSalesEnhancementMigrations(db);
+  runCommercialMediaMigrations(db);
   runAccessProfileMigrations(db);
   runCanonicalAccessMigrations(db);
   let sequence = 0;
