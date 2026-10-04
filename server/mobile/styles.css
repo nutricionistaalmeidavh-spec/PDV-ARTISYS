@@ -18,3 +18,36 @@ main.kds-mode{transition:width .15s ease}
   main.kds-mode .kitchen-lane{min-height:0;max-height:none;overflow:visible}
 }
 @media(max-width:600px){main.kds-mode{padding:13px}}
+
+
+/* Garçom — Direção A: salão visual + mesa/cardápio no mesmo fluxo canônico. */
+main.waiter-mode{width:min(760px,100%);padding:14px 14px 92px}
+main.waiter-mode .staff-head{position:sticky;top:69px;z-index:12;margin:0 -14px 10px;padding:12px 16px;background:rgba(247,249,253,.96);border-bottom:1px solid #e3e9f1;backdrop-filter:blur(12px)}
+main.waiter-mode .staff-head h1{font-size:20px}main.waiter-mode .staff-head p{margin-top:3px;font-size:12px}
+.waiter-head-alert{min-width:38px;min-height:38px;border:0;border-radius:12px;background:#ffeaed;color:#b42318;font-weight:900}
+.waiter-layout{display:block;position:relative}.waiter-primary-tabs,.waiter-table-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;background:#eef2f7;border-radius:14px;margin-bottom:12px}
+.waiter-primary-tabs button,.waiter-table-tabs button{min-height:42px;border:0;border-radius:11px;background:transparent;color:#52637d;font-weight:850}
+.waiter-primary-tabs button.active,.waiter-table-tabs button.active{background:#fff;color:var(--blue);box-shadow:0 3px 10px rgba(33,56,94,.08)}
+.waiter-primary-tabs b,.waiter-bottom-nav b{display:inline-grid;place-items:center;min-width:19px;height:19px;margin-left:4px;padding:0 5px;border-radius:999px;background:var(--danger);color:#fff;font-size:10px}
+.waiter-zone-strip{display:flex;gap:7px;overflow:auto;padding:1px 1px 10px;scrollbar-width:none}.waiter-zone-strip button{min-height:36px;border:1px solid var(--blue);border-radius:999px;background:var(--blue);color:#fff;padding:0 13px;font-size:12px;font-weight:800}
+.waiter-table-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.waiter-table-card{display:flex;min-height:122px;flex-direction:column;align-items:flex-start;gap:5px;padding:12px 10px;text-align:left;border:1px solid #dfe6ef;border-radius:15px;background:#fff;color:var(--ink);box-shadow:0 4px 14px rgba(33,56,94,.04)}
+.waiter-table-card>span{font-size:17px;font-weight:950;color:var(--navy)}.waiter-table-card em{font-style:normal;font-size:11px;font-weight:900}.waiter-table-card strong{margin-top:auto;font-size:15px}.waiter-table-card small{color:var(--muted);font-size:10px}
+.waiter-table-card.free{background:#fbfdfc}.waiter-table-card.occupied{border-color:#b8d2ff;background:#f4f8ff}.waiter-table-card.occupied em{color:#245da8}.waiter-table-card.preparing{border-color:#ffd39b;background:#fff8ef}.waiter-table-card.preparing em{color:#9a5a0b}.waiter-table-card.called,.waiter-table-card.attention{border-color:#ffbdc4;background:#fff3f4}.waiter-table-card.called em,.waiter-table-card.attention em{color:#b42318}.waiter-table-card.ready{border-color:#94dfb6;background:#effbf4}.waiter-table-card.ready em{color:#167647}
+.waiter-request-list{display:grid;gap:9px}.waiter-request-list .request-row{padding:13px;border:1px solid #ffd0d5;border-radius:14px;background:#fff5f6}
+.waiter-table-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;margin-bottom:10px}.waiter-table-head h2{margin:0;font-size:22px}.waiter-table-head p{margin:3px 0 0;color:var(--muted);font-size:12px}.waiter-table-head>strong{font-variant-numeric:tabular-nums}
+.waiter-back,.waiter-close{width:42px;height:42px;border:1px solid #dce5ef;border-radius:12px;background:#fff;color:#27405f;font-size:25px}
+.waiter-table-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.waiter-order-surface .panel{box-shadow:none}.waiter-order-surface>.panel{padding:14px}.waiter-order-surface .product-list{padding-bottom:82px}.waiter-order-surface .product{min-height:70px}.waiter-order-surface .product button{min-width:44px}
+.waiter-cart-bar{position:fixed;z-index:22;left:50%;bottom:72px;display:flex;width:min(732px,calc(100% - 28px));transform:translateX(-50%);align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 14px;border-radius:16px;background:#082f56;color:#fff;box-shadow:0 16px 32px rgba(8,26,53,.22)}
+.waiter-cart-bar strong,.waiter-cart-bar small{display:block}.waiter-cart-bar small{color:#bcd0e7;font-size:10px}.waiter-cart-bar button{min-height:42px;border:0;border-radius:11px;background:var(--blue);color:#fff;padding:0 14px;font-weight:900}
+.waiter-drawer-backdrop{position:fixed;z-index:40;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-top:70px;background:rgba(8,26,53,.38)}
+.waiter-order-drawer{width:min(760px,100%);max-height:82vh;overflow:auto;padding:17px 16px max(18px,env(safe-area-inset-bottom));border-radius:22px 22px 0 0;background:#fff;box-shadow:0 -18px 44px rgba(8,26,53,.24)}
+.waiter-order-drawer .order-composer{position:static;padding:0;border:0;box-shadow:none}.waiter-order-drawer .order-composer>.section-head{display:none}.waiter-order-drawer #send-order{width:100%;background:var(--success)}
+.open-table-form{display:grid;gap:10px;margin-bottom:82px}.open-table-form .btn{width:100%}
+.waiter-order-history-cache{position:absolute!important;width:1px!important;height:1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;clip-path:inset(50%)!important;white-space:nowrap!important}
+.waiter-more{display:grid;gap:8px}.waiter-more .btn{width:100%}
+.waiter-bottom-nav{position:fixed;z-index:21;left:50%;bottom:0;display:grid;width:min(760px,100%);transform:translateX(-50%);grid-template-columns:repeat(4,minmax(0,1fr));padding:7px 8px max(7px,env(safe-area-inset-bottom));border-top:1px solid #dfe6ef;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);box-shadow:0 -8px 24px rgba(33,56,94,.08)}
+.waiter-bottom-nav button{position:relative;display:grid;place-items:center;gap:2px;min-height:49px;border:0;border-radius:11px;background:transparent;color:#667991;font-size:18px;font-weight:800}.waiter-bottom-nav button span{font-size:10px}.waiter-bottom-nav button.active{color:var(--blue);background:#f1f6ff}.waiter-bottom-nav button:disabled{opacity:.38}.waiter-bottom-nav b{position:absolute;top:3px;right:18%}
+@media(min-width:650px){.waiter-table-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:420px){main.waiter-mode{padding:12px 12px 88px}main.waiter-mode .staff-head{top:67px;margin:0 -12px 10px;padding:11px 14px}main.waiter-mode .staff-head h1{font-size:18px}main.waiter-mode .staff-head p{display:none}.waiter-table-grid{gap:7px}.waiter-table-card{min-height:114px;padding:10px 8px}.waiter-cart-bar{bottom:69px;width:calc(100% - 20px)}}
