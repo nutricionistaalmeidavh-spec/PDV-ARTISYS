@@ -31,9 +31,13 @@ test('restaurante entra somente pelo catálogo de módulos, sem launcher oculto 
   assert.ok(html.indexOf('./restaurant-module-gate.js')<html.indexOf('./restaurant-ui.js'),'gate deve carregar antes de restaurant-ui.js');
 });
 
-test('launcher stale do restaurante nao abre configuracoes quando modulo esta desligado',()=>{
+test('modulo desligado sai pela navegacao canonica sem interceptar clicks',()=>{
   const gate=fs.readFileSync(path.join(root,'desktop/renderer/restaurant-module-gate.js'),'utf8');
-  assert.match(gate,/stopImmediatePropagation\(\)/);
-  assert.match(gate,/isEnabled\(moduleId\)/);
+  const app=fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
+  assert.doesNotMatch(gate,/stopImmediatePropagation\(\)|data-module-open|data-module-nav/);
+  assert.match(gate,/isEnabled/);
+  assert.match(app,/artisys:modules-state-changed/);
+  assert.match(app,/state\.route==='FOOD'\|\|state\.route==='WHOLESALE'/);
+  assert.match(app,/void navigate\('home'\)/);
   assert.doesNotMatch(gate,/showRoute\?\.\('settings'\)/);
 });
