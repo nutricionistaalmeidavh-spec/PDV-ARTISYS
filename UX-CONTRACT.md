@@ -4,7 +4,7 @@
 
 The local server and `js/core/modules/module-registry.js` own the optional-module definitions: stable ID, customer-facing name, description, family/area, dependency list, route ID, icon, allowed roles, management roles, and default activation. `js/core/modules/module-service.js` owns persisted activation and server-side authorization. Renderer code consumes the returned catalog; it must not maintain parallel module labels, family membership, icons, or permission lists.
 
-`desktop/renderer/restaurant-module-gate.js` is the sole renderer-side cache of the last authoritative module catalog. It publishes `artisys:modules-state-changed` with `{catalog, modules, changedIds}`. A failed refresh preserves the last known catalog and displays/handles request errors at the affected operation; it does not synthesize a module state. `desktop/renderer/vertical-modules.js` derives settings, navigation, role visibility, and route selection from that catalog. `desktop/renderer/module-state-sync.js` uses stable route IDs, never translated headings.
+`desktop/renderer/restaurant-module-gate.js` is the sole renderer-side cache of the last authoritative module catalog. It publishes `artisys:modules-state-changed` with `{catalog, modules, changedIds}`. A failed refresh preserves the last known catalog and displays/handles request errors at the affected operation; it does not synthesize a module state. `app.js` and `PdvAccessPolicy` derive canonical route availability from that state plus user capabilities. `desktop/renderer/vertical-modules.js` owns only the FOOD/WHOLESALE route renderers and the Settings module card; it never creates a second navigation system. `desktop/renderer/module-state-sync.js` only annotates mounted module workspaces with stable route IDs.
 
 ## Core commercial capabilities
 
@@ -106,7 +106,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 - `desktop/renderer/route-registry.js` é o owner canônico da resolução de rotas internas do desktop. Cada route ID possui exatamente um renderer registrado; um segundo owner para a mesma rota é erro de contrato.
 - `desktop/renderer/ui-lifecycle.js` publica `route:before`, `route:mounted`, `route:updated`, `route:unmounted` e `route:error`. Extensões novas devem reagir a lifecycle/eventos semânticos em vez de observar o DOM para descobrir mudanças provocadas pelo próprio ArtiSys.
-- `app.js` possui Home, Balcão, Clientes, Equipe, Gestão, Cardápio e os hubs agrupadores. `operational-pages.js` possui Estoque, Caixa, Últimas vendas, Financeiro e Configurações. `reporting-v2.js` possui Relatórios. `returns-ui.js` possui Devoluções.
+- `app.js` possui Home, Balcão, Clientes, Equipe, Gestão, Cardápio e os hubs agrupadores. `operational-pages.js` possui Estoque, Caixa, Últimas vendas, Financeiro e Configurações. `vertical-modules.js` possui as rotas canônicas `FOOD` (Alimentação) e `WHOLESALE` (Atacado), condicionadas ao módulo habilitado e à capability do usuário. `reporting-v2.js` possui Relatórios. `returns-ui.js` possui Devoluções.
 - Financeiro possui navegação interna canônica e explícita: `finance` = Lançamentos (owner `operational-pages`), `finance-banks`, `finance-recurrences` e `finance-alerts` = operações financeiras (owner `erp-finance-operations`). Essas rotas são alcançadas por navegação semântica e nunca por inspeção/mutação do DOM.
 - Gestão permanece dona de DRE, fluxo de caixa, comparação e drill-down gerencial; conciliação bancária, transferências entre contas próprias, recorrências e alertas pertencem às rotas do Financeiro.
 - A edição de categoria gerencial, centro de custo e competência altera as dimensões do lançamento financeiro canônico; não cria lançamento, espelho ou registro financeiro paralelo.
@@ -132,9 +132,9 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Gestão de catálogo/usuários reage a `route:mounted`, `route:updated`, `surface:mounted` e `user:changed`; não observa mais mutações do `#route-content`.
 - Endereço de entrega reage a `modal:mounted` para o formulário de cliente e a `inventory/enterprise-orders` para pedidos; o snapshot de endereço continua sendo responsabilidade do domínio.
 - Kits e combos reagem ao lifecycle de Produtos/Balcão e preservam os contratos de promoção e bloqueio de desconto manual.
-- `module-state-sync.js` reage ao lifecycle de rota/superfície e usa o registry canônico para atualizar Configurações.
+- `module-state-sync.js` reage ao lifecycle de rota/superfície apenas para anotar o workspace ativo; Configurações é composta diretamente pelo owner `operational-pages`.
 - Campos operacionais amigáveis reagem a rota, modal e módulo montados; não existe varredura acionada por mutações de DOM.
-- `enterprise-depth-ui.js` publica updates semânticos de Compras, Logística e Pedidos; `vertical-modules.js` publica `surface:mounted` para área e workspace.
+- `enterprise-depth-ui.js` publica updates semânticos de Compras, Logística e Pedidos; superfícies internas de Alimentação podem publicar `surface:mounted`, mas a entrada FOOD/WHOLESALE é sempre uma rota canônica registrada.
 - Orçamento atual de `MutationObserver` no renderer: **0**. As extensões complexas migradas são componentes owner-invoked; reintroduzir observação de DOM é regressão arquitetural.
 
 
