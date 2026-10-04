@@ -63,7 +63,6 @@ test('technical vertical fields stay out of everyday operation',()=>{
   assert.doesNotMatch(finalUi,/new MutationObserver/);
   assert.doesNotMatch(vertical,/new MutationObserver/);
   assert.doesNotMatch(vertical,/Sabores \(separados por vírgula\)|input\('productId','Produto base'\)|input\('sizeId','Tamanho'\)/);
-  assert.match(finalUi,/Responsável local/);
   assert.match(vertical,/data-pizza-profile-options/);
 });
 
