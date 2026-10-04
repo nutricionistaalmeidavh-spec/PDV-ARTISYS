@@ -3,10 +3,14 @@
 (()=>{
   function hardware(){ return window.artisysDesktop?.hardware; }
 
-  function setStatus(message, error=false){
-    const node=document.getElementById('scale-config-status');
+  function cleanMessage(message){
+    return String(message||'').replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+  }
+
+  function setStatus(id,message,error=false){
+    const node=document.getElementById(id);
     if(!node)return;
-    node.textContent=String(message||'').replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
+    node.textContent=cleanMessage(message);
     node.style.color=error?'#b42318':'';
   }
 
@@ -16,58 +20,103 @@
     if(row)row.hidden=profile?.value!=='urano-pop-s';
   }
 
-  async function loadConfiguration(){
-    const api=hardware();
-    if(!api)return;
-    const diagnostics=await api.diagnostics();
-    const scale=diagnostics?.configuration?.scale||{};
-    const profile=document.getElementById('scale-profile');
-    const port=document.getElementById('scale-port');
-    const request=document.getElementById('scale-request');
-    if(!profile||!port||!request)return;
-
-    profile.value=scale.profile==='urano-pop-s'?'urano-pop-s':'generic';
-    const selected=String(scale.port||'');
-    port.replaceChildren();
-    const none=document.createElement('option');none.value='';none.textContent='Desativada / selecione uma porta';port.appendChild(none);
-    const ports=Array.isArray(diagnostics?.serialPorts)?diagnostics.serialPorts:[];
-    for(const item of ports){
+  function fillPortSelect(select,selected,ports){
+    if(!select)return;
+    select.replaceChildren();
+    const none=document.createElement('option');none.value='';none.textContent='Desativado / selecione uma porta';select.appendChild(none);
+    for(const item of Array.isArray(ports)?ports:[]){
       if(!item?.path)continue;
       const option=document.createElement('option');
       option.value=String(item.path);
       option.textContent=item.manufacturer?`${item.path} — ${item.manufacturer}`:String(item.path);
-      port.appendChild(option);
+      select.appendChild(option);
     }
-    if(selected && ![...port.options].some(option=>option.value===selected)){
-      const option=document.createElement('option');option.value=selected;option.textContent=`${selected} — configurada (não detectada agora)`;port.appendChild(option);
+    if(selected&&![...select.options].some(option=>option.value===selected)){
+      const option=document.createElement('option');option.value=selected;option.textContent=`${selected} — configurada (não detectada agora)`;select.appendChild(option);
     }
-    port.value=selected;
-    request.value=scale.requestCommand==='0x05'?'0x05':'0x04';
-    setRequestVisibility();
-    const summary=profile.value==='urano-pop-s'
-      ? `Urano US 31/2 POP-S · ${selected||'sem porta'} · 9600 / 8N2`
-      : `${selected?'Balança genérica em '+selected:'Balança não configurada'}`;
-    setStatus(summary,false);
+    select.value=selected;
   }
 
-  async function saveConfiguration(testAfter=false){
+  function fillBaudSelect(select,value){
+    if(!select)return;
+    const baud=Number(value||9600);
+    const standard=[9600,19200,38400,57600,115200];
+    if(!standard.includes(baud)){
+      const option=document.createElement('option');option.value=String(baud);option.textContent=`${baud} bps (configurada)`;select.appendChild(option);
+    }
+    select.value=String(baud);
+  }
+
+  async function loadConfiguration(){
+    const api=hardware();
+    if(!api)return;
+    const diagnostics=await api.diagnostics();
+    const ports=Array.isArray(diagnostics?.serialPorts)?diagnostics.serialPorts:[];
+
+    const scale=diagnostics?.configuration?.scale||{};
+    const scaleProfile=document.getElementById('scale-profile');
+    const scalePort=document.getElementById('scale-port');
+    const scaleRequest=document.getElementById('scale-request');
+    if(scaleProfile&&scalePort&&scaleRequest){
+      scaleProfile.value=scale.profile==='urano-pop-s'?'urano-pop-s':'generic';
+      fillPortSelect(scalePort,String(scale.port||''),ports);
+      scaleRequest.value=scale.requestCommand==='0x05'?'0x05':'0x04';
+      setRequestVisibility();
+      const summary=scaleProfile.value==='urano-pop-s'
+        ? `Urano US 31/2 POP-S · ${scale.port||'sem porta'} · 9600 / 8N2`
+        : `${scale.port?'Balança genérica em '+scale.port:'Balança não configurada'}`;
+      setStatus('scale-config-status',summary);
+    }
+
+    const drawer=diagnostics?.configuration?.drawer||{};
+    const drawerPort=document.getElementById('drawer-port');
+    const drawerBaud=document.getElementById('drawer-baud');
+    if(drawerPort&&drawerBaud){
+      fillPortSelect(drawerPort,String(drawer.port||''),ports);
+      fillBaudSelect(drawerBaud,drawer.baud||9600);
+      setStatus('drawer-config-status',drawer.configured?`Gaveta configurada em ${drawer.port} · ${drawer.baud||9600} bps`:'Gaveta não configurada.');
+    }
+    return diagnostics;
+  }
+
+  async function refreshDiagnostics(){
+    const diagnostics=await loadConfiguration();
+    const output=document.getElementById('hw-output');
+    if(output)output.textContent=JSON.stringify(diagnostics,null,2);
+    const scaleButton=document.getElementById('hw-scale');
+    if(scaleButton)scaleButton.disabled=!diagnostics?.status?.scale?.available;
+    const drawerButton=document.getElementById('hw-drawer');
+    if(drawerButton)drawerButton.disabled=!diagnostics?.status?.cashDrawer?.available;
+    return diagnostics;
+  }
+
+  async function saveScaleConfiguration(testAfter=false){
     const api=hardware();
     if(!api?.configureScale)throw new Error('Configuração de balança indisponível nesta versão.');
     const profile=document.getElementById('scale-profile')?.value||'generic';
     const port=document.getElementById('scale-port')?.value||'';
     const requestCommand=document.getElementById('scale-request')?.value||'0x04';
-    setStatus('Salvando configuração...');
+    setStatus('scale-config-status','Salvando configuração...');
     const configuration=await api.configureScale({profile,port,requestCommand});
-    if(testAfter && configuration.configured){
+    if(testAfter&&configuration.configured){
       const reading=await api.testScale();
-      setStatus(`Configuração salva. Leitura: ${Number(reading.weight).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})} ${reading.unit||'kg'}`);
-    } else {
-      setStatus(configuration.configured?'Configuração salva e aplicada.':'Balança desativada.');
-    }
-    const output=document.getElementById('hw-output');
-    const diagnostics=await api.diagnostics();
-    if(output)output.textContent=JSON.stringify(diagnostics,null,2);
-    const scaleButton=document.getElementById('hw-scale');if(scaleButton)scaleButton.disabled=!diagnostics.status?.scale?.available;
+      setStatus('scale-config-status',`Configuração salva. Leitura: ${Number(reading.weight).toLocaleString('pt-BR',{minimumFractionDigits:3,maximumFractionDigits:3})} ${reading.unit||'kg'}`);
+    }else setStatus('scale-config-status',configuration.configured?'Configuração salva e aplicada.':'Balança desativada.');
+    await refreshDiagnostics();
+  }
+
+  async function saveDrawerConfiguration(testAfter=false){
+    const api=hardware();
+    if(!api?.configureDrawer)throw new Error('Configuração de gaveta indisponível nesta versão.');
+    const port=document.getElementById('drawer-port')?.value||'';
+    const baud=Number(document.getElementById('drawer-baud')?.value||9600);
+    setStatus('drawer-config-status','Salvando configuração...');
+    const configuration=await api.configureDrawer({port,baud});
+    if(testAfter&&configuration.configured){
+      await api.testDrawer();
+      setStatus('drawer-config-status','Configuração salva. A gaveta recebeu o teste de abertura.');
+    }else setStatus('drawer-config-status',configuration.configured?'Configuração salva e aplicada.':'Gaveta desativada.');
+    await refreshDiagnostics();
   }
 
   function enhance(){
@@ -75,25 +124,44 @@
     if(!output||document.getElementById('scale-config-card'))return;
     const existing=output.closest('.data-card');
     if(!existing?.parentNode)return;
-    const card=document.createElement('div');
-    card.className='data-card';
-    card.id='scale-config-card';
-    card.innerHTML=`
+
+    const scaleCard=document.createElement('div');
+    scaleCard.className='data-card';
+    scaleCard.id='scale-config-card';
+    scaleCard.innerHTML=`
       <h2>Balança</h2>
-      <p>Selecione o perfil e a porta COM. O perfil Urano aplica automaticamente 9600 / 8N2 e o protocolo POP-S.</p>
+      <p>Selecione o perfil e a porta detectada. O perfil Urano aplica automaticamente 9600 / 8N2 e o protocolo POP-S.</p>
       <div class="vertical-form">
         <label class="field"><span>Modelo / protocolo</span><select id="scale-profile"><option value="generic">Genérica</option><option value="urano-pop-s">Urano US 31/2 POP-S</option></select></label>
         <label class="field"><span>Porta serial</span><select id="scale-port"><option value="">Carregando portas...</option></select></label>
         <label class="field" id="scale-request-row"><span>Comando de leitura Urano</span><select id="scale-request"><option value="0x04">0x04 (padrão)</option><option value="0x05">0x05</option></select></label>
         <div class="vertical-actions"><button type="button" id="scale-refresh-ports" class="secondary-button">Detectar portas</button><button type="button" id="scale-save" class="primary-button">Salvar configuração</button><button type="button" id="scale-save-test">Salvar e testar</button></div>
-        <p id="scale-config-status" class="vertical-rule"></p>
+        <p id="scale-config-status" class="vertical-rule" aria-live="polite"></p>
       </div>`;
-    existing.parentNode.insertBefore(card,existing);
+
+    const drawerCard=document.createElement('div');
+    drawerCard.className='data-card';
+    drawerCard.id='drawer-config-card';
+    drawerCard.innerHTML=`
+      <h2>Gaveta</h2>
+      <p>Para gavetas seriais compatíveis com pulso ESC/POS, selecione a porta detectada e a velocidade informada pelo equipamento.</p>
+      <div class="vertical-form">
+        <label class="field"><span>Porta serial</span><select id="drawer-port"><option value="">Carregando portas...</option></select></label>
+        <label class="field"><span>Velocidade</span><select id="drawer-baud"><option value="9600">9600 bps</option><option value="19200">19200 bps</option><option value="38400">38400 bps</option><option value="57600">57600 bps</option><option value="115200">115200 bps</option></select></label>
+        <div class="vertical-actions"><button type="button" id="drawer-refresh-ports" class="secondary-button">Detectar portas</button><button type="button" id="drawer-save" class="primary-button">Salvar configuração</button><button type="button" id="drawer-save-test">Salvar e testar</button></div>
+        <p id="drawer-config-status" class="vertical-rule" aria-live="polite"></p>
+      </div>`;
+
+    existing.parentNode.insertBefore(scaleCard,existing);
+    existing.parentNode.insertBefore(drawerCard,existing);
     document.getElementById('scale-profile')?.addEventListener('change',setRequestVisibility);
-    document.getElementById('scale-refresh-ports')?.addEventListener('click',()=>loadConfiguration().catch(error=>setStatus(error.message,true)));
-    document.getElementById('scale-save')?.addEventListener('click',()=>saveConfiguration(false).catch(error=>setStatus(error.message,true)));
-    document.getElementById('scale-save-test')?.addEventListener('click',()=>saveConfiguration(true).catch(error=>setStatus(error.message,true)));
-    loadConfiguration().catch(error=>setStatus(error.message,true));
+    document.getElementById('scale-refresh-ports')?.addEventListener('click',()=>refreshDiagnostics().catch(error=>setStatus('scale-config-status',error.message,true)));
+    document.getElementById('drawer-refresh-ports')?.addEventListener('click',()=>refreshDiagnostics().catch(error=>setStatus('drawer-config-status',error.message,true)));
+    document.getElementById('scale-save')?.addEventListener('click',()=>saveScaleConfiguration(false).catch(error=>setStatus('scale-config-status',error.message,true)));
+    document.getElementById('scale-save-test')?.addEventListener('click',()=>saveScaleConfiguration(true).catch(error=>setStatus('scale-config-status',error.message,true)));
+    document.getElementById('drawer-save')?.addEventListener('click',()=>saveDrawerConfiguration(false).catch(error=>setStatus('drawer-config-status',error.message,true)));
+    document.getElementById('drawer-save-test')?.addEventListener('click',()=>saveDrawerConfiguration(true).catch(error=>setStatus('drawer-config-status',error.message,true)));
+    refreshDiagnostics().catch(error=>{setStatus('scale-config-status',error.message,true);setStatus('drawer-config-status',error.message,true);});
   }
 
   document.addEventListener('click',event=>{
