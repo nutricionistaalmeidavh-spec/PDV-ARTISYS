@@ -548,9 +548,14 @@ textarea:focus-visible,
 .device-choice-card span{color:#66758a;font-size:13px;line-height:1.5}
 .device-choice-card:focus-visible{outline:3px solid rgba(37,99,235,.55);outline-offset:3px}
 .device-pairing-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.device-pairing-form>.field:first-child,.device-pairing-form>.modal-actions,.device-pairing-form>.ops-muted{grid-column:1/-1}
+.device-pairing-form>.wide,.device-pairing-form>.modal-actions,.device-pairing-form>.ops-muted{grid-column:1/-1}
 .device-pairing-form .modal-actions{margin-top:2px}
-@media(max-width:680px){.device-choice-grid,.device-pairing-form{grid-template-columns:1fr}.device-pairing-form>*{grid-column:1!important}}
+.device-discovery-panel{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface-soft)}
+.device-discovery-head{display:flex;align-items:center;justify-content:space-between;gap:14px}.device-discovery-head>div{display:grid;gap:4px}.device-discovery-head span{color:var(--muted);font-size:12px;line-height:1.4}
+.device-discovery-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.device-discovery-option{min-height:66px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);text-align:left;cursor:pointer}.device-discovery-option strong,.device-discovery-option span{display:block}.device-discovery-option span{margin-top:4px;color:var(--muted);font-size:12px}.device-discovery-option:hover{border-color:#9abcf0}.device-discovery-option[aria-pressed="true"]{border-color:var(--artisys-blue);background:#edf5ff}.device-discovery-option:focus-visible{outline:3px solid rgba(11,108,255,.35);outline-offset:2px}
+.device-discovery-status{grid-column:1/-1;margin:0;padding:9px 2px;color:var(--muted);line-height:1.45}.device-discovery-status.error{color:var(--danger)}
+.device-pairing-advanced{padding-top:4px;border-top:1px solid var(--line)}.device-pairing-advanced summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:#205eae;font-weight:750}.device-pairing-advanced .field{margin-top:8px}
+@media(max-width:680px){.device-choice-grid,.device-pairing-form,.device-discovery-list{grid-template-columns:1fr}.device-pairing-form>*{grid-column:1!important}.device-discovery-head{align-items:stretch;flex-direction:column}.device-discovery-head .secondary-button{width:100%}}
 
 /* Compact setup and recovery surfaces */
 .ops-pilot-card>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;cursor:pointer;list-style:none}.ops-pilot-card>summary::-webkit-details-marker{display:none}.ops-pilot-card>summary h2{margin:0 0 6px}.ops-pilot-card .ops-status-line{margin-top:8px;font-size:12px}.ops-pilot-chevron{font-size:22px;transition:transform .15s}.ops-pilot-card[open] .ops-pilot-chevron{transform:rotate(90deg)}.ops-pilot-content{margin-top:16px}.ops-pilot-card>summary:focus-visible{outline:3px solid #1f75fe;outline-offset:6px}.new-store-dialog{width:min(560px,calc(100vw - 32px));padding:28px;border:1px solid #d8e4f2;border-radius:18px;color:#16324e}.new-store-dialog::backdrop{background:rgba(13,31,52,.45)}[data-recovery-key]{display:block;overflow-wrap:anywhere;padding:14px;border-radius:10px;background:#edf5ff;font-size:16px}
