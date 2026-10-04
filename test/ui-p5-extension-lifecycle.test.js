@@ -52,25 +52,20 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
   assert.match(source,/if\(remountRequested\)\{remountRequested=false;scheduleMount\(\);\}/);
 });
 
-test('remaining complex observers stay scoped while delivery surfaces use lifecycle',()=>{
-  const expected=[
-    ['desktop/renderer/backend-parity-ui.js',1],
-    ['desktop/renderer/e48-e54-ui.js',0],
-    ['desktop/renderer/enterprise-depth-ui.js',1],
-    ['desktop/renderer/restaurant-public-ordering-ui.js',1],
-    ['desktop/renderer/ui-parity-p0-p2.js',1]
+test('all remaining complex extensions consume lifecycle without DOM observers',()=>{
+  const files=[
+    'desktop/renderer/backend-parity-ui.js',
+    'desktop/renderer/e48-e54-ui.js',
+    'desktop/renderer/enterprise-depth-ui.js',
+    'desktop/renderer/restaurant-public-ordering-ui.js',
+    'desktop/renderer/ui-parity-p0-p2.js',
+    'desktop/renderer/vertical-modules.js',
+    'desktop/renderer/vertical-parity-p1.js'
   ];
-  let total=0;
-  for(const [file,count] of expected){
+  for(const file of files){
     const source=read(file);
-    const actual=(source.match(/new MutationObserver\b/g)||[]).length;
-    assert.equal(actual,count,`${file}: expected ${count}, got ${actual}`);
-    total+=actual;
-  }
-  for(const file of ['desktop/renderer/vertical-modules.js','desktop/renderer/vertical-parity-p1.js']){
-    assert.doesNotMatch(read(file),/new MutationObserver\b/,file);
+    assert.doesNotMatch(source,/new MutationObserver\\b/,file);
   }
   const finalModules=read('desktop/renderer/e48-e54-ui.js');
   for(const marker of ['PdvUiLifecycle','route:mounted','route:updated','surface:mounted']) assert.ok(finalModules.includes(marker),marker);
-  assert.equal(total,4);
 });
