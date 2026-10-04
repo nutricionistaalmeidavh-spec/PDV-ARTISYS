@@ -8,7 +8,6 @@
   const ux = root.ArtisysUxComponents;
   const modal = root.PdvModal;
   const content = document.getElementById('route-content');
-  const toastRoot = document.getElementById('toast-root');
   const routeRegistry = root.PdvRouteRegistry;
   if (!routeRegistry) throw new Error('PdvRouteRegistry must load before operational-pages.js.');
   let config = null;
@@ -21,7 +20,7 @@
   function countLabel(value,singular,plural=`${singular}s`){const count=Number(value||0);return `${qty(count)} ${count===1?singular:plural}`;}
   function when(value){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?escapeHtml(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
   function centsInput(value){const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const n=Number(text);return Number.isFinite(n)?Math.round(n*100):0;}
-  function showToast(message,type=''){if(root.PdvToast?.show){root.PdvToast.show(message,type);return;}if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function showToast(message,type=''){root.PdvToast?.show?.(message,type);}
   function empty(message){return `<div class="ops-empty">${escapeHtml(message)}</div>`;}
   function badge(value){const normalized=String(value||'').toLowerCase();const label=ui?.statusLabel?.(value,String(value||'—'))||String(value||'—');return `<span class="ops-badge status-${escapeHtml(normalized)}">${escapeHtml(label)}</span>`;}
   const FINANCE_KIND_LABELS=Object.freeze({PAYABLE:'Conta a pagar',RECEIVABLE:'Conta a receber'});
