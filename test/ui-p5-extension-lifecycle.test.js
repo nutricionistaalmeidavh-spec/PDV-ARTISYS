@@ -64,7 +64,7 @@ test('all remaining complex extensions consume lifecycle without DOM observers',
   ];
   for(const file of files){
     const source=read(file);
-    assert.doesNotMatch(source,/new MutationObserver\\b/,file);
+    assert.doesNotMatch(source,/new MutationObserver\b/,file);
   }
   const finalModules=read('desktop/renderer/e48-e54-ui.js');
   for(const marker of ['PdvUiLifecycle','route:mounted','route:updated','surface:mounted']) assert.ok(finalModules.includes(marker),marker);
