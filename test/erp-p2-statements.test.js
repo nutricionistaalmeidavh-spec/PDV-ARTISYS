@@ -25,9 +25,9 @@ test('preview does not mutate and repeated OFX commit is hard-deduplicated',asyn
  const fx=fixture();
  const preview=await fx.statements.preview({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX});
  assert.equal(preview.transactions.length,2);assert.equal(fx.db.prepare('SELECT COUNT(*) n FROM bank_statement_transactions').get().n,0);
- const first=await fx.statements.commit({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX},{userId:'admin',role:'admin'});
+ const first=await fx.statements.commit({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX},{userId:'admin',profileId:'profile-administrator'});
  assert.equal(first.inserted,2);assert.equal(first.duplicates,0);
- const second=await fx.statements.commit({accountId:'BANK-1',sourceName:'outro-nome.ofx',content:OFX},{userId:'admin',role:'admin'});
+ const second=await fx.statements.commit({accountId:'BANK-1',sourceName:'outro-nome.ofx',content:OFX},{userId:'admin',profileId:'profile-administrator'});
  assert.equal(second.inserted,0);assert.equal(second.duplicates,2);
  assert.equal(fx.db.prepare('SELECT COUNT(*) n FROM bank_statement_transactions').get().n,2);fx.db.close();
 });
@@ -35,14 +35,14 @@ test('preview does not mutate and repeated OFX commit is hard-deduplicated',asyn
 test('equal PIX values with distinct FITIDs coexist while business fingerprint warns similarity',async()=>{
  const fx=fixture();
  const content=OFX.replace('TARIFA BANCARIA','PIX CLIENTE').replace('-12.50','100.00').replace('TAR-1','PIX-B').replace('20260926103000','20260925120000').replace('<TRNTYPE>DEBIT','<TRNTYPE>CREDIT');
- const result=await fx.statements.commit({accountId:'BANK-1',sourceName:'pix.ofx',content},{userId:'admin',role:'admin'});
+ const result=await fx.statements.commit({accountId:'BANK-1',sourceName:'pix.ofx',content},{userId:'admin',profileId:'profile-administrator'});
  assert.equal(result.inserted,2);
  const rows=fx.db.prepare('SELECT source_fingerprint,business_fingerprint FROM bank_statement_transactions ORDER BY external_id').all();
  assert.notEqual(rows[0].source_fingerprint,rows[1].source_fingerprint);assert.equal(rows[0].business_fingerprint,rows[1].business_fingerprint);fx.db.close();
 });
 
 test('deterministic classification is advisory metadata only',async()=>{
- const fx=fixture();const result=await fx.statements.commit({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX},{userId:'admin',role:'admin'});
+ const fx=fixture();const result=await fx.statements.commit({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX},{userId:'admin',profileId:'profile-administrator'});
  const fee=fx.db.prepare("SELECT classification_json FROM bank_statement_transactions WHERE external_id='TAR-1'").get();
  const classification=JSON.parse(fee.classification_json);assert.equal(classification.assignments.category,'Tarifas bancárias');
  assert.equal(fx.finance.listEntries().length,0);assert.equal(result.inserted,2);fx.db.close();
@@ -50,7 +50,7 @@ test('deterministic classification is advisory metadata only',async()=>{
 
 
 test('rejected reconciliation pair is not suggested again',async()=>{
- const fx=fixture();const actor={userId:'admin',role:'admin'};
+ const fx=fixture();const actor={userId:'admin',profileId:'profile-administrator'};
  const entry=fx.finance.createEntry({kind:'RECEIVABLE',description:'PIX CLIENTE',amountCents:10000,dueAt:'2026-09-25T12:00:00.000Z'},actor);
  await fx.statements.commit({accountId:'BANK-1',sourceName:'extrato.ofx',content:OFX},actor);
  const tx=fx.statements.listTransactions({accountId:'BANK-1'}).find(row=>row.externalId==='PIX-A');
