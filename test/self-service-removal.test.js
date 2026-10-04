@@ -19,8 +19,8 @@ function activeFiles(){
       else if(TEXT_EXTENSIONS.has(path.extname(entry.name)))files.push(child);
     }
   };
-  for(const dir of ['js','server','desktop','release','qa'])walk(dir);
-  for(const file of ['README.md','DESIGN.md','UX-CONTRACT.md'])files.push(file);
+  for(const dir of ['js','server','desktop','release','qa','scripts'])walk(dir);
+  for(const file of ['README.md','DESIGN.md','UX-CONTRACT.md','package.json'])files.push(file);
   const architecture=path.join(root,'docs','architecture');
   for(const entry of fs.readdirSync(architecture,{withFileTypes:true})){
     if(entry.isFile()&&TEXT_EXTENSIONS.has(path.extname(entry.name)))files.push(path.join('docs','architecture',entry.name));
