@@ -26,7 +26,7 @@ test('P3 shell surfaces use semantic lifecycle without MutationObserver',()=>{
   assert.match(operational,/routeRegistry\.updated\('sales',\{surface:'sale-detail'\}\)/);
 });
 
-test('P4 Admin and Settings hub use lifecycle and announce settings extensions',()=>{
+test('P4 Admin stays lifecycle-driven while the Settings hub is owner-invoked',()=>{
   const source=read('desktop/renderer/admin-ops.js');
   assert.match(source,/PdvUiLifecycle/,'admin-ops lifecycle missing');
   assert.match(source,/route:mounted/,'admin-ops mounted hook missing');
@@ -35,9 +35,11 @@ test('P4 Admin and Settings hub use lifecycle and announce settings extensions',
   assert.doesNotMatch(source,/new MutationObserver\b/,'admin-ops observer must be retired');
 
   const hub=read('desktop/renderer/settings-hub-ui.js');
-  assert.match(hub,/route:mounted/);
+  const operational=read('desktop/renderer/operational-pages.js');
+  assert.match(hub,/PdvSettingsHub=Object\.freeze\(\{mount\}\)/);
   assert.match(hub,/route:updated/);
-  assert.doesNotMatch(hub,/MutationObserver|legacyObserver/);
+  assert.doesNotMatch(hub,/route:mounted|MutationObserver|legacyObserver/);
+  assert.match(operational,/PdvSettingsHub\?\.mount\?\.\(pageRoot\)/);
   assert.doesNotMatch(hub,/fiscal|nfse/i);
 });
 test('auth lifecycle is published only after canonical setup and login form bindings',()=>{
