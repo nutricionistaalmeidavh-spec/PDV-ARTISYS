@@ -124,3 +124,37 @@ test('shared semantic UI colors are represented by tokens instead of repeated ra
   assert.match(app,/class="optional-label"/);
   assert.doesNotMatch(app,/style="color:#9aa6bb/);
 });
+
+
+test('operational desktop polish uses the shared visual primitive scale',()=>{
+  const foundation=read('desktop/renderer/styles.css');
+  for(const token of [
+    'radius-sm','radius-md','radius-lg',
+    'shadow-sm','shadow-md',
+    'border-control','border-card',
+    'surface-control','surface-muted',
+    'focus-border','focus-ring',
+    'text-operational','text-operational-strong',
+    'space-1','space-2','space-3','space-4','space-5','space-6'
+  ]) assert.match(foundation,new RegExp(`--${token}:`),`missing shared token --${token}`);
+
+  const targets=[
+    'desktop/renderer/products-dense-view.css',
+    'desktop/renderer/customers-master-detail.css',
+    'desktop/renderer/regression-hardening.css',
+    'desktop/renderer/access-center-ui.css',
+    'desktop/renderer/settings-hub-ui.css'
+  ];
+  for(const file of targets){
+    const css=read(file);
+    assert.doesNotMatch(css,/#(?:dce5f0|dce5f2|dbe5f2|edf1f6|f8fafc|53627f|69758c)/i,`${file} still owns a shared visual primitive`);
+  }
+
+  for(const file of [
+    'desktop/renderer/sale-observation-ui.js',
+    'desktop/renderer/app.js',
+    'desktop/renderer/delivery-address-ui.js'
+  ]) assert.doesNotMatch(read(file),/style="/i,`${file} must use CSS classes instead of static inline visual styles`);
+  assert.doesNotMatch(read('desktop/renderer/catalog-removal-ui.js'),/\.style\.marginTop/,'supplier management spacing must be CSS-owned');
+  assert.doesNotMatch(read('desktop/renderer/hardware-scale-ui.js'),/\.style\.color/,'hardware status tone must be CSS-owned');
+});
