@@ -104,6 +104,9 @@ test('E33 canonical schema and sources no longer expose TABLET',()=>{
     assert.doesNotMatch(deviceSql,/TABLET/);
     assert.match(orderSql,/TABLE/);
     assert.doesNotMatch(orderSql,/TABLET/);
-    assert.throws(()=>runtime.mobileDevices.createDevice({id:'legacy-tablet',name:'Legacy',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);\n    const session=runtime.restaurant.openTable('t1',{operatorId:'u1',actor:{userId:'u1'}});\n    const order=runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:1}],source:'TABLE',actor:{userId:'u1'}});\n    assert.equal(order.source,'TABLE');
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'legacy-tablet',name:'Legacy',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+    const session=runtime.restaurant.openTable('t1',{operatorId:'u1',actor:{userId:'u1'}});
+    const order=runtime.restaurant.addOrder(session.id,{items:[{productId:'p1',quantity:1}],source:'TABLE',actor:{userId:'u1'}});
+    assert.equal(order.source,'TABLE');
   }finally{ctx.close();}
 });
