@@ -97,16 +97,13 @@ test('P4 device access separates credential, surface, scope and human binding',(
 
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garçom João',deviceType:'WAITER',userId:admin.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS Cozinha',deviceType:'KITCHEN'});
-    const kiosk=runtime.mobileDevices.createDevice({id:'s1',name:'Totem Entrada',deviceType:'SELF_SERVICE'});
-
     assert.throws(()=>runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa 1',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'self1',name:'Totem Entrada',deviceType:'SELF_SERVICE'}),/Tipo de dispositivo invalido/i);
     assert.equal(waiter.surface,'waiter');
     assert.equal(waiter.userId,admin.id);
     assert.deepEqual(waiter.scope,{type:'establishment',id:null});
     assert.equal(kitchen.surface,'kitchen');
     assert.deepEqual(kitchen.scope,{type:'establishment',id:null});
-    assert.equal(kiosk.surface,'self-service');
-    assert.deepEqual(kiosk.scope,{type:'establishment',id:null});
 
     const raw=runtime.db.prepare('SELECT credential_hash,surface,scope_type,scope_id FROM mobile_devices WHERE id=?').get(kitchen.id);
     assert.equal(raw.credential_hash.includes(kitchen.credential),false);
