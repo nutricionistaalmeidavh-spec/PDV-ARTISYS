@@ -76,9 +76,10 @@ Cloudflare não valida senha de operador e não recebe hash de senha local.
 
 O PDV passa a ter uma abstração de conta comercial com configuração explícita:
 
-- `PDV_ACCOUNT_ENDPOINT` vazio/desabilitado por padrão;
-- `PDV_REQUIRE_COMMERCIAL_ACTIVATION=false` por padrão;
-- instalações existentes preservam comportamento atual independentemente dessas variáveis após upgrade, salvo configuração explícita do administrador.
+- o desktop oficial usa por padrão `https://pdv-artisys.sistema-artisys.workers.dev` como `PDV_ACCOUNT_ENDPOINT`;
+- `PDV_REQUIRE_COMMERCIAL_ACTIVATION=true` é o padrão do produto distribuído para toda instalação nova;
+- um override explícito `PDV_REQUIRE_COMMERCIAL_ACTIVATION=false` existe apenas para desenvolvimento/uso interno; ausência de endpoint nunca libera silenciosamente uma instalação nova;
+- instalações existentes já configuradas preservam o funcionamento local após upgrade e não dependem da disponibilidade do Cloudflare para operar.
 
 O desktop/backend pode chamar o serviço remoto apenas para ativação/licença. Depois de ativado, o login continua local.
 

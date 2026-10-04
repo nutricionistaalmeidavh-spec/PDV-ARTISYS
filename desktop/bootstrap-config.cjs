@@ -6,9 +6,10 @@ const path=require('node:path');
 const PROFILE_SERVER_TERMINAL='server-terminal';
 const PROFILE_TERMINAL='terminal';
 const PROFILES=new Set([PROFILE_SERVER_TERMINAL,PROFILE_TERMINAL]);
+const DEFAULT_ACCOUNT_ENDPOINT='https://pdv-artisys.sistema-artisys.workers.dev';
 
 function clean(value){const text=String(value??'').trim();return text||null;}
-function envBoolean(value){return /^(1|true|yes|on)$/i.test(String(value??'').trim());}
+function envBoolean(value,defaultValue=false){const text=String(value??'').trim();return text?/^(1|true|yes|on)$/i.test(text):Boolean(defaultValue);}
 function readPersisted(configPath){
   if(!configPath||!fs.existsSync(configPath))return{};
   try{const raw=JSON.parse(fs.readFileSync(configPath,'utf8'));if(!raw||typeof raw!=='object'||Array.isArray(raw))return{};return raw;}catch{return{};}
@@ -28,8 +29,8 @@ function resolveBootstrapConfig({env=process.env,configPath=null}={}){
     terminalName:clean(env.PDV_TERMINAL_NAME)||stored.terminalName||'Terminal PDV-01',
     terminalKey:clean(env.PDV_TERMINAL_KEY)||null,
     storeName:clean(env.PDV_STORE_NAME)||stored.storeName||'Loja Matriz',
-    accountEndpoint:clean(env.PDV_ACCOUNT_ENDPOINT)||null,
-    requireCommercialActivation:envBoolean(env.PDV_REQUIRE_COMMERCIAL_ACTIVATION),
+    accountEndpoint:clean(env.PDV_ACCOUNT_ENDPOINT)||DEFAULT_ACCOUNT_ENDPOINT,
+    requireCommercialActivation:envBoolean(env.PDV_REQUIRE_COMMERCIAL_ACTIVATION,true),
     configPath:configPath?path.resolve(configPath):null
   };
 }
@@ -53,4 +54,4 @@ function writeBootstrapConfig(configPath,input={}){
   const tmp=`${configPath}.tmp`;fs.writeFileSync(tmp,`${JSON.stringify(config,null,2)}\n`,{encoding:'utf8',mode:0o600});fs.renameSync(tmp,configPath);return config;
 }
 
-module.exports={PROFILE_SERVER_TERMINAL,PROFILE_TERMINAL,resolveBootstrapConfig,validateBootstrapConfig,shouldStartEmbeddedServer,writeBootstrapConfig};
+module.exports={PROFILE_SERVER_TERMINAL,PROFILE_TERMINAL,DEFAULT_ACCOUNT_ENDPOINT,resolveBootstrapConfig,validateBootstrapConfig,shouldStartEmbeddedServer,writeBootstrapConfig};

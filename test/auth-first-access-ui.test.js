@@ -22,6 +22,9 @@ test('first access UI creates administrator and signs in without a second creden
   assert.ok(confirmation>setupSection.indexOf('Guarde sua chave de recuperação'));
   assert.ok(setupSection.indexOf('await api.login')>confirmation,'login waits for explicit recovery-key confirmation');
   assert.match(setupSection,/copy-recovery-key/);
+  assert.match(setupSection,/const licensedEmail = String\(prefillEmail \|\| ''\)\.trim\(\)/);
+  assert.match(setupSection,/licensedEmail \? 'required readonly' : ''/);
+  assert.match(setupSection,/const email = licensedEmail \|\| String\(values\.get\('email'\)/);
   assert.match(setupSection,/download-recovery-key/);
   assert.match(ui,/window\.location\.reload\(\)/);
   assert.doesNotMatch(ui,/Administrador criado\. Entre com seus dados\./);
@@ -38,6 +41,8 @@ test('new first access routes through commercial activation when required and pr
   assert.match(controller,/addEventListener\('click',\s*renderLocalRecovery\)/);
   assert.match(ui,/Ativar instalação/);
   assert.match(ui,/Código de ativação/);
+  assert.match(ui,/const activation = await api\.verifySetupActivation\(email, code\)/);
+  assert.match(ui,/renderFirstAccess\(activation\?\.accountEmail \|\| email\)/);
   assert.match(ui,/recuperação é local e não precisa de e-mail ou internet/);
   assert.match(ui,/Recuperação comercial por e-mail/);
   assert.match(ui,/password-recovery\/local-confirm/);

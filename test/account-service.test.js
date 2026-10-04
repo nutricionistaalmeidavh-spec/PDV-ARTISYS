@@ -9,11 +9,11 @@ function runtime() {
   return createPdvRuntime({ now: () => '2026-09-25T21:00:00.000Z', idFactory: prefix => `${prefix}-1` });
 }
 
-test('commercial activation is disabled by default and never required without an endpoint', () => {
+test('mandatory commercial activation fails closed when the endpoint is missing', () => {
   const ctx = runtime();
   try {
     const account = createAccountService({ db:ctx.db, installationId:'install-1', requireCommercialActivation:true, endpoint:'', countUsers:()=>ctx.catalog.countUsers() });
-    assert.deepEqual(account.status(), { configured:false, required:false, activated:false, activation:null });
+    assert.deepEqual(account.status(), { configured:false, required:true, activated:false, activation:null });
   } finally { ctx.close(); }
 });
 

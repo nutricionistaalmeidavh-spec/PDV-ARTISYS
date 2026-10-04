@@ -41,16 +41,17 @@
   }
 
   function renderFirstAccess(prefillEmail = '') {
+    const licensedEmail = String(prefillEmail || '').trim();
     rendering = true;
     overlay.classList.remove('hidden');
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Primeiro acesso ao ArtiSys</h1><p>Crie o administrador principal desta instalação. O acesso ao PDV continua local.</p><form id="first-access-form"><div class="field"><label>Nome</label><input name="name" autocomplete="name" required value="Administrador"></div><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required value="admin"></div><div class="field"><label>E-mail <small>(opcional)</small></label><input name="email" type="email" autocomplete="email" value="${escapeHtml(prefillEmail)}"></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="new-password" minlength="10" required></div><div class="field"><label>Confirmar senha</label><input name="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required></div><button class="primary-button" type="submit">Criar administrador e entrar</button></form></section>`;
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Primeiro acesso ao ArtiSys</h1><p>Crie o administrador principal desta instalação. O acesso ao PDV continua local.</p><form id="first-access-form"><div class="field"><label>Nome</label><input name="name" autocomplete="name" required value="Administrador"></div><div class="field"><label>Usuário</label><input name="username" autocomplete="username" required value="admin"></div><div class="field"><label>${licensedEmail ? 'E-mail da conta' : 'E-mail <small>(opcional)</small>'}</label><input name="email" type="email" autocomplete="email" value="${escapeHtml(licensedEmail)}" ${licensedEmail ? 'required readonly' : ''}></div><div class="field"><label>Senha</label><input name="password" type="password" autocomplete="new-password" minlength="10" required></div><div class="field"><label>Confirmar senha</label><input name="passwordConfirm" type="password" autocomplete="new-password" minlength="10" required></div><button class="primary-button" type="submit">Criar administrador e entrar</button></form></section>`;
     const form = overlay.querySelector('#first-access-form');
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
       const values = new FormData(form);
       const name = String(values.get('name') || '').trim();
       const username = String(values.get('username') || '').trim();
-      const email = String(values.get('email') || '').trim();
+      const email = licensedEmail || String(values.get('email') || '').trim();
       const password = String(values.get('password') || '');
       const passwordConfirm = String(values.get('passwordConfirm') || '');
       if (password !== passwordConfirm) return showToast('As senhas não conferem.', 'error');
@@ -86,9 +87,9 @@
       const button = form.querySelector('button[type="submit"]');
       if (button) button.disabled = true;
       try {
-        await api.verifySetupActivation(email, code);
+        const activation = await api.verifySetupActivation(email, code);
         setupCache = null;
-        renderFirstAccess(email);
+        renderFirstAccess(activation?.accountEmail || email);
       } catch (error) {
         if (button) button.disabled = false;
         showToast(error.message, 'error');
