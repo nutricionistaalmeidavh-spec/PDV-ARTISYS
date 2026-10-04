@@ -88,14 +88,14 @@
     },
     {
       "action": "waitFor",
-      "selector": "[data-module-nav='FOOD']",
+      "selector": "[data-route='FOOD']",
       "name": "delivery-nav-alimentacao-disponivel",
       "state": "visible",
       "timeoutMs": 15000
     },
     {
       "action": "click",
-      "selector": "[data-module-nav='FOOD']",
+      "selector": "[data-route='FOOD']",
       "name": "delivery-abrir-alimentacao",
       "timeoutMs": 10000
     },
