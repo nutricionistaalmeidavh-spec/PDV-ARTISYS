@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-04T17:34:00Z
-reason=retry-after-canonical-phase9-release-gate-fix
-source_commit=0df906e03937e27935d5c9129cf5fd992ca3fbe9
+requested_at=2026-10-04T17:35:00Z
+reason=retry-after-access-role-guard-fix
+source_commit=6e73027f2aa88d5d693aa479b0cc3ea9fd63a077
