@@ -103,7 +103,8 @@
           ]
         }
       ],
-      "artifactName": "ArtiSys-PDV-${version}-${arch}-Setup.${ext}"
+      "artifactName": "ArtiSys-PDV-${version}-${arch}-Setup.${ext}",
+      "icon": "desktop/assets/artisys-pdv-icon.svg"
     },
     "nsis": {
       "oneClick": false,
