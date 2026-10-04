@@ -26,6 +26,12 @@ test('backend parity destructive actions use the canonical form dialog and persi
   assert.match(source,/title:'Estornar baixa'/);
   assert.match(source,/onConfirm:data=>api\.reverseFinanceSettlement\([^,]+,String\(data\.reason\|\|''\)\.trim\(\)\)/);
   assert.doesNotMatch(source,/\b(?:window\.|root\.)?(?:alert|confirm|prompt)\s*\(/);
+  assert.doesNotMatch(source,/MutationObserver/);
+  assert.match(source,/lifecycle\.on\('route:mounted',mount\)/);
+  assert.match(source,/lifecycle\.on\('route:updated',mount\)/);
+  for(const owner of ['bindTerminalStockLocation','saveInventoryMovement','cancelReturn','createFinanceAccount','reverseFinanceSettlement']){
+    assert.match(source,new RegExp(`api\\.${owner}\\(`),owner);
+  }
 });
 
 test('filter chips cannot render as enabled buttons without an explicit action owner',()=>{
