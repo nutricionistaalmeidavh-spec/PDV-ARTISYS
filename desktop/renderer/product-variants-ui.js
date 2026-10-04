@@ -6,7 +6,6 @@
   const api=new ApiClient();
   const content=document.getElementById('route-content');
   const modalRoot=document.getElementById('modal-root');
-  const toastRoot=document.getElementById('toast-root');
   const lifecycle=window.PdvUiLifecycle;
   if(!lifecycle)return;
   let config=null;
@@ -25,8 +24,7 @@
   const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
   function toast(message,type=''){
-    if(!toastRoot)return;
-    const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);
+    window.PdvToast?.show?.(message,type);
   }
   function closeModal(){modalRoot?.classList.add('hidden');if(modalRoot)modalRoot.innerHTML='';}
   function openModal(title,body){
