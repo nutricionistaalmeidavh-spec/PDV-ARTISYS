@@ -39,7 +39,7 @@ test('P6 Cadastros hub exposes child tasks according to route permission',()=>{
 test('settings access card is gated only by canonical capabilities',()=>{
   const settings=read('desktop/renderer/settings-hub-ui.js');
   const app=read('desktop/renderer/app.js');
-  assert.match(settings,/PdvAccessPolicy\?\.canAccessRoute\(window\.PdvCurrentAccess,'access'\)/);
+  assert.match(settings,/\['users\.view','profiles\.view'\]\.some\(capability=>window\.PdvAccessPolicy\?\.hasCapability\(window\.PdvCurrentAccess,capability\)\)/);
   assert.match(settings,/data-settings-route="access"/);
   assert.doesNotMatch(settings,/dataset\.userRole|\['admin','manager'\]/);
   assert.doesNotMatch(app,/dataset\.userRole|dataset\.userPermissions/);
