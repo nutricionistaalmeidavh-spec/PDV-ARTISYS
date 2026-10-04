@@ -97,3 +97,32 @@ test('business date owns the equivalent previous-period rule used by management 
   assert.match(reports,/PdvBusinessDate\.equivalentPreviousPeriod\(state\.fromDate,state\.toDate\)/);
   assert.doesNotMatch(reports,/function previousPeriod\s*\(/);
 });
+
+
+test('waiter direction A keeps canonical mobile contracts and one order composer',()=>{
+  const mobile=read('server/mobile/app.js');
+  const router=read('server/restaurant-router.js');
+  const steps=flow().steps;
+
+  assert.match(mobile,/waiter-direction-a/);
+  assert.match(mobile,/data-waiter-floor/);
+  assert.match(mobile,/data-waiter-menu/);
+  assert.match(mobile,/waiter-cart-toggle/);
+  assert.match(mobile,/PdvOrderComposer/);
+  assert.match(mobile,/\/api\/v1\/mobile\/orders/);
+  assert.match(mobile,/\/api\/v1\/mobile\/tables\/\$\{encodeURIComponent\(selected\.id\)\}\/open/);
+  assert.match(mobile,/\/api\/v1\/mobile\/requests\/\$\{encodeURIComponent\(button\.dataset\.request\)\}/);
+  assert.doesNotMatch(mobile,/WaiterV2|\/api\/v2\/waiter|\/mobile\/waiter-v2/);
+
+  assert.match(router,/pathname==='\/api\/v1\/mobile\/context'/);
+  assert.match(router,/pathname==='\/api\/v1\/mobile\/orders'/);
+  assert.match(router,/runtime\.restaurant\.addOrder\(sessionId/);
+
+  for(const name of [
+    'garcom-direcao-a-salao',
+    'garcom-cardapio-contextual',
+    'garcom-pedido-resumo-fixo',
+    'garcom-enviar-pedido-disponivel',
+    'garcom-retorno-abrir-comanda'
+  ]) assert.equal(steps.some(step=>step.name===name),true,name);
+});
