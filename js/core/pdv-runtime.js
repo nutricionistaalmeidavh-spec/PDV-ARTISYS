@@ -22,6 +22,7 @@ const { runAccessCapabilityMigrations }=require('./database/access-capability-mi
 const { runFoodOrderMigrations }=require('./database/food-order-migrations');
 const { runProductionOperationsMigrations }=require('./database/production-operations-migrations');
 const { runDeploymentCapabilityMigrations }=require('./database/deployment-capability-migrations');
+const { runCanonicalAccessMigrations }=require('./database/canonical-access-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -96,7 +97,7 @@ function createPdvRuntime({
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runHardwareMigrations(db,now);runSaleObservationMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);
   let deviceAccess=null;
   const profilePermissionResolver=createProfilePermissionResolver({db});
   const resolvePermissions=principal=>{
