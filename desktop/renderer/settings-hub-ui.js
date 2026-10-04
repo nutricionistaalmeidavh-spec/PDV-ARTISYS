@@ -36,12 +36,12 @@
     return'diagnostics';
   };
   function addTeamCard(root){
-    if(!['admin','manager'].includes(document.body.dataset.userRole||''))return;
+    if(!window.PdvAccessPolicy?.canAccessRoute(window.PdvCurrentAccess,'access'))return;
     if(root.querySelector('#settings-team-access'))return;
     const card=document.createElement('section');card.id='settings-team-access';card.className='ops-card';
-    card.innerHTML='<div class="ops-card-head"><div><h2>Equipe e permissões</h2><p class="ops-muted">Cadastre pessoas, defina login, função e áreas liberadas.</p></div><button type="button" class="ops-primary" data-settings-route="sellers">Abrir Equipe e acessos</button></div>';
+    card.innerHTML='<div class="ops-card-head"><div><h2>Equipe e permissões</h2><p class="ops-muted">Cadastre pessoas, defina login, função e áreas liberadas.</p></div><button type="button" class="ops-primary" data-settings-route="access">Abrir Equipe e acessos</button></div>';
     root.appendChild(card);
-    card.querySelector('[data-settings-route="sellers"]')?.addEventListener('click',()=>document.querySelector('#sidebar-nav [data-route="sellers"]')?.click());
+    card.querySelector('[data-settings-route="access"]')?.addEventListener('click',()=>document.querySelector('#sidebar-nav [data-route="access"]')?.click());
   }
   function addDataServerCard(root){
     if(root.querySelector('#settings-data-server'))return;
