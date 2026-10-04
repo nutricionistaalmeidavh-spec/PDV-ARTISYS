@@ -26,7 +26,7 @@ IDs are immutable API/domain vocabulary. Labels and descriptions may evolve with
 ## Boundary decisions
 
 - Human roles such as `admin`, `manager` and `cashier` are not permissions.
-- KDS, waiter, tablet and self-service remain surfaces/devices, not profiles.
+- KDS, waiter and self-service remain surfaces/devices, not profiles. Fixed table hardware is represented by `SELF_SERVICE + TABLE`, not by a separate tablet surface.
 - FOOD and WHOLESALE remain establishment modules. The human capabilities are `restaurant.access` and `wholesale.access`; whether the module itself is enabled remains a separate condition.
 - Ownership of the installation remains independent from permissions and profiles.
 - Public QR access remains resource-scoped and is not represented as a staff capability.
