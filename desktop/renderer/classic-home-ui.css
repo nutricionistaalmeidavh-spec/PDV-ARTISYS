@@ -60,7 +60,7 @@ body.home-view-classic .home-grid[hidden] { display:none !important; }
 .flow-hub-grid .home-tile::after { right:18px; bottom:14px; font-size:60px; }
 .flow-hub-grid .home-tile h2 { margin-bottom:5px; font-size:21px; line-height:1.2; }
 .flow-hub-grid .home-tile p { max-width:min(78%,64ch); font-size:14px; line-height:1.4; overflow-wrap:anywhere; }
-.home-target-highlight { outline:3px solid #0b6cff; outline-offset:4px; transition:outline-color .25s ease; }
+.home-target-highlight { outline:3px solid var(--artisys-blue); outline-offset:4px; transition:outline-color .25s ease; }
 
 /* One semantic colour per Home destination. */
 .tone-cyan { background:linear-gradient(135deg,#0891b2,#0e7490); }
