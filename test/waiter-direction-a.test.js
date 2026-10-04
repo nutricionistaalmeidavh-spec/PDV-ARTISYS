@@ -17,7 +17,7 @@ test('waiter direction A keeps the canonical mobile route and restaurant APIs',(
   assert.match(app,/request\('\/api\/v1\/mobile\/context'\)/);
   assert.match(app,/\/api\/v1\/mobile\/tables\/\$\{encodeURIComponent\(selected\.id\)\}\/open/);
   assert.match(app,/endpoint='\/api\/v1\/mobile\/orders'/);
-  assert.match(app,/\/api\/v1\/mobile\/requests\/\$\{encodeURIComponent\(b\.dataset\.request\)\}/);
+  assert.match(app,/\/api\/v1\/mobile\/requests\/\$\{encodeURIComponent\(button\.dataset\.request\)\}/);
 
   assert.match(router,/pathname==='\/api\/v1\/mobile\/context'/);
   assert.match(router,/pathname==='\/api\/v1\/mobile\/orders'/);
@@ -33,18 +33,19 @@ test('waiter direction A reuses the canonical order composer and production stat
   assert.match(app,/productionStatus==='PREPARING'/);
   assert.match(app,/data-waiter-direction="a"/);
   assert.match(app,/data-waiter-table/);
-  assert.match(app,/id="waiter-open-cart"/);
-  assert.match(app,/class="waiter-order-drawer"/);
+  assert.match(app,/id="waiter-cart-toggle"/);
+  assert.match(app,/class="waiter-cart-sheet/);
 });
 
-test('waiter direction A QA proves floor, order drawer, canonical order and KDS return',()=>{
+test('waiter direction A QA proves floor, order sheet, canonical order and KDS return',()=>{
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   const names=new Set(flow.steps.map(step=>step.name));
   for(const name of [
     'garcom-direcao-a',
     'garcom-salao-visual',
     'garcom-abrir-mesa-ocupada',
-    'garcom-drawer-pedido-visivel',
+    'garcom-pedido-resumo-fixo',
+    'garcom-enviar-pedido-disponivel',
     'garcom-registrar-pedido-misto',
     'kds-ticket-em-preparo',
     'kds-ticket-pronto',
