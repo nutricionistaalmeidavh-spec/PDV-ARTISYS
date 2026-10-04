@@ -108,7 +108,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Gestão permanece dona de DRE, fluxo de caixa, comparação e drill-down gerencial; conciliação bancária, transferências entre contas próprias, recorrências e alertas pertencem às rotas do Financeiro.
 - A edição de categoria gerencial, centro de custo e competência altera as dimensões do lançamento financeiro canônico; não cria lançamento, espelho ou registro financeiro paralelo.
 - O antigo watchdog `operational-route-stability.js` não faz parte da arquitetura atual. Uma rota não deve ser recriada em resposta a `MutationObserver`; conflitos de ownership devem falhar nos testes/registro.
-- O orçamento de `MutationObserver` do renderer não pode aumentar silenciosamente. Observers legados permanecem somente durante migrações progressivas já documentadas e devem ser substituídos por lifecycle/owners explícitos quando a superfície for migrada.
+- `MutationObserver` é proibido no renderer de produção. Qualquer sincronização de rota, modal ou superfície deve usar lifecycle/owners explícitos e falhar no gate estrutural se reintroduzir observação de DOM.
 - O gate de UI executa `all-pages-audit` em Electron a 1366×768 e 1024×768, verifica overflow horizontal, controles críticos e que a finalização do Balcão permaneça dentro do viewport. O job de UI também sobe o servidor local e valida `/mobile` e `/m/:token`. Screenshots/trace permanecem como evidência; o gate continua sendo smoke estrutural/visual e não substitui testes transacionais específicos.
 
 
@@ -132,7 +132,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - `module-state-sync.js` reage ao lifecycle de rota/superfície e usa o registry canônico para atualizar Configurações.
 - Campos operacionais amigáveis reagem a rota, modal e módulo montados; não existe varredura acionada por mutações de DOM.
 - `enterprise-depth-ui.js` publica updates semânticos de Compras, Logística e Pedidos; `vertical-modules.js` publica `surface:mounted` para área e workspace.
-- Orçamento máximo de `MutationObserver` após P5: **9**. Os observers restantes pertencem às extensões complexas reservadas ao P6.
+- Orçamento de `MutationObserver` no renderer: **0**. Montagem e atualização de UI usam somente ownership explícito, `PdvRouteRegistry`, `PdvUiLifecycle` e eventos semânticos de superfície; observar mutações do DOM é regressão arquitetural.
 
 
 ## Intuitividade P2 — reconhecimento e separação de contexto
