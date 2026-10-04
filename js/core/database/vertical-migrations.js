@@ -405,18 +405,6 @@ const V8_SQL=`
   );
   CREATE INDEX idx_work_order_items_order ON work_order_items(work_order_id,created_at);
 
-  CREATE TABLE self_service_profiles (
-    device_id TEXT PRIMARY KEY,
-    mode TEXT NOT NULL CHECK(mode IN('TABLE','PICKUP')),
-    table_id TEXT,
-    operator_id TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    FOREIGN KEY(device_id) REFERENCES mobile_devices(id) ON DELETE CASCADE,
-    FOREIGN KEY(table_id) REFERENCES restaurant_tables(id),
-    FOREIGN KEY(operator_id) REFERENCES users(id)
-  );
-
   CREATE TABLE onboarding_state (
     id TEXT PRIMARY KEY,
     business_name TEXT,
