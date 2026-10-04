@@ -121,3 +121,41 @@ test('QA captures the premium public menu and checks its accessibility floor',()
   assert.equal(steps.some(step=>step.action==='screenshot'&&step.name==='cardapio-qr-premium'),true);
   assert.equal(steps.some(step=>step.action==='expectNoHorizontalOverflow'&&step.name==='cardapio-qr-premium-sem-overflow'),true);
 });
+
+test('public menu visual v2 stays canonical while matching the compact and premium composition',()=>{
+  const html=read('server/customer-menu/index.html');
+  const menu=read('server/customer-menu/app.js');
+  const css=read('server/customer-menu/styles.css');
+
+  for(const marker of [
+    'id="menu-hero-photo"',
+    'id="featured-products"',
+    'id="products-title"',
+    'id="mobile-menu-nav"'
+  ]) assert.ok(html.includes(marker),`missing visual-v2 markup: ${marker}`);
+
+  for(const marker of [
+    'function renderHero()',
+    'function renderFeatured()',
+    'category-media',
+    'featured-card',
+    'product-dialog-media',
+    "data-menu-nav='catalog'",
+    "data-menu-nav='order'",
+    "data-menu-nav='waiter'"
+  ]) assert.ok(menu.includes(marker),`missing visual-v2 behavior: ${marker}`);
+
+  for(const selector of [
+    '[data-menu-layout="compact"] .menu-hero',
+    '[data-menu-layout="compact"] .featured-card',
+    '[data-menu-layout="compact"] .add-button-icon',
+    '[data-menu-layout="premium"] .menu-hero',
+    '[data-menu-layout="premium"] .category-media',
+    '[data-menu-layout="premium"] .featured-card',
+    '[data-menu-layout="premium"] .mobile-menu-nav',
+    '[data-menu-layout="premium"] .product-dialog-media'
+  ]) assert.ok(css.includes(selector),`missing visual-v2 selector: ${selector}`);
+
+  assert.doesNotMatch(menu,/MutationObserver/);
+  assert.doesNotMatch(menu,/renderPremium|mountPremium|premium-ordering-service|compact-ordering-service/i);
+});
