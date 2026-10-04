@@ -40,8 +40,10 @@ test('Settings is composed by its canonical owner without role-name visibility g
   const modules=read('desktop/renderer/vertical-modules.js');
 
   assert.match(operational,/PdvVerticalModules\?\.mountSettingsModules\?\.\(pageRoot\)/);
+  assert.match(operational,/PdvSettingsHub\?\.mount\?\.\(pageRoot\)/);
   assert.doesNotMatch(hub,/dataset\.userRole|\['admin','manager'\]/);
   assert.match(hub,/PdvAccessPolicy\?\.hasCapability/);
+  assert.doesNotMatch(hub,/route:mounted/);
   assert.doesNotMatch(modules,/lifecycle\?\.on\?\.\(['"]route:/);
 });
 
