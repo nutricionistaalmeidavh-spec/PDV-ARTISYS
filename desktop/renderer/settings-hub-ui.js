@@ -155,6 +155,5 @@
   const onRouteChange=({route})=>{if(route==='settings')schedule();};
   lifecycle.on('route:mounted',onRouteChange);
   lifecycle.on('route:updated',onRouteChange);
-  lifecycle.on('settings:select',({category})=>{if(categories.some(([id])=>id===category)){active=category;schedule();}});
   if(document.body.dataset.activeRoute==='settings')schedule();
 })();

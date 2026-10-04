@@ -32,8 +32,21 @@
     document.getElementById('self-access').addEventListener('click',renderMobileAccess);
   }
 
-  function renderMobileAccess(){
-    const root=content();root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Acesso mobile local</h1><p>QR gerado localmente. HTTP somente em LAN confiável; não é PWA.</p></div>${back()}</header><div class="data-card"><form id="access-form" class="vertical-form">${field('host','IP/host do servidor','text','value="127.0.0.1"')}${field('port','Porta','number','value="4174"')}<button class="primary-button">Gerar QR</button></form><div id="access-output"></div></div></section>`;bindBack();document.getElementById('access-form').addEventListener('submit',async event=>{event.preventDefault();const d=new FormData(event.currentTarget);try{const result=await req(`/api/v1/vertical/mobile-access?host=${e(d.get('host'))}&port=${e(d.get('port'))}&path=${e('/mobile')}`);document.getElementById('access-output').innerHTML=`<p><strong>${esc(result.url)}</strong></p><div style="max-width:260px">${result.qrSvg}</div><p class="vertical-rule">${esc(result.warning)}</p>`;}catch(error){notify(error.message,true);}});}
+  async function renderMobileAccess(){
+    const root=content();root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Acesso local do dispositivo</h1><p>O ArtiSys usa automaticamente o endereço do PC principal na rede local.</p></div>${back()}</header><div class="data-card"><div id="access-output" aria-live="polite"><p class="vertical-rule">Detectando o PC principal…</p></div></div></section>`;bindBack();
+    const output=document.getElementById('access-output');
+    try{
+      const network=await window.artisysDesktop.publicNetwork.state();
+      if(!network?.enabled){
+        output.innerHTML=`<div class="vertical-empty"><strong>Ative este computador como PC principal.</strong><p>${esc(network?.reason||'O acesso pela rede local não está disponível.')}</p><button type="button" class="secondary-button" data-configure-principal>Configurar PC principal</button></div>`;
+        output.querySelector('[data-configure-principal]')?.addEventListener('click',()=>{window.PdvAppNavigation?.navigate?.('settings');window.PdvUiLifecycle?.emit('settings:select',{category:'units'});});
+        return;
+      }
+      await window.artisysDesktop.publicNetwork.test({host:network.host,port:network.port});
+      const result=await req(`/api/v1/vertical/mobile-access?host=${e(network.host)}&port=${e(network.port)}&path=${e('/mobile')}`);
+      output.innerHTML=`<p><strong>Acesso pronto na rede da loja.</strong></p><div style="max-width:260px">${result.qrSvg}</div><p class="vertical-rule">${esc(result.warning||'Abra o QR em um aparelho conectado à mesma rede local.')}</p>`;
+    }catch(error){output.innerHTML=`<p class="vertical-rule">${esc(error.message||'Não foi possível gerar o acesso local.')}</p>`;notify(error.message,true);}
+  }
 
   async function renderHardware(){
     const root=content();root.innerHTML=`<section class="page vertical-page"><header class="page-head"><div><h1>Periféricos</h1><p>Diagnóstico e testes locais. Teste de software não equivale à homologação física de um modelo.</p></div>${back()}</header><div class="data-card"><div class="vertical-actions"><button id="hw-refresh">Diagnóstico</button><button id="hw-printer">Testar impressora NÃO FISCAL</button><button id="hw-scale">Ler balança</button><button id="hw-drawer">Abrir gaveta</button></div><pre id="hw-output" class="vertical-output"></pre></div></section>`;bindBack();const out=document.getElementById('hw-output');async function run(fn){try{out.textContent=JSON.stringify(await fn(),null,2);}catch(error){const message=String(error.message||'Falha no equipamento.').replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');out.textContent=message;notify(message,true);}}document.getElementById('hw-refresh').addEventListener('click',()=>run(()=>window.artisysDesktop.hardware.diagnostics()));document.getElementById('hw-printer').addEventListener('click',()=>run(()=>window.artisysDesktop.hardware.testPrinter('TESTE ARTISYS\nDOCUMENTO NAO FISCAL\n')));document.getElementById('hw-scale').addEventListener('click',()=>run(()=>window.artisysDesktop.hardware.testScale()));document.getElementById('hw-drawer').addEventListener('click',()=>run(()=>window.artisysDesktop.hardware.testDrawer()));await run(async()=>{const diagnostics=await window.artisysDesktop.hardware.diagnostics();document.getElementById('hw-scale').disabled=!diagnostics.status?.scale?.available;document.getElementById('hw-drawer').disabled=!diagnostics.status?.cashDrawer?.available;return diagnostics;});
@@ -43,7 +56,7 @@
   window.PdvFinalModules=Object.freeze({render:id=>FINAL_MODULES.has(id)?renderFinalModule(id):undefined});
   function patchModuleManager(root=document){
     root.querySelectorAll('[data-module-open]').forEach(button=>{const id=button.dataset.moduleOpen;if(!FINAL_MODULES.has(id)||button.dataset.e48Bound)return;button.dataset.e48Bound='1';button.disabled=false;const span=button.querySelector('span');if(span)span.textContent='Abrir módulo';});
-    const enabled=root.querySelector('.vertical-enabled');if(enabled&&!enabled.querySelector('#e53-access-card')){const box=document.createElement('div');box.className='vertical-card-grid';box.innerHTML='<button id="e53-access-card" type="button" class="vertical-card"><strong>Acesso mobile / QR</strong><span>HTTP local em LAN confiável</span></button><button id="e54-hardware-card" type="button" class="vertical-card"><strong>Periféricos</strong><span>Diagnóstico e homologação</span></button>';enabled.appendChild(box);box.querySelector('#e53-access-card').addEventListener('click',renderMobileAccess);box.querySelector('#e54-hardware-card').addEventListener('click',renderHardware);}
+    const enabled=root.querySelector('.vertical-enabled');if(enabled&&!enabled.querySelector('#e54-hardware-card')){const box=document.createElement('div');box.className='vertical-card-grid';box.innerHTML='<button id="e54-hardware-card" type="button" class="vertical-card"><strong>Periféricos</strong><span>Configuração, diagnóstico e testes locais</span></button>';enabled.appendChild(box);box.querySelector('#e54-hardware-card').addEventListener('click',renderHardware);}
   }
   const syncModuleManager=()=>patchModuleManager(document);
   lifecycle?.on?.('route:mounted',syncModuleManager);

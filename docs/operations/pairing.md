@@ -6,10 +6,10 @@ O servidor autoriza cada terminal de rede individualmente. A credencial do usuá
 
 1. Um usuário autorizado no PC principal gera um código temporário em **Configurações > Unidades e dispositivos**.
 2. O código tem 6 dígitos, expira e só pode ser usado uma vez.
-3. No computador novo, o usuário escolhe **Conectar a uma instalação existente** e informa apenas:
-   - endereço do PC principal;
+3. No computador novo, o usuário escolhe **Conectar a uma instalação existente**. O ArtiSys procura automaticamente PCs principais na mesma rede; o usuário seleciona a instalação encontrada e informa somente:
    - código temporário;
    - nome deste computador.
+   Se a rede bloquear descoberta local, **Configuração avançada** permite informar o endereço manualmente.
 4. O Electron gera automaticamente a identidade da instalação do terminal e envia código, identificação, nome, fingerprint local e versão do app.
 5. O servidor registra o terminal e devolve uma credencial exclusiva.
 6. A credencial permanente é guardada no `safeStorage` do sistema operacional. O renderer não recebe nem exibe essa credencial.

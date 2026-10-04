@@ -74,6 +74,9 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       const transferItems=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/transfer-items$/);
       if(request.method==='POST'&&transferItems){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.restaurantSettlement.transferItems(decodeURIComponent(transferItems[1]),data.targetSessionId,data.items||[],actor));return true;}
 
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/food/orders'){moduleRule('FOOD',actor);let legacyOrders=[];try{legacyOrders=runtime.fastFood?.list?.({})||[];}catch{}json(response,200,{orders:runtime.delivery.list({}),legacyOrders});return true;}
+      const legacyFoodStatus=pathname.match(/^\/api\/v1\/vertical\/food\/legacy-orders\/([^/]+)\/status$/);
+      if(request.method==='PATCH'&&legacyFoodStatus){moduleRule('FOOD',actor);const data=await body(request);json(response,200,runtime.fastFood.updateStatus(decodeURIComponent(legacyFoodStatus[1]),data.status,actor));return true;}
       if(request.method==='GET'&&pathname==='/api/v1/vertical/delivery'){moduleRule('FOOD',actor);json(response,200,runtime.delivery.list({status:url.searchParams.get('status')||null,fulfillmentType:url.searchParams.get('fulfillmentType')||null}));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/delivery'){moduleRule('FOOD',actor);const data=await body(request);const result=await mutate(request,pathname,201,()=>runtime.delivery.create(data,actor));json(response,result.statusCode,result.payload);return true;}
       const deliveryStatus=pathname.match(/^\/api\/v1\/vertical\/delivery\/([^/]+)\/status$/);
