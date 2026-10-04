@@ -87,13 +87,33 @@ test('desktop selector and customer menu keep one canonical renderer while intro
   assert.ok(desktopCss.includes('input:focus-visible'));
 
   assert.match(menu,/applyMenuLayout\(context\.config\?\.menuLayout\)/);
+  assert.match(menu,/requested==='PREMIUM'\?'premium':'compact'/);
   assert.match(menu,/product-card \$\{product\.photo\?'has-photo':'no-photo'\}/);
   assert.match(menuCss,/\[data-menu-layout="compact"\] \.product-card\.has-photo/);
   assert.match(menuCss,/\[data-menu-layout="compact"\] \.product-card\.no-photo/);
   assert.match(menuCss,/\[data-menu-layout="compact"\] \.photo-placeholder/);
+  assert.match(menuCss,/\[data-menu-layout="premium"\] \.product-card\.has-photo/);
+  assert.match(menuCss,/\[data-menu-layout="premium"\] \.product-card\.no-photo/);
+  assert.match(menuCss,/\[data-menu-layout="premium"\] \.photo-placeholder/);
+  assert.match(menuCss,/\[data-menu-layout="premium"\] \.product-photo/);
+  assert.match(menuCss,/@media\(max-width:760px\)[\s\S]*\[data-menu-layout="premium"\]/);
 
   for(const source of [desktop,menu]){
     assert.doesNotMatch(source,/MutationObserver/);
     assert.doesNotMatch(source,/renderPremium|mountPremium|compact-ordering-service/i);
   }
+});
+
+
+test('QA captures the premium public menu and checks its accessibility floor',()=>{
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  const steps=flow.steps||[];
+  const premiumConfig=steps.find(step=>step.action==='desktopApiRequest'&&step.path==='/api/v1/vertical/self-service/public-ordering/config'&&step.body?.menuLayout==='PREMIUM');
+  assert.ok(premiumConfig,'QA must publish PREMIUM before the premium capture');
+  assert.equal(steps.some(step=>step.action==='expectVisible'&&step.selector==='html[data-menu-layout="premium"]'),true);
+  assert.equal(steps.some(step=>step.action==='focus'&&step.selector==='.add-button'),true);
+  assert.equal(steps.some(step=>step.action==='expectFocused'&&step.selector==='.add-button'),true);
+  assert.equal(steps.some(step=>step.action==='expectMinimumContrast'&&step.selector==='.product-price'&&Number(step.minRatio)>=4.5),true);
+  assert.equal(steps.some(step=>step.action==='screenshot'&&step.name==='cardapio-qr-premium'),true);
+  assert.equal(steps.some(step=>step.action==='expectNoHorizontalOverflow'&&step.name==='cardapio-qr-premium-sem-overflow'),true);
 });
