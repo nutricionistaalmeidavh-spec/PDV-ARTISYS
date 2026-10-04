@@ -1063,10 +1063,33 @@ function openCategoryForm() {
 
   function showDataServerChoice() {
     authOverlay.classList.remove('hidden');
-    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Como este computador será usado?</h1><p>Escolha se este PC vai iniciar uma instalação ArtiSys ou se será conectado a uma empresa já configurada.</p><div class="device-choice-grid" data-device-choice-grid><button type="button" class="device-choice-card" data-new-installation><strong>Iniciar uma nova instalação</strong><span>Este computador guardará os dados da empresa. Depois da criação do administrador, você escolhe se ele será usado sozinho ou como PC principal da rede.</span></button><button type="button" class="device-choice-card" data-connect-existing><strong>Conectar a uma instalação existente</strong><span>Use este computador como caixa, cozinha, balcão, totem ou outro terminal ligado a um PC principal já configurado.</span></button></div><form id="terminal-pairing-form" class="device-pairing-form" hidden><div class="field"><label>Endereço do PC principal</label><input name="serverUrl" placeholder="http://192.168.0.10:4174" required></div><div class="field"><label>Código de pareamento</label><input name="pairingCode" data-pairing-code inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label>Nome deste computador</label><input name="terminalName" value="Caixa 02" required></div><div class="modal-actions"><button type="button" class="secondary-button" data-back-device-choice>Voltar</button><button type="submit" class="primary-button">Conectar</button></div><p class="ops-muted">Os dados e o administrador pertencem ao PC principal. Este terminal recebe apenas uma credencial técnica protegida pelo sistema operacional.</p></form></section>`;
+    authOverlay.innerHTML = `<section class="auth-card device-onboarding-card"><div class="auth-logo">A</div><h1>Como este computador será usado?</h1><p>Escolha se este PC vai iniciar uma instalação ArtiSys ou se será conectado a uma empresa já configurada.</p><div class="device-choice-grid" data-device-choice-grid><button type="button" class="device-choice-card" data-new-installation><strong>Iniciar uma nova instalação</strong><span>Este computador guardará os dados da empresa. Depois da criação do administrador, você escolhe se ele será usado sozinho ou como PC principal da rede.</span></button><button type="button" class="device-choice-card" data-connect-existing><strong>Conectar a uma instalação existente</strong><span>Use este computador como caixa, cozinha, balcão, totem ou outro terminal ligado a um PC principal já configurado.</span></button></div><form id="terminal-pairing-form" class="device-pairing-form" hidden><section class="device-discovery-panel wide" aria-labelledby="device-discovery-title"><div class="device-discovery-head"><div><strong id="device-discovery-title">PC principal na rede</strong><span>O ArtiSys procura automaticamente computadores principais disponíveis.</span></div><button type="button" class="secondary-button" data-discover-principal>Procurar novamente</button></div><div class="device-discovery-list" data-discovered-servers role="list" aria-live="polite"><p class="device-discovery-status">Procurando na rede local…</p></div></section><div class="field"><label>Código de pareamento</label><input name="pairingCode" data-pairing-code inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></div><div class="field"><label>Nome deste computador</label><input name="terminalName" value="Caixa 02" required></div><details class="device-pairing-advanced wide" data-pairing-advanced><summary>Configuração avançada</summary><div class="field"><label>Endereço do PC principal</label><input name="serverUrl" placeholder="http://192.168.0.10:4174" autocomplete="off"></div><p class="ops-muted">Use o endereço manual somente se a rede bloquear a descoberta automática.</p></details><div class="modal-actions wide"><button type="button" class="secondary-button" data-back-device-choice>Voltar</button><button type="submit" class="primary-button">Conectar</button></div><p class="ops-muted wide">Os dados e o administrador pertencem ao PC principal. Este terminal recebe apenas uma credencial técnica protegida pelo sistema operacional.</p></form></section>`;
     window.PdvUiLifecycle?.emit('auth:rendered', { surface:'data-server' });
     const grid=authOverlay.querySelector('[data-device-choice-grid]');
     const pairForm=authOverlay.querySelector('#terminal-pairing-form');
+    const discoveryHost=pairForm.querySelector('[data-discovered-servers]');
+    const manualInput=pairForm.elements.serverUrl;
+    function selectPrincipal(url){
+      manualInput.value=String(url||'');
+      pairForm.querySelectorAll('[data-discovered-server]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.discoveredServer===manualInput.value)));
+    }
+    function renderDiscoveredServers(items=[]){
+      if(!Array.isArray(items)||!items.length){
+        discoveryHost.innerHTML='<p class="device-discovery-status">Nenhum PC principal foi encontrado automaticamente. Confira se os computadores estão na mesma rede e tente novamente. Se necessário, use Configuração avançada.</p>';
+        return;
+      }
+      discoveryHost.innerHTML=items.map((item,index)=>`<button type="button" class="device-discovery-option" role="listitem" data-discovered-server="${escapeHtml(item.url)}" aria-pressed="false"><strong>${escapeHtml(item.name||'PC principal ArtiSys')}</strong><span>Disponível na rede local${items.length>1?` · opção ${index+1}`:''}</span></button>`).join('');
+      discoveryHost.querySelectorAll('[data-discovered-server]').forEach(button=>button.addEventListener('click',()=>{selectPrincipal(button.dataset.discoveredServer);pairForm.elements.pairingCode.focus();}));
+      if(items.length===1)selectPrincipal(items[0].url);
+    }
+    async function discoverPrincipals(){
+      const button=pairForm.querySelector('[data-discover-principal]');
+      button.disabled=true;
+      discoveryHost.innerHTML='<p class="device-discovery-status">Procurando na rede local…</p>';
+      try{renderDiscoveredServers(await window.artisysDesktop.dataServer.discover());}
+      catch(error){discoveryHost.innerHTML=`<p class="device-discovery-status error">Não foi possível procurar automaticamente: ${escapeHtml(error.message||'falha de rede')}. Você ainda pode usar Configuração avançada.</p>`;}
+      finally{button.disabled=false;}
+    }
     authOverlay.querySelector('[data-new-installation]').addEventListener('click',async()=>{
       try{
         const result=await window.artisysDesktop.dataServer.beginNewInstallation();
@@ -1080,19 +1103,25 @@ function openCategoryForm() {
     authOverlay.querySelector('[data-connect-existing]').addEventListener('click',()=>{
       grid.hidden=true;
       pairForm.hidden=false;
-      pairForm.elements.serverUrl.focus();
+      void discoverPrincipals();
+      pairForm.elements.pairingCode.focus();
     });
+    pairForm.querySelector('[data-discover-principal]').addEventListener('click',()=>void discoverPrincipals());
+    manualInput.addEventListener('input',()=>pairForm.querySelectorAll('[data-discovered-server]').forEach(button=>button.setAttribute('aria-pressed','false')));
     authOverlay.querySelector('[data-back-device-choice]').addEventListener('click',()=>{
       pairForm.hidden=true;
       grid.hidden=false;
+      selectPrincipal('');
     });
     pairForm.addEventListener('submit',async(event)=>{
       event.preventDefault();
+      const serverUrl=formValue(pairForm,'serverUrl');
+      if(!serverUrl){showToast('Selecione um PC principal encontrado ou informe o endereço em Configuração avançada.','error');pairForm.querySelector('[data-pairing-advanced]')?.setAttribute('open','');return;}
       const button=pairForm.querySelector('[type="submit"]');
       button.disabled=true;
       try{
         const result=await window.artisysDesktop.dataServer.pair({
-          serverUrl:formValue(pairForm,'serverUrl'),
+          serverUrl,
           code:formValue(pairForm,'pairingCode'),
           name:formValue(pairForm,'terminalName')
         });
