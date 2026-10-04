@@ -13,7 +13,7 @@ test('parent product variants work as a Core capability without any retail modul
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
   try{
-    runtime.catalog.createUser({id:'admin',username:'admin-variant',name:'Admin',role:'admin',password:'senha-forte-123'});
+    runtime.catalog.createUser({id:'admin',username:'admin-variant',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
     runtime.catalog.upsertProduct({id:'tang',name:'Tang',salePriceCents:399,costCents:150,trackStock:false});
     runtime.catalogCustomization.upsertVariant({id:'tang-uva',productId:'tang',name:'Uva',sku:'TANG-UVA',barcode:'789100000101',priceDeltaCents:0,costCents:150,attributes:{Sabor:'Uva'}});
     runtime.retail.setProductVariantStock('tang-uva',8);
@@ -44,7 +44,7 @@ test('sale completion rechecks variant stock after the item entered the cart',()
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
   try{
-    runtime.catalog.createUser({id:'admin',username:'admin-stock',name:'Admin',role:'admin',password:'senha-forte-123'});
+    runtime.catalog.createUser({id:'admin',username:'admin-stock',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
     runtime.catalog.upsertProduct({id:'drink',name:'Bebida',salePriceCents:500,costCents:200,trackStock:false});
     runtime.catalogCustomization.upsertVariant({id:'drink-lemon',productId:'drink',name:'Limão',priceDeltaCents:0,costCents:200});
     runtime.retail.setProductVariantStock('drink-lemon',2);
