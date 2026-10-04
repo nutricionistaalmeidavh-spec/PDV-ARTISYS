@@ -13,7 +13,7 @@ function createWholesaleRouter({runtime,sessionStore=null,requireTerminalAuth=fa
     const token=bearer(req);const session=sessions.get(token);
     if(!session||session.expiresAt<=Date.now()){if(token)sessions.delete(token);throw new WholesaleHttpError(401,'Sessao invalida ou expirada.');}
     if(requireTerminalAuth){const terminal=runtime.terminals.listTerminals().find(item=>item.terminalId===session.terminalId);if(!terminal||terminal.status!=='ACTIVE')throw new WholesaleHttpError(401,'Terminal nao autorizado.');}
-    return{userId:session.userId,role:session.role,terminalId:session.terminalId||null};
+    return{kind:'human',userId:session.userId,terminalId:session.terminalId||null};
   }
   return async function wholesaleRouter(req,res){
     const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);const pathname=url.pathname;
