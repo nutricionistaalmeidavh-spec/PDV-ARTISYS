@@ -5,12 +5,6 @@
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const today=()=>new Date().toISOString().slice(0,10);const monthStart=()=>`${today().slice(0,7)}-01`;
   const dateLabel=value=>{const date=new Date(`${String(value||'')}T00:00:00.000Z`);return Number.isNaN(date.getTime())?String(value||''):date.toLocaleDateString('pt-BR',{timeZone:'UTC'});};
-  function equivalentPreviousPeriod(from,to){
-    const fromDate=new Date(`${String(from||'')}T00:00:00.000Z`),toDate=new Date(`${String(to||'')}T00:00:00.000Z`);
-    if(Number.isNaN(fromDate.getTime())||Number.isNaN(toDate.getTime())||fromDate>toDate)throw new Error('Período inválido para comparação.');
-    const days=Math.floor((toDate-fromDate)/86400000)+1;const previousTo=new Date(fromDate);previousTo.setUTCDate(previousTo.getUTCDate()-1);const previousFrom=new Date(previousTo);previousFrom.setUTCDate(previousFrom.getUTCDate()-(days-1));
-    return{previousFrom:previousFrom.toISOString().slice(0,10),previousTo:previousTo.toISOString().slice(0,10)};
-  }
   const metric=(label,value,hint='')=>`<article class="ops-metric"><span>${esc(label)}</span><strong>${esc(value)}</strong>${hint?`<small>${esc(hint)}</small>`:''}</article>`;
   function toast(message,type=''){root.PdvToast?.show?.(message,type)||console[type==='error'?'error':'log'](message);}
   async function renderManagement(filters={}){
@@ -19,7 +13,7 @@
     if(!root.PdvAccessPolicy?.hasCapability(access,'management.view')){document.body.dataset.activeRoute='management';content.innerHTML='<section class="page"><div class="empty-state"><h1>Acesso restrito</h1><p>Seu perfil não possui acesso à área Gestão.</p></div></section>';return;}
     const from=filters.from||monthStart(),to=filters.to||today(),basis=filters.basis||'cash';
     document.body.dataset.activeRoute='management';
-    const previous=equivalentPreviousPeriod(from,to);
+    const previous=root.PdvBusinessDate.equivalentPreviousPeriod(from,to);
     const [dashboard,dre,cashflow,compare,costCenters,categories,dreGroups]=await Promise.all([
       api.erpDashboard({from,to,basis}),api.erpDre({from,to,basis}),api.erpCashflow({from,to,projectionDays:30}),api.erpCompare({from,to,previousFrom:previous.previousFrom,previousTo:previous.previousTo,basis}),api.costCenters(),api.financeCategories(),api.financeDreGroups()
     ]);
