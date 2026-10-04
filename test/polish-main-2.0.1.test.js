@@ -94,14 +94,14 @@ test('active release metadata no longer presents Fast-food as a product capabili
   assert.match(capabilities,/food-unified-orders/i);
 });
 
-test('README consistently documents the 2.0.1 release',()=>{
+test('README keeps the source version while documenting the dynamic release artifact',()=>{
   const readme=read('README.md');
   assert.match(readme,/ArtiSys PDV 2\.0\.1/);
   assert.doesNotMatch(readme,/linha 1\.4/);
   assert.doesNotMatch(readme,/versão comercial 1\.4\.23/i);
   assert.doesNotMatch(readme,/alvo de empacotamento comercial 2\.0\.0/i);
   assert.doesNotMatch(readme,/ArtiSys-PDV-1\.4\.23-x64-Setup\.exe/);
-  assert.match(readme,/ArtiSys-PDV-2\.0\.1-x64-Setup\.exe/);
+  assert.match(readme,/ArtiSys-PDV-\*-x64-Setup\.exe/);
 });
 
 test('reports use the store business date instead of the process timezone',()=>{
