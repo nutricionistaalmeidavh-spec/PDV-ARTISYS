@@ -9,7 +9,6 @@
   const ui = root.PdvUiModel;
   const modal = root.PdvModal;
   const content = document.getElementById('route-content');
-  const toastRoot = document.getElementById('toast-root');
   let config = null;
   let storeTimeZone = 'America/Sao_Paulo';
   let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'',locationId:'' };
