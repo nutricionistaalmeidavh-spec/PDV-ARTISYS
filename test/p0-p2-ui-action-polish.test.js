@@ -76,3 +76,21 @@ test('P1 operational pages use tighter rhythm while preserving 44px controls',()
   assert.match(css,/\.ops-secondary\{[^}]*border:1px solid #d9e1ed/s);
   assert.match(css,/\.ops-primary:focus-visible,\.ops-secondary:focus-visible,\.ops-danger:focus-visible,\.ops-link:focus-visible/s);
 });
+
+
+test('P0 Actions QA proves the reverse-settlement button mutates persisted state',()=>{
+  const adapter=read('qa/runtime/adapters/erp-finance-ci.mjs');
+  const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
+  const names=new Set(flow.steps.map(step=>step.name));
+  assert.match(adapter,/scenario==='ui-reverse-settlement'/);
+  assert.match(adapter,/state\.settlementId=settled\.settlement\.id/);
+  assert.match(adapter,/s==='ui-reverse-settlement'/);
+  for(const name of [
+    'financeiro-seed-estorno-ui',
+    'financeiro-estornar-baixa-ui',
+    'financeiro-estorno-dialogo',
+    'financeiro-estorno-motivo',
+    'financeiro-estorno-confirmar',
+    'financeiro-estorno-persistido'
+  ])assert.equal(names.has(name),true,name);
+});
