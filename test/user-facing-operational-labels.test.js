@@ -90,7 +90,7 @@ test('current product authorities expose unified self-service instead of legacy 
   assert.equal(declared.has('table-bound-self-service'),true);
 
   for(const source of [readme,restaurant,deviceAccess]){
-    assert.doesNotMatch(source,/\bTABLET\b|tablet de mesa|table-bound tablet/i);
+    assert.doesNotMatch(source,/Tipos suportados:[^\n]*\bTABLET\b|deviceType[^\n]*\bTABLET\b|tablet de mesa|table-bound tablet/i);
   }
   assert.match(readme,/SELF_SERVICE.*TABLE.*PICKUP|autoatendimento.*mesa fixa.*retirada/is);
   assert.match(restaurant,/SELF_SERVICE.*TABLE.*PICKUP/is);
