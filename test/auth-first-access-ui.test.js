@@ -36,13 +36,14 @@ test('first access UI creates administrator and signs in without a second creden
 test('new first access routes through commercial activation when required and preserves local recovery',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
   const controller=ui.slice(ui.indexOf('async function syncAuthOverlay'));
-  assert.match(controller,/if \(setup\.activation\?\.required\) renderActivation\(\)/);
+  assert.match(controller,/if \(setup\.activation\?\.required\) renderActivation\(\{ continueToSetup:true \}\)/);
   assert.match(controller,/else renderFirstAccess\(setup\.activation\?\.activation\?\.accountEmail \|\| ''\)/);
   assert.match(controller,/addEventListener\('click',\s*renderLocalRecovery\)/);
   assert.match(ui,/Ativar instalação/);
   assert.match(ui,/Código de ativação/);
   assert.match(ui,/const activation = await api\.verifySetupActivation\(email, code\)/);
-  assert.match(ui,/renderFirstAccess\(activation\?\.accountEmail \|\| email\)/);
+  assert.match(ui,/if \(continueToSetup\) renderFirstAccess\(activation\?\.accountEmail \|\| email\)/);
+  assert.match(controller,/setup\?\.activation\?\.required[\s\S]{0,100}renderActivation\(\{ continueToSetup:false \}\)/);
   assert.match(ui,/recuperação é local e não precisa de e-mail ou internet/);
   assert.match(ui,/Recuperação comercial por e-mail/);
   assert.match(ui,/password-recovery\/local-confirm/);

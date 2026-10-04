@@ -64,13 +64,19 @@ test('new installation requires commercial activation, binds the owner email and
   }finally{await ctx.close();}
 });
 
-test('existing installation keeps local login available while account endpoint is offline', async()=>{
-  const ctx=await start({existing:true,offline:true});
+test('existing unactivated installation cannot bypass commercial activation through local login', async()=>{
+  const ctx=await start({existing:true});
   try{
     let res=await fetch(`${ctx.base}/api/v1/setup/status`);
     const status=await res.json();
     assert.equal(status.needsSetup,false);
-    assert.equal(status.activation.required,false);
+    assert.equal(status.activation.required,true);
+
+    res=await fetch(`${ctx.base}/api/v1/auth/login`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',password:'senha-forte-123',terminalId:'PDV-01'})});
+    assert.equal(res.status,403);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/activation/verify`,{method:'POST',headers:installHeaders,body:JSON.stringify({email:'owner@example.com',code:'123456'})});
+    assert.equal(res.status,200);
 
     res=await fetch(`${ctx.base}/api/v1/auth/login`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',password:'senha-forte-123',terminalId:'PDV-01'})});
     assert.equal(res.status,200);

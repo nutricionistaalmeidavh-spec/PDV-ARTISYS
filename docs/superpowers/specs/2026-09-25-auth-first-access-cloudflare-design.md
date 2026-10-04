@@ -218,9 +218,9 @@ O Worker associa `installation_id` à licença somente após token válido.
 Após migration:
 
 - colunas de e-mail ficam nulas;
-- `setup/status.needsSetup` continua `false`;
-- `activationRequired` deve ser `false` para instalações existentes por padrão;
-- login por username não muda;
+- `setup/status.needsSetup` continua refletindo somente a existência do primeiro usuário local;
+- uma instalação sem registro de ativação permanece com ativação comercial pendente mesmo se já possuir usuários locais;
+- login local é bloqueado até a ativação inicial ser concluída; depois da ativação, username + senha continuam locais e funcionam offline;
 - nenhuma chamada ao Cloudflare é feita para autenticação;
 - nenhuma tela de ativação é exibida.
 

@@ -51,8 +51,7 @@ function createAccountService({
   function status() {
     const current = activation();
     const configured = Boolean(baseUrl);
-    const existingInstall = Number(countUsers() || 0) > 0;
-    const required = Boolean(requireCommercialActivation) && !existingInstall && !current;
+    const required = Boolean(requireCommercialActivation) && !current;
     return { configured, required, activated:Boolean(current), activation:current };
   }
 

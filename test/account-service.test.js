@@ -29,12 +29,12 @@ test('runtime can explicitly enable commercial activation for a new installation
   finally{ctx.close();}
 });
 
-test('existing local installation bypasses commercial activation even when configured', () => {
+test('existing unactivated installation still requires commercial activation', () => {
   const ctx = runtime();
   try {
     ctx.catalog.createUser({ username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
     const account = createAccountService({ db:ctx.db, installationId:'install-1', requireCommercialActivation:true, endpoint:'https://account.example', countUsers:()=>ctx.catalog.countUsers() });
-    assert.equal(account.status().required, false);
+    assert.equal(account.status().required, true);
   } finally { ctx.close(); }
 });
 

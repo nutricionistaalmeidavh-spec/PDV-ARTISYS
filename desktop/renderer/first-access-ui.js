@@ -74,7 +74,7 @@
     queueMicrotask(() => { rendering = false; });
   }
 
-  function renderActivation() {
+  function renderActivation({ continueToSetup = true } = {}) {
     rendering = true;
     overlay.classList.remove('hidden');
     overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Ativar instalação</h1><p>Informe o e-mail liberado e o código de ativação fornecido pela ArtiSys. Dados operacionais e senhas permanecem neste computador.</p><form id="activation-verify-form"><div class="field"><label>E-mail da conta</label><input name="email" type="email" autocomplete="email" required></div><div class="field"><label>Código de ativação</label><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><button class="primary-button" type="submit">Ativar e definir senha</button></form></section>`;
@@ -89,7 +89,8 @@
       try {
         const activation = await api.verifySetupActivation(email, code);
         setupCache = null;
-        renderFirstAccess(activation?.accountEmail || email);
+        if (continueToSetup) renderFirstAccess(activation?.accountEmail || email);
+        else window.location.reload();
       } catch (error) {
         if (button) button.disabled = false;
         showToast(error.message, 'error');
@@ -173,7 +174,7 @@
         await ensureConfig();
         const setup = await setupStatus(true);
         if (!setup?.needsSetup) return;
-        if (setup.activation?.required) renderActivation();
+        if (setup.activation?.required) renderActivation({ continueToSetup:true });
         else renderFirstAccess(setup.activation?.activation?.accountEmail || '');
       } catch (error) {
         rendering = false;
@@ -188,6 +189,7 @@
         await ensureConfig();
         const setup = await setupStatus(true);
         if (overlay.querySelector('.auth-card h1')?.textContent?.trim() !== 'ArtiSys PDV') return;
+        if (setup?.activation?.required) { renderActivation({ continueToSetup:false }); return; }
         {
           const form = overlay.querySelector('#login-form');
           const link = document.createElement('button');
