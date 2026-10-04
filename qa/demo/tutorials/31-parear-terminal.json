@@ -53,20 +53,6 @@
     },
     {
       "action": "waitFor",
-      "selector": "#p1-terminal-admin-panel",
-      "name": "painel-terminais-montado",
-      "state": "attached",
-      "timeoutMs": 12000,
-      "holdMs": 200
-    },
-    {
-      "action": "click",
-      "selector": "#settings-hub [data-settings-category='units']",
-      "name": "mostrar-painel-terminais",
-      "holdMs": 350
-    },
-    {
-      "action": "waitFor",
       "selector": "#p1-terminal-admin-panel [data-create-pairing-code]",
       "name": "pareamento-pronto",
       "state": "visible",
