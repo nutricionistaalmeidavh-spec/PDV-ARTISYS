@@ -345,6 +345,8 @@
       setStatus(error.message || 'Sessão indisponível.','error');
     }
     await loadSales();
+    await root.PdvOperationalRouteExtensions?.mountReturns?.(page);
+    await root.PdvOperationalDetailExtensions?.mountReturns?.(page);
   }
 
   if (!root.PdvRouteRegistry) throw new Error('PdvRouteRegistry must load before returns-ui.js.');
