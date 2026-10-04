@@ -120,16 +120,27 @@ function createReturnAuthorizationRouter({
           sendJson(response, 403, { error:'Permissao para autorizar devolucoes necessaria.' });
           return true;
         }
+        const access=runtime.profiles.getUserAccess(verified.user.id);
         const issued = approvalStore.issue({
           requesterSessionToken:token,
           requesterUserId:session.userId,
           terminalId,
           saleId,
-          authorizedBy:{ userId:verified.user.id, name:verified.user.name, role:verified.user.role }
+          authorizedBy:{
+            userId:verified.user.id,
+            name:verified.user.name,
+            profileId:access.profile?.id||null,
+            profileName:access.profile?.name||null
+          }
         });
         sendJson(response, 200, {
           approvalToken:issued.approvalToken,
-          authorizedBy:{ id:verified.user.id, name:verified.user.name, role:verified.user.role },
+          authorizedBy:{
+            id:verified.user.id,
+            name:verified.user.name,
+            profileId:access.profile?.id||null,
+            profileName:access.profile?.name||null
+          },
           expiresAt:issued.expiresAt
         });
         return true;
