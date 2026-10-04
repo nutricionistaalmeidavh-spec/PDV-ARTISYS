@@ -184,6 +184,10 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     const returnedCents = returns.reduce((sum,row) => sum + Number(row.total_cents || 0),0);
     const netSalesCents = grossSalesCents - returnedCents;
     const averageTicketCents = sales.length ? Math.round(grossSalesCents / sales.length) : 0;
+    const salesTimeline = [
+      ...sales.map(sale => ({ at:sale.completed_at,kind:'SALE',netCents:Number(sale.total_cents || 0) })),
+      ...returns.map(ret => ({ at:ret.created_at,kind:'RETURN',netCents:-Number(ret.total_cents || 0) }))
+    ].filter(row => row.at).sort((a,b) => String(a.at).localeCompare(String(b.at)) || a.kind.localeCompare(b.kind));
 
     const paymentsByMethod = {};
     const paymentMethods = new Map();
@@ -359,6 +363,7 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       cancelledSalesCents:cancellations.reduce((sum,row) => sum+Number(row.total_cents || 0),0),
       netSalesCents,
       averageTicketCents,
+      salesTimeline,
       paymentsByMethod,
       netPaymentsByMethod,
       paymentMethods:paymentMethodSales,
