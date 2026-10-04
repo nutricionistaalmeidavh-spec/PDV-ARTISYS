@@ -111,6 +111,13 @@ test('reports use the store business date instead of the process timezone',()=>{
   assert.match(source,/const today = businessToday\(\)/);
 });
 
+test('settings category changes notify extensions so company branding can remount after other panels refresh',()=>{
+  const hub=read('desktop/renderer/settings-hub-ui.js');
+  const branding=read('desktop/renderer/store-branding-ui.js');
+  assert.match(hub,/lifecycle\.emit\('settings:select',\{category:active\}\)/);
+  assert.match(branding,/lifecycle\.on\('settings:select',[\s\S]*category==='company'[\s\S]*mount\(\)/);
+});
+
 test('backup restore dialog traps keyboard focus, closes on Escape and restores the opener focus',()=>{
   const source=read('desktop/renderer/admin-ops.js');
   assert.match(source,/aria-describedby="ops-restore-description"/);
