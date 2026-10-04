@@ -6,13 +6,12 @@
   if (!ApiClient) return;
   const api = new ApiClient();
   const ui = root.PdvUiModel;
-  const toastRoot = document.getElementById('toast-root');
 
   function escapeHtml(value){return String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);}
   function money(value){return ui?.formatCents ? ui.formatCents(value) : (Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});}
   function qty(value){return Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});}
   function when(value){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?escapeHtml(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
-  function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function showToast(message,type=''){root.PdvToast?.show?.(message,type);}
   function basisLabel(item){
     if(item.costBasis==='ESTIMATED_CURRENT')return 'Estimado pelo custo atual';
     if(item.costBasis==='HISTORICAL_SNAPSHOT')return `Histórico${item.costSnapshotSource?` · ${item.costSnapshotSource}`:''}`;
