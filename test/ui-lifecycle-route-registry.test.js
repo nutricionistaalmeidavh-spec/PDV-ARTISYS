@@ -63,7 +63,7 @@ test('route registry publishes deterministic before, mounted and unmounted lifec
   assert.equal(runtime.PdvRouteRegistry.activeRoute, 'cash');
 });
 
-test('new renderer work cannot silently increase the MutationObserver budget', () => {
+test('renderer MutationObserver budget is zero', () => {
   const rendererDir = path.join(root, 'desktop/renderer');
   const files = fs.readdirSync(rendererDir).filter(name => name.endsWith('.js'));
   let observers = 0;
@@ -71,5 +71,5 @@ test('new renderer work cannot silently increase the MutationObserver budget', (
     const source = fs.readFileSync(path.join(rendererDir, file), 'utf8');
     observers += (source.match(/new MutationObserver\b/g) || []).length;
   }
-  assert.ok(observers <= 9, `MutationObserver budget increased: ${observers} > 9`);
+  assert.equal(observers, 0, `MutationObserver is forbidden in renderer production code; found ${observers}`);
 });
