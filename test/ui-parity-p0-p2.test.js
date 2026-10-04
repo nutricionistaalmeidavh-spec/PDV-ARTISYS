@@ -15,7 +15,7 @@ test('operational detail extension is loaded and parses',()=>{
   assert.ok(fs.existsSync(rendererPath),'desktop/renderer/operational-detail-extensions.js must exist');
   const parsed=spawnSync(process.execPath,['--check',rendererPath],{encoding:'utf8'});
   assert.equal(parsed.status,0,`${parsed.stdout||''}\n${parsed.stderr||''}`);
-  assert.match(source('desktop/renderer/index.html'),/ui-parity-p0-p2\.js/);
+  assert.match(source('desktop/renderer/index.html'),/operational-detail-extensions\.js/);
 });
 
 test('P0 exposes partial purchase receiving and partial sales-order fulfillment',()=>{
