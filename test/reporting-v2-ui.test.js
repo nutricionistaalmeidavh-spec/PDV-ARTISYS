@@ -87,5 +87,6 @@ test('manager overview is decision-first and keeps canonical route ownership',()
   ]) assert.match(source,new RegExp(escapeRegex(marker),'i'));
   assert.match(source,/previousPeriod/);
   assert.doesNotMatch(source,/MutationObserver/);
+  assert.doesNotMatch(source,/data-report-jump/);
   assert.equal((source.match(/PdvRouteRegistry\.register\('reports'/g)||[]).length,1);
 });
