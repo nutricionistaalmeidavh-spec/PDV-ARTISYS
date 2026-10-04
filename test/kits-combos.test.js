@@ -23,7 +23,7 @@ const NOW = '2026-09-12T12:00:00.000Z';
 
 function foundation() {
   const db = openDatabase(':memory:');
-  runMigrations(db); runReleaseMigrations(db); runVerticalMigrations(db); runKitComboMigrations(db); runAccessProfileMigrations(db); runCanonicalAccessMigrations(db);
+  runMigrations(db); runReleaseMigrations(db); runVerticalMigrations(db); runKitComboMigrations(db); runSalesEnhancementMigrations(db); runCommercialMediaMigrations(db); runAccessProfileMigrations(db); runCanonicalAccessMigrations(db);
   let seq = 0;
   const idFactory = prefix => `${prefix}-${++seq}`;
   const now = () => NOW;
