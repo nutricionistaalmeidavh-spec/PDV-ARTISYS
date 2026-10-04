@@ -100,39 +100,23 @@ test('P4 devices expose authentication, surface, scope and optional human bindin
 
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garcom 1',deviceType:'WAITER',userId:waiterUser.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});
-    const self=runtime.mobileDevices.createDevice({id:'s1',name:'Totem',deviceType:'SELF_SERVICE'});
-
     assert.throws(()=>runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'self1',name:'Totem',deviceType:'SELF_SERVICE'}),/Tipo de dispositivo invalido/i);
     assert.deepEqual({surface:waiter.surface,scope:waiter.scope,userId:waiter.userId},{surface:'waiter',scope:{type:'establishment',id:null},userId:waiterUser.id});
     assert.deepEqual({surface:kitchen.surface,scope:kitchen.scope},{surface:'kitchen',scope:{type:'establishment',id:null}});
-    assert.deepEqual({surface:self.surface,scope:self.scope},{surface:'self-service',scope:{type:'establishment',id:null}});
-
-    const storedSelf=runtime.db.prepare('SELECT device_type,surface,scope_type,scope_id FROM mobile_devices WHERE id=?').get(self.id);
-    assert.equal(storedSelf.device_type,'SELF_SERVICE');
-    assert.equal(storedSelf.surface,'self-service');
-
     const storedSecret=runtime.db.prepare('SELECT credential_hash FROM mobile_devices WHERE id=?').get(kitchen.id).credential_hash;
     assert.equal(storedSecret.includes(kitchen.credential),false);
   }finally{runtime.close();}
 });
-test('P4 device authorization uses canonical waiter kitchen and self-service surfaces',()=>{
+test('P4 device authorization uses canonical waiter and kitchen surfaces',()=>{
   const runtime=fixture();
   try{
     runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{kind:'system',id:'system'});
-    const self=runtime.mobileDevices.createDevice({id:'s1',name:'Totem',deviceType:'SELF_SERVICE'});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});
 
-    const selfAuth=runtime.mobileDevices.authenticatePrincipal(self.id,self.credential);
     const kitchenAuth=runtime.mobileDevices.authenticatePrincipal(kitchen.id,kitchen.credential);
-
-    assert.equal(selfAuth.ok,true);
-    assert.equal(selfAuth.principal.surface,'self-service');
-    assert.deepEqual(selfAuth.principal.scope,{type:'establishment',id:null});
-    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'restaurant.self_service.create'}),true);
-    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'restaurant.orders.create'}),false);
-    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'finance.view'}),false);
 
     assert.equal(kitchenAuth.ok,true);
     assert.equal(runtime.authorization.can({principal:kitchenAuth.principal,capability:'kitchen.update_status'}),true);
