@@ -29,6 +29,6 @@ This document freezes the current authorization surfaces before configurable pro
 
 ## Operational surfaces
 
-KDS, waiter, table tablet and self-service kiosk are not user profiles. They remain authenticated device surfaces. `device_type` determines the surface contract while future capabilities determine allowed operations.
+KDS, waiter and self-service are not user profiles. They remain authenticated device surfaces. Fixed customer hardware uses `SELF_SERVICE` with a persisted `TABLE` or `PICKUP` profile; public table QR access is not a paired device.
 
 FOOD/WHOLESALE are establishment modules, not user profiles. Public table QR access remains a resource-scoped public channel and never becomes a staff profile.
