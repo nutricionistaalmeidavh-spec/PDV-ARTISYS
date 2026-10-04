@@ -1716,6 +1716,11 @@
       "timeoutMs": 10000
     },
     {
+      "action": "screenshot",
+      "name": "relatorios-parte-baixo",
+      "fullPage": false
+    },
+    {
       "action": "press",
       "selector": "button[data-report-drilldown='period']",
       "key": "Enter",
