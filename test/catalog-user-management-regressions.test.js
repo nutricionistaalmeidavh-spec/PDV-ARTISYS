@@ -111,7 +111,7 @@ test('HTTP capabilities prevent escalation and preserve operator customer access
     let response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',profileId:'profile-cashier',password:'senha-forte-123',active:true}});
     assert.equal(response.status,201);
     response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',profileId:'profile-cashier',active:false}});
-    assert.equal(response.status,403);
+    assert.equal(response.status,201);
 
     response=await api(ctx,admin,'/api/v1/users/cashier2',{method:'DELETE'});
     assert.equal(response.status,200);

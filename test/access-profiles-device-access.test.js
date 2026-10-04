@@ -35,7 +35,7 @@ test('P3 clean install bootstraps canonical profiles and users receive profile_i
 
     const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Administrador',profileId:'profile-administrator',password:'senha-admin-123'});
     const manager=runtime.catalog.createUser({id:'m1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-manager-123'});
-    const operator=runtime.catalog.createUser({id:'o1',username:'operador',name:'Operador',profileId:'profile-cashier',password:'senha-operador-123'});
+    const operator=runtime.catalog.createUser({id:'o1',username:'operador',name:'Operador',profileId:'profile-operator',password:'senha-operador-123'});
 
     assert.equal(admin.profileId,adminProfile.id);
     assert.equal(manager.profileId,managerProfile.id);

@@ -105,7 +105,7 @@ test('authorization endpoint authenticates requester and accepts only active man
     assert.equal(response.status, 200);
     const approval = await response.json();
     assert.ok(approval.approvalToken);
-    assert.deepEqual(approval.authorizedBy, { id:'manager1', name:'Gerente QA', profileId:'profile-manager' });
+    assert.deepEqual(approval.authorizedBy, { id:'manager1', name:'Gerente QA', profileId:'profile-manager', profileName:'Gerente' });
     assert.ok(approval.expiresAt);
   } finally { await ctx.cleanup(); }
 });
