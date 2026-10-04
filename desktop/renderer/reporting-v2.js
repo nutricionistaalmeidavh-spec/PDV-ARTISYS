@@ -68,15 +68,18 @@
     const text = String(value ?? '');
     return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
   }
-  function downloadCsv(name,headers,rows) {
-    const lines = [headers.map(csvCell).join(';'),...rows.map(row => row.map(csvCell).join(';'))];
-    const blob = new Blob([`\uFEFF${lines.join('\n')}\n`],{type:'text/csv;charset=utf-8'});
+  function downloadCsvText(name,text) {
+    const blob = new Blob([`\uFEFF${String(text||'')}`],{type:'text/csv;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = name;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
+  }
+  function downloadCsv(name,headers,rows) {
+    const lines = [headers.map(csvCell).join(';'),...rows.map(row => row.map(csvCell).join(';'))];
+    downloadCsvText(name,`${lines.join('\n')}\n`);
   }
   async function ready() {
     if (!config) {
@@ -344,7 +347,21 @@
       else void openSalesDrilldown('Vendas do período');
     }));
     document.getElementById('report-open-management')?.addEventListener('click',navigateManagement);
-    document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash,commissions); downloadCsv(csv.name,csv.headers,csv.rows); });
+    document.getElementById('report-export')?.addEventListener('click',async() => {
+      try{
+        if(state.view==='overview'){
+          const result=await api.exportSalesCsv({
+            from:new Date(`${state.fromDate}T00:00:00`).toISOString(),
+            to:new Date(`${state.toDate}T23:59:59.999`).toISOString(),
+            sellerId:state.sellerId||''
+          });
+          downloadCsvText(`vendas-detalhadas-${state.fromDate}-a-${state.toDate}.csv`,result.csv||'');
+          return;
+        }
+        const csv=currentCsv(sales,inventory,cash,commissions);
+        downloadCsv(csv.name,csv.headers,csv.rows);
+      }catch(error){showToast(error.message||'Não foi possível exportar o relatório.','error');}
+    });
     document.getElementById('report-print')?.addEventListener('click',() => root.print());
 
     document.getElementById('report-commission-rule')?.addEventListener('submit',async event => {
