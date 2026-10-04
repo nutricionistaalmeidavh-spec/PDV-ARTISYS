@@ -33,9 +33,8 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
     idsByPrefix('sales','returns','cash','customers','products','suppliers','sellers','inventory','restaurant','wholesale','finance','reports','management'),
     [
       'users.view','users.create','users.edit','users.reset_password',
-      'profiles.view','profiles.assign',
-      'devices.view','devices.pair','devices.block','devices.rotate_credential',
-      'modules.view','settings.view','settings.manage'
+      'devices.view',
+      'modules.view','settings.view'
     ]
   )),
   SUPERVISOR:Object.freeze(unique(
