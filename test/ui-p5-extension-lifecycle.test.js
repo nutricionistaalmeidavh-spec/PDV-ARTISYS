@@ -72,8 +72,8 @@ test('complex migrated extensions are owner-invoked rather than DOM-observed',()
   const publicOrdering=read('desktop/renderer/restaurant-public-ordering-ui.js');
   const restaurant=read('desktop/renderer/restaurant-ui.js');
 
-  assert.doesNotMatch(routeExtensions,/route:mounted|route:updated|MutationObserver/);
-  assert.doesNotMatch(detailExtensions,/route:mounted|route:updated|MutationObserver/);
+  assert.doesNotMatch(routeExtensions,/MutationObserver|lifecycle\?*\.on\(['"]route:/);
+  assert.doesNotMatch(detailExtensions,/MutationObserver|lifecycle\?*\.on\(['"]route:/);
   assert.match(operational,/PdvOperationalRouteExtensions\?\.mountRoute\?\.\(route,pageRoot\)/);
   assert.match(operational,/PdvEnterpriseDepthUi\?\.mountInventory\?\.\(pageRoot\)/);
   assert.match(operational,/PdvOperationalDetailExtensions\?\.mountSettings\?\.\(pageRoot\)/);
