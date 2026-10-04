@@ -2319,7 +2319,7 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-self-service-product]",
+      "selector": ".self-service-product-grid [data-self-service-product]:first-child",
       "name": "autoatendimento-mesa-produtos",
       "timeoutMs": 10000
     },
