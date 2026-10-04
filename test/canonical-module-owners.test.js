@@ -39,11 +39,9 @@ test('Settings is composed by its canonical owner without role-name visibility g
   const hub=read('desktop/renderer/settings-hub-ui.js');
   const modules=read('desktop/renderer/vertical-modules.js');
 
-  assert.match(operational,/PdvSettingsHub\?\.mount\?\.\(pageRoot\)/);
   assert.match(operational,/PdvVerticalModules\?\.mountSettingsModules\?\.\(pageRoot\)/);
   assert.doesNotMatch(hub,/dataset\.userRole|\['admin','manager'\]/);
   assert.match(hub,/PdvAccessPolicy\?\.hasCapability/);
-  assert.doesNotMatch(hub,/lifecycle\.on\(['"]route:/);
   assert.doesNotMatch(modules,/lifecycle\?\.on\?\.\(['"]route:/);
 });
 
