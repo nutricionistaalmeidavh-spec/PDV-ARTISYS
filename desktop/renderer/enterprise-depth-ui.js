@@ -11,7 +11,7 @@
   const content=()=>document.getElementById('route-content');
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=c=>`R$ ${(Number(c||0)/100).toFixed(2).replace('.',',')}`;
-  function toast(message,error=false){if(window.PdvToast?.show){window.PdvToast.show(message,error?'error':'success');return;}const root=document.getElementById('toast-root');if(!root)return;const n=document.createElement('div');n.className=`toast ${error?'error':'success'}`;n.textContent=message;root.appendChild(n);setTimeout(()=>n.remove(),3200);}
+  function toast(message,error=false){window.PdvToast?.show?.(message,error?'error':'success');}
   function back(){void routeRegistry.render('inventory');}
   function shell(title,subtitle,body){const root=content();if(!root)return;root.innerHTML=`<section class="ops-page enterprise-depth-page"><header class="ops-head"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><button type="button" class="ops-secondary" data-enterprise-back>← Estoque</button></header>${body}</section>`;root.querySelector('[data-enterprise-back]')?.addEventListener('click',back);}
   function field(name,label,type='text',placeholder='',required=true){return `<label class="field"><span>${esc(label)}</span><input name="${esc(name)}" type="${type}" placeholder="${esc(placeholder)}" ${required?'required':''}></label>`;}
