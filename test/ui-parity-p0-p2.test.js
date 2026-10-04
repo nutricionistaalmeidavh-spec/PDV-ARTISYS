@@ -37,6 +37,14 @@ test('P1 exposes failed print retry, terminal administration and purchase receip
   ]) assert.ok(ui.includes(marker),`P1 UI marker missing: ${marker}`);
 });
 
+test('P1 terminal settings extension re-announces its explicit units category',()=>{
+  const ui=source('desktop/renderer/ui-parity-p0-p2.js');
+  assert.match(ui,/p1-terminal-admin-panel/);
+  assert.match(ui,/settingsCategory\s*=\s*['"]units['"]/);
+  assert.match(ui,/route:updated/);
+  assert.match(ui,/parity-settings/);
+});
+
 test('P2 exposes return details and import batch lookup',()=>{
   const ui=source('desktop/renderer/ui-parity-p0-p2.js');
   for(const marker of [

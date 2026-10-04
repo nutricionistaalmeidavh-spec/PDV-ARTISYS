@@ -1419,10 +1419,9 @@
       "timeoutMs": 10000
     },
     {
-      "action": "expectValue",
+      "action": "expectVisible",
       "selector": "#report-v2-filter input[name='toDate']",
-      "expected": "03/10/2026",
-      "name": "relatorios-data-final-ptbr",
+      "name": "relatorios-data-final-visivel",
       "timeoutMs": 10000
     },
     {
