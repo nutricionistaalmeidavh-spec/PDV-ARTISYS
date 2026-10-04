@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-04T18:33:00Z
-reason=final-mandatory-activation-release
-source_commit=26b205f6321ccc6d5264617ae687a2d3fcf92a69
+requested_at=2026-10-04T18:41:00Z
+reason=final-mandatory-activation-after-capability-fix
+source_commit=ea942641ffda02969f288551170f846483344683
