@@ -30,8 +30,13 @@ Use the existing clean, high-contrast register interface. Runtime CSS owns the e
 | Positive / destructive / attention | `--success`, `--danger`, `--orange` | `#12b76a`, `#ef3340`, `#ff7a00` |
 | Card corner | `--radius` | `18px` |
 | Card elevation | `--shadow` | `0 12px 32px rgba(33, 56, 94, .12)` |
+| UI font stack | `--font-ui` | `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
+| Control / button / card / panel / pill radius | `--radius-control`, `--radius-button`, `--radius-card`, `--radius-panel`, `--radius-pill` | `10px`, `11px`, `15px`, `18px`, `999px` |
+| Control border / focus | `--control-border`, `--control-border-strong`, `--control-border-focus`, `--focus-ring` | semantic shared control values |
+| Info / success / warning / danger surfaces | `--surface-info`, `--surface-success`, `--surface-warning`, `--surface-danger` | semantic state surfaces |
+| Info / success / warning / danger text | `--text-info`, `--text-success`, `--text-warning`, `--text-danger` | semantic state text |
 
-Typography uses `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`. Use a visible page title, a short purpose line, then a clear action/content hierarchy. Avoid technical identifiers, English enum labels, decorative card color overload, and empty full-width whitespace. Use semantic color for status, not as the only status cue.
+Typography uses the canonical `--font-ui` stack: `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`. Use a visible page title, a short purpose line, then a clear action/content hierarchy. Avoid technical identifiers, English enum labels, decorative card color overload, and empty full-width whitespace. Use semantic color for status, not as the only status cue.
 
 ## Layout and interaction
 
