@@ -25,28 +25,42 @@ async function start({ existing=false, offline=false }={}) {
 
 const installHeaders={'content-type':'application/json','x-pdv-token':'installation-secret'};
 
-test('first admin is local without activation or email and receives an offline recovery key', async()=>{
-  const ctx=await start({offline:true});
+test('new installation requires commercial activation, binds the owner email and issues an offline recovery key', async()=>{
+  const ctx=await start();
   try{
-    const status=await (await fetch(`${ctx.base}/api/v1/setup/status`)).json();
-    assert.equal(status.needsSetup,true);
-    const response=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',password:'senha-forte-123'})});
-    assert.equal(response.status,201);
-    const admin=await response.json();assert.equal(Boolean(admin.email),false);assert.equal(admin.recoveryKey.length,64);
+    let res=await fetch(`${ctx.base}/api/v1/setup/status`);
+    let body=await res.json();
+    assert.equal(body.needsSetup,true);
+    assert.equal(body.activation.required,true);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',password:'senha-forte-123'})});
+    assert.equal(res.status,409);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/activation/request`,{method:'POST',headers:installHeaders,body:JSON.stringify({email:'owner@example.com'})});
+    assert.equal(res.status,202);
+    res=await fetch(`${ctx.base}/api/v1/setup/activation/verify`,{method:'POST',headers:installHeaders,body:JSON.stringify({email:'owner@example.com',code:'123456'})});
+    assert.equal(res.status,200);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'other@example.com',password:'senha-forte-123'})});
+    assert.equal(res.status,409);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',password:'senha-forte-123'})});
+    assert.equal(res.status,409);
+
+    res=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'OWNER@example.com',password:'senha-forte-123'})});
+    assert.equal(res.status,201);
+    const admin=await res.json();
+    assert.equal(admin.email,'owner@example.com');
+    assert.equal(admin.profileId,'profile-administrator');
+    assert.equal(admin.recoveryKey.length,64);
+    assert.equal(ctx.runtime.account.activation().ownerUserId,admin.id);
+
     const recovery=await fetch(`${ctx.base}/api/v1/auth/password-recovery/local-confirm`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'admin',key:admin.recoveryKey,password:'nova-senha-forte-123'})});
     assert.equal(recovery.status,200);
     assert.equal(ctx.runtime.catalog.verifyUserPassword('admin','nova-senha-forte-123').ok,true);
-    const duplicate=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'other',name:'Other',password:'senha-forte-123'})});
-    assert.equal(duplicate.status,409);
-  }finally{await ctx.close();}
-});
 
-test('commercial activation remains optional and does not dictate the local admin email',async()=>{
-  const ctx=await start();
-  try{
-    const verified=await fetch(`${ctx.base}/api/v1/setup/activation/verify`,{method:'POST',headers:installHeaders,body:JSON.stringify({email:'owner@example.com',code:'123456'})});assert.equal(verified.status,200);
-    const response=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'admin',name:'Admin',email:'other@example.com',password:'senha-forte-123'})});assert.equal(response.status,201);
-    const admin=await response.json();assert.equal(admin.username,'admin');assert.equal(admin.recoveryKey.length,64);
+    const duplicate=await fetch(`${ctx.base}/api/v1/setup/admin`,{method:'POST',headers:installHeaders,body:JSON.stringify({username:'other',name:'Other',email:'owner@example.com',password:'senha-forte-123'})});
+    assert.equal(duplicate.status,409);
   }finally{await ctx.close();}
 });
 
