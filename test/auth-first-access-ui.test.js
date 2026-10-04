@@ -30,18 +30,18 @@ test('first access UI creates administrator and signs in without a second creden
   assert.doesNotMatch(ui,/new MutationObserver\b/);
 });
 
-test('first access is local with optional email, and recovery works without commercial activation',()=>{
+test('new first access routes through commercial activation when required and preserves local recovery',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
   const controller=ui.slice(ui.indexOf('async function syncAuthOverlay'));
-  assert.match(controller,/renderFirstAccess\(\)/);
-  assert.doesNotMatch(controller,/renderActivation\(|activation\?\.required/);
-  assert.match(controller,/addEventListener\('click', renderLocalRecovery\)/);
-  assert.match(ui,/E-mail <small>\(opcional\)<\/small>/);
+  assert.match(controller,/if \(setup\.activation\?\.required\) renderActivation\(\)/);
+  assert.match(controller,/else renderFirstAccess\(setup\.activation\?\.activation\?\.accountEmail \|\| ''\)/);
+  assert.match(controller,/addEventListener\('click',\s*renderLocalRecovery\)/);
+  assert.match(ui,/Ativar instalação/);
+  assert.match(ui,/Código de ativação/);
   assert.match(ui,/recuperação é local e não precisa de e-mail ou internet/);
   assert.match(ui,/Recuperação comercial por e-mail/);
   assert.match(ui,/password-recovery\/local-confirm/);
 });
-
 test('renderer adds email password recovery without exposing the password to Cloudflare',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
   assert.match(ui,/Esqueci minha senha/);
