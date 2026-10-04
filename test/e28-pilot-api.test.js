@@ -8,7 +8,7 @@ const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 
 async function fixture(){
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-pilot-api-'));const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite')});runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-pilot-api-'));const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite')});runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
  const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install'});const addr=await server.start();const base=`http://${addr.host}:${addr.port}`;
  const login=await fetch(`${base}/api/v1/auth/login`,{method:'POST',headers:{'content-type':'application/json','x-pdv-token':'install'},body:JSON.stringify({username:'admin',password:'senha-forte-123',terminalId:'PDV-01'})});const token=(await login.json()).sessionToken;
  const req=async(url,options={})=>{const response=await fetch(`${base}${url}`,{...options,headers:{authorization:`Bearer ${token}`,'content-type':'application/json',...(options.headers||{})}});const text=await response.text();return{status:response.status,body:text?JSON.parse(text):null};};
