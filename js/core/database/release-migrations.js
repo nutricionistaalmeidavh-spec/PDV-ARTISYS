@@ -118,7 +118,7 @@ const RESTAURANT_SQL = `
   CREATE TABLE IF NOT EXISTS restaurant_orders (
     id TEXT PRIMARY KEY,
     table_session_id TEXT NOT NULL,
-    source TEXT NOT NULL CHECK(source IN('DESKTOP','WAITER','TABLET')),
+    source TEXT NOT NULL CHECK(source IN('DESKTOP','WAITER','TABLE')),
     device_id TEXT,
     created_by TEXT,
     status TEXT NOT NULL CHECK(status IN('NEW','PREPARING','READY','SERVED','CANCELLED')),
@@ -206,7 +206,7 @@ const RESTAURANT_SQL = `
   CREATE TABLE IF NOT EXISTS mobile_devices (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    device_type TEXT NOT NULL CHECK(device_type IN('WAITER','TABLET','KITCHEN','SELF_SERVICE')),
+    device_type TEXT NOT NULL CHECK(device_type IN('WAITER','KITCHEN','SELF_SERVICE')),
     table_id TEXT,
     user_id TEXT,
     credential_hash TEXT NOT NULL,
@@ -221,7 +221,6 @@ const RESTAURANT_SQL = `
     FOREIGN KEY(created_by) REFERENCES users(id)
   );
   CREATE INDEX IF NOT EXISTS idx_mobile_devices_status_type ON mobile_devices(status,device_type,name);
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_active_tablet_per_table ON mobile_devices(table_id) WHERE device_type='TABLET' AND status='ACTIVE';
 `;
 
 const RELEASE_MIGRATIONS = Object.freeze([
