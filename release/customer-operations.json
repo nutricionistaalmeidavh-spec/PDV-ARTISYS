@@ -548,7 +548,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-partial-receive"
         }
       ]
@@ -577,7 +577,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-partial-fulfill"
         }
       ]
@@ -606,7 +606,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-print-retry"
         }
       ]
@@ -629,13 +629,13 @@
       ],
       "client": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "/api/v1/lan/pairing-codes"
         }
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-create-pairing-code"
         }
       ]
@@ -658,13 +658,13 @@
       ],
       "client": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "/api/v1/terminals/"
         }
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-terminal-status"
         }
       ]
@@ -693,7 +693,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "p1-purchase-receipts-panel"
         }
       ]
@@ -722,7 +722,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-return-details"
         }
       ]
@@ -751,7 +751,7 @@
       ],
       "ui": [
         {
-          "path": "desktop/renderer/ui-parity-p0-p2.js",
+          "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "ops-import-batch-lookup"
         }
       ]
