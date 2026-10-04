@@ -123,5 +123,6 @@
   const onRouteChange=({route})=>{if(route==='settings')void mount();};
   lifecycle.on('route:mounted',onRouteChange);
   lifecycle.on('route:updated',onRouteChange);
+  lifecycle.on('settings:select',({category})=>{if(category==='company')void mount();});
   if(document.body.dataset.activeRoute==='settings')void mount();
 })();
