@@ -32,6 +32,8 @@
 
   function moduleAllowed(module){return Boolean(module&&module.accessCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.accessCapability)&&typeof ROUTE_RENDERERS[module.routeId]==='function');}
   const labelFor=module=>module?.name||module?.id||'';
+  const moduleForRoute=routeId=>modules.find(module=>module.routeId===routeId)||null;
+  function mergeModuleCatalog(catalog){if(!Array.isArray(catalog))return false;modules=catalog.map(module=>({...module}));return true;}
   function settingsPage(root=document.getElementById('route-content')){
     if(root?.matches?.('.ops-page'))return root;
     return root?.querySelector?.('.ops-page')||null;
