@@ -6,6 +6,8 @@ const { openDatabase } = require('../js/core/database/sqlite-database');
 const { runMigrations } = require('../js/core/database/migrations');
 const { runReleaseMigrations } = require('../js/core/database/release-migrations');
 const { runVerticalMigrations } = require('../js/core/database/vertical-migrations');
+const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
+const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { runKitComboMigrations } = require('../js/core/database/kit-combo-migrations');
 const { runHardwareMigrations } = require('../js/core/database/hardware-migrations');
 const { runSaleObservationMigrations } = require('../js/core/database/sale-observation-migrations');
@@ -24,6 +26,8 @@ function setup() {
   runHardwareMigrations(db);
   runSaleObservationMigrations(db);
   runSalesEnhancementMigrations(db);
+  runAccessProfileMigrations(db);
+  runCanonicalAccessMigrations(db);
   let sequence = 0;
   const idFactory = prefix => `${prefix}-${++sequence}`;
   const now = () => '2026-09-15T12:00:00.000Z';
