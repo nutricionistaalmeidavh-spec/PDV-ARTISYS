@@ -31,8 +31,10 @@ test('terminal pairing is completed by Electron and the permanent credential sta
 test('new primary installation is activated and administered before choosing local-only or LAN host mode',()=>{
   const config=read('desktop/data-server-config.cjs');
   const app=read('desktop/renderer/app.js');
+  const firstAccess=read('desktop/renderer/first-access-ui.js');
   assert.match(config,/setupIntent/);
   assert.match(app,/setupIntent/);
+  assert.match(firstAccess,/setup\.activation\?\.required/);
   assert.match(app,/Usar somente neste computador/);
   assert.match(app,/Tornar este o PC principal/);
   assert.match(app,/deployment\.manage/);

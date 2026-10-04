@@ -172,7 +172,8 @@
         await ensureConfig();
         const setup = await setupStatus(true);
         if (!setup?.needsSetup) return;
-        renderFirstAccess();
+        if (setup.activation?.required) renderActivation();
+        else renderFirstAccess(setup.activation?.activation?.accountEmail || '');
       } catch (error) {
         rendering = false;
         showToast(error.message, 'error');
