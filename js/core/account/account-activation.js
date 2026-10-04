@@ -137,8 +137,9 @@ function createAccountService({
     if(!current) throw new Error('Ativacao da instalacao nao encontrada.');
     const idValue=String(userId||'').trim();
     if(!idValue) throw new Error('Usuario proprietario obrigatorio.');
-    const user=db.prepare("SELECT id,email_normalized,role,active FROM users WHERE id=?").get(idValue);
-    if(!user||!user.active||user.role!=='admin')throw new Error('Proprietario deve ser um administrador ativo.');
+    const user=db.prepare(`SELECT u.id,u.email_normalized,u.active,p.system_key AS systemKey
+      FROM users u JOIN profiles p ON p.id=u.profile_id WHERE u.id=?`).get(idValue);
+    if(!user||!user.active||user.systemKey!=='admin')throw new Error('Proprietario deve estar no perfil Administrador ativo.');
     if(normalizeEmail(user.email_normalized)!==normalizeEmail(current.accountEmail))throw new Error('E-mail do administrador deve corresponder ao e-mail liberado para esta instalacao.');
     db.prepare('UPDATE installation_activation SET owner_user_id=? WHERE installation_id=?').run(user.id,id);
     return activation();
