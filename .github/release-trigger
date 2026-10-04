@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-04T17:25:00Z
-reason=immediate-release-after-waiter-direction-a-merge
-source_commit=ed0cdb6dfb35a569e844858be4060bc934a1d521
+requested_at=2026-10-04T17:30:00Z
+reason=retry-after-playwright-browser-install-fix
+source_commit=f8b153c36026a81bd457976abe7172831f211a32
