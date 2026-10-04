@@ -143,3 +143,22 @@ test('P0 self-service keeps configured device identity visible and opens LAN QR 
   assert.match(mobile,/Faça seu pedido/);
   assert.match(mobile,/device\.name/);
 });
+
+
+test('P0 self-service setup has one canonical creation surface',()=>{
+  const access=read('desktop/renderer/access-center-ui.js');
+  const finalUi=read('desktop/renderer/e48-e54-ui.js');
+
+  assert.match(access,/<option value="WAITER">Garçom<\/option>/);
+  assert.match(access,/<option value="KITCHEN">KDS \/ produção<\/option>/);
+  assert.doesNotMatch(access,/<option value="TABLET">/);
+  assert.doesNotMatch(access,/<option value="SELF_SERVICE">/);
+
+  assert.match(finalUi,/\/api\/v1\/vertical\/self-service\/devices['"],\{method:'POST'/);
+  assert.doesNotMatch(finalUi,/\/api\/v1\/restaurant\/devices['"],\{method:'POST',body:\{name:d\.get\('name'\),deviceType:'SELF_SERVICE'/);
+  assert.doesNotMatch(finalUi,/self-service\/devices\/\$\{e\(device\.id\)\}['"],\{method:'PUT'/);
+  assert.match(finalUi,/submit\.disabled=true/);
+  assert.match(finalUi,/submit\.textContent='Criando…'/);
+  assert.match(finalUi,/await refreshDevices\(\)/);
+  assert.doesNotMatch(finalUi,/form\.reset\(\)/);
+});
