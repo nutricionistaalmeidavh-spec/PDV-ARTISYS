@@ -1893,6 +1893,35 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectVisible",
+      "selector": "[data-waiter-direction='a']",
+      "name": "garcom-direcao-a",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-waiter-floor='tables']",
+      "name": "garcom-salao-visual",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "equipe-mobile-salao",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-table]:not(.free)",
+      "name": "garcom-abrir-mesa-ocupada",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-waiter-tab='menu'].active",
+      "name": "garcom-pedido-no-contexto-da-mesa",
+      "timeoutMs": 10000
+    },
+    {
       "action": "click",
       "selector": "[data-add='qa-direct-product']",
       "name": "garcom-adicionar-item-direto",
@@ -1905,10 +1934,34 @@
       "timeoutMs": 10000
     },
     {
+      "action": "expectVisible",
+      "selector": "#waiter-cart-toggle",
+      "name": "garcom-pedido-resumo-fixo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#waiter-cart-toggle",
+      "name": "garcom-abrir-pedido-em-andamento",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#send-order",
+      "name": "garcom-enviar-pedido-disponivel",
+      "timeoutMs": 10000
+    },
+    {
       "action": "click",
       "selector": "#send-order",
       "name": "garcom-registrar-pedido-misto",
       "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "garcom-abrir-comanda-apos-envio",
+      "timeoutMs": 15000
     },
     {
       "action": "expectText",
@@ -2095,6 +2148,25 @@
       "selector": ".waiter-layout",
       "name": "garcom-retorno-conectado",
       "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-waiter-table].ready",
+      "state": "visible",
+      "name": "garcom-mesa-pronta-no-salao",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-table].ready",
+      "name": "garcom-abrir-mesa-pronta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "garcom-abrir-comanda-pronta",
+      "timeoutMs": 10000
     },
     {
       "action": "expectText",
