@@ -95,7 +95,7 @@ test('FilterBar renders removable chips only when an action owner is declared', 
   assert.doesNotMatch(html, /onclick=/i);
 
   const passive = FilterBar({ activeChips: [{ key:'stock', label:'Estoque: baixo' }] });
-  assert.match(passive, /<span class="ux-filter-chip" data-filter-key="stock">/);
+  assert.match(passive, /<span class="ux-filter-chip ux-filter-chip--static" data-filter-key="stock">/);
   assert.doesNotMatch(passive, /<button[^>]*data-filter-key="stock"/);
 });
 
