@@ -220,8 +220,6 @@
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = state.user?.profile?.name || roleLabel(state.user?.role);
-    document.body.dataset.userRole = state.user?.role || '';
-    document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
     window.PdvCurrentAccess=state.user||null;
     window.PdvUiLifecycle?.emit('user:changed', { profileId:state.user?.profileId || state.user?.profile?.id || '', permissions:[...(state.user?.permissions||[])], userId:state.user?.id || '' });
   }
