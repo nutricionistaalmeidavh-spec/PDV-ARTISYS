@@ -85,6 +85,44 @@ async function setup(page,scenario){
   },scenario);
 }
 
+async function exerciseActionIntegrityReverse(page,runtimeContext){
+  await ensureAuthenticated(page);
+  const state=await page.evaluate(async()=>{
+    const api=new window.PdvApiClient.ApiClient();await api.initialize();
+    const nonce=crypto.randomUUID();
+    const entry=await api.createFinanceEntry({
+      kind:'PAYABLE',
+      description:`QA Integridade Estorno ${nonce}`,
+      amountCents:4321,
+      dueAt:new Date(Date.now()+86400000).toISOString()
+    });
+    const settlement=await api.settleFinanceEntry(entry.id,{amountCents:4321,method:'PIX',note:'QA action integrity'});
+    return{entryId:entry.id,settlementId:settlement.settlement.id,description:entry.description};
+  });
+  await page.locator("[data-route='finance']").first().click();
+  await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});
+  const detail=page.locator(`[data-finance-detail="${state.entryId}"]`);
+  await detail.waitFor({state:'visible',timeout:15000});
+  await detail.click();
+  const reverse=page.locator(`[data-finance-reverse="${state.settlementId}"]`);
+  await reverse.waitFor({state:'visible',timeout:10000});
+  await reverse.click();
+  const dialog=page.locator('.ux-dialog');
+  await dialog.waitFor({state:'visible',timeout:10000});
+  await dialog.locator('textarea[name="reason"]').fill('QA validação de ação');
+  await dialog.locator('.ux-dialog__confirm').click();
+  await dialog.waitFor({state:'detached',timeout:15000});
+  const verified=await page.evaluate(async input=>{
+    const api=new window.PdvApiClient.ApiClient();await api.initialize();
+    const entry=await api.financeEntry(input.entryId);
+    const history=entry.settlementHistory||entry.settlements||[];
+    const row=history.find(item=>String(item.id)===String(input.settlementId));
+    return Boolean(row?.reversedAt);
+  },state);
+  if(!verified)throw new Error('UI de estorno concluiu sem persistir reversedAt no backend.');
+  runtimeContext.erpFinanceActionIntegrity=state;
+}
+
 async function verify(page,state){
   return page.evaluate(async state=>{
     const api=new window.PdvApiClient.ApiClient();await api.initialize();const s=state.scenario;
@@ -113,6 +151,7 @@ export default {
     'finance.assert':async({page,runtimeContext})=>{const result=await verify(page,runtimeContext.erpFinanceState||{});if(!result.ok)throw new Error(`${result.message}: ${JSON.stringify(result.details||{})}`);},
     'finance.openReverseDialog':async({page,runtimeContext})=>{const settlementId=runtimeContext.erpFinanceState?.settlementId;if(!settlementId)throw new Error('finance.openReverseDialog requires a seeded settlement');const target=page.locator(`#backend-finance-parity [data-reverse-settlement="${settlementId}"]`);await target.waitFor({state:'visible',timeout:15000});await target.click();await page.locator('.ux-dialog').waitFor({state:'visible',timeout:10000});},
     'finance.openManagement':async({page})=>{await page.evaluate(()=>window.PdvErpFinanceUi.renderManagement());await page.locator('.erp-management-page').waitFor({state:'visible',timeout:15000});},
-    'finance.openFinance':async({page})=>{await page.locator("[data-route='finance']").click();await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});}
+    'finance.openFinance':async({page})=>{await page.locator("[data-route='finance']").click();await page.locator('#ops-finance-form').waitFor({state:'visible',timeout:15000});},
+    'finance.actionIntegrityReverse':async({page,runtimeContext})=>exerciseActionIntegrityReverse(page,runtimeContext)
   }
 };
