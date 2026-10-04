@@ -21,7 +21,6 @@ body.home-view-classic.theme-home .window-controls button:hover { background: rg
 /* Keep the original launchers available as navigation adapters without
    rendering two Homes. The .home-grid author rule otherwise overrides the
    browser's native [hidden] presentation. */
-body.home-view-classic .home-grid[hidden] { display:none !important; }
 
 #classic-home-grid { width: min(1540px, 100%); margin: 0 auto; padding-bottom: 18px; color: #fff; }
 .classic-home-head { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:0 4px 12px; }
