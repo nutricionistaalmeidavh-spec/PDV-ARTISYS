@@ -51,3 +51,11 @@ test('tutorial output contract keeps all P1-P3 videos at or below 30 seconds',()
     assert.ok(Array.isArray(item.overlays)&&item.overlays.length>=2,item.id);
   }
 });
+
+test('terminal pairing tutorial waits for terminal panel before selecting the settings category',()=>{
+  const flow=readJson('qa/demo/tutorials/31-parear-terminal.json');
+  const attached=flow.steps.findIndex(step=>step.name==='terminal-panel-attached'&&step.action==='waitFor'&&step.state==='attached');
+  const category=flow.steps.findIndex(step=>step.name==='abrir-unidades');
+  assert.ok(attached>=0,'missing attached wait for terminal panel');
+  assert.ok(category>attached,'units category must be selected only after terminal panel mounts');
+});
