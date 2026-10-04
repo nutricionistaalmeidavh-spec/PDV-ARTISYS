@@ -15,7 +15,7 @@
   let currentUser=null;
   let profileQuery='';
   let accessModel={tabs:[],load:{},actions:{}};
-  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[],tables:[]};
+  let snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[]};
 
   const TABS=Object.freeze([
     ['people','Pessoas'],
@@ -30,7 +30,7 @@
   function plural(value,singular,pluralForm){return `${value} ${value===1?singular:pluralForm}`;}
 
   async function load(){
-    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[],tables:[]};
+    snapshot={users:[],profiles:[],devices:[],security:null,permissions:[],permissionGroups:{},stations:[]};
     const tasks=[];
     if(accessModel.load?.users)tasks.push(api.users(true).then(value=>{snapshot.users=value;}));
     if(accessModel.load?.profiles)tasks.push(api.accessProfiles(true).then(value=>{snapshot.profiles=value;}));
@@ -38,7 +38,7 @@
       snapshot.permissions=value.permissions||[];
       snapshot.permissionGroups=value.groups||{};
     }));
-    if(accessModel.load?.devices)tasks.push(Promise.all([api.accessDevices(),api.accessKitchenStations(),api.request('/api/v1/restaurant/tables').catch(()=>[])]).then(([devices,stations,tables])=>{snapshot.devices=devices;snapshot.stations=stations;snapshot.tables=tables;}));
+    if(accessModel.load?.devices)tasks.push(Promise.all([api.accessDevices(),api.accessKitchenStations()]).then(([devices,stations])=>{snapshot.devices=devices;snapshot.stations=stations;}));
     if(accessModel.load?.security)tasks.push(api.accessSecurity().then(value=>{snapshot.security=value;}));
     await Promise.all(tasks);
   }
@@ -129,7 +129,7 @@
       ].filter(Boolean).join('');
       const scope=device.deviceType==='KITCHEN'
         ?(device.stationIds?.length?device.stationIds.map(stationName).join(', '):'Todos os setores')
-        :(device.scope?.type==='TABLE'?(snapshot.tables.find(table=>String(table.id)===String(device.scope.id))?.label||'Mesa vinculada'):'Estabelecimento');
+        :'Estabelecimento';
       return `<tr data-device-row="${esc(device.id)}" data-device-id="${esc(device.id)}">
         <td><strong>${esc(device.name)}</strong><small>${esc(device.id)}</small></td>
         <td>${esc(ui?.deviceTypeLabel?.(device.deviceType,device.surface||device.deviceType)||device.surface||device.deviceType)}</td>
