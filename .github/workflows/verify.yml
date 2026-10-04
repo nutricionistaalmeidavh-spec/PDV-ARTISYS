@@ -127,6 +127,11 @@ jobs:
         run: |
           rm -rf qa-artifacts-access-ergonomic
           xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow access-center-ergonomic --environment ci --viewport compactDesktop --output qa-artifacts-access-ergonomic
+      - name: Run action integrity finance E2E
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-action-integrity
+          xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow action-integrity-finance --environment ci --viewport compactDesktop --output qa-artifacts-action-integrity
       - name: Run responsive UI E2E at 1024x768
         shell: bash
         run: xvfb-run -a npm run qa:e2e:tablet
@@ -140,5 +145,6 @@ jobs:
             qa-artifacts-delivery-pickup
             qa-artifacts-access
             qa-artifacts-access-ergonomic
+            qa-artifacts-action-integrity
           if-no-files-found: warn
           retention-days: 14
