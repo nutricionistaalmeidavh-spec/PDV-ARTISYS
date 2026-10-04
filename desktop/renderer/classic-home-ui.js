@@ -12,11 +12,7 @@
   }
   brandButton.title='Início';
   brandButton.setAttribute('aria-label','Ir para início');
-  brandButton.addEventListener('click',event=>{
-    if(!navigation?.navigate)return;
-    event.preventDefault();
-    void navigation.navigate('home');
-  });
+  void navigation;
   lifecycle.on('route:mounted',sync);
   lifecycle.on('route:updated',sync);
   lifecycle.on('user:changed',()=>sync({route:document.body.dataset.activeRoute}));
