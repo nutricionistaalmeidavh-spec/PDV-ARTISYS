@@ -181,7 +181,7 @@
         api.currentSession().catch(() => null)
       ]);
       if (!currentRouteIsSettings() || !document.getElementById('printing-settings-card')) return;
-      const canEdit = Array.isArray(current?.user?.permissions)&&current.user.permissions.includes('settings.manage');
+      const canEdit = Boolean(window.PdvAccessPolicy?.hasCapability(current?.user,'settings.manage'));
       const noPrinters = !(printers || []).length;
       card.innerHTML = `<div class="ops-card-head"><div><h2>Impressão do comprovante</h2><p>Selecione a impressora térmica e o tamanho físico do papel. O PDF é gerado localmente e não depende desta lista.</p></div><span class="ops-badge ${noPrinters ? 'status-failed' : 'status-ok'}">${noPrinters ? 'SEM IMPRESSORA WINDOWS' : `${printers.length} IMPRESSORA(S)`}</span></div>
         <form id="printing-settings-form" class="ops-form printing-settings-form">
