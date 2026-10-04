@@ -81,6 +81,10 @@ test('desktop selector and customer menu keep one canonical renderer while intro
   assert.match(desktop,/menuLayout:/);
   assert.match(desktopCss,/\.menu-layout-selector/);
   assert.match(desktopCss,/\.menu-layout-preview/);
+  assert.ok(desktop.includes('menu-layout-preview-product'));
+  assert.ok(desktop.includes('item.salePriceCents'));
+  assert.ok(desktop.includes('model.menu.filter'));
+  assert.ok(desktopCss.includes('input:focus-visible'));
 
   assert.match(menu,/applyMenuLayout\(context\.config\?\.menuLayout\)/);
   assert.match(menu,/product-card \$\{product\.photo\?'has-photo':'no-photo'\}/);
