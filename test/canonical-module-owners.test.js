@@ -60,3 +60,19 @@ test('legacy payment copy is fixed at the source instead of globally rewriting D
   assert.doesNotMatch(app,/Cartão crédito \/ TEF/);
   assert.doesNotMatch(modules,/sanitizeLegacyPaymentCopy|createTreeWalker|NodeFilter\.SHOW_TEXT/);
 });
+
+test('module routes require both an enabled establishment module and the user capability',()=>{
+  const policy=require('../desktop/renderer/access-policy');
+  const foodUser={permissions:['restaurant.access']};
+  const wholesaleUser={permissions:['wholesale.access']};
+
+  assert.equal(policy.canAccessRoute(foodUser,'FOOD'),false);
+  assert.equal(policy.canAccessRoute(foodUser,'FOOD',{moduleState:{FOOD:false}}),false);
+  assert.equal(policy.canAccessRoute(foodUser,'FOOD',{moduleState:{FOOD:true}}),true);
+  assert.equal(policy.canAccessRoute(wholesaleUser,'WHOLESALE',{moduleState:{WHOLESALE:true}}),true);
+  assert.equal(policy.canAccessRoute(foodUser,'WHOLESALE',{moduleState:{WHOLESALE:true}}),false);
+  assert.deepEqual(
+    policy.routesForUser(foodUser,{moduleState:{FOOD:true,WHOLESALE:true}}),
+    ['home','FOOD']
+  );
+});
