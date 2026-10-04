@@ -61,7 +61,7 @@ Optional modules are capabilities of one PDV, not separate applications. Their m
 Restaurant has three intentionally different surfaces that share the same canonical table/order/kitchen data:
 
 - **Cliente por QR (`/m/:token`)**: public, touch-first menu for one table. The visual signature is the navy order rail at the bottom; the main content stays editorial and product-led rather than dashboard-like. It never asks for a device credential.
-- **Equipe (`/mobile`)**: credentialed staff surface. Waiter prioritizes the floor/table map and service calls; kitchen uses status lanes for `Novo`, `Em preparo`, and `Pronto`; paired table/kiosk modes remain available.
+- **Dispositivos pareados (`/mobile`)**: credentialed surface. Waiter prioritizes the floor/table map and service calls; kitchen uses status lanes for `Novo`, `Em preparo`, and `Pronto`; customer-facing fixed hardware uses `SELF_SERVICE + TABLE/PICKUP` in the same visual direction as the public menu.
 - **Desktop Restaurante**: remains the management surface. Public-menu settings and per-table QR controls extend the existing Restaurant page instead of creating a separate product shell.
 
 All three surfaces reuse the ArtiSys blue/navy/ink/muted/line/surface tokens and system typography. Supporting text on light surfaces must preserve WCAG AA contrast; touch controls use a 44×44px minimum hit area. Mobile CSS may duplicate the exact token values because it is served independently from the Electron renderer, but it must not introduce a competing theme. Customer product cards expose name, public description, photo, price, availability and safe option labels only. Recipe composition, costs, stock internals, SKU/barcode metadata and credentials are never rendered into the public surface.
