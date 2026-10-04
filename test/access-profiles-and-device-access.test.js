@@ -32,7 +32,7 @@ test('P3 fresh installs bootstrap canonical profiles and bind new users by profi
     assert.equal(runtime.db.prepare('SELECT name FROM schema_migrations WHERE version=27').get()?.name,'pdv_access_capability_returns_approval_v27');
 
     const user=runtime.catalog.createUser({
-      id:'u1',username:'op',name:'Operador',role:'cashier',password:'senha-forte-123'
+      id:'u1',username:'op',name:'Operador',profileId:'profile-cashier',password:'senha-forte-123'
     },{userId:'setup',role:'system'});
     assert.equal(user.profileId,operator.id);
 
@@ -45,15 +45,15 @@ test('P3 custom profiles drive canonical human authorization independently of le
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({
-      id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'
+      id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{userId:'setup',role:'system'});
     const custom=runtime.accessProfiles.createProfile({
       name:'Consulta de estoque',
       permissions:['products.view','inventory.view']
     },{kind:'system',id:'system'});
     const user=runtime.catalog.createUser({
-      id:'stock1',username:'estoque',name:'Estoque',role:'cashier',profileId:custom.id,password:'senha-estoque-123'
-    },{userId:admin.id,role:'admin'});
+      id:'stock1',username:'estoque',name:'Estoque',profileId:custom.id,password:'senha-estoque-123'
+    },{userId:admin.id,profileId:'profile-administrator'});
 
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:user.id},capability:'inventory.view'}),true);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:user.id},capability:'sales.create'}),false);
@@ -66,11 +66,11 @@ test('P3 blocks capability escalation and protects the Administrator profile',()
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({
-      id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'
+      id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{userId:'setup',role:'system'});
     const manager=runtime.catalog.createUser({
-      id:'manager1',username:'manager',name:'Gerente',role:'manager',password:'senha-manager-123'
-    },{userId:admin.id,role:'admin'});
+      id:'manager1',username:'manager',name:'Gerente',profileId:'profile-manager',password:'senha-manager-123'
+    },{userId:admin.id,profileId:'profile-administrator'});
 
     assert.throws(
       ()=>runtime.accessProfiles.createProfile({name:'Escalado',permissions:['profiles.edit']},{kind:'human',id:manager.id}),
@@ -93,12 +93,12 @@ test('P4 devices expose authentication, surface, scope and optional human bindin
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({
-      id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'
+      id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{userId:'setup',role:'system'});
     const waiterUser=runtime.catalog.createUser({
-      id:'waiter1',username:'garcom',name:'Garcom',role:'cashier',password:'senha-garcom-123'
-    },{userId:admin.id,role:'admin'});
-    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,role:'admin'});
+      id:'waiter1',username:'garcom',name:'Garcom',profileId:'profile-cashier',password:'senha-garcom-123'
+    },{userId:admin.id,profileId:'profile-administrator'});
+    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,profileId:'profile-administrator'});
 
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garcom 1',deviceType:'WAITER',userId:waiterUser.id});
     const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET',tableId:table.id});
@@ -123,9 +123,9 @@ test('P4 device authorization uses surface capabilities and resource scope',()=>
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({
-      id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'
+      id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{userId:'setup',role:'system'});
-    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,role:'admin'});
+    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,profileId:'profile-administrator'});
     const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET',tableId:table.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});
 
@@ -144,7 +144,7 @@ test('P4 device authorization uses surface capabilities and resource scope',()=>
     assert.equal(runtime.authorization.can({principal:kitchenAuth.principal,capability:'restaurant.orders.create'}),false);
 
     const oldCredential=kitchen.credential;
-    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{userId:admin.id,role:'admin'});
+    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{userId:admin.id,profileId:'profile-administrator'});
     assert.equal(runtime.mobileDevices.authenticatePrincipal(kitchen.id,oldCredential).ok,false);
     assert.equal(runtime.mobileDevices.authenticatePrincipal(kitchen.id,rotated.credential).ok,true);
   }finally{runtime.close();}
