@@ -73,6 +73,10 @@
   }
 
   function mount(){const page=content()?.querySelector('.ops-page,.page');const h=page?.querySelector('h1');if(!page||h?.textContent?.trim()!=='Estoque'||page.querySelector('#enterprise-depth-entry'))return;const card=document.createElement('section');card.id='enterprise-depth-entry';card.className='ops-card';card.innerHTML='<div class="ops-card-head"><div><h2>Operação avançada</h2><p class="ops-muted">Compras, locais, reservas, transferências e pedidos com estoque comprometido.</p></div></div><div class="ops-actions"><button class="ops-primary" data-open="purchases">Compras</button><button class="ops-secondary" data-open="logistics">Logística</button><button class="ops-secondary" data-open="orders">Pedidos</button></div>';page.appendChild(card);card.querySelector('[data-open="purchases"]').addEventListener('click',()=>void renderPurchases());card.querySelector('[data-open="logistics"]').addEventListener('click',()=>void renderLogistics());card.querySelector('[data-open="orders"]').addEventListener('click',()=>void renderOrders());}
-  const observer=new MutationObserver(()=>queueMicrotask(mount));observer.observe(document.getElementById('route-content')||document.body,{childList:true,subtree:true});mount();
+  const lifecycle=window.PdvUiLifecycle;
+  const onInventory=({route}={})=>{if(route==='inventory')queueMicrotask(mount);};
+  lifecycle?.on('route:mounted',onInventory);
+  lifecycle?.on('route:updated',onInventory);
+  if(document.body.dataset.activeRoute==='inventory')queueMicrotask(mount);
   window.PdvEnterpriseDepthUi={renderPurchases,renderLogistics,renderOrders};
 })();
