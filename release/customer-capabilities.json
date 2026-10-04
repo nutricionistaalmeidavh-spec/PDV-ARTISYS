@@ -218,7 +218,8 @@
           "path": "desktop/renderer/operational-pages.js"
         },
         {
-          "path": "desktop/renderer/store-branding-ui.js"
+          "path": "desktop/renderer/admin-ops.js",
+          "marker": "settings-company-store"
         }
       ]
     },
