@@ -58,6 +58,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - If `autoOpenTable` is enabled, the first confirmed QR order may open the table session. If disabled, orders are rejected until a session exists; a waiter call may establish an empty service session so staff can attend the table.
 - Public mutations use mutation IDs. Order success is shown only after the server confirms persistence; on failure the cart remains intact and the UI identifies what is still usable.
 - Public orders enter the existing `restaurant.addOrder()` path and the existing event dispatch to kitchen. No second order store or kitchen queue is allowed.
+- Public-menu appearance is configuration of the same `/m/:token` surface. `menuLayout` is persisted by `PublicOrderingService` and returned in `publicContext`; changing appearance must not create a second route, cart, renderer owner, order mutation, pricing path, or DOM observer. Existing installations default to `COMPACT`.
 - Restaurant menu items use an explicit service route: `DIRECT` remains on the command and never creates a KDS ticket; `PRODUCTION` requires an active production station and is the only mode routed to KDS. An item with no route is a configuration error, never an implicit direct-service item.
 - Rotating a table QR invalidates the previous token. The desktop UI uses an app-owned confirmation step before rotation.
 
