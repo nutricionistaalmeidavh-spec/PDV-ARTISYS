@@ -2,12 +2,14 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const { openDatabase }=require('../js/core/database/sqlite-database');
 const { runMigrations }=require('../js/core/database/migrations');
+const {runAccessProfileMigrations}=require('../js/core/database/access-profile-migrations');
+const {runCanonicalAccessMigrations}=require('../js/core/database/canonical-access-migrations');
 const { SqliteOutboxStore }=require('../js/core/database/outbox-store');
 const { createCatalogService }=require('../js/domains/catalog/catalog-service');
 const { calculateCashClosing }=require('../js/domains/cash/cash-rules');
 const { createCashService }=require('../js/domains/cash/cash-service');
 
-function setup(){const db=openDatabase(':memory:');runMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;const catalog=createCatalogService({db,now:()=> '2026-09-09T09:00:00Z',idFactory:ids});catalog.createUser({id:'u1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-forte-123'});db.prepare("INSERT INTO sales (id,sale_number,terminal_id,operator_id,status,opened_at,updated_at) VALUES ('sale-1','000001','pdv-01','u1','COMPLETED','2026-09-09T09:00:00Z','2026-09-09T09:00:00Z')").run();const outbox=new SqliteOutboxStore(db);const cash=createCashService({db,outbox,now:()=> '2026-09-09T09:00:00Z',idFactory:ids});return{db,outbox,cash};}
+function setup(){const db=openDatabase(':memory:');runMigrations(db);runAccessProfileMigrations(db);runCanonicalAccessMigrations(db);let seq=0;const ids=p=>`${p}-${++seq}`;const catalog=createCatalogService({db,now:()=> '2026-09-09T09:00:00Z',idFactory:ids});catalog.createUser({id:'u1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-forte-123'});db.prepare("INSERT INTO sales (id,sale_number,terminal_id,operator_id,status,opened_at,updated_at) VALUES ('sale-1','000001','pdv-01','u1','COMPLETED','2026-09-09T09:00:00Z','2026-09-09T09:00:00Z')").run();const outbox=new SqliteOutboxStore(db);const cash=createCashService({db,outbox,now:()=> '2026-09-09T09:00:00Z',idFactory:ids});return{db,outbox,cash};}
 
 test('calculateCashClosing summarizes opening supplies withdrawals sales and divergence in cents',()=>{
   const result=calculateCashClosing({initialCashCents:35000,movements:[
