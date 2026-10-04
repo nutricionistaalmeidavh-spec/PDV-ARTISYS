@@ -17,6 +17,40 @@
   const when=value=>value?new Date(value).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'—';
   const bytes=value=>{const size=Number(value)||0;if(size<1024)return `${size} B`;if(size<1024*1024)return `${(size/1024).toFixed(1)} KB`;return `${(size/(1024*1024)).toFixed(1)} MB`;};
   const backupReason=value=>({manual:'Manual','manual-ui':'Manual','pre-restore':'Segurança antes da restauração'}[value]||value||'—');
+  const SUPPORTED_IMAGE_TYPES=new Set(['image/png','image/jpeg','image/webp']);
+  const MAX_SOURCE_BYTES=4*1024*1024;
+  const MAX_LOGO_DATA_LENGTH=699000;
+  const safeLogoDataUrl=value=>{const text=String(value??'').trim();return text.length<=MAX_LOGO_DATA_LENGTH&&/^data:image\/png;base64,[A-Za-z0-9+/]+={0,2}$/i.test(text)?text:null;};
+  const settingsMap=rows=>Object.fromEntries((rows||[]).filter(item=>item.scope==='global').map(item=>[item.key,item.value]));
+  const saveOrRemove=async(key,value)=>{const text=String(value??'').trim();return text?api.saveSetting(key,text,'global'):api.removeSetting(key,'global');};
+  const previewMarkup=dataUrl=>{const safe=safeLogoDataUrl(dataUrl);return safe?`<div style="display:flex;align-items:center;justify-content:center;min-height:110px;padding:12px;border:1px dashed var(--border,#d8dee8);border-radius:10px;background:#fff"><img src="${esc(safe)}" alt="Prévia da logo" style="display:block;max-width:260px;max-height:100px;object-fit:contain"></div>`:'<div class="ops-empty">Nenhuma logo configurada. O cupom continua funcionando apenas com texto.</div>';};
+  function fileToPngDataUrl(file){
+    return new Promise((resolve,reject)=>{
+      if(!file||!SUPPORTED_IMAGE_TYPES.has(file.type)){reject(new Error('Use uma imagem PNG, JPG/JPEG ou WebP.'));return;}
+      if(file.size>MAX_SOURCE_BYTES){reject(new Error('A logo deve ter no máximo 4 MB antes da otimização.'));return;}
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error('Não foi possível ler a logo.'));
+      reader.onload=()=>{
+        const image=new Image();
+        image.onerror=()=>reject(new Error('Arquivo de imagem inválido.'));
+        image.onload=()=>{
+          const scale=Math.min(1,512/image.naturalWidth,180/image.naturalHeight);
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+          const context=canvas.getContext('2d');
+          if(!context){reject(new Error('Não foi possível preparar a logo.'));return;}
+          context.clearRect(0,0,canvas.width,canvas.height);
+          context.drawImage(image,0,0,canvas.width,canvas.height);
+          const dataUrl=canvas.toDataURL('image/png');
+          if(!safeLogoDataUrl(dataUrl)||dataUrl.length>MAX_LOGO_DATA_LENGTH){reject(new Error('A logo otimizada ficou grande demais. Use uma imagem mais simples.'));return;}
+          resolve(dataUrl);
+        };
+        image.src=String(reader.result||'');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   const toast=(message,type='')=>{const host=document.getElementById('toast-root');if(!host)return;const el=document.createElement('div');el.className=`toast ${type}`;el.textContent=message;host.appendChild(el);setTimeout(()=>el.remove(),3500);};
 
   async function loadAdminData(){
@@ -39,14 +73,18 @@
     try{
       const cfg=await api.initialize();const data=await loadAdminData();
       if(!content.querySelector('.ops-page')||content.querySelector('.ops-head h1')?.textContent.trim()!=='Configurações')return;
-      const publicStore=data.settings.find(item=>item.scope==='global'&&item.key==='store.name')?.value||cfg.storeName||'Loja Matriz';
+      const storeSettings=settingsMap(data.settings);
+      const publicStore=storeSettings['store.name']||cfg.storeName||'Loja Matriz';
+      const storeAddress=storeSettings['store.address']||'';
+      const storePhone=storeSettings['store.phone']||'';
+      const currentLogo=safeLogoDataUrl(storeSettings['store.logoDataUrl']);
       const panel=document.createElement('section');panel.id='ops-admin-control-center';panel.className='ops-admin-center';
       panel.innerHTML=`
         <details id="ops-pilot-checklist" class="ops-card ops-pilot-card" data-settings-category="diagnostics" ${checklistOpen&&!data.readiness?.ready?'open':''}><summary class="ops-pilot-summary"><div><h2>Preparar para abrir a loja</h2><p class="ops-muted">${data.readiness?.ready?'Preparação concluída. Clique para consultar as verificações.':'Clique para verificar configuração, equipamentos e recuperação.'}</p>${readinessSummary(data.readiness)}</div><span class="ops-pilot-chevron" aria-hidden="true">⌄</span></summary><div class="ops-pilot-content"><div class="ops-card-head"><p class="ops-muted">Configuração da loja, importação concluída e diagnóstico gerado são verificados automaticamente. Equipamentos, rede e recuperação precisam de confirmação após teste real.</p><button id="ops-refresh-admin" class="ops-secondary">Atualizar</button></div>
           <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Verificação</th><th>Estado</th><th>Observação</th><th>Ação</th></tr></thead><tbody>${data.pilot.map(item=>`<tr><td><strong>${esc(item.title)}</strong><small>${esc(categoryLabels[item.category]||'Configuração')}${item.optional?' · quando aplicável':''}</small></td><td>${badge(item.status)}</td><td>${esc(item.note||'—')}${['configuration','audit','deployment'].includes(item.evidence?.source)?'<small>Verificação automática</small>':''}</td><td><select class="ops-input compact" data-pilot-status="${esc(item.key)}"><option value="NOT_STARTED" ${item.status==='NOT_STARTED'?'selected':''}>Pendente</option><option value="IN_PROGRESS" ${item.status==='IN_PROGRESS'?'selected':''}>Em andamento</option><option value="READY" ${item.status==='READY'?'selected':''}>Pronto</option><option value="BLOCKED" ${item.status==='BLOCKED'?'selected':''}>Bloqueio interno</option><option value="BLOCKED_EXTERNAL" ${item.status==='BLOCKED_EXTERNAL'?'selected':''}>Aguardando serviço externo</option>${item.optional?`<option value="NOT_APPLICABLE" ${item.status==='NOT_APPLICABLE'?'selected':''}>Não se aplica</option>`:''}</select></td></tr>`).join('')}</tbody></table></div>
         </div></details>
         <div class="ops-grid two">
-          <section class="ops-card"><h2>Loja e configuração pública</h2><form id="ops-store-setting" class="ops-form"><label>Nome da loja<input name="storeName" class="ops-input" value="${esc(publicStore)}" required></label><button class="ops-primary" type="submit">Salvar configuração</button></form><dl class="ops-details"><div><dt>Servidor</dt><dd>${esc(cfg.apiBase||'local')}</dd></div><div><dt>Terminal</dt><dd>${esc(cfg.terminalName||cfg.terminalId)}</dd></div><div><dt>Schema</dt><dd>${esc(data.health?.schemaVersion??'—')}</dd></div><div><dt>Outbox pendente</dt><dd>${esc(data.health?.outbox?.pending??'—')}</dd></div></dl></section>
+          <section id="settings-company-store" class="ops-card" data-settings-category="company"><div class="ops-card-head"><div><h2>Loja e configuração pública</h2><p class="ops-muted">Nome, endereço, telefone e logo ficam neste computador e são usados nos cupons não fiscais.</p></div></div><form id="ops-store-setting" class="ops-form"><label>Nome da loja<input name="storeName" class="ops-input" maxlength="80" value="${esc(publicStore)}" required></label><label>Endereço<input name="address" class="ops-input" maxlength="160" value="${esc(storeAddress)}" placeholder="Rua, número, bairro, cidade"></label><label>Telefone<input name="phone" class="ops-input" maxlength="60" value="${esc(storePhone)}" placeholder="(00) 00000-0000"></label><label>Logo da empresa<input id="ops-store-logo" class="ops-input" type="file" accept="image/png,image/jpeg,image/webp"></label><div id="ops-store-logo-preview">${previewMarkup(currentLogo)}</div><div class="ops-actions"><button class="ops-primary" type="submit">Salvar configuração</button><button id="ops-store-logo-remove" class="ops-secondary" type="button" ${currentLogo?'':'disabled'}>Remover logo</button></div><p class="ops-muted">A logo é convertida localmente para PNG. Nenhum serviço externo é necessário.</p></form><dl class="ops-details"><div><dt>Servidor</dt><dd>${esc(cfg.apiBase||'local')}</dd></div><div><dt>Terminal</dt><dd>${esc(cfg.terminalName||cfg.terminalId)}</dd></div><div><dt>Schema</dt><dd>${esc(data.health?.schemaVersion??'—')}</dd></div><div><dt>Outbox pendente</dt><dd>${esc(data.health?.outbox?.pending??'—')}</dd></div></dl></section>
           <section id="settings-backup" class="ops-card"><div class="ops-card-head"><div><h2>Backup e recuperação</h2><p class="ops-muted">Proteja os dados da loja e volte a um ponto anterior quando necessário.</p></div><button id="ops-backup-now" class="ops-primary">Criar backup agora</button></div>
             ${data.backupStatus?.pendingRestore?'<div id="ops-backup-pending" class="ops-backup-notice warning" role="status"><div><strong>Restauração pendente</strong><span>O backup escolhido já foi validado e uma cópia de segurança dos dados atuais foi criada. Reinicie o ArtiSys para concluir a restauração.</span></div></div>':''}
             ${data.backupStatus?.latest?`<div class="ops-backup-latest"><div><small>Último backup</small><strong>${when(data.backupStatus.latest.createdAt)}</strong><span>${data.backupStatus.latest.valid?'Integridade verificada':'Validação necessária'} · ${bytes(data.backupStatus.latest.size)}</span></div></div>`:''}
@@ -57,16 +95,42 @@
         <section class="ops-card"><div class="ops-card-head"><div><h2>Importação assistida</h2><p class="ops-muted">CSV UTF-8 ou XLSX · preview obrigatório · commit idempotente.</p></div><button id="ops-import-pick" class="ops-secondary">Selecionar arquivo</button></div><form id="ops-import-form" class="ops-form ops-inline-form"><label>Tipo<select name="type" class="ops-input"><option value="products">Produtos</option><option value="categories">Categorias</option><option value="customers">Clientes</option><option value="suppliers">Fornecedores</option><option value="inventory">Estoque inicial</option></select></label><label>Colisão<select name="collisionPolicy" class="ops-input"><option value="CREATE">Somente novos</option><option value="UPDATE">Atualizar existentes</option><option value="SKIP">Ignorar existentes</option></select></label><div id="ops-import-file" class="ops-muted">Nenhum arquivo selecionado.</div><button id="ops-import-preview" class="ops-primary" type="submit" disabled>Gerar preview</button></form><div id="ops-import-preview-result"></div></section>
         <div class="ops-grid two"><section class="ops-card"><div class="ops-card-head"><h2>Diagnóstico e saúde</h2><button id="ops-create-diagnostics" class="ops-secondary">Gerar diagnóstico ZIP</button></div><dl class="ops-details"><div><dt>Banco</dt><dd>${badge(data.health?.database?.ok?'OK':'ATENÇÃO')}</dd></div><div><dt>Terminais</dt><dd>${esc(data.health?.terminals?.total??'—')}</dd></div><div><dt>Impressões pendentes</dt><dd>${esc(data.health?.printing?.pending??'—')}</dd></div><div><dt>Fiscal pendente/falho</dt><dd>${esc((data.health?.fiscal?.pending??0)+(data.health?.fiscal?.failed??0))}</dd></div></dl></section>
           <section class="ops-card"><h2>Eventos recentes de suporte</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Subsistema/Ação</th><th>Mensagem</th></tr></thead><tbody>${data.logs.slice(0,10).map(row=>`<tr><td>${when(row.createdAt)}</td><td>${esc(row.subsystem)}</td><td>${esc(row.message)}</td></tr>`).join('')}${data.audit.slice(0,10).map(row=>`<tr><td>${when(row.createdAt)}</td><td>${esc(row.action)}</td><td>${esc(`${row.entity}${row.entityId?` · ${row.entityId}`:''}`)}</td></tr>`).join('')||'<tr><td colspan="3">Sem eventos recentes.</td></tr>'}</tbody></table></div></section></div>`;
-      content.querySelector('.ops-page')?.appendChild(panel);wire(panel);
+      content.querySelector('.ops-page')?.appendChild(panel);wire(panel,{currentLogo,cfg});
       routeRegistry.updated('settings',{surface:'settings-extension',extension:'admin-ops'});
     }catch(error){console.warn('Admin control center unavailable:',error?.message||error);}finally{rendering=false;}
   }
 
-  function wire(panel){
+  function wire(panel,{currentLogo=null,cfg=null}={}){
     const checklist=panel.querySelector('#ops-pilot-checklist');
     checklist?.addEventListener('toggle',()=>{checklistOpen=checklist.open;});
     panel.querySelector('#ops-refresh-admin')?.addEventListener('click',()=>{panel.remove();void mount();});
-    panel.querySelector('#ops-store-setting')?.addEventListener('submit',async event=>{event.preventDefault();try{await api.saveSetting('store.name',new FormData(event.currentTarget).get('storeName'),'global');toast('Configuração salva.','success');}catch(error){toast(error.message,'error');}});
+    let pendingLogoDataUrl=currentLogo;let removeLogo=false;
+    const storeForm=panel.querySelector('#ops-store-setting');
+    const logoInput=panel.querySelector('#ops-store-logo');
+    const logoPreview=panel.querySelector('#ops-store-logo-preview');
+    const logoRemove=panel.querySelector('#ops-store-logo-remove');
+    logoInput?.addEventListener('change',async event=>{
+      const file=event.target.files?.[0];if(!file)return;
+      try{pendingLogoDataUrl=await fileToPngDataUrl(file);removeLogo=false;if(logoPreview)logoPreview.innerHTML=previewMarkup(pendingLogoDataUrl);if(logoRemove)logoRemove.disabled=false;toast('Logo preparada. Salve a configuração para aplicar.','success');}
+      catch(error){event.target.value='';toast(error.message,'error');}
+    });
+    logoRemove?.addEventListener('click',()=>{pendingLogoDataUrl=null;removeLogo=true;if(logoInput)logoInput.value='';if(logoPreview)logoPreview.innerHTML=previewMarkup(null);logoRemove.disabled=true;});
+    storeForm?.addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=new FormData(event.currentTarget);
+      const name=String(form.get('storeName')||'').trim();
+      const address=String(form.get('address')||'').trim();
+      const phone=String(form.get('phone')||'').trim();
+      try{
+        await saveOrRemove('store.name',name);
+        await saveOrRemove('store.address',address);
+        await saveOrRemove('store.phone',phone);
+        if(removeLogo)await api.removeSetting('store.logoDataUrl','global');
+        else if(pendingLogoDataUrl)await api.saveSetting('store.logoDataUrl',pendingLogoDataUrl,'global');
+        const topbarName=document.getElementById('store-name');if(topbarName)topbarName.textContent=name||cfg?.storeName||'Loja Matriz';
+        toast('Configuração da loja salva.','success');
+      }catch(error){toast(error.message,'error');}
+    });
     panel.querySelector('#ops-backup-now')?.addEventListener('click',async()=>{try{await api.createBackup('manual-ui');toast('Backup criado e validado.','success');panel.remove();await mount();}catch(error){toast(error.message,'error');}});
     panel.querySelectorAll('[data-backup-validate]').forEach(button=>button.addEventListener('click',async()=>{try{const result=await api.validateBackup(button.dataset.backupValidate);toast(result.valid?'Backup válido.':(result.errors||[]).join(' '),result.valid?'success':'error');panel.remove();await mount();}catch(error){toast(error.message,'error');}}));
     panel.querySelectorAll('[data-backup-restore]').forEach(button=>button.addEventListener('click',()=>{const item=dataForRestore(panel,button.dataset.backupRestore);if(!item)return;openRestoreDialog(panel,item);}));
