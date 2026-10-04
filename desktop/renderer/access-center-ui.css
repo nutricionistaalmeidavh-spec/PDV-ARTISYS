@@ -68,13 +68,13 @@
 .access-permission-section-head small { color: var(--muted); }
 .access-compact-button { min-height: 34px; padding: 7px 10px; font-size: 12px; }
 .access-permission-list { border: 1px solid var(--line-soft); border-radius: 11px; overflow: hidden; }
-.access-permission-row { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; padding: 11px 12px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+.access-permission-row { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
 .access-permission-row:last-child { border-bottom: 0; }
 .access-permission-row:hover { background: #f8fbff; }
-.access-permission-row input { margin-top: 3px; }
+.access-permission-row input { width: 18px; height: 18px; margin: 1px 0 0; }
 .access-permission-row strong, .access-permission-row small { display: block; }
 .access-permission-row strong { font-size: 13px; }
-.access-permission-row small { margin-top: 3px; color: var(--muted); line-height: 1.35; }
+.access-permission-row small { margin-top: 4px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
 .access-review { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 14px; padding-top: 8px; }
 .access-review-profile, .access-review-groups, .access-review-note { border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 .access-review-profile { display: grid; gap: 6px; padding: 18px; }
@@ -93,9 +93,11 @@
 .access-profile-summary { display: grid; gap: 4px; margin-top: 4px; padding: 12px 13px; border: 1px solid #dce9f8; border-radius: 10px; background: #f6faff; }
 .access-profile-summary span { color: var(--muted); font-size: 12px; }
 .access-optional { color: var(--muted); font-weight: 500; }
-.access-toggle-row { display: grid; grid-template-columns: 22px 1fr; gap: 9px; align-items: start; margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; }
+.access-toggle-row { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 12px; align-items: center; margin-top: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.access-toggle-row input { width: 18px; height: 18px; margin: 0; }
 .access-toggle-row strong, .access-toggle-row small { display: block; }
-.access-toggle-row small { margin-top: 3px; color: var(--muted); }
+.access-toggle-row strong { line-height: 1.25; }
+.access-toggle-row small { margin-top: 4px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
 .access-warning, .access-danger { padding: 15px 16px; border-radius: 11px; }
 .access-warning { color: #6a4a08; background: #fff8e8; border: 1px solid #f2deb0; }
 .access-danger { color: #8c2530; background: #fff1f3; border: 1px solid #f3c8cf; }

@@ -86,14 +86,14 @@ test('P1 Cadastros stays compact in a 2x2 grid through tablet widths',()=>{
   assert.match(app,/renderFlowHub\('Cadastros','Clientes, produtos, estoque e equipe\.'/);
   assert.match(app,/description:'Saldos e movimentações\.'/);
   assert.match(app,/description:'Pessoas, funções e permissões\.'/);
-  assert.match(css,/flow-hub-page\[data-flow-hub="Cadastros"\] \.home-tile \{ min-height:104px/);
+  assert.match(css,/flow-hub-page\[data-flow-hub="Cadastros"\] \.home-tile \{ min-height:112px/);
   assert.match(css,/@media \(min-width:621px\)[\s\S]*flow-hub-page\[data-flow-hub="Cadastros"\] \.flow-hub-grid \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 
 test('P2 flow hubs use compact card density consistently',()=>{
   const css=read('desktop/renderer/classic-home-ui.css');
-  assert.match(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:112px[^}]*padding:14px 16px/);
+  assert.match(css,/\.flow-hub-grid \.home-tile \{[^}]*grid-column:auto[^}]*min-height:120px[^}]*padding:18px 20px 17px/);
   assert.doesNotMatch(css,/\.flow-hub-grid \.home-tile \{[^}]*min-height:132px/);
 });
 
