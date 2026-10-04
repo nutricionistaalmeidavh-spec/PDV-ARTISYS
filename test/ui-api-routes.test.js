@@ -39,7 +39,7 @@ function headers(token) {
   return { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
 }
 
-async function bootstrapAndLogin(ctx, role = 'admin') {
+async function bootstrapAndLogin(ctx) {
   let res = await fetch(`${ctx.base}/api/v1/setup/status`);
   assert.equal(res.status, 200);
   assert.equal((await json(res)).needsSetup, true);
@@ -58,7 +58,8 @@ async function bootstrapAndLogin(ctx, role = 'admin') {
   });
   assert.equal(res.status, 200);
   const login = await json(res);
-  assert.equal(login.user.role, role);
+  assert.equal(login.user.profileId, 'profile-administrator');
+  assert.equal(login.user.profile?.systemKey, 'admin');
   return login.sessionToken;
 }
 

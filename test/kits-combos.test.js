@@ -6,6 +6,8 @@ const { openDatabase } = require('../js/core/database/sqlite-database');
 const { runMigrations } = require('../js/core/database/migrations');
 const { runReleaseMigrations } = require('../js/core/database/release-migrations');
 const { runVerticalMigrations } = require('../js/core/database/vertical-migrations');
+const { runAccessProfileMigrations } = require('../js/core/database/access-profile-migrations');
+const { runCanonicalAccessMigrations } = require('../js/core/database/canonical-access-migrations');
 const { runKitComboMigrations } = require('../js/core/database/kit-combo-migrations');
 const { createCatalogService } = require('../js/domains/catalog/catalog-service');
 const { createRecipeService } = require('../js/domains/inventory/recipe-service');
@@ -19,7 +21,7 @@ const NOW = '2026-09-12T12:00:00.000Z';
 
 function foundation() {
   const db = openDatabase(':memory:');
-  runMigrations(db); runReleaseMigrations(db); runVerticalMigrations(db); runKitComboMigrations(db);
+  runMigrations(db); runReleaseMigrations(db); runVerticalMigrations(db); runKitComboMigrations(db); runAccessProfileMigrations(db); runCanonicalAccessMigrations(db);
   let seq = 0;
   const idFactory = prefix => `${prefix}-${++seq}`;
   const now = () => NOW;

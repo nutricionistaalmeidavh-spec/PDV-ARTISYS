@@ -32,10 +32,9 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
   MANAGER:Object.freeze(unique(
     idsByPrefix('sales','returns','cash','customers','products','suppliers','sellers','inventory','restaurant','wholesale','finance','reports','management'),
     [
-      'users.view','users.create','users.edit','users.disable','users.reset_password',
+      'users.view','users.create','users.edit','users.reset_password',
       'profiles.view','profiles.assign',
       'devices.view','devices.pair','devices.block','devices.rotate_credential',
-      'sessions.view','sessions.revoke',
       'modules.view','settings.view','settings.manage'
     ]
   )),

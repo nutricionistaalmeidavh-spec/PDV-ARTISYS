@@ -18,7 +18,6 @@ function createReturnApprovalStore({ now = () => Date.now(), randomBytesFn = ran
     const safeAuthorizedBy = Object.freeze({
       userId: authorizerId,
       profileId: String(authorizedBy?.profileId || '').trim() || null,
-      profileName: String(authorizedBy?.profileName || '').trim() || null,
       name: String(authorizedBy?.name || '')
     });
     approvals.set(approvalToken, {

@@ -28,8 +28,8 @@ test('P3 clean install bootstraps canonical profiles and users receive profile_i
     assert.ok(managerProfile);
     assert.ok(operatorProfile);
     assert.equal(adminProfile.protected,true);
-    assert.equal(managerProfile.protected,false);
-    assert.equal(operatorProfile.protected,false);
+    assert.equal(managerProfile.protected,true);
+    assert.equal(operatorProfile.protected,true);
     assert.equal(adminProfile.permissions.includes('profiles.edit'),true);
     assert.equal(managerProfile.permissions.includes('profiles.edit'),false);
 

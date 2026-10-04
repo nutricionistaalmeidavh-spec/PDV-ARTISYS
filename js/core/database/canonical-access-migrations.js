@@ -43,7 +43,7 @@ function migrateLegacyUsers(db){
     ['cashier',DEFAULT_PROFILE_IDS.CASHIER]
   ];
   for(const [role,profileId] of mapping){
-    db.prepare('UPDATE users SET profile_id=? WHERE profile_id IS NULL AND role=?').run(profileId,role);
+    db.prepare('UPDATE users SET profile_id=? WHERE role=?').run(profileId,role);
   }
 }
 

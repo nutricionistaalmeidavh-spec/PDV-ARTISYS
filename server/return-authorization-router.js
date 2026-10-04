@@ -129,8 +129,7 @@ function createReturnAuthorizationRouter({
           authorizedBy:{
             userId:verified.user.id,
             name:verified.user.name,
-            profileId:access.profile?.id||null,
-            profileName:access.profile?.name||null
+            profileId:access.profile?.id||null
           }
         });
         sendJson(response, 200, {
@@ -138,8 +137,7 @@ function createReturnAuthorizationRouter({
           authorizedBy:{
             id:verified.user.id,
             name:verified.user.name,
-            profileId:access.profile?.id||null,
-            profileName:access.profile?.name||null
+            profileId:access.profile?.id||null
           },
           expiresAt:issued.expiresAt
         });
