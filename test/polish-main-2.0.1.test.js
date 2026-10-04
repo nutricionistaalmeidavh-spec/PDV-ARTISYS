@@ -111,11 +111,15 @@ test('reports use the store business date instead of the process timezone',()=>{
   assert.match(source,/const today = businessToday\(\)/);
 });
 
-test('settings category changes notify extensions so company branding can remount after other panels refresh',()=>{
+test('Settings extensions stay on the canonical route lifecycle without custom selection events or DOM observers',()=>{
   const hub=read('desktop/renderer/settings-hub-ui.js');
   const branding=read('desktop/renderer/store-branding-ui.js');
-  assert.match(hub,/lifecycle\.emit\('settings:select',\{category:active\}\)/);
-  assert.match(branding,/lifecycle\.on\('settings:select',[\s\S]*category==='company'[\s\S]*mount\(\)/);
+  assert.doesNotMatch(hub,/settings:select|MutationObserver/);
+  assert.doesNotMatch(branding,/settings:select|MutationObserver|storeBrandingMounted/);
+  assert.match(branding,/page\.querySelector\('#ops-store-receipt-card'\)/);
+  assert.match(branding,/route:mounted/);
+  assert.match(branding,/route:updated/);
+  assert.match(branding,/PdvRouteRegistry\?\.updated\('settings',\{surface:'settings-extension',extension:'store-branding'/);
 });
 
 test('backup restore dialog traps keyboard focus, closes on Escape and restores the opener focus',()=>{
