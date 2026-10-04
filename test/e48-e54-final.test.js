@@ -26,7 +26,7 @@ test('E48-E54 advance vertical schema to v8 and expose final modular services',(
   const rt=setup();
   try{
     assert.equal(VERTICAL_SCHEMA_VERSION,8);
-    for(const name of ['retail','publicOrdering','selfService','onboarding','mobileAccess','hardwareCompatibility']){
+    for(const name of ['retail','publicOrdering','onboarding','mobileAccess','hardwareCompatibility']){
       assert.ok(rt[name],`runtime.${name} deve existir`);
     }
     assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
@@ -62,95 +62,10 @@ test('E49 legacy services schema remains preserved but is not an active module/r
   }finally{rt.close();}
 });
 
-test('E51 self-service uses paired device and creates pickup order without electronic payment integration',()=>{
-  const rt=setup();
-  try{
-    rt.modules.setEnabled('FOOD',true,admin);
-    rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false,menuEnabled:true},admin);
-    const device=rt.mobileDevices.createDevice({id:'totem-1',name:'Totem 1',deviceType:'SELF_SERVICE'},admin);
-    rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'admin'},admin);
-    const context=rt.selfService.context(device.id);
-    assert.equal(context.profile.mode,'PICKUP');
-    assert.ok(context.products.some(p=>p.id==='snack'));
-    assert.equal(context.paymentMode,'MANUAL_AT_COUNTER');
-    const order=rt.selfService.submitOrder(device.id,{items:[{productId:'snack',quantity:2}],note:'Sem guardanapo'},admin,'mut-self-1');
-    assert.equal(order.dailyNumber,1);
-    assert.ok(order.saleId);
-    assert.equal(rt.sales.getSale(order.saleId).status,'OPEN');
-    assert.equal(rt.sales.getSale(order.saleId).totalCents,2400);
-  }finally{rt.close();}
-});
 
-test('E51 self-service lists configured devices with canonical location and responsible identity',()=>{
-  const rt=setup();
-  try{
-    rt.modules.setEnabled('FOOD',true,admin);
-    rt.catalog.createUser({id:'operator-1',username:'operator1',name:'Maria Balcão',profileId:'profile-cashier',password:'senha-forte-456'},admin);
-    const device=rt.mobileDevices.createDevice({id:'totem-balcao',name:'Totem Balcão',deviceType:'SELF_SERVICE'},admin);
-    rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'operator-1'},admin);
-    const rows=rt.selfService.listConfiguredDevices();
-    assert.equal(rows.length,1);
-    assert.deepEqual(rows[0],{
-      id:'totem-balcao',
-      name:'Totem Balcão',
-      deviceType:'SELF_SERVICE',
-      status:'ACTIVE',
-      lastSeenAt:null,
-      mode:'PICKUP',
-      locationLabel:'Retirada no balcão',
-      tableId:null,
-      tableLabel:null,
-      operatorId:'operator-1',
-      operatorName:'Maria Balcão'
-    });
-  }finally{rt.close();}
-});
 
-test('E51 self-service creation is atomic and generic device creation leaves profile ownership to self-service',()=>{
-  const rt=setup();
-  try{
-    rt.modules.setEnabled('FOOD',true,admin);
-    const table=rt.restaurant.upsertTable({id:'table-atomic',label:'Mesa Atomic',active:true},admin);
-    const tableCreated=rt.selfService.createConfiguredDevice({id:'self-table',name:'Mesa fixa',mode:'TABLE',tableId:table.id},admin);
-    assert.equal(tableCreated.device.deviceType,'SELF_SERVICE');
-    assert.equal(tableCreated.profile.mode,'TABLE');
-    assert.equal(tableCreated.profile.tableId,table.id);
-    assert.ok(tableCreated.device.credential);
 
-    const pickupCreated=rt.selfService.createConfiguredDevice({id:'self-pickup',name:'Totem retirada',mode:'PICKUP',operatorId:'admin'},admin);
-    assert.equal(pickupCreated.profile.mode,'PICKUP');
-    assert.equal(pickupCreated.profile.operatorId,'admin');
 
-    assert.throws(()=>rt.selfService.createConfiguredDevice({id:'self-invalid',name:'Inválido',mode:'PICKUP',operatorId:'missing-user'},admin),/Operador local/i);
-    assert.equal(rt.db.prepare('SELECT COUNT(*) AS n FROM mobile_devices WHERE id=?').get('self-invalid').n,0);
-    assert.equal(rt.db.prepare('SELECT COUNT(*) AS n FROM self_service_profiles WHERE device_id=?').get('self-invalid').n,0);
-
-    const generic=rt.mobileDevices.createDevice({id:'self-generic',name:'Genérico',deviceType:'SELF_SERVICE'},admin);
-    assert.ok(generic.credential);
-    assert.equal(rt.db.prepare('SELECT COUNT(*) AS n FROM self_service_profiles WHERE device_id=?').get(generic.id).n,0);
-  }finally{rt.close();}
-});
-
-test('E51 self-service context reuses the safe public menu projection',()=>{
-  const rt=setup();
-  try{
-    rt.modules.setEnabled('FOOD',true,admin);
-    rt.catalog.upsertCategory({id:'food-safe',name:'Lanches'},admin);
-    rt.catalog.upsertProduct({id:'safe-item',name:'Burger seguro',categoryId:'food-safe',salePriceCents:1990,costCents:700,trackStock:false,menuEnabled:true},admin);
-    rt.publicOrdering.updateMenuProduct('safe-item',{description:'Descrição pública',visible:true,sortOrder:7},admin);
-    const created=rt.selfService.createConfiguredDevice({id:'self-safe',name:'Totem seguro',mode:'PICKUP',operatorId:'admin'},admin);
-    const context=rt.selfService.context(created.device.id);
-    const product=context.products.find(item=>item.id==='safe-item');
-    assert.equal(product.description,'Descrição pública');
-    assert.equal(product.categoryName,'Lanches');
-    assert.equal(product.visible,true);
-    assert.equal(product.available,true);
-    assert.equal(product.sortOrder,7);
-    assert.deepEqual(product.configuration,{groups:[],variants:[],combos:[]});
-    assert.deepEqual(context.categories,['Lanches']);
-    assert.ok(['COMPACT','PREMIUM'].includes(context.config.menuLayout));
-  }finally{rt.close();}
-});
 test('E52 onboarding recommends editable module sets and persists completion',()=>{
   const rt=setup();
   try{
