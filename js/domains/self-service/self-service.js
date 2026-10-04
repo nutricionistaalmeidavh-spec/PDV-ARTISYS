@@ -1,20 +1,112 @@
 'use strict';
 
+const {withTransaction}=require('../../core/database/sqlite-database');
 const {writeAudit}=require('../../core/audit-log');
 
-function safeConfiguration(value){if(!value)return null;return{groups:(value.groups||[]).map(group=>({id:group.id,name:group.name,selectionType:group.selectionType,minSelections:group.minSelections,maxSelections:group.maxSelections,required:Boolean(group.required),sortOrder:group.sortOrder,options:(group.options||[]).map(option=>({id:option.id,name:option.name,priceDeltaCents:option.priceDeltaCents}))})),variants:(value.variants||[]).map(variant=>({id:variant.id,name:variant.name,attributes:variant.attributes||{},priceDeltaCents:variant.priceDeltaCents})),combos:(value.combos||[]).map(group=>({id:group.id,name:group.name,minSelections:group.minSelections,maxSelections:group.maxSelections,sortOrder:group.sortOrder,items:(group.items||[]).map(item=>({productId:item.productId,productName:item.productName,quantity:item.quantity,priceDeltaCents:item.priceDeltaCents}))}))};}
-
-function createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now=()=>new Date().toISOString()}={}){
-  if(!db||!modules||!catalog||!mobileDevices||!restaurant||!fastFood)throw new TypeError('self-service dependencies are required.');
+function createSelfService({db,modules,mobileDevices,restaurant,fastFood,publicOrdering,now=()=>new Date().toISOString()}={}){
+  if(!db||!modules||!mobileDevices||!restaurant||!fastFood||!publicOrdering)throw new TypeError('self-service dependencies are required.');
   const gate=()=>modules.requireEnabled('FOOD');
 
-  function profile(deviceId){gate();const row=db.prepare('SELECT * FROM self_service_profiles WHERE device_id=?').get(String(deviceId));if(!row)throw new Error('Perfil de autoatendimento nao configurado.');return{deviceId:row.device_id,mode:row.mode,tableId:row.table_id,operatorId:row.operator_id,createdAt:row.created_at,updatedAt:row.updated_at};}
-  function configureDevice(deviceId,input={},actor={}){gate();const device=mobileDevices.getDevice(deviceId);if(!device||device.deviceType!=='SELF_SERVICE')throw new Error('Dispositivo nao e de autoatendimento.');const mode=String(input.mode||'').toUpperCase();if(!['TABLE','PICKUP'].includes(mode))throw new Error('Modo de autoatendimento invalido.');let tableId=null;let operatorId=null;if(mode==='TABLE'){tableId=String(input.tableId||'').trim();if(!tableId||!restaurant.getTable(tableId))throw new Error('Mesa valida obrigatoria para autoatendimento em mesa.');}else{operatorId=String(input.operatorId||actor?.userId||'').trim();const user=operatorId?db.prepare('SELECT id FROM users WHERE id=? AND active=1').get(operatorId):null;if(!user)throw new Error('Operador local obrigatorio para autoatendimento de retirada.');}const ts=now();db.prepare(`INSERT INTO self_service_profiles(device_id,mode,table_id,operator_id,created_at,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(device_id) DO UPDATE SET mode=excluded.mode,table_id=excluded.table_id,operator_id=excluded.operator_id,updated_at=excluded.updated_at`).run(device.id,mode,tableId,operatorId,ts,ts);writeAudit(db,{action:'self-service.configure',entity:'mobile_device',entityId:device.id,actor,context:{mode,tableId,operatorId}},now);return profile(device.id);}
-  function listConfiguredDevices(){gate();return db.prepare(`SELECT md.id,md.name,md.status,md.last_seen_at,ssp.mode,ssp.table_id,ssp.operator_id,rt.label AS table_label,u.name AS operator_name FROM mobile_devices md JOIN self_service_profiles ssp ON ssp.device_id=md.id LEFT JOIN restaurant_tables rt ON rt.id=ssp.table_id LEFT JOIN users u ON u.id=ssp.operator_id ORDER BY md.name,md.id`).all().map(row=>({id:row.id,name:row.name,deviceType:'SELF_SERVICE',status:row.status,lastSeenAt:row.last_seen_at,mode:row.mode,locationLabel:row.mode==='TABLE'?(row.table_label||'Mesa fixa'):'Retirada no balcão',tableId:row.table_id||null,tableLabel:row.table_label||null,operatorId:row.operator_id||null,operatorName:row.operator_name||null}));}
-  function productView(product){let configuration=null;if(catalogCustomization){try{configuration=safeConfiguration(catalogCustomization.getProductConfiguration(product.id));}catch{configuration=null;}}return{id:product.id,name:product.name,categoryId:product.categoryId,categoryName:product.categoryName,salePriceCents:product.salePriceCents,unit:product.unit,configuration};}
-  function context(deviceId){gate();const device=mobileDevices.getDevice(deviceId);if(!device||device.deviceType!=='SELF_SERVICE'||device.status!=='ACTIVE')throw new Error('Dispositivo de autoatendimento indisponivel.');const p=profile(device.id);const products=catalog.listProducts().filter(product=>product.menuEnabled).map(productView);let table=null;let session=null;if(p.mode==='TABLE'){table=restaurant.getTable(p.tableId);session=table?restaurant.currentSession(table.id):null;}else return{device,profile:p,table,session,products,paymentMode:'MANUAL_AT_COUNTER'};}
-  function submitOrder(deviceId,input={},actor={},mutationId=null){gate();const state=context(deviceId);const items=Array.isArray(input.items)?input.items:[];if(!items.length)throw new Error('Adicione itens ao pedido.');const allowed=new Set(state.products.map(product=>String(product.id)));for(const item of items){if(!allowed.has(String(item.productId||'')))throw new Error('Item fora do Cardapio.');}const normalized=items.map(item=>({productId:item.productId,quantity:item.quantity??1,unitPriceCents:item.unitPriceCents,configurationSnapshot:item.configurationSnapshot,note:item.note||''}));if(state.profile.mode==='TABLE'){if(!state.session)throw new Error('Mesa sem comanda aberta.');return restaurant.addOrder(state.session.id,{items:normalized,note:String(input.note||'').trim(),source:'TABLET',deviceId:state.device.id,actor,mutationId});}return fastFood.create({terminalId:'SELF-SERVICE',operatorId:state.profile.operatorId,items:normalized,note:String(input.note||'').trim()},actor);}
-  return{configureDevice,getProfile:profile,listConfiguredDevices,context,submitOrder};
+  function profile(deviceId){
+    gate();
+    const row=db.prepare('SELECT * FROM self_service_profiles WHERE device_id=?').get(String(deviceId));
+    if(!row)throw new Error('Perfil de autoatendimento nao configurado.');
+    return{deviceId:row.device_id,mode:row.mode,tableId:row.table_id,operatorId:row.operator_id,createdAt:row.created_at,updatedAt:row.updated_at};
+  }
+
+  function normalizedProfileInput(input={},actor={}){
+    const mode=String(input.mode||'').toUpperCase();
+    if(!['TABLE','PICKUP'].includes(mode))throw new Error('Modo de autoatendimento invalido.');
+    if(mode==='TABLE'){
+      const tableId=String(input.tableId||'').trim();
+      if(!tableId||!restaurant.getTable(tableId))throw new Error('Mesa valida obrigatoria para autoatendimento em mesa.');
+      return{mode,tableId,operatorId:null};
+    }
+    const operatorId=String(input.operatorId||actor?.userId||'').trim();
+    const user=operatorId?db.prepare('SELECT id FROM users WHERE id=? AND active=1').get(operatorId):null;
+    if(!user)throw new Error('Operador local obrigatorio para autoatendimento de retirada.');
+    return{mode,tableId:null,operatorId};
+  }
+
+  function configureDevice(deviceId,input={},actor={}){
+    gate();
+    const device=mobileDevices.getDevice(deviceId);
+    if(!device||device.deviceType!=='SELF_SERVICE')throw new Error('Dispositivo nao e de autoatendimento.');
+    const {mode,tableId,operatorId}=normalizedProfileInput(input,actor);
+    const ts=now();
+    db.prepare(`INSERT INTO self_service_profiles(device_id,mode,table_id,operator_id,created_at,updated_at) VALUES(?,?,?,?,?,?)
+      ON CONFLICT(device_id) DO UPDATE SET mode=excluded.mode,table_id=excluded.table_id,operator_id=excluded.operator_id,updated_at=excluded.updated_at`)
+      .run(device.id,mode,tableId,operatorId,ts,ts);
+    writeAudit(db,{action:'self-service.configure',entity:'mobile_device',entityId:device.id,actor,context:{mode,tableId,operatorId}},now);
+    return profile(device.id);
+  }
+
+  function createConfiguredDevice(input={},actor={}){
+    gate();
+    normalizedProfileInput(input,actor);
+    return withTransaction(db,()=>{
+      const device=mobileDevices.createDevice({id:input.id,name:input.name,deviceType:'SELF_SERVICE'},actor);
+      const configured=configureDevice(device.id,input,actor);
+      return{device,profile:configured};
+    });
+  }
+
+  function listConfiguredDevices(){
+    gate();
+    return db.prepare(`SELECT md.id,md.name,md.status,md.last_seen_at,ssp.mode,ssp.table_id,ssp.operator_id,rt.label AS table_label,u.name AS operator_name
+      FROM mobile_devices md
+      JOIN self_service_profiles ssp ON ssp.device_id=md.id
+      LEFT JOIN restaurant_tables rt ON rt.id=ssp.table_id
+      LEFT JOIN users u ON u.id=ssp.operator_id
+      WHERE md.device_type='SELF_SERVICE'
+      ORDER BY md.name,md.id`).all().map(row=>({
+        id:row.id,name:row.name,deviceType:'SELF_SERVICE',status:row.status,lastSeenAt:row.last_seen_at,mode:row.mode,
+        locationLabel:row.mode==='TABLE'?(row.table_label||'Mesa fixa'):'Retirada no balcão',
+        tableId:row.table_id||null,tableLabel:row.table_label||null,operatorId:row.operator_id||null,operatorName:row.operator_name||null
+      }));
+  }
+
+  function context(deviceId){
+    gate();
+    const device=mobileDevices.getDevice(deviceId);
+    if(!device||device.deviceType!=='SELF_SERVICE'||device.status!=='ACTIVE')throw new Error('Dispositivo de autoatendimento indisponivel.');
+    const p=profile(device.id);
+    const products=publicOrdering.listMenu();
+    const categories=[...new Set(products.map(product=>product.categoryName).filter(Boolean))];
+    const menuConfig=publicOrdering.getConfig();
+    let table=null;let session=null;
+    if(p.mode==='TABLE'){
+      table=restaurant.getTable(p.tableId);
+      session=table?restaurant.currentSession(table.id):null;
+    }
+    return{device,profile:p,table,session,products,categories,config:{menuLayout:menuConfig.menuLayout},paymentMode:p.mode==='PICKUP'?'MANUAL_AT_COUNTER':null};
+  }
+
+  function submitOrder(deviceId,input={},actor={},mutationId=null){
+    gate();
+    const state=context(deviceId);
+    const items=Array.isArray(input.items)?input.items:[];
+    if(!items.length)throw new Error('Adicione itens ao pedido.');
+    const allowed=new Set(state.products.filter(product=>product.available!==false).map(product=>String(product.id)));
+    for(const item of items)if(!allowed.has(String(item.productId||'')))throw new Error('Item fora do Cardapio ou indisponivel.');
+    const normalized=items.map(item=>({
+      productId:item.productId,
+      quantity:item.quantity??1,
+      variantId:item.variantId,
+      selections:Array.isArray(item.selections)?item.selections:[],
+      comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[],
+      unitPriceCents:item.unitPriceCents,
+      configurationSnapshot:item.configurationSnapshot,
+      note:item.note||''
+    }));
+    if(state.profile.mode==='TABLE'){
+      if(!state.session)throw new Error('Mesa sem comanda aberta.');
+      return restaurant.addOrder(state.session.id,{items:normalized,note:String(input.note||'').trim(),source:'TABLE',deviceId:state.device.id,actor,mutationId});
+    }
+    return fastFood.create({terminalId:'SELF-SERVICE',operatorId:state.profile.operatorId,items:normalized,note:String(input.note||'').trim()},actor);
+  }
+
+  return{createConfiguredDevice,configureDevice,getProfile:profile,listConfiguredDevices,context,submitOrder};
 }
 
-module.exports={createSelfService,safeConfiguration};
+module.exports={createSelfService};
