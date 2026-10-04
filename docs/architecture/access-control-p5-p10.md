@@ -68,7 +68,7 @@ The regression matrix covers:
 - human × profile × capability
 - module enabled/disabled × capability
 - device × surface × capability
-- resource/context scope (for example, the table persisted in a `SELF_SERVICE + TABLE` profile)
+- resource/context scope (for example, a public table token scoped to one table)
 - unknown capabilities fail closed
 - protected Administrator profile
 - anti-escalation when granting permissions
