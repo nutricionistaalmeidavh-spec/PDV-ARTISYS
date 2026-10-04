@@ -456,6 +456,11 @@
       "timeoutMs": 10000
     },
     {
+      "action": "capability",
+      "name": "finance.setup",
+      "scenario": "ui-reverse-settlement"
+    },
+    {
       "action": "click",
       "selector": "button[data-flow-route='finance']",
       "name": "gestao-abrir-financeiro",
@@ -466,6 +471,40 @@
       "selector": "#ops-finance-form",
       "name": "financeiro-lancamentos-visivel",
       "timeoutMs": 10000
+    },
+    {
+      "action": "capability",
+      "name": "finance.openReverseDialog"
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ux-dialog",
+      "name": "financeiro-estorno-dialogo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog textarea[name='reason']",
+      "value": "QA estorno confirmado pela interface",
+      "name": "financeiro-estorno-motivo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog .ux-dialog__confirm",
+      "name": "financeiro-estorno-confirmar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "expected": "Baixa estornada.",
+      "name": "financeiro-estorno-feedback",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "capability",
+      "name": "finance.assert"
     },
     {
       "action": "click",

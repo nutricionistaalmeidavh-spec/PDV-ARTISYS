@@ -86,7 +86,13 @@
       return `<label class="ux-filter-bar__filter"><span>${escapeHtml(filter.label || id)}</span><select data-filter-id="${escapeHtml(id)}"${filter.disabled ? ' disabled' : ''}>${options}</select></label>`;
     }).join('');
 
-    const chips = (Array.isArray(activeChips) ? activeChips : []).map((chip) => `<button type="button" class="ux-filter-chip" data-remove-filter="${escapeHtml(chip.key || '')}" aria-label="Remover filtro ${escapeHtml(chip.label || '')}">${escapeHtml(chip.label || '')}<span aria-hidden="true">×</span></button>`).join('');
+    const chips = (Array.isArray(activeChips) ? activeChips : []).map((chip) => {
+      const key = escapeHtml(chip.key || '');
+      const label = escapeHtml(chip.label || '');
+      const action = String(chip.removeAction || chip.action || '').trim();
+      if (!action) return `<span class="ux-filter-chip ux-filter-chip--static" data-filter-key="${key}">${label}</span>`;
+      return `<button type="button" class="ux-filter-chip" data-action="${escapeHtml(action)}" data-filter-key="${key}" aria-label="Remover filtro ${label}">${label}<span aria-hidden="true">×</span></button>`;
+    }).join('');
     const clear = clearAction && chips
       ? `<button type="button" class="ux-filter-bar__clear" data-action="${escapeHtml(clearAction)}">${escapeHtml(clearLabel)}</button>`
       : '';

@@ -78,7 +78,27 @@
     if(!routeActive('cash'))return;
     content.innerHTML=page('Caixa','Abertura, suprimentos, sangrias e fechamento por terminal.',body);
     document.getElementById('ops-open-cash')?.addEventListener('submit',async event=>{event.preventDefault();const amount=centsInput(new FormData(event.currentTarget).get('amount'));try{await api.createCash({terminalId:cfg.terminalId,initialCashCents:amount});showToast('Caixa aberto.','success');await renderCash();}catch(error){showToast(error.message,'error');}});
-    content.querySelectorAll('[data-cash-action]').forEach(button=>button.addEventListener('click',async()=>{const action=button.dataset.cashAction;try{if(action==='close'){const value=root.prompt('Valor contado em dinheiro (R$):','0,00');if(value===null)return;await api.cashAction(open.id,'close',{countedByMethod:{CASH:centsInput(value)}});}else{const value=root.prompt(action==='supply'?'Valor do suprimento (R$):':'Valor da sangria (R$):');if(value===null)return;const note=root.prompt('Observação:','')||'';await api.cashAction(open.id,action,{amountCents:centsInput(value),note});}showToast('Operação de caixa registrada.','success');await renderCash();}catch(error){showToast(error.message,'error');}}));
+    content.querySelectorAll('[data-cash-action]').forEach(button=>button.addEventListener('click',async()=>{
+      const action=button.dataset.cashAction;
+      if(!ux?.openFormDialog){showToast('Diálogo de operação do caixa indisponível.','error');return;}
+      const closing=action==='close';
+      const title=closing?'Fechar caixa':action==='supply'?'Registrar suprimento':'Registrar sangria';
+      const result=await ux.openFormDialog({
+        title,
+        description:closing?'Informe o valor contado em dinheiro para concluir o fechamento.':'Registre o valor e, se necessário, uma observação.',
+        confirmLabel:closing?'Fechar caixa':'Registrar operação',
+        tone:closing?'danger':'default',
+        initialFocus:closing?'cancel':'first',
+        body:closing
+          ?'<label>Valor contado em dinheiro (R$)<input name="amount" class="ops-input" inputmode="decimal" value="0,00"></label>'
+          :'<label>Valor (R$)<input name="amount" class="ops-input" inputmode="decimal"></label><label>Observação<textarea name="note" class="ops-input" rows="3"></textarea></label>',
+        validate:data=>{const amount=centsInput(data.amount);if(amount<0||(!closing&&amount<=0))return{message:closing?'Informe um valor contado válido.':'Informe um valor maior que zero.',field:'amount'};return null;},
+        onConfirm:data=>closing
+          ?api.cashAction(open.id,'close',{countedByMethod:{CASH:centsInput(data.amount)}})
+          :api.cashAction(open.id,action,{amountCents:centsInput(data.amount),note:String(data.note||'').trim()})
+      });
+      if(result.confirmed){showToast('Operação de caixa registrada.','success');await renderCash();}
+    }));
   }
 
   async function renderSalesHistory(){
@@ -289,7 +309,19 @@
     content.innerHTML=page('Relatórios','Indicadores do período selecionado, calculados sobre o histórico completo.',body);
     document.getElementById('ops-report-filter')?.addEventListener('submit',event=>{event.preventDefault();const form=new FormData(event.currentTarget);void renderReports({fromDate:String(form.get('fromDate')),toDate:String(form.get('toDate')),sellerId:String(form.get('sellerId')||'')});});
     document.getElementById('ops-commission-rule')?.addEventListener('submit',async event=>{event.preventDefault();const form=new FormData(event.currentTarget);try{await api.saveCommissionRule({sellerId:String(form.get('sellerId')),productId:String(form.get('productId')||'')||null,commissionBps:Math.round(Number(form.get('percent'))*100)});showToast('Regra de comissão salva. As vendas já concluídas não serão alteradas.','success');await renderReports({fromDate,toDate,sellerId});}catch(error){showToast(error.message,'error');}});
-    content.querySelectorAll('[data-pay-commission]').forEach(button=>button.addEventListener('click',async()=>{const suggested=(Number(button.dataset.outstanding||0)/100).toFixed(2).replace('.',',');const value=root.prompt('Valor da comissão paga (R$):',suggested);if(value===null)return;const note=root.prompt('Observação do pagamento:','')||'';try{await api.payCommission({sellerId:button.dataset.payCommission,amountCents:centsInput(value),periodFrom:filters.from,periodTo:filters.to,note});showToast('Pagamento de comissão registrado.','success');await renderReports({fromDate,toDate,sellerId});}catch(error){showToast(error.message,'error');}}));
+    content.querySelectorAll('[data-pay-commission]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!ux?.openFormDialog){showToast('Diálogo de pagamento de comissão indisponível.','error');return;}
+      const suggested=(Number(button.dataset.outstanding||0)/100).toFixed(2).replace('.',',');
+      const result=await ux.openFormDialog({
+        title:'Registrar pagamento de comissão',
+        description:'O pagamento será registrado no período selecionado sem alterar vendas já concluídas.',
+        confirmLabel:'Registrar pagamento',
+        body:`<label>Valor pago (R$)<input name="amount" class="ops-input" inputmode="decimal" value="${escapeHtml(suggested)}"></label><label>Observação<textarea name="note" class="ops-input" rows="3"></textarea></label>`,
+        validate:data=>centsInput(data.amount)>0?null:{message:'Informe um valor maior que zero.',field:'amount'},
+        onConfirm:data=>api.payCommission({sellerId:button.dataset.payCommission,amountCents:centsInput(data.amount),periodFrom:filters.from,periodTo:filters.to,note:String(data.note||'').trim()})
+      });
+      if(result.confirmed){showToast('Pagamento de comissão registrado.','success');await renderReports({fromDate,toDate,sellerId});}
+    }));
     document.getElementById('ops-export-sales')?.addEventListener('click',async()=>{try{const result=await api.exportSalesCsv(filters);const blob=new Blob([result.csv||''],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download=`vendas-${fromDate}-a-${toDate}.csv`;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){showToast(error.message,'error');}});
   }
 
