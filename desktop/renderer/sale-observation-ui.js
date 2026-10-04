@@ -38,14 +38,14 @@
 
     const block = document.createElement('div');
     block.dataset.saleObservationDetail = 'true';
-    block.style.cssText = 'margin-top:14px;padding:12px 14px;border:1px solid #e3e8f0;border-radius:9px;background:#fbfcfe;color:#34445c';
+    block.className = 'sale-observation-detail';
     const title = document.createElement('strong');
     title.textContent = 'Observação da venda';
     const text = document.createElement('p');
-    text.style.cssText = 'margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere';
+    text.className = 'sale-observation-detail__text';
     text.textContent = note;
     const status = document.createElement('small');
-    status.style.color = 'var(--text-subtle)';
+    status.className = 'sale-observation-detail__status';
     status.textContent = lastSaleDetails?.printObservation
       ? 'Registrada internamente e impressa no cupom não fiscal.'
       : 'Registro interno — não impressa no cupom.';
@@ -60,16 +60,16 @@
 
     const block = document.createElement('section');
     block.dataset.saleObservation = 'true';
-    block.style.cssText = 'padding:12px 16px;border-top:1px solid #edf1f6;background:#fbfcfe';
+    block.className = 'sale-observation';
     block.innerHTML = `
-      <label for="sale-observation" style="display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:700;color:#42526b;margin-bottom:6px">
+      <label for="sale-observation" class="sale-observation__label">
         <span>Observação da venda</span><span id="sale-observation-counter">0/${MAX_INTERNAL}</span>
       </label>
-      <textarea id="sale-observation" rows="2" maxlength="${MAX_INTERNAL}" placeholder="Ex.: separar 2 caixas; cliente retira amanhã às 10h." style="width:100%;resize:vertical;min-height:54px;box-sizing:border-box;border:1px solid #d9e0ea;border-radius:8px;padding:8px 10px;font:inherit;color:#223047;background:white"></textarea>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#526176;cursor:pointer">
+      <textarea id="sale-observation" class="sale-observation__input" rows="2" maxlength="${MAX_INTERNAL}" placeholder="Ex.: separar 2 caixas; cliente retira amanhã às 10h."></textarea>
+      <label class="sale-observation__print">
         <input id="sale-observation-print" type="checkbox"> Imprimir esta observação no cupom não fiscal
       </label>
-      <small id="sale-observation-hint" style="display:block;margin-top:5px;color:var(--text-subtle)">Registro interno: até ${MAX_INTERNAL} caracteres. Impresso: até ${MAX_PRINTED} caracteres / 4 linhas.</small>`;
+      <small id="sale-observation-hint" class="sale-observation__hint">Registro interno: até ${MAX_INTERNAL} caracteres. Impresso: até ${MAX_PRINTED} caracteres / 4 linhas.</small>`;
 
     panel.insertBefore(block, finalize);
     const textarea = block.querySelector('#sale-observation');

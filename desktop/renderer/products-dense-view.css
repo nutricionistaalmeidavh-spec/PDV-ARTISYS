@@ -12,11 +12,11 @@
 .products-dense-search kbd {
   margin-left: auto;
   padding: 3px 7px;
-  border: 1px solid #d7e0ec;
+  border: 1px solid var(--border-muted);
   border-bottom-width: 2px;
   border-radius: 6px;
   color: var(--muted);
-  background: #f8fafc;
+  background: var(--surface-muted);
   font-size: 10px;
   font-family: inherit;
   white-space: nowrap;
@@ -25,8 +25,8 @@
 .products-dense-filter {
   min-width: 150px;
   min-height: 50px;
-  border: 1px solid #cad8e9;
-  background: #fff;
+  border: 1px solid var(--border-control);
+  background: var(--surface);
 }
 
 .products-dense-sync {
@@ -37,8 +37,8 @@
 
 .products-dense-table {
   overflow: hidden;
-  border-color: #dce5f0;
-  box-shadow: 0 8px 22px rgba(40,67,105,.06);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-md);
 }
 
 .products-dense-header,
@@ -51,9 +51,9 @@
 
 .products-dense-header {
   padding: 10px 17px;
-  border-bottom: 1px solid #e7edf5;
-  background: #f8fafc;
-  color: #53627f;
+  border-bottom: 1px solid var(--line-table);
+  background: var(--surface-muted);
+  color: var(--text-label);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -69,7 +69,7 @@
   padding-bottom: 12px;
 }
 
-.products-dense-table > .data-row:not(.variant-child-row):hover { background: #f9fbfe; }
+.products-dense-table > .data-row:not(.variant-child-row):hover { background: var(--surface-row-hover); }
 .products-dense-table > .data-row[hidden] { display: none !important; }
 
 .products-dense-product-cell,
@@ -103,17 +103,17 @@
 
 .products-dense-table .secondary-button {
   padding: 9px 11px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
 .products-dense-table .variant-child-row {
-  background: #fbfcfe;
+  background: var(--surface-note);
   padding-left: 30px;
 }
 
 .products-dense-table .variant-child-row[hidden] { display: none !important; }
-.products-dense-table [data-products-filter-empty] { border-top: 1px solid #edf1f6; }
+.products-dense-table [data-products-filter-empty] { border-top: 1px solid var(--line-soft); }
 .products-dense-table [data-products-filter-empty] .ux-empty-state { padding: 34px 24px; }
 
 @media (max-width: 1180px) {

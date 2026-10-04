@@ -29,9 +29,16 @@ Use the existing clean, high-contrast register interface. Runtime CSS owns the e
 | Surface | `--surface`, `--surface-soft`, `--surface-subtle`, `--surface-selected` | `#ffffff`, `#f6f8fc`, `#f7f9fc`, `#f5f8fc` |
 | Positive / destructive / attention | `--success`, `--danger`, `--orange` | `#12b76a`, `#ef3340`, `#ff7a00` |
 | Card corner | `--radius` | `18px` |
+| Radius scale | `--radius-sm`, `--radius-md`, `--radius-lg` | `9px`, `12px`, `15px` |
 | Card elevation | `--shadow` | `0 12px 32px rgba(33, 56, 94, .12)` |
+| Elevation scale | `--shadow-sm`, `--shadow-md` | shared low/medium operational elevation |
+| Spacing scale | `--space-1` … `--space-6` | `4px`, `8px`, `12px`, `16px`, `20px`, `24px` |
+| Controls and panels | `--border-control`, `--border-input`, `--border-card`, `--border-panel` | shared operational borders |
+| Focus | `--focus-border`, `--focus-ring` | shared keyboard/input focus treatment |
 
 Typography uses `Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`. Use a visible page title, a short purpose line, then a clear action/content hierarchy. Avoid technical identifiers, English enum labels, decorative card color overload, and empty full-width whitespace. Use semantic color for status, not as the only status cue.
+
+Operational renderer CSS must consume these shared primitives instead of re-declaring equivalent raw colors, radii, shadows, focus styles, or spacing values. Static presentation belongs in CSS classes rather than renderer template `style=""` attributes or direct `element.style` assignments. Runtime-only geometry such as progress width remains an allowed exception when it is data-driven rather than presentation drift.
 
 ## Layout and interaction
 

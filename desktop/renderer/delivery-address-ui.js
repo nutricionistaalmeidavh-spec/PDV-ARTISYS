@@ -50,7 +50,7 @@
     const grid=form.querySelector('.field-grid');if(!grid)return;
     const section=document.createElement('div');
     section.dataset.customerAddress='true';section.className='field wide';
-    section.innerHTML=`<div class="field-grid" style="margin-top:8px"><div class="field wide"><strong>Endereço para entrega</strong><small>Usado como padrão em pedidos com entrega. O pedido guarda uma cópia do endereço usado.</small></div>${field('postalCode','CEP','','inputmode="numeric" maxlength="9"')}${field('street','Logradouro')}${field('number','Número')}${field('complement','Complemento')}${field('district','Bairro')}${field('city','Cidade')}${field('state','UF','','maxlength="2"')}${field('reference','Referência')}</div>`;
+    section.innerHTML=`<div class="field-grid delivery-address-grid"><div class="field wide"><strong>Endereço para entrega</strong><small>Usado como padrão em pedidos com entrega. O pedido guarda uma cópia do endereço usado.</small></div>${field('postalCode','CEP','','inputmode="numeric" maxlength="9"')}${field('street','Logradouro')}${field('number','Número')}${field('complement','Complemento')}${field('district','Bairro')}${field('city','Cidade')}${field('state','UF','','maxlength="2"')}${field('reference','Referência')}</div>`;
     const active=grid.querySelector('label.field.wide:last-of-type');
     if(active)grid.insertBefore(section,active);else grid.appendChild(section);
     if(!editingCustomerId)return;

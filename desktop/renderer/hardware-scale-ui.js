@@ -11,7 +11,8 @@
     const node=document.getElementById(id);
     if(!node)return;
     node.textContent=cleanMessage(message);
-    node.style.color=error?'#b42318':'';
+    node.classList.toggle('hardware-scale-status',true);
+    node.classList.toggle('is-error',Boolean(error));
   }
 
   function setRequestVisibility(){

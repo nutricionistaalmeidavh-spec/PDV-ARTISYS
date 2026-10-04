@@ -1,10 +1,10 @@
 .access-center-page { display: grid; gap: 14px; }
 .access-center-page .page-head { margin-bottom: 0; }
-.access-tabs { display: inline-flex; align-items: center; gap: 6px; padding: 5px; width: fit-content; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: 0 5px 16px rgba(40,67,105,.04); }
-.access-tab { min-height: 42px; padding: 9px 16px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 750; white-space: nowrap; }
+.access-tabs { display: inline-flex; align-items: center; gap: 6px; padding: 5px; width: fit-content; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); box-shadow: var(--shadow-sm); }
+.access-tab { min-height: 42px; padding: 9px 16px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); font-weight: 750; white-space: nowrap; }
 .access-tab:hover { background: var(--surface-hover); color: var(--ink); }
 .access-tab.active { background: var(--surface-selected); color: var(--artisys-blue); box-shadow: inset 0 0 0 1px rgba(11,108,255,.14); }
-.access-surface { background: #fff; border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 7px 20px rgba(40,67,105,.05); overflow: hidden; }
+.access-surface { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: 0 7px 20px rgba(40,67,105,.05); overflow: hidden; }
 .access-section-head { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border-bottom: 1px solid var(--line-soft); }
 .access-section-head h2 { margin: 0 0 4px; font-size: 20px; }
 .access-section-head p { margin: 0; color: var(--muted); font-size: 13px; }
@@ -12,18 +12,18 @@
 .access-toolbar-summary { margin-left: auto; padding-bottom: 9px; color: var(--muted); font-size: 13px; white-space: nowrap; }
 .access-search { display: grid; gap: 5px; min-width: min(340px, 100%); }
 .access-search > span { color: var(--text-label); font-size: 12px; font-weight: 750; }
-.access-search input { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid #d4deeb; border-radius: 10px; outline: 0; background: #fff; color: var(--ink); }
-.access-search input:focus { border-color: #66a9ff; box-shadow: 0 0 0 3px rgba(11,108,255,.10); }
+.access-search input { width: 100%; min-height: 42px; padding: 9px 12px; border: 1px solid var(--border-input); border-radius: 10px; outline: 0; background: var(--surface); color: var(--ink); }
+.access-search input:focus { border-color: var(--focus-border); box-shadow: var(--focus-ring); }
 .access-table-wrap { width: 100%; overflow: auto; }
 .access-table { width: 100%; border-collapse: collapse; min-width: 760px; }
-.access-table th { padding: 11px 14px; text-align: left; color: var(--muted); background: #fbfcfe; border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 800; }
+.access-table th { padding: 11px 14px; text-align: left; color: var(--muted); background: var(--surface-note); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 800; }
 .access-table td { padding: 13px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; font-size: 13px; }
 .access-table tbody tr:last-child td { border-bottom: 0; }
 .access-table tbody tr:hover { background: #fbfdff; }
 .access-table td strong, .access-table td small { display: block; }
 .access-table td small { margin-top: 3px; color: var(--muted); }
 .access-actions-cell { text-align: right; white-space: nowrap; }
-.access-row-action { min-height: 36px; padding: 8px 12px; margin-left: 6px; border-radius: 9px; font-size: 12px; }
+.access-row-action { min-height: 36px; padding: 8px 12px; margin-left: 6px; border-radius: var(--radius-sm); font-size: 12px; }
 .access-profile-pill, .access-type-badge, .access-status { display: inline-flex; align-items: center; min-height: 28px; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 750; }
 .access-profile-pill { color: #1c5eb6; background: #eef5ff; }
 .access-type-badge { color: #4c5f7e; background: #f0f3f8; }
@@ -34,7 +34,7 @@
 .access-muted { color: var(--muted); }
 .access-empty { padding: 26px 16px; color: var(--muted); text-align: center; }
 .access-security-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
-.access-metric { min-height: 106px; display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(40,67,105,.04); }
+.access-metric { min-height: 106px; display: grid; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 6px 18px rgba(40,67,105,.04); }
 .access-metric span { color: var(--muted); font-size: 13px; }
 .access-metric strong { font-size: 28px; }
 .access-stepper { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; list-style: none; padding: 0; margin: 0 0 20px; }
@@ -51,9 +51,9 @@
 .access-helper span { color: var(--muted); font-size: 13px; }
 .access-wizard-actions { display: flex; align-items: center; gap: 9px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 .access-wizard-spacer { flex: 1; }
-.access-permission-editor { min-height: 410px; display: grid; grid-template-columns: 235px minmax(0,1fr); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: #fff; }
-.access-permission-groups { padding: 10px; background: #f7f9fc; border-right: 1px solid var(--line); overflow: auto; }
-.access-permission-groups button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 11px; border: 0; border-radius: 9px; background: transparent; color: #31425f; text-align: left; }
+.access-permission-editor { min-height: 410px; display: grid; grid-template-columns: 235px minmax(0,1fr); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: var(--surface); }
+.access-permission-groups { padding: 10px; background: var(--surface-subtle); border-right: 1px solid var(--line); overflow: auto; }
+.access-permission-groups button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 11px; border: 0; border-radius: var(--radius-sm); background: transparent; color: #31425f; text-align: left; }
 .access-permission-groups button:hover { background: #eef3f9; }
 .access-permission-groups button.active { color: var(--artisys-blue); background: #eaf3ff; box-shadow: inset 0 0 0 1px #c9e0ff; }
 .access-permission-groups button span { font-weight: 750; }
@@ -76,7 +76,7 @@
 .access-permission-row strong { font-size: 13px; }
 .access-permission-row small { margin-top: 4px; color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; }
 .access-review { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 14px; padding-top: 8px; }
-.access-review-profile, .access-review-groups, .access-review-note { border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.access-review-profile, .access-review-groups, .access-review-note { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
 .access-review-profile { display: grid; gap: 6px; padding: 18px; }
 .access-review-profile > span, .access-review-profile small { color: var(--muted); }
 .access-review-profile strong { font-size: 21px; }

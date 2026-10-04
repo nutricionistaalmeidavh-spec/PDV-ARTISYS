@@ -130,7 +130,7 @@
 
     const box=document.createElement('div');
     box.id='catalog-supplier-management';
-    box.style.marginTop='14px';
+    box.className='catalog-supplier-management';
     box.innerHTML=`<h3>Fornecedores ativos</h3>${suppliers.map(supplier=>`<div class="ops-row"><div><strong>${esc(supplier.name)}</strong><small>${esc(supplier.document||'Sem documento')}</small></div><button type="button" class="danger-button" data-remove-supplier="${esc(supplier.id)}">Excluir</button></div>`).join('')||'<p class="ops-muted">Nenhum fornecedor ativo.</p>'}`;
     host.appendChild(box);
 
