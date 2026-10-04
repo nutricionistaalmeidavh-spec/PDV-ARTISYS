@@ -267,9 +267,6 @@
           "path": "server/public-ordering-router.js"
         },
         {
-          "path": "server/self-service-mobile-router.js"
-        },
-        {
           "path": "server/e48-e54-router.js"
         }
       ],
@@ -313,8 +310,7 @@
         "food-delivery-pickup-counter-workflow",
         "food-unified-orders-with-optional-daily-ticket-and-legacy-history",
         "optional-market-bakery-weighted-items-and-orders",
-        "optional-retail-variants-sku-barcode-and-variant-stock",
-        "optional-self-service-paired-device-ordering"
+        "optional-retail-variants-sku-barcode-and-variant-stock"
       ],
       "backend": [
         {
@@ -331,17 +327,11 @@
         },
         {
           "path": "js/domains/retail/retail-service.js"
-        },
-        {
-          "path": "js/domains/self-service/self-service.js"
         }
       ],
       "api": [
         {
           "path": "server/vertical-router.js"
-        },
-        {
-          "path": "server/self-service-mobile-router.js"
         }
       ],
       "client": [
@@ -363,7 +353,6 @@
       "declaredCapabilities": [
         "local-mobile-access-qr-material",
         "waiter-lan-device",
-        "table-bound-self-service",
         "kitchen-lan-device",
         "hashed-revocable-mobile-device-credentials",
         "self-hosted-mobile-ui-on-local-lan"
@@ -376,9 +365,6 @@
       "api": [
         {
           "path": "server/restaurant-router.js"
-        },
-        {
-          "path": "server/self-service-mobile-router.js"
         }
       ],
       "client": [
