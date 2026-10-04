@@ -82,7 +82,7 @@ test('FilterBar renders removable chips only when an action owner is declared', 
   const { FilterBar } = loadComponents();
   const html = FilterBar({
     filters: [{ id: 'stock', label: 'Estoque', value: 'low', options: [{ value: '', label: 'Todos' }, { value: 'low', label: 'Baixo' }] }],
-    activeChips: [{ key: 'stock', label: 'Estoque: baixo' }],
+    activeChips: [{ key: 'stock', label: 'Estoque: baixo', removeAction: 'products.remove-filter' }],
     removeAction: 'products.remove-filter',
     clearAction: 'products.clear-filters'
   });
