@@ -40,7 +40,7 @@ function migrateLegacyUsers(db){
   const mapping=[
     ['admin',DEFAULT_PROFILE_IDS.ADMINISTRATOR],
     ['manager',DEFAULT_PROFILE_IDS.MANAGER],
-    ['cashier',DEFAULT_PROFILE_IDS.OPERATOR]
+    ['cashier',DEFAULT_PROFILE_IDS.CASHIER]
   ];
   for(const [role,profileId] of mapping){
     db.prepare('UPDATE users SET profile_id=? WHERE profile_id IS NULL AND role=?').run(profileId,role);
