@@ -83,10 +83,6 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
       const device=principal.device;const products=mobileProducts();const customers=runtime.catalog.listCustomers().filter(customer=>customer.active!==false).map(customer=>({id:customer.id,name:customer.name}));
-      if(device.deviceType==='TABLET'){
-        const table=runtime.restaurant.getTable(device.tableId);const session=table?runtime.restaurant.currentSession(table.id):null;
-        json(response,200,{device,table,session,products});return true;
-      }
       if(device.deviceType==='WAITER'){
         const tables=runtime.restaurant.listTables().map(table=>{
           const session=table.sessionId?runtime.restaurant.getSession(table.sessionId):null;
@@ -107,16 +103,10 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
       const p=mobilePrincipal(request,['WAITER']);const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(waiterTransfer[1]),data.targetTableId,{actor:p.actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;
     }
     if(request.method==='POST'&&pathname==='/api/v1/mobile/orders'){
-      const p=mobilePrincipal(request,['TABLET','WAITER']);const data=await body(request);let sessionId=String(data.sessionId||'').trim();
-      if(p.device.deviceType==='TABLET'){
-        const session=runtime.restaurant.currentSession(p.device.tableId);if(!session)throw new RestaurantHttpError(409,'Mesa sem comanda aberta.');sessionId=session.id;
-      }
+      const p=mobilePrincipal(request,['WAITER']);const data=await body(request);const sessionId=String(data.sessionId||'').trim();
       if(!sessionId)throw new RestaurantHttpError(400,'Comanda obrigatoria.');
-      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:prepareMenuItems(data.items||[]),note:data.note||'',source:p.device.deviceType==='TABLET'?'TABLET':'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
+      const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(sessionId,{items:prepareMenuItems(data.items||[]),note:data.note||'',source:'WAITER',deviceId:p.device.id,actor:p.actor,mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});
       json(response,result.statusCode,result.payload);return true;
-    }
-    if(request.method==='POST'&&pathname==='/api/v1/mobile/service'){
-      const p=mobilePrincipal(request,['TABLET']);const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.requestService(p.device.tableId,data.requestType,{deviceId:p.device.id,actor:p.actor,mutationId}));json(response,result.statusCode,result.payload);return true;
     }
     const requestMatch=pathname.match(/^\/api\/v1\/mobile\/requests\/([^/]+)$/);
     if(request.method==='PATCH'&&requestMatch){const p=mobilePrincipal(request,['WAITER']);const data=await body(request);json(response,200,runtime.restaurant.updateServiceRequest(decodeURIComponent(requestMatch[1]),data.status,p.actor));return true;}
