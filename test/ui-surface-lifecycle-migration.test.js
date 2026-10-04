@@ -22,12 +22,13 @@ test('checkout and settings enhancements consume semantic lifecycle instead of D
   }
 });
 
-test('settings hub is fully lifecycle-owned after P4 extensions migrate', () => {
+test('settings hub is mounted by the canonical Settings owner and only consumes update lifecycle', () => {
   const source = read('desktop/renderer/settings-hub-ui.js');
+  const operational = read('desktop/renderer/operational-pages.js');
   assert.match(source, /PdvUiLifecycle/);
-  assert.match(source, /route:mounted/);
   assert.match(source, /route:updated/);
-  assert.doesNotMatch(source, /MutationObserver|legacyObserver/);
+  assert.doesNotMatch(source, /route:mounted|MutationObserver|legacyObserver/);
+  assert.match(operational, /PdvSettingsHub\?\.mount\?\.\(pageRoot\)/);
 });
 
 test('canonical renderers publish checkout and settings update signals', () => {
