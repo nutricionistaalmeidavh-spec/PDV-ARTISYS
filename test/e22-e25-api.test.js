@@ -9,7 +9,7 @@ const {createLocalServer}=require('../server/local-server');
 
 async function fixture(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-e22-e25-api-'));let seq=0;const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`,appVersion:'0.9.0',serverVersion:'0.9.0'});
- runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+ runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
  const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install'});const address=await server.start();const base=`http://${address.host}:${address.port}`;
  const login=await fetch(`${base}/api/v1/auth/login`,{method:'POST',headers:{'content-type':'application/json','x-pdv-token':'install'},body:JSON.stringify({username:'admin',password:'senha-forte-123',terminalId:'PDV-01'})});const token=(await login.json()).sessionToken;
  const req=async (url,options={})=>{const response=await fetch(`${base}${url}`,{...options,headers:{authorization:`Bearer ${token}`,'content-type':'application/json',...(options.headers||{})}});let body=null;const text=await response.text();if(text)body=JSON.parse(text);return{status:response.status,body};};
