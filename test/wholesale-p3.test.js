@@ -3,16 +3,16 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 
-const admin={userId:'admin',role:'admin',terminalId:'T1'};
-const manager={userId:'manager',role:'manager',terminalId:'T1'};
-const cashier={userId:'cashier',role:'cashier',terminalId:'T1'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'T1'};
+const manager={userId:'manager',profileId:'profile-manager',terminalId:'T1'};
+const cashier={userId:'cashier',profileId:'profile-cashier',terminalId:'T1'};
 
 function setup(){
   let seq=0;
   const runtime=createPdvRuntime({dbPath:':memory:',now:()=>`2026-10-02T21:30:${String(seq%60).padStart(2,'0')}.000Z`,idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'admin',username:'admin-p3',name:'Admin',role:'admin',password:'senha-admin-p3-123'},admin);
-  runtime.catalog.createUser({id:'manager',username:'manager-p3',name:'Gerente',role:'manager',password:'senha-manager-p3-123'},admin);
-  runtime.catalog.createUser({id:'cashier',username:'cashier-p3',name:'Caixa',role:'cashier',password:'senha-cashier-p3-123'},admin);
+  runtime.catalog.createUser({id:'admin',username:'admin-p3',name:'Admin',profileId:'profile-administrator',password:'senha-admin-p3-123'},admin);
+  runtime.catalog.createUser({id:'manager',username:'manager-p3',name:'Gerente',profileId:'profile-manager',password:'senha-manager-p3-123'},admin);
+  runtime.catalog.createUser({id:'cashier',username:'cashier-p3',name:'Caixa',profileId:'profile-cashier',password:'senha-cashier-p3-123'},admin);
   runtime.catalog.upsertCustomer({id:'customer',name:'Mercado Silva',creditLimitCents:30000},admin);
   runtime.catalog.upsertProduct({id:'product',name:'Refrigerante 2L',salePriceCents:1000,costCents:500,trackStock:true,menuEnabled:true},admin);
   runtime.inventory.move({productId:'product',type:'opening',quantityDelta:200,reason:'seed'},admin);
