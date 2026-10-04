@@ -374,6 +374,12 @@
       "timeoutMs": 15000
     },
     {
+      "action": "click",
+      "selector": "button[data-delivery-view='PICKUP']",
+      "name": "retirada-abrir-canal",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectText",
       "selector": "[data-delivery-order]:has-text('Cliente Retirada QA')",
       "expected": "Aguardando produção",
@@ -560,6 +566,12 @@
       "selector": "#delivery-form .delivery-send-production",
       "name": "delivery-criar-pedido",
       "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='DELIVERY']",
+      "name": "delivery-abrir-canal",
+      "timeoutMs": 10000
     },
     {
       "action": "expectText",
