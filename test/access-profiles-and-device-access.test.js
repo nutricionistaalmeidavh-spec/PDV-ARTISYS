@@ -97,15 +97,13 @@ test('P4 devices expose authentication, surface, scope and optional human bindin
     const waiterUser=runtime.catalog.createUser({
       id:'waiter1',username:'garcom',name:'Garcom',profileId:'profile-cashier',password:'senha-garcom-123'
     },{userId:admin.id,profileId:'profile-administrator'});
-    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,profileId:'profile-administrator'});
 
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garcom 1',deviceType:'WAITER',userId:waiterUser.id});
-    const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET',tableId:table.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});
     const self=runtime.mobileDevices.createDevice({id:'s1',name:'Totem',deviceType:'SELF_SERVICE'});
 
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
     assert.deepEqual({surface:waiter.surface,scope:waiter.scope,userId:waiter.userId},{surface:'waiter',scope:{type:'establishment',id:null},userId:waiterUser.id});
-    assert.deepEqual({surface:tablet.surface,scope:tablet.scope},{surface:'table',scope:{type:'table',id:table.id}});
     assert.deepEqual({surface:kitchen.surface,scope:kitchen.scope},{surface:'kitchen',scope:{type:'establishment',id:null}});
     assert.deepEqual({surface:self.surface,scope:self.scope},{surface:'self-service',scope:{type:'establishment',id:null}});
 
@@ -117,33 +115,31 @@ test('P4 devices expose authentication, surface, scope and optional human bindin
     assert.equal(storedSecret.includes(kitchen.credential),false);
   }finally{runtime.close();}
 });
-
-test('P4 device authorization uses surface capabilities and resource scope',()=>{
+test('P4 device authorization uses canonical waiter kitchen and self-service surfaces',()=>{
   const runtime=fixture();
   try{
-    const admin=runtime.catalog.createUser({
+    runtime.catalog.createUser({
       id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'
     },{kind:'system',id:'system'});
-    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',active:true},{userId:admin.id,profileId:'profile-administrator'});
-    const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa',deviceType:'TABLET',tableId:table.id});
+    const self=runtime.mobileDevices.createDevice({id:'s1',name:'Totem',deviceType:'SELF_SERVICE'});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS',deviceType:'KITCHEN'});
 
-    const tabletAuth=runtime.mobileDevices.authenticatePrincipal(tablet.id,tablet.credential);
+    const selfAuth=runtime.mobileDevices.authenticatePrincipal(self.id,self.credential);
     const kitchenAuth=runtime.mobileDevices.authenticatePrincipal(kitchen.id,kitchen.credential);
 
-    assert.equal(tabletAuth.ok,true);
-    assert.equal(tabletAuth.principal.surface,'table');
-    assert.deepEqual(tabletAuth.principal.scope,{type:'table',id:table.id});
-    assert.equal(runtime.authorization.can({principal:tabletAuth.principal,capability:'restaurant.orders.create',resource:{type:'table',id:table.id}}),true);
-    assert.equal(runtime.authorization.can({principal:tabletAuth.principal,capability:'restaurant.orders.create',resource:{type:'table',id:'other'}}),false);
-    assert.equal(runtime.authorization.can({principal:tabletAuth.principal,capability:'kitchen.update_status'}),false);
+    assert.equal(selfAuth.ok,true);
+    assert.equal(selfAuth.principal.surface,'self-service');
+    assert.deepEqual(selfAuth.principal.scope,{type:'establishment',id:null});
+    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'restaurant.self_service.create'}),true);
+    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'restaurant.orders.create'}),false);
+    assert.equal(runtime.authorization.can({principal:selfAuth.principal,capability:'finance.view'}),false);
 
     assert.equal(kitchenAuth.ok,true);
     assert.equal(runtime.authorization.can({principal:kitchenAuth.principal,capability:'kitchen.update_status'}),true);
     assert.equal(runtime.authorization.can({principal:kitchenAuth.principal,capability:'restaurant.orders.create'}),false);
 
     const oldCredential=kitchen.credential;
-    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{userId:admin.id,profileId:'profile-administrator'});
+    const rotated=runtime.mobileDevices.rotateCredential(kitchen.id,{userId:'admin1',profileId:'profile-administrator'});
     assert.equal(runtime.mobileDevices.authenticatePrincipal(kitchen.id,oldCredential).ok,false);
     assert.equal(runtime.mobileDevices.authenticatePrincipal(kitchen.id,rotated.credential).ok,true);
   }finally{runtime.close();}
