@@ -206,7 +206,7 @@ const RESTAURANT_SQL = `
   CREATE TABLE IF NOT EXISTS mobile_devices (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    device_type TEXT NOT NULL CHECK(device_type IN('WAITER','KITCHEN','SELF_SERVICE')),
+    device_type TEXT NOT NULL CHECK(device_type IN('WAITER','KITCHEN')),
     table_id TEXT,
     user_id TEXT,
     credential_hash TEXT NOT NULL,
