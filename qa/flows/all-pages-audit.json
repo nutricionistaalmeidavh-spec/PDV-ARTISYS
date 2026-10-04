@@ -1678,6 +1678,16 @@
       }
     },
     {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/self-service/public-ordering/config",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "name": "publicar-cardapio-premium-qa",
+      "body": {
+        "menuLayout": "PREMIUM"
+      }
+    },
+    {
       "action": "setViewportSize",
       "width": 390,
       "height": 844,
@@ -2010,21 +2020,6 @@
       "name": "cardapio-qr-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
-    },
-    {
-      "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/config",
-      "method": "PUT",
-      "expectedStatus": 200,
-      "name": "publicar-cardapio-premium-qa",
-      "body": {
-        "menuLayout": "PREMIUM"
-      }
-    },
-    {
-      "action": "goto",
-      "urlFrom": "qaPublicMenuUrl",
-      "name": "abrir-cardapio-qr-premium"
     },
     {
       "action": "expectVisible",
