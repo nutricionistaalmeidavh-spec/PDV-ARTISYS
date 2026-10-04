@@ -31,9 +31,10 @@ test('shared modal and enterprise subflows publish semantic triggers',()=>{
   for(const surface of ['enterprise-purchases','enterprise-logistics','enterprise-orders']){
     assert.ok(enterprise.includes(`surface:'${surface}'`),surface);
   }
+  assert.match(vertical,/routeRegistry\.register\('FOOD',\{owner:'vertical-modules'/);
+  assert.match(vertical,/routeRegistry\.register\('WHOLESALE',\{owner:'vertical-modules'/);
   assert.match(vertical,/emit\('surface:mounted'/);
-  assert.match(vertical,/surface:'module-workspace'/);
-  assert.match(vertical,/surface:'module-area'/);
+  assert.doesNotMatch(vertical,/surface:'module-workspace'|surface:'module-area'/);
 });
 
 test('operational friendly fields listen to route modal and module surfaces',()=>{

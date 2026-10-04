@@ -11,6 +11,8 @@
   const ROUTES = {
     home: { label: 'Início', shortLabel:'Início', icon: 'home' },
     checkout: { label: 'Balcão', shortLabel:'Balcão', icon: 'cart' },
+    FOOD: { label: 'Alimentação', shortLabel:'Alimentação', icon: 'store' },
+    WHOLESALE: { label: 'Atacado', shortLabel:'Atacado', icon: 'document' },
     products: { label: 'Produtos', icon: 'document' },
     customers: { label: 'Clientes', icon: 'users' },
     inventory: { label: 'Estoque', icon: 'cubes', phase: 'E13' },
@@ -188,10 +190,18 @@
   function formValue(form, name) { return form.elements.namedItem(name)?.value ?? ''; }
   function isRouteActive(route) { return document.body.dataset.activeRoute === route; }
 
+  function moduleAccessOptions() {
+    return { moduleState:window.PdvModuleGate?.snapshot?.() || {} };
+  }
+
+  function canAccessRoute(route) {
+    return Boolean(window.PdvAccessPolicy?.canAccessRoute(state.user, route, moduleAccessOptions()));
+  }
+
   function renderSidebar() {
     const nav = document.getElementById('sidebar-nav');
     const accessPolicy = window.PdvAccessPolicy;
-    const items = (accessPolicy?.routesForUser(state.user) || ['home']).filter(route=>route!=='settings');
+    const items = (accessPolicy?.routesForUser(state.user, moduleAccessOptions()) || ['home']).filter(route=>route!=='settings');
     const parentRoute = {
       finance:'financial-management',
       'finance-banks':'financial-management',
@@ -208,7 +218,7 @@
     }[state.route] || state.route;
     nav.innerHTML = items.map((route) => `<button class="nav-button ${parentRoute === route ? 'active' : ''}" type="button" data-route="${route}" title="${ROUTES[route].label}" aria-label="${ROUTES[route].label}"><span class="nav-button-icon">${icon(ROUTES[route].icon, 25)}</span><span class="nav-label">${escapeHtml(ROUTES[route].shortLabel || ROUTES[route].label)}</span></button>`).join('');
     const settingsButton = document.querySelector('#app-sidebar [data-route="settings"]');
-    if (settingsButton) settingsButton.hidden = !accessPolicy?.canAccessRoute(state.user, 'settings');
+    if (settingsButton) settingsButton.hidden = !canAccessRoute('settings');
     document.querySelectorAll('[data-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.route)));
     window.dispatchEvent(new CustomEvent('artisys:sidebar-rendered'));
   }
@@ -220,7 +230,6 @@
     document.getElementById('app-version').textContent = `Versão ${state.config.version}`;
     document.getElementById('operator-name').textContent = state.user?.name || 'Sem operador';
     document.getElementById('operator-role').textContent = state.user?.profile?.name || roleLabel(state.user?.role);
-    document.body.dataset.userRole = state.user?.role || '';
     document.body.dataset.userPermissions = (state.user?.permissions||[]).join(',');
     window.PdvCurrentAccess=state.user||null;
     window.PdvUiLifecycle?.emit('user:changed', { profileId:state.user?.profileId || state.user?.profile?.id || '', permissions:[...(state.user?.permissions||[])], userId:state.user?.id || '' });
@@ -274,7 +283,7 @@
 
   async function navigate(route) {
     if (!ROUTES[route]) route = 'home';
-    if (!window.PdvAccessPolicy?.canAccessRoute(state.user, route)) route = 'home';
+    if (!canAccessRoute(route)) route = 'home';
     state.route = route;
     document.body.dataset.activeRoute = route;
     delete document.body.dataset.activeModuleWorkspace;
@@ -292,7 +301,7 @@
   }
 
   function renderFlowHub(title, subtitle, cards) {
-    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>window.PdvAccessPolicy?.canAccessRoute(state.user,card.route));
+    const visibleCards=(Array.isArray(cards)?cards:[]).filter(card=>canAccessRoute(card.route));
     content.innerHTML=`<section class="page flow-hub-page" data-flow-hub="${escapeHtml(title)}"><header class="page-head"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(subtitle)}</p></div></header><div class="flow-hub-grid">${visibleCards.map(card=>`<button type="button" class="home-tile tone-${card.tone || 'blue'}" data-flow-route="${card.route}"><span class="tile-icon">${icon(card.icon,42)}</span><h2>${escapeHtml(card.label)}</h2><p>${escapeHtml(card.description)}</p></button>`).join('')}</div></section>`;
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
@@ -620,7 +629,7 @@
     openModal('Pagamento da venda', `<div class="total-row grand-total"><span>Total</span><strong>${ui.formatCents(state.sale.totalCents)}</strong></div><div class="payment-list">${state.paymentDraft.map((payment, index) => `<div class="payment-line"><strong>${escapeHtml(paymentLabel(payment.method))}</strong><span>${ui.formatCents(payment.amountCents)}</span><button class="danger-button" data-remove-payment="${index}" aria-label="Remover pagamento">×</button></div>`).join('')}</div><div class="total-row"><span>Restante</span><strong>${ui.formatCents(remaining)}</strong></div><div class="payment-add"><div class="field"><label>Forma</label><select id="new-payment-method">${allowedPaymentMethodsForCurrentSale().map(method=>`<option value="${method}">${escapeHtml(paymentLabel(method))}</option>`).join('')}</select></div><div class="field"><label>Valor</label><input id="new-payment-value" inputmode="decimal" value="${(remaining / 100).toFixed(2).replace('.', ',')}"></div><button class="secondary-button" id="add-payment">Adicionar</button></div><div class="modal-actions"><button class="secondary-button" data-close-modal>Voltar</button><button class="primary-button" id="confirm-payment">Concluir venda</button></div>`, { wide: true, onMount(root) { root.querySelectorAll('[data-remove-payment]').forEach((button) => button.addEventListener('click', () => { state.paymentDraft.splice(Number(button.dataset.removePayment), 1); renderPaymentModal(); })); root.querySelector('#add-payment').addEventListener('click', () => { const amountCents = centsFromInput(root.querySelector('#new-payment-value').value); if (amountCents <= 0) return showToast('Informe um valor maior que zero.', 'error'); state.paymentDraft.push({ method: root.querySelector('#new-payment-method').value, amountCents }); renderPaymentModal(); }); root.querySelector('#confirm-payment').addEventListener('click', completeCurrentSale); } });
   }
 
-  function paymentLabel(method) { return ({ CASH: 'Dinheiro', PIX: 'PIX', DEBIT_CARD: 'Cartão débito', CREDIT_CARD: 'Cartão crédito / TEF', STORE_CREDIT: 'A prazo', OTHER: 'Outro' })[method] || method; }
+  function paymentLabel(method) { return ({ CASH: 'Dinheiro', PIX: 'PIX', DEBIT_CARD: 'Cartão débito', CREDIT_CARD: 'Cartão crédito', STORE_CREDIT: 'A prazo', OTHER: 'Outro' })[method] || method; }
 
   async function completeCurrentSale() {
     try { const result = await api.completeSale(state.sale.id, state.paymentDraft); const completed = result.sale; closeModal(); state.sale = null; clearCheckoutDocumentContext(); state.selectedProductId = null; state.discountPercent = 0; state.paymentDraft = []; state.products = await api.products(); showToast(`Venda ${completed.saleNumber} finalizada. Troco: ${ui.formatCents(completed.changeCents)}`, 'success'); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
@@ -1272,5 +1281,13 @@ function openCategoryForm() {
 
   registerBaseRoutes();
   window.PdvAppNavigation = Object.freeze({ navigate,openCheckoutSale });
+  window.addEventListener('artisys:modules-state-changed',()=>{
+    if(!state.user)return;
+    if((state.route==='FOOD'||state.route==='WHOLESALE')&&!canAccessRoute(state.route)){
+      void navigate('home');
+      return;
+    }
+    renderSidebar();
+  });
   void boot();
 })();

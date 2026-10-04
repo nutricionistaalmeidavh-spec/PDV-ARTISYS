@@ -37,8 +37,10 @@
     WHOLESALE:Object.freeze(['wholesale.access'])
   });
 
+  const MODULE_ROUTES=Object.freeze(['FOOD','WHOLESALE']);
+
   const TOP_LEVEL_ROUTES=Object.freeze([
-    'home','checkout','cash','post-sale','catalog','financial-management','access','settings'
+    'home','checkout','FOOD','WHOLESALE','cash','post-sale','catalog','financial-management','access','settings'
   ]);
 
   function permissionsOf(user){
@@ -93,16 +95,25 @@
     });
   }
 
-  function canAccessRoute(user,route){
+  function moduleEnabled(route,moduleState){
+    const id=String(route||'').trim();
+    if(!MODULE_ROUTES.includes(id))return true;
+    if(typeof moduleState?.isEnabled==='function')return moduleState.isEnabled(id)===true;
+    if(moduleState instanceof Map)return moduleState.get(id)===true;
+    return Boolean(moduleState&&moduleState[id]===true);
+  }
+
+  function canAccessRoute(user,route,{moduleState=null}={}){
     if(!user)return false;
-    const required=ROUTE_CAPABILITIES[String(route||'').trim()];
-    if(!required)return false;
+    const id=String(route||'').trim();
+    const required=ROUTE_CAPABILITIES[id];
+    if(!required||!moduleEnabled(id,moduleState))return false;
     if(required.length===0)return true;
     const permissions=permissionsOf(user);
     return required.some(capability=>permissions.has(capability));
   }
 
-  function routesForUser(user){return TOP_LEVEL_ROUTES.filter(route=>canAccessRoute(user,route));}
+  function routesForUser(user,options={}){return TOP_LEVEL_ROUTES.filter(route=>canAccessRoute(user,route,options));}
 
-  return Object.freeze({ACCESS_CENTER_TABS,ROUTE_CAPABILITIES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,accessCenterModel,commonDataLoadPlan,canAccessRoute,routesForUser});
+  return Object.freeze({ACCESS_CENTER_TABS,ROUTE_CAPABILITIES,MODULE_ROUTES,TOP_LEVEL_ROUTES,permissionsOf,hasCapability,accessCenterModel,commonDataLoadPlan,moduleEnabled,canAccessRoute,routesForUser});
 });

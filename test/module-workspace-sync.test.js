@@ -14,11 +14,9 @@ test('workspace sync consumes module route identity instead of localized heading
   assert.match(source,/PdvUiLifecycle/);
   assert.match(source,/surface:mounted/);
   assert.doesNotMatch(source,/MutationObserver/);
-  assert.match(source,/routeRegistry\.render\('settings'\)/);
   assert.match(source,/activeModuleWorkspace/);
-  assert.match(source,/detail\.catalog/);
-  assert.doesNotMatch(source,/MODULE_HEADINGS|HEADING_TO_ID/);
-  assert.match(source,/data-module-toggle=/);
+  assert.doesNotMatch(source,/routeRegistry\.render\('settings'\)|reloadSettingsModules/);
+  assert.doesNotMatch(source,/MODULE_HEADINGS|HEADING_TO_ID|data-module-toggle=/);
   assert.doesNotMatch(source,/data-module-open="\$\{id\}"/);
 });
 

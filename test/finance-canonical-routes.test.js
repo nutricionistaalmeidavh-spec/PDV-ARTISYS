@@ -79,3 +79,10 @@ test('bank route exposes imported OFX history and alert route restores hidden al
   assert.match(operations,/data-alert-unhide/);
   assert.match(operations,/unhideFinanceAlert\(/);
 });
+
+test('management renderer trusts the canonical management.view route gate instead of legacy roles',()=>{
+  const management=read('desktop/renderer/erp-finance-ui.js');
+  const app=read('desktop/renderer/app.js');
+  assert.match(app,/hasCapability\(state\.user,'management\.view'\)/);
+  assert.doesNotMatch(management,/\['admin','manager'\]|dataset\.userRole|gerentes e administradores/);
+});

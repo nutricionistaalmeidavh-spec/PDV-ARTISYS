@@ -720,13 +720,13 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-module-nav='FOOD']",
+      "selector": "[data-route='FOOD']",
       "name": "nav-alimentacao-visivel",
       "timeoutMs": 10000
     },
     {
       "action": "expectVisible",
-      "selector": "[data-module-nav='WHOLESALE']",
+      "selector": "[data-route='WHOLESALE']",
       "name": "nav-atacado-visivel",
       "timeoutMs": 10000
     },
@@ -920,7 +920,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-module-nav='FOOD']",
+      "selector": "[data-route='FOOD']",
       "name": "abrir-alimentacao",
       "timeoutMs": 10000
     },
@@ -1048,7 +1048,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-module-nav='FOOD']",
+      "selector": "[data-route='FOOD']",
       "name": "voltar-alimentacao-pos-correcao",
       "timeoutMs": 10000
     },
@@ -1072,7 +1072,7 @@
     },
     {
       "action": "click",
-      "selector": "[data-module-nav='WHOLESALE']",
+      "selector": "[data-route='WHOLESALE']",
       "name": "abrir-atacado",
       "timeoutMs": 10000
     },
