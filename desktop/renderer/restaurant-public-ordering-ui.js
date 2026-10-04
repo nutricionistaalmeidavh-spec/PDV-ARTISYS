@@ -2,11 +2,11 @@
 
 (()=>{
   const root=window;const {ApiClient}=root.PdvApiClient||{};if(!ApiClient)return;
-  const api=new ApiClient();const content=document.getElementById('route-content');const modalRoot=document.getElementById('modal-root');const toastRoot=document.getElementById('toast-root');
+  const api=new ApiClient();const content=document.getElementById('route-content');const modalRoot=document.getElementById('modal-root');
   let mounting=false;let model=null;let currentQrTableId=null;
   const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const money=cents=>(Number(cents||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
-  function toast(message,type=''){if(root.PdvToast?.show){root.PdvToast.show(message,type);return;}if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function toast(message,type=''){root.PdvToast?.show?.(message,type);}
   async function request(path,options={}){return api.request(path,options);}
   async function load(){await api.initialize();const [config,menu,tables]=await Promise.all([request('/api/v1/vertical/self-service/public-ordering/config'),request('/api/v1/vertical/self-service/public-ordering/menu'),request('/api/v1/restaurant/tables')]);const network=await root.artisysDesktop.publicNetwork.state();return{config,menu,tables,network};}
   function hostValue(){return model?.network?.host||'';}
