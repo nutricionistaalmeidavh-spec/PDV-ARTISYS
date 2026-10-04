@@ -1,0 +1,95 @@
+'use strict';
+
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const {createPdvRuntime}=require('../js/core/pdv-runtime');
+const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
+
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
+const system={kind:'system',id:'system'};
+const read=relative=>fs.readFileSync(path.join(__dirname,'..',relative),'utf8');
+
+function orderingFor(runtime){
+  return createPublicOrderingService({
+    db:runtime.db,
+    modules:runtime.modules,
+    catalog:runtime.catalog,
+    catalogCustomization:runtime.catalogCustomization,
+    restaurant:runtime.restaurant,
+    productPhotos:runtime.productPhotos,
+    tokenFactory:()=> 'menu-layout-public-token-0001'
+  });
+}
+
+test('public menu appearance migrates legacy config to COMPACT and persists only known layouts',()=>{
+  const runtime=createPdvRuntime({dbPath:':memory:'});
+  try{
+    runtime.modules.setEnabled('FOOD',true,system);
+    runtime.db.exec(`
+      CREATE TABLE IF NOT EXISTS restaurant_public_ordering_config (
+        id TEXT PRIMARY KEY,
+        auto_open_table INTEGER NOT NULL DEFAULT 1 CHECK(auto_open_table IN(0,1)),
+        updated_at TEXT NOT NULL
+      );
+    `);
+    runtime.db.prepare("INSERT OR REPLACE INTO restaurant_public_ordering_config(id,auto_open_table,updated_at) VALUES('default',0,?)").run('legacy');
+
+    const ordering=orderingFor(runtime);
+    assert.equal(ordering.getConfig().menuLayout,'COMPACT');
+    assert.equal(ordering.getConfig().autoOpenTable,false);
+
+    const premium=ordering.updateConfig({menuLayout:'PREMIUM'},admin);
+    assert.equal(premium.menuLayout,'PREMIUM');
+    assert.equal(premium.autoOpenTable,false);
+    assert.throws(()=>ordering.updateConfig({menuLayout:'NEON'},admin),/aparência|layout/i);
+    assert.equal(ordering.getConfig().menuLayout,'PREMIUM');
+  }finally{runtime.close();}
+});
+
+test('public menu context exposes the canonical menu layout without changing ordering ownership',()=>{
+  const runtime=createPdvRuntime({dbPath:':memory:'});
+  try{
+    runtime.modules.setEnabled('FOOD',true,system);
+    runtime.catalog.upsertCategory({id:'food',name:'Lanches'},admin);
+    runtime.catalog.upsertProduct({id:'burger',name:'Burger',categoryId:'food',salePriceCents:2490,costCents:900,trackStock:false,menuEnabled:true},admin);
+    runtime.restaurant.upsertTable({id:'table-1',label:'Mesa 1',seats:4},admin);
+    const ordering=orderingFor(runtime);
+    const access=ordering.issueTableAccess('table-1',admin);
+    ordering.updateConfig({menuLayout:'COMPACT'},admin);
+
+    const context=ordering.publicContext(access.token);
+    assert.equal(context.config.menuLayout,'COMPACT');
+    assert.equal(context.products[0].id,'burger');
+    assert.equal(typeof ordering.submitOrder,'function');
+  }finally{runtime.close();}
+});
+
+test('desktop selector and customer menu keep one canonical renderer while introducing the compact layout',()=>{
+  const desktop=read('desktop/renderer/restaurant-public-ordering-ui.js');
+  const desktopCss=read('desktop/renderer/restaurant-public-ordering-ui.css');
+  const menu=read('server/customer-menu/app.js');
+  const menuCss=read('server/customer-menu/styles.css');
+
+  assert.match(desktop,/Aparência do cardápio/);
+  assert.match(desktop,/Moderno e compacto/);
+  assert.match(desktop,/Visual gastronômico/);
+  assert.match(desktop,/name="menuLayout"/);
+  assert.match(desktop,/value="COMPACT"/);
+  assert.match(desktop,/value="PREMIUM"[^>]*disabled/);
+  assert.match(desktop,/menuLayout:/);
+  assert.match(desktopCss,/\.menu-layout-selector/);
+  assert.match(desktopCss,/\.menu-layout-preview/);
+
+  assert.match(menu,/applyMenuLayout\(context\.config\?\.menuLayout\)/);
+  assert.match(menu,/product-card \$\{product\.photo\?'has-photo':'no-photo'\}/);
+  assert.match(menuCss,/\[data-menu-layout="compact"\] \.product-card\.has-photo/);
+  assert.match(menuCss,/\[data-menu-layout="compact"\] \.product-card\.no-photo/);
+  assert.match(menuCss,/\[data-menu-layout="compact"\] \.photo-placeholder/);
+
+  for(const source of [desktop,menu]){
+    assert.doesNotMatch(source,/MutationObserver/);
+    assert.doesNotMatch(source,/renderPremium|mountPremium|compact-ordering-service/i);
+  }
+});
