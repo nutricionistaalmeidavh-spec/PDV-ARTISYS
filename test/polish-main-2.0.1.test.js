@@ -108,7 +108,7 @@ test('backup restore dialog traps keyboard focus, closes on Escape and restores 
   const source=read('desktop/renderer/admin-ops.js');
   assert.match(source,/aria-describedby="ops-restore-description"/);
   assert.match(source,/event\.key==='Escape'/);
-  assert.match(source,/event\.key==='Tab'/);
+  assert.match(source,/event\.key!=='Tab'/);
   assert.match(source,/restoreFocus/);
   assert.match(source,/previouslyFocused/);
 });
