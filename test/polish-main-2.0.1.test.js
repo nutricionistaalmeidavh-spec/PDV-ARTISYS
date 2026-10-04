@@ -115,7 +115,7 @@ test('Settings extensions stay on the canonical route lifecycle without custom s
   const hub=read('desktop/renderer/settings-hub-ui.js');
   const branding=read('desktop/renderer/store-branding-ui.js');
   assert.doesNotMatch(hub,/settings:select|MutationObserver/);
-  assert.doesNotMatch(branding,/settings:select|MutationObserver|storeBrandingMounted/);
+  assert.doesNotMatch(branding,/settings:select|MutationObserver|storeBrandingMounted|let mounting=/);
   assert.match(branding,/page\.querySelector\('#ops-store-receipt-card'\)/);
   assert.match(branding,/route:mounted/);
   assert.match(branding,/route:updated/);
