@@ -76,7 +76,7 @@
     return `<label class="ux-search-field" data-ux-component="SearchField" for="${escapeHtml(id)}"><span class="ux-search-field__label">${escapeHtml(label)}</span><span class="ux-search-field__control"><span class="ux-search-field__icon" aria-hidden="true">⌕</span><input type="search" id="${escapeHtml(id)}"${name ? ` name="${escapeHtml(name)}"` : ''} placeholder="${escapeHtml(placeholder)}" value="${escapeHtml(value)}" autocomplete="${escapeHtml(autocomplete)}">${shortcut ? `<kbd>${escapeHtml(shortcut)}</kbd>` : ''}</span></label>`;
   }
 
-  function FilterBar({ filters = [], activeChips = [], removeAction = '', clearAction = '', clearLabel = 'Limpar filtros' } = {}) {
+  function FilterBar({ filters = [], activeChips = [], clearAction = '', clearLabel = 'Limpar filtros' } = {}) {
     const filterHtml = (Array.isArray(filters) ? filters : []).map((filter) => {
       const id = String(filter.id || 'filter');
       const options = (Array.isArray(filter.options) ? filter.options : []).map((option) => {
@@ -89,8 +89,8 @@
     const chips = (Array.isArray(activeChips) ? activeChips : []).map((chip) => {
       const key = escapeHtml(chip.key || '');
       const label = escapeHtml(chip.label || '');
-      const action = String(chip.action || removeAction || '').trim();
-      if (!action) return `<span class="ux-filter-chip" data-filter-key="${key}">${label}</span>`;
+      const action = String(chip.removeAction || chip.action || '').trim();
+      if (!action) return `<span class="ux-filter-chip ux-filter-chip--static" data-filter-key="${key}">${label}</span>`;
       return `<button type="button" class="ux-filter-chip" data-action="${escapeHtml(action)}" data-filter-key="${key}" aria-label="Remover filtro ${label}">${label}<span aria-hidden="true">×</span></button>`;
     }).join('');
     const clear = clearAction && chips
