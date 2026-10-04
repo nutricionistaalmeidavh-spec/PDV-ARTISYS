@@ -42,13 +42,7 @@
     return Number.isFinite(number) ? Math.round(number * 100) : 0;
   }
   function showToast(message,type='') {
-    if (root.PdvToast?.show) { root.PdvToast.show(message,type); return; }
-    if (!toastRoot) return;
-    const node = document.createElement('div');
-    node.className = `toast ${type}`;
-    node.textContent = message;
-    toastRoot.appendChild(node);
-    setTimeout(() => node.remove(),3500);
+    root.PdvToast?.show?.(message,type);
   }
   function metric(label,value,hint='') {
     return `<article class="ops-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</article>`;
