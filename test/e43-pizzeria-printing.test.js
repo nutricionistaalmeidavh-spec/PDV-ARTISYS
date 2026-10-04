@@ -5,13 +5,13 @@ const assert=require('node:assert/strict');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {renderKitchenTicket,renderTablePreBill}=require('../js/domains/printing/non-fiscal-renderer');
 
-const admin={userId:'admin',role:'admin',terminalId:'pdv-1'};
+const admin={userId:'admin',profileId:'profile-administrator',terminalId:'pdv-1'};
 
 test('E43 configured pizza reaches KDS and non-fiscal prints with size flavors and crust',async()=>{
   let seq=0;
   const rt=createPdvRuntime({dbPath:':memory:',idFactory:p=>`${p}-${++seq}`,now:()=>`2026-09-11T03:00:${String(seq).padStart(2,'0')}.000Z`});
   try{
-    rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',role:'admin',password:'1234567890'},admin);
+    rt.catalog.createUser({id:'admin',username:'admin',name:'Admin',profileId:'profile-administrator',password:'1234567890'},admin);
     rt.catalog.upsertProduct({id:'pizza',name:'Pizza',salePriceCents:3000,trackStock:false},admin);
     rt.modules.setEnabled('FOOD',true,admin);
     rt.pizzeria.upsertProfile({productId:'pizza',pricingPolicy:'HIGHEST_FLAVOR'},admin);
