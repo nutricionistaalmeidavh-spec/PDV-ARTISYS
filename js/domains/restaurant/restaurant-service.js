@@ -285,7 +285,7 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       const timestamp = now();
       db.prepare(`INSERT INTO restaurant_orders(id,table_session_id,source,device_id,created_by,status,note,total_cents,created_at,updated_at)
         VALUES(?,?,?,?,?,'NEW',?,?,?,?)`)
-        .run(id, session.id, normalizedSource, deviceId || null, normalizedSource === 'TABLET' ? null : (actor?.userId || null), String(note || '').trim().slice(0,1000) || null, totalCents, timestamp, timestamp);
+        .run(id, session.id, normalizedSource, deviceId || null, normalizedSource === 'TABLE' ? null : (actor?.userId || null), String(note || '').trim().slice(0,1000) || null, totalCents, timestamp, timestamp);
       const insert = db.prepare(`INSERT INTO restaurant_order_items(id,order_id,product_id,product_name,quantity,unit_price_cents,total_cents,note,created_at)
         VALUES(?,?,?,?,?,?,?,?,?)`);
       for (const item of prepared) insert.run(idFactory('order-item'), id, item.productId, item.productName, item.quantity, item.unitPriceCents, item.totalCents, item.note, timestamp);
