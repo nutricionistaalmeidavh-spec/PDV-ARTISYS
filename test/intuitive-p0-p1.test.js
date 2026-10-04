@@ -162,3 +162,51 @@ test('P0 self-service setup has one canonical creation surface',()=>{
   assert.match(finalUi,/await refreshDevices\(\)/);
   assert.doesNotMatch(finalUi,/form\.reset\(\)/);
 });
+
+
+test('P0 self-service customer catalog follows the canonical public-menu direction',()=>{
+  const mobile=read('server/mobile/app.js');
+  const css=read('server/mobile/styles.css');
+
+  assert.doesNotMatch(mobile,/function renderTablet\s*\(/);
+  assert.doesNotMatch(mobile,/type==='TABLET'/);
+  assert.doesNotMatch(mobile,/TABLET:'Tablet da mesa'/);
+  assert.match(mobile,/let selfServiceSearch=''/);
+  assert.match(mobile,/let selfServiceCategory=''/);
+  assert.match(mobile,/function selfServiceProducts\s*\(/);
+  assert.match(mobile,/data-self-service-search/);
+  assert.match(mobile,/data-self-service-category/);
+  assert.match(mobile,/self-service-product-card/);
+  assert.match(mobile,/self-service-product-photo/);
+  assert.match(mobile,/self-service-product-fallback/);
+  assert.match(mobile,/product\.available===false/);
+  assert.match(mobile,/\/api\/v1\/mobile\/self-service\/products\/\$\{encodeURIComponent\(product\.id\)\}\/photo/);
+  assert.match(mobile,/function selfServiceCartRail\s*\(/);
+  assert.match(mobile,/self-service-cart-rail/);
+  assert.match(mobile,/class="self-service-shell"/);
+  assert.match(mobile,/Chamar garçom/);
+  assert.match(mobile,/Pedir conta/);
+  assert.match(mobile,/\/api\/v1\/mobile\/self-service\/service/);
+
+  const start=mobile.indexOf('function renderSelfService');
+  const end=mobile.indexOf('function render(){',start);
+  const selfRenderer=mobile.slice(start,end);
+  assert.doesNotMatch(selfRenderer,/\bshell\(/);
+  assert.match(selfRenderer,/profile\.mode==='TABLE'/);
+  assert.match(selfRenderer,/profile\.mode==='PICKUP'/);
+
+  const submitStart=mobile.indexOf('async function submitSelfServiceOrder');
+  const submitEnd=mobile.indexOf('function bindSelfService',submitStart);
+  const submit=mobile.slice(submitStart,submitEnd);
+  assert.ok(submit.indexOf("await request('/api/v1/mobile/self-service/orders'")>=0);
+  assert.ok(submit.indexOf('cart.clear()')>submit.indexOf("await request('/api/v1/mobile/self-service/orders'"));
+  assert.match(submit,/catch\(error\)[\s\S]*button\.disabled=false/);
+
+  assert.match(css,/\.self-service-shell\{/);
+  assert.match(css,/\.self-service-category-strip/);
+  assert.match(css,/\.self-service-product-grid\{[^}]*grid-template-columns/);
+  assert.match(css,/\.self-service-product-card/);
+  assert.match(css,/\.self-service-add\{[^}]*min-width:44px[^}]*min-height:44px/);
+  assert.match(css,/\.self-service-cart-rail/);
+  assert.match(css,/@media\(max-width:760px\)[\s\S]*\.self-service-product-grid\{grid-template-columns:1fr/);
+});
