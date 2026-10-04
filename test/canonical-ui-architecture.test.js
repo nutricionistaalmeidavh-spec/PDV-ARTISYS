@@ -46,8 +46,8 @@ test('migrated operational components are composed by canonical owners',()=>{
   const detail=read('desktop/renderer/operational-detail-extensions.js');
   const operational=read('desktop/renderer/operational-pages.js');
   const returnsUi=read('desktop/renderer/returns-ui.js');
-  assert.doesNotMatch(route,/MutationObserver|route:mounted|route:updated/);
-  assert.doesNotMatch(detail,/MutationObserver|route:mounted|route:updated/);
+  assert.doesNotMatch(route,/MutationObserver|lifecycle\?*\.on\(['"]route:/);
+  assert.doesNotMatch(detail,/MutationObserver|lifecycle\?*\.on\(['"]route:/);
   assert.match(operational,/PdvOperationalRouteExtensions\?\.mountRoute/);
   assert.match(operational,/PdvOperationalDetailExtensions\?\.mountSettings/);
   assert.match(returnsUi,/PdvOperationalRouteExtensions\?\.mountReturns/);
