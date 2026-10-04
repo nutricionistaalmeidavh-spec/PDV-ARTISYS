@@ -21,7 +21,7 @@ Unknown capabilities, malformed principals, resolver failures and policy failure
 ## Principal kinds
 
 - `human`: a person authenticated locally;
-- `device`: KDS, waiter, self-service or terminal surface; self-service table binding is resolved from its persisted profile;
+- `device`: KDS, waiter or terminal surface;
 - `system`: explicit privileged internal/bootstrap principal;
 - `public-resource`: opaque-token access scoped to a public resource such as a table.
 
