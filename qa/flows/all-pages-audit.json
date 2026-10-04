@@ -1935,6 +1935,24 @@
     },
     {
       "action": "expectVisible",
+      "selector": "#waiter-cart-toggle",
+      "name": "garcom-pedido-resumo-fixo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#waiter-cart-toggle",
+      "name": "garcom-abrir-pedido-em-andamento",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#send-order",
+      "name": "garcom-enviar-pedido-disponivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
       "selector": "#waiter-open-cart",
       "name": "garcom-barra-pedido-visivel",
       "timeoutMs": 10000
@@ -2148,6 +2166,18 @@
       "selector": ".waiter-layout",
       "name": "garcom-retorno-conectado",
       "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-table='qa-table-1']",
+      "name": "garcom-retorno-abrir-mesa",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "garcom-retorno-abrir-comanda",
+      "timeoutMs": 10000
     },
     {
       "action": "waitFor",
