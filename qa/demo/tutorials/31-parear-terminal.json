@@ -38,6 +38,14 @@
       "holdMs": 250
     },
     {
+      "action": "waitFor",
+      "selector": "#p1-terminal-admin-panel",
+      "name": "terminal-panel-attached",
+      "state": "attached",
+      "timeoutMs": 12000,
+      "holdMs": 150
+    },
+    {
       "action": "click",
       "selector": "#settings-hub [data-settings-category='units']",
       "name": "abrir-unidades",
