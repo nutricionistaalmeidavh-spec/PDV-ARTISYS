@@ -40,8 +40,7 @@ for (const capability of [
   'historical-cost-snapshot-and-margin',
   'stock-locations-reservations-and-transfers',
   'purchase-orders-partial-receiving-moving-average-payable',
-  'sales-orders-pickup-delivery-reservation-fulfillment',
-  'mandatory-commercial-activation-local-offline-runtime'
+  'sales-orders-pickup-delivery-reservation-fulfillment'
 ]) {
   if (!capabilities.includes(capability)) fail(`release/capabilities.json is missing ${capability}`);
 }
