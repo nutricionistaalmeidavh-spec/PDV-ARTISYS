@@ -6,7 +6,7 @@ O projeto usa um único núcleo transacional para venda, estoque, caixa, pagamen
 
 ## Estado do produto
 
-As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas na linha 1.4. A versão atual inclui operação de balcão, retaguarda, estoque por local, compras, pedidos, módulos verticais, hardware local, LAN, backup, importação, observabilidade e gates automatizados de release.
+As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas na versão 2.0.1. A versão atual inclui operação de balcão, retaguarda, estoque por local, compras, pedidos, áreas opcionais, hardware local, LAN, backup, importação, observabilidade e gates automatizados de release.
 
 ### Operação comercial
 
@@ -108,7 +108,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Módulos reutili
 ## Requisitos e desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 2.0.0.
+- Windows x64 é o alvo de empacotamento comercial 2.0.1.
 
 ```bash
 npm install
@@ -157,7 +157,7 @@ A E54.1 mantém simulação automatizada de impressora, balança, gaveta, leitor
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 1.4.23 opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
+A versão comercial 2.0.1 opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -172,7 +172,7 @@ npm run qa:web-surfaces
 npm run qa:e2e:p0
 npm run qa:e2e:tablet
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-1.4.23-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-2.0.1-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
