@@ -365,6 +365,7 @@
       if(route==='settings'){
         await root.PdvOperationalDetailExtensions?.mountSettings?.(pageRoot);
         root.PdvVerticalModules?.mountSettingsModules?.(pageRoot);
+        root.PdvSettingsHub?.mount?.(pageRoot);
       }
       content.focus({preventScroll:true});
     }catch(error){
