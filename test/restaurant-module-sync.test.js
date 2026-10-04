@@ -13,7 +13,7 @@ test('module gate reconciles every optional module changed by another client',()
   assert.match(gate,/PdvModuleGate/);
   assert.match(gate,/MODULE_SETTING_PATTERN|modules\.\(\[A-Z_\]\+\)\.enabled/);
   assert.match(gate,/new Map\(|moduleStates/);
-  assert.match(gate,/\[data-module-open/);
+  assert.doesNotMatch(gate,/\[data-module-open|\[data-module-nav/);
   assert.match(gate,/artisys:modules-state-changed/);
   assert.match(gate,/CustomEvent/);
   assert.match(gate,/addEventListener\(['"]focus['"][\s\S]*refresh\(/);
@@ -32,6 +32,6 @@ test('generic gate publishes the canonical catalog without a restaurant-only ali
   assert.match(gate,/setEnabled/);
   assert.match(gate,/catalog:.*moduleCatalog/);
   assert.match(gate,/moduleCatalog\.map\(module=>\(\{\.\.\.module\}\)\)/);
-  assert.match(gate,/stopImmediatePropagation\(\)/);
+  assert.doesNotMatch(gate,/stopImmediatePropagation\(\)|applyLauncherState/);
   assert.match(gate,/never fabricates module state/);
 });
