@@ -21,7 +21,7 @@
   function countLabel(value,singular,plural=`${singular}s`){const count=Number(value||0);return `${qty(count)} ${count===1?singular:plural}`;}
   function when(value){if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?escapeHtml(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});}
   function centsInput(value){const text=String(value??'').trim().replace(/\./g,'').replace(',','.');const n=Number(text);return Number.isFinite(n)?Math.round(n*100):0;}
-  function showToast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function showToast(message,type=''){if(root.PdvToast?.show){root.PdvToast.show(message,type);return;}if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
   function empty(message){return `<div class="ops-empty">${escapeHtml(message)}</div>`;}
   function badge(value){const normalized=String(value||'').toLowerCase();const label=ui?.statusLabel?.(value,String(value||'—'))||String(value||'—');return `<span class="ops-badge status-${escapeHtml(normalized)}">${escapeHtml(label)}</span>`;}
   const FINANCE_KIND_LABELS=Object.freeze({PAYABLE:'Conta a pagar',RECEIVABLE:'Conta a receber'});
@@ -352,7 +352,25 @@
   }
 
   const renderers={inventory:renderInventory,cash:renderCash,sales:renderSalesHistory,finance:renderFinance,settings:renderSettings};
-  async function showRoute(route){if(!renderers[route])return;if(!canAccess(route)){markActive('home');root.document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}markActive(route);content.innerHTML=page('Carregando','Consultando o servidor local…','<div class="ops-loader"></div>');try{await renderers[route]();if(routeActive(route))content.focus({preventScroll:true});}catch(error){if(!routeActive(route))return;content.innerHTML=page('Não foi possível carregar','O servidor local recusou ou não concluiu a operação.',`<div class="ops-error">${escapeHtml(error.message)}</div>`);showToast(error.message,'error');}}
+  async function showRoute(route){
+    if(!renderers[route])return;
+    if(!canAccess(route)){markActive('home');root.document.querySelector('#sidebar-nav [data-route="home"]')?.click();return;}
+    markActive(route);
+    content.innerHTML=page('Carregando','Consultando o servidor local…','<div class="ops-loader"></div>');
+    try{
+      await renderers[route]();
+      if(!routeActive(route))return;
+      const pageRoot=content.querySelector('.ops-page,.page');
+      await root.PdvOperationalRouteExtensions?.mountRoute?.(route,pageRoot);
+      if(route==='inventory')root.PdvEnterpriseDepthUi?.mountInventory?.(pageRoot);
+      if(route==='settings')await root.PdvOperationalDetailExtensions?.mountSettings?.(pageRoot);
+      content.focus({preventScroll:true});
+    }catch(error){
+      if(!routeActive(route))return;
+      content.innerHTML=page('Não foi possível carregar','O servidor local recusou ou não concluiu a operação.',`<div class="ops-error">${escapeHtml(error.message)}</div>`);
+      showToast(error.message,'error');
+    }
+  }
 
   for(const route of Object.keys(renderers)) routeRegistry.register(route,{owner:'operational-pages',render:()=>showRoute(route)});
   root.PdvOperationalUi=Object.freeze({showRoute,renderInventory,renderCash,renderSalesHistory,renderReturns,renderFinance,renderReports,renderSettings});
