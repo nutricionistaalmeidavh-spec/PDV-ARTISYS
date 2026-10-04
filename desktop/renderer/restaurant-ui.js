@@ -2,14 +2,14 @@
 
 (()=>{
   const root=window;const {ApiClient}=root.PdvApiClient||{};const composer=root.PdvOrderComposer;if(!ApiClient||!composer)return;
-  const api=new ApiClient();const ui=root.PdvUiModel;const content=document.getElementById('route-content');const toastRoot=document.getElementById('toast-root');const modalRoot=document.getElementById('modal-root');
+  const api=new ApiClient();const ui=root.PdvUiModel;const content=document.getElementById('route-content');const modalRoot=document.getElementById('modal-root');
   let config=null;let selectedSessionId=null;let latestCredential=null;let activeView='operation';let draftSessionId=null;const draftCart=composer.createCart();
   let data={tables:[],requests:[],stations:[],tickets:[],devices:[],users:[],customers:[],products:[],routes:[],report:{}};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const qty=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
   const stamp=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
-  function toast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function toast(message,type=''){root.PdvToast?.show?.(message,type);}
   function status(value){const fallback={CLOSED:'Encerrado',DIRECT:'Atendimento direto'}[String(value||'').toUpperCase()]||String(value||'');const label=ui?.statusLabel?.(value,fallback)||fallback;return `<span class="restaurant-status ${esc(value)}">${esc(label)}</span>`;}
   const roleLabel=value=>ui?.roleLabel?.(value,String(value||'Equipe'))||String(value||'Equipe');
   const deviceTypeLabel=value=>ui?.deviceTypeLabel?.(value,String(value||'Dispositivo'))||String(value||'Dispositivo');
