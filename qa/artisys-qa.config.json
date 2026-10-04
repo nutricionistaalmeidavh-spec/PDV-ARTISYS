@@ -50,8 +50,7 @@
     "all-pages-audit": "flows/all-pages-audit.json",
     "access-center-partial-permissions": "flows/access-center-partial-permissions.json",
     "access-center-ergonomic": "flows/access-center-ergonomic.json",
-    "delivery-pickup-operational": "flows/delivery-pickup-operational-e2e.json",
-    "action-integrity-finance": "flows/action-integrity-finance.json"
+    "delivery-pickup-operational": "flows/delivery-pickup-operational-e2e.json"
   },
   "qaProfiles": {
     "quick": {
