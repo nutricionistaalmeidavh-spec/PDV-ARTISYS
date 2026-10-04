@@ -362,7 +362,10 @@
       const pageRoot=content.querySelector('.ops-page,.page');
       await root.PdvOperationalRouteExtensions?.mountRoute?.(route,pageRoot);
       if(route==='inventory')root.PdvEnterpriseDepthUi?.mountInventory?.(pageRoot);
-      if(route==='settings')await root.PdvOperationalDetailExtensions?.mountSettings?.(pageRoot);
+      if(route==='settings'){
+        await root.PdvOperationalDetailExtensions?.mountSettings?.(pageRoot);
+        root.PdvVerticalModules?.mountSettingsModules?.(pageRoot);
+      }
       content.focus({preventScroll:true});
     }catch(error){
       if(!routeActive(route))return;
