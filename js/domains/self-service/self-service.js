@@ -96,17 +96,7 @@ function createSelfService({db,modules,mobileDevices,restaurant,fastFood,publicO
     const state=context(deviceId);
     const items=Array.isArray(input.items)?input.items:[];
     if(!items.length)throw new Error('Adicione itens ao pedido.');
-    const allowed=new Set(state.products.map(product=>String(product.id)));
-    for(const item of items){
-      if(!allowed.has(String(item.productId||'')))throw new Error('Item fora do Cardapio.');
-    }
-    const normalized=items.map(item=>({
-      productId:item.productId,
-      quantity:item.quantity??1,
-      unitPriceCents:item.unitPriceCents,
-      configurationSnapshot:item.configurationSnapshot,
-      note:item.note||''
-    }));
+    const normalized=items.map(item=>publicOrdering.priceMenuItem(item));
     if(state.profile.mode==='TABLE'){
       if(!state.session)throw new Error('Mesa sem comanda aberta.');
       return restaurant.addOrder(state.session.id,{items:normalized,note:String(input.note||'').trim(),source:'TABLE',deviceId:state.device.id,actor,mutationId});
