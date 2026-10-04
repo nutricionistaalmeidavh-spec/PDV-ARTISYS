@@ -53,6 +53,8 @@ jobs:
         run: npm run capability:check:phase3
       - name: Check documentation consistency
         run: npm run docs:check
+      - name: Install Chromium for Playwright coverage checks
+        run: npx playwright install chromium
       - name: Run unit and integration tests with coverage
         shell: bash
         run: |
