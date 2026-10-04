@@ -11,7 +11,7 @@ test('a product with active variants cannot be sold as the parent item',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-parent-sale-guard-'));let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
   try{
-    runtime.catalog.createUser({id:'admin',username:'parent-guard',name:'Admin',role:'admin',password:'senha-forte-123'});
+    runtime.catalog.createUser({id:'admin',username:'parent-guard',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
     runtime.catalog.upsertProduct({id:'tang',name:'Tang',salePriceCents:399,costCents:150,trackStock:false});
     runtime.catalogCustomization.upsertVariant({id:'tang-limao',productId:'tang',name:'Limão',priceDeltaCents:0,costCents:150});
     runtime.retail.setProductVariantStock('tang-limao',5);

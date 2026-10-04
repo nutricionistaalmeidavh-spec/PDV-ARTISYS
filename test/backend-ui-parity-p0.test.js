@@ -11,7 +11,7 @@ async function fixture(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-ui-parity-'));
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`,serverVersion:'1.4.0'});
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'});
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'});
   runtime.catalog.upsertProduct({id:'p1',name:'Produto Local',sku:'LOC-1',salePriceCents:1000,costCents:400,trackStock:true,minimumStock:1});
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install-secret'});
   const address=await server.start();

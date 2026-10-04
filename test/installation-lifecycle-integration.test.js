@@ -11,7 +11,7 @@ test('new-store archive and safety backup reopen with original records while new
  const dbPath=path.join(userData,'pdv-artisys.sqlite');const backupDir=path.join(userData,'backups');
  const runtime=createPdvRuntime({dbPath,backupDir});
  let closed=false;t.after(()=>{if(!closed)runtime.close();});
- runtime.catalog.createUser({id:'original-admin',username:'original',name:'Administrador original',role:'admin',password:'Original-Password-123!',active:true});
+ runtime.catalog.createUser({id:'original-admin',username:'original',name:'Administrador original',profileId:'profile-administrator',password:'Original-Password-123!',active:true});
  runtime.db.exec('CREATE TABLE archive_probe(id TEXT PRIMARY KEY,value TEXT NOT NULL)');
  runtime.db.prepare('INSERT INTO archive_probe VALUES(?,?)').run('sale-original','Preserve original business data');
  fs.writeFileSync(path.join(userData,'data-server.json'),JSON.stringify({mode:'lan-host',selected:true,port:4312}));
