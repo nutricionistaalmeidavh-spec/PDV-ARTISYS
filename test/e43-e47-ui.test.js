@@ -20,7 +20,10 @@ test('desktop loads optional module API and workspace extensions',()=>{
 test('vertical UI exposes one Alimentação module with operational capabilities',()=>{
   const source=read('desktop/renderer/vertical-modules.js');
   assert.match(source,/FOOD:renderFoodWorkspace/);
-  for(const id of ['PIZZERIA','DELIVERY','FAST_FOOD','SELF_SERVICE'])assert.match(source,new RegExp(`data-food-capability="${id}"`));
+  for(const id of ['PIZZERIA','DELIVERY','SELF_SERVICE'])assert.match(source,new RegExp(`data-food-capability="${id}"`));
+  assert.doesNotMatch(source,/data-food-capability="FAST_FOOD"/);
+  assert.match(source,/<strong>Pedidos<\/strong>/);
+  assert.match(source,/if\(id==='FAST_FOOD'\)return renderDelivery\(\)/);
   assert.match(source,/Produção \/ KDS/);
   assert.match(source,/Incluído ao ativar/);
   assert.doesNotMatch(source,/MARKET_BAKERY:renderMarket/);

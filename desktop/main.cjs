@@ -3,6 +3,9 @@
 const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
 const path = require('node:path');
 const { networkInterfaces } = require('node:os');
+const { publicNetworkState, testPublicNetwork } = require('./public-network.cjs');
+const { createLanDiscovery } = require('./lan-discovery.cjs');
+const { installationState, acknowledgeInstallation, archiveInstallation } = require('./installation-lifecycle.cjs');
 const { version: productVersion } = require('../package.json');
 const { existsSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
@@ -27,6 +30,7 @@ let mainWindow = null;
 let runtime = null;
 let localServer = null;
 let lanServer = null;
+let lanDiscovery = null;
 let apiBase = '';
 let bootstrapConfig = null;
 let terminalCredentialStore = null;
@@ -38,6 +42,7 @@ let printWorkerBusy = false;
 let installationWasExisting = true;
 let dataServerConfig = null;
 let dataServerConfigPath = '';
+let installationTransition = false;
 const installToken = randomBytes(32).toString('hex');
 const API_TIMEOUT_MS = 12000;
 
@@ -117,6 +122,8 @@ async function startEmbeddedServer() {
     }
   });
 
+  runtime.pilot.setDeploymentContext({mode:dataServerConfig.mode,selected:dataServerConfig.selected});
+
   if (!app.isPackaged && process.env.ARTISYS_QA === '1' && process.env.ARTISYS_QA_AUTO_ADMIN === '1' && runtime.catalog.countUsers() === 0) {
     runtime.catalog.createUser({
       id:'qa-admin',
@@ -139,6 +146,8 @@ async function startEmbeddedServer() {
     lanServer = createLocalServer({ runtime, host:lanHost, port:lanPort, token:installToken, requireTerminalAuth:true, isExistingInstall:installationWasExisting });
     try {
       await lanServer.start();
+      lanDiscovery?.stop();
+      lanDiscovery=createLanDiscovery({identity:terminalIdentityStore.getOrCreate().fingerprint,port:lanPort});
     } catch (error) {
       console.error('Servidor LAN configurado, mas indisponível.', error);
       try { await lanServer.stop(); } catch {}
@@ -171,12 +180,17 @@ function createMainWindow() {
 }
 
 function buildHardwareController() {
-  const storedScale = hardwareConfigStore?.load()?.scale || null;
+  const storedHardware = hardwareConfigStore?.load() || {};
+  const storedScale = storedHardware.scale || null;
   const hardwareEnv = { ...process.env };
   if (storedScale) {
     hardwareEnv.PDV_SCALE_PROFILE = storedScale.profile;
     hardwareEnv.PDV_SCALE_PORT = storedScale.port;
     if (storedScale.requestCommand) hardwareEnv.PDV_SCALE_URANO_REQUEST = storedScale.requestCommand;
+  }
+  if (storedHardware.drawer) {
+    hardwareEnv.PDV_DRAWER_PORT = storedHardware.drawer.port;
+    hardwareEnv.PDV_DRAWER_BAUD = storedHardware.drawer.baud;
   }
   const hardwareRuntime = createPdvHardwareRuntime({
     BrowserWindow,
@@ -184,6 +198,7 @@ function buildHardwareController() {
     resolvePrinterPreferences:() => currentPrintingPreferences()
   });
   return createHardwareController(hardwareRuntime, {
+    onDrawerConfigured: configuration => hardwareConfigStore?.saveDrawer(configuration),
     onScaleConfigured: configuration => hardwareConfigStore?.saveScale({
       profile:configuration.profile,
       port:configuration.port || '',
@@ -269,8 +284,48 @@ function registerIpc() {
     storeName: bootstrapConfig?.storeName || 'Loja Matriz',
     lanEnabled: Boolean(lanServer),
     version: productVersion,
+    installation:installationState({userData:app.getPath('userData'),version:productVersion,existing:installationWasExisting}),
     dataServer: publicDataServerState()
   }));
+
+  ipcMain.handle('artisys:installation:acknowledge', () => {acknowledgeInstallation({userData:app.getPath('userData'),version:productVersion});return {ok:true};});
+  ipcMain.handle('artisys:installation:new-store', async (_event,payload={}) => {
+    if(installationTransition)throw new Error('Uma nova instalação já está sendo preparada.');
+    await authorizeDeploymentChange(payload.sessionToken);
+    if(!runtime||isExternalMode(dataServerConfig))throw new Error('Crie a nova loja no PC que guarda os dados, não em um terminal conectado.');
+    if(payload.confirmation!=='NOVA LOJA')throw new Error('Digite NOVA LOJA para confirmar.');
+    if(runtime.backups.getBackupStatus().pendingRestore)throw new Error('Conclua a restauração pendente antes de iniciar uma nova loja.');
+    if(installationTransition)throw new Error('Uma nova instalação já está sendo preparada.');
+    installationTransition=true;
+    let stopped=false;
+    try {
+      const backup=runtime.backups.createBackup('pre-new-installation',{prune:false});
+      if(!backup.valid)throw new Error('O backup não passou na verificação de integridade.');
+      stopped=true;
+      if(printWorker){clearInterval(printWorker);printWorker=null;}
+      const deadline=Date.now()+12000;
+      while(printWorkerBusy){if(Date.now()>deadline)throw new Error('Aguarde a impressão terminar antes de iniciar outra loja.');await new Promise(resolve=>setTimeout(resolve,50));}
+      lanDiscovery?.stop();lanDiscovery=null;
+      if(lanServer){await lanServer.stop();lanServer=null;}
+      if(localServer){await localServer.stop();localServer=null;}
+      runtime.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');runtime.close();runtime=null;
+      const result=archiveInstallation({userData:app.getPath('userData'),confirmation:payload.confirmation,backup});
+      app.relaunch();app.exit(0);return result;
+    } catch(error) {
+      if(stopped){
+        if(!runtime){await startEmbeddedServer();}
+        else {
+          if(!localServer){localServer=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false,isExistingInstall:true});const address=await localServer.start();apiBase=`http://127.0.0.1:${address.port}`;}
+          if(isHostMode(dataServerConfig)&&!lanServer){lanServer=createLocalServer({runtime,host:dataServerConfig.host,port:dataServerConfig.port,token:installToken,requireTerminalAuth:true,isExistingInstall:true});await lanServer.start();}
+        }
+        startPrintWorker();
+      }
+      throw error;
+    } finally {installationTransition=false;}
+  });
+
+  ipcMain.handle('artisys:public-network:state', async () => publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer),stableHost:await lanDiscovery?.state()||''}));
+  ipcMain.handle('artisys:public-network:test', (_event,input={}) => testPublicNetwork({state:publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer)}),host:input.host,port:input.port}));
 
   ipcMain.handle('artisys:data-server:state', () => publicDataServerState());
   ipcMain.handle('artisys:data-server:new-installation', () => {
@@ -304,6 +359,7 @@ function registerIpc() {
       currentConfig:dataServerConfig,
       credentialStore:terminalCredentialStore
     });
+    acknowledgeInstallation({userData:app.getPath('userData'),version:productVersion});
     return { config:publicDataServerState(), restartRequired:true };
   });
   ipcMain.handle('artisys:data-server:test', async (_event, input = {}) => testDataServerTarget({
@@ -378,6 +434,7 @@ function registerIpc() {
 }
 
 async function shutdown() {
+  lanDiscovery?.stop();lanDiscovery=null;
   if (printWorker) clearInterval(printWorker);
   printWorker = null;
   try {

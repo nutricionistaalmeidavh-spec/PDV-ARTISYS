@@ -167,3 +167,16 @@ test('invalid printer mode fails at startup instead of guessing a driver', () =>
   const { createPdvHardwareRuntime } = require(runtimePath);
   assert.throws(()=>createPdvHardwareRuntime({ BrowserWindow:function(){}, env:{PDV_PRINTER_MODE:'cloud'}, modules:fakeModules([]) }), /PDV_PRINTER_MODE invalido/);
 });
+
+test('drawer configuration applies live, clears explicitly and reports diagnostic configuration', async()=>{
+  const {createPdvHardwareRuntime}=require(runtimePath);
+  const calls=[];
+  const runtime=createPdvHardwareRuntime({BrowserWindow:function(){},env:{},modules:fakeModules(calls)});
+  assert.equal((await runtime.status()).cashDrawer.reason,'not-configured');
+  assert.deepEqual(await runtime.configureDrawer({port:' COM8 ',baud:19200}),{configured:true,port:'COM8',baud:19200});
+  await runtime.openDrawer();
+  assert.ok(calls.includes('drawer-open'));
+  assert.equal((await runtime.diagnostics()).configuration.drawer.port,'COM8');
+  await runtime.configureDrawer({port:''});
+  await assert.rejects(()=>runtime.openDrawer(),/nao configurada/i);
+});

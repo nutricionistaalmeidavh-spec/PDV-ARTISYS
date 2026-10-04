@@ -172,14 +172,17 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   }
 
   let cashDrawer = null;
-  if (String(env.PDV_DRAWER_PORT || '').trim()) {
-    const profile = {
-      path:String(env.PDV_DRAWER_PORT).trim(),
-      baudRate:readPositiveInteger(env.PDV_DRAWER_BAUD, 9600, 'PDV_DRAWER_BAUD')
-    };
-    const transport = serial.createSerialTransport({ profile });
-    cashDrawer = serial.createDrawerAdapter({ transport });
+  let drawerConfiguration = {configured:false,port:null,baud:9600};
+  function configureDrawer(input = {}) {
+    const port=String(input.port||'').trim();
+    const baud=readPositiveInteger(input.baud,9600,'Velocidade da gaveta');
+    if(port.length>128)throw new Error('Porta serial invalida.');
+    const next=port ? serial.createDrawerAdapter({transport:serial.createSerialTransport({profile:{path:port,baudRate:baud}})}) : null;
+    cashDrawer=next;
+    drawerConfiguration={configured:Boolean(next),port:port||null,baud};
+    return {...drawerConfiguration};
   }
+  configureDrawer({port:env.PDV_DRAWER_PORT,baud:env.PDV_DRAWER_BAUD});
 
   const basePrinterProfile = {
     id:'pdv-receipt',
@@ -271,7 +274,9 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   async function readWeight() {
     if (!scale) throw new Error('Balanca nao configurada.');
-    const result = await scale.readWeight();
+    let result;
+    try { result = await scale.readWeight(); }
+    catch { throw new Error(`Não foi possível ler a balança em ${scaleConfiguration.port}. Verifique o cabo, o driver, a porta e o protocolo selecionados. Feche outros programas que usam a porta e tente novamente.`); }
     const weight = Number(result && typeof result === 'object' ? result.weight : result);
     if (!Number.isFinite(weight) || weight < 0) throw new Error('Leitura de peso invalida.');
     return { weight:Math.round(weight * 1000) / 1000, unit:String(result?.unit || 'kg') };
@@ -284,7 +289,8 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
 
   async function openDrawer() {
     if (!cashDrawer) throw new Error('Gaveta nao configurada.');
-    return cashDrawer.open();
+    try { return await cashDrawer.open(); }
+    catch { throw new Error(`Não foi possível abrir a gaveta em ${drawerConfiguration.port}. Verifique a conexão serial, a velocidade e se a gaveta aceita pulso ESC/POS.`); }
   }
 
   async function print(job = {}) {
@@ -311,7 +317,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
       configuration:{
         printer:{mode:printerMode,type:basePrinterProfile.printerType,width:profile.width,paperMm,deviceName:profile.deviceName||null,silent:Boolean(profile.silent),cut:Boolean(profile.cut),openDrawerAfterPrint:Boolean(profile.openDrawerAfterPrint),interface:printerMode==='thermal'?String(env.PDV_PRINTER_INTERFACE||'').trim()||null:null,serialPort:printerMode==='serial'?String(env.PDV_PRINTER_PORT||'').trim()||null:null},
         scale:{...scaleConfiguration},
-        drawer:{configured:Boolean(cashDrawer),port:String(env.PDV_DRAWER_PORT||'').trim()||null,baud:cashDrawer?readPositiveInteger(env.PDV_DRAWER_BAUD,9600,'PDV_DRAWER_BAUD'):null}
+        drawer:{...drawerConfiguration}
       },
       note:'Diagnostico local sanitizado; nao declara homologacao fisica sem evidencia registrada.'
     };
@@ -323,7 +329,7 @@ function createPdvHardwareRuntime({ BrowserWindow, env = process.env, modules = 
   async function testDrawer(){return openDrawer();}
   async function testScale(){return readWeight();}
 
-  return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, configureScale, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
+  return Object.freeze({ status, listSerialPorts, listPrinters, diagnostics, configureScale, configureDrawer, readWeight, tare, openDrawer, print, testPrinter, testDrawer, testScale });
 }
 
 module.exports = { createPdvHardwareRuntime, readBoolean, readPositiveInteger, readScaleProfile, readUranoRequestCommand, sanitizePort };

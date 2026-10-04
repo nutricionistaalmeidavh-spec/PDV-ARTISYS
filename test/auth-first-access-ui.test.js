@@ -15,7 +15,14 @@ test('first access UI creates administrator and signs in without a second creden
   assert.match(ui,/name="email"/);
   assert.match(ui,/name="passwordConfirm"/);
   assert.match(ui,/Criar administrador e entrar/);
-  assert.match(ui,/await api\.setupAdmin[\s\S]{0,1200}await api\.login/);
+  const setupSection=ui.slice(ui.indexOf('function renderFirstAccess'),ui.indexOf('function renderActivation'));
+  const confirmation=setupSection.indexOf("overlay.querySelector('#continue-after-key').addEventListener('click'");
+  assert.ok(setupSection.indexOf('await api.setupAdmin')>=0);
+  assert.ok(setupSection.indexOf('Guarde sua chave de recuperação')>setupSection.indexOf('await api.setupAdmin'));
+  assert.ok(confirmation>setupSection.indexOf('Guarde sua chave de recuperação'));
+  assert.ok(setupSection.indexOf('await api.login')>confirmation,'login waits for explicit recovery-key confirmation');
+  assert.match(setupSection,/copy-recovery-key/);
+  assert.match(setupSection,/download-recovery-key/);
   assert.match(ui,/window\.location\.reload\(\)/);
   assert.doesNotMatch(ui,/Administrador criado\. Entre com seus dados\./);
   assert.match(ui,/PdvUiLifecycle/);
@@ -23,13 +30,16 @@ test('first access UI creates administrator and signs in without a second creden
   assert.doesNotMatch(ui,/new MutationObserver\b/);
 });
 
-test('first access controller shows activation only when setup says it is required',()=>{
+test('first access is local with optional email, and recovery works without commercial activation',()=>{
   const ui=read('desktop/renderer/first-access-ui.js');
-  assert.match(ui,/setup\.activation\?\.required/);
-  assert.doesNotMatch(ui,/requestSetupActivation\(email\)/);
-  assert.match(ui,/Ativar e definir senha/);
-  assert.match(ui,/verifySetupActivation\(email, code\)/);
-  assert.match(ui,/Dados operacionais e senhas permanecem neste computador/);
+  const controller=ui.slice(ui.indexOf('async function syncAuthOverlay'));
+  assert.match(controller,/renderFirstAccess\(\)/);
+  assert.doesNotMatch(controller,/renderActivation\(|activation\?\.required/);
+  assert.match(controller,/addEventListener\('click', renderLocalRecovery\)/);
+  assert.match(ui,/E-mail <small>\(opcional\)<\/small>/);
+  assert.match(ui,/recuperação é local e não precisa de e-mail ou internet/);
+  assert.match(ui,/Recuperação comercial por e-mail/);
+  assert.match(ui,/password-recovery\/local-confirm/);
 });
 
 test('renderer adds email password recovery without exposing the password to Cloudflare',()=>{

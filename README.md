@@ -1,4 +1,4 @@
-# ArtiSys PDV 2.0.0
+# ArtiSys PDV 2.0.1
 
 PDV desktop da ArtiSys para operação **local-first**, self-hosted e em rede LAN. O funcionamento diário não depende de SaaS, nuvem ou internet: venda, estoque, caixa, impressão, módulos operacionais e persistência permanecem no ambiente do estabelecimento.
 
@@ -218,3 +218,5 @@ Venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integra�
 Um modelo físico não testado permanece `UNTESTED_MODEL`; famílias de integração validadas automaticamente podem ser `PROTOCOL_VERIFIED`; somente equipamento realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 
 Metadados completos de capacidades, limitações e matriz de compatibilidade ficam em `release/capabilities.json`, `release/limitations.json` e `release/hardware-compatibility.json`.
+
+Veja [Operação local, pedidos e equipamentos](docs/operations/local-setup-and-food.md) para configuração, QR, reinstalação e recuperação sem nuvem.

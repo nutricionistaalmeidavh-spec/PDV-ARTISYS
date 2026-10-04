@@ -1,5 +1,6 @@
 'use strict';
 
+const {createLocalRecoveryService}=require('../js/core/auth/local-recovery-service');
 const { writeAudit }=require('../js/core/audit-log');
 const { normalizeEmail }=require('../js/core/account/account-activation');
 
@@ -25,6 +26,8 @@ async function readJson(request,limit=1024*1024){
 function createPasswordRecoveryRouter({runtime,sessionStore=new Map(),bodyLimitBytes=1024*1024}={}){
   if(!runtime)throw new TypeError('runtime is required.');
 
+  const localRecovery=runtime.localRecovery||createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
+
   function accountConfigured(){return Boolean(runtime.account?.status?.().configured);}
 
   function localUserByEmail(email){
@@ -43,7 +46,21 @@ function createPasswordRecoveryRouter({runtime,sessionStore=new Map(),bodyLimitB
     if(!pathname.startsWith('/api/v1/auth/password-recovery/'))return false;
 
     try{
-      if(request.method==='POST'&&pathname==='/api/v1/auth/password-recovery/request'){
+      if(request.method==='POST'&&pathname==='/api/v1/auth/password-recovery/local-key'){
+        const token=String(request.headers.authorization||'').replace(/^Bearer /,'');
+        const session=sessionStore.get(token);
+        if(!session||session.expiresAt<=Date.now()){sendJson(response,401,{error:'Sessão inválida ou expirada.'});return true;}
+        const body=await readJson(request,bodyLimitBytes);
+        const result=localRecovery.issue({userId:session.userId,password:body.password});
+        sendJson(response,201,{...result,message:'Guarde a chave fora deste computador. Ela aparece somente agora e será consumida ao recuperar a senha.'});return true;
+      }
+      if(request.method==='POST'&&pathname==='/api/v1/auth/password-recovery/local-confirm'){
+        const body=await readJson(request,bodyLimitBytes);
+        const result=localRecovery.recover(body);
+        revokeUserSessions(result.userId);
+        sendJson(response,200,{reset:true,keyConsumed:true});return true;
+      }
+      if(request.method==='POST' &&pathname==='/api/v1/auth/password-recovery/request'){
         if(!accountConfigured()){sendJson(response,409,{error:'Recuperacao de senha nao configurada.'});return true;}
         const body=await readJson(request,bodyLimitBytes);
         const email=normalizeEmail(body.email);

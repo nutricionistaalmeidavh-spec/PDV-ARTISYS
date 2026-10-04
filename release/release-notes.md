@@ -1,3 +1,19 @@
+# ArtiSys PDV 2.0.1 — operação e configuração local
+
+- Pedidos de balcão, retirada e entrega usam a mesma venda e produção. Senha diária é opcional e considera o fuso da loja.
+- A fila mostra pedidos ativos; concluídos e senhas legadas permanecem no histórico com data.
+- A preparação da loja fica em um card recolhido de Diagnóstico e backup; confirmações físicas continuam manuais.
+- Balança e gaveta serial têm configuração visível e persistida; operações sem configuração são desabilitadas e mensagens orientam a correção.
+- QR detecta o endereço do PC principal, usa a porta configurada e testa a resposta do servidor. O celular ainda precisa estar na mesma rede e ter acesso permitido pelo firewall.
+- Atualização/reinstalação informa a presença de dados anteriores. Uma nova loja exige confirmação e backup íntegro; dados anteriores são arquivados.
+- Recuperação de senha local usa chave de uso único. O core não depende de ativação comercial, e-mail ou nuvem.
+
+Equipamentos físicos precisam ser testados na loja. A gaveta suportada usa adaptador serial ESC/POS; seleção de impressora Windows sozinha não comprova suporte ao pulso de gaveta.
+
+Instalador local: `ArtiSys-PDV-2.0.1-x64-Setup.exe`. Esta entrega não publica uma release automaticamente.
+
+---
+
 # ArtiSys PDV 1.4.1 — Estabilidade de navegação e instalador corrigido
 
 Patch da linha 1.4 que corrige corridas assíncronas de renderização capazes de redesenhar uma rota antiga sobre a tela atual, apagar campos já preenchidos ou desfazer submódulos válidos de Configurações.

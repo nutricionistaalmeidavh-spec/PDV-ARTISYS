@@ -6,7 +6,7 @@
   function setStatus(message, error=false){
     const node=document.getElementById('scale-config-status');
     if(!node)return;
-    node.textContent=String(message||'');
+    node.textContent=String(message||'').replace(/^Error invoking remote method '[^']+': (?:Error: )?/, '');
     node.style.color=error?'#b42318':'';
   }
 
@@ -65,7 +65,9 @@
       setStatus(configuration.configured?'Configuração salva e aplicada.':'Balança desativada.');
     }
     const output=document.getElementById('hw-output');
-    if(output)output.textContent=JSON.stringify(await api.diagnostics(),null,2);
+    const diagnostics=await api.diagnostics();
+    if(output)output.textContent=JSON.stringify(diagnostics,null,2);
+    const scaleButton=document.getElementById('hw-scale');if(scaleButton)scaleButton.disabled=!diagnostics.status?.scale?.available;
   }
 
   function enhance(){

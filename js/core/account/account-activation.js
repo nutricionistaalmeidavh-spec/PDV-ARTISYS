@@ -52,7 +52,8 @@ function createAccountService({
     const current = activation();
     const configured = Boolean(baseUrl);
     const existingInstall = Number(countUsers() || 0) > 0;
-    const required = Boolean(requireCommercialActivation) && configured && !existingInstall && !current;
+    // Commercial activation describes optional services and cannot gate the free core.
+    const required = false;
     return { configured, required, activated:Boolean(current), activation:current };
   }
 

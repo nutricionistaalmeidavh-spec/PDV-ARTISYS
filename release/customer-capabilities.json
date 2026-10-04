@@ -628,6 +628,43 @@
           "path": "desktop/renderer/access-center-ui.js"
         }
       ]
+    },
+    {
+      "id": "auth.local-recovery",
+      "exposure": "customer",
+      "status": "supported",
+      "targetPhase": 0,
+      "declaredCapabilities": [
+        "offline-one-time-password-recovery"
+      ],
+      "backend": [
+        {
+          "path": "js/core/auth/local-recovery-service.js",
+          "marker": "createLocalRecoveryService"
+        }
+      ],
+      "api": [
+        {
+          "path": "server/password-recovery-router.js",
+          "marker": "local-confirm"
+        }
+      ],
+      "client": [
+        {
+          "path": "desktop/renderer/first-access-ui.js",
+          "marker": "local-confirm"
+        }
+      ],
+      "ui": [
+        {
+          "path": "desktop/renderer/settings-hub-ui.js",
+          "marker": "settings-local-recovery"
+        },
+        {
+          "path": "desktop/renderer/first-access-ui.js",
+          "marker": "Esqueci minha senha"
+        }
+      ]
     }
   ]
 }
