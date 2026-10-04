@@ -143,7 +143,8 @@ test('self-service rejects an item that becomes unavailable after context load',
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
     const user=rt.catalog.createUser({id:'operator-late',username:'operator-late',name:'Operador',profileId:'profile-administrator',password:'Qa-Late-12345!'},admin);
     rt.catalog.upsertProduct({id:'late-item',name:'Item temporário',salePriceCents:1500,trackStock:false,menuEnabled:true,active:true},admin);
-    const actor={userId:user.id,profileId:'profile-administrator',terminalId:'PDV-01'};\n    const device=rt.selfService.createConfiguredDevice({id:'late-self',name:'Totem',mode:'PICKUP',operatorId:user.id},actor).device;
+    const actor={userId:user.id,profileId:'profile-administrator',terminalId:'PDV-01'};
+    const device=rt.selfService.createConfiguredDevice({id:'late-self',name:'Totem',mode:'PICKUP',operatorId:user.id},actor).device;
     server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-clean'});
     const address=await server.start();
     const base=`http://${address.host}:${address.port}`;
