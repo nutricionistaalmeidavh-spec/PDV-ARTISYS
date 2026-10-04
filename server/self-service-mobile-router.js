@@ -1,6 +1,5 @@
 'use strict';
 
-const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
 const {createPublicOrderingRouter}=require('./public-ordering-router');
 const {createMobileAssetsRouter}=require('./mobile-assets-router');
 
@@ -10,7 +9,6 @@ async function body(request,limit=1024*1024){let size=0;const chunks=[];for awai
 
 function createSelfServiceMobileRouter({runtime}={}){
   if(!runtime)throw new TypeError('runtime is required.');
-  if(!runtime.publicOrdering)runtime.publicOrdering=createPublicOrderingService({db:runtime.db,modules:runtime.modules,catalog:runtime.catalog,catalogCustomization:runtime.catalogCustomization,restaurant:runtime.restaurant,productPhotos:runtime.productPhotos});
   const publicOrderingRouter=createPublicOrderingRouter({runtime});
   const mobileAssetsRouter=createMobileAssetsRouter();
   function declaredDevice(request){const id=String(request.headers['x-device-id']||'').trim();return id?runtime.mobileDevices.getDevice(id):null;}
