@@ -50,7 +50,7 @@ test('kit price is user-defined while stock composition reuses recipes', () => {
   const kit = kitsCombos.upsertKit({
     id:'kit-1', name:'Kit balcão', sku:'KIT001', salePriceCents:1790, costCents:900,
     components:[{ productId:'p399', quantity:2 }, { productId:'p200', quantity:1 }]
-  }, { userId:'admin', role:'admin' });
+  }, { userId:'admin', profileId:'profile-administrator' });
   assert.equal(kit.salePriceCents, 1790);
   assert.equal(kit.trackStock, false, 'kit itself must not create parallel stock');
   assert.deepEqual(recipes.expandItems([{ productId:'kit-1', quantity:2 }]), [
@@ -108,7 +108,7 @@ test('inactive and out-of-period combos are ignored', () => {
 test('promotion sale wrapper keeps manual and automatic discounts separate', () => {
   const { db, idFactory, now, catalog, recipes, kitsCombos } = foundation();
   seedProducts(catalog);
-  catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+  catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
   kitsCombos.upsertPromotionalCombo({ id:'combo', name:'3 por 10', selectionMode:'SAME_PRODUCT', requiredQuantity:3, bundlePriceCents:1000, productIds:['p399'], allowManualDiscount:true });
   const outbox = new SqliteOutboxStore(db);
   const baseSales = createSaleService({ db, outbox, now, idFactory, stockRequirementsResolver:items=>recipes.expandItems(items) });
@@ -130,7 +130,7 @@ test('promotion sale wrapper keeps manual and automatic discounts separate', () 
 test('combo may block manual discounts when configured by the user', () => {
   const { db, idFactory, now, catalog, recipes, kitsCombos } = foundation();
   seedProducts(catalog);
-  catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
+  catalog.createUser({ id:'u1', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
   kitsCombos.upsertPromotionalCombo({ id:'exclusive', name:'Preço fechado', selectionMode:'SAME_PRODUCT', requiredQuantity:3, bundlePriceCents:1000, productIds:['p399'], allowManualDiscount:false });
   const baseSales = createSaleService({ db, outbox:new SqliteOutboxStore(db), now, idFactory, stockRequirementsResolver:items=>recipes.expandItems(items) });
   const sales = createPromotionSaleService({ db, baseSales, promotionService:kitsCombos, now });
@@ -142,8 +142,8 @@ test('combo may block manual discounts when configured by the user', () => {
 
 test('kit stock snapshot survives later composition edits and cancellation', async () => {
   let seq=0; const rt=createPdvRuntime({ now:()=>NOW, idFactory:p=>`${p}-${++seq}` });
-  rt.catalog.createUser({ id:'cashier', username:'caixa', name:'Caixa', role:'cashier', password:'senha-forte-123' });
-  rt.catalog.createUser({ id:'manager', username:'gerente', name:'Gerente', role:'manager', password:'senha-forte-456' });
+  rt.catalog.createUser({ id:'cashier', username:'caixa', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-123' });
+  rt.catalog.createUser({ id:'manager', username:'gerente', name:'Gerente', profileId:'profile-manager', password:'senha-forte-456' });
   rt.catalog.upsertProduct({ id:'a', name:'A', salePriceCents:400, trackStock:true });
   rt.catalog.upsertProduct({ id:'b', name:'B', salePriceCents:300, trackStock:true });
   rt.inventory.move({ productId:'a', type:'opening', quantityDelta:10 });
@@ -153,12 +153,12 @@ test('kit stock snapshot survives later composition edits and cancellation', asy
   rt.sales.openSale({ id:'sale-kit', saleNumber:'1', terminalId:'T1', operatorId:'cashier' });
   let sale=rt.sales.addItem('sale-kit',{productId:'kit',quantity:1});
   assert.deepEqual(sale.items[0].configuration.kit.components.map(item=>({productId:item.productId,quantity:item.quantity})),[{productId:'a',quantity:2},{productId:'b',quantity:1}]);
-  rt.sales.completeSale('sale-kit',{payments:[{method:'CASH',amountCents:1000}],actor:{userId:'cashier',role:'cashier',terminalId:'T1'}});
+  rt.sales.completeSale('sale-kit',{payments:[{method:'CASH',amountCents:1000}],actor:{userId:'cashier',profileId:'profile-cashier',terminalId:'T1'}});
   rt.kitsCombos.upsertKit({ id:'kit', name:'Kit AB alterado', salePriceCents:1000, components:[{productId:'a',quantity:1},{productId:'b',quantity:3}] });
   await rt.dispatchPending();
   assert.equal(rt.inventory.getBalance('a'),8);
   assert.equal(rt.inventory.getBalance('b'),9);
-  rt.sales.cancelSale('sale-kit',{reason:'Teste',actor:{userId:'manager',role:'manager',terminalId:'T1'}});
+  rt.sales.cancelSale('sale-kit',{reason:'Teste',actor:{userId:'manager',profileId:'profile-manager',terminalId:'T1'}});
   await rt.dispatchPending();
   assert.equal(rt.inventory.getBalance('a'),10);
   assert.equal(rt.inventory.getBalance('b'),10);

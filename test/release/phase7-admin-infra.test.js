@@ -58,7 +58,7 @@ test('Phase 7 release gate: XLSX preview and commit work through the real import
     const preview=imports.preview({type:'products',format:'xlsx',content,collisionPolicy:'CREATE'});
     assert.equal(preview.summary.valid,1);
     assert.equal(preview.summary.invalid,0);
-    const committed=imports.commit(preview.batchId,{actor:{userId:'admin',role:'admin'}});
+    const committed=imports.commit(preview.batchId,{actor:{userId:'admin',profileId:'profile-administrator'}});
     assert.equal(committed.status,'COMMITTED');
     assert.equal(catalog.listProducts()[0].sku,'XLSX-001');
   }finally{db.close();}

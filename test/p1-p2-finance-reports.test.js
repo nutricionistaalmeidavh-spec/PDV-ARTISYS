@@ -12,7 +12,7 @@ const {createFinanceService}=require('../js/domains/finance/finance-service');
 const {createFinanceManagementService}=require('../js/domains/finance/finance-management');
 const {createReportingService}=require('../js/domains/reports/reporting-service');
 
-const admin={userId:'admin-p12',role:'admin'};
+const admin={userId:'admin-p12',profileId:'profile-administrator'};
 const NOW='2026-10-02T12:00:00.000Z';
 
 function financeFixture(){

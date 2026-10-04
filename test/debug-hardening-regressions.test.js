@@ -275,7 +275,7 @@ test('commercial revocation blocks later login when online and remains cached of
   const installHeaders = { 'content-type':'application/json', 'x-pdv-token':'installation-secret' };
   let online = true;
   try {
-    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', role:'admin', password:'senha-forte-123' });
+    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
     runtime.db.prepare(`INSERT INTO installation_activation
       (installation_id,account_email,license_id,activated_at,activation_source,metadata_json)
       VALUES (?,?,?,?,?,?)`).run('install-1','owner@example.com','lic-1','2026-10-01T12:00:00.000Z','cloudflare-account',null);
@@ -325,7 +325,7 @@ test('offline account service does not block an activated installation unless re
   const runtime = createPdvRuntime({ now:() => '2026-10-02T22:00:00.000Z' });
   const installHeaders = { 'content-type':'application/json', 'x-pdv-token':'installation-secret' };
   try {
-    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', role:'admin', password:'senha-forte-123' });
+    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
     runtime.db.prepare(`INSERT INTO installation_activation
       (installation_id,account_email,license_id,activated_at,activation_source,metadata_json)
       VALUES (?,?,?,?,?,?)`).run('install-1','owner@example.com','lic-1','2026-10-01T12:00:00.000Z','cloudflare-account',null);
@@ -363,9 +363,9 @@ test('cash ledger aggregates repeated payments of the same method', async () => 
     now:() => `2026-10-02T20:00:${String(seq++ % 60).padStart(2,'0')}Z`,
     idFactory:prefix => `${prefix}-${seq++}`
   });
-  const actor = { userId:'admin', role:'admin', terminalId:'PDV-01' };
+  const actor = { userId:'admin', profileId:'profile-administrator', terminalId:'PDV-01' };
   try {
-    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', role:'admin', password:'senha-forte-123' });
+    runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-123' });
     runtime.catalog.upsertCategory({ id:'general', name:'Geral' }, actor);
     runtime.catalog.upsertProduct({ id:'p1', sku:'P1', name:'Produto', salePriceCents:1000, costCents:500, trackStock:false, minimumStock:0, categoryId:'general' }, actor);
     const cash = runtime.cash.openSession({ id:'cash-1', terminalId:'PDV-01', operatorId:'admin', initialCashCents:0, actor });
