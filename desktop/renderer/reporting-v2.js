@@ -122,7 +122,7 @@
 
 
   function marginPercent(row) {
-    const revenue=Number(row?.netCents||0);
+    const revenue=Number(row?.netCents ?? row?.netSalesCents ?? 0);
     return revenue ? Number(((Number(row?.estimatedMarginCents||0)/revenue)*100).toFixed(2)) : 0;
   }
 
@@ -321,7 +321,7 @@
     if (state.view === 'inventory') { const selected=selectedInventory(inventory); return { name:'relatorio-estoque-minimo-compra.csv',headers:['local','produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(selected.purchaseList || []).map(r => [r.locationName || selected.locationName || '',r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) }; }
     if (state.view === 'cash') return { name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements || []).filter(r => r.isPhysicalCash).map(r => [r.createdAt,r.terminalId || '',r.operatorName || r.operatorId || '',movementLabel(r.type),r.note || '',r.signedCents]) };
     if (state.view === 'commissions') return { name:'relatorio-comissoes.csv',headers:['vendedor','gerada_centavos','estornada_centavos','paga_centavos','saldo_periodo_centavos','em_aberto_centavos'],rows:(commissions?.sellers || []).map(r => [r.sellerName,r.earnedCents,r.reversedCents,r.paidCents,r.periodBalanceCents,r.outstandingCents]) };
-    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor'],rows:[['subtotal_antes_descontos_centavos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos_centavos',sales.salesDiscountCents || 0],['vendas_apos_descontos_centavos',sales.grossSalesCents || 0],['devolucoes_centavos',sales.returnedCents || 0],['vendas_liquidas_centavos',sales.netSalesCents || 0],['ticket_medio_centavos',sales.averageTicketCents || 0],['margem_centavos',sales.estimatedMarginCents || 0],['base_custo',sales.costBasis || 'HISTORICAL_SNAPSHOT'],['cancelamentos_centavos',sales.cancelledSalesCents || 0]] };
+    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor'],rows:[['subtotal_antes_descontos_centavos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos_centavos',sales.salesDiscountCents || 0],['vendas_apos_descontos_centavos',sales.grossSalesCents || 0],['devolucoes_centavos',sales.returnedCents || 0],['vendas_liquidas_centavos',sales.netSalesCents || 0],['ticket_medio_centavos',sales.averageTicketCents || 0],['margem_centavos',sales.estimatedMarginCents || 0],['margem_percentual',marginPercent(sales)],['clientes_unicos',sales.uniqueCustomersCount || 0],['clientes_primeira_compra',sales.firstTimeCustomersCount || 0],['clientes_recorrentes',sales.returningCustomersCount || 0],['clientes_sem_compra_periodo',sales.customersWithoutSalesCount || 0],['base_custo',sales.costBasis || 'HISTORICAL_SNAPSHOT'],['cancelamentos_centavos',sales.cancelledSalesCents || 0]] };
   }
 
   function filterForm(sellers,inventory) {
