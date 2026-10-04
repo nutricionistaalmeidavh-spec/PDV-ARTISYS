@@ -7,19 +7,19 @@ const path=require('node:path');
 const {spawnSync}=require('node:child_process');
 
 const root=path.resolve(__dirname,'..');
-const rendererPath=path.join(root,'desktop','renderer','ui-parity-p0-p2.js');
+const rendererPath=path.join(root,'desktop','renderer','operational-detail-extensions.js');
 
 function source(file){return fs.readFileSync(path.join(root,file),'utf8');}
 
-test('P0-P2 parity renderer is loaded and parses',()=>{
-  assert.ok(fs.existsSync(rendererPath),'desktop/renderer/ui-parity-p0-p2.js must exist');
+test('operational detail extension is loaded and parses',()=>{
+  assert.ok(fs.existsSync(rendererPath),'desktop/renderer/operational-detail-extensions.js must exist');
   const parsed=spawnSync(process.execPath,['--check',rendererPath],{encoding:'utf8'});
   assert.equal(parsed.status,0,`${parsed.stdout||''}\n${parsed.stderr||''}`);
-  assert.match(source('desktop/renderer/index.html'),/ui-parity-p0-p2\.js/);
+  assert.match(source('desktop/renderer/index.html'),/operational-detail-extensions\.js/);
 });
 
 test('P0 exposes partial purchase receiving and partial sales-order fulfillment',()=>{
-  const ui=source('desktop/renderer/ui-parity-p0-p2.js');
+  const ui=source('desktop/renderer/operational-detail-extensions.js');
   for(const marker of [
     'p0-partial-receipt-panel','data-partial-receive','data-receive-qty','purchaseReceipts',
     'p0-partial-fulfillment-panel','data-partial-fulfill','data-fulfill-qty','fulfillSalesOrder'
@@ -29,7 +29,7 @@ test('P0 exposes partial purchase receiving and partial sales-order fulfillment'
 });
 
 test('P1 exposes failed print retry, terminal administration and purchase receipt history',()=>{
-  const ui=source('desktop/renderer/ui-parity-p0-p2.js');
+  const ui=source('desktop/renderer/operational-detail-extensions.js');
   for(const marker of [
     'p1-print-retry-panel','retryPrint','status:\'FAILED\'',
     'p1-terminal-admin-panel','/api/v1/lan/pairing-codes','/api/v1/terminals',
@@ -38,7 +38,7 @@ test('P1 exposes failed print retry, terminal administration and purchase receip
 });
 
 test('P1 terminal settings extension re-announces its explicit units category',()=>{
-  const ui=source('desktop/renderer/ui-parity-p0-p2.js');
+  const ui=source('desktop/renderer/operational-detail-extensions.js');
   assert.match(ui,/p1-terminal-admin-panel/);
   assert.match(ui,/settingsCategory\s*=\s*['"]units['"]/);
   assert.match(ui,/route:updated/);
@@ -46,7 +46,7 @@ test('P1 terminal settings extension re-announces its explicit units category',(
 });
 
 test('P2 exposes return details and import batch lookup',()=>{
-  const ui=source('desktop/renderer/ui-parity-p0-p2.js');
+  const ui=source('desktop/renderer/operational-detail-extensions.js');
   for(const marker of [
     'p2-return-details-panel','returnDetails','data-return-details',
     'p2-import-batch-panel','importBatch','ops-import-batch-lookup'
