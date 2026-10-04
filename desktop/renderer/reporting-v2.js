@@ -180,12 +180,12 @@
   function managerAlerts(sales,previousSales,inventory,cash) {
     const currentInventory=inventory?.allLocationsSummary||inventory||{};
     const alerts=[];
-    if(Number(currentInventory.zeroStockCount||0)>0)alerts.push({title:'Produtos sem estoque',detail:`${currentInventory.zeroStockCount} item(ns) zerado(s)`,view:'inventory'});
-    if(Number(currentInventory.belowMinimumCount||0)>0)alerts.push({title:'Estoque abaixo do mínimo',detail:`${currentInventory.belowMinimumCount} item(ns) abaixo do mínimo`,view:'inventory'});
-    if(Number(cash?.divergentSessions||0)>0)alerts.push({title:'Divergência de caixa',detail:`${cash.divergentSessions} fechamento(s) · ${money(cash.divergenceCents||0)}`,view:'cash'});
+    if(Number(currentInventory.zeroStockCount||0)>0)alerts.push({title:'Produtos sem estoque',detail:`${currentInventory.zeroStockCount} item(ns) zerado(s) · consulte Estoque mínimo / compra`});
+    if(Number(currentInventory.belowMinimumCount||0)>0)alerts.push({title:'Estoque abaixo do mínimo',detail:`${currentInventory.belowMinimumCount} item(ns) abaixo do mínimo · consulte Estoque mínimo / compra`});
+    if(Number(cash?.divergentSessions||0)>0)alerts.push({title:'Divergência de caixa',detail:`${cash.divergentSessions} fechamento(s) · ${money(cash.divergenceCents||0)} · consulte Entradas e saídas do caixa`});
     const negativeMargin=(sales.productSales||[]).filter(row=>Number(row.netCents||0)>0&&Number(row.estimatedMarginCents||0)<0);
-    if(negativeMargin.length)alerts.push({title:'Margem negativa',detail:`${negativeMargin.length} produto(s) com margem negativa`,view:'products'});
-    if(previousSales&&Number(sales.returnedCents||0)>Number(previousSales.returnedCents||0))alerts.push({title:'Devoluções aumentaram',detail:comparisonText(sales.returnedCents,previousSales.returnedCents),view:'overview'});
+    if(negativeMargin.length)alerts.push({title:'Margem negativa',detail:`${negativeMargin.length} produto(s) com margem negativa · consulte Venda por produto`});
+    if(previousSales&&Number(sales.returnedCents||0)>Number(previousSales.returnedCents||0))alerts.push({title:'Devoluções aumentaram',detail:comparisonText(sales.returnedCents,previousSales.returnedCents)});
     return alerts;
   }
 
@@ -241,7 +241,7 @@
     </section>
     ${trendView(sales)}
     <div class="ops-grid two report-v2-manager-grid">
-      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Atenção</h2><p class="ops-muted">Exceções objetivas que merecem revisão do gestor.</p></div></div><div class="report-v2-alerts">${alerts.map(alert=>`<article class="report-v2-alert"><div><strong>${escapeHtml(alert.title)}</strong><span>${escapeHtml(alert.detail)}</span></div>${alert.view!=='overview'?`<button type="button" class="ops-link report-v2-no-print" data-report-jump="${escapeHtml(alert.view)}">Ver relatório</button>`:''}</article>`).join('')||'<div class="ops-empty">Nenhuma exceção gerencial detectada neste recorte.</div>'}</div></section>
+      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Atenção</h2><p class="ops-muted">Exceções objetivas que merecem revisão do gestor.</p></div></div><div class="report-v2-alerts">${alerts.map(alert=>`<article class="report-v2-alert"><div><strong>${escapeHtml(alert.title)}</strong><span>${escapeHtml(alert.detail)}</span></div></article>`).join('')||'<div class="ops-empty">Nenhuma exceção gerencial detectada neste recorte.</div>'}</div></section>
       <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Clientes no período</h2><p class="ops-muted">Reconhecimento de recorrência sem criar uma regra artificial de inatividade.</p></div></div><div class="report-v2-client-stats"><div><strong>${sales.uniqueCustomersCount||0}</strong><span>Clientes únicos</span></div><div><strong>${sales.firstTimeCustomersCount||0}</strong><span>Primeira compra</span></div><div><strong>${sales.returningCustomersCount||0}</strong><span>Recorrentes</span></div><div><strong>${sales.customersWithoutSalesCount||0}</strong><span>${state.sellerId?'Sem compra com este vendedor':'Sem compra no período'}</span></div></div></section>
     </div>
     <div class="ops-grid two report-v2-manager-grid">
