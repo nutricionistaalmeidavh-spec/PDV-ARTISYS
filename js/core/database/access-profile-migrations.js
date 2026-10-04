@@ -22,7 +22,6 @@ function applyAccessProfileMigration(db,now){
       name TEXT NOT NULL,
       slug TEXT NOT NULL UNIQUE,
       system_key TEXT UNIQUE,
-      legacy_role TEXT CHECK(legacy_role IS NULL OR legacy_role IN('admin','manager','cashier')),
       protected INTEGER NOT NULL DEFAULT 0 CHECK(protected IN(0,1)),
       active INTEGER NOT NULL DEFAULT 1 CHECK(active IN(0,1)),
       created_at TEXT NOT NULL,
@@ -40,18 +39,15 @@ function applyAccessProfileMigration(db,now){
   ensureColumn(db,'users','profile_id','TEXT REFERENCES profiles(id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_users_profile ON users(profile_id,active,name)');
 
-  const insertProfile=db.prepare(`INSERT OR IGNORE INTO profiles(id,name,slug,system_key,legacy_role,protected,active,created_at,updated_at)
-    VALUES(?,?,?,?,?,?,1,?,?)`);
+  const insertProfile=db.prepare(`INSERT OR IGNORE INTO profiles(id,name,slug,system_key,protected,active,created_at,updated_at)
+    VALUES(?,?,?,?,?,1,?,?)`);
   const insertPermission=db.prepare('INSERT OR IGNORE INTO profile_permissions(profile_id,permission_id,created_at) VALUES(?,?,?)');
   const timestamp=now();
   for(const profile of DEFAULT_PROFILES){
-    insertProfile.run(profile.id,profile.name,profile.slug,profile.systemKey,profile.legacyRole,profile.protected?1:0,timestamp,timestamp);
+    insertProfile.run(profile.id,profile.name,profile.slug,profile.systemKey,profile.protected?1:0,timestamp,timestamp);
     for(const permission of profile.permissions)insertPermission.run(profile.id,permission,timestamp);
   }
 
-  for(const profile of DEFAULT_PROFILES){
-    db.prepare('UPDATE users SET profile_id=? WHERE profile_id IS NULL AND role=?').run(profile.id,profile.legacyRole);
-  }
 }
 
 function runAccessProfileMigrations(db,now=()=>new Date().toISOString()){
