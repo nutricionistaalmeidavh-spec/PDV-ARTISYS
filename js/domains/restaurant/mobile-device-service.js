@@ -51,9 +51,6 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
     const surface=canonicalSurface(requestedType);const scope=scopeFor();
     db.prepare(`INSERT INTO mobile_devices(id,name,device_type,surface,scope_type,scope_id,table_id,user_id,credential_hash,credential_salt,status,last_seen_at,created_by,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,'ACTIVE',NULL,?,?,?)`).run(id,name,storedType,surface,scope.type,scope.id,tableId,userId,hashSecret(credential,salt),salt,actor?.userId||null,timestamp,timestamp);
-    if(requestedType==='SELF_SERVICE'){
-      db.prepare(`INSERT INTO self_service_profiles(device_id,mode,table_id,operator_id,created_at,updated_at) VALUES(?,'PICKUP',NULL,NULL,?,?)`).run(id,timestamp,timestamp);
-    }
     if(requestedType==='KITCHEN'&&stationIds.length){
       const insertStation=db.prepare('INSERT INTO mobile_device_kitchen_stations(device_id,station_id,created_at) VALUES(?,?,?)');
       for(const stationId of stationIds)insertStation.run(id,stationId,timestamp);
