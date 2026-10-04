@@ -76,3 +76,15 @@ test('module routes require both an enabled establishment module and the user ca
     ['home','FOOD']
   );
 });
+
+test('canonical module owner loads before the Settings owner',()=>{
+  const html=read('desktop/renderer/index.html');
+  const registry=html.indexOf('./route-registry.js');
+  const access=html.indexOf('./access-policy.js');
+  const modules=html.indexOf('./vertical-modules.js');
+  const app=html.indexOf('./app.js');
+  const operational=html.indexOf('./operational-pages.js');
+  assert.ok(registry>=0&&access>registry&&modules>access);
+  assert.ok(app>modules);
+  assert.ok(operational>app&&operational>modules);
+});
