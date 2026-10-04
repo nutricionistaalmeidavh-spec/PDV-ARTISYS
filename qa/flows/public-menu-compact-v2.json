@@ -94,7 +94,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-compact-table/qr",
+      "path": "/api/v1/restaurant/public-ordering/tables/qa-compact-table/qr",
       "method": "GET",
       "expectedStatus": 200,
       "name": "compact-gerar-qr",
@@ -104,7 +104,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/config",
+      "path": "/api/v1/restaurant/public-ordering/config",
       "method": "PUT",
       "expectedStatus": 200,
       "name": "compact-publicar-layout",
