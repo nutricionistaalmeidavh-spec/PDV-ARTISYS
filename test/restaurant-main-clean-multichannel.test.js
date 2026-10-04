@@ -20,8 +20,8 @@ function headers(device,mutationId){
   };
 }
 
-test('garçom self-service de mesa e QR compartilham pedido canônico, serviço e mídia segura',async()=>{
-  const photoDir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-self-service-'));
+test('garçom e cardápio público compartilham pedido canônico, serviço e mídia segura',async()=>{
+  const photoDir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-public-menu-'));
   const rt=createPdvRuntime({dbPath:':memory:',productPhotoDir:photoDir});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
@@ -38,13 +38,9 @@ test('garçom self-service de mesa e QR compartilham pedido canônico, serviço 
     rt.catalogCustomization.linkGroupToProduct(product.id,group.id,{required:false,sortOrder:1},admin);
     const station=rt.kitchen.upsertStation({id:'kitchen-clean',name:'Cozinha Multi'},admin);
     rt.kitchen.assignProduct(product.id,station.id,admin);
-    for(const [id,label] of [['tw','Mesa Garçom'],['ts','Mesa Autoatendimento'],['tq','Mesa QR']])rt.restaurant.upsertTable({id,label,seats:4},admin);
+    for(const [id,label] of [['tw','Mesa Garçom'],['tq','Mesa QR']])rt.restaurant.upsertTable({id,label,seats:4},admin);
 
     const waiter=rt.mobileDevices.createDevice({id:'waiter-clean',name:'Garçom Multi',deviceType:'WAITER',userId:user.id},admin);
-    const self=rt.selfService.createConfiguredDevice({id:'self-clean',name:'Mesa fixa',mode:'TABLE',tableId:'ts'},admin).device;
-    const pickup=rt.selfService.createConfiguredDevice({id:'pickup-clean',name:'Totem retirada',mode:'PICKUP',operatorId:user.id},admin).device;
-    rt.restaurant.openTable('ts',{operatorId:user.id,waiterId:user.id,partySize:2,actor:admin});
-
     server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-clean'});
     const address=await server.start();
     const base=`http://${address.host}:${address.port}`;
@@ -63,12 +59,13 @@ test('garçom self-service de mesa e QR compartilham pedido canônico, serviço 
     assert.equal(opened.status,201);
     const waiterSession=await opened.json();
 
-    const selfContext=await fetch(`${base}/api/v1/mobile/context`,{headers:headers(self)});
-    assert.equal(selfContext.status,200);
-    const selfData=await selfContext.json();
-    assert.equal(selfData.profile.mode,'TABLE');
-    assert.equal(selfData.table.id,'ts');
-    assert.equal(selfData.products.find(row=>row.id===product.id).photo.version,1);
+    const access=rt.publicOrdering.issueTableAccess('tq',admin);
+    const publicContext=await fetch(`${base}/api/v1/public/menu/${access.token}`);
+    assert.equal(publicContext.status,200);
+    const publicData=await publicContext.json();
+    assert.equal(publicData.table.label,'Mesa QR');
+    assert.equal(publicData.products.find(row=>row.id===product.id).photo.version,1);
+    assert.equal(publicData.products.some(row=>row.id===hidden.id),false);
 
     const configuredItem={productId:product.id,quantity:1,selections:[option.id]};
     const waiterOrder=await fetch(`${base}/api/v1/mobile/orders`,{
@@ -78,14 +75,6 @@ test('garçom self-service de mesa e QR compartilham pedido canônico, serviço 
     });
     assert.equal(waiterOrder.status,201);
 
-    const selfOrder=await fetch(`${base}/api/v1/mobile/self-service/orders`,{
-      method:'POST',
-      headers:headers(self,'self-clean-order'),
-      body:JSON.stringify({tableId:'tq',items:[{...configuredItem,note:'molho a parte'}]})
-    });
-    assert.equal(selfOrder.status,201);
-
-    const access=rt.publicOrdering.issueTableAccess('tq',admin);
     const qrOrder=await fetch(`${base}/api/v1/public/menu/${access.token}/orders`,{
       method:'POST',
       headers:{'content-type':'application/json','x-mutation-id':'qr-clean-order'},
@@ -93,36 +82,30 @@ test('garçom self-service de mesa e QR compartilham pedido canônico, serviço 
     });
     assert.equal(qrOrder.status,201);
 
-    const sessions=['tw','ts','tq'].map(id=>rt.restaurant.currentSession(id));
-    assert.deepEqual(sessions.map(session=>session.orders.length),[1,1,1]);
+    const sessions=['tw','tq'].map(id=>rt.restaurant.currentSession(id));
+    assert.deepEqual(sessions.map(session=>session.orders.length),[1,1]);
     const items=sessions.map(session=>session.orders[0].items[0]);
-    assert.deepEqual(items.map(item=>item.unitPriceCents),[2300,2300,2300]);
-    assert.deepEqual(items.map(item=>item.note),['sem cebola','molho a parte','bem passado']);
-    assert.deepEqual(sessions.map(session=>session.orders[0].source),['WAITER','TABLE','TABLE']);
-    assert.equal(rt.kitchen.listTickets().length,3);
+    assert.deepEqual(items.map(item=>item.unitPriceCents),[2300,2300]);
+    assert.deepEqual(items.map(item=>item.note),['sem cebola','bem passado']);
+    assert.deepEqual(sessions.map(session=>session.orders[0].source),['WAITER','TABLE']);
+    assert.equal(rt.kitchen.listTickets().length,2);
 
-    for(const [requestType,mutation] of [['WAITER','self-waiter'],['BILL','self-bill']]){
-      const service=await fetch(`${base}/api/v1/mobile/self-service/service`,{
+    for(const [requestType,mutation] of [['WAITER','public-waiter'],['BILL','public-bill']]){
+      const service=await fetch(`${base}/api/v1/public/menu/${access.token}/service`,{
         method:'POST',
-        headers:headers(self,mutation),
-        body:JSON.stringify({requestType,tableId:'tq'})
+        headers:{'content-type':'application/json','x-mutation-id':mutation},
+        body:JSON.stringify({requestType})
       });
       assert.equal(service.status,201);
       const request=await service.json();
-      assert.equal(request.tableId,'ts');
+      assert.equal(request.tableId,'tq');
       assert.equal(request.requestType,requestType);
     }
-    const pickupService=await fetch(`${base}/api/v1/mobile/self-service/service`,{
-      method:'POST',
-      headers:headers(pickup,'pickup-service'),
-      body:JSON.stringify({requestType:'WAITER'})
-    });
-    assert.equal(pickupService.status,400);
 
-    const photo=await fetch(`${base}/api/v1/mobile/self-service/products/${product.id}/photo`,{headers:headers(self)});
+    const photo=await fetch(`${base}/api/v1/public/menu/${access.token}/products/${product.id}/photo`);
     assert.equal(photo.status,200);
     assert.equal(photo.headers.get('content-type'),'image/png');
-    const hiddenPhoto=await fetch(`${base}/api/v1/mobile/self-service/products/${hidden.id}/photo`,{headers:headers(self)});
+    const hiddenPhoto=await fetch(`${base}/api/v1/public/menu/${access.token}/products/${hidden.id}/photo`);
     assert.equal(hiddenPhoto.status,404);
 
     const mobileComposer=await fetch(`${base}/mobile/order-composer.js`);
@@ -137,28 +120,30 @@ test('garçom self-service de mesa e QR compartilham pedido canônico, serviço 
   }
 });
 
-test('self-service rejects an item that becomes unavailable after context load',async()=>{
+test('cardápio público rejeita item que fica indisponível depois do contexto',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
     rt.modules.setEnabled('FOOD',true,{kind:'system',id:'system'});
-    const user=rt.catalog.createUser({id:'operator-late',username:'operator-late',name:'Operador',profileId:'profile-administrator',password:'Qa-Late-12345!'},admin);
+    rt.restaurant.upsertTable({id:'late-table',label:'Mesa temporária',seats:2},admin);
     rt.catalog.upsertProduct({id:'late-item',name:'Item temporário',salePriceCents:1500,trackStock:false,menuEnabled:true,active:true},admin);
-    const actor={userId:user.id,profileId:'profile-administrator',terminalId:'PDV-01'};
-    const device=rt.selfService.createConfiguredDevice({id:'late-self',name:'Totem',mode:'PICKUP',operatorId:user.id},actor).device;
+    const access=rt.publicOrdering.issueTableAccess('late-table',admin);
+
     server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-clean'});
     const address=await server.start();
     const base=`http://${address.host}:${address.port}`;
-    const before=await fetch(`${base}/api/v1/mobile/context`,{headers:headers(device)});
+
+    const before=await fetch(`${base}/api/v1/public/menu/${access.token}`);
     assert.equal(before.status,200);
     assert.equal((await before.json()).products.some(item=>item.id==='late-item'),true);
 
     rt.catalog.upsertProduct({id:'late-item',name:'Item temporário',salePriceCents:1500,trackStock:false,menuEnabled:true,active:false},admin);
-    const submit=await fetch(`${base}/api/v1/mobile/self-service/orders`,{
+    const submit=await fetch(`${base}/api/v1/public/menu/${access.token}/orders`,{
       method:'POST',
-      headers:headers(device,'late-submit'),
+      headers:{'content-type':'application/json','x-mutation-id':'late-submit'},
       body:JSON.stringify({items:[{productId:'late-item',quantity:1}]})
     });
-    assert.equal(submit.status,400);
+    assert.equal(submit.status,409);
+    assert.equal(rt.restaurant.currentSession('late-table'),null);
   }finally{
     if(server)await server.stop();
     rt.close();
