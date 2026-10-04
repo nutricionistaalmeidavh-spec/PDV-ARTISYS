@@ -78,19 +78,25 @@ test('SearchField keeps label, shortcut and query escaped and discoverable', () 
   assert.match(html, /Ctrl\+K/);
 });
 
-test('FilterBar renders select filters and active removable chips without inline handlers', () => {
+test('FilterBar renders removable chips only when an action owner is declared', () => {
   const { FilterBar } = loadComponents();
   const html = FilterBar({
     filters: [{ id: 'stock', label: 'Estoque', value: 'low', options: [{ value: '', label: 'Todos' }, { value: 'low', label: 'Baixo' }] }],
     activeChips: [{ key: 'stock', label: 'Estoque: baixo' }],
+    removeAction: 'products.remove-filter',
     clearAction: 'products.clear-filters'
   });
 
   assert.match(html, /data-filter-id="stock"/);
   assert.match(html, /value="low" selected/);
-  assert.match(html, /data-remove-filter="stock"/);
+  assert.match(html, /data-action="products\.remove-filter"/);
+  assert.match(html, /data-filter-key="stock"/);
   assert.match(html, /data-action="products\.clear-filters"/);
   assert.doesNotMatch(html, /onclick=/i);
+
+  const passive = FilterBar({ activeChips: [{ key:'stock', label:'Estoque: baixo' }] });
+  assert.match(passive, /<span class="ux-filter-chip" data-filter-key="stock">/);
+  assert.doesNotMatch(passive, /<button[^>]*data-filter-key="stock"/);
 });
 
 test('ActionMenu exposes event delegation hooks and disabled actions without inline JavaScript', () => {
