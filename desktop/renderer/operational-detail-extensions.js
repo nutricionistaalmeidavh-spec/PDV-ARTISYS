@@ -13,9 +13,7 @@
   const when=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
   const content=()=>document.getElementById('route-content');
   const page=()=>content()?.querySelector('.ops-page,.page');
-  const title=()=>page()?.querySelector('h1')?.textContent?.trim()||'';
-  const toast=(message,error=false)=>{const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3500);};
-  const reloadCurrent=()=>{const current=page();const heading=title();if(current)current.querySelectorAll('#p0-partial-receipt-panel,#p1-purchase-receipts-panel,#p0-partial-fulfillment-panel,#p1-print-retry-panel,#p1-terminal-admin-panel,#p2-return-details-panel,#p2-import-batch-panel').forEach(node=>node.remove());queueMicrotask(mount);return heading;};
+  const toast=(message,error=false)=>window.PdvToast?.show?.(message,error?'error':'success');
 
   function selectedQuantities(host,selector,itemMap){
     const items=[];
@@ -27,8 +25,8 @@
     return items;
   }
 
-  async function mountPurchases(){
-    const root=page();if(!root||title()!=='Compras e recebimentos')return;
+  async function mountPurchases(root=page()){
+    if(!root)return;
     if(!root.querySelector('#p0-partial-receipt-panel')){
       const card=document.createElement('section');card.id='p0-partial-receipt-panel';card.className='ops-card';
       card.innerHTML='<div class="ops-card-head"><div><h2>Recebimento parcial</h2><p class="ops-muted">Informe quanto chegou de cada item. Quantidade zero mantém o saldo pendente para uma próxima entrega.</p></div><button class="ops-secondary" data-partial-receive-refresh>Atualizar</button></div><div data-partial-receive-body><div class="ops-loader"></div></div>';
@@ -66,8 +64,8 @@
     void loadReceipts();
   }
 
-  async function mountOrders(){
-    const root=page();if(!root||title()!=='Orçamentos e pedidos'||root.querySelector('#p0-partial-fulfillment-panel'))return;
+  async function mountOrders(root=page()){
+    if(!root||root.querySelector('#p0-partial-fulfillment-panel'))return;
     const card=document.createElement('section');card.id='p0-partial-fulfillment-panel';card.className='ops-card';
     card.innerHTML='<div class="ops-card-head"><div><h2>Atendimento parcial</h2><p class="ops-muted">Escolha quanto será entregue agora; o restante continua reservado e pendente.</p></div><button class="ops-secondary" data-partial-fulfill-refresh>Atualizar</button></div><div data-partial-fulfill-body><div class="ops-loader"></div></div>';
     root.appendChild(card);
@@ -98,8 +96,8 @@
     void load();
   }
 
-  async function mountReturns(){
-    const root=page();if(!root||title()!=='Devolução'||root.querySelector('#p2-return-details-panel'))return;
+  async function mountReturns(root=page()){
+    if(!root||root.querySelector('#p2-return-details-panel'))return;
     const card=document.createElement('section');card.id='p2-return-details-panel';card.className='ops-card';card.innerHTML='<div class="ops-card-head"><div><h2>Detalhes das devoluções</h2><p class="ops-muted">Consulte itens, reembolsos, motivo, operador e autorização sem alterar o histórico.</p></div><button class="ops-secondary" data-return-details-refresh>Atualizar</button></div><div data-return-details-list><div class="ops-loader"></div></div><div data-return-details-output></div>';root.appendChild(card);
     async function load(){
       const list=card.querySelector('[data-return-details-list]');
@@ -108,8 +106,8 @@
     card.querySelector('[data-return-details-refresh]')?.addEventListener('click',()=>void load());void load();
   }
 
-  async function mountSettings(){
-    const root=page();if(!root||title()!=='Configurações')return;
+  async function mountSettings(root=page()){
+    if(!root)return;
     if(!root.querySelector('#p1-print-retry-panel')){
       const card=document.createElement('section');card.id='p1-print-retry-panel';card.className='ops-card';card.dataset.settingsCategory='printing';card.innerHTML='<div class="ops-card-head"><div><h2>Fila de impressão com falha</h2><p class="ops-muted">Reenvie somente trabalhos com falha; a reimpressão histórica continua separada no histórico de vendas.</p></div><button class="ops-secondary" data-print-retry-refresh>Atualizar</button></div><div data-print-retry-body></div>';root.appendChild(card);
       async function loadPrint(){const host=card.querySelector('[data-print-retry-body]');try{const rows=await api.printJobs({status:'FAILED'});host.innerHTML=`<div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Data</th><th>Tipo</th><th>Entidade</th><th>Tentativas</th><th>Erro</th><th></th></tr></thead><tbody>${rows.map(job=>`<tr><td>${when(job.updatedAt||job.createdAt)}</td><td>${esc(job.type)}</td><td>${esc(`${job.entityType||'—'} ${job.entityId||''}`)}</td><td>${Number(job.attempts||0)}</td><td>${esc(job.lastError||'—')}</td><td><button class="ops-link" data-print-retry="${esc(job.id)}">Reenviar</button></td></tr>`).join('')||'<tr><td colspan="6">Nenhuma impressão com falha.</td></tr>'}</tbody></table></div>`;card.querySelectorAll('[data-print-retry]').forEach(button=>button.addEventListener('click',async()=>{try{await api.retryPrint(button.dataset.printRetry);toast('Job devolvido à fila de impressão.');await loadPrint();}catch(error){toast(error.message,true);}}));}catch(error){host.innerHTML=`<div class="ops-error">${esc(error.message)}</div>`;}}
@@ -179,6 +177,11 @@
     }
   }
 
-  function mount(){void mountPurchases();void mountOrders();void mountReturns();void mountSettings();}
-  const host=content()||document.body;new MutationObserver(()=>queueMicrotask(mount)).observe(host,{childList:true,subtree:true});mount();
+  async function mountSurface(surface,root=page()){
+    if(surface==='enterprise-purchases')return mountPurchases(root);
+    if(surface==='enterprise-orders')return mountOrders(root);
+    if(surface==='returns')return mountReturns(root);
+    if(surface==='settings')return mountSettings(root);
+  }
+  window.PdvOperationalDetailExtensions=Object.freeze({mountSurface,mountPurchases,mountOrders,mountReturns,mountSettings});
 })();

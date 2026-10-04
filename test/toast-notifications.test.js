@@ -46,11 +46,20 @@ test('toast CSS supports compact close affordance and exit animation', () => {
   assert.ok(stylesSource.includes('max-width: 360px'), 'toast width must be more compact than the legacy 420px surface');
 });
 
-test('legacy toast producers are centralized without rewriting their business flows', () => {
+test('renderer toast producers use the shared PdvToast API without an appendChild compatibility bridge', () => {
   const source = readToastSource();
-  assert.ok(source.includes('installLegacyAppendBridge'), 'shared manager must adopt legacy toast append calls');
-  assert.ok(source.includes('toastRoot.appendChild = function appendManagedToast'), 'toast root must route legacy appendChild calls through the shared policy');
-  assert.ok(source.includes('nativeAppendChild(node)'), 'managed nodes must bypass the compatibility bridge without recursion');
+  assert.equal(source.includes('installLegacyAppendBridge'), false);
+  assert.equal(source.includes('toastRoot.appendChild = function appendManagedToast'), false);
+  const producerFiles=[
+    'app.js','first-access-ui.js','historical-cost-ui.js','reporting-v2.js','product-variants-ui.js',
+    'operational-pages.js','operational-route-extensions.js','operational-detail-extensions.js',
+    'enterprise-depth-ui.js','restaurant-ui.js','restaurant-public-ordering-ui.js'
+  ];
+  for(const file of producerFiles){
+    const producer=fs.readFileSync(path.join(rendererDir,file),'utf8');
+    assert.match(producer,/PdvToast\?\.show|PdvToast\.show/,file);
+    assert.doesNotMatch(producer,/toastRoot\.appendChild/,file);
+  }
 });
 
 test('manual close control keeps exact success text compatible with existing observers', () => {

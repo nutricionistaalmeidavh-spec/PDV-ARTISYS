@@ -7,24 +7,21 @@ const {execFileSync}=require('node:child_process');
 
 const root=path.join(__dirname,'..','desktop','renderer');
 const reportScript=path.join(root,'reporting-v2.js');
-const legacyExportScript=path.join(root,'reporting-v2-legacy-export.js');
 
 function escapeRegex(value){return String(value).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
 
-test('commercial reporting workspace and detailed export bridge load before the legacy operational reports handler',()=>{
+test('commercial reporting workspace loads as the single reporting owner before operational routes',()=>{
   const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const reports=index.indexOf('reporting-v2.js');
-  const bridge=index.indexOf('reporting-v2-legacy-export.js');
   const operational=index.indexOf('operational-pages.js');
   assert.ok(reports>0);
-  assert.ok(bridge>reports);
-  assert.ok(operational>bridge);
+  assert.ok(operational>reports);
+  assert.equal(index.includes('reporting-v2-legacy-export.js'),false);
   assert.match(index,/reporting-v2\.css/);
 });
 
-test('commercial reporting scripts have valid JavaScript syntax',()=>{
+test('commercial reporting script has valid JavaScript syntax',()=>{
   execFileSync(process.execPath,['--check',reportScript],{stdio:'pipe'});
-  execFileSync(process.execPath,['--check',legacyExportScript],{stdio:'pipe'});
 });
 
 test('commercial reporting workspace covers requested report dimensions and output actions',()=>{
@@ -39,13 +36,12 @@ test('commercial reporting workspace covers requested report dimensions and outp
   assert.match(source,/sellerId/);
 });
 
-test('overview keeps the legacy detailed sales CSV contract while other tabs export their own report',()=>{
-  const bridge=fs.readFileSync(legacyExportScript,'utf8');
-  assert.match(bridge,/activeView !== 'overview'/);
-  assert.match(bridge,/api\.exportSalesCsv/);
-  assert.match(bridge,/sellerId/);
-  assert.match(bridge,/vendas-detalhadas-/);
-  assert.match(bridge,/stopImmediatePropagation/);
+test('overview keeps detailed sales CSV contract inside the canonical reporting renderer',()=>{
+  const source=fs.readFileSync(reportScript,'utf8');
+  assert.match(source,/state\.view==='overview'/);
+  assert.match(source,/api\.exportSalesCsv/);
+  assert.match(source,/sellerId:state\.sellerId/);
+  assert.match(source,/vendas-detalhadas-/);
 });
 
 test('reporting v2 preserves commission rules and payment workflows from the legacy report page',()=>{

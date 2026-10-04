@@ -55,7 +55,7 @@ test('settings never expose a permanent pairing secret and show a read-only stat
 });
 
 test('PC principal panel consolidates LAN state, pairing and terminal lifecycle',()=>{
-  const ui=read('desktop/renderer/ui-parity-p0-p2.js');
+  const ui=read('desktop/renderer/operational-detail-extensions.js');
   assert.match(ui,/PC principal: ATIVO/);
   assert.match(ui,/Adicionar terminal/);
   assert.match(ui,/Desativar acesso pela rede/);

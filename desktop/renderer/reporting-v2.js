@@ -9,7 +9,6 @@
   const ui = root.PdvUiModel;
   const modal = root.PdvModal;
   const content = document.getElementById('route-content');
-  const toastRoot = document.getElementById('toast-root');
   let config = null;
   let storeTimeZone = 'America/Sao_Paulo';
   let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'',locationId:'' };
@@ -43,13 +42,7 @@
     return Number.isFinite(number) ? Math.round(number * 100) : 0;
   }
   function showToast(message,type='') {
-    if (root.PdvToast?.show) { root.PdvToast.show(message,type); return; }
-    if (!toastRoot) return;
-    const node = document.createElement('div');
-    node.className = `toast ${type}`;
-    node.textContent = message;
-    toastRoot.appendChild(node);
-    setTimeout(() => node.remove(),3500);
+    root.PdvToast?.show?.(message,type);
   }
   function metric(label,value,hint='') {
     return `<article class="ops-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong>${hint ? `<small>${escapeHtml(hint)}</small>` : ''}</article>`;
@@ -68,15 +61,18 @@
     const text = String(value ?? '');
     return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
   }
-  function downloadCsv(name,headers,rows) {
-    const lines = [headers.map(csvCell).join(';'),...rows.map(row => row.map(csvCell).join(';'))];
-    const blob = new Blob([`\uFEFF${lines.join('\n')}\n`],{type:'text/csv;charset=utf-8'});
+  function downloadCsvText(name,text) {
+    const blob = new Blob([`\uFEFF${String(text||'')}`],{type:'text/csv;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = name;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
+  }
+  function downloadCsv(name,headers,rows) {
+    const lines = [headers.map(csvCell).join(';'),...rows.map(row => row.map(csvCell).join(';'))];
+    downloadCsvText(name,`${lines.join('\n')}\n`);
   }
   async function ready() {
     if (!config) {
@@ -344,7 +340,21 @@
       else void openSalesDrilldown('Vendas do período');
     }));
     document.getElementById('report-open-management')?.addEventListener('click',navigateManagement);
-    document.getElementById('report-export')?.addEventListener('click',() => { const csv=currentCsv(sales,inventory,cash,commissions); downloadCsv(csv.name,csv.headers,csv.rows); });
+    document.getElementById('report-export')?.addEventListener('click',async() => {
+      try{
+        if(state.view==='overview'){
+          const result=await api.exportSalesCsv({
+            from:new Date(`${state.fromDate}T00:00:00`).toISOString(),
+            to:new Date(`${state.toDate}T23:59:59.999`).toISOString(),
+            sellerId:state.sellerId||''
+          });
+          downloadCsvText(`vendas-detalhadas-${state.fromDate}-a-${state.toDate}.csv`,result.csv||'');
+          return;
+        }
+        const csv=currentCsv(sales,inventory,cash,commissions);
+        downloadCsv(csv.name,csv.headers,csv.rows);
+      }catch(error){showToast(error.message||'Não foi possível exportar o relatório.','error');}
+    });
     document.getElementById('report-print')?.addEventListener('click',() => root.print());
 
     document.getElementById('report-commission-rule')?.addEventListener('submit',async event => {

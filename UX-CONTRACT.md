@@ -46,7 +46,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - User-facing error states state what failed, what remains usable, and the next safe action.
 - Every visible enabled action must resolve to a canonical handler and an observable outcome: navigation, app-owned dialog, persisted mutation/IPC, download, or explicit state change. Do not ship placeholder/no-op buttons.
 - Shared components that render removable or destructive controls require an explicit action owner. Without one, render non-interactive state instead of an enabled button.
-- Renderer extensions mount through `PdvUiLifecycle` route events; DOM `MutationObserver` is not an ownership mechanism for route behavior.
+- Route owners compose route-specific components directly. Cross-cutting extensions may consume `PdvUiLifecycle` semantic events; DOM `MutationObserver` is forbidden as an ownership or mounting mechanism.
 
 ## Restaurante: ordering público por QR
 
@@ -111,7 +111,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Gestão permanece dona de DRE, fluxo de caixa, comparação e drill-down gerencial; conciliação bancária, transferências entre contas próprias, recorrências e alertas pertencem às rotas do Financeiro.
 - A edição de categoria gerencial, centro de custo e competência altera as dimensões do lançamento financeiro canônico; não cria lançamento, espelho ou registro financeiro paralelo.
 - O antigo watchdog `operational-route-stability.js` não faz parte da arquitetura atual. Uma rota não deve ser recriada em resposta a `MutationObserver`; conflitos de ownership devem falhar nos testes/registro.
-- O orçamento de `MutationObserver` do renderer não pode aumentar silenciosamente. Observers legados permanecem somente durante migrações progressivas já documentadas e devem ser substituídos por lifecycle/owners explícitos quando a superfície for migrada.
+- `MutationObserver` é proibido no renderer de produção. Montagem de rota pertence ao owner canônico; consumidores transversais usam lifecycle/eventos semânticos, nunca observação do DOM.
 - O gate de UI executa `all-pages-audit` em Electron a 1366×768 e 1024×768, verifica overflow horizontal, controles críticos e que a finalização do Balcão permaneça dentro do viewport. O job de UI também sobe o servidor local e valida `/mobile` e `/m/:token`. Screenshots/trace permanecem como evidência; o gate continua sendo smoke estrutural/visual e não substitui testes transacionais específicos.
 
 
@@ -135,7 +135,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - `module-state-sync.js` reage ao lifecycle de rota/superfície e usa o registry canônico para atualizar Configurações.
 - Campos operacionais amigáveis reagem a rota, modal e módulo montados; não existe varredura acionada por mutações de DOM.
 - `enterprise-depth-ui.js` publica updates semânticos de Compras, Logística e Pedidos; `vertical-modules.js` publica `surface:mounted` para área e workspace.
-- Orçamento máximo de `MutationObserver` após P5: **9**. Os observers restantes pertencem às extensões complexas reservadas ao P6.
+- Orçamento atual de `MutationObserver` no renderer: **0**. As extensões complexas migradas são componentes owner-invoked; reintroduzir observação de DOM é regressão arquitetural.
 
 
 ## Intuitividade P2 — reconhecimento e separação de contexto

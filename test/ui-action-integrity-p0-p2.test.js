@@ -18,8 +18,9 @@ test('all desktop renderer product UI avoids native alert, confirm and prompt di
   assert.deepEqual(offenders,[]);
 });
 
-test('backend parity destructive actions use the canonical form dialog and persist through API owners',()=>{
-  const source=read('desktop/renderer/backend-parity-ui.js');
+test('operational route extensions use the canonical form dialog and persist through API owners',()=>{
+  const source=read('desktop/renderer/operational-route-extensions.js');
+  const owner=read('desktop/renderer/operational-pages.js');
   assert.match(source,/const ux=window\.ArtisysUxComponents/);
   assert.match(source,/title:'Cancelar devolução'/);
   assert.match(source,/onConfirm:data=>api\.cancelReturn\([^,]+,String\(data\.reason\|\|''\)\.trim\(\)\)/);
@@ -27,8 +28,9 @@ test('backend parity destructive actions use the canonical form dialog and persi
   assert.match(source,/onConfirm:data=>api\.reverseFinanceSettlement\([^,]+,String\(data\.reason\|\|''\)\.trim\(\)\)/);
   assert.doesNotMatch(source,/\b(?:window\.|root\.)?(?:alert|confirm|prompt)\s*\(/);
   assert.doesNotMatch(source,/MutationObserver/);
-  assert.match(source,/lifecycle\.on\('route:mounted',mount\)/);
-  assert.match(source,/lifecycle\.on\('route:updated',mount\)/);
+  assert.doesNotMatch(source,/lifecycle\.on|route:mounted|route:updated/);
+  assert.match(source,/PdvOperationalRouteExtensions=Object\.freeze/);
+  assert.match(owner,/PdvOperationalRouteExtensions\?\.mountRoute\?\.\(route,pageRoot\)/);
   for(const owner of ['bindTerminalStockLocation','saveInventoryMovement','cancelReturn','createFinanceAccount','reverseFinanceSettlement']){
     assert.match(source,new RegExp(`api\\.${owner}\\(`),owner);
   }

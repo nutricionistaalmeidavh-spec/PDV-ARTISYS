@@ -2,6 +2,7 @@
 
 (() => {
   const ui = window.PdvUiModel;
+  const homeRoleModel = window.PdvHomeRoleModel;
   const { ApiClient } = window.PdvApiClient;
   const api = new ApiClient();
   const routeRegistry = window.PdvRouteRegistry;
@@ -58,7 +59,6 @@
   const content = document.getElementById('route-content');
   const modalRoot = document.getElementById('modal-root');
   const authOverlay = document.getElementById('auth-overlay');
-  const toastRoot = document.getElementById('toast-root');
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
@@ -115,12 +115,7 @@
   }
 
   function showToast(message, type = '') {
-    if (window.PdvToast?.show) { window.PdvToast.show(message,type); return; }
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    toastRoot.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
+    window.PdvToast?.show?.(message,type);
   }
 
   function setOnline(ok) {
@@ -302,10 +297,23 @@
     content.querySelectorAll('[data-flow-route]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.flowRoute)));
   }
 
+  function focusHomeSettingsTarget(selector,attempts=24){
+    if(!selector||attempts<=0||document.body.dataset.activeRoute!=='settings')return;
+    const target=document.querySelector(selector);
+    if(target){target.scrollIntoView({behavior:'smooth',block:'start'});target.classList.add('home-target-highlight');window.setTimeout(()=>target.classList.remove('home-target-highlight'),1600);return;}
+    window.setTimeout(()=>focusHomeSettingsTarget(selector,attempts-1),100);
+  }
+
   function renderHome() {
-    const symbols = { checkout: '🛒', customers: '👥', sellers: '●', products: '◇', inventory: '▦', cash: '▤', finance: '$', reports: '▥', management: '⌁', sales: '◷', returns: '↩' };
-    content.innerHTML = `<section class="home-grid">${ui.HOME_TILES.map((tile) => `<button type="button" class="home-tile tone-${tile.tone}" data-home-route="${tile.route}" data-symbol="${symbols[tile.key] || '•'}"><span class="tile-icon">${icon(tile.icon, 50)}</span><h2>${escapeHtml(tile.label)}</h2><p>${escapeHtml(tile.description)}</p><span class="shortcut-badge">${tile.shortcut}</span></button>`).join('')}</section>`;
-    content.querySelectorAll('[data-home-route]').forEach((button) => button.addEventListener('click', () => navigate(button.dataset.homeRoute)));
+    const view=homeRoleModel?.homeForUser?.(state.user,ui.HOME_TILES)||{label:'Operação',title:'Início',subtitle:'Acesso rápido.',sections:[{key:'main',label:'',tiles:ui.HOME_TILES}]};
+    const operatorName=state.user?.name||'';
+    content.innerHTML=`<section id="classic-home-grid" class="classic-home-grid" aria-label="Início de ${escapeHtml(view.label)}"><header class="classic-home-head"><div><span class="classic-home-eyebrow">Início · ${escapeHtml(view.label)}</span><h1>${escapeHtml(view.title)}</h1><p>${escapeHtml(view.subtitle)}</p></div>${operatorName?`<span class="classic-home-operator">${escapeHtml(operatorName)}</span>`:''}</header>${view.sections.map(section=>`<section class="classic-home-section" data-home-section="${escapeHtml(section.key)}">${section.label?`<h2>${escapeHtml(section.label)}</h2>`:''}<div class="classic-home-tiles">${section.tiles.map(tile=>`<button type="button" class="home-tile tone-${escapeHtml(tile.tone||'blue')}" data-home-route="${escapeHtml(tile.route)}" aria-label="Abrir ${escapeHtml(tile.label)}"><span class="tile-icon">${icon(tile.icon,46)}</span><h3>${escapeHtml(tile.label)}</h3><p>${escapeHtml(tile.description)}</p>${tile.shortcut?`<span class="shortcut-badge">${escapeHtml(tile.shortcut)}</span>`:''}</button>`).join('')}</div></section>`).join('')}</section>`;
+    document.body.classList.add('home-view-classic');
+    content.querySelectorAll('[data-home-route]').forEach(button=>button.addEventListener('click',async()=>{
+      const tile=view.sections.flatMap(section=>section.tiles).find(item=>item.route===button.dataset.homeRoute);
+      await navigate(button.dataset.homeRoute);
+      if(tile?.target)focusHomeSettingsTarget(tile.target);
+    }));
   }
 
   function renderPlaceholder(route) {

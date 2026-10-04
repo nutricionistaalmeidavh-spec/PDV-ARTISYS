@@ -2,14 +2,14 @@
 
 (()=>{
   const root=window;const {ApiClient}=root.PdvApiClient||{};const composer=root.PdvOrderComposer;if(!ApiClient||!composer)return;
-  const api=new ApiClient();const ui=root.PdvUiModel;const content=document.getElementById('route-content');const toastRoot=document.getElementById('toast-root');const modalRoot=document.getElementById('modal-root');
+  const api=new ApiClient();const ui=root.PdvUiModel;const content=document.getElementById('route-content');const modalRoot=document.getElementById('modal-root');
   let config=null;let selectedSessionId=null;let latestCredential=null;let activeView='operation';let draftSessionId=null;const draftCart=composer.createCart();
   let data={tables:[],requests:[],stations:[],tickets:[],devices:[],users:[],customers:[],products:[],routes:[],report:{}};
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const qty=value=>Number(value||0).toLocaleString('pt-BR',{maximumFractionDigits:3});
   const stamp=value=>{if(!value)return '—';const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
-  function toast(message,type=''){if(!toastRoot)return;const node=document.createElement('div');node.className=`toast ${type}`;node.textContent=message;toastRoot.appendChild(node);setTimeout(()=>node.remove(),3500);}
+  function toast(message,type=''){root.PdvToast?.show?.(message,type);}
   function status(value){const fallback={CLOSED:'Encerrado',DIRECT:'Atendimento direto'}[String(value||'').toUpperCase()]||String(value||'');const label=ui?.statusLabel?.(value,fallback)||fallback;return `<span class="restaurant-status ${esc(value)}">${esc(label)}</span>`;}
   const roleLabel=value=>ui?.roleLabel?.(value,String(value||'Equipe'))||String(value||'Equipe');
   const deviceTypeLabel=value=>ui?.deviceTypeLabel?.(value,String(value||'Dispositivo'))||String(value||'Dispositivo');
@@ -37,7 +37,10 @@
     const viewSwitch=`<div class="restaurant-view-switch" role="tablist" aria-label="Visão de Mesas e comandas"><button class="restaurant-btn ${activeView==='operation'?'':'secondary'}" type="button" role="tab" aria-selected="${activeView==='operation'}" data-restaurant-view-target="operation">Operação</button>${canManageRestaurant()?`<button class="restaurant-btn ${activeView==='management'?'':'secondary'}" type="button" role="tab" aria-selected="${activeView==='management'}" data-restaurant-view-target="management">Configuração</button>`:''}</div>`;
     const operationActions=activeView==='operation'?`<select id="restaurant-operator" class="ops-input compact" aria-label="Operador da comanda">${data.users.map(u=>`<option value="${esc(u.id)}" ${u.id===op?'selected':''}>${esc(u.name)} · ${esc(roleLabel(u.role))}</option>`).join('')}</select><button class="restaurant-btn" data-new-table>Nova mesa</button>`:'';
     content.innerHTML=`<section class="restaurant-page" data-restaurant-view="${esc(activeView)}"><header class="restaurant-head"><div><h1>Mesas e comandas</h1><p>${activeView==='operation'?'Abra mesas, registre pedidos e acompanhe atendimento e produção.':'Configure produção e dispositivos e consulte os indicadores da operação.'}</p></div><div class="restaurant-actions">${back}${viewSwitch}${operationActions}<button class="restaurant-btn secondary" data-refresh>Atualizar</button></div></header>${activeView==='management'?renderManagement():renderOperation()}</section>`;
-    bind();if(activeView==='operation'&&selectedSessionId)void renderSession(selectedSessionId);
+    bind();
+    void root.PdvRestaurantPublicOrderingUi?.mount?.();
+    root.PdvUiLifecycle?.emit?.('surface:mounted',{surface:'restaurant',view:activeView});
+    if(activeView==='operation'&&selectedSessionId)void renderSession(selectedSessionId);
   }
   function renderOperation(){
     const r=data.report||{};

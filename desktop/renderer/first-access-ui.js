@@ -3,7 +3,6 @@
 (() => {
   const { ApiClient } = window.PdvApiClient || {};
   const overlay = document.getElementById('auth-overlay');
-  const toastRoot = document.getElementById('toast-root');
   const lifecycle = window.PdvUiLifecycle;
   if (!ApiClient || !overlay || !lifecycle) return;
 
@@ -28,12 +27,7 @@
   }
 
   function showToast(message, type = '') {
-    if (!toastRoot) return;
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = String(message || 'Falha no primeiro acesso.');
-    toastRoot.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
+    window.PdvToast?.show?.(String(message || 'Falha no primeiro acesso.'),type);
   }
 
   async function ensureConfig() {

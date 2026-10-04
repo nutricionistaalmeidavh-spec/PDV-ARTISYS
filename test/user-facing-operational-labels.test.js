@@ -44,8 +44,8 @@ test('food and KDS surfaces never print NEW PREPARING READY as customer-facing c
 
 test('administrative operational surfaces translate device purchase logistics and return enums',()=>{
   const access=read('desktop/renderer/access-center-ui.js');
-  const parity=read('desktop/renderer/ui-parity-p0-p2.js');
-  const backend=read('desktop/renderer/backend-parity-ui.js');
+  const parity=read('desktop/renderer/operational-detail-extensions.js');
+  const backend=read('desktop/renderer/operational-route-extensions.js');
   const enterprise=read('desktop/renderer/enterprise-depth-ui.js');
 
   assert.match(access,/statusLabel/);
