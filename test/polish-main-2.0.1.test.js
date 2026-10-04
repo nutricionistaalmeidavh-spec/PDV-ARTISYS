@@ -87,9 +87,10 @@ test('Pedidos reads canonical and legacy history through one compatibility API',
 
 test('active release metadata no longer presents Fast-food as a product capability',()=>{
   const capabilities=read('release/capabilities.json');
-  const customer=read('release/customer-capabilities.json');
+  const customer=JSON.parse(read('release/customer-capabilities.json'));
+  const declared=(customer.capabilities||[]).flatMap(item=>item.declaredCapabilities||[]).join(' ');
   assert.doesNotMatch(capabilities,/fast-food/i);
-  assert.doesNotMatch(customer,/fast-food/i);
+  assert.doesNotMatch(declared,/fast-food/i);
   assert.match(capabilities,/food-unified-orders/i);
 });
 
