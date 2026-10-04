@@ -52,3 +52,29 @@ test('CI UI gate keeps LAN disabled and reuses the embedded loopback server',()=
   assert.equal(mobile?.path,'/mobile');
   assert.doesNotMatch(qr?.path||'',/port=4174/);
 });
+
+
+test('Reports QA traverses every canonical tab and the manager overview',()=>{
+  const steps=flow().steps;
+  const names=new Set(steps.map(step=>step.name));
+  for(const name of [
+    'relatorios-overview-gerencial',
+    'relatorios-clientes-visivel',
+    'relatorios-produtos-visivel',
+    'relatorios-pagamentos-visivel',
+    'relatorios-estoque-visivel',
+    'relatorios-caixa-visivel',
+    'relatorios-comissoes-visivel',
+    'relatorios-overview-retorno'
+  ]) assert.equal(names.has(name),true,name);
+  const screenshots=new Set(steps.filter(step=>step.action==='screenshot').map(step=>step.name));
+  for(const name of [
+    'relatorios',
+    'relatorios-clientes',
+    'relatorios-produtos',
+    'relatorios-pagamentos',
+    'relatorios-estoque',
+    'relatorios-caixa',
+    'relatorios-comissoes'
+  ]) assert.equal(screenshots.has(name),true,name);
+});
