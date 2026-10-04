@@ -111,15 +111,21 @@ test('reports use the store business date instead of the process timezone',()=>{
   assert.match(source,/const today = businessToday\(\)/);
 });
 
-test('Settings extensions stay on the canonical route lifecycle without custom selection events or DOM observers',()=>{
+test('Settings keeps one canonical company surface and no custom selection channel or DOM observers',()=>{
   const hub=read('desktop/renderer/settings-hub-ui.js');
-  const branding=read('desktop/renderer/store-branding-ui.js');
+  const admin=read('desktop/renderer/admin-ops.js');
+  const index=read('desktop/renderer/index.html');
   assert.doesNotMatch(hub,/settings:select|MutationObserver/);
-  assert.doesNotMatch(branding,/settings:select|MutationObserver|storeBrandingMounted|let mounting=/);
-  assert.match(branding,/page\.querySelector\('#ops-store-receipt-card'\)/);
-  assert.match(branding,/route:mounted/);
-  assert.match(branding,/route:updated/);
-  assert.match(branding,/PdvRouteRegistry\?\.updated\('settings',\{surface:'settings-extension',extension:'store-branding'/);
+  assert.doesNotMatch(admin,/MutationObserver/);
+  assert.match(admin,/id="settings-company-store"/);
+  assert.match(admin,/data-settings-category="company"/);
+  assert.match(admin,/store\.address/);
+  assert.match(admin,/store\.phone/);
+  assert.match(admin,/store\.logoDataUrl/);
+  assert.doesNotMatch(index,/store-branding-ui\.js/);
+  assert.match(admin,/route:mounted/);
+  assert.match(admin,/route:updated/);
+  assert.match(admin,/routeRegistry\.updated\('settings',\{surface:'settings-extension',extension:'admin-ops'\}\)/);
 });
 
 test('backup restore dialog traps keyboard focus, closes on Escape and restores the opener focus',()=>{
