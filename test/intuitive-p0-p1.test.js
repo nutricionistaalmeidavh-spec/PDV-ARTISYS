@@ -50,7 +50,7 @@ test('P0 food workspace is an operational hub instead of a second configuration 
   assert.equal((modules.match(/data-food-capability="DELIVERY"/g)||[]).length,1);
   assert.match(modules,/<strong>Pedidos<\/strong>/);
   assert.match(modules,/data-food-capability="DELIVERY"/);
-  assert.match(modules,/data-food-capability="SELF_SERVICE"/);
+  assert.doesNotMatch(modules,/data-food-capability="SELF_SERVICE"/);
   assert.match(css,/\.food-workspace \.food-module-card\{[^}]*min-height:118px/);
   assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
@@ -131,82 +131,5 @@ test('P1 secondary operational text keeps WCAG-AA-friendly contrast tokens',()=>
 });
 
 
-test('P0 self-service keeps configured device identity visible and opens LAN QR without leaving the page',()=>{
-  const finalUi=read('desktop/renderer/e48-e54-ui.js');
-  const mobile=read('server/mobile/app.js');
-  assert.match(finalUi,/\/api\/v1\/vertical\/self-service\/devices/);
-  assert.match(finalUi,/data-self-device/);
-  assert.match(finalUi,/Responsável local/);
-  assert.match(finalUi,/PdvModal/);
-  assert.doesNotMatch(finalUi,/addEventListener\('click',renderMobileAccess\)/);
-  assert.doesNotMatch(finalUi,/async function renderMobileAccess/);
-  assert.match(mobile,/Faça seu pedido/);
-  assert.match(mobile,/device\.name/);
-});
 
 
-test('P0 self-service setup has one canonical creation surface',()=>{
-  const access=read('desktop/renderer/access-center-ui.js');
-  const finalUi=read('desktop/renderer/e48-e54-ui.js');
-
-  assert.match(access,/<option value="WAITER">Garçom<\/option>/);
-  assert.match(access,/<option value="KITCHEN">KDS \/ produção<\/option>/);
-  assert.doesNotMatch(access,/<option value="TABLET">/);
-  assert.doesNotMatch(access,/<option value="SELF_SERVICE">/);
-
-  assert.match(finalUi,/\/api\/v1\/vertical\/self-service\/devices['"],\{method:'POST'/);
-  assert.doesNotMatch(finalUi,/\/api\/v1\/restaurant\/devices['"],\{method:'POST',body:\{name:d\.get\('name'\),deviceType:'SELF_SERVICE'/);
-  assert.doesNotMatch(finalUi,/self-service\/devices\/\$\{e\(device\.id\)\}['"],\{method:'PUT'/);
-  assert.match(finalUi,/submit\.disabled=true/);
-  assert.match(finalUi,/submit\.textContent='Criando…'/);
-  assert.match(finalUi,/await refreshDevices\(\)/);
-  assert.doesNotMatch(finalUi,/form\.reset\(\)/);
-});
-
-
-test('P0 self-service customer catalog follows the canonical public-menu direction',()=>{
-  const mobile=read('server/mobile/app.js');
-  const css=read('server/mobile/styles.css');
-
-  assert.doesNotMatch(mobile,/function renderTablet\s*\(/);
-  assert.doesNotMatch(mobile,/type==='TABLET'/);
-  assert.doesNotMatch(mobile,/TABLET:'Tablet da mesa'/);
-  assert.match(mobile,/let selfServiceSearch=''/);
-  assert.match(mobile,/let selfServiceCategory=''/);
-  assert.match(mobile,/function selfServiceProducts\s*\(/);
-  assert.match(mobile,/data-self-service-search/);
-  assert.match(mobile,/data-self-service-category/);
-  assert.match(mobile,/self-service-product-card/);
-  assert.match(mobile,/self-service-product-photo/);
-  assert.match(mobile,/self-service-product-fallback/);
-  assert.match(mobile,/product\.available===false/);
-  assert.match(mobile,/\/api\/v1\/mobile\/self-service\/products\/\$\{encodeURIComponent\(product\.id\)\}\/photo/);
-  assert.match(mobile,/function selfServiceCartRail\s*\(/);
-  assert.match(mobile,/self-service-cart-rail/);
-  assert.match(mobile,/class="self-service-shell"/);
-  assert.match(mobile,/Chamar garçom/);
-  assert.match(mobile,/Pedir conta/);
-  assert.match(mobile,/\/api\/v1\/mobile\/self-service\/service/);
-
-  const start=mobile.indexOf('function renderSelfService');
-  const end=mobile.indexOf('function render(){',start);
-  const selfRenderer=mobile.slice(start,end);
-  assert.doesNotMatch(selfRenderer,/\bshell\(/);
-  assert.match(selfRenderer,/profile\.mode==='TABLE'/);
-  assert.match(selfRenderer,/profile\.mode==='PICKUP'/);
-
-  const submitStart=mobile.indexOf('async function submitSelfServiceOrder');
-  const submitEnd=mobile.indexOf('function bindSelfService',submitStart);
-  const submit=mobile.slice(submitStart,submitEnd);
-  assert.ok(submit.indexOf("await request('/api/v1/mobile/self-service/orders'")>=0);
-  assert.ok(submit.indexOf('cart.clear()')>submit.indexOf("await request('/api/v1/mobile/self-service/orders'"));
-  assert.match(submit,/catch\(error\)[\s\S]*button\.disabled=false/);
-
-  assert.match(css,/\.self-service-shell\{/);
-  assert.match(css,/\.self-service-category-strip/);
-  assert.match(css,/\.self-service-product-grid\{[^}]*grid-template-columns/);
-  assert.match(css,/\.self-service-product-card/);
-  assert.match(css,/\.self-service-add\{[^}]*min-width:44px[^}]*min-height:44px/);
-  assert.match(css,/\.self-service-cart-rail/);
-  assert.match(css,/@media\(max-width:760px\)[\s\S]*\.self-service-product-grid\{grid-template-columns:1fr/);
-});
