@@ -44,6 +44,9 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - Cloud telemetry remains independent of module activation and local operation.
 - Home and other specifically approved screens are protected from incidental redesign.
 - User-facing error states state what failed, what remains usable, and the next safe action.
+- Every visible enabled action must resolve to a canonical handler and an observable outcome: navigation, app-owned dialog, persisted mutation/IPC, download, or explicit state change. Do not ship placeholder/no-op buttons.
+- Shared components that render removable or destructive controls require an explicit action owner. Without one, render non-interactive state instead of an enabled button.
+- Renderer extensions mount through `PdvUiLifecycle` route events; DOM `MutationObserver` is not an ownership mechanism for route behavior.
 
 ## Restaurante: ordering público por QR
 
