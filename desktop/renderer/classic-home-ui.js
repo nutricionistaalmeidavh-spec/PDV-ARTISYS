@@ -19,5 +19,6 @@
   });
   lifecycle.on('route:mounted',sync);
   lifecycle.on('route:updated',sync);
+  lifecycle.on('user:changed',()=>sync({route:document.body.dataset.activeRoute}));
   sync();
 })();
