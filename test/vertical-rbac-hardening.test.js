@@ -6,13 +6,13 @@ const { createLocalServer } = require('../server/local-server');
 
 async function startFixture() {
   const runtime = createPdvRuntime();
-  runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', role:'admin', password:'senha-forte-admin', active:true });
-  runtime.catalog.createUser({ id:'manager', username:'manager', name:'Gerente', role:'manager', password:'senha-forte-manager', active:true });
-  runtime.catalog.createUser({ id:'cashier', username:'cashier', name:'Caixa', role:'cashier', password:'senha-forte-cashier', active:true });
-  runtime.catalog.upsertCategory({ id:'food', name:'Alimentos' }, { userId:'admin', role:'admin' });
-  runtime.catalog.upsertProduct({ id:'pizza', sku:'PIZZA', name:'Pizza', salePriceCents:3000, costCents:1000, trackStock:false, categoryId:'food' }, { userId:'admin', role:'admin' });
-  runtime.catalog.upsertProduct({ id:'ingredient', sku:'ING', name:'Ingrediente', salePriceCents:100, costCents:50, trackStock:true, categoryId:'food' }, { userId:'admin', role:'admin' });
-  runtime.modules.setEnabled('FOOD', true, { userId:'admin', role:'admin' });
+  runtime.catalog.createUser({ id:'admin', username:'admin', name:'Admin', profileId:'profile-administrator', password:'senha-forte-admin', active:true });
+  runtime.catalog.createUser({ id:'manager', username:'manager', name:'Gerente', profileId:'profile-manager', password:'senha-forte-manager', active:true });
+  runtime.catalog.createUser({ id:'cashier', username:'cashier', name:'Caixa', profileId:'profile-cashier', password:'senha-forte-cashier', active:true });
+  runtime.catalog.upsertCategory({ id:'food', name:'Alimentos' }, { userId:'admin', profileId:'profile-administrator' });
+  runtime.catalog.upsertProduct({ id:'pizza', sku:'PIZZA', name:'Pizza', salePriceCents:3000, costCents:1000, trackStock:false, categoryId:'food' }, { userId:'admin', profileId:'profile-administrator' });
+  runtime.catalog.upsertProduct({ id:'ingredient', sku:'ING', name:'Ingrediente', salePriceCents:100, costCents:50, trackStock:true, categoryId:'food' }, { userId:'admin', profileId:'profile-administrator' });
+  runtime.modules.setEnabled('FOOD', true, { userId:'admin', profileId:'profile-administrator' });
   const server = createLocalServer({ runtime, host:'127.0.0.1', port:0, token:'local-token', requireTerminalAuth:false });
   const address = await server.start();
   return { runtime, server, base:`http://127.0.0.1:${address.port}` };

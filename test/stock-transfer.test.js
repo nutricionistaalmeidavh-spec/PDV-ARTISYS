@@ -2,8 +2,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const { createPdvRuntime }=require('../js/core/pdv-runtime');
-const actor={userId:'u1',role:'manager',terminalId:'T1'};
-function setup(){let seq=0;const r=createPdvRuntime({now:()=> '2026-09-20T13:00:00.000Z',idFactory:p=>`${p}-${++seq}`});r.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',role:'manager',password:'senha-forte'},actor);r.catalog.upsertProduct({id:'p1',name:'Produto',salePriceCents:1000,costCents:500,trackStock:true},actor);r.logistics.createLocation({id:'L2',name:'Loja 2',type:'STORE'},actor);r.inventory.move({productId:'p1',locationId:'MAIN',type:'opening',quantityDelta:10},actor);return r;}
+const actor={userId:'u1',profileId:'profile-manager',terminalId:'T1'};
+function setup(){let seq=0;const r=createPdvRuntime({now:()=> '2026-09-20T13:00:00.000Z',idFactory:p=>`${p}-${++seq}`});r.catalog.createUser({id:'u1',username:'gerente',name:'Gerente',profileId:'profile-manager',password:'senha-forte'},actor);r.catalog.upsertProduct({id:'p1',name:'Produto',salePriceCents:1000,costCents:500,trackStock:true},actor);r.logistics.createLocation({id:'L2',name:'Loja 2',type:'STORE'},actor);r.inventory.move({productId:'p1',locationId:'MAIN',type:'opening',quantityDelta:10},actor);return r;}
 
 test('dispatch lowers origin and receive raises destination without teleporting stock',()=>{const r=setup();const transfer=r.logistics.createTransfer({fromLocationId:'MAIN',toLocationId:'L2',items:[{productId:'p1',quantity:4}]},actor);r.logistics.dispatchTransfer(transfer.id,{idempotencyKey:'dispatch-1'},actor);assert.equal(r.inventory.getBalance('p1',{locationId:'MAIN'}),6);assert.equal(r.inventory.getBalance('p1',{locationId:'L2'}),0);assert.equal(r.logistics.getTransfer(transfer.id).status,'IN_TRANSIT');r.logistics.receiveTransfer(transfer.id,{idempotencyKey:'receive-1'},actor);assert.equal(r.inventory.getBalance('p1',{locationId:'MAIN'}),6);assert.equal(r.inventory.getBalance('p1',{locationId:'L2'}),4);assert.equal(r.logistics.getTransfer(transfer.id).status,'RECEIVED');r.close();});
 

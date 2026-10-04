@@ -183,7 +183,6 @@
     STATUS_LABELS,
     FULFILLMENT_LABELS,
     DEVICE_TYPE_LABELS,
-    ROLE_LABELS,
     PAYMENT_METHOD_LABELS,
     statusLabel,
     fulfillmentLabel,

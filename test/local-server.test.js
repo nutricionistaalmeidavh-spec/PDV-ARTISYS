@@ -8,7 +8,7 @@ const { createLocalServer }=require('../server/local-server');
 
 async function setup(options={}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-server-'));let seq=0;const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-forte-123'});
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-forte-123'});
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'installation-secret',bodyLimitBytes:options.bodyLimitBytes||1024*1024});
   const address=await server.start();const base=`http://${address.host}:${address.port}`;
   return{dir,runtime,server,base,async cleanup(){await server.stop();runtime.close();fs.rmSync(dir,{recursive:true,force:true});}};

@@ -5,13 +5,13 @@ const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
 const NOW = '2026-09-10T12:00:00.000Z';
-const manager = { userId:'u1', role:'manager', terminalId:'T1' };
+const manager = { userId:'u1', profileId:'profile-manager', terminalId:'T1' };
 
 function setup({ quantity = 1, costCents = 600 } = {}) {
   let seq = 0;
   const runtime = createPdvRuntime({ now: () => NOW, idFactory: prefix => `${prefix}-${++seq}` });
   runtime.catalog.upsertCategory({ id:'c1', name:'Geral' }, manager);
-  runtime.catalog.createUser({ id:'u1', username:'gerente', name:'Gerente', role:'manager', password:'senha-forte' }, manager);
+  runtime.catalog.createUser({ id:'u1', username:'gerente', name:'Gerente', profileId:'profile-manager', password:'senha-forte' }, manager);
   runtime.catalog.upsertProduct({ id:'p1', name:'Produto', categoryId:'c1', unit:'UN', salePriceCents:1000, costCents, trackStock:true, minimumStock:0, active:true }, manager);
   runtime.inventory.move({ productId:'p1', type:'purchase', quantityDelta:10, reason:'Carga inicial' }, manager);
   runtime.cash.openSession({ id:'cash-T1', terminalId:'T1', operatorId:'u1', initialCashCents:0, actor:manager });
