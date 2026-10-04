@@ -129,3 +129,17 @@ test('P1 secondary operational text keeps WCAG-AA-friendly contrast tokens',()=>
   assert.match(restaurant,/\.restaurant-row small\{color:var\(--text-subtle,#60708a\)\}/);
   assert.match(restaurant,/\.restaurant-kpi span\{[^}]*color:var\(--text-subtle,#60708a\)/);
 });
+
+
+test('P0 self-service keeps configured device identity visible and opens LAN QR without leaving the page',()=>{
+  const finalUi=read('desktop/renderer/e48-e54-ui.js');
+  const mobile=read('server/mobile/app.js');
+  assert.match(finalUi,/\/api\/v1\/vertical\/self-service\/devices/);
+  assert.match(finalUi,/data-self-device/);
+  assert.match(finalUi,/Responsável local/);
+  assert.match(finalUi,/PdvModal/);
+  assert.doesNotMatch(finalUi,/addEventListener\('click',renderMobileAccess\)/);
+  assert.doesNotMatch(finalUi,/async function renderMobileAccess/);
+  assert.match(mobile,/Faça seu pedido/);
+  assert.match(mobile,/device\.name/);
+});
