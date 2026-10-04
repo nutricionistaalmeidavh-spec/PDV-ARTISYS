@@ -1678,6 +1678,16 @@
       }
     },
     {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/self-service/public-ordering/config",
+      "method": "PUT",
+      "expectedStatus": 200,
+      "name": "publicar-cardapio-premium-qa",
+      "body": {
+        "menuLayout": "PREMIUM"
+      }
+    },
+    {
       "action": "setViewportSize",
       "width": 390,
       "height": 844,
@@ -2008,6 +2018,49 @@
     {
       "action": "expectNoHorizontalOverflow",
       "name": "cardapio-qr-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "html[data-menu-layout=\"premium\"]",
+      "name": "cardapio-qr-premium-aplicado",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".product-card",
+      "expected": "Produto QA Atacado",
+      "name": "cardapio-qr-premium-produto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "focus",
+      "selector": ".add-button",
+      "name": "a11y-cardapio-premium-foco-cta",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectFocused",
+      "selector": ".add-button",
+      "name": "a11y-cardapio-premium-foco-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectMinimumContrast",
+      "selector": ".product-price",
+      "minRatio": 4.5,
+      "name": "a11y-cardapio-premium-contraste-preco",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "cardapio-qr-premium",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "cardapio-qr-premium-sem-overflow",
       "tolerancePx": 4,
       "timeoutMs": 10000
     }
