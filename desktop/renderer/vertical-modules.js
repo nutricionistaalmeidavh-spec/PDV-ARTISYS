@@ -30,7 +30,7 @@
   }
   async function loadModules(){const catalog=await withTimeout(api.modules(),MODULE_REQUEST_TIMEOUT_MS,'Não foi possível carregar os módulos dentro do tempo esperado.');root.PdvModuleGate?.reconcile?.(catalog);mergeModuleCatalog(catalog);return modules;}
 
-  function moduleAllowed(module){return Boolean(module&&module.accessCapability&&root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,module.accessCapability)&&typeof ROUTE_RENDERERS[module.routeId]==='function');}
+  function moduleAllowed(module){return Boolean(module&&typeof ROUTE_RENDERERS[module.routeId]==='function'&&root.PdvAccessPolicy?.canAccessRoute(root.PdvCurrentAccess,module.routeId,{moduleState:{[module.routeId]:Boolean(module.enabled)}}));}
   const labelFor=module=>module?.name||module?.id||'';
   const moduleForRoute=routeId=>modules.find(module=>module.routeId===routeId)||null;
   function mergeModuleCatalog(catalog){if(!Array.isArray(catalog))return false;modules=catalog.map(module=>({...module}));return true;}
@@ -144,7 +144,7 @@
   async function renderModuleRoute(id){
     if(!modules.length)await loadModules();
     const module=moduleForRoute(id);
-    if(!module?.enabled||!moduleAllowed(module)){
+    if(!moduleAllowed(module)){
       void root.PdvAppNavigation?.navigate?.('home');
       return;
     }
