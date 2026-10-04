@@ -22,17 +22,15 @@ function applyDeviceAccessMigration(db){
   db.exec(`
     UPDATE mobile_devices
     SET surface=CASE
-      WHEN EXISTS (SELECT 1 FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id) THEN 'self-service'
       WHEN device_type='WAITER' THEN 'waiter'
       WHEN device_type='KITCHEN' THEN 'kitchen'
-      WHEN device_type='SELF_SERVICE' THEN 'self-service'
       ELSE lower(device_type)
     END
     WHERE surface IS NULL OR surface='';
 
     UPDATE mobile_devices
     SET scope_type='establishment',scope_id=NULL
-    WHERE device_type IN('WAITER','KITCHEN','SELF_SERVICE') AND scope_type IS NULL;
+    WHERE device_type IN('WAITER','KITCHEN') AND scope_type IS NULL;
 
 
 
