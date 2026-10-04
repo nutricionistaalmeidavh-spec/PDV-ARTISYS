@@ -611,6 +611,46 @@
       "fullPage": true
     },
     {
+      "action": "click",
+      "selector": "button[data-access-tab='devices']",
+      "name": "acessos-abrir-dispositivos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-access-panel] .access-surface",
+      "name": "acessos-dispositivos-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "acessos-dispositivos",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-new-device]",
+      "name": "acessos-novo-dispositivo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-device-form]",
+      "name": "acessos-novo-dispositivo-modal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "acessos-novo-dispositivo-modal",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-device-cancel]",
+      "name": "acessos-fechar-novo-dispositivo",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "acessos-sem-overflow",
@@ -1818,6 +1858,40 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/self-service/devices",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-autoatendimento-mesa-qa",
+      "body": {
+        "id": "qa-self-table",
+        "name": "Mesa fixa QA",
+        "mode": "TABLE",
+        "tableId": "qa-table-1"
+      },
+      "saveAs": {
+        "qaSelfTableId": "device.id",
+        "qaSelfTableKey": "device.credential"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/self-service/devices",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-autoatendimento-retirada-qa",
+      "body": {
+        "id": "qa-self-pickup",
+        "name": "Totem retirada QA",
+        "mode": "PICKUP",
+        "operatorId": "qa-admin"
+      },
+      "saveAs": {
+        "qaSelfPickupId": "device.id",
+        "qaSelfPickupKey": "device.credential"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-table-1/qr",
       "method": "GET",
       "expectedStatus": 200,
@@ -2191,6 +2265,139 @@
       "action": "click",
       "selector": "#logout",
       "name": "garcom-retorno-sair",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "setViewportSize",
+      "width": 1024,
+      "height": 768,
+      "name": "viewport-autoatendimento-mesa"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "autoatendimento-mesa-login",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "valueFrom": "qaSelfTableId",
+      "name": "autoatendimento-mesa-id"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "valueFrom": "qaSelfTableKey",
+      "name": "autoatendimento-mesa-chave"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "autoatendimento-mesa-conectar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".self-service-shell",
+      "name": "autoatendimento-mesa-shell",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".self-service-head",
+      "expected": "Mesa fixa QA",
+      "name": "autoatendimento-mesa-identidade",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".self-service-head",
+      "expected": "Mesa QA 1",
+      "name": "autoatendimento-mesa-contexto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-self-service-product]",
+      "name": "autoatendimento-mesa-produtos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "autoatendimento-mesa-fixa",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "autoatendimento-mesa-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#self-service-logout",
+      "name": "autoatendimento-mesa-sair",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-autoatendimento-retirada"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "autoatendimento-retirada-login",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "valueFrom": "qaSelfPickupId",
+      "name": "autoatendimento-retirada-id"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "valueFrom": "qaSelfPickupKey",
+      "name": "autoatendimento-retirada-chave"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "autoatendimento-retirada-conectar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".self-service-shell",
+      "name": "autoatendimento-retirada-shell",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".self-service-context-note",
+      "expected": "Retirada no balcão",
+      "name": "autoatendimento-retirada-contexto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "autoatendimento-retirada",
+      "fullPage": true
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "name": "autoatendimento-retirada-sem-overflow",
+      "tolerancePx": 4,
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#self-service-logout",
+      "name": "autoatendimento-retirada-sair",
       "timeoutMs": 10000
     },
     {
