@@ -2,7 +2,6 @@
 
 const SURFACE_PERMISSIONS=Object.freeze({
   waiter:Object.freeze(['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.transfer','restaurant.tables.manage','restaurant.service.manage']),
-  table:Object.freeze(['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.service.request']),
   kitchen:Object.freeze(['restaurant.access','kitchen.view','kitchen.update_status']),
   'self-service':Object.freeze(['restaurant.access','restaurant.self_service.create']),
   terminal:Object.freeze([])
