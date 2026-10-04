@@ -11,6 +11,7 @@
   const content = document.getElementById('route-content');
   const toastRoot = document.getElementById('toast-root');
   let config = null;
+  let storeTimeZone = 'America/Sao_Paulo';
   let state = { view:'overview',fromDate:'',toDate:'',sellerId:'',customerId:'',productId:'',paymentMethod:'',locationId:'' };
 
   const PAYMENT_LABELS = Object.freeze({
@@ -56,7 +57,13 @@
   function empty(message,cols=1) { return `<tr><td colspan="${cols}"><div class="ops-empty">${escapeHtml(message)}</div></td></tr>`; }
   function paymentLabel(method) { return PAYMENT_LABELS[method] || method || 'Outros'; }
   function movementLabel(type) { return MOVEMENT_LABELS[type] || type || 'Movimento'; }
-  function dateValue(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+  function dateValueUtc(date) { return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}-${String(date.getUTCDate()).padStart(2,'0')}`; }
+  function businessToday(reference=new Date()) { return root.PdvBusinessDate.localBusinessDate(reference,storeTimeZone); }
+  function canonicalDateObject(value) {
+    const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!match)throw new Error('Data comercial inválida.');
+    return new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3])));
+  }
   function csvCell(value) {
     const text = String(value ?? '');
     return /[;"\r\n]/.test(text) ? `"${text.replace(/"/g,'""')}"` : text;
@@ -71,7 +78,17 @@
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url),1000);
   }
-  async function ready() { if (!config) config = await api.initialize(); return config; }
+  async function ready() {
+    if (!config) {
+      config = await api.initialize();
+      try {
+        const rows = await api.settings({ scope:'global',prefix:'store.timeZone' });
+        const configured = Array.isArray(rows) ? rows.find(row => row.key === 'store.timeZone')?.value : '';
+        if (configured) storeTimeZone = String(configured);
+      } catch {}
+    }
+    return config;
+  }
   function routeActive() { return document.body.dataset.activeRoute === 'reports'; }
   function markActive() {
     document.body.dataset.activeRoute = 'reports';
@@ -113,13 +130,13 @@
     return revenue ? Number(((Number(row?.estimatedMarginCents||0)/revenue)*100).toFixed(2)) : 0;
   }
 
-  function presetPeriod(key,reference=new Date()) {
-    const end=new Date(reference.getFullYear(),reference.getMonth(),reference.getDate());
+  function presetPeriod(key,reference=businessToday()) {
+    const end=canonicalDateObject(typeof reference==='string'?reference:businessToday(reference));
     const start=new Date(end);
-    if(key==='last7')start.setDate(start.getDate()-6);
-    else if(key==='month')start.setDate(1);
-    else if(key==='prev-month'){start.setMonth(start.getMonth()-1,1);end.setDate(0);}
-    return{fromDate:dateValue(start),toDate:dateValue(end)};
+    if(key==='last7')start.setUTCDate(start.getUTCDate()-6);
+    else if(key==='month')start.setUTCDate(1);
+    else if(key==='prev-month'){start.setUTCMonth(start.getUTCMonth()-1,1);end.setUTCDate(0);}
+    return{fromDate:dateValueUtc(start),toDate:dateValueUtc(end)};
   }
 
   async function openSalesDrilldown(title,filters={}) {
@@ -253,11 +270,10 @@
   async function renderReportsV2(next = {}) {
     await ready();
     markActive();
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(),now.getMonth(),1);
+    const today = businessToday();
     state = { ...state,...next };
-    if (!state.fromDate) state.fromDate = dateValue(firstDay);
-    if (!state.toDate) state.toDate = dateValue(now);
+    if (!state.fromDate) state.fromDate = `${today.slice(0,8)}01`;
+    if (!state.toDate) state.toDate = today;
 
     const basePeriod = { from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString() };
     const salesFilters = { ...basePeriod,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : '' };
