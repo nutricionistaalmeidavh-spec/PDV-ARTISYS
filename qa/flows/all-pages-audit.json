@@ -1476,6 +1476,155 @@
       "fullPage": true
     },
     {
+      "action": "expectText",
+      "selector": ".report-v2-manager-summary",
+      "expected": "Comparação com período anterior",
+      "name": "relatorios-overview-gerencial",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Tendência de vendas líquidas",
+      "name": "relatorios-tendencia-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Atenção",
+      "name": "relatorios-atencao-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Categorias",
+      "name": "relatorios-categorias-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-customers",
+      "name": "relatorios-clientes-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Relatório de venda por cliente",
+      "name": "relatorios-clientes-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-clientes",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-products",
+      "name": "relatorios-produtos-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Relatório de venda por produto",
+      "name": "relatorios-produtos-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-produtos",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-payments",
+      "name": "relatorios-pagamentos-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Relatório por meio de pagamento",
+      "name": "relatorios-pagamentos-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-pagamentos",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-inventory",
+      "name": "relatorios-estoque-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Produtos no estoque mínimo para compra",
+      "name": "relatorios-estoque-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-estoque",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-cash",
+      "name": "relatorios-caixa-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Dinheiro que entrou e saiu do caixa",
+      "name": "relatorios-caixa-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-caixa",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-commissions",
+      "name": "relatorios-comissoes-abrir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "#report-v2-body",
+      "expected": "Comissões por vendedor / garçom",
+      "name": "relatorios-comissoes-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "relatorios-comissoes",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "#report-tab-overview",
+      "name": "relatorios-overview-voltar",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": ".report-v2-manager-summary",
+      "expected": "Resultado do período",
+      "name": "relatorios-overview-retorno",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "relatorios-sem-overflow",

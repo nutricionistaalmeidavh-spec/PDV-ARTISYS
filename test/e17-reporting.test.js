@@ -114,3 +114,22 @@ test('finance summary and sales CSV preserve existing report contracts',()=>{
 test('report period rejects inverted ranges',()=>{
   const {db,reports}=fixture();assert.throws(()=>reports.buildSalesSummary({from:'2026-09-10',to:'2026-09-09'}),/Data inicial/);db.close();
 });
+
+
+test('sales report exposes manager decision metrics without parallel aggregates',()=>{
+  const {db,reports}=fixture();
+  const r=reports.buildSalesSummary({from:'2026-09-09T00:00:00Z',to:'2026-09-09T23:59:59Z'});
+  assert.equal(r.uniqueCustomersCount,1);
+  assert.equal(r.firstTimeCustomersCount,1);
+  assert.equal(r.returningCustomersCount,0);
+  assert.equal(r.customersWithoutSalesCount,0);
+  assert.equal(r.categorySales.length,1);
+  assert.equal(r.categorySales[0].categoryName,'Geral');
+  assert.equal(r.categorySales[0].netCents,1900);
+  assert.equal(r.categorySales[0].estimatedMarginCents,700);
+  assert.equal(r.lowMarginProducts[0].productId,'p1');
+  assert.equal(r.lowMarginProducts[0].estimatedMarginCents,700);
+  assert.equal(r.salesTimeline.length,3);
+  assert.equal(r.salesTimeline.reduce((sum,row)=>sum+row.netCents,0),1900);
+  db.close();
+});

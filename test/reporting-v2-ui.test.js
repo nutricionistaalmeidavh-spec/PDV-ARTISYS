@@ -71,3 +71,22 @@ test('print stylesheet removes application chrome and operational actions',()=>{
   assert.match(css,/report-print-meta/);
   assert.match(css,/report-v2-no-print/);
 });
+
+
+test('manager overview is decision-first and keeps canonical route ownership',()=>{
+  const source=fs.readFileSync(reportScript,'utf8');
+  for(const marker of [
+    'Comparação com período anterior',
+    'Margem %',
+    'Atenção',
+    'Mais vendidos',
+    'Menor margem',
+    'Categorias',
+    'Clientes no período',
+    'Operação por operador'
+  ]) assert.match(source,new RegExp(escapeRegex(marker),'i'));
+  assert.match(source,/PdvBusinessDate\.equivalentPreviousPeriod/);
+  assert.doesNotMatch(source,/MutationObserver/);
+  assert.doesNotMatch(source,/data-report-jump/);
+  assert.equal((source.match(/PdvRouteRegistry\.register\('reports'/g)||[]).length,1);
+});

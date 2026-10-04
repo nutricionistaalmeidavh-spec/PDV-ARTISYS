@@ -122,8 +122,60 @@
 
 
   function marginPercent(row) {
-    const revenue=Number(row?.netCents||0);
+    const revenue=Number(row?.netCents ?? row?.netSalesCents ?? 0);
     return revenue ? Number(((Number(row?.estimatedMarginCents||0)/revenue)*100).toFixed(2)) : 0;
+  }
+
+  function comparisonPercent(current,previous) {
+    const base=Number(previous||0),value=Number(current||0);
+    if(base===0)return value===0?0:null;
+    return ((value-base)/Math.abs(base))*100;
+  }
+
+  function comparisonText(current,previous) {
+    const delta=comparisonPercent(current,previous);
+    if(delta==null)return 'Sem base no período anterior';
+    const prefix=delta>0?'+':'';
+    return `${prefix}${delta.toLocaleString('pt-BR',{maximumFractionDigits:1})}% vs período anterior`;
+  }
+
+  function managerMetric(label,value,current,previous,hint='') {
+    const compare=comparisonText(current,previous);
+    return `<article class="ops-metric report-v2-manager-metric"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(compare)}${hint?` · ${escapeHtml(hint)}`:''}</small></article>`;
+  }
+
+  function timelineRows(sales) {
+    const totals=new Map();
+    for(const event of sales.salesTimeline||[]) {
+      const day=root.PdvBusinessDate.localBusinessDate(new Date(event.at),storeTimeZone);
+      totals.set(day,(totals.get(day)||0)+Number(event.netCents||0));
+    }
+    const rows=[];
+    const cursor=canonicalDateObject(state.fromDate),end=canonicalDateObject(state.toDate);
+    while(cursor<=end) {
+      const day=dateValueUtc(cursor);
+      rows.push({day,netCents:totals.get(day)||0});
+      cursor.setUTCDate(cursor.getUTCDate()+1);
+    }
+    return rows;
+  }
+
+  function trendView(sales) {
+    const rows=timelineRows(sales);
+    const max=Math.max(1,...rows.map(row=>Math.abs(Number(row.netCents||0))));
+    return `<section class="ops-card report-print-section report-v2-trend"><div class="ops-card-head"><div><h2>Tendência de vendas líquidas</h2><p class="ops-muted">Vendas após descontos menos devoluções, agrupadas pela data comercial da loja.</p></div></div><div class="report-v2-trend-list">${rows.map(row=>{const width=Math.round((Math.abs(Number(row.netCents||0))/max)*100);return `<div class="report-v2-trend-row"><span>${escapeHtml(root.PdvBusinessDate.formatDatePtBr(row.day))}</span><div class="report-v2-trend-track"><i class="${row.netCents<0?'negative':''}" style="width:${width}%"></i></div><strong>${money(row.netCents)}</strong></div>`;}).join('')}</div></section>`;
+  }
+
+  function managerAlerts(sales,previousSales,inventory,cash) {
+    const currentInventory=inventory?.allLocationsSummary||inventory||{};
+    const alerts=[];
+    if(Number(currentInventory.zeroStockCount||0)>0)alerts.push({title:'Produtos sem estoque',detail:`${currentInventory.zeroStockCount} item(ns) zerado(s) · consulte Estoque mínimo / compra`});
+    if(Number(currentInventory.belowMinimumCount||0)>0)alerts.push({title:'Estoque abaixo do mínimo',detail:`${currentInventory.belowMinimumCount} item(ns) abaixo do mínimo · consulte Estoque mínimo / compra`});
+    if(Number(cash?.divergentSessions||0)>0)alerts.push({title:'Divergência de caixa',detail:`${cash.divergentSessions} fechamento(s) · ${money(cash.divergenceCents||0)} · consulte Entradas e saídas do caixa`});
+    const negativeMargin=(sales.productSales||[]).filter(row=>Number(row.netCents||0)>0&&Number(row.estimatedMarginCents||0)<0);
+    if(negativeMargin.length)alerts.push({title:'Margem negativa',detail:`${negativeMargin.length} produto(s) com margem negativa · consulte Venda por produto`});
+    if(previousSales&&Number(sales.returnedCents||0)>Number(previousSales.returnedCents||0))alerts.push({title:'Devoluções aumentaram',detail:comparisonText(sales.returnedCents,previousSales.returnedCents)});
+    return alerts;
   }
 
   function presetPeriod(key,reference=businessToday()) {
@@ -153,22 +205,45 @@
     void root.PdvErpFinanceUi?.renderManagement?.();
   }
 
-  function overviewView(sales) {
+  function overviewView(sales,previousSales,inventory,cash,previousRange) {
     const margin = marginPresentation(sales);
-    return `<div class="ops-metrics report-v2-metrics">
-      ${metric('Subtotal antes de descontos',money(sales.subtotalSalesCents || sales.grossSalesCents || 0))}
-      ${metric('Descontos',money(sales.salesDiscountCents || 0))}
-      ${metric('Vendas após descontos',money(sales.grossSalesCents || 0),`${sales.salesCount || 0} vendas`)}
-      ${metric('Devoluções',money(sales.returnedCents || 0))}
-      ${metric('Vendas líquidas',money(sales.netSalesCents || 0))}
-      ${metric('Ticket médio',money(sales.averageTicketCents || 0))}
-      ${metric(margin.label,money(sales.estimatedMarginCents || 0),margin.hint)}
-      ${metric('Cancelamentos',money(sales.cancelledSalesCents || 0),`${sales.cancelledSalesCount || 0} canceladas`)}
+    const currentMarginPercent=marginPercent(sales);
+    const previousMarginPercent=marginPercent(previousSales||{});
+    const alerts=managerAlerts(sales,previousSales,inventory,cash);
+    const topProducts=(sales.topProducts||[]).slice(0,5);
+    const lowMargin=(sales.lowMarginProducts||[]).slice(0,5);
+    const categories=(sales.categorySales||[]).slice(0,8);
+    const previousLabel=previousRange
+      ? `${root.PdvBusinessDate.formatDatePtBr(previousRange.previousFrom)} a ${root.PdvBusinessDate.formatDatePtBr(previousRange.previousTo)}`
+      : 'sem base comparativa';
+    return `<section class="ops-card report-print-section report-v2-manager-summary">
+      <div class="ops-card-head"><div><h2>Resultado do período</h2><p class="ops-muted">Comparação com período anterior: ${escapeHtml(previousLabel)}.</p></div></div>
+      <div class="ops-metrics report-v2-metrics report-v2-manager-kpis">
+        ${managerMetric('Vendas líquidas',money(sales.netSalesCents||0),sales.netSalesCents,previousSales?.netSalesCents)}
+        ${managerMetric('Ticket médio das vendas',money(sales.averageTicketCents||0),sales.averageTicketCents,previousSales?.averageTicketCents,'Após descontos, antes de devoluções')}
+        ${managerMetric('Margem',`${money(sales.estimatedMarginCents||0)} · ${currentMarginPercent.toLocaleString('pt-BR',{maximumFractionDigits:2})}%`,sales.estimatedMarginCents,previousSales?.estimatedMarginCents,`${(currentMarginPercent-previousMarginPercent).toLocaleString('pt-BR',{maximumFractionDigits:2})} p.p. de Margem %`)}
+        ${managerMetric('Vendas',String(sales.salesCount||0),sales.salesCount,previousSales?.salesCount)}
+        ${managerMetric('Devoluções',money(sales.returnedCents||0),sales.returnedCents,previousSales?.returnedCents)}
+        ${managerMetric('Descontos',money(sales.salesDiscountCents||0),sales.salesDiscountCents,previousSales?.salesDiscountCents)}
+      </div>
+      <p class="ops-muted report-v2-margin-note">${escapeHtml(margin.hint)}</p>
+    </section>
+    ${trendView(sales)}
+    <div class="ops-grid two report-v2-manager-grid">
+      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Atenção</h2><p class="ops-muted">Exceções objetivas que merecem revisão do gestor.</p></div></div><div class="report-v2-alerts">${alerts.map(alert=>`<article class="report-v2-alert"><div><strong>${escapeHtml(alert.title)}</strong><span>${escapeHtml(alert.detail)}</span></div></article>`).join('')||'<div class="ops-empty">Nenhuma exceção gerencial detectada neste recorte.</div>'}</div></section>
+      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Clientes no período</h2><p class="ops-muted">Reconhecimento de recorrência sem criar uma regra artificial de inatividade.</p></div></div><div class="report-v2-client-stats"><div><strong>${sales.uniqueCustomersCount||0}</strong><span>Clientes únicos</span></div><div><strong>${sales.firstTimeCustomersCount||0}</strong><span>Primeira compra</span></div><div><strong>${sales.returningCustomersCount||0}</strong><span>Recorrentes</span></div><div><strong>${sales.customersWithoutSalesCount||0}</strong><span>${state.sellerId?'Sem compra com este vendedor':'Sem compra no período'}</span></div></div></section>
     </div>
+    <div class="ops-grid two report-v2-manager-grid">
+      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Mais vendidos</h2><p class="ops-muted">Ranking canônico já calculado pelo domínio de relatórios.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>Qtd.</th><th>Receita líquida</th></tr></thead><tbody>${topProducts.map(row=>`<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${qty(row.netQuantity)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('')||empty('Sem produtos vendidos no período.',3)}</tbody></table></div></section>
+      <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Menor margem</h2><p class="ops-muted">Prioriza produtos com receita no período e menor Margem %.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>Margem</th><th>Margem %</th></tr></thead><tbody>${lowMargin.map(row=>`<tr><td><strong>${escapeHtml(row.productName)}</strong></td><td>${money(row.estimatedMarginCents)}</td><td><strong>${Number(row.marginPercent||0).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</strong></td></tr>`).join('')||empty('Sem base de margem no período.',3)}</tbody></table></div></section>
+    </div>
+    <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Categorias</h2><p class="ops-muted">Receita, custo e margem pela categoria atual do produto. A venda não possui snapshot histórico de categoria.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Categoria</th><th>Receita líquida</th><th>Custo</th><th>Margem</th><th>Margem %</th></tr></thead><tbody>${categories.map(row=>`<tr><td><strong>${escapeHtml(row.categoryName)}</strong></td><td>${money(row.netCents)}</td><td>${money(row.estimatedCostCents)}</td><td>${money(row.estimatedMarginCents)}</td><td><strong>${Number(row.marginPercent||0).toLocaleString('pt-BR',{maximumFractionDigits:2})}%</strong></td></tr>`).join('')||empty('Sem categorias com movimento no período.',5)}</tbody></table></div></section>
     <div class="ops-grid two">
       <section class="ops-card report-print-section"><h2>Resumo por meio de pagamento</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Forma</th><th>Vendas</th><th>Transações</th><th>Recebido</th><th>Reembolsado</th><th>Líquido</th></tr></thead><tbody>${(sales.paymentMethods || []).map(row => `<tr><td>${escapeHtml(paymentLabel(row.method))}</td><td>${row.salesCount || 0}</td><td>${row.transactionCount || 0}</td><td>${money(row.grossCents)}</td><td>${money(row.refundCents)}</td><td><strong>${money(row.netCents)}</strong></td></tr>`).join('') || empty('Sem pagamentos no período.',6)}</tbody></table></div></section>
       <section class="ops-card report-print-section"><h2>Vendas por vendedor / garçom</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Vendedor</th><th>Vendas</th><th>Devoluções</th><th>Líquido</th><th>Canceladas</th></tr></thead><tbody>${(sales.sellers || []).map(row => `<tr><td>${escapeHtml(row.sellerName || row.sellerId || '—')}</td><td>${row.salesCount || 0}</td><td>${money(row.returnedCents || 0)}</td><td><strong>${money(row.salesCents || 0)}</strong></td><td>${row.cancelledSalesCount || 0} · ${money(row.cancelledSalesCents || 0)}</td></tr>`).join('') || empty('Sem vendas no período.',5)}</tbody></table></div></section>
-    </div><div class="report-v2-trace-actions report-v2-no-print"><button class="ops-secondary" type="button" data-report-drilldown="period">Ver vendas do período</button></div>`;
+    </div>
+    <section class="ops-card report-print-section"><div class="ops-card-head"><div><h2>Operação por operador</h2><p class="ops-muted">Mostra quem registrou as vendas; vendedor/garçom continua sendo a dimensão comercial separada.</p></div></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Operador</th><th>Vendas</th><th>Vendas após descontos</th></tr></thead><tbody>${(sales.operators||[]).map(row=>`<tr><td><strong>${escapeHtml(row.operatorName||row.operatorId||'Não identificado')}</strong></td><td>${row.salesCount||0}</td><td><strong>${money(row.salesCents||0)}</strong></td></tr>`).join('')||empty('Sem operação no período.',3)}</tbody></table></div></section>
+    <div class="report-v2-trace-actions report-v2-no-print"><button class="ops-secondary" type="button" data-report-drilldown="period">Ver vendas do período</button></div>`;
   }
 
   function customersView(sales) {
@@ -235,7 +310,7 @@
     if (state.view === 'inventory') { const selected=selectedInventory(inventory); return { name:'relatorio-estoque-minimo-compra.csv',headers:['local','produto','sku','saldo','minimo','falta_para_minimo','custo_estimado_centavos','situacao'],rows:(selected.purchaseList || []).map(r => [r.locationName || selected.locationName || '',r.name,r.sku || '',r.quantity,r.minimumStock,r.shortageToMinimum,r.suggestedPurchaseCostCents,r.zeroStock ? 'SEM ESTOQUE' : r.belowMinimum ? 'ABAIXO' : 'NO MINIMO']) }; }
     if (state.view === 'cash') return { name:'relatorio-fluxo-caixa-dinheiro.csv',headers:['data','terminal','operador','movimento','observacao','valor_assinado_centavos'],rows:(cash.movements || []).filter(r => r.isPhysicalCash).map(r => [r.createdAt,r.terminalId || '',r.operatorName || r.operatorId || '',movementLabel(r.type),r.note || '',r.signedCents]) };
     if (state.view === 'commissions') return { name:'relatorio-comissoes.csv',headers:['vendedor','gerada_centavos','estornada_centavos','paga_centavos','saldo_periodo_centavos','em_aberto_centavos'],rows:(commissions?.sellers || []).map(r => [r.sellerName,r.earnedCents,r.reversedCents,r.paidCents,r.periodBalanceCents,r.outstandingCents]) };
-    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor'],rows:[['subtotal_antes_descontos_centavos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos_centavos',sales.salesDiscountCents || 0],['vendas_apos_descontos_centavos',sales.grossSalesCents || 0],['devolucoes_centavos',sales.returnedCents || 0],['vendas_liquidas_centavos',sales.netSalesCents || 0],['ticket_medio_centavos',sales.averageTicketCents || 0],['margem_centavos',sales.estimatedMarginCents || 0],['base_custo',sales.costBasis || 'HISTORICAL_SNAPSHOT'],['cancelamentos_centavos',sales.cancelledSalesCents || 0]] };
+    return { name:'relatorio-resumo-vendas.csv',headers:['indicador','valor'],rows:[['subtotal_antes_descontos_centavos',sales.subtotalSalesCents || sales.grossSalesCents || 0],['descontos_centavos',sales.salesDiscountCents || 0],['vendas_apos_descontos_centavos',sales.grossSalesCents || 0],['devolucoes_centavos',sales.returnedCents || 0],['vendas_liquidas_centavos',sales.netSalesCents || 0],['ticket_medio_centavos',sales.averageTicketCents || 0],['margem_centavos',sales.estimatedMarginCents || 0],['margem_percentual',marginPercent(sales)],['clientes_unicos',sales.uniqueCustomersCount || 0],['clientes_primeira_compra',sales.firstTimeCustomersCount || 0],['clientes_recorrentes',sales.returningCustomersCount || 0],['clientes_sem_compra_periodo',sales.customersWithoutSalesCount || 0],['base_custo',sales.costBasis || 'HISTORICAL_SNAPSHOT'],['cancelamentos_centavos',sales.cancelledSalesCents || 0]] };
   }
 
   function filterForm(sellers,inventory) {
@@ -273,9 +348,21 @@
 
     const basePeriod = { from:new Date(`${state.fromDate}T00:00:00`).toISOString(),to:new Date(`${state.toDate}T23:59:59.999`).toISOString() };
     const salesFilters = { ...basePeriod,sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : '' };
-    let sales,inventory,cash,sellers,commissions=null,products=[],rules=[];
+    const previousRange = root.PdvBusinessDate.equivalentPreviousPeriod(state.fromDate,state.toDate);
+    const previousPeriodFilters = {
+      from:new Date(`${previousRange.previousFrom}T00:00:00`).toISOString(),
+      to:new Date(`${previousRange.previousTo}T23:59:59.999`).toISOString(),
+      sellerId:SELLER_FILTER_VIEWS.has(state.view) ? state.sellerId || '' : ''
+    };
+    let sales,previousSales=null,inventory,cash,sellers,commissions=null,products=[],rules=[];
     try {
-      [sales,inventory,cash,sellers] = await Promise.all([api.reportSales(salesFilters),api.reportInventory(),api.reportCash(basePeriod),api.sellers()]);
+      [sales,previousSales,inventory,cash,sellers] = await Promise.all([
+        api.reportSales(salesFilters),
+        state.view==='overview'?api.reportSales(previousPeriodFilters):Promise.resolve(null),
+        api.reportInventory(),
+        api.reportCash(basePeriod),
+        api.sellers()
+      ]);
       if (state.view === 'commissions') [commissions,products,rules] = await Promise.all([api.commissions(salesFilters),api.products(),api.commissionRules({includeInactive:true})]);
     } catch (error) {
       if (!routeActive()) return;
@@ -290,7 +377,7 @@
     if (state.locationId && !inventory.locations?.some(row => row.id === state.locationId)) state.locationId = '';
 
     const views = {
-      overview:overviewView(sales),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash),commissions:commissionsView(commissions,sellers,products,rules)
+      overview:overviewView(sales,previousSales,inventory,cash,previousRange),customers:customersView(sales),products:productsView(sales),payments:paymentsView(sales),inventory:inventoryView(inventory),cash:cashView(cash),commissions:commissionsView(commissions,sellers,products,rules)
     };
     const tabs = Object.entries(VIEW_LABELS).map(([key,label]) => `<button type="button" id="report-tab-${key}" role="tab" aria-selected="${state.view===key?'true':'false'}" aria-controls="report-v2-body" tabindex="${state.view===key?'0':'-1'}" class="report-v2-tab ${state.view === key ? 'active' : ''}" data-report-view="${key}">${escapeHtml(label)}</button>`).join('');
 

@@ -83,3 +83,17 @@ test('mobile staff surfaces translate internal device labels for operators',()=>
   assert.equal(steps.some(step=>step.name==='equipe-mobile-tipo-traduzido'&&step.expected==='Garçom'),true);
   assert.equal(steps.some(step=>step.name==='kds-mobile-tipo-traduzido'&&step.expected==='Cozinha'),true);
 });
+
+
+test('business date owns the equivalent previous-period rule used by management and reports',()=>{
+  const dates=require('../desktop/renderer/business-date');
+  assert.deepEqual(
+    dates.equivalentPreviousPeriod('2026-10-01','2026-10-04'),
+    {previousFrom:'2026-09-27',previousTo:'2026-09-30'}
+  );
+  const management=read('desktop/renderer/erp-finance-ui.js');
+  const reports=read('desktop/renderer/reporting-v2.js');
+  assert.match(management,/PdvBusinessDate\.equivalentPreviousPeriod\(from,to\)/);
+  assert.match(reports,/PdvBusinessDate\.equivalentPreviousPeriod\(state\.fromDate,state\.toDate\)/);
+  assert.doesNotMatch(reports,/function previousPeriod\s*\(/);
+});
