@@ -363,7 +363,7 @@
       "declaredCapabilities": [
         "local-mobile-access-qr-material",
         "waiter-lan-device",
-        "table-bound-self-service-tablet",
+        "table-bound-self-service",
         "kitchen-lan-device",
         "hashed-revocable-mobile-device-credentials",
         "self-hosted-mobile-ui-on-local-lan"
