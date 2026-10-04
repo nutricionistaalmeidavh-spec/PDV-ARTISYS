@@ -13,7 +13,7 @@
   const when=value=>{if(!value)return '—';const date=new Date(value);return Number.isNaN(date.getTime())?esc(value):date.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});};
   const content=()=>document.getElementById('route-content');
   const page=()=>content()?.querySelector('.ops-page,.page');
-  const toast=(message,error=false)=>{if(window.PdvToast?.show){window.PdvToast.show(message,error?'error':'success');return;}const root=document.getElementById('toast-root');if(!root)return;const node=document.createElement('div');node.className=`toast ${error?'error':'success'}`;node.textContent=message;root.appendChild(node);setTimeout(()=>node.remove(),3500);};
+  const toast=(message,error=false)=>window.PdvToast?.show?.(message,error?'error':'success');
 
   function selectedQuantities(host,selector,itemMap){
     const items=[];
