@@ -59,7 +59,6 @@
   const content = document.getElementById('route-content');
   const modalRoot = document.getElementById('modal-root');
   const authOverlay = document.getElementById('auth-overlay');
-  const toastRoot = document.getElementById('toast-root');
 
   function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[char]);
