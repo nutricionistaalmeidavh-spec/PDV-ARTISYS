@@ -126,17 +126,6 @@
     return node;
   }
 
-  function installLegacyAppendBridge() {
-    toastRoot.appendChild = function appendManagedToast(node) {
-      if (node?.nodeType === 1 && node.classList?.contains('toast') && node.dataset.toastManaged !== 'true') {
-        const type = node.classList.contains('error') ? 'error' : node.classList.contains('success') ? 'success' : '';
-        return show(node.textContent, type) || node;
-      }
-      return nativeAppendChild(node);
-    };
-  }
-
-  installLegacyAppendBridge();
 
   function bindRouteLifecycle() {
     const lifecycle=window.PdvUiLifecycle;
