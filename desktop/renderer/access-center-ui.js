@@ -358,8 +358,9 @@
     const canAssign=canAction('assignProfile')&&snapshot.profiles.length>0;
     const title=editing?(canEdit?'Editar pessoa':'Alterar acesso'):'Nova pessoa';
     const profileOptions=canAssign?snapshot.profiles.filter(profile=>profile.active||profile.id===existing?.profileId):[];
+    const defaultProfileId=existing?.profileId||profileOptions.find(profile=>profile.systemKey==='operator')?.id||profileOptions[0]?.id||'';
 
-    const profileField=canAssign?`<div class="field access-profile-field"><label>Perfil de acesso</label><select name="profileId">${profileOptions.map(profile=>`<option value="${esc(profile.id)}" ${profile.id===existing?.profileId?'selected':''}>${esc(profile.name)}</option>`).join('')}</select><div class="access-profile-summary" data-profile-summary>${profileSummaryMarkup(existing?.profileId||profileOptions[0]?.id)}</div></div>`:'';
+    const profileField=canAssign?`<div class="field access-profile-field"><label>Perfil de acesso</label><select name="profileId">${profileOptions.map(profile=>`<option value="${esc(profile.id)}" ${profile.id===defaultProfileId?'selected':''}>${esc(profile.name)}</option>`).join('')}</select><div class="access-profile-summary" data-profile-summary>${profileSummaryMarkup(defaultProfileId)}</div></div>`:'';
     const passwordField=!editing
       ? '<div class="field"><label>Senha inicial</label><input name="password" type="password" minlength="10" required autocomplete="new-password"></div>'
       : canAction('resetPassword')&&canEdit?'<div class="field"><label>Nova senha <span class="access-optional">(opcional)</span></label><input name="password" type="password" minlength="10" autocomplete="new-password"></div>':'';
