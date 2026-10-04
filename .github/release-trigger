@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-version=2.0.0
-requested_at=2026-10-03T23:30:00Z
-reason=major-release-after-device-onboarding-and-commercial-flow-redesign
+version=auto
+requested_at=2026-10-04T17:24:00Z
+reason=manual-release-after-pr-168-waiter-direction-a
