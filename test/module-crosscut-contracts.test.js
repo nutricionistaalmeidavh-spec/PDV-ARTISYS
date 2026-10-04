@@ -18,8 +18,8 @@ test('builds fully covered crosscut contracts for all real optional modules',()=
   assert.deepEqual(plan.coverage,{discovered:2,covered:2,uncovered:0,uncoveredCritical:0});
 
   const expected={
-    FOOD:{launcher:'#sidebar-nav [data-module-nav="FOOD"]',path:'/api/v1/restaurant/tables',heading:'Alimentação'},
-    WHOLESALE:{launcher:'[data-module-nav="WHOLESALE"]',path:'/api/v1/wholesale/orders',heading:'Atacado'}
+    FOOD:{launcher:'#sidebar-nav [data-route="FOOD"]',path:'/api/v1/restaurant/tables',heading:'Alimentação'},
+    WHOLESALE:{launcher:'[data-route="WHOLESALE"]',path:'/api/v1/wholesale/orders',heading:'Atacado'}
   };
 
   for(const contract of plan.contracts){
