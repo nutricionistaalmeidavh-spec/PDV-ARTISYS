@@ -1,0 +1,30 @@
+{
+  "name": "action-integrity-finance",
+  "title": "ArtiSys PDV — integridade de ações financeiras",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "capability",
+      "name": "finance.actionIntegrityReverse",
+      "timeoutMs": 30000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#ops-finance-form",
+      "name": "action-integrity-finance-visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectNoHorizontalOverflow",
+      "selector": "#route-content",
+      "name": "action-integrity-finance-sem-overflow"
+    },
+    {
+      "action": "screenshot",
+      "name": "action-integrity-finance-estorno-persistido",
+      "fullPage": true
+    }
+  ]
+}
