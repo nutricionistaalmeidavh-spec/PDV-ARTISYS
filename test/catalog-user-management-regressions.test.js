@@ -7,19 +7,19 @@ const path=require('node:path');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {createLocalServer}=require('../server/local-server');
 
-const adminActor={userId:'admin1',role:'admin',terminalId:'PDV-01'};
+const adminActor={userId:'admin1',profileId:'profile-administrator',terminalId:'PDV-01'};
 
 function runtimeFixture(){
   let seq=0;
   const runtime=createPdvRuntime({dbPath:':memory:',now:()=> '2026-09-29T12:00:00.000Z',idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Administrador',role:'admin',password:'senha-admin-123'},adminActor);
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Administrador',profileId:'profile-administrator',password:'senha-admin-123'},adminActor);
   return runtime;
 }
 
 test('catalog soft delete hides records by default and preserves historical references',()=>{
   const runtime=runtimeFixture();
   try{
-    runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-caixa-123'},adminActor);
+    runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-caixa-123'},adminActor);
     runtime.catalog.upsertCategory({id:'cat1',name:'Bebidas'},adminActor);
     runtime.catalog.upsertProduct({id:'p1',name:'Agua',sku:'AGUA',categoryId:'cat1',salePriceCents:500,costCents:200,trackStock:true},adminActor);
     runtime.inventory.move({productId:'p1',type:'opening',quantityDelta:10},adminActor);
@@ -55,8 +55,8 @@ test('catalog soft delete hides records by default and preserves historical refe
 test('user password reset works and self or last-admin deactivation is blocked',()=>{
   const runtime=runtimeFixture();
   try{
-    runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',role:'cashier',password:'senha-antiga-123'},adminActor);
-    runtime.catalog.upsertUser({id:'cashier1',username:'caixa',name:'Caixa Atualizado',role:'cashier',password:'senha-nova-456',active:true},adminActor);
+    runtime.catalog.createUser({id:'cashier1',username:'caixa',name:'Caixa',profileId:'profile-cashier',password:'senha-antiga-123'},adminActor);
+    runtime.catalog.upsertUser({id:'cashier1',username:'caixa',name:'Caixa Atualizado',profileId:'profile-cashier',password:'senha-nova-456',active:true},adminActor);
     assert.equal(runtime.catalog.verifyUserPassword('caixa','senha-antiga-123').ok,false);
     assert.equal(runtime.catalog.verifyUserPassword('caixa','senha-nova-456').ok,true);
     assert.throws(()=>runtime.catalog.removeUser('admin1',adminActor),/proprio usuario|próprio usuário/i);
@@ -70,10 +70,10 @@ test('installation owner cannot be demoted or deactivated even when another admi
   try{
     runtime.db.prepare("INSERT INTO installation_activation(installation_id,account_email,license_id,activated_at,activation_source,metadata_json,owner_user_id) VALUES(?,?,?,?,?,?,?)")
       .run('local','owner@example.com','lic-owner','2026-09-29T12:00:00.000Z','test','{}','admin1');
-    runtime.catalog.upsertUser({id:'admin1',username:'admin',name:'Administrador',role:'admin',email:'owner@example.com',active:true},adminActor);
-    runtime.catalog.createUser({id:'admin2',username:'admin2',name:'Administrador 2',role:'admin',password:'senha-admin2-123'},adminActor);
-    assert.throws(()=>runtime.catalog.saveManagedUser({id:'admin1',username:'admin',name:'Administrador',role:'manager',email:'owner@example.com',active:true},adminActor),/proprietario/i);
-    assert.throws(()=>runtime.catalog.removeUser('admin1',{userId:'admin2',role:'admin'}),/proprietario/i);
+    runtime.catalog.upsertUser({id:'admin1',username:'admin',name:'Administrador',profileId:'profile-administrator',email:'owner@example.com',active:true},adminActor);
+    runtime.catalog.createUser({id:'admin2',username:'admin2',name:'Administrador 2',profileId:'profile-administrator',password:'senha-admin2-123'},adminActor);
+    assert.throws(()=>runtime.catalog.saveManagedUser({id:'admin1',username:'admin',name:'Administrador',profileId:'profile-manager',email:'owner@example.com',active:true},adminActor),/proprietario/i);
+    assert.throws(()=>runtime.catalog.removeUser('admin1',{userId:'admin2',profileId:'profile-administrator'}),/proprietario/i);
     assert.equal(runtime.catalog.getUser('admin1').role,'admin');
     assert.equal(runtime.catalog.getUser('admin1').active,true);
   }finally{runtime.close();}
@@ -83,9 +83,9 @@ async function httpFixture(){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'pdv-catalog-users-'));
   let seq=0;
   const runtime=createPdvRuntime({dbPath:path.join(dir,'pdv.sqlite'),idFactory:p=>`${p}-${++seq}`});
-  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'},adminActor);
-  runtime.catalog.createUser({id:'manager1',username:'manager',name:'Gerente',role:'manager',password:'senha-manager-123'},adminActor);
-  runtime.catalog.createUser({id:'cashier1',username:'cashier',name:'Operador',role:'cashier',password:'senha-cashier-123'},adminActor);
+  runtime.catalog.createUser({id:'admin1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'},adminActor);
+  runtime.catalog.createUser({id:'manager1',username:'manager',name:'Gerente',profileId:'profile-manager',password:'senha-manager-123'},adminActor);
+  runtime.catalog.createUser({id:'cashier1',username:'cashier',name:'Operador',profileId:'profile-cashier',password:'senha-cashier-123'},adminActor);
   const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'install-secret'});
   const address=await server.start();
   return{runtime,server,dir,base:`http://${address.host}:${address.port}`,async close(){await server.stop();runtime.close();fs.rmSync(dir,{recursive:true,force:true});}};
@@ -107,10 +107,10 @@ test('HTTP capabilities prevent escalation and preserve operator customer access
     const manager=await login(ctx,'manager','senha-manager-123');
     const cashier=await login(ctx,'cashier','senha-cashier-123');
 
-    assert.equal((await api(ctx,manager,'/api/v1/users',{method:'POST',body:{username:'novo-admin',name:'Novo Admin',role:'admin',password:'senha-forte-123'}})).status,403);
-    let response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',role:'cashier',password:'senha-forte-123',active:true}});
+    assert.equal((await api(ctx,manager,'/api/v1/users',{method:'POST',body:{username:'novo-admin',name:'Novo Admin',profileId:'profile-administrator',password:'senha-forte-123'}})).status,403);
+    let response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',profileId:'profile-cashier',password:'senha-forte-123',active:true}});
     assert.equal(response.status,201);
-    response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',role:'cashier',active:false}});
+    response=await api(ctx,manager,'/api/v1/users',{method:'POST',body:{id:'cashier2',username:'cashier2',name:'Caixa 2',profileId:'profile-cashier',active:false}});
     assert.equal(response.status,403);
 
     response=await api(ctx,admin,'/api/v1/users/cashier2',{method:'DELETE'});
@@ -160,7 +160,7 @@ test('HTTP user editing requires users.edit without also requiring users.create'
       permissions:['users.view','users.edit']
     },{kind:'system',id:'system'});
     ctx.runtime.catalog.createUser({
-      id:'editor1',username:'editor',name:'Editor',role:'cashier',profileId:profile.id,password:'senha-editor-123'
+      id:'editor1',username:'editor',name:'Editor',profileId:profile.id,password:'senha-editor-123'
     },{kind:'system',id:'system'});
     const editor=await login(ctx,'editor','senha-editor-123');
 
@@ -187,7 +187,7 @@ test('HTTP password reset requires users.reset_password independently of users.e
       permissions:['users.view','users.edit']
     },{kind:'system',id:'system'});
     ctx.runtime.catalog.createUser({
-      id:'edit-only',username:'edit-only',name:'Editor sem reset',role:'cashier',profileId:editOnly.id,password:'senha-editor-123'
+      id:'edit-only',username:'edit-only',name:'Editor sem reset',profileId:editOnly.id,password:'senha-editor-123'
     },{kind:'system',id:'system'});
     const editor=await login(ctx,'edit-only','senha-editor-123');
 
@@ -204,7 +204,7 @@ test('HTTP password reset requires users.reset_password independently of users.e
       permissions:['users.view','users.edit','users.reset_password']
     },{kind:'system',id:'system'});
     ctx.runtime.catalog.createUser({
-      id:'resetter1',username:'resetter',name:'Resetter',role:'cashier',profileId:resetter.id,password:'senha-resetter-123'
+      id:'resetter1',username:'resetter',name:'Resetter',profileId:resetter.id,password:'senha-resetter-123'
     },{kind:'system',id:'system'});
     const resetterToken=await login(ctx,'resetter','senha-resetter-123');
     response=await api(ctx,resetterToken,'/api/v1/users',{method:'POST',body:{
@@ -225,7 +225,7 @@ test('direct core APIs deny capabilities hidden by the renderer',async()=>{
       permissions:['users.view']
     },{kind:'system',id:'system'});
     ctx.runtime.catalog.createUser({
-      id:'people-only',username:'people-only',name:'Somente Pessoas',role:'cashier',profileId:profile.id,password:'senha-people-123'
+      id:'people-only',username:'people-only',name:'Somente Pessoas',profileId:profile.id,password:'senha-people-123'
     },{kind:'system',id:'system'});
     const token=await login(ctx,'people-only','senha-people-123');
 
