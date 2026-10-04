@@ -45,6 +45,9 @@ test('settings access card is gated only by canonical capabilities',()=>{
   assert.doesNotMatch(app,/dataset\.userRole|dataset\.userPermissions/);
   const restaurant=read('desktop/renderer/restaurant-ui.js');
   assert.doesNotMatch(restaurant,/dataset\.userRole|\['admin','manager'\]/);
+  const management=read('desktop/renderer/erp-finance-ui.js');
+  assert.match(management,/PdvAccessPolicy\?\.hasCapability\(access,'management\.view'\)/);
+  assert.doesNotMatch(management,/dataset\.userRole|\['admin','manager'\]|\.user\?\.role/);
 });
 
 test('QA audit covers optional areas and universal checkout documents',()=>{
