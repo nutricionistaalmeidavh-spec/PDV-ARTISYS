@@ -16,6 +16,46 @@ function roundQty(value) {
   return Math.round(Number(value || 0) * 1000) / 1000;
 }
 
+function marginPercentValue(row) {
+  const revenue = Number(row?.netCents || 0);
+  return revenue ? (Number(row?.estimatedMarginCents || 0) / revenue) * 100 : 0;
+}
+
+function categorySalesFromProducts(rows = []) {
+  const categories = new Map();
+  for (const row of rows) {
+    const key = row.categoryId || '__UNCATEGORIZED__';
+    const current = categories.get(key) || {
+      categoryId:row.categoryId || null,
+      categoryName:row.categoryName || 'Sem categoria',
+      netQuantity:0,
+      grossCents:0,
+      discountCents:0,
+      returnedCents:0,
+      netCents:0,
+      estimatedCostCents:0,
+      estimatedMarginCents:0,
+      marginPercent:0
+    };
+    current.netQuantity = roundQty(current.netQuantity + Number(row.netQuantity || 0));
+    current.grossCents += Number(row.grossCents || 0);
+    current.discountCents += Number(row.discountCents || 0);
+    current.returnedCents += Number(row.returnedCents || 0);
+    current.netCents += Number(row.netCents || 0);
+    current.estimatedCostCents += Number(row.estimatedCostCents || 0);
+    current.estimatedMarginCents += Number(row.estimatedMarginCents || 0);
+    categories.set(key,current);
+  }
+  for (const row of categories.values()) row.marginPercent = Number(marginPercentValue(row).toFixed(2));
+  return [...categories.values()].sort((a,b) => b.netCents-a.netCents || a.categoryName.localeCompare(b.categoryName));
+}
+
+function lowMarginProductsFromProducts(rows = []) {
+  return rows.filter(row => Number(row.netCents || 0) > 0)
+    .map(row => ({ ...row,marginPercent:Number(marginPercentValue(row).toFixed(2)) }))
+    .sort((a,b) => a.marginPercent-b.marginPercent || a.estimatedMarginCents-b.estimatedMarginCents || a.productName.localeCompare(b.productName));
+}
+
 function createReportingService({ db, now = () => new Date().toISOString() } = {}) {
   if (!db) throw new TypeError('Database is required.');
   const saleColumns = new Set(db.prepare('PRAGMA table_info(sales)').all().map(row => row.name));
@@ -118,6 +158,8 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       productId:item.productId,
       productName:item.productName,
       sku:item.sku || null,
+      categoryId:item.categoryId || null,
+      categoryName:item.categoryName || 'Sem categoria',
       quantity:0,
       returnedQuantity:0,
       netQuantity:0,
@@ -166,8 +208,12 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       }
       for (const method of methodsSeen) paymentMethods.get(method).salesCount += 1;
 
-      const rawItems = db.prepare(`SELECT si.product_id AS productId,si.product_name AS productName,si.sku,si.quantity,si.total_cents AS totalCents,p.cost_cents AS costCents
-        FROM sale_items si LEFT JOIN products p ON p.id=si.product_id WHERE si.sale_id=? ORDER BY si.created_at,si.id`).all(sale.id);
+      const rawItems = db.prepare(`SELECT si.product_id AS productId,si.product_name AS productName,si.sku,si.quantity,si.total_cents AS totalCents,
+          p.cost_cents AS costCents,p.category_id AS categoryId,c.name AS categoryName
+        FROM sale_items si
+        LEFT JOIN products p ON p.id=si.product_id
+        LEFT JOIN categories c ON c.id=p.category_id
+        WHERE si.sale_id=? ORDER BY si.created_at,si.id`).all(sale.id);
       const items = allocateSaleDiscount(rawItems,Number(sale.discount_cents || 0));
       for (const item of items) {
         const current = products.get(item.productId) || emptyProduct(item);
@@ -229,8 +275,12 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
     let returnedCostCents = 0;
     for (const ret of returns) {
-      const items = db.prepare(`SELECT ri.product_id AS productId,ri.product_name AS productName,ri.quantity,ri.total_cents AS totalCents,p.sku,p.cost_cents AS costCents
-        FROM return_items ri LEFT JOIN products p ON p.id=ri.product_id WHERE ri.return_id=? ORDER BY ri.created_at,ri.id`).all(ret.id);
+      const items = db.prepare(`SELECT ri.product_id AS productId,ri.product_name AS productName,ri.quantity,ri.total_cents AS totalCents,
+          p.sku,p.cost_cents AS costCents,p.category_id AS categoryId,c.name AS categoryName
+        FROM return_items ri
+        LEFT JOIN products p ON p.id=ri.product_id
+        LEFT JOIN categories c ON c.id=p.category_id
+        WHERE ri.return_id=? ORDER BY ri.created_at,ri.id`).all(ret.id);
       for (const item of items) {
         const itemQty = Number(item.quantity || 0);
         const itemCost = Math.round(Number(item.costCents || 0) * itemQty);
@@ -279,6 +329,23 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
     }));
     const customerSales = [...customers.values()].sort((a,b) => b.netCents-a.netCents || b.salesCount-a.salesCount || a.customerName.localeCompare(b.customerName));
     const paymentMethodSales = [...paymentMethods.values()].sort((a,b) => b.netCents-a.netCents || a.method.localeCompare(b.method));
+    const categorySales = categorySalesFromProducts(productSales);
+    const lowMarginProducts = lowMarginProductsFromProducts(productSales);
+    const namedCustomerIds = [...new Set(sales.map(sale => sale.customer_id).filter(Boolean).map(String))];
+    let firstTimeCustomersCount = 0;
+    let returningCustomersCount = 0;
+    if (namedCustomerIds.length) {
+      const firstSale = db.prepare("SELECT MIN(completed_at) AS firstSaleAt FROM sales WHERE status='COMPLETED' AND customer_id=?");
+      const reportFrom = period(filters).from;
+      for (const customerId of namedCustomerIds) {
+        const firstSaleAt = firstSale.get(customerId)?.firstSaleAt || null;
+        if (firstSaleAt && String(firstSaleAt) >= reportFrom) firstTimeCustomersCount += 1;
+        else returningCustomersCount += 1;
+      }
+    }
+    const activeCustomerIds = db.prepare('SELECT id FROM customers WHERE active=1 ORDER BY id').all().map(row => String(row.id));
+    const currentCustomerSet = new Set(namedCustomerIds);
+    const customersWithoutSalesCount = activeCustomerIds.filter(id => !currentCustomerSet.has(id)).length;
 
     return {
       from:filters.from || null,
@@ -296,8 +363,14 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
       netPaymentsByMethod,
       paymentMethods:paymentMethodSales,
       customerSales,
+      uniqueCustomersCount:namedCustomerIds.length,
+      firstTimeCustomersCount,
+      returningCustomersCount,
+      customersWithoutSalesCount,
       productSales,
+      categorySales,
       topProducts,
+      lowMarginProducts,
       estimatedCostCents:costCents-returnedCostCents,
       estimatedMarginCents:netSalesCents-(costCents-returnedCostCents),
       operators:[...operators.values()].sort((a,b) => b.salesCents-a.salesCents || a.operatorName.localeCompare(b.operatorName)),
@@ -474,4 +547,4 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
   return { buildSalesSummary,buildSalesDetails,buildInventorySummary,buildCashSummary,buildFinanceSummary,exportSalesCsv };
 }
 
-module.exports = { createReportingService,csvCell };
+module.exports = { createReportingService,csvCell,categorySalesFromProducts,lowMarginProductsFromProducts };
