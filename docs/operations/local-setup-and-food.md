@@ -18,6 +18,10 @@ Em Esqueci minha senha, informe usuário, chave e nova senha. A chave é consumi
 
 Alimentação → Pedidos reúne balcão, retirada e entrega. Todos geram a venda canônica e seguem as estações de produção. A senha diária é opcional; `store.timeZone` define o fuso e o padrão é America/Sao_Paulo. Entregues, retirados e cancelados ficam em Histórico. Registros antigos de senhas continuam acessíveis e não são recriados como vendas automaticamente.
 
+## Pareamento de terminais
+
+Ao escolher **Conectar a uma instalação existente**, o terminal procura automaticamente PCs principais ArtiSys publicados na rede local. O operador seleciona a instalação encontrada e informa o código temporário de pareamento; não precisa descobrir IP ou porta. Endereço manual permanece em **Configuração avançada** para ambientes que bloqueiam mDNS/multicast.
+
 ## QR do cardápio
 
 Configure o computador que guarda os dados como PC principal. A interface detecta o endereço e a porta reais; em máquinas com várias redes, selecione a rede da loja. Testar acesso verifica uma resposta de saúde do servidor a partir do PC. Confira também em um celular no Wi-Fi: esse teste local não comprova a regra de firewall do telefone ou isolamento dos clientes no roteador. Endereço e porta manuais ficam nas opções avançadas.
