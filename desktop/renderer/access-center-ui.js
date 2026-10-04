@@ -463,16 +463,14 @@
   function deviceDialog(){
     window.PdvModal?.open?.('Novo dispositivo',`<form data-device-form>
       <div class="field"><label>Nome</label><input name="name" required></div>
-      <div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="TABLET">Tablet de mesa</option><option value="KITCHEN">KDS / produção</option><option value="SELF_SERVICE">Autoatendimento</option></select></div>
-      <div class="field" data-device-table><label>Mesa</label><select name="tableId"><option value="">Selecione a mesa</option>${snapshot.tables.filter(table=>table.active!==false).map(table=>`<option value="${esc(table.id)}">${esc(table.label||'Mesa')}</option>`).join('')}</select></div>
+      <div class="field"><label>Superfície</label><select name="deviceType"><option value="WAITER">Garçom</option><option value="KITCHEN">KDS / produção</option></select></div>
       <fieldset class="data-card" data-device-station-fieldset hidden><legend>Setores de produção</legend><p class="helper">Escolha Cozinha, Bar ou outros setores deste painel. Sem seleção, o KDS acompanha todos.</p>${stationChoices()}</fieldset>
       <div class="access-wizard-actions"><button type="button" class="secondary-button" data-device-cancel>Cancelar</button><span class="access-wizard-spacer"></span><button class="primary-button" type="submit">Parear</button></div>
     </form>`,{onMount:modal=>{
       const form=modal.querySelector('[data-device-form]');
       const type=form.elements.deviceType;
       const stationFieldset=form.querySelector('[data-device-station-fieldset]');
-      const tableField=form.querySelector('[data-device-table]');
-      const syncType=()=>{const tablet=type.value==='TABLET';stationFieldset.hidden=type.value!=='KITCHEN';tableField.hidden=!tablet;form.elements.tableId.required=tablet;};
+      const syncType=()=>{stationFieldset.hidden=type.value!=='KITCHEN';};
       type.addEventListener('change',syncType);syncType();
       form.querySelector('[data-device-cancel]')?.addEventListener('click',()=>window.PdvModal.close());
       form.addEventListener('submit',async event=>{
@@ -480,7 +478,7 @@
         const deviceType=type.value;
         const stationIds=deviceType==='KITCHEN'?[...form.querySelectorAll('input[name="stationId"]:checked')].map(input=>input.value):[];
         try{
-          const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,tableId:deviceType==='TABLET'?form.elements.tableId.value:null,stationIds});
+          const created=await api.createAccessDevice({name:form.elements.name.value,deviceType,stationIds});
           window.PdvModal.close();
           await render({state:{user:currentUser}});
           window.PdvModal?.open?.('Credencial do dispositivo',`<p>Copie esta credencial agora. Ela não será exibida novamente.</p><div class="data-card"><code>${esc(created.credential)}</code></div>`);
