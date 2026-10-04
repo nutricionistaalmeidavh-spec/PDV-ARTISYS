@@ -57,9 +57,22 @@
         "sku": "QA-DEL-01",
         "salePriceCents": 2400,
         "costCents": 1000,
-        "trackStock": false,
+        "trackStock": true,
         "menuEnabled": true,
         "active": true
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/inventory/movements",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "delivery-seed-estoque",
+      "body": {
+        "productId": "qa-delivery-product",
+        "type": "opening",
+        "quantityDelta": 10,
+        "reason": "Saldo inicial QA"
       }
     },
     {
@@ -121,6 +134,206 @@
     {
       "action": "selectOption",
       "selector": "#delivery-form select[name='fulfillmentType']",
+      "value": "COUNTER",
+      "name": "balcao-senha-selecionar"
+    },
+    {
+      "action": "check",
+      "selector": "#delivery-form input[name='useTicket']",
+      "name": "balcao-senha-ativar"
+    },
+    {
+      "action": "selectOption",
+      "selector": "#delivery-form select[name='productId']",
+      "value": "qa-delivery-product",
+      "name": "balcao-senha-produto"
+    },
+    {
+      "action": "fill",
+      "selector": "#delivery-form input[name='quantity']",
+      "value": "1",
+      "name": "balcao-senha-quantidade"
+    },
+    {
+      "action": "click",
+      "selector": "#delivery-form [data-delivery-add-item]",
+      "name": "balcao-senha-adicionar-item",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#delivery-form .delivery-send-production",
+      "name": "balcao-senha-criar-pedido",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Senha 1')",
+      "expected": "Senha 1",
+      "name": "balcao-senha-1-confirmada",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/delivery?fulfillmentType=PICKUP",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "balcao-senha-localizar-api",
+      "saveAs": {
+        "qaCounterId": "0.id",
+        "qaCounterSaleId": "0.saleId"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=NEW&stationId=qa-delivery-kitchen&limit=20",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "balcao-senha-localizar-ticket",
+      "saveAs": {
+        "qaCounterTicketId": "0.id"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaCounterTicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "balcao-senha-kds-iniciar-preparo",
+      "body": {
+        "status": "PREPARING"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaCounterTicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "balcao-senha-kds-marcar-pronto",
+      "body": {
+        "status": "READY"
+      }
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Senha 1')",
+      "expected": "Pedido pronto",
+      "name": "balcao-senha-pedido-pronto",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Senha 1') [data-delivery-status$=':PICKED_UP']",
+      "name": "balcao-senha-concluir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='HISTORY']",
+      "name": "balcao-senha-abrir-historico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Senha 1')",
+      "expected": "Retirado",
+      "name": "balcao-senha-historico-confirmado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='COUNTER']",
+      "name": "balcao-senha-voltar-canal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "#delivery-form select[name='fulfillmentType']",
+      "value": "COUNTER",
+      "name": "balcao-senha-segundo-selecionar"
+    },
+    {
+      "action": "check",
+      "selector": "#delivery-form input[name='useTicket']",
+      "name": "balcao-senha-segundo-ativar"
+    },
+    {
+      "action": "selectOption",
+      "selector": "#delivery-form select[name='productId']",
+      "value": "qa-delivery-product",
+      "name": "balcao-senha-segundo-produto"
+    },
+    {
+      "action": "click",
+      "selector": "#delivery-form [data-delivery-add-item]",
+      "name": "balcao-senha-segundo-adicionar-item",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#delivery-form .delivery-send-production",
+      "name": "balcao-senha-segundo-pedido",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Senha 2')",
+      "expected": "Senha 2",
+      "name": "balcao-senha-2-confirmada",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=NEW&stationId=qa-delivery-kitchen&limit=20",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "balcao-senha-2-localizar-ticket",
+      "saveAs": {
+        "qaCounter2TicketId": "0.id"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaCounter2TicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "balcao-senha-2-kds-iniciar-preparo",
+      "body": {
+        "status": "PREPARING"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaCounter2TicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "balcao-senha-2-kds-marcar-pronto",
+      "body": {
+        "status": "READY"
+      }
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Senha 2')",
+      "expected": "Pedido pronto",
+      "name": "balcao-senha-2-pedido-pronto",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Senha 2') [data-delivery-status$=':PICKED_UP']",
+      "name": "balcao-senha-2-concluir",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='ALL']",
+      "name": "balcao-senha-sair-canal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "selectOption",
+      "selector": "#delivery-form select[name='fulfillmentType']",
       "value": "PICKUP",
       "name": "retirada-selecionar"
     },
@@ -161,6 +374,12 @@
       "timeoutMs": 15000
     },
     {
+      "action": "click",
+      "selector": "button[data-delivery-view='PICKUP']",
+      "name": "retirada-abrir-canal",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectText",
       "selector": "[data-delivery-order]:has-text('Cliente Retirada QA')",
       "expected": "Aguardando produção",
@@ -179,7 +398,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/restaurant/kitchen/tickets?stationId=qa-delivery-kitchen&limit=20",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=NEW&stationId=qa-delivery-kitchen&limit=20",
       "method": "GET",
       "expectedStatus": 200,
       "name": "retirada-localizar-ticket",
@@ -238,6 +457,31 @@
       "selector": "[data-delivery-order]:has-text('Cliente Retirada QA') [data-delivery-whatsapp]",
       "expected": "WhatsApp aberto",
       "name": "retirada-whatsapp-confirmado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Cliente Retirada QA') [data-delivery-status$=':PICKED_UP']",
+      "name": "retirada-marcar-retirado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='HISTORY']",
+      "name": "retirada-abrir-historico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Cliente Retirada QA')",
+      "expected": "Retirado",
+      "name": "retirada-historico-confirmado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='ALL']",
+      "name": "retirada-voltar-operacao",
       "timeoutMs": 10000
     },
     {
@@ -324,11 +568,116 @@
       "timeoutMs": 15000
     },
     {
+      "action": "click",
+      "selector": "button[data-delivery-view='DELIVERY']",
+      "name": "delivery-abrir-canal",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectText",
       "selector": "[data-delivery-order]:has-text('Cliente Delivery QA')",
       "expected": "Aguardando produção",
       "name": "delivery-aguardando-producao",
       "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/vertical/delivery?fulfillmentType=DELIVERY",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-localizar-api",
+      "saveAs": {
+        "qaDeliveryId": "0.id",
+        "qaDeliverySaleId": "0.saleId"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=NEW&stationId=qa-delivery-kitchen&limit=20",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-localizar-ticket",
+      "saveAs": {
+        "qaDeliveryTicketId": "0.id"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaDeliveryTicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "delivery-kds-iniciar-preparo",
+      "body": {
+        "status": "PREPARING"
+      }
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA')",
+      "expected": "Preparando",
+      "name": "delivery-painel-preparando",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/restaurant/kitchen/tickets/{{qaDeliveryTicketId}}",
+      "method": "PATCH",
+      "expectedStatus": 200,
+      "name": "delivery-kds-marcar-pronto",
+      "body": {
+        "status": "READY"
+      }
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA')",
+      "expected": "Pedido pronto",
+      "name": "delivery-pedido-pronto",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA') [data-delivery-courier-form] input[name='courier']",
+      "value": "Entregador QA",
+      "name": "delivery-preencher-entregador"
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA') [data-delivery-courier-form] button[type='submit']",
+      "name": "delivery-definir-entregador",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA') [data-delivery-status$=':OUT_FOR_DELIVERY']",
+      "name": "delivery-sair-para-entrega",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA')",
+      "expected": "Saiu para entrega",
+      "name": "delivery-status-em-entrega",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA') [data-delivery-status$=':DELIVERED']",
+      "name": "delivery-marcar-entregue",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-delivery-view='HISTORY']",
+      "name": "delivery-abrir-historico",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-delivery-order]:has-text('Cliente Delivery QA')",
+      "expected": "Entregue",
+      "name": "delivery-historico-confirmado",
+      "timeoutMs": 10000
     },
     {
       "action": "screenshot",
@@ -399,6 +748,69 @@
       "selector": "#finalize-sale",
       "name": "delivery-finalizacao-canonica-disponivel",
       "timeoutMs": 10000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/cash/sessions",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "delivery-abrir-caixa-api",
+      "body": {
+        "initialCashCents": 10000
+      },
+      "saveAs": {
+        "qaCashSessionId": "session.id"
+      }
+    },
+    {
+      "action": "click",
+      "selector": "#finalize-sale",
+      "name": "delivery-finalizar-venda",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#confirm-payment",
+      "name": "delivery-pagamento-modal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "delivery-confirmar-pagamento",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/sales/{{qaDeliverySaleId}}",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-venda-concluida-api",
+      "expectedPayloadIncludes": "COMPLETED"
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/cash/sessions/{{qaCashSessionId}}/movements",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-caixa-movimento-api",
+      "expectedPayloadIncludes": "SALE"
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/inventory/qa-delivery-product",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-estoque-baixado-api",
+      "expectedPayloadIncludes": "\"quantity\":9"
+    },
+    {
+      "action": "desktopApiRequest",
+      "path": "/api/v1/sales/history?status=COMPLETED&limit=20",
+      "method": "GET",
+      "expectedStatus": 200,
+      "name": "delivery-historico-venda-api",
+      "expectedPayloadIncludes": "COMPLETED"
     },
     {
       "action": "screenshot",
