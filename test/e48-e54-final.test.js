@@ -81,6 +81,31 @@ test('E51 self-service uses paired device and creates pickup order without elect
   }finally{rt.close();}
 });
 
+test('E51 self-service lists configured devices with canonical location and responsible identity',()=>{
+  const rt=setup();
+  try{
+    rt.modules.setEnabled('FOOD',true,admin);
+    rt.catalog.createUser({id:'operator-1',username:'operator1',name:'Maria Balcão',profileId:'profile-cashier',password:'senha-forte-456'},admin);
+    const device=rt.mobileDevices.createDevice({id:'totem-balcao',name:'Totem Balcão',deviceType:'SELF_SERVICE'},admin);
+    rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'operator-1'},admin);
+    const rows=rt.selfService.listConfiguredDevices();
+    assert.equal(rows.length,1);
+    assert.deepEqual(rows[0],{
+      id:'totem-balcao',
+      name:'Totem Balcão',
+      deviceType:'SELF_SERVICE',
+      status:'ACTIVE',
+      lastSeenAt:null,
+      mode:'PICKUP',
+      locationLabel:'Retirada no balcão',
+      tableId:null,
+      tableLabel:null,
+      operatorId:'operator-1',
+      operatorName:'Maria Balcão'
+    });
+  }finally{rt.close();}
+});
+
 test('E52 onboarding recommends editable module sets and persists completion',()=>{
   const rt=setup();
   try{
