@@ -7,7 +7,7 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
 
-test('P5 simple extensions consume semantic lifecycle without MutationObserver',()=>{
+test('simple extensions consume semantic lifecycle without MutationObserver',()=>{
   const files=[
     'desktop/renderer/catalog-user-management-ui.js',
     'desktop/renderer/delivery-address-ui.js',
@@ -18,11 +18,11 @@ test('P5 simple extensions consume semantic lifecycle without MutationObserver',
   for(const file of files){
     const source=read(file);
     assert.match(source,/PdvUiLifecycle/,file);
-    assert.doesNotMatch(source,/new MutationObserver\b/,file);
+    assert.doesNotMatch(source,/new\s+MutationObserver\b/,file);
   }
 });
 
-test('shared modal and enterprise subflows publish the P5 semantic triggers',()=>{
+test('shared modal and enterprise subflows publish semantic triggers',()=>{
   const app=read('desktop/renderer/app.js');
   const enterprise=read('desktop/renderer/enterprise-depth-ui.js');
   const vertical=read('desktop/renderer/vertical-modules.js');
@@ -52,25 +52,36 @@ test('catalog customer actions survive incremental list rebuilds',()=>{
   assert.match(source,/if\(remountRequested\)\{remountRequested=false;scheduleMount\(\);\}/);
 });
 
-test('remaining complex observers stay scoped while delivery surfaces use lifecycle',()=>{
-  const expected=[
-    ['desktop/renderer/backend-parity-ui.js',0],
-    ['desktop/renderer/e48-e54-ui.js',0],
-    ['desktop/renderer/enterprise-depth-ui.js',1],
-    ['desktop/renderer/restaurant-public-ordering-ui.js',1],
-    ['desktop/renderer/ui-parity-p0-p2.js',1]
+test('complex migrated extensions are owner-invoked rather than DOM-observed',()=>{
+  const files=[
+    'desktop/renderer/operational-route-extensions.js',
+    'desktop/renderer/operational-detail-extensions.js',
+    'desktop/renderer/enterprise-depth-ui.js',
+    'desktop/renderer/restaurant-public-ordering-ui.js',
+    'desktop/renderer/e48-e54-ui.js',
+    'desktop/renderer/vertical-modules.js',
+    'desktop/renderer/vertical-parity-p1.js'
   ];
-  let total=0;
-  for(const [file,count] of expected){
-    const source=read(file);
-    const actual=(source.match(/new MutationObserver\b/g)||[]).length;
-    assert.equal(actual,count,`${file}: expected ${count}, got ${actual}`);
-    total+=actual;
-  }
-  for(const file of ['desktop/renderer/vertical-modules.js','desktop/renderer/vertical-parity-p1.js']){
-    assert.doesNotMatch(read(file),/new MutationObserver\b/,file);
-  }
-  const finalModules=read('desktop/renderer/e48-e54-ui.js');
-  for(const marker of ['PdvUiLifecycle','route:mounted','route:updated','surface:mounted']) assert.ok(finalModules.includes(marker),marker);
-  assert.equal(total,3);
+  for(const file of files)assert.doesNotMatch(read(file),/new\s+MutationObserver\b/,file);
+
+  const routeExtensions=read('desktop/renderer/operational-route-extensions.js');
+  const detailExtensions=read('desktop/renderer/operational-detail-extensions.js');
+  const operational=read('desktop/renderer/operational-pages.js');
+  const returnsUi=read('desktop/renderer/returns-ui.js');
+  const enterprise=read('desktop/renderer/enterprise-depth-ui.js');
+  const publicOrdering=read('desktop/renderer/restaurant-public-ordering-ui.js');
+  const restaurant=read('desktop/renderer/restaurant-ui.js');
+
+  assert.doesNotMatch(routeExtensions,/route:mounted|route:updated|MutationObserver/);
+  assert.doesNotMatch(detailExtensions,/route:mounted|route:updated|MutationObserver/);
+  assert.match(operational,/PdvOperationalRouteExtensions\?\.mountRoute\?\.\(route,pageRoot\)/);
+  assert.match(operational,/PdvEnterpriseDepthUi\?\.mountInventory\?\.\(pageRoot\)/);
+  assert.match(operational,/PdvOperationalDetailExtensions\?\.mountSettings\?\.\(pageRoot\)/);
+  assert.match(returnsUi,/PdvOperationalRouteExtensions\?\.mountReturns\?\.\(page\)/);
+  assert.match(returnsUi,/PdvOperationalDetailExtensions\?\.mountReturns\?\.\(page\)/);
+  assert.match(enterprise,/PdvOperationalDetailExtensions\?\.mountPurchases\?\.\(page\)/);
+  assert.match(enterprise,/PdvOperationalRouteExtensions\?\.mountLogistics\?\.\(page\)/);
+  assert.match(enterprise,/PdvOperationalDetailExtensions\?\.mountOrders\?\.\(page\)/);
+  assert.match(publicOrdering,/PdvRestaurantPublicOrderingUi=Object\.freeze\(\{mount\}\)/);
+  assert.match(restaurant,/PdvRestaurantPublicOrderingUi\?\.mount\?\.\(\)/);
 });
