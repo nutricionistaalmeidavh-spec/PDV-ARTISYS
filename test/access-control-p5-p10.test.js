@@ -104,14 +104,8 @@ test('P10 authorization matrix fails closed across person profile module device 
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'finance.manage'}),false);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'unknown.capability'}),false);
 
-    const self=runtime.mobileDevices.createDevice({id:'self1',name:'Totem',deviceType:'SELF_SERVICE'},{kind:'human',userId:admin.id});
-    const auth=runtime.deviceAccess.authenticate(self.id,self.credential);
-    assert.equal(auth.ok,true);
-    assert.equal(auth.principal.surface,'self-service');
-    assert.equal(runtime.authorization.can({principal:auth.principal,capability:'restaurant.self_service.create'}),true);
-    assert.equal(runtime.authorization.can({principal:auth.principal,capability:'restaurant.orders.create'}),false);
-    assert.equal(runtime.authorization.can({principal:auth.principal,capability:'finance.view'}),false);
     assert.throws(()=>runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'self1',name:'Totem',deviceType:'SELF_SERVICE'}),/Tipo de dispositivo invalido/i);
 
     runtime.modules.setEnabled('FOOD',false,{kind:'human',userId:admin.id});
     assert.throws(()=>runtime.modules.requireAccess('FOOD',{kind:'human',userId:admin.id}),/desativado/i);
