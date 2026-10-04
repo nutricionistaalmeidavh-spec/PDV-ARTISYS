@@ -119,10 +119,11 @@ test('waiter direction A keeps canonical mobile contracts and one order composer
   assert.match(router,/runtime\.restaurant\.addOrder\(sessionId/);
 
   for(const name of [
-    'garcom-direcao-a-salao',
-    'garcom-cardapio-contextual',
+    'garcom-direcao-a',
+    'garcom-salao-visual',
+    'garcom-pedido-no-contexto-da-mesa',
     'garcom-pedido-resumo-fixo',
     'garcom-enviar-pedido-disponivel',
-    'garcom-retorno-abrir-comanda'
+    'garcom-abrir-comanda-pronta'
   ]) assert.equal(steps.some(step=>step.name===name),true,name);
 });
