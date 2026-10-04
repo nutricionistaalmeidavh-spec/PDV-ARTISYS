@@ -7,12 +7,12 @@ P4 separates device authentication from surface, resource scope and optional hum
 A device now persists:
 
 - credential hash/salt — authentication only;
-- `surface` — waiter, kitchen or self-service;
+- `surface` — waiter or kitchen;
 - `scope_type/scope_id` — currently `establishment` for paired mobile devices;
 - optional `user_id` — human binding for attribution, never permission inheritance;
 - status and last-seen metadata.
 
-`device_type` is the canonical paired-device channel: `WAITER`, `KITCHEN` or `SELF_SERVICE`. A fixed-table customer device is not a separate device surface: it is `SELF_SERVICE` with a `TABLE` profile in `self_service_profiles`. Pickup uses the same device type with a `PICKUP` profile.
+`device_type` is the canonical paired-device channel: `WAITER` or `KITCHEN`. Customer table ordering is public-resource access through `/m/:token`, including when that URL is opened on store-owned hardware.
 
 ## Canonical principal
 
@@ -26,4 +26,4 @@ Device capability resolution is based on **surface**, not on the bound human pro
 
 ## Current compatibility
 
-Mobile credentials, blocking and rotation remain unchanged. Restaurant and self-service routers authenticate through `deviceAccess`; table binding for self-service is resolved by the self-service profile rather than device resource scope. P5/P8 will continue replacing remaining legacy module/route authorization gates.
+Mobile credentials, blocking and rotation remain unchanged. Restaurant mobile routes authenticate paired staff devices through `deviceAccess`; public table ordering remains a separate token-scoped resource channel. P5/P8 will continue replacing remaining legacy module/route authorization gates.
