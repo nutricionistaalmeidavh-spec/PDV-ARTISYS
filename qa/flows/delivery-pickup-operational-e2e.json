@@ -326,6 +326,12 @@
       "timeoutMs": 10000
     },
     {
+      "action": "click",
+      "selector": "button[data-delivery-view='ALL']",
+      "name": "balcao-senha-sair-canal",
+      "timeoutMs": 10000
+    },
+    {
       "action": "selectOption",
       "selector": "#delivery-form select[name='fulfillmentType']",
       "value": "PICKUP",
