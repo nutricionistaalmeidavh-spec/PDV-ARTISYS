@@ -79,11 +79,11 @@ test('delivery and pickup have a real gated Electron flow including WhatsApp and
     'retirada-aguardando-producao','retirada-kds-iniciar-preparo','retirada-kds-marcar-pronto',
     'retirada-pedido-pronto','retirada-whatsapp-disponivel','retirada-whatsapp-abrir',
     'retirada-whatsapp-confirmado','retirada-marcar-retirado','retirada-historico-confirmado',
-    'balcao-senha-criar-pedido','balcao-senha-1-confirmada','balcao-senha-segundo-pedido','balcao-senha-2-confirmada',
+    'balcao-senha-criar-pedido','balcao-senha-1-confirmada','balcao-senha-concluir','balcao-senha-segundo-pedido','balcao-senha-2-confirmada',
     'delivery-criar-pedido','delivery-kds-iniciar-preparo','delivery-kds-marcar-pronto','delivery-definir-entregador',
     'delivery-sair-para-entrega','delivery-marcar-entregue','delivery-historico-confirmado',
     'delivery-busca-balcao','delivery-abrir-no-caixa','delivery-finalizar-venda','delivery-confirmar-pagamento',
-    'delivery-venda-concluida-api','delivery-caixa-movimento-api','delivery-historico-venda-api'
+    'delivery-venda-concluida-api','delivery-caixa-movimento-api','delivery-estoque-baixado-api','delivery-historico-venda-api'
   ]) assert.equal(names.has(name),true,name);
   assert.match(pkg.scripts['qa:e2e:delivery-pickup']||'',/delivery-pickup-operational/);
   assert.match(workflow,/Run Delivery and pickup operational E2E/);
