@@ -1,4 +1,6 @@
-# ArtiSys PDV 2.0.1 — operação e configuração local
+# ArtiSys PDV — operação e configuração local
+
+> **Regra comercial atual:** a distribuição oficial exige ativação por e-mail + código antes do primeiro uso ou do login de uma instalação ainda não ativada. Depois da liberação, a operação diária permanece local/LAN e pode continuar offline conforme o último status conhecido da licença.
 
 - Pedidos de balcão, retirada e entrega usam a mesma venda e produção. Senha diária é opcional e considera o fuso da loja.
 - A fila mostra pedidos ativos; concluídos e senhas legadas permanecem no histórico com data.
