@@ -3,7 +3,7 @@
 const {randomBytes}=require('node:crypto');
 const {writeAudit}=require('../../core/audit-log');
 
-const PUBLIC_ROLE='public-self-service';
+const PUBLIC_ROLE='public-table-ordering';
 const TOKEN_RE=/^[A-Za-z0-9_-]{20,64}$/;
 const MENU_LAYOUTS=Object.freeze({COMPACT:'COMPACT',PREMIUM:'PREMIUM'});
 const MENU_LAYOUT_VALUES=new Set(Object.values(MENU_LAYOUTS));
