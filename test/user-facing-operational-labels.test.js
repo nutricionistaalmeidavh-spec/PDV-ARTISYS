@@ -79,7 +79,7 @@ test('current product authorities expose unified self-service instead of legacy 
   const readCurrent=file=>read(file);
   const capabilities=readJson('release/capabilities.json');
   const customer=readJson('release/customer-capabilities.json');
-  const declared=new Set(customer.flatMap(entry=>entry.declaredCapabilities||[]));
+  const declared=new Set((customer.capabilities||[]).flatMap(entry=>entry.declaredCapabilities||[]));
   const readme=readCurrent('README.md');
   const restaurant=readCurrent('docs/architecture/e30-e39-restaurant.md');
   const deviceAccess=readCurrent('docs/architecture/access-control-p4-device-access.md');
