@@ -50,7 +50,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 ## Restaurante: ordering público por QR
 
-- Public ordering requires the `FOOD` / Alimentação area to be enabled. Pedidos and Produção/KDS are structural parts of Alimentação; self-service is a channel of that same area, not a separate module. Each table has an opaque, locally generated QR token; the token identifies only that table and never grants administrative access.
+- Public ordering requires the `FOOD` / Alimentação area to be enabled. Pedidos and Produção/KDS are structural parts of Alimentação. Customer table ordering is the public `/m/:token` surface, not a separate module. Each table has an opaque, locally generated QR token; the token identifies only that table and never grants administrative access.
 - `/m/:token` is a public customer surface. It does not use `x-device-id`, `x-device-key`, operator login, or desktop session credentials.
 - The public product projection contains only customer-safe fields: product/category name, public description, sale price, availability, photo presence, and sanitized option/variant/combo labels and price deltas. Never serialize cost, recipe/ficha técnica, SKU, barcode, stock quantity, user, credential, or filesystem fields into this response.
 - Public descriptions are independent metadata. A recipe may inform a human-authored menu description, but the system does not expose or automatically publish recipe lines.
@@ -74,8 +74,8 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 ## Restaurante: equipe móvel e PWA
 
-- `/mobile` is the credentialed paired-device entry point for waiter, KDS and self-service. Customer QR users must never be directed to the device login screen.
-- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. After submission, the selected table keeps its command visible: `DIRECT` items are labelled as direct service, while production items reflect the canonical order state (`Novo → Em preparo → Pronto`). Kitchen mode prioritizes the same production lanes and never receives `DIRECT` items. Customer-facing fixed hardware is exclusively `SELF_SERVICE`: `TABLE` resolves the persisted table/comanda and exposes waiter/bill actions; `PICKUP` represents counter pickup and omits table actions.
+- `/mobile` is the credentialed paired-device entry point for waiter and KDS. Customer QR users must never be directed to the device login screen.
+- Waiter mode prioritizes table state, service calls and fast order entry across all authorized tables. After submission, the selected table keeps its command visible: `DIRECT` items are labelled as direct service, while production items reflect the canonical order state (`Novo → Em preparo → Pronto`). Kitchen mode prioritizes the same production lanes and never receives `DIRECT` items. Store-owned tablets that need the customer menu open the same `/m/:token` URL as any other browser.
 - Staff mutations disable the initiating control while pending and use pessimistic confirmation. Background refresh is single-flight and must not erase a local in-progress cart.
 - Manifest/service worker registration occurs only in secure contexts (HTTPS or localhost). LAN HTTP remains supported as an ordinary web application and is not labelled installable PWA.
 - Service-worker caching is limited to the staff application shell. `/api/` requests remain network-authoritative and are never satisfied from an offline cache.
@@ -202,7 +202,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 ## Arquitetura operacional canônica — Balcão e Alimentação
 
 - **Balcão** é o único checkout e a única superfície de cobrança canônica. Venda avulsa, comanda, Atacado, Delivery e Retirada chegam ao mesmo motor de venda, caixa, estoque, descontos, pagamentos e pós-venda.
-- **Alimentação** é o workspace operacional. **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada**, Autoatendimento e personalização de pizza são canais/visões do mesmo catálogo e da mesma produção, não motores de venda paralelos.
+- **Alimentação** é o workspace operacional. **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada** e personalização de pizza são canais/visões do mesmo catálogo e da mesma produção, não motores de venda paralelos.
 - **Mesas e comandas** controla salão e intenção de consumo; **Entrega e retirada** controla fulfillment; **KDS** controla preparo. Nenhuma dessas superfícies pode substituir o Balcão na regra de venda.
 - O localizador **Comandas e pedidos** do Balcão pesquisa Comandas, Atacado, Delivery e Retirada. Delivery/Retirada abrem a venda já vinculada por `saleId`; buscar um pedido nunca recria itens nem reprecifica silenciosamente o documento confirmado.
 - Os estados internos permanecem enums estáveis para API/banco. Na UI brasileira, a sequência operacional é apresentada como **Novo pedido → Aguardando produção → Preparando → Pedido pronto**, seguida de **Retirado** ou **Saiu para entrega → Entregue** conforme o canal.
@@ -211,7 +211,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 ## Arquitetura operacional unificada — Balcão e Alimentação
 
 - **Balcão** é o checkout canônico. Comandas, Atacado, Delivery e Retirada são documentos operacionais pesquisáveis pelo mesmo localizador e abrem a venda canônica já existente quando houver cobrança.
-- **Alimentação** organiza os canais **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada**, **Autoatendimento** e **Personalização de pizza**. Esses canais não criam motores paralelos de venda, preço, estoque ou caixa.
+- **Alimentação** organiza os canais **Mesas e comandas**, **Balcão e senhas**, **Entrega e retirada** e **Personalização de pizza**. Esses canais não criam motores paralelos de venda, preço, estoque ou caixa.
 - **Entrega e retirada** é painel operacional persistente: **Novo pedido → Aguardando produção → Preparando → Pedido pronto → Retirado/Saiu para entrega → Entregue**. Os códigos internos continuam estáveis, mas nunca são apresentados crus ao operador.
 - **KDS/Cozinha/Bar** é a autoridade da produção. Confirmar visualização inicia o preparo e confirmar conclusão marca o ticket pronto; o pedido agrega o estado dos setores.
 - **Mesas e comandas**, Delivery/Retirada e KDS compartilham o mesmo estado autoritativo do servidor LAN. Nenhuma tela mantém uma cópia independente que possa sobrescrever estado mais novo.
@@ -235,10 +235,3 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 - A fila principal mostra somente pedidos em andamento. Concluídos e cancelados ficam em Histórico com data e hora. Registros antigos de senhas permanecem preservados, e os ainda abertos oferecem somente ações para concluir a operação anterior.
 - Se o pedido foi salvo mas falhou o envio à produção, a interface preserva o pedido e oferece reenviar o mesmo registro, evitando duplicar pedido e senha.
 
-## Autoatendimento pareado
-
-- Há uma única criação funcional de autoatendimento, na área de Autoatendimento.
-- `SELF_SERVICE + TABLE` representa hardware fixo vinculado a uma mesa e oferece pedido, chamar garçom e pedir conta.
-- `SELF_SERVICE + PICKUP` representa retirada no balcão e não expõe ações de mesa.
-- O QR público da mesa permanece um acesso separado e responsivo; abrir o mesmo QR em um tablet não cria outro fluxo.
-- O catálogo do autoatendimento reutiliza a projeção segura e a direção visual do cardápio público, incluindo busca, categorias, fotos/fallback, configuração do item e carrinho recuperável.
