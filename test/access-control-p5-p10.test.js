@@ -27,13 +27,13 @@ test('P5 modules declare capabilities instead of human roles and enforce them ca
 
   const runtime=runtimeFixture();
   try{
-    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'},{kind:'system',userId:'setup'});
+    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'},{kind:'system',userId:'setup'});
     const limited=runtime.profiles.createProfile({
       name:'Food somente leitura',
       permissions:['restaurant.access']
     },{kind:'human',userId:admin.id});
     const user=runtime.catalog.createUser({
-      id:'food1',username:'food',name:'Food',role:'cashier',profileId:limited.id,password:'senha-food-123'
+      id:'food1',username:'food',name:'Food',profileId:limited.id,password:'senha-food-123'
     },{kind:'human',userId:admin.id});
 
     assert.equal(runtime.modules.requireAccess('FOOD',{kind:'human',userId:user.id}),true);
@@ -83,7 +83,7 @@ test('P8 core production authorization no longer gates by roles or module role a
 test('P9 session access projection and security events are first-class',()=>{
   const runtime=runtimeFixture();
   try{
-    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'},{kind:'system',userId:'setup'});
+    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'},{kind:'system',userId:'setup'});
     const access=runtime.profiles.getUserAccess(admin.id);
     assert.equal(access.profile.systemKey,'admin');
     assert.equal(access.permissions.includes('security.view'),true);
@@ -97,8 +97,8 @@ test('P9 session access projection and security events are first-class',()=>{
 test('P10 authorization matrix fails closed across person profile module device surface and scope',()=>{
   const runtime=runtimeFixture();
   try{
-    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',role:'admin',password:'senha-admin-123'},{kind:'system',userId:'setup'});
-    const cashier=runtime.catalog.createUser({id:'c1',username:'cashier',name:'Cashier',role:'cashier',password:'senha-cashier-123'},{kind:'human',userId:admin.id});
+    const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-123'},{kind:'system',userId:'setup'});
+    const cashier=runtime.catalog.createUser({id:'c1',username:'cashier',name:'Cashier',profileId:'profile-cashier',password:'senha-cashier-123'},{kind:'human',userId:admin.id});
 
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'sales.create'}),true);
     assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'finance.manage'}),false);
