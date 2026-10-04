@@ -3,13 +3,13 @@
 const { randomBytes, randomUUID, scryptSync, timingSafeEqual } = require('node:crypto');
 const { writeAudit } = require('../../core/audit-log');
 
-const DEVICE_TYPES = new Set(['WAITER','TABLET','KITCHEN','SELF_SERVICE']);
+const DEVICE_TYPES = new Set(['WAITER','KITCHEN','SELF_SERVICE']);
 const DEVICE_STATUSES = new Set(['ACTIVE','BLOCKED']);
 
 function hashSecret(secret,salt){return scryptSync(String(secret),String(salt),32).toString('hex');}
 function safeEqualHex(left,right){try{const a=Buffer.from(String(left),'hex');const b=Buffer.from(String(right),'hex');return a.length===b.length&&timingSafeEqual(a,b);}catch{return false;}}
-function canonicalSurface(type){const value=String(type||'').trim().toUpperCase();if(value==='WAITER')return'waiter';if(value==='TABLET')return'table';if(value==='KITCHEN')return'kitchen';if(value==='SELF_SERVICE')return'self-service';return value.toLowerCase().replace(/_/g,'-');}
-function scopeFor(type,tableId){if(String(type).toUpperCase()==='TABLET'&&tableId)return{type:'table',id:String(tableId)};return{type:'establishment',id:null};}
+function canonicalSurface(type){const value=String(type||'').trim().toUpperCase();if(value==='WAITER')return'waiter';if(value==='KITCHEN')return'kitchen';if(value==='SELF_SERVICE')return'self-service';return value.toLowerCase().replace(/_/g,'-');}
+function scopeFor(){return{type:'establishment',id:null};}
 
 function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactory=prefix=>`${prefix}-${randomUUID()}`,secretFactory=()=>randomBytes(32).toString('base64url')}={}){
   if(!db)throw new TypeError('Database is required.');
@@ -28,11 +28,6 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
   function requireDevice(id){const row=db.prepare('SELECT * FROM mobile_devices WHERE id=?').get(String(id));if(!row)throw new Error('Dispositivo nao encontrado.');return row;}
 
   function validateBinding(type,tableId,userId,stationIds=[]){
-    if(type==='TABLET'){
-      if(!tableId)throw new Error('Tablet deve estar vinculado a uma mesa.');
-      const table=db.prepare('SELECT id FROM restaurant_tables WHERE id=? AND active=1').get(String(tableId));
-      if(!table)throw new Error('Mesa nao encontrada ou inativa.');
-    }
     if(type==='WAITER'&&userId){
       const user=db.prepare("SELECT id FROM users WHERE id=? AND active=1").get(String(userId));
       if(!user)throw new Error('Usuario do garcom nao encontrado ou inativo.');
@@ -48,12 +43,12 @@ function createMobileDeviceService({db,now=()=>new Date().toISOString(),idFactor
   function createDevice(input={},actor={}){
     const name=String(input.name||'').trim();if(!name)throw new Error('Nome do dispositivo obrigatorio.');
     const requestedType=String(input.deviceType||'').trim().toUpperCase();if(!DEVICE_TYPES.has(requestedType))throw new Error('Tipo de dispositivo invalido.');
-    const tableId=input.tableId?String(input.tableId):null;const userId=input.userId?String(input.userId):null;
+    const tableId=null;const userId=input.userId?String(input.userId):null;
     const stationIds=[...new Set((Array.isArray(input.stationIds)?input.stationIds:[]).map(value=>String(value||'').trim()).filter(Boolean))];
     validateBinding(requestedType,tableId,userId,stationIds);
     const id=String(input.id||idFactory('mobile')).trim();const credential=String(secretFactory());const salt=randomBytes(16).toString('hex');const timestamp=now();
     const storedType=requestedType;
-    const surface=canonicalSurface(requestedType);const scope=scopeFor(requestedType,tableId);
+    const surface=canonicalSurface(requestedType);const scope=scopeFor();
     db.prepare(`INSERT INTO mobile_devices(id,name,device_type,surface,scope_type,scope_id,table_id,user_id,credential_hash,credential_salt,status,last_seen_at,created_by,created_at,updated_at)
       VALUES(?,?,?,?,?,?,?,?,?,?,'ACTIVE',NULL,?,?,?)`).run(id,name,storedType,surface,scope.type,scope.id,tableId,userId,hashSecret(credential,salt),salt,actor?.userId||null,timestamp,timestamp);
     if(requestedType==='SELF_SERVICE'){
