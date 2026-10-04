@@ -129,5 +129,7 @@ test('sales report exposes manager decision metrics without parallel aggregates'
   assert.equal(r.categorySales[0].estimatedMarginCents,700);
   assert.equal(r.lowMarginProducts[0].productId,'p1');
   assert.equal(r.lowMarginProducts[0].estimatedMarginCents,700);
+  assert.equal(r.salesTimeline.length,3);
+  assert.equal(r.salesTimeline.reduce((sum,row)=>sum+row.netCents,0),1900);
   db.close();
 });
