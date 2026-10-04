@@ -86,6 +86,13 @@
       "holdMs": 220
     },
     {
+      "action": "selectOption",
+      "selector": "#product-form select[name='productionDestination']",
+      "name": "destino-direto",
+      "value": "DIRECT",
+      "holdMs": 250
+    },
+    {
       "action": "click",
       "selector": "#product-form button[type='submit']",
       "name": "salvar-produto",

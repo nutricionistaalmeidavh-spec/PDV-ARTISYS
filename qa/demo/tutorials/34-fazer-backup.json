@@ -61,7 +61,7 @@
       "action": "expectText",
       "selector": "#settings-backup",
       "name": "backup-criado",
-      "expected": "manual-ui",
+      "expected": "Manual",
       "timeoutMs": 12000,
       "holdMs": 1000
     }

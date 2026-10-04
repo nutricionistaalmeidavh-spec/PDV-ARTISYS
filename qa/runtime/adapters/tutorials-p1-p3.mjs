@@ -70,6 +70,12 @@ async function setupTutorial(page,scenario,runtimeContext){
       try{await api.saveCommissionRule({sellerId:operatorId,productId:'tutorial-product',percent:5,active:true});}catch{}
     }
 
+    if(scenario==='pair-terminal'){
+      try{
+        await window.artisysDesktop.dataServer.save({mode:'lan-host',host:'127.0.0.1',port:4174},api.sessionToken);
+      }catch{}
+    }
+
     if(scenario==='restore'){
       const backup=await api.createBackup('tutorial-restore');
       vars.backupId=backup.id||backup.backup?.id||null;

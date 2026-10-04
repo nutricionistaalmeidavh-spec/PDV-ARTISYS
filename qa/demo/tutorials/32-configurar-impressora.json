@@ -75,7 +75,7 @@
       "action": "expectText",
       "selector": "#printing-settings-status",
       "name": "impressora-configurada",
-      "expected": "salv",
+      "expected": "Salvo",
       "timeoutMs": 10000,
       "holdMs": 900
     }

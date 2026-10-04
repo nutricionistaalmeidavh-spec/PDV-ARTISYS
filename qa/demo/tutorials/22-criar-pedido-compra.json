@@ -82,7 +82,7 @@
       "action": "fill",
       "selector": "#enterprise-po-form input[name='unitCost']",
       "name": "custo",
-      "value": "4.50",
+      "value": "4",
       "holdMs": 200
     },
     {

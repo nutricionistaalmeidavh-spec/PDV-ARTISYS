@@ -56,7 +56,7 @@
     },
     {
       "action": "check",
-      "selector": "[data-profile-form] input[name='permission']",
+      "selector": "[data-profile-form] input[name='permission'][value='devices.pair']",
       "name": "selecionar-permissao",
       "timeoutMs": 10000,
       "holdMs": 350
