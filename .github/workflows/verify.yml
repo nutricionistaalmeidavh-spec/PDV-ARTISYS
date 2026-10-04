@@ -32,6 +32,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install Playwright Chromium for browser-backed tests
+        run: npx playwright install --with-deps chromium
       - name: Run repository verification
         run: npm run verify
 
@@ -45,6 +47,8 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+      - name: Install Playwright Chromium for browser-backed tests
+        run: npx playwright install --with-deps chromium
       - name: Check release capability parity
         run: npm run capability:check:release
       - name: Check phase 3 capability parity
@@ -80,6 +84,8 @@ jobs:
   ui-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      TZ: America/Sao_Paulo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
