@@ -6,11 +6,11 @@
 - Balança e gaveta serial têm configuração visível e persistida; operações sem configuração são desabilitadas e mensagens orientam a correção.
 - QR detecta o endereço do PC principal, usa a porta configurada e testa a resposta do servidor. O celular ainda precisa estar na mesma rede e ter acesso permitido pelo firewall.
 - Atualização/reinstalação informa a presença de dados anteriores. Uma nova loja exige confirmação e backup íntegro; dados anteriores são arquivados.
-- Recuperação de senha local usa chave de uso único. O core não depende de ativação comercial, e-mail ou nuvem.
+- Recuperação de senha local usa chave de uso único. A distribuição oficial exige ativação comercial por e-mail + código antes do uso; depois de ativado, o core e os dados operacionais continuam locais.
 
 Equipamentos físicos precisam ser testados na loja. A gaveta suportada usa adaptador serial ESC/POS; seleção de impressora Windows sozinha não comprova suporte ao pulso de gaveta.
 
-Instalador local: `ArtiSys-PDV-2.0.1-x64-Setup.exe`. Esta entrega não publica uma release automaticamente.
+Instalador oficial: `ArtiSys-PDV-${RELEASE_VERSION}-x64-Setup.exe`. O workflow de release publica o instalador e os metadados do updater automaticamente após todos os gates.
 
 ---
 

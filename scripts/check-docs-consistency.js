@@ -16,6 +16,7 @@ const limitations = readJson('release/limitations.json');
 const catalogDoc = read('docs/architecture/catalog-parent-variants-kits-combos.md');
 const erpFinanceArchitecture = read('docs/architecture/erp-finance-p0-p3.md');
 const erpFinanceOperations = read('docs/operations/erp-finance.md');
+const commercialLicensing = read('docs/architecture/commercial-licensing.md');
 
 const readmeHeading = readme.split(/\r?\n/, 1)[0].trim();
 if (readmeHeading !== `# ArtiSys PDV ${pkg.version}`) {
@@ -26,7 +27,8 @@ for (const phrase of [
   'Produto pai e subitens',
   'Kits e combos promocionais',
   'docs/architecture/catalog-parent-variants-kits-combos.md',
-  'CONTRIBUTING.md'
+  'CONTRIBUTING.md',
+  'docs/architecture/commercial-licensing.md'
 ]) {
   if (!readme.includes(phrase)) fail(`README is missing required current-state reference: ${phrase}`);
 }
@@ -38,7 +40,8 @@ for (const capability of [
   'historical-cost-snapshot-and-margin',
   'stock-locations-reservations-and-transfers',
   'purchase-orders-partial-receiving-moving-average-payable',
-  'sales-orders-pickup-delivery-reservation-fulfillment'
+  'sales-orders-pickup-delivery-reservation-fulfillment',
+  'mandatory-commercial-activation-local-offline-runtime'
 ]) {
   if (!capabilities.includes(capability)) fail(`release/capabilities.json is missing ${capability}`);
 }
@@ -49,7 +52,7 @@ if (!limitations.some(item => /produto pai/i.test(String(item)) && /saldo/i.test
   fail('release/limitations.json must document parent-stock migration constraint.');
 }
 const versionedLimitations = limitations.filter(item => /versão\s+\d+\.\d+\.\d+/i.test(String(item)));
-if (!versionedLimitations.length || versionedLimitations.some(item => !String(item).includes(pkg.version))) {
+if (versionedLimitations.some(item => !String(item).includes(pkg.version))) {
   fail(`every explicit release version in release/limitations.json must match package.json (${pkg.version}).`);
 }
 if (!limitations.some(item => /ESTIMATED_CURRENT/.test(String(item)))) {
@@ -68,6 +71,7 @@ for (const phrase of ['Gestão', 'DRE', 'Fluxo de caixa', 'OFX', 'Conciliação'
 }
 if (!/confirma[cç][aã]o manual/i.test(financeDocs)) fail('ERP finance docs must require explicit/manual reconciliation confirmation.');
 if (!/não implementa contabilidade por partidas dobradas/i.test(financeDocs)) fail('ERP finance docs must state that double-entry accounting is outside P0-P3.');
+if (!/ativação comercial.*obrigatória/is.test(commercialLicensing) || !/operação diária.*local/is.test(commercialLicensing)) fail('commercial licensing doc must distinguish mandatory licensing from local daily operation.');
 if (!/self-hosted/i.test(financeDocs) || !/sem dependência paga obrigatória/i.test(financeDocs)) fail('ERP finance core must be documented as self-hosted with no mandatory paid dependency.');
 
 function assertReleaseChecklistVersionNeutral() {

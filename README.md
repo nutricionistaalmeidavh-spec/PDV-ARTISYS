@@ -4,6 +4,14 @@ PDV desktop da ArtiSys para operação **local-first**, self-hosted e em rede LA
 
 O projeto usa um único núcleo transacional para venda, estoque, caixa, pagamentos, devoluções, impressão e auditoria. Recursos por segmento são módulos opcionais sobre esse mesmo núcleo, sem transformar cada nicho em um produto separado.
 
+## Licenciamento comercial
+
+**Local-first/self-hosted descreve onde o sistema roda e onde os dados ficam; não significa licença gratuita para clientes.** A distribuição oficial do ArtiSys PDV exige compra/liberação pela ArtiSys. Uma instalação ainda não ativada não libera primeiro acesso nem login, mesmo que já exista usuário local.
+
+A ativação usa o e-mail liberado e um código de 6 dígitos fornecido pela ArtiSys no endpoint comercial padrão `https://pdv-artisys.sistema-artisys.workers.dev`. Depois da ativação, venda, estoque, caixa, impressão e demais dados continuam locais; indisponibilidade temporária da nuvem não bloqueia uma licença cujo último estado conhecido seja ativo. O override `PDV_REQUIRE_COMMERCIAL_ACTIVATION=false` é reservado a desenvolvimento/uso interno e não faz parte da distribuição para clientes.
+
+Contrato canônico: `docs/architecture/commercial-licensing.md`.
+
 ## Estado do produto
 
 As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas na versão 2.0.1. A versão atual inclui operação de balcão, retaguarda, estoque por local, compras, pedidos, áreas opcionais, hardware local, LAN, backup, importação, observabilidade e gates automatizados de release.
@@ -157,7 +165,7 @@ A E54.1 mantém simulação automatizada de impressora, balança, gaveta, leitor
 
 ## Regra comercial fiscal e pagamentos
 
-A versão comercial 2.0.1 opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
+A distribuição comercial opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
 
 Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
 
@@ -172,7 +180,7 @@ npm run qa:web-surfaces
 npm run qa:e2e:p0
 npm run qa:e2e:tablet
 npm run dist:win
-npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-2.0.1-x64-Setup.exe
+npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-*-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
@@ -213,7 +221,7 @@ Detalhes de cada fluxo devem permanecer nos documentos específicos; o README se
 
 ## Limitações externas
 
-Venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não dependem de nuvem nem de serviço pago. A telemetria Cloudflare é opcional e sua indisponibilidade não altera o funcionamento diário. Hardware, firmware, cabo e driver específicos continuam sendo variáveis externas e precisam ser validados no ambiente real quando aplicável.
+Depois da ativação comercial inicial, venda, estoque, caixa, módulos opcionais, KDS, LAN, impressão local e integração serial não dependem de nuvem para a operação diária. O serviço de licenciamento é obrigatório para a liberação inicial e consulta de status; a telemetria Cloudflare continua opcional e sua indisponibilidade não altera o funcionamento diário. Hardware, firmware, cabo e driver específicos continuam sendo variáveis externas e precisam ser validados no ambiente real quando aplicável.
 
 Um modelo físico não testado permanece `UNTESTED_MODEL`; famílias de integração validadas automaticamente podem ser `PROTOCOL_VERIFIED`; somente equipamento realmente conectado e validado com evidência passa a `FIELD_VERIFIED`.
 

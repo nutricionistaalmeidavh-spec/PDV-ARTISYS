@@ -1,5 +1,7 @@
 # PDV ArtiSys — E40–E54 Design
 
+> **Atualização de licenciamento (2026-10-04):** a antiga restrição de “sem licença online” abaixo foi superada para a distribuição comercial. O produto oficial exige ativação inicial pela ArtiSys; local-first/self-hosted continua descrevendo a arquitetura e a operação diária, não gratuidade para clientes.
+
 ## Status
 
 Design aprovado em conversa em 2026-09-10. Esta especificação parte do estado atual pós-1.1.1 e define a evolução E40–E54 como uma expansão modular do mesmo PDV local-first, sem criar produtos separados por nicho.

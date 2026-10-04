@@ -22,7 +22,7 @@ A release só é considerada publicável quando todos os gates abaixo são compr
 - SQLite permanece autoritativo no servidor local; terminais usam a API LAN.
 - `SaleService` permanece o motor canônico de conclusão de vendas.
 - Módulos opcionais desativados não aparecem como fluxo operacional e não aceitam mutações específicas no backend.
-- O núcleo obrigatório continua local-first/self-hosted, sem SaaS, nuvem ou assinatura obrigatória.
+- O núcleo obrigatório continua local-first/self-hosted para a operação diária, mas a distribuição oficial exige ativação comercial antes do primeiro acesso ou login de uma instalação ainda não ativada.
 
 ## Validação física
 

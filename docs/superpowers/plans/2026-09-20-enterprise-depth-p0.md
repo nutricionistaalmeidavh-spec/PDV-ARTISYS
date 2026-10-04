@@ -1,5 +1,7 @@
 # Enterprise Depth P0 Implementation Plan
 
+> **Atualização de licenciamento (2026-10-04):** a restrição histórica “sem assinatura obrigatória” não se aplica mais à distribuição comercial. O executável oficial exige ativação inicial; o core permanece local/self-hosted após a liberação.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implementar a Fase 9 de profundidade operacional do ArtiSys PDV 1.4.0: custo histórico correto, estoque por local/reservas, compras/recebimentos, transferências e orçamento/pedido/fulfillment integrados ao núcleo atual.
