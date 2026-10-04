@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
 
-const actor = { userId:'admin', role:'admin', terminalId:'PDV-01' };
+const actor = { userId:'admin', profileId:'profile-administrator', terminalId:'PDV-01' };
 
 function fixture() {
   let seq = 0;
@@ -11,7 +11,7 @@ function fixture() {
     now:()=>`2026-10-01T12:00:${String(seq++ % 60).padStart(2,'0')}Z`,
     idFactory:prefix=>`${prefix}-${seq++}`
   });
-  runtime.catalog.createUser({ id:'admin', username:'admin', name:'Administrador', role:'admin', password:'senha-forte-123', active:true });
+  runtime.catalog.createUser({ id:'admin', username:'admin', name:'Administrador', profileId:'profile-administrator', password:'senha-forte-123', active:true });
   runtime.catalog.upsertCategory({ id:'food', name:'Alimentos' }, actor);
   runtime.catalog.upsertProduct({ id:'meal', sku:'MEAL', name:'Prato pronto', salePriceCents:1000, costCents:300, trackStock:false, minimumStock:0, categoryId:'food' }, actor);
   runtime.catalog.upsertProduct({ id:'ingredient', sku:'ING', name:'Ingrediente', salePriceCents:100, costCents:100, trackStock:true, minimumStock:0, categoryId:'food' }, actor);
