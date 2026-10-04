@@ -36,6 +36,13 @@ test('checkout observation presentation is stylesheet-owned instead of inline JS
   assert.match(source,/sale-observation-editor/);
 });
 
+test('active renderer presentation stays in CSS instead of inline style attributes',()=>{
+  for(const file of ['desktop/renderer/app.js','desktop/renderer/sale-observation-ui.js','desktop/renderer/delivery-address-ui.js']){
+    const source=read(file);
+    assert.doesNotMatch(source,/style\.cssText|style="/,file);
+  }
+});
+
 test('checkout remove action uses a canonical class instead of one-off destructive color',()=>{
   const source=read('desktop/renderer/app.js');
   assert.doesNotMatch(source,/color:#e22/i);
