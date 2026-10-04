@@ -66,7 +66,7 @@ test('public menu context exposes the canonical menu layout without changing ord
   }finally{runtime.close();}
 });
 
-test('desktop selector and customer menu keep one canonical renderer while introducing the compact layout',()=>{
+test('desktop selector and customer menu keep one canonical renderer for compact and premium layouts',()=>{
   const desktop=read('desktop/renderer/restaurant-public-ordering-ui.js');
   const desktopCss=read('desktop/renderer/restaurant-public-ordering-ui.css');
   const menu=read('server/customer-menu/app.js');
@@ -77,7 +77,8 @@ test('desktop selector and customer menu keep one canonical renderer while intro
   assert.match(desktop,/Visual gastronômico/);
   assert.match(desktop,/name="menuLayout"/);
   assert.match(desktop,/layoutOption\(\{value:'COMPACT'/);
-  assert.match(desktop,/layoutOption\(\{value:'PREMIUM'[\s\S]*disabled:true/);
+  assert.match(desktop,/layoutOption\(\{value:'PREMIUM'/);
+  assert.doesNotMatch(desktop,/layoutOption\(\{value:'PREMIUM'[^)]*disabled:true/);
   assert.match(desktop,/menuLayout:/);
   assert.match(desktopCss,/\.menu-layout-selector/);
   assert.match(desktopCss,/\.menu-layout-preview/);
@@ -110,6 +111,9 @@ test('QA captures the premium public menu and checks its accessibility floor',()
   const steps=flow.steps||[];
   const premiumConfig=steps.find(step=>step.action==='desktopApiRequest'&&step.path==='/api/v1/vertical/self-service/public-ordering/config'&&step.body?.menuLayout==='PREMIUM');
   assert.ok(premiumConfig,'QA must publish PREMIUM before the premium capture');
+  const premiumIndex=steps.indexOf(premiumConfig);
+  const firstExternalNavigation=steps.findIndex(step=>step.action==='goto'&&(step.path==='/mobile'||step.name==='abrir-cardapio-qr'));
+  assert.ok(premiumIndex>=0&&premiumIndex<firstExternalNavigation,'PREMIUM must be persisted while the Electron API bridge is still available');
   assert.equal(steps.some(step=>step.action==='expectVisible'&&step.selector==='html[data-menu-layout="premium"]'),true);
   assert.equal(steps.some(step=>step.action==='focus'&&step.selector==='.add-button'),true);
   assert.equal(steps.some(step=>step.action==='expectFocused'&&step.selector==='.add-button'),true);
