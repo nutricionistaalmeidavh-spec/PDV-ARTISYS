@@ -79,3 +79,18 @@ test('all-pages Actions QA exercises reverse settlement through UI and verifies 
   assert.ok(steps.some(step=>step.action==='expectText'&&step.expected==='Baixa estornada.'));
   assert.ok(steps.some(step=>step.action==='capability'&&step.name==='finance.assert'));
 });
+
+
+test('other operational prompt replacements still call their canonical mutation owners',()=>{
+  const admin=read('desktop/renderer/admin-ops.js');
+  assert.match(admin,/ux\.openFormDialog\(/);
+  assert.match(admin,/title:blocked\?'Registrar bloqueio':'Marcar como não aplicável'/);
+  assert.match(admin,/api\.updatePilotCheck\(select\.dataset\.pilotStatus,\{status,note\}\)/);
+
+  const operational=read('desktop/renderer/operational-pages.js');
+  assert.match(operational,/title=closing\?'Fechar caixa':action==='supply'\?'Registrar suprimento':'Registrar sangria'/);
+  assert.match(operational,/api\.cashAction\(open\.id,'close'/);
+  assert.match(operational,/api\.cashAction\(open\.id,action,/);
+  assert.match(operational,/title:'Registrar pagamento de comissão'/);
+  assert.match(operational,/onConfirm:data=>api\.payCommission\(/);
+});
