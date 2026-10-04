@@ -8,7 +8,7 @@ class ModuleDisabledError extends Error{constructor(id){super(`Modulo ${id} desa
 function createModuleService({db,settings,authorization,now=()=>new Date().toISOString()}={}){
   if(!db||!settings||!authorization)throw new TypeError('db, settings and authorization are required.');
   const key=id=>`modules.${id}.enabled`;
-  const legacyFoodIds=['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY','SELF_SERVICE'];
+  const legacyFoodIds=['RESTAURANT','PIZZERIA','DELIVERY','FAST_FOOD','MARKET_BAKERY'];
 
   function foodDefault(definition){
     const explicit=settings.get(key('FOOD'),{defaultValue:null});
