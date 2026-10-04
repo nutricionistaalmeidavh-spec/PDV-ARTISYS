@@ -1,7 +1,5 @@
 'use strict';
 
-const {createPublicOrderingService}=require('../js/domains/restaurant/public-ordering');
-
 class FinalVerticalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function json(response,statusCode,payload){response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(payload));}
 async function body(request,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of request){size+=chunk.length;if(size>limit)throw new FinalVerticalHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new FinalVerticalHttpError(400,'JSON invalido.');}}
@@ -9,7 +7,6 @@ function bearer(request){const value=String(request.headers.authorization||'');r
 
 function createE48E54Router({runtime,installationToken='',requireTerminalAuth=false,sessionStore=null}={}){
   if(!runtime)throw new TypeError('runtime is required.');
-  function publicOrdering(){if(!runtime.publicOrdering)runtime.publicOrdering=createPublicOrderingService({db:runtime.db,modules:runtime.modules,catalog:runtime.catalog,catalogCustomization:runtime.catalogCustomization,restaurant:runtime.restaurant,productPhotos:runtime.productPhotos});return runtime.publicOrdering;}
   const sessions=sessionStore||null;
   function principal(request){
     if(sessions){
@@ -38,15 +35,16 @@ function createE48E54Router({runtime,installationToken='',requireTerminalAuth=fa
       const retailSale=pathname.match(/^\/api\/v1\/vertical\/retail\/sales\/([^/]+)\/variant$/);
       if(request.method==='POST'&&retailSale){json(response,200,runtime.retail.addVariantToSale(decodeURIComponent(retailSale[1]),await body(request),actor));return true;}
 
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,201,runtime.selfService.createConfiguredDevice(await body(request),actor));return true;}
       if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/devices'){json(response,200,runtime.selfService.listConfiguredDevices());return true;}
       const selfConfig=pathname.match(/^\/api\/v1\/vertical\/self-service\/devices\/([^/]+)$/);
       if(request.method==='PUT'&&selfConfig){json(response,200,runtime.selfService.configureDevice(decodeURIComponent(selfConfig[1]),await body(request),actor));return true;}
       if(request.method==='GET'&&selfConfig){json(response,200,runtime.selfService.context(decodeURIComponent(selfConfig[1])));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,publicOrdering().getConfig());return true;}
-      if(request.method==='PUT'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,publicOrdering().updateConfig(await body(request),actor));return true;}
-      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/menu'){json(response,200,publicOrdering().listMenu({includeHidden:true}));return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,runtime.publicOrdering.getConfig());return true;}
+      if(request.method==='PUT'&&pathname==='/api/v1/vertical/self-service/public-ordering/config'){json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/self-service/public-ordering/menu'){json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
       const publicMenuProduct=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/menu\/([^/]+)$/);
-      if(request.method==='PATCH'&&publicMenuProduct){json(response,200,publicOrdering().updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
+      if(request.method==='PATCH'&&publicMenuProduct){json(response,200,runtime.publicOrdering.updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
       const publicTableQr=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/tables\/([^/]+)\/qr$/);
       if(request.method==='GET'&&publicTableQr){json(response,200,tableAccess(request,url,decodeURIComponent(publicTableQr[1])));return true;}
       const publicTableQrRotate=pathname.match(/^\/api\/v1\/vertical\/self-service\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
