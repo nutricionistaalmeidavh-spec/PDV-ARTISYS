@@ -76,14 +76,14 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     if(input.role!==undefined)throw domainError(400,'Campo role legado nao e suportado; informe profileId.');
     if(input.profileId)return profiles.getProfile(input.profileId);
     if(existing?.profileId)return profiles.getProfile(existing.profileId);
-    return null;
+    return profiles.getProfileBySystemKey('operator');
   }
 
   function assertCanGrantProfile(actor,profile,explicit=false){
     if(!authorization||!profile)return;
     const principal=principalFromActor(actor);
     if(principal?.kind==='system')return;
-    if(explicit||profile.protected)requireCapability(actor,'profiles.assign');
+    if(explicit)requireCapability(actor,'profiles.assign');
     for(const permission of profile.permissions||[]){
       if(!authorization.can({principal,capability:permission}))throw domainError(403,'Nao e permitido atribuir um perfil com permissoes superiores as do usuario atual.');
     }
@@ -99,7 +99,7 @@ function createCatalogManagementService({db,catalog,account=null,authorization=n
     const targetProfile=profileForInput(input,existing);
     if(profiles&&(!targetProfile||!targetProfile.active))throw domainError(409,'Perfil de acesso invalido ou inativo.');
     const changesProfile=!existing||String(targetProfile?.id||'')!==String(existing.profileId||'');
-    if(changesProfile)assertCanGrantProfile(actor,targetProfile,true);
+    if(changesProfile)assertCanGrantProfile(actor,targetProfile,Boolean(input.profileId));
 
     ensureAdminMutationSafe(existing,targetProfile,requestedActive,actor);
     return catalog.upsertUser({...input,profileId:targetProfile.id,active:requestedActive},actor);
