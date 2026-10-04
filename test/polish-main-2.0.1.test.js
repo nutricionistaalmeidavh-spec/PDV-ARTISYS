@@ -104,6 +104,13 @@ test('README consistently documents the 2.0.1 release',()=>{
   assert.match(readme,/ArtiSys-PDV-2\.0\.1-x64-Setup\.exe/);
 });
 
+test('reports use the store business date instead of the process timezone',()=>{
+  const source=read('desktop/renderer/reporting-v2.js');
+  assert.match(source,/storeTimeZone = 'America\/Sao_Paulo'/);
+  assert.match(source,/PdvBusinessDate\.localBusinessDate\(reference,storeTimeZone\)/);
+  assert.match(source,/const today = businessToday\(\)/);
+});
+
 test('backup restore dialog traps keyboard focus, closes on Escape and restores the opener focus',()=>{
   const source=read('desktop/renderer/admin-ops.js');
   assert.match(source,/aria-describedby="ops-restore-description"/);
