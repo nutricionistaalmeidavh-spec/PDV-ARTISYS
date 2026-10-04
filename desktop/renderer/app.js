@@ -115,12 +115,7 @@
   }
 
   function showToast(message, type = '') {
-    if (window.PdvToast?.show) { window.PdvToast.show(message,type); return; }
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-    toast.textContent = message;
-    toastRoot.appendChild(toast);
-    setTimeout(() => toast.remove(), 3500);
+    window.PdvToast?.show?.(message,type);
   }
 
   function setOnline(ok) {
