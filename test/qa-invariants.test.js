@@ -26,11 +26,12 @@ test('property invariants hold for cents, quantities, discounts, change, stock, 
     assert.equal(totals.totalCents,totals.subtotalCents-totals.discountCents);
     assert.ok(totals.totalCents>=0);
 
+    const allocatedRequest=Math.min(discount,gross);
     const split=allocateSaleDiscount([
       {unitPriceCents:price,quantity},
       {unitPriceCents:price+1,quantity:1}
-    ],Math.min(discount,gross));
-    assert.equal(split.reduce((n,item)=>n+item.allocatedDiscountCents,0),Math.min(discount,split.reduce((n,item)=>n+item.grossCents,0)));
+    ],allocatedRequest);
+    assert.equal(split.reduce((n,item)=>n+item.allocatedDiscountCents,0),allocatedRequest);
     assert.equal(split.every(item=>item.netTotalCents>=0),true);
 
     const cash=totals.totalCents+Math.floor(random()*10000);
@@ -50,11 +51,13 @@ test('property invariants hold for cents, quantities, discounts, change, stock, 
     const code=String(Math.floor(random()*1e9)).padStart(12,'0');
     const products=[{id:'p',name:'Produto QA',sku:'SKU-QA',barcode:code,categoryId:'c'}];
     assert.deepEqual(ui.filterProducts(products,{query:code}),products);
-    assert.deepEqual(ui.filterProducts(products,{query:[...code].reverse().join('')}),[]);
+    const reversed=[...code].reverse().join('');
+    const wrongCode=reversed===code?`${code.slice(0,-1)}${code.endsWith('9')?'8':'9'}`:reversed;
+    assert.deepEqual(ui.filterProducts(products,{query:wrongCode}),[]);
 
     const date=new Date(Date.UTC(2026,Math.floor(random()*12),1+Math.floor(random()*27)));
     const file=safePdfFileName('Venda '+code+' /:*?',date);
-    assert.doesNotMatch(file,/[<>:"/\\|?*\x00-\x1f]/);
+    assert.equal(/[<>:"/\\|?*\x00-\x1f]/.test(file),false);
     assert.match(file,/\.pdf$/);
   }
 });
