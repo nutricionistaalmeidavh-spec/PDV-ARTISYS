@@ -329,6 +329,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
           ARTISYS_QA_SIMULATE_PRINTER:'1',
           PDV_STORE_NAME:'Loja QA Onboarding',
           PDV_AUTO_PRINT:'false',
+          PDV_REQUIRE_COMMERCIAL_ACTIVATION:'false',
           ...extraEnv
         }
       });
@@ -474,7 +475,8 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
             PDV_TERMINAL_KEY:state.cashATerminal.credential,
             PDV_TERMINAL_NAME:'Caixa QA UI',
             PDV_STORE_NAME:'Loja QA',
-            PDV_AUTO_PRINT:'false'
+            PDV_AUTO_PRINT:'false',
+            PDV_REQUIRE_COMMERCIAL_ACTIVATION:'false'
           }
         });
         const page=await app.firstWindow();
