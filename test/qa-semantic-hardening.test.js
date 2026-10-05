@@ -19,12 +19,14 @@ test('semantic QA gate covers scanner, PDF semantics and machine-readable artifa
   const actions=new Set(flow.steps.map(step=>step.action));
   const names=new Set(flow.steps.map(step=>step.name));
   assert.ok(actions.has('barcodeScan'),'scanner must be exercised as keyboard-wedge input');
+  assert.ok(actions.has('clickIfVisible'),'cash-open branch must be handled deterministically');
   assert.ok(actions.has('expectCount'),'scanner flow must prove exact-match/non-match behavior');
   assert.ok(actions.has('expectPdfText'),'generated PDF must be checked semantically');
   assert.ok(names.has('barcode-exato-localizado'));
   assert.ok(names.has('barcode-invertido-nao-localiza'));
   assert.ok(names.has('pdf-conteudo-semanticamente-valido'));
   assert.match(steps,/case 'barcodeScan'/);
+  assert.match(steps,/case 'clickIfVisible'/);
   assert.match(steps,/case 'expectPdfText'/);
   assert.match(pkg.scripts['qa:e2e:semantic'],/semantic-regression/);
   assert.match(pkg.scripts['qa:artifact-semantic'],/artifact-roundtrip/);
