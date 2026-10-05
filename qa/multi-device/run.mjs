@@ -12,8 +12,8 @@ const {createPdvRuntime}=require('../../js/core/pdv-runtime');
 const {createLocalServer}=require('../../server/local-server');
 
 const PROFILE_SCENARIOS=Object.freeze({
-  smoke:['terminal-onboarding-pairing','price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
-  full:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','authorization-boundaries','database-invariants'],
+  smoke:['terminal-onboarding-pairing','server-restart-recovery','price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','database-invariants'],
+  full:['terminal-onboarding-pairing','server-restart-recovery','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','authorization-boundaries','database-invariants'],
   stress:['terminal-onboarding-pairing','price-propagation','cashier-ui-price-propagation','sale-stock-decrement','last-unit-race','idempotent-completion','cash-session-isolation','restaurant-kds-flow','authorization-boundaries','scale-10-cashiers-15-waiters-13-orders','aggressive-order-ramp','stress-last-unit-races','database-invariants']
 });
 
@@ -189,7 +189,8 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     now:()=>new Date(Date.UTC(2026,9,3,18,0,0)+(nowSeq++)*1000).toISOString()
   });
   const installToken='qa-local-fixture';
-  const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:true});
+  const qaPort=await freeLocalPort();
+  let server=createLocalServer({runtime,host:'127.0.0.1',port:qaPort,token:installToken,requireTerminalAuth:true});
   const actor={kind:'human',userId:'qa-admin',terminalId:'ADMIN-01'};
   const results=[];
   const state={};
@@ -252,6 +253,28 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
     const cashBOpen=await state.cashB.request('/api/v1/cash/sessions',{method:'POST',headers:{'x-mutation-id':'qa-open-cash-b'},body:{initialCashCents:10000},expected:201});
     state.cashSessionA=cashAOpen.body.session;
     state.cashSessionB=cashBOpen.body.session;
+
+    await scenario('server-restart-recovery',async()=>{
+      const before=await state.cashA.request('/api/v1/products',{expected:200});
+      assert(Array.isArray(before.body)&&before.body.some(item=>item.id==='qa-price'),'Precondicao de persistencia LAN ausente.');
+      await server.stop();
+      let outageObserved=false;
+      try{await state.cashA.request('/api/v1/products',{timeoutMs:1500});}
+      catch{outageObserved=true;}
+      assert(outageObserved,'Cliente nao percebeu a queda do servidor LAN.');
+      server=createLocalServer({runtime,host:'127.0.0.1',port:qaPort,token:installToken,requireTerminalAuth:true});
+      const restarted=await server.start();
+      assert(restarted.port===qaPort,'Servidor LAN reiniciou em porta diferente',{expected:qaPort,actual:restarted.port});
+      await waitUntil(async()=>{
+        try{
+          const response=await state.cashA.request('/api/v1/products',{expected:200,timeoutMs:2000});
+          return Array.isArray(response.body)&&response.body.some(item=>item.id==='qa-price');
+        }catch{return false;}
+      },{timeoutMs:15000,message:'Cliente nao recuperou conexao apos reinicio do servidor LAN.'});
+      const cashSession=runtime.cash.getSession(state.cashSessionA.id);
+      assert(cashSession?.status==='OPEN','Sessao de caixa nao persistiu durante reinicio LAN',{cashSession});
+      return{outageObserved,recovered:true,port:qaPort,cashSessionId:state.cashSessionA.id};
+    });
 
     await scenario('terminal-onboarding-pairing',async()=>{
       const rootDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');
