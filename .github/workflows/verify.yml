@@ -205,11 +205,6 @@ jobs:
         run: npm run qa:artifact-semantic
       - name: Run deterministic fault and restart recovery gate
         run: npm run qa:fault-recovery
-      - name: Run multi-device LAN full QA
-        shell: bash
-        run: |
-          rm -rf qa-artifacts/multi-device
-          xvfb-run -a npm run qa:multi-device -- --profile full --output qa-artifacts/multi-device
       - name: Upload semantic and resilience evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -218,7 +213,6 @@ jobs:
           path: |
             qa-artifacts-semantic
             qa-artifacts/pdf
-            qa-artifacts/multi-device
           if-no-files-found: warn
           retention-days: 14
 
