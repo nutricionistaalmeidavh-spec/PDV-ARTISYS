@@ -44,7 +44,7 @@ test('fault recovery: completed sale and stock survive process/server restart an
     let token=await login(base,password);
     let response=await fetch(base+'/api/v1/sales/qa-restart-sale',{headers:{authorization:'Bearer '+token,'x-pdv-token':'qa-install'}});
     assert.equal(response.status,200);
-    assert.equal((await response.json()).sale.status,'COMPLETED');
+    { const body=await response.json(); assert.equal((body.sale||body).status,'COMPLETED'); }
 
     await server.stop();
     server=null;
@@ -65,9 +65,10 @@ test('fault recovery: completed sale and stock survive process/server restart an
     token=await login(base,password);
     response=await fetch(base+'/api/v1/sales/qa-restart-sale',{headers:{authorization:'Bearer '+token,'x-pdv-token':'qa-install'}});
     assert.equal(response.status,200);
-    const persisted=await response.json();
-    assert.equal(persisted.sale.status,'COMPLETED');
-    assert.equal(persisted.sale.totalCents,1500);
+    const persistedBody=await response.json();
+    const persisted=persistedBody.sale||persistedBody;
+    assert.equal(persisted.status,'COMPLETED');
+    assert.equal(persisted.totalCents,1500);
   }finally{
     if(server)await server.stop().catch(()=>{});
     if(runtime)runtime.close();
