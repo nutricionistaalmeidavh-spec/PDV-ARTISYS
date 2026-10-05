@@ -1,4 +1,4 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-05T00:58:00Z
-reason=build-current-main-2.0.5
-source_commit=124fafd3c6acb390803a090a4403ab2f45f38b8e
+requested_at=2026-10-05T01:29:00Z
+reason=retry-2.0.5-after-windows-test-path-fix
+source_commit=22f744492179647360431d50ba40a16e7b855afe
