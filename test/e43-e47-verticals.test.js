@@ -124,3 +124,43 @@ test('E47 weight is Core while bakery ordering remains inside Alimentação',()=
   assert.equal(bakery.status,'OPEN');assert.equal(rt.marketBakery.updateBakeryOrderStatus(bakery.id,'READY',admin).status,'READY');
   rt.close();
 });
+
+
+test('E45 delivery cancellation persists reason and cancels its still-open canonical sale',()=>{
+  const rt=runtime();seed(rt);rt.modules.setEnabled('FOOD',true,admin);
+  const order=rt.delivery.create({customerName:'Cancel QA',phone:'16999999999',fulfillmentType:'DELIVERY',address:{street:'Rua QA',number:'1'},feeCents:0},admin);
+  const created=rt.delivery.createSale(order.id,{terminalId:'pdv-1',operatorId:'admin-1',items:[{productId:'burger',quantity:1}]},admin);
+  const cancelled=rt.delivery.cancel(order.id,'Cliente desistiu',admin);
+  assert.equal(cancelled.status,'CANCELLED');
+  assert.equal(cancelled.cancelReason,'Cliente desistiu');
+  assert.equal(rt.sales.getSale(created.sale.id).status,'CANCELLED');
+  rt.close();
+});
+
+test('E47 bakery lookup and cancellation preserve the persisted lifecycle',()=>{
+  const rt=runtime();seed(rt);rt.modules.setEnabled('FOOD',true,admin);
+  const order=rt.marketBakery.createBakeryOrder({customerName:'Bia',items:[{productId:'soda',quantity:1}]},admin);
+  assert.equal(rt.marketBakery.getBakeryOrder(order.id).id,order.id);
+  const cancelled=rt.marketBakery.cancelBakeryOrder(order.id,'Cliente desistiu',admin);
+  assert.equal(cancelled.status,'CANCELLED');
+  assert.equal(rt.marketBakery.getBakeryOrder(order.id).status,'CANCELLED');
+  rt.close();
+});
+
+test('E44 restaurant settlement completion and session merge persist canonical state',()=>{
+  const rt=runtime();seed(rt);rt.modules.setEnabled('FOOD',true,admin);
+  rt.cash.openSession({id:'cash-pdv-1',terminalId:'pdv-1',operatorId:'admin-1',initialCashCents:0,actor:admin});
+  rt.restaurant.upsertTable({id:'merge-a',label:'A'},admin);
+  rt.restaurant.upsertTable({id:'merge-b',label:'B'},admin);
+  const source=rt.restaurant.openTable('merge-a',{operatorId:'admin-1',actor:admin});
+  const target=rt.restaurant.openTable('merge-b',{operatorId:'admin-1',actor:admin});
+  rt.restaurant.addOrder(source.id,{items:[{productId:'burger',quantity:1}],actor:admin});
+  const merged=rt.restaurantSettlement.mergeSessions(source.id,target.id,admin);
+  assert.equal(merged.targetSessionId,target.id);
+  assert.equal(rt.restaurant.getSession(source.id).status,'CLOSED');
+  const equal=rt.restaurantSettlement.createEqualSettlement(target.id,{parts:2,terminalId:'pdv-1',operatorId:'admin-1'},admin);
+  const completed=rt.restaurantSettlement.completeSettlement(equal.settlementId,{payments:[{method:'CASH',amountCents:1000}]},admin);
+  assert.equal(completed.sale.status,'COMPLETED');
+  assert.equal(completed.settlementId,equal.settlementId);
+  rt.close();
+});
