@@ -462,9 +462,9 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'expectPdfText': {
       let filePath=null;
       if(step.directory){
-        const directory=assertQaFilePath(step.directory,env,label);
+        const directory=assertQaFilePath(step.directory,env,label,runtimeContext);
         filePath=await newestMatchingFile(directory,step.suffix||'.pdf');
-      }else if(step.path)filePath=assertQaFilePath(step.path,env,label);
+      }else if(step.path)filePath=assertQaFilePath(step.path,env,label,runtimeContext);
       else throw new Error(`${label}: expectPdfText requires path or directory`);
       if(!filePath)throw new Error(`${label}: PDF file was not found`);
       const command=String(step.command||'pdftotext');
