@@ -449,7 +449,13 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'doubleClick': {
       const target=locator(page,step).first();
       await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
-      await target.dblclick({delay:Number(step.delayMs ?? 0)});
+      const delayMs=Number(step.delayMs ?? 0);
+      await target.evaluate(async(element,delay)=>{
+        const fire=()=>element.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+        fire();
+        if(delay>0)await new Promise(resolve=>setTimeout(resolve,delay));
+        fire();
+      },delayMs);
       break;
     }
     case 'expectCount': {
