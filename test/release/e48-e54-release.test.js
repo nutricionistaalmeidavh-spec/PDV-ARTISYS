@@ -38,14 +38,13 @@ test('E48-E54, E54.1 and sale observation remain preserved in the current releas
 
 test('commercial surface stays local non-fiscal and manual-payment',()=>{
   const router=read('server/e48-e54-router.js');
-  const selfService=read('js/domains/self-service/self-service.js');
   const notes=read('release/release-notes.md');
   const limitations=JSON.parse(read('release/limitations.json')).join('\n');
   assert.doesNotMatch(router,/runtime\.fiscal|fiscalService|requestFiscalIssue|retryFiscalIssue/);
   assert.match(notes,/NÃO FISCAL/);
   assert.match(notes,/pagamentos manuais/i);
   assert.match(limitations,/não há TEF|TEF/i);
-  assert.match(selfService,/MANUAL_AT_COUNTER/);
+  assert.equal(fs.existsSync(path.join(root,'js','domains','self-service','self-service.js')),false);
 });
 
 test('E53 does not claim HTTPS or installable PWA',()=>{
