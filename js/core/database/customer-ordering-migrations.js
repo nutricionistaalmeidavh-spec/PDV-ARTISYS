@@ -28,7 +28,7 @@ function legacyDeviceIds(db){
   return[...ids];
 }
 
-function deleteLegacyDeviceChildren(db,ids){
+function deleteLegacyDeviceState(db,ids){
   if(!ids.length)return;
   if(tableExists(db,'mobile_device_kitchen_stations')){
     const removeStation=db.prepare('DELETE FROM mobile_device_kitchen_stations WHERE device_id=?');
@@ -38,6 +38,8 @@ function deleteLegacyDeviceChildren(db,ids){
     const removeProfile=db.prepare('DELETE FROM self_service_profiles WHERE device_id=?');
     for(const id of ids)removeProfile.run(id);
   }
+  const removeDevice=db.prepare('DELETE FROM mobile_devices WHERE id=?');
+  for(const id of ids)removeDevice.run(id);
 }
 
 function rebuildMobileDevices(db,retiredIds){
@@ -151,7 +153,7 @@ function runCustomerOrderingMigrations(db,now=()=>new Date().toISOString()){
   try{
     withTransaction(db,()=>{
       const retiredIds=legacyDeviceIds(db);
-      deleteLegacyDeviceChildren(db,retiredIds);
+      deleteLegacyDeviceState(db,retiredIds);
       if(tableExists(db,'self_service_profiles'))db.exec('DROP TABLE self_service_profiles');
       rebuildMobileDevices(db,retiredIds);
       rebuildRestaurantOrders(db);
