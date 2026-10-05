@@ -44,7 +44,7 @@ test('delivery granular permissions allow operation but deny cancellation to wai
     const waiter=await login(ctx.base,'waiter','senha-forte-waiter');
     let response=await request(ctx.base,admin,'/api/v1/vertical/delivery',{
       method:'POST',
-      body:{customerName:'QA RBAC',fulfillmentType:'PICKUP',items:[{productId:'pizza',quantity:1}]}
+      body:{customerName:'QA RBAC',fulfillmentType:'PICKUP'}
     });
     assert.equal(response.status,201);
     const order=await response.json();
