@@ -14,6 +14,7 @@ test('every customer/admin operation has known permissions and the default-profi
   assert.ok(operations.length>0);
   for(const operation of operations){
     assert.ok(Array.isArray(operation.permissions)&&operation.permissions.length>0,operation.id);
+    assert.ok(DEFAULT_PROFILES.some(profile=>operation.permissions.every(permission=>profile.permissions.includes(permission))),operation.id+' is unreachable for every default profile');
     for(const permission of operation.permissions)assert.equal(isKnownPermission(permission),true,operation.id+': '+permission);
     for(const profile of DEFAULT_PROFILES){
       const granted=new Set(profile.permissions);
