@@ -118,7 +118,7 @@ test('v32 upgrades legacy table orders and removes retired customer device state
     assert.match(orderSql,/['"]TABLE['"]/);
     assert.doesNotMatch(orderSql,/['"]TABLET['"]/);
 
-    const devices=db.prepare('SELECT id,device_type FROM mobile_devices ORDER BY id').all();
+    const devices=db.prepare('SELECT id,device_type FROM mobile_devices ORDER BY id').all().map(row=>({id:row.id,device_type:row.device_type}));
     assert.deepEqual(devices,[{id:'waiter',device_type:'WAITER'}]);
     const deviceSql=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='mobile_devices'").get().sql;
     assert.doesNotMatch(deviceSql,/TABLET|SELF_SERVICE/);
