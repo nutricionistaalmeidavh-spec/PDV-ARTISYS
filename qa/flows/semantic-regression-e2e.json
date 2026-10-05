@@ -151,7 +151,7 @@
     },
     {
       "action": "expectText",
-      "selector": "#modal-root",
+      "selector": "#post-sale-receipt-root",
       "expected": "Venda concluída",
       "name": "venda-concluida-modal-unico",
       "timeoutMs": 10000
