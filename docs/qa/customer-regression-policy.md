@@ -21,15 +21,16 @@ Use a camada mais barata que consiga detectar o defeito de verdade:
 - regra pura ou cálculo: teste unitário;
 - banco, evento, idempotência ou integração entre serviços: integração;
 - comportamento percebido pelo operador: E2E;
-- posição, orientação ou aparência: regressão visual;
+- posição/orientação de saída legível por máquina: preferir round-trip semântico (gerar → renderizar → decodificar → comparar);
 - PDF, QR, código de barras ou outro arquivo gerado: validar também o conteúdo/semântica do artefato, não apenas sua existência;
+- aparência puramente visual sem semântica decodificável: manter asserções estruturais e evidência manual; não introduzir baseline/pixel diff no gate atual;
 - hardware físico: manter primeiro a prova automatizada de software no Git e homologar hardware separadamente quando necessário.
 
 Não crie um E2E se um teste menor captura o mesmo defeito com segurança. Não aceite um teste que apenas percorra o fluxo sem uma asserção capaz de perceber o erro original.
 
 ## Exemplo: código de barras
 
-O ArtiSys já possui regressão para preservar a ordem dos dígitos recebidos de um scanner no checkout (`test/checkout-barcode-scan.test.js`). Isso protege o comportamento de entrada. Um defeito futuro no desenho, orientação ou impressão de um código de barras exige um oráculo de saída diferente: comparação visual e, quando houver um artefato decodificável, gerar → ler/decodificar → comparar o valor obtido com o valor original.
+Além do teste de baixo nível do handler, o gate semântico executa o checkout com entrada keyboard-wedge, preserva zeros à esquerda, exige a localização do produto exato e confirma que o valor invertido não localiza o produto. Para saídas legíveis por máquina, a regra é gerar → renderizar → decodificar → comparar com o valor original. O QR local segue esse round-trip no CI. Não há gate de baseline visual/pixel.
 
 ## Critério para PR
 
@@ -42,3 +43,14 @@ Quando uma PR corrige bug de cliente, a descrição deve apontar:
 - suíte/gate de CI que executa o teste.
 
 Se não for um bug reportado por cliente, marque a seção correspondente do template como não aplicável.
+
+
+## Gates semânticos permanentes
+
+- `release/customer-operations.json`: operação customer/admin sem permissão conhecida ou evidência QA válida bloqueia o gate de paridade.
+- `qa:e2e:semantic`: scanner, código invertido, duplo clique, PDF real e persistência após reload.
+- `qa:artifact-semantic`: QR renderizado e decodificado por ferramentas open source.
+- `qa:multi-device -- --profile full`: concorrência, idempotência, autorização, queda/reinício LAN e recuperação.
+- testes de invariantes: centavos, descontos, troco, quantidade, estoque, códigos e datas.
+
+Esses gates não dependem de SaaS nem de serviço pago.
