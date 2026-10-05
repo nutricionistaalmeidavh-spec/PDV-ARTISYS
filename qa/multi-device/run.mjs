@@ -361,6 +361,8 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
         assert(await terminalPage.locator('#activation-verify-form').count()===0,'Terminal novo exibiu ativação comercial antes do pareamento.');
         assert(await terminalPage.locator('#first-access-form').count()===0,'Terminal novo exibiu criação de administrador antes do pareamento.');
         await connectExisting.click();
+        const pairingAdvanced=terminalPage.locator('#terminal-pairing-form [data-pairing-advanced] summary');
+        await pairingAdvanced.click();
         await terminalPage.locator("#terminal-pairing-form input[name='serverUrl']").fill('http://127.0.0.1:'+lanPort);
         await terminalPage.locator('#terminal-pairing-form [data-pairing-code]').fill(pairingCode);
         await terminalPage.locator("#terminal-pairing-form input[name='terminalName']").fill('Caixa Pareado QA');
