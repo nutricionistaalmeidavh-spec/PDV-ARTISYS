@@ -426,6 +426,22 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       if(step.settleMs!=null)await page.waitForTimeout(Number(step.settleMs));
       break;
     }
+    case 'clickIfVisible': {
+      const target=locator(page,step).first();
+      const alternative=step.alternativeSelector?page.locator(String(step.alternativeSelector)).first():null;
+      const timeoutMs=Number(step.timeoutMs ?? 10000);
+      const started=Date.now();
+      while(Date.now()-started<=timeoutMs){
+        if(await target.isVisible().catch(()=>false)){await target.click();break;}
+        if(alternative&&await alternative.isVisible().catch(()=>false))break;
+        if(!alternative)break;
+        await page.waitForTimeout(50);
+      }
+      if(alternative&&!(await target.isVisible().catch(()=>false))&&!(await alternative.isVisible().catch(()=>false))){
+        throw new Error(`${label}: neither optional target nor alternative became visible`);
+      }
+      break;
+    }
     case 'doubleClick': {
       const target=locator(page,step).first();
       await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
