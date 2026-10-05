@@ -133,7 +133,7 @@ test('E45 delivery cancellation persists reason and cancels its still-open canon
   const cancelled=rt.delivery.cancel(order.id,'Cliente desistiu',admin);
   assert.equal(cancelled.status,'CANCELLED');
   assert.equal(cancelled.cancelReason,'Cliente desistiu');
-  assert.equal(rt.sales.getSale(created.sale.id).status,'CANCELLED');
+  assert.equal(rt.sales.getSale(created.id).status,'CANCELLED');
   rt.close();
 });
 
