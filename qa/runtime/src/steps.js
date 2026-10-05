@@ -81,9 +81,10 @@ function positiveInteger(value, label) {
   return parsed;
 }
 
-function assertQaFilePath(candidate, env, label) {
-  const target = path.resolve(candidate);
-  const root = path.resolve(String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
+function assertQaFilePath(candidate, env, label, runtimeContext = null) {
+  const base = path.resolve(runtimeContext?.rootDir || process.cwd());
+  const target = path.resolve(base, candidate);
+  const root = path.resolve(base, String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
   if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
     throw new Error(`${label}: file assertion must stay inside QA output root ${root}`);
   }
@@ -460,9 +461,9 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'expectFile': {
       let filePath = null;
       if (step.directory) {
-        const directory = assertQaFilePath(step.directory, env, label);
+        const directory = assertQaFilePath(step.directory, env, label, runtimeContext);
         filePath = await newestMatchingFile(directory, step.suffix || '');
-      } else if (step.path) filePath = assertQaFilePath(step.path, env, label);
+      } else if (step.path) filePath = assertQaFilePath(step.path, env, label, runtimeContext);
       else throw new Error(`${label}: expectFile requires path or directory`);
       if (!filePath) throw new Error(`${label}: expected file was not found`);
       const info = await stat(filePath);
