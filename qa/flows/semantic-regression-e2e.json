@@ -130,6 +130,13 @@
       "delayMs": 20
     },
     {
+      "action": "clickIfVisible",
+      "selector": "#confirm-open-cash",
+      "alternativeSelector": "#confirm-payment",
+      "name": "abrir-caixa-se-necessario",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectCount",
       "selector": "#confirm-payment",
       "expected": 1,
