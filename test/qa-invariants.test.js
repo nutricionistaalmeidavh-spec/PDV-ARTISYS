@@ -50,10 +50,10 @@ test('property invariants hold for cents, quantities, discounts, change, stock, 
 
     const code=String(Math.floor(random()*1e9)).padStart(12,'0');
     const products=[{id:'p',name:'Produto QA',sku:'SKU-QA',barcode:code,categoryId:'c'}];
-    assert.deepEqual(ui.filterProducts(products,{query:code}),products);
+    assert.deepEqual(ui.filterProducts(products,code),products);
     const reversed=[...code].reverse().join('');
     const wrongCode=reversed===code?`${code.slice(0,-1)}${code.endsWith('9')?'8':'9'}`:reversed;
-    assert.deepEqual(ui.filterProducts(products,{query:wrongCode}),[]);
+    assert.deepEqual(ui.filterProducts(products,wrongCode),[]);
 
     const date=new Date(Date.UTC(2026,Math.floor(random()*12),1+Math.floor(random()*27)));
     const file=safePdfFileName('Venda '+code+' /:*?',date);
