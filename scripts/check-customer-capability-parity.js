@@ -2,6 +2,7 @@
 
 const fs=require('node:fs');
 const path=require('node:path');
+const {isKnownPermission}=require('../js/core/auth/permission-registry');
 
 function walk(dir){
   if(!fs.existsSync(dir))return [];
@@ -101,14 +102,17 @@ function validateOperationRegistry({root=path.resolve(__dirname,'..'),registry,c
     if(!capabilityIds.has(operation.capabilityId))errors.push(`${operation.id}: unknown capabilityId ${operation.capabilityId}`);
     const exposure=operation.exposure||'customer';
     if(!['customer','admin','internal'].includes(exposure))errors.push(`${operation.id}: invalid exposure ${exposure}`);
-    const layers=['backend','api','client','ui'];
+    const layers=['backend','api','client','ui','qa'];
     for(const layer of layers)if(!Array.isArray(operation[layer]))errors.push(`${operation.id}: ${layer} must be an array`);
     if(exposure==='internal'){
       if(!(operation.backend||[]).length)errors.push(`${operation.id}: internal operation missing backend`);
       for(const reference of operation.backend||[])validateReference({root,capability:operation,layer:'backend',reference,errors});
       continue;
     }
-    surface+=1;let ok=true;
+    const permissions=Array.isArray(operation.permissions)?operation.permissions:[];
+    if(!permissions.length)errors.push(`${operation.id}: ${exposure} operation missing permissions`);
+    for(const permission of permissions)if(!isKnownPermission(permission))errors.push(`${operation.id}: unknown permission ${permission}`);
+    surface+=1;let ok=permissions.length>0&&permissions.every(isKnownPermission);
     for(const layer of layers){
       if(!(operation[layer]||[]).length){errors.push(`${operation.id}: ${exposure} operation missing ${layer}`);ok=false;continue;}
       for(const reference of operation[layer])if(!validateReference({root,capability:operation,layer,reference,errors}))ok=false;
