@@ -21,7 +21,8 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
     if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new VerticalHttpError(401,'Token local invalido.');
     return{actor:{kind:'system',userId:null,terminalId:null},principal:{kind:'system',id:'system'},terminalId:null};
   }
-  function requireCapability(actor,capability){const principal=actor?.kind==='human'?{kind:'human',id:actor.userId}:actor;try{return runtime.authorization.require({principal,capability});}catch(error){throw new VerticalHttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}\n  function requireCapabilities(actor,...capabilities){for(const capability of capabilities)requireCapability(actor,capability);return true;}
+  function requireCapability(actor,capability){const principal=actor?.kind==='human'?{kind:'human',id:actor.userId}:actor;try{return runtime.authorization.require({principal,capability});}catch(error){throw new VerticalHttpError(error.statusCode||403,error.message||'Permissao insuficiente.');}}
+  function requireCapabilities(actor,...capabilities){for(const capability of capabilities)requireCapability(actor,capability);return true;}
   function moduleRule(moduleId,actor,manage=false){
     const method=manage?'requireManage':'requireAccess';
     if(typeof runtime.modules?.[method]==='function')return runtime.modules[method](moduleId,actor);
