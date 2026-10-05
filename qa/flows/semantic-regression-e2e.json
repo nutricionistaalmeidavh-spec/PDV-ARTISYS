@@ -25,6 +25,16 @@
     },
     {
       "action": "desktopApiRequest",
+      "path": "/api/v1/cash/sessions",
+      "method": "POST",
+      "expectedStatus": 201,
+      "name": "seed-caixa-semantic",
+      "body": {
+        "initialCashCents": 0
+      }
+    },
+    {
+      "action": "desktopApiRequest",
       "path": "/api/v1/products",
       "method": "POST",
       "expectedStatus": 201,
@@ -121,21 +131,9 @@
     },
     {
       "action": "expectCount",
-      "selector": "#confirm-open-cash",
-      "expected": 1,
-      "name": "uma-unica-abertura-caixa"
-    },
-    {
-      "action": "click",
-      "selector": "#confirm-open-cash",
-      "name": "confirmar-abertura-caixa",
-      "timeoutMs": 10000
-    },
-    {
-      "action": "expectVisible",
       "selector": "#confirm-payment",
-      "name": "pagamento-semantic-visivel",
-      "timeoutMs": 10000
+      "expected": 1,
+      "name": "um-unico-modal-pagamento"
     },
     {
       "action": "doubleClick",
