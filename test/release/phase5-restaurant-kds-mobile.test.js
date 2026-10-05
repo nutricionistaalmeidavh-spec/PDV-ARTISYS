@@ -20,5 +20,5 @@ test('Phase 5 release gate: restaurante, KDS e mobile LAN passam no fluxo E2E du
   assert.equal(result.status,0,output);
   assert.match(output,/E30-E39: migration, comanda, KDS, prebill, checkout and sale close form one durable flow/);
   assert.match(output,/mobile credentials are hashed, revocable and authorize only the local device flows/);
-  assert.match(output,/repeated mutation id produces one waiter open and one tablet order/);
+  assert.match(output,/repeated mutation id produces one waiter table open/);
 });

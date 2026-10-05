@@ -64,7 +64,7 @@ O núcleo comercial do PDV não é desativável. Produtos, variantes, ficha téc
 
 Em `Configurações > Áreas`, o estabelecimento ativa somente fluxos que realmente mudam a operação:
 
-- **Alimentação** — inclui automaticamente Pedidos e Produção/KDS. Mesa/comanda, balcão com senha, entrega/retirada, autoatendimento e personalizações de produto são capacidades do mesmo fluxo de Alimentação, não módulos independentes;
+- **Alimentação** — inclui automaticamente Pedidos e Produção/KDS. Mesa/comanda, balcão com senha, entrega/retirada e personalizações de produto são capacidades do mesmo fluxo de Alimentação, não módulos independentes;
 - **Atacado** — pedidos B2B com cliente obrigatório, preço por quantidade, política comercial, crédito reutilizado do cadastro de Clientes e previsão de entrega/retirada, sempre faturados no mesmo Balcão/Caixa.
 
 O antigo vertical de **Serviços** não faz parte do produto ativo. Suas tabelas legadas permanecem preservadas apenas para compatibilidade de dados; profissionais e comissões usam Equipe e o motor canônico de comissões do Core.
@@ -80,10 +80,10 @@ As áreas reutilizam o mesmo núcleo de venda, estoque, caixa, impressão, audit
 - a troca de uma instalação local para servidor externo é bloqueada quando há dados operacionais locais sem migração;
 - interface móvel da equipe self-hosted em `/mobile`;
 - cardápio público por mesa em `/m/:token`, aberto por QR sem credencial de dispositivo;
-- dispositivos de garçom, tablet de mesa, KDS e quiosque de autoatendimento com credenciais próprias;
+- dispositivos de garçom e KDS com credenciais próprias;
 - QR individual por mesa com token opaco e possibilidade de rotação/revogação;
 - pedido do QR reaproveitando a mesma comanda, `restaurant.addOrder()` e despacho para cozinha;
-- compositor local compartilhado entre desktop, garçom, tablet e QR, preservando quantidade, observações e configurações do produto;
+- compositor local compartilhado entre desktop, garçom e QR, preservando quantidade, observações e configurações do produto;
 - sessão de mesa preservando operador de abertura, garçom responsável, quantidade de pessoas e cliente até o checkout canônico;
 - handshake de versão e deduplicação de mutações;
 - backup com manifesto/SHA-256, validação e restore atômico;
@@ -167,7 +167,7 @@ A E54.1 mantém simulação automatizada de impressora, balança, gaveta, leitor
 
 A distribuição comercial opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
 
-Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX. Autoatendimento também não processa pagamento eletrônico integrado.
+Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX.
 
 ## Verificação e release
 

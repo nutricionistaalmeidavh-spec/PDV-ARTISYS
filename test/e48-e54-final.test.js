@@ -26,7 +26,7 @@ test('E48-E54 advance vertical schema to v8 and expose final modular services',(
   const rt=setup();
   try{
     assert.equal(VERTICAL_SCHEMA_VERSION,8);
-    for(const name of ['retail','selfService','onboarding','mobileAccess','hardwareCompatibility']){
+    for(const name of ['retail','publicOrdering','onboarding','mobileAccess','hardwareCompatibility']){
       assert.ok(rt[name],`runtime.${name} deve existir`);
     }
     assert.equal(rt.modules.list().some(module=>module.id==='WORKSHOP'),false);
@@ -62,24 +62,9 @@ test('E49 legacy services schema remains preserved but is not an active module/r
   }finally{rt.close();}
 });
 
-test('E51 self-service uses paired device and creates pickup order without electronic payment integration',()=>{
-  const rt=setup();
-  try{
-    rt.modules.setEnabled('FOOD',true,admin);
-    rt.catalog.upsertProduct({id:'snack',name:'Salgado',salePriceCents:1200,trackStock:false,menuEnabled:true},admin);
-    const device=rt.mobileDevices.createDevice({id:'totem-1',name:'Totem 1',deviceType:'SELF_SERVICE'},admin);
-    rt.selfService.configureDevice(device.id,{mode:'PICKUP',operatorId:'admin'},admin);
-    const context=rt.selfService.context(device.id);
-    assert.equal(context.profile.mode,'PICKUP');
-    assert.ok(context.products.some(p=>p.id==='snack'));
-    assert.equal(context.paymentMode,'MANUAL_AT_COUNTER');
-    const order=rt.selfService.submitOrder(device.id,{items:[{productId:'snack',quantity:2}],note:'Sem guardanapo'},admin,'mut-self-1');
-    assert.equal(order.dailyNumber,1);
-    assert.ok(order.saleId);
-    assert.equal(rt.sales.getSale(order.saleId).status,'OPEN');
-    assert.equal(rt.sales.getSale(order.saleId).totalCents,2400);
-  }finally{rt.close();}
-});
+
+
+
 
 test('E52 onboarding recommends editable module sets and persists completion',()=>{
   const rt=setup();

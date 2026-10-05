@@ -30,8 +30,7 @@ Depois de integrado na branch padrao:
 - **idempotent-completion**: reenvio com o mesmo `mutationId` nao pode duplicar pagamento, venda ou baixa.
 - **cash-session-isolation**: cada venda deve permanecer vinculada a sessao do terminal correto.
 - **restaurant-kds-flow**: dois garcons enviam pedidos concorrentes para a mesma comanda; ambos precisam chegar ao KDS, voltar como READY, passar pelo checkout do caixa, concluir pagamento, baixar estoque exatamente uma vez e liberar a mesa.
-- **self-service-order**: o totem precisa criar pedido autenticado com o dispositivo pareado e reenvio com o mesmo `mutationId` nao pode duplicar o pedido.
-- **authorization-boundaries**: garcom nao pode operar rota de KDS e KDS nao pode operar rota de autoatendimento.
+- **authorization-boundaries**: garcom nao pode operar rota de KDS e KDS nao pode criar pedido pela rota de garcom.
 - **scale-10-cashiers-15-waiters-13-orders**: 10 caixas com sessoes independentes, 15 garcons autenticados e 13 pedidos enviados na mesma rajada devem concluir sem perda, duplicacao ou vazamento entre caixas; os 13 pedidos precisam ser persistidos e roteados ao KDS.
 - **aggressive-order-ramp**: 100, 250 e 500 pedidos concorrentes devem drenar integralmente; o relatorio registra `p50`, `p95`, `max`, throughput, pedidos unicos, persistencia e tickets de KDS.
 - **database-invariants**: `PRAGMA integrity_check` e `foreign_key_check` devem passar; nao pode haver estoque negativo, pagamento orfao, venda concluida sem pagamento/sessao de caixa ou efeito de dominio duplicado.

@@ -115,8 +115,7 @@ A separação de telas representa responsabilidades, não domínios de venda con
 Alimentação
 ├─ Mesas e comandas ─┐
 ├─ Entrega e retirada ├─> Pedido / produção canônicos ─> Balcão ─> SaleService
-├─ Balcão e senhas ──┤              │
-└─ Autoatendimento ──┘              └─> KDS por setor
+└─ Balcão e senhas ────────────────┘              └─> KDS por setor
 ```
 
 - **Mesas e comandas** cuida do salão e das comandas.
@@ -130,7 +129,7 @@ Alimentação
 ## Fluxo operacional canônico de Alimentação
 
 ```text
-Atendimento (Mesa / Balcão e senhas / Delivery / Retirada / Autoatendimento)
+Atendimento (Mesa / Balcão e senhas / Delivery / Retirada)
                               ↓
                        Pedido canônico
                               ↓

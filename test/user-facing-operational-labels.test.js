@@ -23,6 +23,8 @@ test('operational status labels use Brazilian Portuguese without changing intern
   assert.equal(ui.fulfillmentLabel('PICKUP'),'Retirada');
   assert.equal(ui.deviceTypeLabel('KITCHEN'),'KDS / produção');
   assert.equal(ui.deviceTypeLabel('WAITER'),'Garçom');
+  assert.equal(ui.deviceTypeLabel('SELF_SERVICE'),'Dispositivo');
+  assert.equal(ui.deviceTypeLabel('TABLET'),'Dispositivo');
   assert.equal(ui.paymentMethodLabel('CASH'),'Dinheiro');
   assert.equal(ui.paymentMethodLabel('CREDIT_CARD'),'Cartão de crédito');
 });
@@ -71,4 +73,26 @@ test('Balcao search exposes delivery and pickup filters without a parallel check
   assert.match(router,/type:'DELIVERY'/);
   assert.match(router,/checkout\/documents\/delivery\/:id\/open/);
   assert.doesNotMatch(router,/delivery\.createSale\(/);
+});
+
+
+test('current product authorities expose public table ordering without legacy tablet or autoatendimento channels',()=>{
+  const readJson=file=>JSON.parse(read(file));
+  const capabilities=readJson('release/capabilities.json');
+  const customer=readJson('release/customer-capabilities.json');
+  const declared=new Set((customer.capabilities||[]).flatMap(entry=>entry.declaredCapabilities||[]));
+  const sources=[
+    read('README.md'),
+    read('DESIGN.md'),
+    read('UX-CONTRACT.md'),
+    read('docs/architecture/e30-e39-restaurant.md'),
+    read('docs/architecture/access-control-p4-device-access.md')
+  ];
+
+  assert.equal(capabilities.some(item=>/self-service/i.test(item)),false);
+  assert.equal([...declared].some(item=>/self-service/i.test(item)),false);
+  for(const source of sources){
+    assert.doesNotMatch(source,/SELF_SERVICE|self-service|self_service|Autoatendimento|autoatendimento|tablet de mesa|table-bound tablet/i);
+  }
+  assert.match(sources[0],/cardápio público por mesa em `\/m\/:token`/i);
 });

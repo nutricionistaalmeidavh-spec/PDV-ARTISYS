@@ -109,7 +109,7 @@ test('desktop selector and customer menu keep one canonical renderer for compact
 test('QA captures the premium public menu and checks its accessibility floor',()=>{
   const flow=JSON.parse(read('qa/flows/all-pages-audit.json'));
   const steps=flow.steps||[];
-  const premiumConfig=steps.find(step=>step.action==='desktopApiRequest'&&step.path==='/api/v1/vertical/self-service/public-ordering/config'&&step.body?.menuLayout==='PREMIUM');
+  const premiumConfig=steps.find(step=>step.action==='desktopApiRequest'&&step.path==='/api/v1/restaurant/public-ordering/config'&&step.body?.menuLayout==='PREMIUM');
   assert.ok(premiumConfig,'QA must publish PREMIUM before the premium capture');
   const premiumIndex=steps.indexOf(premiumConfig);
   const firstExternalNavigation=steps.findIndex(step=>step.action==='goto'&&(step.path==='/mobile'||step.name==='abrir-cardapio-qr'));

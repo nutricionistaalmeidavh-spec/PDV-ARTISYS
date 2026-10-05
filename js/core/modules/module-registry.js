@@ -6,7 +6,7 @@ const AREAS=Object.freeze({
 });
 
 const MODULES=Object.freeze([
-  {id:'FOOD',name:'Alimentação',description:'Pedidos e produção/KDS com canais de mesa, balcão, retirada, entrega e autoatendimento',defaultEnabled:true,dependsOn:[],area:AREAS.FOOD,routeId:'FOOD',icon:'store',accessCapability:'restaurant.access',manageCapability:'modules.manage'},
+  {id:'FOOD',name:'Alimentação',description:'Pedidos e produção/KDS com canais de mesa, balcão, retirada e entrega',defaultEnabled:true,dependsOn:[],area:AREAS.FOOD,routeId:'FOOD',icon:'store',accessCapability:'restaurant.access',manageCapability:'modules.manage'},
   {id:'WHOLESALE',name:'Atacado',description:'Pedidos com cliente obrigatório e preço por quantidade, reutilizando estoque, caixa e financeiro',defaultEnabled:false,dependsOn:[],area:AREAS.WHOLESALE,routeId:'WHOLESALE',icon:'document',accessCapability:'wholesale.access',manageCapability:'modules.manage'}
 ].map(module=>Object.freeze({...module,dependsOn:Object.freeze([...module.dependsOn])})));
 

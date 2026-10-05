@@ -611,6 +611,46 @@
       "fullPage": true
     },
     {
+      "action": "click",
+      "selector": "button[data-access-tab='devices']",
+      "name": "acessos-abrir-dispositivos",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-access-panel] .access-surface",
+      "name": "acessos-dispositivos-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "acessos-dispositivos",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-new-device]",
+      "name": "acessos-novo-dispositivo",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": "[data-device-form]",
+      "name": "acessos-novo-dispositivo-modal",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "screenshot",
+      "name": "acessos-novo-dispositivo-modal",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "selector": "[data-device-cancel]",
+      "name": "acessos-fechar-novo-dispositivo",
+      "timeoutMs": 10000
+    },
+    {
       "action": "expectNoHorizontalOverflow",
       "selector": "#route-content",
       "name": "acessos-sem-overflow",
@@ -1818,7 +1858,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/tables/qa-table-1/qr",
+      "path": "/api/v1/restaurant/public-ordering/tables/qa-table-1/qr",
       "method": "GET",
       "expectedStatus": 200,
       "name": "seed-cardapio-qr-qa",
@@ -1828,7 +1868,7 @@
     },
     {
       "action": "desktopApiRequest",
-      "path": "/api/v1/vertical/self-service/public-ordering/config",
+      "path": "/api/v1/restaurant/public-ordering/config",
       "method": "PUT",
       "expectedStatus": 200,
       "name": "publicar-cardapio-premium-qa",

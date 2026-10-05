@@ -50,7 +50,7 @@ test('P0 food workspace is an operational hub instead of a second configuration 
   assert.equal((modules.match(/data-food-capability="DELIVERY"/g)||[]).length,1);
   assert.match(modules,/<strong>Pedidos<\/strong>/);
   assert.match(modules,/data-food-capability="DELIVERY"/);
-  assert.match(modules,/data-food-capability="SELF_SERVICE"/);
+  assert.doesNotMatch(modules,/data-food-capability="SELF_SERVICE"/);
   assert.match(css,/\.food-workspace \.food-module-card\{[^}]*min-height:118px/);
   assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
@@ -129,3 +129,7 @@ test('P1 secondary operational text keeps WCAG-AA-friendly contrast tokens',()=>
   assert.match(restaurant,/\.restaurant-row small\{color:var\(--text-subtle,#60708a\)\}/);
   assert.match(restaurant,/\.restaurant-kpi span\{[^}]*color:var\(--text-subtle,#60708a\)/);
 });
+
+
+
+

@@ -11,7 +11,6 @@
   "A interface móvel é servida pelo próprio PDV na rede local; não depende de CDN nem de internet. O transporte HTTP deve ser usado somente em LAN confiável e não é apresentado como HTTPS.",
   "O cardápio por QR abre um token opaco específico da mesa. A superfície da equipe registra manifest e service worker somente em HTTPS ou localhost; em HTTP na LAN continua sendo uma aplicação web comum e não é apresentada como PWA instalável.",
   "Pagamentos são registrados manualmente; não há TEF, PinPad, adquirente, API bancária nem confirmação automática de PIX.",
-  "Autoatendimento cria pedidos/vendas locais, mas não processa pagamento eletrônico integrado; o pagamento permanece manual no caixa.",
   "Impressora, gaveta, balança e outros periféricos dependem do hardware, driver, firmware e conexão disponíveis no terminal onde serão usados.",
   "A E54.1 valida automaticamente famílias de protocolos e cenários de falha/reconexão. PROTOCOL_VERIFIED significa compatibilidade de protocolo testada por CI, não homologação de um modelo físico específico.",
   "Nenhum modelo físico específico deve ser declarado homologado sem evidência real registrada. Modelo ainda não testado fisicamente usa UNTESTED_MODEL; somente equipamento realmente testado com evidência usa FIELD_VERIFIED.",

@@ -48,7 +48,6 @@ const DEFINITIONS=[
   ['restaurant.tables.manage','restaurant','Gerenciar mesas','Abrir, mover e administrar sessões de mesa.'],
   ['restaurant.service.request','restaurant','Solicitar atendimento','Solicitar atendimento a partir de uma mesa autorizada.'],
   ['restaurant.service.manage','restaurant','Gerenciar solicitações','Reconhecer e concluir solicitações de atendimento.'],
-  ['restaurant.self_service.create','restaurant','Criar pedido de autoatendimento','Criar pedidos a partir de uma superfície de autoatendimento autorizada.'],
   ['kitchen.view','restaurant','Consultar produção','Consultar tickets e filas de produção/KDS.'],
   ['kitchen.update_status','restaurant','Atualizar produção','Atualizar estados de preparo e conclusão no KDS.'],
   ['kitchen.configure','restaurant','Configurar produção','Configurar estações e roteamento de produção.'],

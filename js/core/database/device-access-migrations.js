@@ -22,30 +22,17 @@ function applyDeviceAccessMigration(db){
   db.exec(`
     UPDATE mobile_devices
     SET surface=CASE
-      WHEN EXISTS (SELECT 1 FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id) THEN 'self-service'
       WHEN device_type='WAITER' THEN 'waiter'
-      WHEN device_type='TABLET' THEN 'table'
       WHEN device_type='KITCHEN' THEN 'kitchen'
-      WHEN device_type='SELF_SERVICE' THEN 'self-service'
       ELSE lower(device_type)
     END
     WHERE surface IS NULL OR surface='';
 
     UPDATE mobile_devices
     SET scope_type='establishment',scope_id=NULL
-    WHERE device_type IN('WAITER','KITCHEN','SELF_SERVICE') AND scope_type IS NULL;
+    WHERE device_type IN('WAITER','KITCHEN') AND scope_type IS NULL;
 
-    UPDATE mobile_devices
-    SET scope_type='table',scope_id=table_id
-    WHERE device_type='TABLET' AND table_id IS NOT NULL AND (scope_type IS NULL OR scope_id IS NULL);
 
-    UPDATE mobile_devices
-    SET scope_type='table',scope_id=(
-      SELECT ssp.table_id FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id
-    )
-    WHERE surface='self-service'
-      AND EXISTS (SELECT 1 FROM self_service_profiles ssp WHERE ssp.device_id=mobile_devices.id AND ssp.mode='TABLE' AND ssp.table_id IS NOT NULL)
-      AND (scope_type IS NULL OR scope_id IS NULL);
 
     CREATE INDEX IF NOT EXISTS idx_mobile_devices_surface_status ON mobile_devices(surface,status,name);
     CREATE INDEX IF NOT EXISTS idx_mobile_devices_scope ON mobile_devices(scope_type,scope_id,status);

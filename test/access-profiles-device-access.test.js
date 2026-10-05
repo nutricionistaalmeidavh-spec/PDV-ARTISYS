@@ -94,21 +94,16 @@ test('P4 device access separates credential, surface, scope and human binding',(
   const runtime=fixture();
   try{
     const admin=runtime.catalog.createUser({id:'a1',username:'admin',name:'Administrador',profileId:'profile-administrator',password:'senha-admin-123'});
-    const table=runtime.restaurant.upsertTable({id:'t1',label:'Mesa 1',seats:4});
 
     const waiter=runtime.mobileDevices.createDevice({id:'w1',name:'Garçom João',deviceType:'WAITER',userId:admin.id});
-    const tablet=runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa 1',deviceType:'TABLET',tableId:table.id});
     const kitchen=runtime.mobileDevices.createDevice({id:'k1',name:'KDS Cozinha',deviceType:'KITCHEN'});
-    const kiosk=runtime.mobileDevices.createDevice({id:'s1',name:'Totem Entrada',deviceType:'SELF_SERVICE'});
-
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'tab1',name:'Tablet Mesa 1',deviceType:'TABLET'}),/Tipo de dispositivo invalido/i);
+    assert.throws(()=>runtime.mobileDevices.createDevice({id:'self1',name:'Totem Entrada',deviceType:'SELF_SERVICE'}),/Tipo de dispositivo invalido/i);
     assert.equal(waiter.surface,'waiter');
     assert.equal(waiter.userId,admin.id);
     assert.deepEqual(waiter.scope,{type:'establishment',id:null});
-    assert.equal(tablet.surface,'table');
-    assert.deepEqual(tablet.scope,{type:'table',id:table.id});
     assert.equal(kitchen.surface,'kitchen');
     assert.deepEqual(kitchen.scope,{type:'establishment',id:null});
-    assert.equal(kiosk.surface,'self-service');
 
     const raw=runtime.db.prepare('SELECT credential_hash,surface,scope_type,scope_id FROM mobile_devices WHERE id=?').get(kitchen.id);
     assert.equal(raw.credential_hash.includes(kitchen.credential),false);
@@ -127,7 +122,6 @@ test('P4 device access separates credential, surface, scope and human binding',(
     assert.equal(runtime.authorization.can({principal:waiterAuth.principal,capability:'finance.manage'}),false,'binding a device to an admin must not inherit admin permissions');
   }finally{runtime.close();}
 });
-
 test('P4 blocking and credential rotation remain device-authentication concerns',()=>{
   const runtime=fixture();
   try{

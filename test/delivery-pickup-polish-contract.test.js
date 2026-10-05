@@ -25,7 +25,7 @@ test('user-facing operational states are translated through the canonical UI mod
   assert.match(access,/ui\?\.statusLabel/);
   assert.match(access,/ui\?\.deviceTypeLabel/);
   assert.doesNotMatch(access,/<input name="tableId"/);
-  assert.match(access,/<select name="tableId"/);
+  assert.doesNotMatch(access,/<select name="tableId"/);
 });
 
 test('delivery and pickup keep checkout search and WhatsApp regression coverage',()=>{
@@ -63,7 +63,6 @@ test('technical vertical fields stay out of everyday operation',()=>{
   assert.doesNotMatch(finalUi,/new MutationObserver/);
   assert.doesNotMatch(vertical,/new MutationObserver/);
   assert.doesNotMatch(vertical,/Sabores \(separados por vírgula\)|input\('productId','Produto base'\)|input\('sizeId','Tamanho'\)/);
-  assert.match(finalUi,/Responsável local/);
   assert.match(vertical,/data-pizza-profile-options/);
 });
 

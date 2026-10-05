@@ -23,6 +23,7 @@ const { runFoodOrderMigrations }=require('./database/food-order-migrations');
 const { runProductionOperationsMigrations }=require('./database/production-operations-migrations');
 const { runDeploymentCapabilityMigrations }=require('./database/deployment-capability-migrations');
 const { runCanonicalAccessMigrations }=require('./database/canonical-access-migrations');
+const { runCustomerOrderingMigrations }=require('./database/customer-ordering-migrations');
 const { SqliteOutboxStore }=require('./database/outbox-store');
 const { SqliteEffectStore }=require('./database/effect-store');
 const { DomainEventBus }=require('./domain-event-bus');
@@ -62,6 +63,7 @@ const { createRestaurantSettlementService }=require('../domains/restaurant/resta
 const { createKitchenService }=require('../domains/restaurant/kitchen-service');
 const { createMobileDeviceService }=require('../domains/restaurant/mobile-device-service');
 const { createRestaurantReportingService }=require('../domains/restaurant/restaurant-reporting-service');
+const { createPublicOrderingService }=require('../domains/restaurant/public-ordering');
 const { registerRestaurantEffects }=require('../domains/restaurant/restaurant-effects');
 const { createPizzeriaService }=require('../domains/pizzeria/pizzeria-service');
 const { createDeliveryService }=require('../domains/delivery/delivery-service');
@@ -69,7 +71,6 @@ const { createFastFoodService }=require('../domains/fast-food/fast-food-service'
 const { createMarketBakeryService }=require('../domains/market-bakery/market-bakery-service');
 const { createRetailService }=require('../domains/retail/retail-service');
 const { registerRetailEffects }=require('../domains/retail/retail-effects');
-const { createSelfService }=require('../domains/self-service/self-service');
 const { createTerminalRegistry }=require('../../server/lan/terminal-registry');
 const { createMutationCoordinator }=require('../../server/lan/mutation-coordinator');
 const { createBackupService }=require('./backup/backup-service');
@@ -97,7 +98,7 @@ function createPdvRuntime({
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runHardwareMigrations(db,now);runSaleObservationMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);runCustomerOrderingMigrations(db,now);
   let deviceAccess=null;
   const profilePermissionResolver=createProfilePermissionResolver({db});
   const resolvePermissions=principal=>{
@@ -134,12 +135,12 @@ function createPdvRuntime({
   const reports=createReportingService({db,now});
   const printing=createPrintService({db,now,idFactory});const nonFiscalPrinting=createNonFiscalPrintService({printService:printing,storeName:receiptOptions.storeName||'ArtiSys',width:receiptOptions.width||42,idFactory});
   const kitchen=createKitchenService({db,now,idFactory});const baseRestaurant=createRestaurantService({db,outbox,now,idFactory});const restaurant=createConfiguredRestaurantService({db,baseService:baseRestaurant,kitchenService:kitchen,now});const restaurantSettlement=createRestaurantSettlementService({db,modules,sales,authorization,now,idFactory});
-  const mobileDevices=createMobileDeviceService({db,now,idFactory});deviceAccess=createDeviceAccessService({mobileDevices});const restaurantReports=createRestaurantReportingService({db});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});const selfService=createSelfService({db,modules,catalog,catalogCustomization,mobileDevices,restaurant,fastFood,now});
+  const mobileDevices=createMobileDeviceService({db,now,idFactory});deviceAccess=createDeviceAccessService({mobileDevices});const restaurantReports=createRestaurantReportingService({db});const publicOrdering=createPublicOrderingService({db,modules,catalog,catalogCustomization,restaurant,productPhotos,now});const pizzeria=createPizzeriaService({db,modules,catalogCustomization,now,idFactory});const delivery=createDeliveryService({db,modules,sales,kitchen,now,idFactory});const fastFood=createFastFoodService({db,modules,sales,kitchen,now,idFactory});const marketBakery=createMarketBakeryService({db,modules,sales,now,idFactory,readScale});const retail=createRetailService({db,modules,sales,now,idFactory});
   const terminalOptions={db,now,idFactory,serverVersion,minimumTerminalVersion};if(Array.isArray(capabilities))terminalOptions.capabilities=capabilities;const terminals=createTerminalRegistry(terminalOptions);const mutations=createMutationCoordinator({db,now});const imports=createImportService({db,catalog,inventory,authorization,now,idFactory});const logger=createSystemLogger({db,now,retention:logRetention});const pilot=createPilotService({db,authorization,now});
   const resolvedBackupDir=dbPath!==':memory:'?(backupDir||path.join(path.dirname(dbPath),'backups')):null;const backups=resolvedBackupDir?createBackupService({db,dbPath,backupDir:resolvedBackupDir,authorization,now,appVersion,retention:backupRetention}):null;
   const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,authorization,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,authorization,profiles,accessProfiles:profiles,accessSecurity,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,pizzeria,delivery,fastFood,marketBakery,retail,selfService,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,authorization,profiles,accessProfiles:profiles,accessSecurity,catalog,account,productPhotos,catalogCustomization,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,publicOrdering,pizzeria,delivery,fastFood,marketBakery,retail,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};
