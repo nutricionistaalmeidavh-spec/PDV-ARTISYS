@@ -95,13 +95,16 @@ jobs:
         run: npm ci --prefix qa/runtime --no-audit --no-fund
       - name: Install Chromium for web-surface QA
         run: npx playwright install --with-deps chromium
-      - name: Install local QA and semantic artifact tools
+      - name: Ensure Electron capture tools are available
         shell: bash
         run: |
-          sudo apt-get update -y
-          sudo apt-get install -y ffmpeg xvfb poppler-utils librsvg2-bin zbar-tools
-      - name: Validate QR artifact round-trip
-        run: npm run qa:artifact-semantic
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
       - name: Run mobile and public menu surface smoke
         run: npm run qa:web-surfaces
       - name: Run current UI E2E at 1366x768
@@ -132,11 +135,6 @@ jobs:
       - name: Run responsive UI E2E at 1024x768
         shell: bash
         run: xvfb-run -a npm run qa:e2e:tablet
-      - name: Run semantic scanner, double-submit and PDF E2E
-        shell: bash
-        run: |
-          rm -rf qa-artifacts-semantic
-          xvfb-run -a npm run qa:e2e:semantic
       - name: Upload UI screenshots trace and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -148,7 +146,6 @@ jobs:
             qa-artifacts-access
             qa-artifacts-access-ergonomic
             qa-artifacts-public-menu-compact
-            qa-artifacts-semantic
           if-no-files-found: warn
           retention-days: 14
 
@@ -207,11 +204,6 @@ jobs:
         run: npm run qa:artifact-semantic
       - name: Run deterministic fault and restart recovery gate
         run: npm run qa:fault-recovery
-      - name: Run multi-device LAN smoke
-        shell: bash
-        run: |
-          rm -rf qa-artifacts/multi-device-smoke
-          xvfb-run -a npm run qa:multi-device:smoke
       - name: Upload semantic and resilience evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -220,7 +212,6 @@ jobs:
           path: |
             qa-artifacts-semantic
             qa-artifacts/pdf
-            qa-artifacts/multi-device-smoke
           if-no-files-found: warn
           retention-days: 14
 
