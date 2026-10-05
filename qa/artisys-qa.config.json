@@ -52,7 +52,8 @@
     "access-center-partial-permissions": "flows/access-center-partial-permissions.json",
     "access-center-ergonomic": "flows/access-center-ergonomic.json",
     "delivery-pickup-operational": "flows/delivery-pickup-operational-e2e.json",
-    "public-menu-compact-v2": "flows/public-menu-compact-v2.json"
+    "public-menu-compact-v2": "flows/public-menu-compact-v2.json",
+    "semantic-regression": "flows/semantic-regression-e2e.json"
   },
   "qaProfiles": {
     "quick": {
