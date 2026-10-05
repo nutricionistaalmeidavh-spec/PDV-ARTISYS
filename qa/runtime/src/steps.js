@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readFile, readdir, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { resolveSecret, stepLabel } from './helpers.js';
 
 function locator(page, step) {
@@ -408,6 +409,51 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       const centers = boxes.map(box => box.y + box.height / 2);
       if (Math.max(...centers) - Math.min(...centers) > tolerancePx) {
         throw new Error(`${label}: controls are not aligned on the same row`);
+      }
+      break;
+    }
+    case 'barcodeScan': {
+      if (step.value == null) throw new Error(`${label}: barcodeScan requires value`);
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
+      await target.fill('');
+      await target.focus();
+      const delayMs=Number(step.delayMs ?? 0);
+      if(!Number.isFinite(delayMs)||delayMs<0)throw new TypeError(`${label}: delayMs must be non-negative`);
+      await page.keyboard.type(String(step.value),{delay:delayMs});
+      if(step.pressEnter!==false)await page.keyboard.press('Enter');
+      if(step.settleMs!=null)await page.waitForTimeout(Number(step.settleMs));
+      break;
+    }
+    case 'doubleClick': {
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
+      await target.dblclick({delay:Number(step.delayMs ?? 0)});
+      break;
+    }
+    case 'expectCount': {
+      const expected=Number(step.expected);
+      if(!Number.isInteger(expected)||expected<0)throw new TypeError(`${label}: expectCount requires a non-negative integer expected`);
+      const actual=await locator(page,step).count();
+      if(actual!==expected)throw new Error(`${label}: expected count ${expected}, got ${actual}`);
+      break;
+    }
+    case 'expectPdfText': {
+      let filePath=null;
+      if(step.directory){
+        const directory=assertQaFilePath(step.directory,env,label);
+        filePath=await newestMatchingFile(directory,step.suffix||'.pdf');
+      }else if(step.path)filePath=assertQaFilePath(step.path,env,label);
+      else throw new Error(`${label}: expectPdfText requires path or directory`);
+      if(!filePath)throw new Error(`${label}: PDF file was not found`);
+      const command=String(step.command||'pdftotext');
+      const result=spawnSync(command,[filePath,'-'],{encoding:'utf8'});
+      if(result.error)throw new Error(`${label}: ${command} unavailable: ${result.error.message}`);
+      if(result.status!==0)throw new Error(`${label}: ${command} failed: ${String(result.stderr||'').trim()}`);
+      const text=String(result.stdout||'').replace(/\s+/g,' ').trim();
+      const expectedValues=Array.isArray(step.expected)?step.expected:[step.expected];
+      for(const expected of expectedValues.filter(value=>value!=null)){
+        if(!text.includes(String(expected)))throw new Error(`${label}: PDF text does not include ${JSON.stringify(String(expected))}: ${text.slice(0,500)}`);
       }
       break;
     }
