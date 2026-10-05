@@ -54,6 +54,12 @@ export async function runQaFlow({
   const startedAt = new Date().toISOString();
   const loaded = await loadFlowFile(flowFile);
   const flow = await resolveFlowComposition(loaded.flow, { rootDir, sourceFile: loaded.file });
+  const runtimeEnv = {
+    ...process.env,
+    ...(manifest.electron?.env || {}),
+    ...(environment.env || {}),
+    ...(flow.metadata?.qaAutoAdmin === true ? { ARTISYS_QA_AUTO_ADMIN:'1' } : {}),
+  };
   const profileSecretValues = demoProfile ? collectProfileSecretValues(demoProfile, process.env) : [];
   let status = 'passed';
   let failure = null;
@@ -97,12 +103,7 @@ export async function runQaFlow({
         args: [entry, ...(manifest.electron.args || [])],
         executablePath,
         cwd: rootDir,
-        env: {
-          ...process.env,
-          ...(manifest.electron.env || {}),
-          ...(environment.env || {}),
-          ...(flow.metadata?.qaAutoAdmin === true ? { ARTISYS_QA_AUTO_ADMIN:'1' } : {}),
-        },
+        env: runtimeEnv,
         timeout: manifest.launchTimeoutMs || 30000,
       });
       context = electronApp.context();
@@ -146,7 +147,7 @@ export async function runQaFlow({
           index,
           screenshotsDir,
           baseURL: environment.baseURL,
-          env: process.env,
+          env: runtimeEnv,
           adapter: demoAdapter,
           electronApp,
           runtimeContext,

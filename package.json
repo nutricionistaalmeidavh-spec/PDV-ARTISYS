@@ -37,7 +37,11 @@
     "qa:multi-device": "node qa/multi-device/run.mjs",
     "qa:e2e:delivery-pickup": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow delivery-pickup-operational --environment ci --viewport compactDesktop --output qa-artifacts-delivery-pickup",
     "qa:tutorials:validate": "node scripts/tutorial-videos.mjs validate",
-    "qa:tutorials:edit": "node scripts/tutorial-videos.mjs edit"
+    "qa:tutorials:edit": "node scripts/tutorial-videos.mjs edit",
+    "qa:e2e:semantic": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow semantic-regression --environment ci --viewport compactDesktop --output qa-artifacts-semantic",
+    "qa:artifact-semantic": "node qa/semantic/artifact-roundtrip.mjs",
+    "qa:fault-recovery": "node --test test/qa-fault-recovery.test.js test/release/concurrency.test.js test/release/recovery.test.js test/e19-printing.test.js test/session-restore-after-reload.test.js",
+    "qa:multi-device:smoke": "node qa/multi-device/run.mjs --profile smoke --output qa-artifacts/multi-device-smoke"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",

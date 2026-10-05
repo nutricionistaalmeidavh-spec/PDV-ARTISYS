@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readFile, readdir, stat } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { resolveSecret, stepLabel } from './helpers.js';
 
 function locator(page, step) {
@@ -80,9 +81,10 @@ function positiveInteger(value, label) {
   return parsed;
 }
 
-function assertQaFilePath(candidate, env, label) {
-  const target = path.resolve(candidate);
-  const root = path.resolve(String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
+function assertQaFilePath(candidate, env, label, runtimeContext = null) {
+  const base = path.resolve(runtimeContext?.rootDir || process.cwd());
+  const target = path.resolve(base, candidate);
+  const root = path.resolve(base, String(env.ARTISYS_QA_PDF_DIR || 'qa-artifacts'));
   if (target !== root && !target.startsWith(`${root}${path.sep}`)) {
     throw new Error(`${label}: file assertion must stay inside QA output root ${root}`);
   }
@@ -411,12 +413,83 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       }
       break;
     }
+    case 'barcodeScan': {
+      if (step.value == null) throw new Error(`${label}: barcodeScan requires value`);
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
+      await target.fill('');
+      await target.focus();
+      const delayMs=Number(step.delayMs ?? 0);
+      if(!Number.isFinite(delayMs)||delayMs<0)throw new TypeError(`${label}: delayMs must be non-negative`);
+      await page.keyboard.type(String(step.value),{delay:delayMs});
+      if(step.pressEnter!==false)await page.keyboard.press('Enter');
+      if(step.settleMs!=null)await page.waitForTimeout(Number(step.settleMs));
+      break;
+    }
+    case 'clickIfVisible': {
+      const target=locator(page,step).first();
+      const alternative=step.alternativeSelector?page.locator(String(step.alternativeSelector)).first():null;
+      const timeoutMs=Number(step.timeoutMs ?? 10000);
+      const started=Date.now();
+      let matched=false;
+      while(Date.now()-started<=timeoutMs){
+        if(await target.isVisible().catch(()=>false)){
+          matched=true;
+          await target.click();
+          if(alternative)await alternative.waitFor({state:'visible',timeout:Math.max(1,timeoutMs-(Date.now()-started))});
+          break;
+        }
+        if(alternative&&await alternative.isVisible().catch(()=>false)){matched=true;break;}
+        if(!alternative){matched=true;break;}
+        await page.waitForTimeout(50);
+      }
+      if(!matched)throw new Error(`${label}: neither optional target nor alternative became visible`);
+      break;
+    }
+    case 'doubleClick': {
+      const target=locator(page,step).first();
+      await target.waitFor({state:'visible',timeout:step.timeoutMs ?? 10000});
+      const delayMs=Number(step.delayMs ?? 0);
+      await target.evaluate(async(element,delay)=>{
+        const fire=()=>element.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,view:window}));
+        fire();
+        if(delay>0)await new Promise(resolve=>setTimeout(resolve,delay));
+        fire();
+      },delayMs);
+      break;
+    }
+    case 'expectCount': {
+      const expected=Number(step.expected);
+      if(!Number.isInteger(expected)||expected<0)throw new TypeError(`${label}: expectCount requires a non-negative integer expected`);
+      const actual=await locator(page,step).count();
+      if(actual!==expected)throw new Error(`${label}: expected count ${expected}, got ${actual}`);
+      break;
+    }
+    case 'expectPdfText': {
+      let filePath=null;
+      if(step.directory){
+        const directory=assertQaFilePath(step.directory,env,label,runtimeContext);
+        filePath=await newestMatchingFile(directory,step.suffix||'.pdf');
+      }else if(step.path)filePath=assertQaFilePath(step.path,env,label,runtimeContext);
+      else throw new Error(`${label}: expectPdfText requires path or directory`);
+      if(!filePath)throw new Error(`${label}: PDF file was not found`);
+      const command=String(step.command||'pdftotext');
+      const result=spawnSync(command,[filePath,'-'],{encoding:'utf8'});
+      if(result.error)throw new Error(`${label}: ${command} unavailable: ${result.error.message}`);
+      if(result.status!==0)throw new Error(`${label}: ${command} failed: ${String(result.stderr||'').trim()}`);
+      const text=String(result.stdout||'').replace(/\s+/g,' ').trim();
+      const expectedValues=Array.isArray(step.expected)?step.expected:[step.expected];
+      for(const expected of expectedValues.filter(value=>value!=null)){
+        if(!text.includes(String(expected)))throw new Error(`${label}: PDF text does not include ${JSON.stringify(String(expected))}: ${text.slice(0,500)}`);
+      }
+      break;
+    }
     case 'expectFile': {
       let filePath = null;
       if (step.directory) {
-        const directory = assertQaFilePath(step.directory, env, label);
+        const directory = assertQaFilePath(step.directory, env, label, runtimeContext);
         filePath = await newestMatchingFile(directory, step.suffix || '');
-      } else if (step.path) filePath = assertQaFilePath(step.path, env, label);
+      } else if (step.path) filePath = assertQaFilePath(step.path, env, label, runtimeContext);
       else throw new Error(`${label}: expectFile requires path or directory`);
       if (!filePath) throw new Error(`${label}: expected file was not found`);
       const info = await stat(filePath);

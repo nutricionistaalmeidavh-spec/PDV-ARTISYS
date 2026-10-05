@@ -7,6 +7,7 @@ on:
       - feature/**
       - feat/**
       - fix/**
+      - qa/**
   pull_request:
     branches:
       - main
@@ -148,3 +149,70 @@ jobs:
             qa-artifacts-public-menu-compact
           if-no-files-found: warn
           retention-days: 14
+
+
+  multi-device-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Xvfb for Electron LAN QA
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb
+      - name: Run full multi-device LAN, outage and persistence QA
+        shell: bash
+        run: |
+          rm -rf qa-artifacts/multi-device
+          xvfb-run -a npm run qa:multi-device -- --profile full
+      - name: Upload multi-device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-device-qa-${{ github.run_number }}
+          path: qa-artifacts/multi-device
+          if-no-files-found: warn
+          retention-days: 14
+
+  semantic-resilience:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install pinned QA runtime dependencies
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Install open-source semantic QA tools
+        shell: bash
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb ffmpeg poppler-utils librsvg2-bin zbar-tools
+      - name: Run barcode scanner and PDF semantic E2E
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-semantic qa-artifacts/pdf
+          xvfb-run -a npm run qa:e2e:semantic
+      - name: Decode generated QR artifacts
+        run: npm run qa:artifact-semantic
+      - name: Run deterministic fault and restart recovery gate
+        run: npm run qa:fault-recovery
+      - name: Upload semantic and resilience evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semantic-resilience-${{ github.run_number }}
+          path: |
+            qa-artifacts-semantic
+            qa-artifacts/pdf
+          if-no-files-found: warn
+          retention-days: 14
+

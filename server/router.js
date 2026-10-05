@@ -139,9 +139,9 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='POST'&&pathname==='/api/v1/commission-rules'){requireCapability(session,'sellers.manage');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.commissions.upsertRule(body,currentActor),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/commission-payments'){requireCapability(session,'sellers.manage');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.commissions.pay(body,currentActor),request,allowedOrigins);return;}
 
-      if(request.method==='GET'&&pathname==='/api/v1/print/jobs'){sendJson(response,200,runtime.printing.listJobs(queryFilters(url,['status','type','entityType','entityId'])),request,allowedOrigins);return;}
-      const printRetry=pathname.match(/^\/api\/v1\/print\/jobs\/([^/]+)\/retry$/);if(request.method==='POST'&&printRetry){sendJson(response,200,runtime.printing.retryJob(decodeURIComponent(printRetry[1])),request,allowedOrigins);return;}
-      const printReprint=pathname.match(/^\/api\/v1\/print\/jobs\/([^/]+)\/reprint$/);if(request.method==='POST'&&printReprint){sendJson(response,201,runtime.printing.reprint(decodeURIComponent(printReprint[1])),request,allowedOrigins);return;}
+      if(request.method==='GET'&&pathname==='/api/v1/print/jobs'){requireCapability(session,'settings.view');sendJson(response,200,runtime.printing.listJobs(queryFilters(url,['status','type','entityType','entityId'])),request,allowedOrigins);return;}
+      const printRetry=pathname.match(/^\/api\/v1\/print\/jobs\/([^/]+)\/retry$/);if(request.method==='POST'&&printRetry){requireCapability(session,'settings.manage');sendJson(response,200,runtime.printing.retryJob(decodeURIComponent(printRetry[1])),request,allowedOrigins);return;}
+      const printReprint=pathname.match(/^\/api\/v1\/print\/jobs\/([^/]+)\/reprint$/);if(request.method==='POST'&&printReprint){requireCapability(session,'settings.manage');sendJson(response,201,runtime.printing.reprint(decodeURIComponent(printReprint[1])),request,allowedOrigins);return;}
 
 
       throw new HttpError(404,'Rota nao encontrada.');

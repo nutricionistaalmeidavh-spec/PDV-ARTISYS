@@ -179,13 +179,16 @@ npm run qa:validate
 npm run qa:web-surfaces
 npm run qa:e2e:p0
 npm run qa:e2e:tablet
+npm run qa:e2e:semantic
+npm run qa:artifact-semantic
+npm run qa:multi-device -- --profile full
 npm run dist:win
 npm run release:manifest -- --output dist/release-manifest.json --artifact dist/ArtiSys-PDV-*-x64-Setup.exe
 ```
 
 `docs:check` valida consistência entre README, versão e metadados de release. `verify` cobre testes unitários/de integração, lint e consistência; `verify:release` acrescenta verificações determinísticas de release. `qa:validate` só valida a configuração do harness.
 
-O gate atual de UI combina `npm run qa:web-surfaces`, `npm run qa:e2e:p0` e `npm run qa:e2e:tablet`. O primeiro sobe o servidor local real e valida as superfícies `/mobile` e `/m/:token`; os demais executam `all-pages-audit` no Electron real em 1366×768 e 1024×768, verificando controles críticos, presença do CTA de finalização dentro do viewport e overflow horizontal, além de manter screenshots/trace como evidência do CI. Esses smokes não substituem E2E transacional profundo de cada domínio nem comparação visual pixel a pixel.
+O gate de UI combina `npm run qa:web-surfaces`, `npm run qa:e2e:p0`, `npm run qa:e2e:tablet` e `npm run qa:e2e:semantic`. O fluxo semântico simula entrada de leitor de código de barras, rejeita o código invertido, força duplo clique nas ações de finalização, gera um PDF real e valida seu texto extraído. `npm run qa:artifact-semantic` renderiza o QR local e exige que uma ferramenta open source o decodifique exatamente para o payload original. `npm run qa:multi-device -- --profile full` cobre idempotência, concorrência, queda/reinício do servidor LAN, recuperação e persistência. Screenshots e traces continuam somente como evidência; não existe comparação visual por baseline/pixel.
 
 Os fluxos legados anteriores continuam aposentados. Novos cenários E2E devem partir da interface atual e verificar um resultado operacional útil antes de entrarem no gate.
 

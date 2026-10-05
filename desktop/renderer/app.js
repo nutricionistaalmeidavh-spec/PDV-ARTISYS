@@ -612,11 +612,18 @@
     return values&&values.length?values:['CASH','PIX','DEBIT_CARD','CREDIT_CARD','STORE_CREDIT'];
   }
 
+  let paymentFlowInFlight = false;
   async function openPaymentModal(preferredMethod = '') {
+    if (paymentFlowInFlight || document.getElementById('confirm-payment')) return;
     if (!state.sale?.items?.length) return showToast('Adicione itens antes de finalizar.', 'error');
-    if (!(await ensureCashOpen())) return;
-    if (!isRouteActive('checkout')) return;
-    const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; state.paymentDraft = [{ method, amountCents: state.sale.totalCents }]; renderPaymentModal();
+    paymentFlowInFlight = true;
+    try {
+      if (!(await ensureCashOpen())) return;
+      if (!isRouteActive('checkout')) return;
+      const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; state.paymentDraft = [{ method, amountCents: state.sale.totalCents }]; renderPaymentModal();
+    } finally {
+      paymentFlowInFlight = false;
+    }
   }
 
   function renderPaymentModal() {
@@ -626,8 +633,14 @@
 
   function paymentLabel(method) { return ({ CASH: 'Dinheiro', PIX: 'PIX', DEBIT_CARD: 'Cartão débito', CREDIT_CARD: 'Cartão crédito', STORE_CREDIT: 'A prazo', OTHER: 'Outro' })[method] || method; }
 
+  let saleCompletionInFlight = false;
   async function completeCurrentSale() {
+    if (saleCompletionInFlight) return;
+    saleCompletionInFlight = true;
+    const confirmButton=document.getElementById('confirm-payment');
+    if(confirmButton)confirmButton.disabled=true;
     try { const result = await api.completeSale(state.sale.id, state.paymentDraft); const completed = result.sale; closeModal(); state.sale = null; clearCheckoutDocumentContext(); state.selectedProductId = null; state.discountPercent = 0; state.paymentDraft = []; state.products = await api.products(); showToast(`Venda ${completed.saleNumber} finalizada. Troco: ${ui.formatCents(completed.changeCents)}`, 'success'); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    finally { saleCompletionInFlight = false; if(confirmButton?.isConnected)confirmButton.disabled=false; }
   }
 
   function customersListHtml() {
