@@ -66,6 +66,26 @@ async function waitUntil(predicate,{timeoutMs=15000,intervalMs=100,message='Cond
   throw new Error(message);
 }
 
+async function authenticateDesktopPage(page,{username,password,timeoutMs=20000}={}){
+  const loginForm=page.locator('#login-form');
+  const authOverlay=page.locator('#auth-overlay');
+  const existing=page.locator('[data-existing-continue]');
+  await waitUntil(async()=>{
+    if(await existing.isVisible().catch(()=>false)){
+      await existing.click();
+      return false;
+    }
+    if(await authOverlay.isHidden().catch(()=>false))return true;
+    return loginForm.isVisible().catch(()=>false);
+  },{timeoutMs,message:'Desktop nao chegou a login nem restaurou sessao.'});
+  if(await authOverlay.isHidden().catch(()=>false))return'restored';
+  await loginForm.locator("input[name='username']").fill(username);
+  await loginForm.locator("input[name='password']").fill(password);
+  await loginForm.locator("button[type='submit']").click();
+  await authOverlay.waitFor({state:'hidden',timeout:timeoutMs});
+  return'logged-in';
+}
+
 function requestFactory(base,defaults={}){
   return async function request(route,{method='GET',body,headers={},expected=null,timeoutMs=LOAD_REQUEST_TIMEOUT_MS}={}){
     const controller=new AbortController();
@@ -265,6 +285,9 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       server=createLocalServer({runtime,host:'127.0.0.1',port:qaPort,token:installToken,requireTerminalAuth:true});
       const restarted=await server.start();
       assert(restarted.port===qaPort,'Servidor LAN reiniciou em porta diferente',{expected:qaPort,actual:restarted.port});
+      state.admin=await login(base,{username:'qa-admin',password:'qa-test-password',terminal:state.adminTerminal});
+      state.cashA=await login(base,{username:'qa-cash-a',password:'qa-test-password',terminal:state.cashATerminal});
+      state.cashB=await login(base,{username:'qa-cash-b',password:'qa-test-password',terminal:state.cashBTerminal});
       await waitUntil(async()=>{
         try{
           const response=await state.cashA.request('/api/v1/products',{expected:200,timeoutMs:2000});
@@ -315,11 +338,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
       try{
         principalApp=await launchDesktop(principalUserData,{ARTISYS_QA_AUTO_ADMIN:'1'});
         const principalPage=await principalApp.firstWindow();
-        await principalPage.locator('#login-form').waitFor({state:'visible',timeout:20000});
-        await principalPage.locator("#login-form input[name='username']").fill('qaadmin');
-        await principalPage.locator("#login-form input[name='password']").fill('QaLocalOnly-12345!');
-        await principalPage.locator("#login-form button[type='submit']").click();
-        await principalPage.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await authenticateDesktopPage(principalPage,{username:'qaadmin',password:'QaLocalOnly-12345!'});
         await principalPage.locator("button[data-route='settings']").click();
         const addTerminal=principalPage.locator('#p1-terminal-admin-panel [data-create-pairing-code]');
         await addTerminal.waitFor({state:'visible',timeout:15000});
@@ -359,14 +378,10 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
 
         terminalApp=await launchDesktop(terminalUserData,{ARTISYS_QA_NO_RELAUNCH:'1'});
         terminalPage=await terminalApp.firstWindow();
-        await terminalPage.locator('#login-form').waitFor({state:'visible',timeout:20000});
         assert(await terminalPage.locator('#activation-verify-form').count()===0,'Terminal pareado pediu ativação comercial novamente.');
         assert(await terminalPage.locator('#first-access-form').count()===0,'Terminal pareado tentou criar outro administrador.');
         await terminalPage.screenshot({path:path.join(screenshotDir,'onboarding-terminal-login.png'),fullPage:true});
-        await terminalPage.locator("#login-form input[name='username']").fill('qaadmin');
-        await terminalPage.locator("#login-form input[name='password']").fill('QaLocalOnly-12345!');
-        await terminalPage.locator("#login-form button[type='submit']").click();
-        await terminalPage.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await authenticateDesktopPage(terminalPage,{username:'qaadmin',password:'QaLocalOnly-12345!'});
 
         await principalPage.locator('#p1-terminal-admin-panel [data-terminal-refresh]').click();
         const lifecycleButton=principalPage.locator(`#p1-terminal-admin-panel [data-terminal-status="${terminalId}"]`);
@@ -463,11 +478,7 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
           }
         });
         const page=await app.firstWindow();
-        await page.locator('#login-form').waitFor({state:'visible',timeout:20000});
-        await page.locator("#login-form input[name='username']").fill('qa-cash-a');
-        await page.locator("#login-form input[name='password']").fill('qa-test-password');
-        await page.locator("#login-form button[type='submit']").click();
-        await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:20000});
+        await authenticateDesktopPage(page,{username:'qa-cash-a',password:'qa-test-password'});
         await page.locator("button[data-route='checkout']").click();
 
         const card=page.locator("[data-add-product='qa-ui-price']");
