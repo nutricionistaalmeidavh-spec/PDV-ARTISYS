@@ -159,8 +159,8 @@ test('E44 restaurant settlement completion and session merge persist canonical s
   assert.equal(merged.targetSessionId,target.id);
   assert.equal(rt.restaurant.getSession(source.id).status,'CLOSED');
   const equal=rt.restaurantSettlement.createEqualSettlement(target.id,{parts:2,terminalId:'pdv-1',operatorId:'admin-1'},admin);
-  const completed=rt.restaurantSettlement.completeSettlement(equal.settlementId,{payments:[{method:'CASH',amountCents:1000}]},admin);
+  const completed=rt.restaurantSettlement.completeSettlement(equal.settlement.id,{payments:[{method:'CASH',amountCents:1000}]},admin);
   assert.equal(completed.sale.status,'COMPLETED');
-  assert.equal(completed.settlementId,equal.settlementId);
+  assert.equal(completed.settlementId,equal.settlement.id);
   rt.close();
 });
