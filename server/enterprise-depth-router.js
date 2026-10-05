@@ -74,7 +74,7 @@ function createEnterpriseDepthRouter({runtime,requireTerminalAuth=false,sessionS
       if((match=pathMatch(pathname,'/api/v1/sales-orders/:id'))&&req.method==='GET'){const order=runtime.orders.getOrder(match.id);if(!order)throw new EnterpriseDepthHttpError(404,'Pedido nao encontrado.');json(res,200,order);return true;}
       if((match=pathMatch(pathname,'/api/v1/sales-orders/:id/confirm'))&&req.method==='POST'){json(res,200,runtime.orders.confirmOrder(match.id,actor));return true;}
       if((match=pathMatch(pathname,'/api/v1/sales-orders/:id/cancel'))&&req.method==='POST'){requireCapability(actor,'sales.cancel');json(res,200,runtime.orders.cancelOrder(match.id,await body(req),actor));return true;}
-      if((match=pathMatch(pathname,'/api/v1/sales-orders/:id/fulfill'))&&req.method==='POST'){const result=runtime.orders.fulfillOrder(match.id,await body(req),actor);await runtime.dispatchPending();json(res,201,result);return true;}
+      if((match=pathMatch(pathname,'/api/v1/sales-orders/:id/fulfill'))&&req.method==='POST'){requireCapability(actor,'sales.create');const result=runtime.orders.fulfillOrder(match.id,await body(req),actor);await runtime.dispatchPending();json(res,201,result);return true;}
       throw new EnterpriseDepthHttpError(405,'Metodo nao permitido.');
     }catch(error){let status=error.statusCode||(/UNIQUE constraint failed/.test(error.message||'')?409:400);if(!error.statusCode&&/(Autorizacao de gerente|Usuario sem permissao|Permissao insuficiente)/i.test(error.message||''))status=403;try{runtime.logger?.log({level:'warn',subsystem:'enterprise-depth-http',message:error.message||'Erro interno.',context:{method:req.method,path:pathname,status}});}catch{}json(res,status,{error:error.message||'Erro interno.'});return true;}
   };
