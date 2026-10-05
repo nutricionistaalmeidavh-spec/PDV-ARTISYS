@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Rastreabilidade por operação para superfícies customer/admin. Cada operação registrada precisa de backend, rota, cliente, ação de UI e evidência E2E explícita.",
+  "description": "Rastreabilidade por operação para superfícies customer/admin. Cada operação registrada precisa de backend, rota, cliente, ação de UI, permissões e evidência QA executável explícita.",
   "operations": [
     {
       "id": "pizzeria.size.upsert",
@@ -28,6 +28,16 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-size-form"
+        }
+      ],
+      "permissions": [
+        "products.manage",
+        "restaurant.access"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "upsertSize"
         }
       ]
     },
@@ -58,6 +68,16 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-flavor-form"
         }
+      ],
+      "permissions": [
+        "products.manage",
+        "restaurant.access"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "upsertFlavor"
+        }
       ]
     },
     {
@@ -86,6 +106,16 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "pizza-crust-form"
+        }
+      ],
+      "permissions": [
+        "products.manage",
+        "restaurant.access"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "upsertCrust"
         }
       ]
     },
@@ -116,6 +146,15 @@
           "path": "desktop/renderer/vertical-modules.js",
           "marker": "data-delivery-status"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.create"
+      ],
+      "qa": [
+        {
+          "path": "qa/flows/delivery-pickup-operational-e2e.json",
+          "marker": "delivery-marcar-entregue"
+        }
       ]
     },
     {
@@ -144,6 +183,15 @@
         {
           "path": "desktop/renderer/vertical-modules.js",
           "marker": "data-delivery-cancel-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.cancel"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "delivery cancellation persists reason"
         }
       ]
     },
@@ -174,6 +222,15 @@
           "path": "desktop/renderer/vertical-modules.js",
           "marker": "data-delivery-courier-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.create"
+      ],
+      "qa": [
+        {
+          "path": "qa/flows/delivery-pickup-operational-e2e.json",
+          "marker": "delivery-definir-entregador"
+        }
       ]
     },
     {
@@ -202,6 +259,16 @@
         {
           "path": "desktop/renderer/vertical-modules.js",
           "marker": "data-delivery-send"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.create",
+        "sales.create"
+      ],
+      "qa": [
+        {
+          "path": "qa/flows/delivery-pickup-operational-e2e.json",
+          "marker": "delivery-criar-pedido"
         }
       ]
     },
@@ -232,6 +299,15 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "weight-profile-form"
         }
+      ],
+      "permissions": [
+        "products.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "upsertWeightBarcodeProfile"
+        }
       ]
     },
     {
@@ -260,6 +336,15 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-order-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.create"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "createBakeryOrder"
         }
       ]
     },
@@ -290,6 +375,15 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.view"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "bakery lookup and cancellation"
+        }
       ]
     },
     {
@@ -318,6 +412,15 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.create"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "updateBakeryOrderStatus"
         }
       ]
     },
@@ -348,6 +451,15 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "bakery-control-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.cancel"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "cancelBakeryOrder"
+        }
       ]
     },
     {
@@ -376,6 +488,16 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-settlement-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.create",
+        "sales.create"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "createItemSettlement"
         }
       ]
     },
@@ -406,6 +528,16 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-equal-settlement-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.create",
+        "sales.create"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "createEqualSettlement"
+        }
       ]
     },
     {
@@ -434,6 +566,16 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-complete-settlement-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.create",
+        "sales.create"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "completeSettlement"
         }
       ]
     },
@@ -464,6 +606,15 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-cancel-item-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.cancel"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "cancelOrderItem"
+        }
       ]
     },
     {
@@ -492,6 +643,15 @@
         {
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-merge-form"
+        }
+      ],
+      "permissions": [
+        "restaurant.orders.transfer"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "mergeSessions"
         }
       ]
     },
@@ -522,6 +682,15 @@
           "path": "desktop/renderer/vertical-parity-p1.js",
           "marker": "restaurant-transfer-form"
         }
+      ],
+      "permissions": [
+        "restaurant.orders.transfer"
+      ],
+      "qa": [
+        {
+          "path": "test/e43-e47-verticals.test.js",
+          "marker": "transferItems"
+        }
       ]
     },
     {
@@ -550,6 +719,15 @@
         {
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-partial-receive"
+        }
+      ],
+      "permissions": [
+        "inventory.procurement"
+      ],
+      "qa": [
+        {
+          "path": "test/procurement-service.test.js",
+          "marker": "partial receipts and idempotent retry"
         }
       ]
     },
@@ -580,6 +758,15 @@
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-partial-fulfill"
         }
+      ],
+      "permissions": [
+        "sales.create"
+      ],
+      "qa": [
+        {
+          "path": "test/ui-parity-p0-p2.test.js",
+          "marker": "partial sales-order fulfillment"
+        }
       ]
     },
     {
@@ -608,6 +795,15 @@
         {
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-print-retry"
+        }
+      ],
+      "permissions": [
+        "settings.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/e19-printing.test.js",
+          "marker": "failure retry success"
         }
       ]
     },
@@ -638,6 +834,15 @@
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-create-pairing-code"
         }
+      ],
+      "permissions": [
+        "devices.pair"
+      ],
+      "qa": [
+        {
+          "path": "test/e21-lan.test.js",
+          "marker": "pairing code is single-use"
+        }
       ]
     },
     {
@@ -666,6 +871,15 @@
         {
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-terminal-status"
+        }
+      ],
+      "permissions": [
+        "devices.block"
+      ],
+      "qa": [
+        {
+          "path": "test/e21-lan.test.js",
+          "marker": "blocked terminal cannot authenticate"
         }
       ]
     },
@@ -696,6 +910,15 @@
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "p1-purchase-receipts-panel"
         }
+      ],
+      "permissions": [
+        "inventory.procurement"
+      ],
+      "qa": [
+        {
+          "path": "test/ui-parity-p0-p2.test.js",
+          "marker": "purchase receipt history"
+        }
       ]
     },
     {
@@ -724,6 +947,15 @@
         {
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "data-return-details"
+        }
+      ],
+      "permissions": [
+        "returns.view"
+      ],
+      "qa": [
+        {
+          "path": "test/ui-parity-p0-p2.test.js",
+          "marker": "return details"
         }
       ]
     },
@@ -754,6 +986,15 @@
           "path": "desktop/renderer/operational-detail-extensions.js",
           "marker": "ops-import-batch-lookup"
         }
+      ],
+      "permissions": [
+        "settings.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/e24-import.test.js",
+          "marker": "product CSV preview"
+        }
       ]
     },
     {
@@ -782,6 +1023,15 @@
         {
           "path": "desktop/renderer/operational-pages.js",
           "marker": "data-finance-classify"
+        }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "edits canonical dimensions"
         }
       ]
     },
@@ -812,6 +1062,15 @@
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "data-reconcile-manual"
         }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "manualReconciliation"
+        }
       ]
     },
     {
@@ -840,6 +1099,15 @@
         {
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "data-transfer-index"
+        }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "confirmFinanceTransfer"
         }
       ]
     },
@@ -870,6 +1138,15 @@
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "data-recurrence-action=\"pause\""
         }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "setRecurrenceStatus"
+        }
       ]
     },
     {
@@ -898,6 +1175,15 @@
         {
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "erp-generate-recurrences"
+        }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "generateRecurrences"
         }
       ]
     },
@@ -928,6 +1214,15 @@
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "data-statement-batch"
         }
+      ],
+      "permissions": [
+        "finance.view"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "statementBatch"
+        }
       ]
     },
     {
@@ -956,6 +1251,15 @@
         {
           "path": "desktop/renderer/erp-finance-operations-ui.js",
           "marker": "data-alert-unhide"
+        }
+      ],
+      "permissions": [
+        "finance.manage"
+      ],
+      "qa": [
+        {
+          "path": "test/finance-canonical-routes.test.js",
+          "marker": "unhideFinanceAlert"
         }
       ]
     }
