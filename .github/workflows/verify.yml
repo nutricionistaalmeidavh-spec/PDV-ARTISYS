@@ -95,16 +95,13 @@ jobs:
         run: npm ci --prefix qa/runtime --no-audit --no-fund
       - name: Install Chromium for web-surface QA
         run: npx playwright install --with-deps chromium
-      - name: Ensure Electron capture tools are available
+      - name: Install local QA and semantic artifact tools
         shell: bash
         run: |
-          missing=()
-          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
-          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
-          if [ ${#missing[@]} -gt 0 ]; then
-            sudo apt-get update -y
-            sudo apt-get install -y "${missing[@]}"
-          fi
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg xvfb poppler-utils librsvg2-bin zbar-tools
+      - name: Validate QR artifact round-trip
+        run: npm run qa:artifact-semantic
       - name: Run mobile and public menu surface smoke
         run: npm run qa:web-surfaces
       - name: Run current UI E2E at 1366x768
@@ -135,6 +132,11 @@ jobs:
       - name: Run responsive UI E2E at 1024x768
         shell: bash
         run: xvfb-run -a npm run qa:e2e:tablet
+      - name: Run semantic scanner, double-submit and PDF E2E
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-semantic
+          xvfb-run -a npm run qa:e2e:semantic
       - name: Upload UI screenshots trace and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -146,5 +148,35 @@ jobs:
             qa-artifacts-access
             qa-artifacts-access-ergonomic
             qa-artifacts-public-menu-compact
+            qa-artifacts-semantic
+          if-no-files-found: warn
+          retention-days: 14
+
+
+  multi-device-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install Xvfb for Electron LAN QA
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y xvfb
+      - name: Run full multi-device LAN, outage and persistence QA
+        shell: bash
+        run: |
+          rm -rf qa-artifacts/multi-device
+          xvfb-run -a npm run qa:multi-device -- --profile full
+      - name: Upload multi-device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-device-qa-${{ github.run_number }}
+          path: qa-artifacts/multi-device
           if-no-files-found: warn
           retention-days: 14
