@@ -341,6 +341,9 @@ async function runMultiDeviceQa({profile='full',output='qa-artifacts/multi-devic
         const principalPage=await principalApp.firstWindow();
         await authenticateDesktopPage(principalPage,{username:'qaadmin',password:'QaLocalOnly-12345!'});
         await principalPage.locator("button[data-route='settings']").click();
+        const unitsCategory=principalPage.locator("#settings-hub [data-settings-category='units']");
+        await unitsCategory.waitFor({state:'visible',timeout:15000});
+        await unitsCategory.click();
         const addTerminal=principalPage.locator('#p1-terminal-admin-panel [data-create-pairing-code]');
         await addTerminal.waitFor({state:'visible',timeout:15000});
         await addTerminal.click();
