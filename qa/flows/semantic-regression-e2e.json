@@ -172,7 +172,7 @@
     },
     {
       "action": "expectFile",
-      "directory": "../qa-artifacts/pdf",
+      "directory": "qa-artifacts/pdf",
       "suffix": ".pdf",
       "createdAfterRunStart": true,
       "minBytes": 1000,
@@ -181,7 +181,7 @@
     },
     {
       "action": "expectPdfText",
-      "directory": "../qa-artifacts/pdf",
+      "directory": "qa-artifacts/pdf",
       "suffix": ".pdf",
       "expected": [
         "Produto Barcode QA",
