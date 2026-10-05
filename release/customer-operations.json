@@ -31,8 +31,8 @@
         }
       ],
       "permissions": [
-        "products.manage",
-        "restaurant.access"
+        "restaurant.access",
+        "products.manage"
       ],
       "qa": [
         {
@@ -70,8 +70,8 @@
         }
       ],
       "permissions": [
-        "products.manage",
-        "restaurant.access"
+        "restaurant.access",
+        "products.manage"
       ],
       "qa": [
         {
@@ -109,8 +109,8 @@
         }
       ],
       "permissions": [
-        "products.manage",
-        "restaurant.access"
+        "restaurant.access",
+        "products.manage"
       ],
       "qa": [
         {
@@ -148,6 +148,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create"
       ],
       "qa": [
@@ -186,6 +187,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.cancel"
       ],
       "qa": [
@@ -224,6 +226,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create"
       ],
       "qa": [
@@ -262,6 +265,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create",
         "sales.create"
       ],
@@ -339,6 +343,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create"
       ],
       "qa": [
@@ -377,6 +382,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.view"
       ],
       "qa": [
@@ -415,6 +421,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create"
       ],
       "qa": [
@@ -453,6 +460,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.cancel"
       ],
       "qa": [
@@ -491,6 +499,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create",
         "sales.create"
       ],
@@ -530,6 +539,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create",
         "sales.create"
       ],
@@ -569,6 +579,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.create",
         "sales.create"
       ],
@@ -608,6 +619,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.cancel"
       ],
       "qa": [
@@ -646,6 +658,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.transfer"
       ],
       "qa": [
@@ -684,6 +697,7 @@
         }
       ],
       "permissions": [
+        "restaurant.access",
         "restaurant.orders.transfer"
       ],
       "qa": [
@@ -988,7 +1002,7 @@
         }
       ],
       "permissions": [
-        "settings.manage"
+        "products.manage"
       ],
       "qa": [
         {
