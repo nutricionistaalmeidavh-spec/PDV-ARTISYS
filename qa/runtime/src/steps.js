@@ -431,15 +431,19 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       const alternative=step.alternativeSelector?page.locator(String(step.alternativeSelector)).first():null;
       const timeoutMs=Number(step.timeoutMs ?? 10000);
       const started=Date.now();
+      let matched=false;
       while(Date.now()-started<=timeoutMs){
-        if(await target.isVisible().catch(()=>false)){await target.click();break;}
-        if(alternative&&await alternative.isVisible().catch(()=>false))break;
-        if(!alternative)break;
+        if(await target.isVisible().catch(()=>false)){
+          matched=true;
+          await target.click();
+          if(alternative)await alternative.waitFor({state:'visible',timeout:Math.max(1,timeoutMs-(Date.now()-started))});
+          break;
+        }
+        if(alternative&&await alternative.isVisible().catch(()=>false)){matched=true;break;}
+        if(!alternative){matched=true;break;}
         await page.waitForTimeout(50);
       }
-      if(alternative&&!(await target.isVisible().catch(()=>false))&&!(await alternative.isVisible().catch(()=>false))){
-        throw new Error(`${label}: neither optional target nor alternative became visible`);
-      }
+      if(!matched)throw new Error(`${label}: neither optional target nor alternative became visible`);
       break;
     }
     case 'doubleClick': {
