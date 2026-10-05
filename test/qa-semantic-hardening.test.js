@@ -14,6 +14,7 @@ test('semantic QA gate covers scanner, PDF semantics and machine-readable artifa
   const workflow=read('.github/workflows/verify.yml');
   assert.equal(config.environments?.ci?.env?.ARTISYS_QA_PDF_DIR,'../qa-artifacts/pdf');
   const steps=read('qa/runtime/src/steps.js');
+  const runner=read('qa/runtime/src/runner.js');
   const flowPath=config.flows?.['semantic-regression'];
   assert.equal(flowPath,'flows/semantic-regression-e2e.json');
   const flow=json(path.join('qa',flowPath));
@@ -30,6 +31,7 @@ test('semantic QA gate covers scanner, PDF semantics and machine-readable artifa
   assert.match(steps,/case 'clickIfVisible'/);
   assert.match(steps,/dispatchEvent\(new MouseEvent\('click'/);
   assert.match(steps,/case 'expectPdfText'/);
+  assert.match(runner,/env: runtimeEnv/);
   assert.match(pkg.scripts['qa:e2e:semantic'],/semantic-regression/);
   assert.match(pkg.scripts['qa:artifact-semantic'],/artifact-roundtrip/);
   assert.match(workflow,/qa:e2e:semantic/);
