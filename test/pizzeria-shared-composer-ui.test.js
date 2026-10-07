@@ -39,3 +39,23 @@ test('all restaurant channels ask the same server-side configuration authority f
   assert.match(vertical,/runtime\.orderConfiguration\.priceConfiguredItem/);
   assert.doesNotMatch(router,/runtime\.catalogCustomization\.priceConfiguredItem/);
 });
+
+
+test('waiter QR desktop and KDS reuse shared validation and configuration labels',()=>{
+  const cart=read('shared/order-composer.js');
+  const mobile=read('server/mobile/app.js');
+  const customer=read('server/customer-menu/app.js');
+  const desktop=read('desktop/renderer/restaurant-order-composer-ui.js');
+
+  assert.match(cart,/function validateConfiguration/);
+  assert.match(cart,/function formatConfiguration/);
+
+  assert.match(mobile,/composer\.validateConfiguration/);
+  assert.match(mobile,/composer\.formatConfiguration/);
+  assert.match(customer,/composer\.validateConfiguration/);
+  assert.match(customer,/composer\.formatConfiguration/);
+  assert.match(desktop,/PdvOrderComposer.*validateConfiguration|composer\.validateConfiguration/);
+
+  assert.doesNotMatch(mobile,/for\(const group of form\.querySelectorAll\('\[data-group\],\[data-combo-group\]'\)\)/);
+  assert.doesNotMatch(customer,/function validateConfiguration\(form\)/);
+});
