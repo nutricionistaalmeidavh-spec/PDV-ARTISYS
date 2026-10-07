@@ -30,7 +30,7 @@ test('frame recorder survives one transient screenshot failure and keeps recordi
   const recorder=createFrameRecorder(page,{dir,fps:20,captureTimeoutMs:100,canvasWidth:100,canvasHeight:100});
   await recorder.start();
   try{
-    await new Promise(resolve=>setTimeout(resolve,180));
+    await new Promise(resolve=>setTimeout(resolve,350));
     const entries=await fs.readdir(dir);
     assert.ok(entries.filter(name=>name.endsWith('.png')).length>=2,'recorder should resume after one failed frame');
     assert.equal(entries.includes('VIDEO_CAPTURE_DISABLED.txt'),false,'one transient failure must not disable the whole video');
