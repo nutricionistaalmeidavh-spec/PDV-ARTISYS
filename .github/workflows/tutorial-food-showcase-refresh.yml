@@ -1,0 +1,114 @@
+name: Tutorial Food Showcase Refresh
+
+on:
+  push:
+    branches:
+      - qa/tutorial-videos-full-refresh-food-20261007
+    paths:
+      - 'desktop/renderer/vertical-modules.js'
+      - 'qa/runtime/adapters/tutorials-food.mjs'
+      - 'qa/runtime/src/steps.js'
+      - 'qa/demo/tutorials/37-criar-ficha-tecnica.json'
+      - 'qa/demo/tutorials/38-escolher-aparencia-cardapio.json'
+      - 'qa/demo/tutorials/40-cliente-fazer-pedido-qr.json'
+      - 'qa/demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json'
+      - 'qa/demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json'
+      - 'qa/tutorials/catalog.json'
+      - 'qa/artisys-qa.config.json'
+      - 'test/tutorial-food-capture.test.js'
+      - 'test/pizzeria-workspace-polish.test.js'
+      - 'qa/runtime/tests/select-option-label.test.js'
+      - '.github/workflows/tutorial-food-showcase-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Validate food showcase
+        run: |
+          node --test \
+            test/tutorial-videos-roadmap.test.js \
+            test/tutorial-food-capture.test.js \
+            test/pizzeria-workspace-polish.test.js \
+            qa/runtime/tests/select-option-label.test.js \
+            qa/runtime/tests/video-aspect-ratio.test.js
+          npm run qa:tutorials:validate
+
+  capture:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - demo: 37-criar-ficha-tecnica
+            preset: landscape-16x9
+          - demo: 38-escolher-aparencia-cardapio
+            preset: landscape-16x9
+          - demo: 40-cliente-fazer-pedido-qr
+            preset: reels-9x16
+          - demo: 46-criar-ficha-tecnica-pizza-calabresa
+            preset: landscape-16x9
+          - demo: 47-configurar-pizza-tamanhos-sabores-borda
+            preset: landscape-16x9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure capture tools
+        shell: bash
+        run: |
+          set -e
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v xvfb-run >/dev/null 2>&1; then
+            timeout 120s sudo apt-get update -y
+            timeout 120s sudo apt-get install -y ffmpeg xvfb
+          fi
+      - name: Capture tutorial
+        shell: bash
+        env:
+          DEMO: ${{ matrix.demo }}
+          PRESET: ${{ matrix.preset }}
+        run: |
+          rm -rf "qa-artifacts-${DEMO}" tutorial-output
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo "${DEMO}" \
+            --profile tutorials-food \
+            --preset "${PRESET}" \
+            --environment food-ci \
+            --output "qa-artifacts-${DEMO}"
+          RAW="$(find "qa-artifacts-${DEMO}" -name demo-video.mp4 -print -quit)"
+          test -n "$RAW"
+          mkdir -p tutorial-output
+          npm run qa:tutorials:edit -- \
+            --tutorial "${DEMO}" \
+            --input "$RAW" \
+            --output "tutorial-output/${DEMO}.mp4"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: food-showcase-${{ matrix.demo }}
+          path: tutorial-output/${{ matrix.demo }}.mp4
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload QA evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: food-showcase-debug-${{ matrix.demo }}
+          path: qa-artifacts-${{ matrix.demo }}
+          if-no-files-found: warn
+          retention-days: 7
