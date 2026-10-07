@@ -42,6 +42,7 @@
     syncPizzaFlavorLimit(form);
     form?.addEventListener('submit',async event=>{
       event.preventDefault();const form=event.currentTarget;const errorNode=form.querySelector('[data-config-error]');
+      if(config.pizza&&!form.querySelector('input[name="variantId"]:checked')){errorNode.textContent='Escolha o tamanho da pizza.';errorNode.classList.remove('hidden');return;}
       for(const group of form.querySelectorAll('[data-config-group],[data-combo-group]')){
         const selector=group.hasAttribute('data-config-group')?'[data-option]:checked':'[data-combo]:checked';
         const count=group.querySelectorAll(selector).length,min=Number(group.dataset.min||0),max=Number(group.dataset.max||1);
