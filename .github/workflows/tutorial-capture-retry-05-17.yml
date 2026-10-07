@@ -1,0 +1,73 @@
+name: Tutorial Capture Retry 05 17
+
+on:
+  push:
+    branches:
+      - qa/tutorial-videos-full-refresh-food-20261007
+    paths:
+      - '.github/workflows/tutorial-capture-retry-05-17.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - demo: 05-identificar-cliente-vendedor
+            profile: tutorials-p0
+          - demo: 17-encontrar-venda
+            profile: tutorials-p1-p3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install QA runtime dependencies
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure capture tools
+        shell: bash
+        run: |
+          set -e
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1 || ! command -v xvfb-run >/dev/null 2>&1; then
+            timeout 120s sudo apt-get update -y
+            timeout 120s sudo apt-get install -y ffmpeg xvfb
+          fi
+          command -v ffmpeg
+          command -v ffprobe
+          command -v xvfb-run
+      - name: Capture tutorial
+        shell: bash
+        env:
+          DEMO: ${{ matrix.demo }}
+          PROFILE: ${{ matrix.profile }}
+        run: |
+          rm -rf "qa-artifacts-${DEMO}" tutorial-output
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo "${DEMO}" \
+            --profile "${PROFILE}" \
+            --preset landscape-16x9 \
+            --environment ci \
+            --output "qa-artifacts-${DEMO}"
+          RAW="$(find "qa-artifacts-${DEMO}" -name demo-video.mp4 -print -quit)"
+          test -n "$RAW"
+          mkdir -p tutorial-output
+          npm run qa:tutorials:edit -- \
+            --tutorial "${DEMO}" \
+            --input "$RAW" \
+            --output "tutorial-output/${DEMO}.mp4"
+      - name: Upload final tutorial
+        uses: actions/upload-artifact@v4
+        with:
+          name: retry-tutorial-${{ matrix.demo }}
+          path: tutorial-output/${{ matrix.demo }}.mp4
+          if-no-files-found: error
+          retention-days: 14
