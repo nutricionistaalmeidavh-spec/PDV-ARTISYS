@@ -193,7 +193,13 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     case 'check': await setCheckboxState(page, step, true); break;
     case 'uncheck': await setCheckboxState(page, step, false); break;
     case 'hover': await locator(page, step).hover(); break;
-    case 'selectOption': await locator(page, step).selectOption(resolveSecret(step, env)); break;
+    case 'selectOption': {
+      const option=step.optionLabel!=null
+        ? {label:String(resolveRuntimeTemplate(step.optionLabel,runtimeContext,label))}
+        : resolveSecret(step, env);
+      await locator(page, step).selectOption(option);
+      break;
+    }
     case 'reload': await page.reload({ waitUntil: step.waitUntil || 'domcontentloaded' }); break;
     case 'authenticateLocalQa': {
       const credentials = { username:String(step.username || 'qaadmin'), password:String(resolveSecret({ ...step, value:step.password || 'QaLocalOnly-12345!' }, env)) };
