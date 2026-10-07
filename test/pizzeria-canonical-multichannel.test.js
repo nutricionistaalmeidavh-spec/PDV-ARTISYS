@@ -92,6 +92,7 @@ test('canonical pizza pricing freezes proportional recipe consumption through KD
     const ticket=rt.kitchen.listTickets().find(row=>row.orderId===order.id);
     assert.equal(ticket.items[0].configuration.pizza.crust.name,'Catupiry');
 
+    rt.cash.openSession({id:'pizza-cash',terminalId:'PDV-01',operatorId:admin.userId,initialCashCents:0,actor:admin});
     const checkout=rt.restaurant.checkoutToSale(session.id,{terminalId:'PDV-01',operatorId:admin.userId,actor:admin},rt.sales);
     assert.equal(checkout.sale.totalCents,4500);
     assert.deepEqual(checkout.sale.items[0].configuration.pizza.stockItems,priced.configurationSnapshot.pizza.stockItems);
