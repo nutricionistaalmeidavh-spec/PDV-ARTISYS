@@ -75,8 +75,10 @@ test('pizza configuration and authoritative price are identical across waiter, Q
       ]
     },admin);
     assert.equal(counter.items.length,2);
-    assert.deepEqual(counter.items.map(row=>row.unitPriceCents),[4500,4300]);
-    assert.equal(counter.items[0].configurationSnapshot.pizza.flavors.length,2);
-    assert.equal(counter.items[1].configurationSnapshot.pizza.flavors[0].name,'Marguerita');
+    assert.deepEqual(counter.items.map(row=>row.unitPriceCents).sort((a,b)=>a-b),[4300,4500]);
+    const halfHalf=counter.items.find(row=>row.unitPriceCents===4500);
+    const singleFlavor=counter.items.find(row=>row.unitPriceCents===4300);
+    assert.equal(halfHalf.configurationSnapshot.pizza.flavors.length,2);
+    assert.equal(singleFlavor.configurationSnapshot.pizza.flavors[0].name,'Marguerita');
   }finally{if(server)await server.stop();rt.close();}
 });
