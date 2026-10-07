@@ -10,6 +10,7 @@ on:
       - 'qa/runtime/tests/video-aspect-ratio.test.js'
       - 'qa/demo/tutorials/40-cliente-fazer-pedido-qr.json'
       - 'qa/demo/tutorials/42-garcom-acompanhar-pedido.json'
+      - 'qa/demo/tutorials/43-kds-preparar-pedido.json'
       - 'qa/demo/tutorials/44-kds-garcom-sincronizacao.json'
       - 'qa/artisys-qa.config.json'
       - 'test/tutorial-food-capture.test.js'
@@ -47,6 +48,8 @@ jobs:
             preset: reels-9x16
           - demo: 42-garcom-acompanhar-pedido
             preset: reels-9x16
+          - demo: 43-kds-preparar-pedido
+            preset: landscape-16x9
           - demo: 44-kds-garcom-sincronizacao
             preset: landscape-16x9
     steps:
