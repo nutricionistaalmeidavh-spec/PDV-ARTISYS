@@ -9,7 +9,7 @@ const { pathToFileURL } = require('node:url');
 const root = path.resolve('.');
 const readJson = relative => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
 
-test('tutorial roadmap defines 36 sparse micro-tutorials capped at 30 seconds', async () => {
+test('tutorial roadmap defines 45 sparse micro-tutorials capped at 30 seconds', async () => {
   const catalog = readJson('qa/tutorials/catalog.json');
   const phaseCounts = catalog.tutorials.reduce((acc, item) => {
     acc[item.phase] = (acc[item.phase] || 0) + 1;
@@ -18,8 +18,8 @@ test('tutorial roadmap defines 36 sparse micro-tutorials capped at 30 seconds', 
 
   assert.equal(catalog.schemaVersion, 1);
   assert.equal(catalog.maxDurationSec, 30);
-  assert.deepEqual(phaseCounts, { P0: 12, P1: 9, P2: 7, P3: 8 });
-  assert.equal(catalog.tutorials.length, 36);
+  assert.deepEqual(phaseCounts, { P0: 21, P1: 9, P2: 7, P3: 8 });
+  assert.equal(catalog.tutorials.length, 45);
 
   const ids = new Set();
   const outputs = new Set();
