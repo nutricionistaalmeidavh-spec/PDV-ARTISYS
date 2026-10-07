@@ -30,7 +30,7 @@
       const fd=new FormData(form);const variantId=String(fd.get('variantId')||'')||null;
       const selections=[...form.querySelectorAll('[data-option]:checked')].map(input=>input.value);
       const comboSelections=[...form.querySelectorAll('[data-combo]:checked')].map(input=>({groupId:input.dataset.groupId,productId:input.dataset.productId}));
-      const validation=composer?.validateConfiguration?.(config,{variantId,selections,comboSelections})||'';
+      const validation=composer.validateConfiguration(config,{variantId,selections,comboSelections});
       if(validation){errorNode.textContent=validation;errorNode.classList.remove('hidden');return;}
       try{
         const priced=await api.priceConfiguredItem({productId:product.id,variantId:variantId||undefined,selections,comboSelections});
