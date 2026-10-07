@@ -99,6 +99,7 @@ async function attachDemoPhoto(page,{productId=null,productName=null,kind='burge
 }
 
 async function setupFood(page,scenario,runtimeContext){
+  const desktopUrl=page.url();
   const state=await page.evaluate(async scenario=>{
     const api=new window.PdvApiClient.ApiClient();
     const config=await api.initialize();
@@ -266,6 +267,11 @@ async function setupFood(page,scenario,runtimeContext){
       }
       if(scenario==='pizza-kds-checkout'){
         const kitchen=await device('tutorial-kitchen','KDS Cozinha','KITCHEN');vars.kitchenId=kitchen?.id||'tutorial-kitchen';vars.kitchenKey=kitchen?.credential||'';
+        await req(`/api/v1/restaurant/sessions/${encodeURIComponent(vars.restaurantSessionId)}/orders`,{method:'POST',body:{operatorId,items:[{
+          productId:'tutorial-pizza-main',quantity:1,selections:[
+            'tutorial-pizza-size-grande','tutorial-pizza-flavor-cal','tutorial-pizza-flavor-mar','tutorial-pizza-crust-cat'
+          ],comboSelections:[]
+        }]}});
         let cash=null;try{cash=await api.openCash(config.terminalId);}catch{}
         if(!cash){const openedCash=await api.createCash({terminalId:config.terminalId,initialCashCents:10000});cash=openedCash.session||openedCash;}
         vars.cashSessionId=cash.id;
@@ -311,7 +317,7 @@ async function setupFood(page,scenario,runtimeContext){
   if(state.demoPhotoProductId){
     await attachDemoPhoto(page,{productId:state.demoPhotoProductId,kind:state.demoPhotoKind||'burger'});
   }
-  runtimeContext.vars={...(runtimeContext.vars||{}),...state};
+  runtimeContext.vars={...(runtimeContext.vars||{}),...state,desktopUrl};
   await page.reload({waitUntil:'domcontentloaded'});
   await page.locator('#auth-overlay').waitFor({state:'hidden',timeout:15000});
   await page.locator('#app-topbar').waitFor({state:'visible',timeout:15000});
