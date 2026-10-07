@@ -1,0 +1,74 @@
+{
+  "name": "03-alterar-quantidade-remover-item",
+  "title": "Alterar quantidade ou remover item",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "base"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "abrir-balcao",
+      "holdMs": 600
+    },
+    {
+      "action": "fill",
+      "selector": "#product-search",
+      "name": "buscar-produto",
+      "value": "Produto Tutorial",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-add-product='tutorial-product']",
+      "name": "adicionar-produto",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "[data-qty-plus='tutorial-product']",
+      "name": "aumentar-quantidade",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "quantidade-dois",
+      "expected": "2",
+      "timeoutMs": 10000,
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-remove='tutorial-product']",
+      "name": "remover-item",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "carrinho-vazio",
+      "expected": "Nenhum item na venda",
+      "timeoutMs": 10000,
+      "holdMs": 900
+    }
+  ]
+}
