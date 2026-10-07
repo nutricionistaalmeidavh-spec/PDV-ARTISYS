@@ -50,3 +50,15 @@ test('macOS unsigned updates remain manual until signed and validated', () => {
   assert.match(docs, /atualiza[cç][aã]o manual/i);
   assert.match(docs, /Gatekeeper/);
 });
+
+test('macOS public release is manual, QA-gated and only uploads DMGs', () => {
+  const workflow = read('.github/workflows/publish-macos.yml');
+  assert.match(workflow, /workflow_dispatch/);
+  assert.match(workflow, /qa_approved/);
+  assert.match(workflow, /build_sha/);
+  assert.match(workflow, /tag_sha/);
+  assert.match(workflow, /gh release upload/);
+  assert.match(workflow, /-name '\\*\\.dmg'/);
+  assert.doesNotMatch(workflow, /push:/);
+  assert.doesNotMatch(workflow, /gh release create/);
+});
