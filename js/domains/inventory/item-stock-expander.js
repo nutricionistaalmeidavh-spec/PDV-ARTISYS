@@ -18,6 +18,11 @@ function expandStockItems(items=[],recipeService=null) {
       for(const component of item.stockItems) aggregate(totals,component.productId,component.quantity);
       continue;
     }
+    const configuredStock=item?.configuration?.stockItems;
+    if(Array.isArray(configuredStock)&&configuredStock.length) {
+      for(const component of configuredStock) aggregate(totals,component.productId,quantity*Number(component.quantity||0));
+      continue;
+    }
     const snapshot=item?.configuration?.kit?.components;
     if(Array.isArray(snapshot)&&snapshot.length) {
       for(const component of snapshot) aggregate(totals,component.productId,quantity*Number(component.quantity||0));
