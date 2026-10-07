@@ -1,0 +1,94 @@
+{
+  "name": "43-kds-preparar-pedido",
+  "title": "KDS receber e preparar pedido",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "kds"
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "setViewportSize",
+      "width": 1100,
+      "height": 720,
+      "name": "viewport-kds"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile",
+      "name": "abrir-kds"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "login-kds",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "id-kds",
+      "valueFrom": "kitchenId",
+      "holdMs": 100
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "chave-kds",
+      "valueFrom": "kitchenKey",
+      "holdMs": 100
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "conectar-kds",
+      "holdMs": 500
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".kitchen-board",
+      "name": "painel-kds",
+      "timeoutMs": 15000,
+      "holdMs": 300
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "pedido-chegou",
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='PREPARING']",
+      "name": "iniciar-preparo",
+      "holdMs": 500
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.PREPARING",
+      "name": "pedido-em-preparo",
+      "timeoutMs": 10000,
+      "holdMs": 800
+    }
+  ]
+}
