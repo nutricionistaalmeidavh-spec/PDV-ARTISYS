@@ -16,6 +16,14 @@
       "scenario": "waiter"
     },
     {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 120
+    },
+    {
       "action": "desktopConfig",
       "name": "capturar-servidor",
       "saveAs": {
