@@ -6,36 +6,32 @@ const fs=require('node:fs');
 
 const read=path=>fs.readFileSync(path,'utf8');
 
-test('pizza composer is one shared interaction model across customer waiter and desktop',()=>{
-  const shared=read('shared/pizza-composer.js');
-  const mobileIndex=read('server/mobile/index.html');
-  const customerIndex=read('server/customer-menu/index.html');
-  const desktopIndex=read('desktop/renderer/index.html');
+test('pizza reuses the existing generic order configuration contract without a pizza-specific DOM renderer',()=>{
+  const adapter=read('js/domains/catalog/order-configuration-service.js');
   const mobile=read('server/mobile/app.js');
   const customer=read('server/customer-menu/app.js');
   const desktop=read('desktop/renderer/restaurant-order-composer-ui.js');
 
-  assert.match(shared,/PdvPizzaComposer/);
-  assert.match(shared,/sizeId/);
-  assert.match(shared,/flavorIds/);
-  assert.match(shared,/crustId/);
-  assert.match(shared,/formatPizza/);
-  assert.match(mobileIndex,/pizza-composer\.js/);
-  assert.match(customerIndex,/pizza-composer\.js/);
-  assert.match(desktopIndex,/shared\/pizza-composer\.js/);
-  assert.match(mobile,/PdvPizzaComposer/);
-  assert.match(customer,/PdvPizzaComposer/);
-  assert.match(desktop,/PdvPizzaComposer/);
+  assert.match(adapter,/configurationKind:'PIZZA'/);
+  assert.match(adapter,/PIZZA_FLAVOR_GROUP_ID/);
+  assert.match(adapter,/PIZZA_CRUST_GROUP_ID/);
+  assert.match(adapter,/pizzeria\.pricePizza/);
+
+  for(const source of [mobile,customer,desktop]){
+    assert.doesNotMatch(source,/PdvPizzaComposer/);
+    assert.doesNotMatch(source,/data-pizza-composer/);
+    assert.doesNotMatch(source,/pizza-composer\.js/);
+  }
+  assert.equal(fs.existsSync('shared/pizza-composer.js'),false);
 });
 
-test('mobile and public pizza preview ask the server for authoritative pricing',()=>{
-  const router=read('server/restaurant-router.js');
-  const publicRouter=read('server/public-ordering-router.js');
-  const mobile=read('server/mobile/app.js');
-  const customer=read('server/customer-menu/app.js');
-  assert.match(router,/\/api\/v1\/mobile\/menu\/price/);
-  assert.match(router,/runtime\.pizzeria\.pricePizza/);
-  assert.match(publicRouter,/orders\|service\|price/);
-  assert.match(mobile,/\/api\/v1\/mobile\/menu\/price/);
-  assert.match(customer,/apiPath\('\/price'\)/);
+test('pizza server pricing is reached through the same configuration service used by standard items',()=>{
+  const vertical=read('server/vertical-router.js');
+  const restaurant=read('server/restaurant-router.js');
+  const publicOrdering=read('js/domains/restaurant/public-ordering.js');
+  assert.match(vertical,/runtime\.orderConfiguration\.getProductConfiguration/);
+  assert.match(vertical,/runtime\.orderConfiguration\.priceConfiguredItem/);
+  assert.match(restaurant,/runtime\.orderConfiguration\.priceConfiguredItem/);
+  assert.match(publicOrdering,/orderConfiguration\.priceConfiguredItem/);
+  assert.doesNotMatch(restaurant,/mobile\/menu\/price/);
 });
