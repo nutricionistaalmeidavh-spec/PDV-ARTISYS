@@ -19,7 +19,11 @@ const FOOD_IDS=[
   '44-kds-garcom-sincronizacao',
   '45-levar-comanda-caixa-pagar',
   '46-criar-ficha-tecnica-pizza-calabresa',
-  '47-configurar-pizza-tamanhos-sabores-borda'
+  '47-configurar-pizza-tamanhos-sabores-borda',
+  '48-configurar-pizza-canonica',
+  '49-garcom-pedir-pizza',
+  '50-cliente-pedir-pizza-qr',
+  '51-pizza-kds-comanda-caixa'
 ];
 
 test('food tutorial catalog prioritizes the complete customer-to-cash journey',()=>{
@@ -58,10 +62,10 @@ test('food demos cover recipe, menu layouts, QR, customer order, waiter, KDS syn
   assert.match(combined,/confirm-payment/);
 });
 
-test('full refresh capture workflow records all 47 tutorials from current main-compatible QA',()=>{
+test('full refresh capture workflow records all 51 tutorials from current main-compatible QA',()=>{
   const workflow=text('.github/workflows/tutorial-capture-full-refresh.yml');
   const catalog=json('qa/tutorials/catalog.json');
-  assert.equal(catalog.tutorials.length,47);
+  assert.equal(catalog.tutorials.length,51);
   for(const tutorial of catalog.tutorials)assert.ok(workflow.includes(tutorial.id),tutorial.id);
   assert.match(workflow,/artisys-qa\.mjs demo/);
   assert.match(workflow,/qa:tutorials:edit/);
@@ -99,28 +103,48 @@ test('burger tutorial uses a complete sandwich recipe, attaches a real demo imag
   assert.ok(appearance.steps.some(step=>step.action==='expectVisible'&&/product-photo/.test(step.selector||'')));
 });
 
-test('pizza tutorials cover full recipe plus friendly size, flavor, crust and pricing flow',()=>{
-  const recipe=json('qa/demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json');
-  const config=json('qa/demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json');
-  const recipeText=JSON.stringify(recipe);
-  for(const ingredient of [
-    'tutorial-pizza-dough',
-    'tutorial-pizza-tomato-sauce',
-    'tutorial-pizza-mozzarella',
-    'tutorial-pizza-calabresa',
-    'tutorial-pizza-onion',
-    'tutorial-pizza-oregano'
-  ]) assert.match(recipeText,new RegExp(ingredient));
-  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productName==='Pizza Calabresa'));
+test('pizza tutorials teach base recipe, flavor recipe, canonical configuration, waiter, QR and checkout',()=>{
+  const base=json('qa/demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json');
+  const flavor=json('qa/demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json');
+  const config=json('qa/demo/tutorials/48-configurar-pizza-canonica.json');
+  const waiter=json('qa/demo/tutorials/49-garcom-pedir-pizza.json');
+  const customer=json('qa/demo/tutorials/50-cliente-pedir-pizza-qr.json');
+  const finish=json('qa/demo/tutorials/51-pizza-kds-comanda-caixa.json');
+
+  const baseText=JSON.stringify(base);
+  assert.match(baseText,/tutorial-pizza-dough/);
+  assert.match(baseText,/tutorial-pizza-tomato-sauce/);
+  assert.doesNotMatch(baseText,/tutorial-pizza-calabresa/);
+  assert.ok(base.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productName==='Pizza Artesanal'));
+
+  const flavorText=JSON.stringify(flavor);
+  for(const ingredient of ['tutorial-pizza-mozzarella','tutorial-pizza-calabresa','tutorial-pizza-onion','tutorial-pizza-oregano'])
+    assert.match(flavorText,new RegExp(ingredient));
+  assert.match(flavorText,/Sabor Calabresa/);
 
   const configText=JSON.stringify(config);
-  assert.match(configText,/pizza-profile-form/);
-  assert.match(configText,/pizza-size-form/);
-  assert.match(configText,/pizza-flavor-form/);
-  assert.match(configText,/pizza-crust-form/);
+  assert.match(configText,/recipeMultiplier/);
+  assert.match(configText,/recipeProductId/);
   assert.match(configText,/Grande/);
-  assert.match(configText,/Calabresa/);
   assert.match(configText,/Marguerita/);
   assert.match(configText,/Catupiry/);
   assert.match(configText,/Preço calculado/);
+
+  const waiterText=JSON.stringify(waiter);
+  assert.match(waiterText,/Grande/);
+  assert.match(waiterText,/Calabresa/);
+  assert.match(waiterText,/Marguerita/);
+  assert.match(waiterText,/Catupiry/);
+  assert.match(waiterText,/Enviar pedido/);
+
+  const customerText=JSON.stringify(customer);
+  assert.match(customerText,/product-dialog/);
+  assert.match(customerText,/Enviar para a cozinha/);
+
+  const finishText=JSON.stringify(finish);
+  assert.match(finishText,/kitchen-board/);
+  assert.match(finishText,/½ Calabresa/);
+  assert.match(finishText,/½ Marguerita/);
+  assert.match(finishText,/data-checkout/);
+  assert.match(finishText,/confirm-payment/);
 });
