@@ -9,7 +9,8 @@
   const normalizedConfiguration=input=>({
     variantId:input?.variantId||null,
     selections:Array.isArray(input?.selections)?[...input.selections]:[],
-    comboSelections:Array.isArray(input?.comboSelections)?clone(input.comboSelections):[]
+    comboSelections:Array.isArray(input?.comboSelections)?clone(input.comboSelections):[],
+    pizza:input?.pizza?clone(input.pizza):null
   });
   const signature=line=>JSON.stringify({
     productId:line.productId,
@@ -64,6 +65,7 @@
         variantId:item.configuration.variantId,
         selections:[...item.configuration.selections],
         comboSelections:clone(item.configuration.comboSelections),
+        pizza:item.configuration.pizza?clone(item.configuration.pizza):null,
         note:item.note
       }));
     }
