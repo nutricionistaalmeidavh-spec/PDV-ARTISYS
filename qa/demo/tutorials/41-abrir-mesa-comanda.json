@@ -1,0 +1,82 @@
+{
+  "name": "41-abrir-mesa-comanda",
+  "title": "Abrir mesa e iniciar comanda",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "table-open"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "abrir-alimentacao",
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "abrir-mesas",
+      "holdMs": 400
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "mesa-visivel",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "click",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "selecionar-mesa",
+      "holdMs": 350
+    },
+    {
+      "action": "waitFor",
+      "selector": "#restaurant-open-table-form",
+      "name": "abrir-atendimento",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "fill",
+      "selector": "#restaurant-open-table-form input[name='partySize']",
+      "name": "pessoas",
+      "value": "2",
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "#restaurant-open-table-form button[type='submit']",
+      "name": "confirmar-abertura",
+      "holdMs": 650
+    },
+    {
+      "action": "expectText",
+      "selector": ".restaurant-session",
+      "name": "comanda-aberta",
+      "expected": "Mesa 08 · Comanda",
+      "timeoutMs": 10000,
+      "holdMs": 800
+    }
+  ]
+}
