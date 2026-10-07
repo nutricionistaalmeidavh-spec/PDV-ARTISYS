@@ -1248,11 +1248,12 @@ function openCategoryForm() {
     let sale=await api.sale(id);
     if(sale.status==='SUSPENDED')sale=await api.resumeSale(id);
     if(sale.status!=='OPEN')throw new Error('Esta venda não está disponível para cobrança no Balcão.');
+    await navigate('checkout');
     clearCheckoutDocumentContext();
     state.sale=sale;
+    if(sale.sellerId)state.selectedSellerId=sale.sellerId;
     state.discountPercent=sale.subtotalCents?Number(((sale.discountCents/sale.subtotalCents)*100).toFixed(2)):0;
     state.selectedProductId=null;
-    await navigate('checkout');
     renderCheckout();
     return sale;
   }
