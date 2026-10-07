@@ -1,0 +1,93 @@
+name: Tutorial Mobile Format Fix
+
+on:
+  push:
+    branches:
+      - qa/tutorial-videos-full-refresh-food-20261007
+    paths:
+      - 'qa/runtime/src/video.js'
+      - 'qa/runtime/src/runner.js'
+      - 'qa/runtime/tests/video-aspect-ratio.test.js'
+      - 'qa/demo/tutorials/40-cliente-fazer-pedido-qr.json'
+      - 'qa/demo/tutorials/42-garcom-acompanhar-pedido.json'
+      - 'qa/demo/tutorials/44-kds-garcom-sincronizacao.json'
+      - 'qa/artisys-qa.config.json'
+      - 'test/tutorial-food-capture.test.js'
+      - '.github/workflows/tutorial-mobile-format-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Validate mobile video contracts
+        run: |
+          node --test qa/runtime/tests/video-aspect-ratio.test.js
+          node --test test/tutorial-food-capture.test.js
+          npm run qa:tutorials:validate
+
+  capture:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - demo: 40-cliente-fazer-pedido-qr
+            preset: reels-9x16
+          - demo: 42-garcom-acompanhar-pedido
+            preset: reels-9x16
+          - demo: 44-kds-garcom-sincronizacao
+            preset: landscape-16x9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure capture tools
+        shell: bash
+        run: |
+          set -e
+          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v xvfb-run >/dev/null 2>&1; then
+            timeout 120s sudo apt-get update -y
+            timeout 120s sudo apt-get install -y ffmpeg xvfb
+          fi
+      - name: Capture corrected tutorial
+        shell: bash
+        env:
+          DEMO: ${{ matrix.demo }}
+          PRESET: ${{ matrix.preset }}
+        run: |
+          rm -rf "qa-artifacts-${DEMO}" tutorial-output
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo "${DEMO}" \
+            --profile tutorials-food \
+            --preset "${PRESET}" \
+            --environment food-ci \
+            --output "qa-artifacts-${DEMO}"
+          RAW="$(find "qa-artifacts-${DEMO}" -name demo-video.mp4 -print -quit)"
+          test -n "$RAW"
+          mkdir -p tutorial-output
+          npm run qa:tutorials:edit -- \
+            --tutorial "${DEMO}" \
+            --input "$RAW" \
+            --output "tutorial-output/${DEMO}.mp4"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile-format-${{ matrix.demo }}
+          path: tutorial-output/${{ matrix.demo }}.mp4
+          if-no-files-found: error
+          retention-days: 14
