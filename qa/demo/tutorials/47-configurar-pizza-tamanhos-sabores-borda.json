@@ -1,6 +1,6 @@
 {
   "name": "47-configurar-pizza-tamanhos-sabores-borda",
-  "title": "Configurar tamanhos, sabores e borda da pizza",
+  "title": "Criar a ficha técnica do sabor Calabresa",
   "metadata": {
     "qaAutoAdmin": true
   },
@@ -13,7 +13,7 @@
     {
       "action": "capability",
       "name": "tutorial.food.setup",
-      "scenario": "pizza-config"
+      "scenario": "pizza-recipe"
     },
     {
       "action": "waitFor",
@@ -25,222 +25,195 @@
     },
     {
       "action": "click",
-      "selector": "[data-route='FOOD']",
-      "name": "abrir-alimentacao",
-      "holdMs": 90
-    },
-    {
-      "action": "click",
-      "selector": "[data-food-capability='PIZZERIA']",
-      "name": "abrir-pizzaria",
-      "holdMs": 150
-    },
-    {
-      "action": "waitFor",
-      "selector": "#pizza-profile-form",
-      "name": "pizzaria-pronta",
-      "state": "visible",
-      "timeoutMs": 15000,
-      "holdMs": 80
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-profile-form select[name='productId']",
-      "name": "produto-base",
-      "value": "tutorial-pizza-main",
-      "holdMs": 70
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-profile-form select[name='pricingPolicy']",
-      "name": "regra-preco",
-      "value": "HIGHEST_FLAVOR",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-cadastros",
       "holdMs": 60
     },
     {
       "action": "click",
-      "selector": "#pizza-profile-form button[type='submit']",
-      "name": "salvar-politica",
-      "holdMs": 240
+      "selector": "button[data-flow-route='inventory']",
+      "name": "abrir-estoque",
+      "holdMs": 80
+    },
+    {
+      "action": "waitFor",
+      "selector": "#inventory-master-actions",
+      "name": "estoque-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "click",
+      "selector": "#inventory-new-recipe",
+      "name": "nova-ficha-sabor",
+      "holdMs": 80
+    },
+    {
+      "action": "waitFor",
+      "selector": "#recipe-product-form",
+      "name": "form-sabor",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='name']",
+      "name": "nome-sabor",
+      "value": "Sabor Calabresa",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='sku']",
+      "name": "sku-sabor",
+      "value": "PIZ-FL-CAL",
+      "holdMs": 35
+    },
+    {
+      "action": "selectOption",
+      "selector": "#recipe-product-form select[name='categoryId']",
+      "name": "categoria-pizzas",
+      "value": "tutorial-cat-pizzas",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-sale-price",
+      "name": "preco-interno",
+      "value": "0,00",
+      "holdMs": 30
+    },
+    {
+      "action": "selectOption",
+      "selector": "#recipe-product-form select[name='productionDestination']",
+      "name": "destino-interno",
+      "value": "DIRECT",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='yieldQuantity']",
+      "name": "rendimento",
+      "value": "1",
+      "holdMs": 30
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='portionQuantity']",
+      "name": "porcao",
+      "value": "1",
+      "holdMs": 30
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "adicionar-mussarela",
+      "holdMs": 30
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='0'] [data-recipe-product]",
+      "name": "selecionar-mussarela",
+      "value": "tutorial-pizza-mozzarella",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='0'] [data-recipe-quantity]",
+      "name": "quantidade-mussarela",
+      "value": "0.2",
+      "holdMs": 30
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "adicionar-calabresa",
+      "holdMs": 30
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='1'] [data-recipe-product]",
+      "name": "selecionar-calabresa",
+      "value": "tutorial-pizza-calabresa",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='1'] [data-recipe-quantity]",
+      "name": "quantidade-calabresa",
+      "value": "0.15",
+      "holdMs": 30
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "adicionar-cebola",
+      "holdMs": 30
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='2'] [data-recipe-product]",
+      "name": "selecionar-cebola",
+      "value": "tutorial-pizza-onion",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='2'] [data-recipe-quantity]",
+      "name": "quantidade-cebola",
+      "value": "0.05",
+      "holdMs": 30
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "adicionar-oregano",
+      "holdMs": 30
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='3'] [data-recipe-product]",
+      "name": "selecionar-oregano",
+      "value": "tutorial-pizza-oregano",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='3'] [data-recipe-quantity]",
+      "name": "quantidade-oregano",
+      "value": "0.002",
+      "holdMs": 30
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form textarea[name='preparationNotes']",
+      "name": "preparo-sabor",
+      "value": "Distribuir mussarela, calabresa e cebola; finalizar com orégano.",
+      "holdMs": 45
     },
     {
       "action": "expectText",
-      "selector": "#toast-root",
-      "name": "politica-salva",
-      "expected": "Política da pizza salva",
+      "selector": ".recipe-summary-grid",
+      "name": "custo-sabor",
+      "expected": "Custo / porção",
       "timeoutMs": 10000,
       "holdMs": 120
     },
     {
-      "action": "selectOption",
-      "selector": "#pizza-size-form select[name='productId']",
-      "name": "pizza-tamanho-produto",
-      "value": "tutorial-pizza-main",
-      "holdMs": 40
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-size-form input[name='name']",
-      "name": "tamanho-grande",
-      "value": "Grande",
-      "holdMs": 50
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-size-form input[name='maxFlavors']",
-      "name": "ate-dois-sabores",
-      "value": "2",
-      "holdMs": 40
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-size-form input[name='priceDelta']",
-      "name": "acrescimo-tamanho",
-      "value": "5,00",
-      "holdMs": 40
-    },
-    {
       "action": "click",
-      "selector": "#pizza-size-form button[type='submit']",
-      "name": "salvar-tamanho",
-      "holdMs": 200
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-flavor-form select[name='productId']",
-      "name": "pizza-sabor-produto-1",
-      "value": "tutorial-pizza-main",
-      "holdMs": 40
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-flavor-form input[name='name']",
-      "name": "sabor-calabresa",
-      "value": "Calabresa",
-      "holdMs": 50
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-flavor-form input[name='priceDelta']",
-      "name": "acrescimo-calabresa",
-      "value": "4,00",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#pizza-flavor-form button[type='submit']",
-      "name": "salvar-calabresa",
-      "holdMs": 180
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-flavor-form input[name='name']",
-      "name": "sabor-marguerita",
-      "value": "Marguerita",
-      "holdMs": 50
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-flavor-form input[name='priceDelta']",
-      "name": "acrescimo-marguerita",
-      "value": "2,00",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#pizza-flavor-form button[type='submit']",
-      "name": "salvar-marguerita",
-      "holdMs": 180
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-crust-form select[name='productId']",
-      "name": "pizza-borda-produto",
-      "value": "tutorial-pizza-main",
-      "holdMs": 40
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-crust-form input[name='name']",
-      "name": "borda-catupiry",
-      "value": "Catupiry",
-      "holdMs": 50
-    },
-    {
-      "action": "fill",
-      "selector": "#pizza-crust-form input[name='priceDelta']",
-      "name": "acrescimo-borda",
-      "value": "6,00",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#pizza-crust-form button[type='submit']",
-      "name": "salvar-borda",
-      "holdMs": 240
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-price-form select[name='productId']",
-      "name": "simular-pizza",
-      "value": "tutorial-pizza-main",
-      "holdMs": 160
-    },
-    {
-      "action": "waitFor",
-      "selector": "#pizza-price-form select[name='sizeId']",
-      "name": "opcoes-carregadas",
-      "state": "visible",
-      "timeoutMs": 10000,
-      "holdMs": 80
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-price-form select[name='sizeId']",
-      "name": "escolher-grande",
-      "optionLabel": "Grande",
-      "holdMs": 70
-    },
-    {
-      "action": "check",
-      "selector": "#pizza-price-form label:has-text('Calabresa') input[name='flavorId']",
-      "name": "escolher-calabresa",
-      "holdMs": 60
-    },
-    {
-      "action": "check",
-      "selector": "#pizza-price-form label:has-text('Marguerita') input[name='flavorId']",
-      "name": "escolher-marguerita",
-      "holdMs": 60
-    },
-    {
-      "action": "selectOption",
-      "selector": "#pizza-price-form select[name='crustId']",
-      "name": "escolher-catupiry",
-      "optionLabel": "Catupiry",
-      "holdMs": 100
-    },
-    {
-      "action": "click",
-      "selector": "#pizza-price-form button[type='submit']",
-      "name": "calcular-preco",
-      "holdMs": 250
+      "selector": "#recipe-product-form button[type='submit']",
+      "name": "salvar-sabor",
+      "holdMs": 400
     },
     {
       "action": "expectText",
-      "selector": "#pizza-price-output",
-      "name": "preco-calculado",
-      "expected": "Preço calculado",
-      "timeoutMs": 10000,
-      "holdMs": 600
-    },
-    {
-      "action": "expectText",
-      "selector": "#pizza-price-output",
-      "name": "preco-final-pizza",
-      "expected": "45,00",
-      "timeoutMs": 10000,
-      "holdMs": 600
+      "selector": "#inventory-recipes-card",
+      "name": "sabor-salvo",
+      "expected": "Sabor Calabresa",
+      "timeoutMs": 15000,
+      "holdMs": 350
     }
   ]
 }
