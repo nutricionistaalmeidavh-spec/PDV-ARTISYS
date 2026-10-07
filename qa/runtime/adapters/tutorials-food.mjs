@@ -6,6 +6,12 @@ async function setupFood(page,scenario,runtimeContext){
     const operatorId=current?.user?.id||current?.userId||'qa-admin';
     const req=(path,options={})=>api.request(path,options);
     await api.setModule('FOOD',true);
+    if(scenario==='qr'){
+      try{
+        const server=await window.artisysDesktop.dataServer.state();
+        await window.artisysDesktop.dataServer.save({mode:'lan-host',host:'127.0.0.1',port:Number(server?.port||4174)},api.sessionToken);
+      }catch{}
+    }
 
     async function product(input){
       return api.saveProduct({categoryId:null,unit:'UN',minimumStock:0,active:true,...input});
