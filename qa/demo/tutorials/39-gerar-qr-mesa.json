@@ -1,0 +1,68 @@
+{
+  "name": "39-gerar-qr-mesa",
+  "title": "Gerar QR Code da mesa",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "qr"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "abrir-alimentacao",
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "abrir-mesas",
+      "holdMs": 400
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-public-ordering-panel]",
+      "name": "qr-painel-pronto",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-table-qr='tutorial-table-08']",
+      "name": "abrir-qr-mesa",
+      "holdMs": 600
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".public-qr-preview",
+      "name": "qr-visivel",
+      "timeoutMs": 10000,
+      "holdMs": 500
+    },
+    {
+      "action": "expectText",
+      "selector": ".public-qr-modal",
+      "name": "qr-mesa-correta",
+      "expected": "Mesa 08 · QR da mesa",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    }
+  ]
+}
