@@ -1,0 +1,63 @@
+{
+  "name": "11-sangria-suprimento",
+  "title": "Fazer sangria ou suprimento",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "cash-movements"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-tela-caixa",
+      "holdMs": 700
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.cashPromptAction",
+      "cashAction": "supply",
+      "responses": [
+        "20,00",
+        "Reforço tutorial"
+      ],
+      "waitMs": 700,
+      "holdMs": 500
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.cashPromptAction",
+      "cashAction": "withdraw",
+      "responses": [
+        "10,00",
+        "Sangria tutorial"
+      ],
+      "waitMs": 700,
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "movimentos-registrados",
+      "expected": "SUPPLY",
+      "timeoutMs": 10000,
+      "holdMs": 1000
+    }
+  ]
+}
