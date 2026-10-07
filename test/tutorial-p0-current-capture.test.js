@@ -34,7 +34,7 @@ test('cash tutorials use ArtiSys dialogs and verify the live expected balance',(
   const combined=JSON.stringify([supply,close]);
   assert.match(combined,/\.ux-dialog/);
   assert.doesNotMatch(combined,/tutorial\.cashPromptAction|prompt\(/);
-  assert.ok(supply.steps.some(step=>step.expected==='R$ 120,00'));
-  assert.ok(supply.steps.some(step=>step.expected==='R$ 110,00'));
+  assert.ok(supply.steps.some(step=>step.expected==='120,00'));
+  assert.ok(supply.steps.some(step=>step.expected==='110,00'));
   assert.ok(close.steps.some(step=>step.selector==='.ux-dialog .ux-dialog__confirm'));
 });
