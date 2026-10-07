@@ -96,3 +96,12 @@ test('other operational prompt replacements still call their canonical mutation 
   assert.match(operational,/title:'Registrar pagamento de comissão'/);
   assert.match(operational,/onConfirm:data=>api\.payCommission\(/);
 });
+
+
+test('cash page localizes movement and payment method codes before rendering',()=>{
+  const operational=read('desktop/renderer/operational-pages.js');
+  assert.match(operational,/const CASH_MOVEMENT_LABELS=Object\.freeze\(\{[^}]*OPENING:'Abertura'[^}]*SUPPLY:'Suprimento'[^}]*WITHDRAWAL:'Sangria'[^}]*SALE:'Venda'[^}]*REVERSAL:'Estorno \/ devolução'/s);
+  assert.match(operational,/const CASH_PAYMENT_LABELS=Object\.freeze\(\{[^}]*CASH:'Dinheiro'[^}]*PIX:'PIX'[^}]*DEBIT_CARD:'Cartão de débito'[^}]*CREDIT_CARD:'Cartão de crédito'/s);
+  assert.match(operational,/cashMovementLabel\(row\.type\)/);
+  assert.match(operational,/cashPaymentLabel\(row\.paymentMethod\)/);
+});
