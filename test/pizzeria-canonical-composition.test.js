@@ -74,6 +74,15 @@ test('server pricing snapshots display label and exact proportional stock requir
   }finally{rt.close();}
 });
 
+test('configured pizza stock snapshot survives canonical order item payload',()=>{
+  const rt=setup();
+  try{
+    const priced=rt.pizzeria.priceOrderItem({productId:'pizza',pizza:{sizeId:'large',flavorIds:['cal','mar'],crustId:'cat'}});
+    assert.deepEqual(priced.configurationSnapshot.stockItems,priced.configurationSnapshot.pizza.stockItems);
+    assert.equal(priced.configurationSnapshot.pizza.displayLabel,'Grande · ½ Calabresa + ½ Marguerita · Borda Catupiry');
+  }finally{rt.close();}
+});
+
 test('completed configured pizza sale consumes canonical stock exactly once',async()=>{
   const rt=setup();
   try{
