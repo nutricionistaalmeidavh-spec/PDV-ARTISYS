@@ -66,6 +66,7 @@ const { createRestaurantReportingService }=require('../domains/restaurant/restau
 const { createPublicOrderingService }=require('../domains/restaurant/public-ordering');
 const { registerRestaurantEffects }=require('../domains/restaurant/restaurant-effects');
 const { createPizzeriaService }=require('../domains/pizzeria/pizzeria-service');
+const { runPizzaCanonicalMigrations }=require('./database/pizza-canonical-migrations');
 const { createDeliveryService }=require('../domains/delivery/delivery-service');
 const { createFastFoodService }=require('../domains/fast-food/fast-food-service');
 const { createMarketBakeryService }=require('../domains/market-bakery/market-bakery-service');
@@ -98,7 +99,7 @@ function createPdvRuntime({
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runHardwareMigrations(db,now);runSaleObservationMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
-  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);runCustomerOrderingMigrations(db,now);
+  runSalesEnhancementMigrations(db,now);runCommercialMediaMigrations(db,now);runIntegrityMigrations(db,now);runRestaurantFlowMigrations(db,now);runAccountIdentityMigrations(db,now);runAccessProfileMigrations(db,now);runDeviceAccessMigrations(db,now);runAccessCapabilityMigrations(db,now);runProductionOperationsMigrations(db,now);runDeploymentCapabilityMigrations(db,now);runFoodOrderMigrations(db,now);runCanonicalAccessMigrations(db,now);runCustomerOrderingMigrations(db,now);runPizzaCanonicalMigrations(db,now);
   let deviceAccess=null;
   const profilePermissionResolver=createProfilePermissionResolver({db});
   const resolvePermissions=principal=>{
