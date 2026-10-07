@@ -1087,6 +1087,276 @@
           "text": "Configuração atualizada"
         }
       ]
+    },
+    {
+      "id": "37-criar-ficha-tecnica",
+      "title": "Criar e preencher ficha técnica",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 30,
+      "goal": "Cadastrar um item preparado com rendimento, insumos, custo e destino de produção.",
+      "success": "Ficha técnica fica salva com custo por porção calculado.",
+      "outputFile": "37-criar-ficha-tecnica.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Crie a ficha técnica do item preparado"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 8,
+          "toSec": 12,
+          "text": "Informe rendimento, insumos e destino KDS"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Custo por porção e ficha ficam salvos"
+        }
+      ]
+    },
+    {
+      "id": "38-escolher-aparencia-cardapio",
+      "title": "Escolher aparência do cardápio digital",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 22,
+      "goal": "Alternar entre os modelos Compacto e Visual gastronômico do cardápio QR.",
+      "success": "A aparência escolhida fica aplicada ao cardápio do cliente.",
+      "outputFile": "38-escolher-aparencia-cardapio.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.2,
+          "text": "Escolha o visual do cardápio digital"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 10,
+          "text": "Compare Compacto e Visual gastronômico"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 19,
+          "toSec": 22,
+          "text": "A aparência é aplicada ao mesmo cardápio"
+        }
+      ]
+    },
+    {
+      "id": "39-gerar-qr-mesa",
+      "title": "Gerar QR Code da mesa",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 22,
+      "goal": "Abrir o QR exclusivo de uma mesa para acesso ao cardápio digital.",
+      "success": "QR e endereço da mesa ficam disponíveis para uso.",
+      "outputFile": "39-gerar-qr-mesa.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.2,
+          "text": "Gere o QR exclusivo de cada mesa"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 10,
+          "text": "Abra o QR da mesa cadastrada"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 19,
+          "toSec": 22,
+          "text": "Cliente acessa sem login ou chave"
+        }
+      ]
+    },
+    {
+      "id": "40-cliente-fazer-pedido-qr",
+      "title": "Cliente fazer pedido pelo QR",
+      "phase": "P0",
+      "audience": "todos",
+      "durationTargetSec": 28,
+      "goal": "Mostrar o cliente abrindo o cardápio, adicionando um item e enviando o pedido.",
+      "success": "Pedido fica confirmado na comanda e enviado à produção.",
+      "outputFile": "40-cliente-fazer-pedido-qr.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Cliente abre o cardápio pelo QR"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 8,
+          "toSec": 12,
+          "text": "Adicione o item e revise o carrinho"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 25,
+          "toSec": 28,
+          "text": "Pedido confirmado e enviado para a cozinha"
+        }
+      ]
+    },
+    {
+      "id": "41-abrir-mesa-comanda",
+      "title": "Abrir mesa e iniciar comanda",
+      "phase": "P0",
+      "audience": "operador-admin",
+      "durationTargetSec": 24,
+      "goal": "Abrir uma mesa livre e iniciar o atendimento com responsável e pessoas.",
+      "success": "Mesa fica ocupada com comanda ativa.",
+      "outputFile": "41-abrir-mesa-comanda.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.2,
+          "text": "Abra a mesa e inicie a comanda"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 10,
+          "text": "Defina pessoas e responsável"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 21,
+          "toSec": 24,
+          "text": "Comanda ativa e pronta para pedidos"
+        }
+      ]
+    },
+    {
+      "id": "42-garcom-acompanhar-pedido",
+      "title": "Garçom acompanhar pedido da mesa",
+      "phase": "P0",
+      "audience": "operador",
+      "durationTargetSec": 26,
+      "goal": "Mostrar o garçom no celular abrindo a mesa e acompanhando os pedidos lançados.",
+      "success": "Garçom visualiza itens e estado de produção da comanda.",
+      "outputFile": "42-garcom-acompanhar-pedido.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.2,
+          "text": "Garçom vê o salão e as mesas em atendimento"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 8,
+          "toSec": 11,
+          "text": "Abra a mesa e consulte a comanda"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 23,
+          "toSec": 26,
+          "text": "Itens e produção ficam visíveis no celular"
+        }
+      ]
+    },
+    {
+      "id": "43-kds-preparar-pedido",
+      "title": "KDS receber e preparar pedido",
+      "phase": "P0",
+      "audience": "operador",
+      "durationTargetSec": 26,
+      "goal": "Mostrar o KDS recebendo um pedido e avançando de novo para em preparo.",
+      "success": "Ticket entra no KDS e passa para Preparando.",
+      "outputFile": "43-kds-preparar-pedido.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.2,
+          "text": "Pedido chega automaticamente ao KDS"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 8,
+          "toSec": 11,
+          "text": "Inicie o preparo no painel da cozinha"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 23,
+          "toSec": 26,
+          "text": "Status muda para Preparando"
+        }
+      ]
+    },
+    {
+      "id": "44-kds-garcom-sincronizacao",
+      "title": "Atualização entre KDS e garçom",
+      "phase": "P0",
+      "audience": "operador",
+      "durationTargetSec": 30,
+      "goal": "Mostrar o KDS marcando um pedido pronto e o garçom recebendo o novo estado.",
+      "success": "Mesa e comanda do garçom refletem Pedido pronto.",
+      "outputFile": "44-kds-garcom-sincronizacao.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "KDS e garçom compartilham o mesmo pedido"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 9,
+          "toSec": 13,
+          "text": "Cozinha marca o ticket como pronto"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Garçom recebe Pedido pronto na mesa"
+        }
+      ]
+    },
+    {
+      "id": "45-levar-comanda-caixa-pagar",
+      "title": "Levar comanda ao caixa e pagar",
+      "phase": "P0",
+      "audience": "operador",
+      "durationTargetSec": 30,
+      "goal": "Levar a comanda ativa ao Balcão, receber o pagamento e encerrar a mesa.",
+      "success": "Venda é concluída e a mesa volta a ficar livre.",
+      "outputFile": "45-levar-comanda-caixa-pagar.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Leve a comanda para o caixa sem redigitar"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 9,
+          "toSec": 13,
+          "text": "Confira os itens e registre o pagamento"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Venda concluída e mesa liberada"
+        }
+      ]
     }
   ]
 }
