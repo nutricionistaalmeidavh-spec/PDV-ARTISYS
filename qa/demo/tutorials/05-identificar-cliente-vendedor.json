@@ -1,0 +1,67 @@
+{
+  "name": "05-identificar-cliente-vendedor",
+  "title": "Identificar cliente e vendedor",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "base"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "abrir-balcao",
+      "holdMs": 600
+    },
+    {
+      "action": "fill",
+      "selector": "#customer-search",
+      "name": "buscar-cliente",
+      "value": "Cliente Tutorial",
+      "holdMs": 600
+    },
+    {
+      "action": "click",
+      "selector": "[data-customer-id='tutorial-customer']",
+      "name": "selecionar-cliente",
+      "holdMs": 700
+    },
+    {
+      "action": "focus",
+      "selector": "#seller-select",
+      "name": "conferir-vendedor",
+      "holdMs": 700
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#seller-select",
+      "name": "vendedor-visivel",
+      "timeoutMs": 10000,
+      "holdMs": 500
+    },
+    {
+      "action": "expectText",
+      "selector": ".customer-selected",
+      "name": "cliente-identificado",
+      "expected": "Cliente Tutorial",
+      "timeoutMs": 10000,
+      "holdMs": 900
+    }
+  ]
+}
