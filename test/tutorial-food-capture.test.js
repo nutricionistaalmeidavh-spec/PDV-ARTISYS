@@ -148,3 +148,23 @@ test('pizza tutorials teach base recipe, flavor recipe, canonical configuration,
   assert.match(finishText,/data-checkout/);
   assert.match(finishText,/confirm-payment/);
 });
+
+
+test('PWA recordings start only after navigation reaches the mobile surface',()=>{
+  for(const id of ['40-cliente-fazer-pedido-qr','42-garcom-acompanhar-pedido','43-kds-preparar-pedido','44-kds-garcom-sincronizacao','49-garcom-pedir-pizza','50-cliente-pedir-pizza-qr']){
+    const flow=json(`qa/demo/tutorials/${id}.json`);
+    const gotoIndex=flow.steps.findIndex(step=>step.action==='goto');
+    const readyIndex=flow.steps.findIndex(step=>step.name==='app-ready');
+    assert.ok(gotoIndex>=0,id);
+    assert.ok(readyIndex>gotoIndex,`${id}: app-ready must happen after mobile navigation so recording cannot die mid-navigation`);
+  }
+});
+
+test('photo tutorials assert the current canonical product row instead of obsolete table markup',()=>{
+  for(const id of ['37-criar-ficha-tecnica','46-criar-ficha-tecnica-pizza-calabresa']){
+    const flow=json(`qa/demo/tutorials/${id}.json`);
+    const photo=flow.steps.find(step=>step.name==='foto-anexada');
+    assert.match(photo?.selector||'',/\.data-row/);
+    assert.doesNotMatch(photo?.selector||'',/^tr:/);
+  }
+});
