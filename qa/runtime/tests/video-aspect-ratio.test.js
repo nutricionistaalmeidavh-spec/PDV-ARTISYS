@@ -39,3 +39,15 @@ test('frame recorder survives one transient screenshot failure and keeps recordi
     await fs.rm(dir,{recursive:true,force:true});
   }
 });
+
+
+test('frame sequence rounds odd capture canvas dimensions up for yuv420 video',()=>{
+  const args=buildFrameSequenceArgs('/tmp/%06d.png','/tmp/out.mp4',{
+    effectiveFps:8,
+    canvasWidth:412,
+    canvasHeight:915
+  });
+  const vf=args[args.indexOf('-vf')+1];
+  assert.match(vf,/scale=412:916:force_original_aspect_ratio=decrease/);
+  assert.match(vf,/pad=412:916:\(ow-iw\)\/2:\(oh-ih\)\/2:black/);
+});
