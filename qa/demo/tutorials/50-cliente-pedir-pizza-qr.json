@@ -1,0 +1,172 @@
+{
+  "name": "50-cliente-pedir-pizza-qr",
+  "title": "Cliente pedir uma pizza pelo QR",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "pizza-qr"
+    },
+    {
+      "action": "setViewportSize",
+      "width": 412,
+      "height": 915,
+      "name": "viewport-cliente"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 50
+    },
+    {
+      "action": "goto",
+      "urlFrom": "foodMenuUrl",
+      "name": "abrir-cardapio"
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-badge",
+      "name": "mesa",
+      "expected": "Mesa 08",
+      "timeoutMs": 15000,
+      "holdMs": 60
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".product-card.has-photo:has-text('Pizza Artesanal')",
+      "name": "pizza-com-foto",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": ".product-card:has-text('Pizza Artesanal') .add-button",
+      "name": "escolher-pizza",
+      "holdMs": 100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#product-dialog",
+      "name": "product-dialog",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "check",
+      "selector": "#product-form input[value='tutorial-pizza-size-grande']",
+      "name": "grande",
+      "holdMs": 35
+    },
+    {
+      "action": "check",
+      "selector": "#product-form input[value='tutorial-pizza-flavor-cal']",
+      "name": "calabresa",
+      "holdMs": 35
+    },
+    {
+      "action": "check",
+      "selector": "#product-form input[value='tutorial-pizza-flavor-mar']",
+      "name": "marguerita",
+      "holdMs": 35
+    },
+    {
+      "action": "check",
+      "selector": "#product-form input[value='tutorial-pizza-crust-cat']",
+      "name": "catupiry",
+      "holdMs": 35
+    },
+    {
+      "action": "expectText",
+      "selector": "#product-form [data-draft-price]",
+      "name": "preco-previa",
+      "expected": "50,00",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "#product-form button[type='submit']",
+      "name": "adicionar-pedido",
+      "holdMs": 120
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#cart-rail:not(.hidden)",
+      "name": "carrinho",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "click",
+      "selector": "#review-cart",
+      "name": "revisar",
+      "holdMs": 90
+    },
+    {
+      "action": "expectText",
+      "selector": "#cart-dialog",
+      "name": "total-revisao",
+      "expected": "50,00",
+      "timeoutMs": 10000,
+      "holdMs": 90
+    },
+    {
+      "action": "click",
+      "selector": "#send-order",
+      "name": "Enviar para a cozinha",
+      "holdMs": 300
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast",
+      "name": "confirmado",
+      "expected": "Pedido confirmado e enviado para a cozinha",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-orders",
+      "name": "pedido-grande",
+      "expected": "Grande",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-orders",
+      "name": "meia-calabresa",
+      "expected": "½ Calabresa",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-orders",
+      "name": "meia-marguerita",
+      "expected": "½ Marguerita",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-orders",
+      "name": "borda",
+      "expected": "Borda Catupiry",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    }
+  ]
+}
