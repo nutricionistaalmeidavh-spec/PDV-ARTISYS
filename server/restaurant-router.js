@@ -41,15 +41,25 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
 
   function prepareMenuItems(items=[]){
     return requireMenuItems(items).map(item=>{
-      const configured=Boolean(item.variantId)||(Array.isArray(item.selections)&&item.selections.length)||(Array.isArray(item.comboSelections)&&item.comboSelections.length);
-      if(!configured)return item;
-      const pricing=runtime.catalogCustomization.priceConfiguredItem({
-        productId:item.productId,
-        variantId:item.variantId||undefined,
-        selections:Array.isArray(item.selections)?item.selections:[],
-        comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[]
-      });
-      return{...item,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot};
+      let pricing=null;
+      if(item.pizza){
+        pricing=runtime.pizzeria.pricePizza({
+          productId:item.productId,
+          sizeId:item.pizza.sizeId,
+          flavorIds:Array.isArray(item.pizza.flavorIds)?item.pizza.flavorIds:[],
+          crustId:item.pizza.crustId||null,
+          selections:Array.isArray(item.pizza.selections)?item.pizza.selections:[]
+        });
+      }else{
+        const configured=Boolean(item.variantId)||(Array.isArray(item.selections)&&item.selections.length)||(Array.isArray(item.comboSelections)&&item.comboSelections.length);
+        if(configured)pricing=runtime.catalogCustomization.priceConfiguredItem({
+          productId:item.productId,
+          variantId:item.variantId||undefined,
+          selections:Array.isArray(item.selections)?item.selections:[],
+          comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[]
+        });
+      }
+      return pricing?{...item,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot}:item;
     });
   }
 
@@ -73,8 +83,13 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   }
 
   function serveMobile(pathname,response){
-    if(pathname==='/mobile/order-composer.js'){
-      const full=path.join(__dirname,'..','shared','order-composer.js');if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
+    const sharedScripts={
+      '/mobile/order-composer.js':'order-composer.js',
+      '/mobile/pizza-domain.js':'pizza-domain.js',
+      '/mobile/pizza-composer.js':'pizza-composer.js'
+    };
+    if(sharedScripts[pathname]){
+      const full=path.join(__dirname,'..','shared',sharedScripts[pathname]);if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
       text(response,200,fs.readFileSync(full,'utf8'),'application/javascript; charset=utf-8');return true;
     }
     const files={'/mobile':'index.html','/mobile/':'index.html','/mobile/index.html':'index.html','/mobile/app.js':'app.js','/mobile/styles.css':'styles.css'};
@@ -87,6 +102,9 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   async function mobileRoute(request,response,url,pathname){
     if(!pathname.startsWith('/api/v1/mobile/'))return false;
     if(request.method==='GET'&&pathname==='/api/v1/mobile/health'){json(response,200,{ok:true,localOnly:true});return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/mobile/pizza/price'){
+      mobilePrincipal(request,['WAITER']);requireRestaurantEnabled();json(response,200,runtime.pizzeria.pricePizza(await body(request)));return true;
+    }
     const principal=mobilePrincipal(request);
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
@@ -149,7 +167,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const sessionDetails=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/details$/);
     if(request.method==='PATCH'&&sessionDetails){const data=await body(request);json(response,200,runtime.restaurant.updateSessionDetails(decodeURIComponent(sessionDetails[1]),{partySize:data.partySize,customerId:data.customerId},actor));return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
-    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:requireMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:prepareMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&transfer){const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(transfer[1]),data.targetTableId,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const checkout=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/checkout$/);
