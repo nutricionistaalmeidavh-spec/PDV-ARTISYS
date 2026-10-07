@@ -224,7 +224,7 @@
     },
     {
       "action": "expectText",
-      "selector": "tr:has-text('Pizza Artesanal') [data-product-photo-edit]",
+      "selector": ".data-row:has-text('Pizza Artesanal') [data-product-photo-edit]",
       "name": "foto-anexada",
       "expected": "Trocar foto",
       "timeoutMs": 10000,
