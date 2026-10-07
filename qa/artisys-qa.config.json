@@ -48,7 +48,8 @@
         "ARTISYS_QA_NO_PRINTERS": "1",
         "PDV_ENABLE_LAN": "true",
         "PDV_AUTO_PRINT": "false",
-        "PDV_REQUIRE_COMMERCIAL_ACTIVATION": "false"
+        "PDV_REQUIRE_COMMERCIAL_ACTIVATION": "false",
+        "ARTISYS_QA_LAN_HOST": "1"
       }
     }
   },
@@ -370,5 +371,6 @@
       "durationTargetSec": 30,
       "profile": "tutorials-food"
     }
-  }
+  },
+  "launchTimeoutMs": 60000
 }
