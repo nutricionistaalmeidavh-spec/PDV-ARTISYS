@@ -7,9 +7,8 @@ const { execFileSync } = require('node:child_process');
 const { VERTICAL_SCHEMA_VERSION } = require('../js/core/database/vertical-migrations');
 const { HARDWARE_SCHEMA_VERSION } = require('../js/core/database/hardware-migrations');
 const { SALE_OBSERVATION_SCHEMA_VERSION } = require('../js/core/database/sale-observation-migrations');
-const { PIZZERIA_CANONICAL_SCHEMA_VERSION } = require('../js/core/database/pizzeria-canonical-migrations');
 
-const CURRENT_SCHEMA_VERSION = Math.max(VERTICAL_SCHEMA_VERSION, HARDWARE_SCHEMA_VERSION, SALE_OBSERVATION_SCHEMA_VERSION, PIZZERIA_CANONICAL_SCHEMA_VERSION);
+const CURRENT_SCHEMA_VERSION = Math.max(VERTICAL_SCHEMA_VERSION, HARDWARE_SCHEMA_VERSION, SALE_OBSERVATION_SCHEMA_VERSION);
 
 function sha256File(filePath) {
   const hash = createHash('sha256');
