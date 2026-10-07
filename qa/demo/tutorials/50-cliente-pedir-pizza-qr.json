@@ -22,17 +22,17 @@
       "name": "viewport-cliente"
     },
     {
-      "action": "waitFor",
-      "selector": "#app-topbar",
-      "name": "app-ready",
-      "state": "visible",
-      "timeoutMs": 15000,
-      "holdMs": 50
-    },
-    {
       "action": "goto",
       "urlFrom": "foodMenuUrl",
       "name": "abrir-cardapio"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#table-badge",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 80
     },
     {
       "action": "expectText",
