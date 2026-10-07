@@ -101,6 +101,12 @@
       "holdMs": 250
     },
     {
+      "action": "setViewportSize",
+      "width": 1100,
+      "height": 720,
+      "name": "viewport-kds"
+    },
+    {
       "action": "fill",
       "selector": "#login input[name='id']",
       "name": "id-kds",
@@ -156,6 +162,12 @@
       "selector": "#logout",
       "name": "sair-kds",
       "holdMs": 250
+    },
+    {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-retorno-garcom"
     },
     {
       "action": "fill",
