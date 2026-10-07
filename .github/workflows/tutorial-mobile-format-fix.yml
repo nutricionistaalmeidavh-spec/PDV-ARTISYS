@@ -64,8 +64,8 @@ jobs:
         run: |
           set -e
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v xvfb-run >/dev/null 2>&1; then
-            timeout 120s sudo apt-get update -y
-            timeout 120s sudo apt-get install -y ffmpeg xvfb
+            timeout 300s sudo apt-get update -y
+            timeout 300s sudo apt-get install -y ffmpeg xvfb
           fi
       - name: Capture corrected tutorial
         shell: bash
