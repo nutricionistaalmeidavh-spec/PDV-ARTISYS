@@ -55,33 +55,29 @@ function seedPizza(rt){
 
   const station=rt.kitchen.upsertStation({id:'cozinha-pizza',name:'Cozinha Pizza',printEnabled:false},admin);
   rt.kitchen.configureProductRoute('pizza',{mode:'PRODUCTION',stationId:station.id},admin);
-  return {station};
 }
 
-function pizzaSelection(){
-  return {sizeId:'grande',flavorIds:['cal','mar'],crustId:'cat'};
+function genericSelection(){
+  return{variantId:'grande',selections:['cal','mar','cat'],comboSelections:[]};
 }
 
-test('pizza canonical snapshot freezes proportional stock requirements through KDS, checkout and sale completion',async()=>{
+test('canonical pizza pricing freezes proportional recipe consumption through KDS checkout and stock',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});
   try{
     seedPizza(rt);
-    const priced=rt.pizzeria.pricePizza({productId:'pizza',...pizzaSelection()});
+    const config=rt.orderConfiguration.getProductConfiguration('pizza');
+    assert.equal(config.configurationKind,'PIZZA');
+    assert.equal(config.variants[0].name,'Grande');
+    assert.equal(config.groups.find(group=>group.name==='Sabores').maxSelectionsByVariant.grande,2);
+
+    const priced=rt.orderConfiguration.priceConfiguredItem({productId:'pizza',...genericSelection()});
     assert.equal(priced.unitPriceCents,4500);
-    assert.equal(priced.configurationSnapshot.pizza.size.recipeMultiplier,1.5);
-    assert.deepEqual(
-      priced.configurationSnapshot.pizza.flavors.map(row=>[row.name,row.fraction]),
-      [['Calabresa',0.5],['Marguerita',0.5]]
-    );
+    assert.deepEqual(priced.configurationSnapshot.pizza.flavors.map(row=>[row.name,row.fraction]),[['Calabresa',0.5],['Marguerita',0.5]]);
     const stock=Object.fromEntries(priced.configurationSnapshot.pizza.stockItems.map(row=>[row.productId,row.quantity]));
-    assert.equal(stock['base-massa'],1.5);
-    assert.equal(stock['base-molho'],0.3);
-    assert.equal(stock.calabresa,0.15);
-    assert.equal(stock.cebola,0.0375);
-    assert.equal(stock.mussarela,0.15);
-    assert.equal(stock.tomate,0.075);
-    assert.equal(stock.manjericao,0.0075);
-    assert.equal(stock.catupiry,0.225);
+    assert.deepEqual(stock,{
+      'base-massa':1.5,'base-molho':0.3,calabresa:0.15,cebola:0.0375,
+      mussarela:0.15,tomate:0.075,manjericao:0.0075,catupiry:0.225
+    });
 
     rt.restaurant.upsertTable({id:'mesa-pizza',label:'Mesa Pizza'},admin);
     const session=rt.restaurant.openTable('mesa-pizza',{operatorId:admin.userId,actor:admin});
@@ -90,10 +86,10 @@ test('pizza canonical snapshot freezes proportional stock requirements through K
     }],actor:admin});
     assert.equal(order.items[0].configuration.pizza.size.name,'Grande');
 
-    const dispatch=await rt.dispatchPending();
-    assert.equal(dispatch.failures.length,0,JSON.stringify(dispatch.failures));
+    const dispatched=await rt.dispatchPending();
+    assert.equal(dispatched.failures.length,0,JSON.stringify(dispatched.failures));
     const ticket=rt.kitchen.listTickets().find(row=>row.orderId===order.id);
-    assert.equal(ticket.items[0].configuration.pizza.flavors[0].fraction,0.5);
+    assert.equal(ticket.items[0].configuration.pizza.crust.name,'Catupiry');
 
     const checkout=rt.restaurant.checkoutToSale(session.id,{terminalId:'PDV-01',operatorId:admin.userId,actor:admin},rt.sales);
     assert.equal(checkout.sale.totalCents,4500);
@@ -108,7 +104,7 @@ test('pizza canonical snapshot freezes proportional stock requirements through K
   }finally{rt.close();}
 });
 
-test('waiter and QR receive the same safe pizza model and server-authoritative price',async()=>{
+test('waiter and QR consume the same generic pizza configuration and ignore client price tampering',async()=>{
   const rt=createPdvRuntime({dbPath:':memory:'});let server;
   try{
     seedPizza(rt);
@@ -124,8 +120,9 @@ test('waiter and QR receive the same safe pizza model and server-authoritative p
     assert.equal(response.status,200);
     const context=await response.json();
     const waiterPizza=context.products.find(row=>row.id==='pizza');
-    assert.equal(waiterPizza.pizza.sizes[0].name,'Grande');
-    assert.deepEqual(waiterPizza.pizza.flavors.map(row=>row.name),['Calabresa','Marguerita']);
+    assert.equal(waiterPizza.configuration.configurationKind,'PIZZA');
+    assert.deepEqual(waiterPizza.configuration.variants.map(row=>row.name),['Grande']);
+    assert.deepEqual(waiterPizza.configuration.groups.find(row=>row.name==='Sabores').options.map(row=>row.name),['Calabresa','Marguerita']);
     assert.equal(JSON.stringify(waiterPizza).includes('recipeProductId'),false);
     assert.equal(JSON.stringify(waiterPizza).includes('stockItems'),false);
 
@@ -135,44 +132,29 @@ test('waiter and QR receive the same safe pizza model and server-authoritative p
     assert.equal(response.status,201);
     const session=await response.json();
 
-    response=await fetch(`${base}/api/v1/mobile/menu/price`,{
-      method:'POST',headers:waiterHeaders,
-      body:JSON.stringify({productId:'pizza',pizza:pizzaSelection(),unitPriceCents:1})
-    });
-    assert.equal(response.status,200);
-    const mobilePrice=await response.json();
-    assert.equal(mobilePrice.unitPriceCents,4500);
-
     response=await fetch(`${base}/api/v1/mobile/orders`,{
       method:'POST',headers:{...waiterHeaders,'x-mutation-id':'waiter-pizza-order'},
-      body:JSON.stringify({sessionId:session.id,items:[{productId:'pizza',quantity:1,pizza:pizzaSelection(),unitPriceCents:1}]})
+      body:JSON.stringify({sessionId:session.id,items:[{productId:'pizza',quantity:1,...genericSelection(),unitPriceCents:1}]})
     });
     assert.equal(response.status,201);
     const waiterOrder=(await response.json()).order;
     assert.equal(waiterOrder.totalCents,4500);
-    assert.equal(waiterOrder.items[0].configuration.pizza.crust.name,'Catupiry');
+    assert.equal(waiterOrder.items[0].configuration.pizza.size.name,'Grande');
 
     const access=rt.publicOrdering.issueTableAccess('qr-table',admin);
     response=await fetch(`${base}/api/v1/public/menu/${access.token}`);
     assert.equal(response.status,200);
     const publicContext=await response.json();
     const qrPizza=publicContext.products.find(row=>row.id==='pizza');
-    assert.deepEqual(qrPizza.pizza,waiterPizza.pizza);
-
-    response=await fetch(`${base}/api/v1/public/menu/${access.token}/price`,{
-      method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({productId:'pizza',pizza:pizzaSelection(),unitPriceCents:1})
-    });
-    assert.equal(response.status,200);
-    assert.equal((await response.json()).unitPriceCents,4500);
+    assert.deepEqual(qrPizza.configuration,waiterPizza.configuration);
 
     response=await fetch(`${base}/api/v1/public/menu/${access.token}/orders`,{
       method:'POST',headers:{'content-type':'application/json','x-mutation-id':'qr-pizza-order'},
-      body:JSON.stringify({items:[{productId:'pizza',quantity:1,pizza:pizzaSelection(),unitPriceCents:1}]})
+      body:JSON.stringify({items:[{productId:'pizza',quantity:1,...genericSelection(),unitPriceCents:1}]})
     });
     assert.equal(response.status,201);
     const qrOrder=(await response.json()).order;
     assert.equal(qrOrder.totalCents,4500);
-    assert.equal(qrOrder.items[0].configuration.pizza.size.name,'Grande');
+    assert.equal(qrOrder.items[0].configuration.pizza.crust.name,'Catupiry');
   }finally{if(server)await server.stop();rt.close();}
 });
