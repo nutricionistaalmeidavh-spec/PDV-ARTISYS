@@ -16,7 +16,8 @@ function createPublicOrderingRouter({runtime,publicDir=path.join(__dirname,'cust
     ['/menu/app.js',['app.js','application/javascript; charset=utf-8']],
     ['/menu/styles.css',['styles.css','text/css; charset=utf-8']],
     ['/menu/icon.svg',['icon.svg','image/svg+xml; charset=utf-8']],
-    ['/menu/order-composer.js',[path.join(__dirname,'..','shared','order-composer.js'),'application/javascript; charset=utf-8',true]]
+    ['/menu/order-composer.js',[path.join(__dirname,'..','shared','order-composer.js'),'application/javascript; charset=utf-8',true]],
+    ['/menu/pizza-composer.js',[path.join(__dirname,'..','shared','pizza-composer.js'),'application/javascript; charset=utf-8',true]]
   ]);
   function serveStatic(pathname,response){
     const entry=files.get(pathname);if(!entry)return false;const full=entry[2]?entry[0]:path.join(publicDir,entry[0]);if(!fs.existsSync(full)){text(response,404,'Interface de cardapio nao instalada.');return true;}text(response,200,fs.readFileSync(full,'utf8'),entry[1]);return true;
@@ -34,8 +35,9 @@ function createPublicOrderingRouter({runtime,publicDir=path.join(__dirname,'cust
     try{
       const photoMatch=pathname.match(/^\/api\/v1\/public\/menu\/([^/]+)\/products\/([^/]+)\/photo$/);
       if(request.method==='GET'&&photoMatch){const token=decodeURIComponent(photoMatch[1]);const productId=decodeURIComponent(photoMatch[2]);if(!runtime.publicOrdering.canReadPhoto(token,productId))throw new PublicOrderingHttpError(404,'Foto nao encontrada.');const photo=runtime.productPhotos.read(productId,'thumbnail');const etag=`"${photo.sha256}"`;if(request.headers['if-none-match']===etag){response.writeHead(304,{etag,'cache-control':'private, max-age=86400'});response.end();return true;}response.writeHead(200,{'content-type':photo.mimeType,'content-length':photo.bytes.length,'cache-control':'private, max-age=86400',etag});response.end(photo.bytes);return true;}
-      const match=pathname.match(/^\/api\/v1\/public\/menu\/([^/]+)(?:\/(orders|service))?$/);if(!match)throw new PublicOrderingHttpError(404,'Rota de cardapio nao encontrada.');const token=decodeURIComponent(match[1]);const action=match[2]||'';
+      const match=pathname.match(/^\/api\/v1\/public\/menu\/([^/]+)(?:\/(orders|service|price))?$/);if(!match)throw new PublicOrderingHttpError(404,'Rota de cardapio nao encontrada.');const token=decodeURIComponent(match[1]);const action=match[2]||'';
       if(request.method==='GET'&&!action){json(response,200,runtime.publicOrdering.publicContext(token));return true;}
+      if(request.method==='POST'&&action==='price'){json(response,200,runtime.publicOrdering.pricePublicItem(token,await body(request)));return true;}
       if(request.method==='POST'&&action==='orders'){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.publicOrdering.submitOrder(token,data,mutationId);const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
       if(request.method==='POST'&&action==='service'){const data=await body(request);const result=await mutate(request,pathname,201,mutationId=>runtime.publicOrdering.requestService(token,data.requestType,mutationId));json(response,result.statusCode,result.payload);return true;}
       throw new PublicOrderingHttpError(405,'Operacao nao permitida.');
