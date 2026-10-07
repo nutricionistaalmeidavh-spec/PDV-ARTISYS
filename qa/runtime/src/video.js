@@ -71,9 +71,11 @@ export function buildFrameSequenceArgs(inputPattern, outputFile, { effectiveFps,
   const height=Number(canvasHeight);
   if(!Number.isFinite(fps)||fps<=0)throw new TypeError('effectiveFps must be positive');
   if(!Number.isInteger(width)||width<=0||!Number.isInteger(height)||height<=0)throw new TypeError('canvas dimensions must be positive integers');
+  const videoWidth=width%2===0?width:width+1;
+  const videoHeight=height%2===0?height:height+1;
   return [
     '-y','-framerate',fps.toFixed(6),'-i',inputPattern,
-    '-vf',`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`,
+    '-vf',`scale=${videoWidth}:${videoHeight}:force_original_aspect_ratio=decrease,pad=${videoWidth}:${videoHeight}:(ow-iw)/2:(oh-ih)/2:black`,
     '-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',outputFile
   ];
 }
