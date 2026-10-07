@@ -18,7 +18,7 @@ function expandStockItems(items=[],recipeService=null) {
       for(const component of item.stockItems) aggregate(totals,component.productId,component.quantity);
       continue;
     }
-    const pizzaStock=item?.configuration?.pizza?.stockItems;
+    const pizzaStock=item?.configuration?.stockItems||item?.configuration?.pizza?.stockItems;
     if(Array.isArray(pizzaStock)&&pizzaStock.length) {
       for(const component of pizzaStock) aggregate(totals,component.productId,quantity*Number(component.quantity||0));
       continue;
