@@ -16,7 +16,7 @@ function orderingFor(runtime){
     db:runtime.db,
     modules:runtime.modules,
     catalog:runtime.catalog,
-    catalogCustomization:runtime.catalogCustomization,
+    orderConfiguration:runtime.orderConfiguration,
     restaurant:runtime.restaurant,
     productPhotos:runtime.productPhotos,
     tokenFactory:()=> 'menu-layout-public-token-0001'
