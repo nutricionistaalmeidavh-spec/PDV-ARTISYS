@@ -1,0 +1,68 @@
+{
+  "name": "12-fechar-caixa",
+  "title": "Fechar caixa",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "cash-close"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-tela-caixa",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "[data-cash-action='close']",
+      "name": "abrir-fechamento",
+      "holdMs": 300
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "dialogo-fechamento",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "valor-contado",
+      "value": "100,00",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog .ux-dialog__confirm",
+      "name": "confirmar-fechamento",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "caixa-fechado",
+      "expected": "Caixa fechado",
+      "timeoutMs": 10000,
+      "holdMs": 1200
+    }
+  ]
+}
