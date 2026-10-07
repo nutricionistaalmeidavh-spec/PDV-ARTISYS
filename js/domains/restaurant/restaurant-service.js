@@ -78,11 +78,8 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
 
   function mapOrder(row) {
     if (!row) return null;
-    const items = db.prepare(`SELECT id,product_id AS productId,product_name AS productName,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents,note,configuration_json AS configurationJson,created_at AS createdAt
-      FROM restaurant_order_items WHERE order_id=? ORDER BY created_at,id`).all(row.id).map(item=>{
-        let configuration=null;try{configuration=item.configurationJson?JSON.parse(item.configurationJson):null;}catch{}
-        const {configurationJson,...safe}=item;return{...safe,configuration};
-      });
+    const items = db.prepare(`SELECT id,product_id AS productId,product_name AS productName,quantity,unit_price_cents AS unitPriceCents,total_cents AS totalCents,note,created_at AS createdAt
+      FROM restaurant_order_items WHERE order_id=? ORDER BY created_at,id`).all(row.id);
     return {
       id: row.id,
       tableSessionId: row.table_session_id,
@@ -273,17 +270,14 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
         if (!product || !product.active) throw new Error('Produto nao encontrado ou inativo.');
         const quantity = roundQuantity(item.quantity ?? 1);
         if (quantity <= 0) throw new Error('Quantidade deve ser maior que zero.');
-        const requestedPrice=item.unitPriceCents==null?product.salePriceCents:Number(item.unitPriceCents);
-        const unitPriceCents=Math.max(0,Math.trunc(Number(requestedPrice)||0));
-        const configuration=item.configurationSnapshot||item.configuration||null;
+        const unitPriceCents = Math.max(0, Math.trunc(Number(product.salePriceCents) || 0));
         return {
           productId:product.id,
           productName:product.name,
           quantity,
           unitPriceCents,
           totalCents:Math.round(unitPriceCents * quantity),
-          note:String(item.note || '').trim().slice(0, 500) || null,
-          configuration
+          note:String(item.note || '').trim().slice(0, 500) || null
         };
       });
       const totalCents = prepared.reduce((sum, item) => sum + item.totalCents, 0);
@@ -292,9 +286,9 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       db.prepare(`INSERT INTO restaurant_orders(id,table_session_id,source,device_id,created_by,status,note,total_cents,created_at,updated_at)
         VALUES(?,?,?,?,?,'NEW',?,?,?,?)`)
         .run(id, session.id, normalizedSource, deviceId || null, normalizedSource === 'TABLE' ? null : (actor?.userId || null), String(note || '').trim().slice(0,1000) || null, totalCents, timestamp, timestamp);
-      const insert = db.prepare(`INSERT INTO restaurant_order_items(id,order_id,product_id,product_name,quantity,unit_price_cents,total_cents,note,created_at,configuration_json)
-        VALUES(?,?,?,?,?,?,?,?,?,?)`);
-      for (const item of prepared) insert.run(idFactory('order-item'), id, item.productId, item.productName, item.quantity, item.unitPriceCents, item.totalCents, item.note, timestamp, item.configuration?JSON.stringify(item.configuration):null);
+      const insert = db.prepare(`INSERT INTO restaurant_order_items(id,order_id,product_id,product_name,quantity,unit_price_cents,total_cents,note,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?)`);
+      for (const item of prepared) insert.run(idFactory('order-item'), id, item.productId, item.productName, item.quantity, item.unitPriceCents, item.totalCents, item.note, timestamp);
       const event = insertEvent({
         type:'restaurant.order-created', aggregate:'restaurant-order', aggregateId:id, actor, mutationId,
         payload:{ tableSessionId:session.id, tableId:session.table_id, source:normalizedSource, deviceId:deviceId || null, totalCents, itemCount:prepared.length }
@@ -367,23 +361,12 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
       }
       const activeOrders = db.prepare("SELECT id FROM restaurant_orders WHERE table_session_id=? AND status<>'CANCELLED'").all(row.id);
       if (!activeOrders.length) throw new Error('Comanda sem pedidos para fechamento.');
-      const activeItems = db.prepare(`SELECT i.product_id AS productId,i.quantity,i.unit_price_cents AS unitPriceCents,i.configuration_json AS configurationJson
+      const aggregate = db.prepare(`SELECT i.product_id AS productId,SUM(i.quantity) AS quantity
         FROM restaurant_order_items i JOIN restaurant_orders o ON o.id=i.order_id
-        WHERE o.table_session_id=? AND o.status<>'CANCELLED'
-          AND NOT EXISTS(SELECT 1 FROM restaurant_item_cancellations c WHERE c.order_item_id=i.id)
-        ORDER BY i.created_at,i.id`).all(row.id);
+        WHERE o.table_session_id=? AND o.status<>'CANCELLED' GROUP BY i.product_id`).all(row.id);
       const sale = saleService.openSale({ terminalId, operatorId }, actor);
       if (row.customer_id) saleService.setCustomer(sale.id, row.customer_id);
-      for (const item of activeItems){
-        let configuration=null;try{configuration=item.configurationJson?JSON.parse(item.configurationJson):null;}catch{}
-        saleService.addItem(sale.id,{
-          productId:item.productId,
-          quantity:item.quantity,
-          unitPriceCents:item.unitPriceCents,
-          configurationSnapshot:configuration||undefined,
-          forceSeparateLine:Boolean(configuration)
-        });
-      }
+      for (const item of aggregate) saleService.addItem(sale.id, { productId:item.productId, quantity:item.quantity });
       db.prepare("UPDATE table_sessions SET status='CHECKOUT',checkout_sale_id=?,updated_at=? WHERE id=?").run(sale.id, now(), row.id);
       writeAudit(db, { action:'restaurant.table.checkout', entity:'table_session', entityId:row.id, actor, context:{ saleId:sale.id, mutationId } }, now);
       return { session:getSession(row.id), sale:saleService.getSale(sale.id) };
