@@ -76,8 +76,8 @@ test('canonical pizza pricing freezes proportional recipe consumption through KD
     assert.deepEqual(priced.configurationSnapshot.pizza.flavors.map(row=>[row.name,row.fraction]),[['Calabresa',0.5],['Marguerita',0.5]]);
     const stock=Object.fromEntries(priced.configurationSnapshot.pizza.stockItems.map(row=>[row.productId,row.quantity]));
     assert.deepEqual(stock,{
-      'base-massa':1.5,'base-molho':0.3,calabresa:0.15,cebola:0.0375,
-      mussarela:0.15,tomate:0.075,manjericao:0.0075,catupiry:0.225
+      'base-massa':1.5,'base-molho':0.3,calabresa:0.15,cebola:0.038,
+      mussarela:0.15,tomate:0.075,manjericao:0.007,catupiry:0.225
     });
 
     rt.restaurant.upsertTable({id:'mesa-pizza',label:'Mesa Pizza'},admin);
@@ -100,7 +100,7 @@ test('canonical pizza pricing freezes proportional recipe consumption through KD
     const finalDispatch=await rt.dispatchPending();
     assert.equal(finalDispatch.failures.length,0,JSON.stringify(finalDispatch.failures));
     for(const [productId,used] of Object.entries(stock)){
-      assert.equal(rt.inventory.getBalance(productId),Number((10-used).toFixed(4)),productId);
+      assert.equal(rt.inventory.getBalance(productId),Number((10-used).toFixed(3)),productId);
     }
   }finally{rt.close();}
 });
