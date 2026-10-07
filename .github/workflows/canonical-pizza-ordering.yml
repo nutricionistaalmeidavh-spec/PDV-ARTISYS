@@ -1,0 +1,31 @@
+name: Canonical Pizza Ordering
+
+on:
+  push:
+    branches:
+      - feat/canonical-pizza-ordering-20261007
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+      - name: Canonical pizza tests
+        run: |
+          node --test \
+            test/pizzeria-canonical-composition.test.js \
+            test/pizzeria-multichannel-ordering.test.js \
+            test/pizzeria-mobile-composer.test.js \
+            test/e43-pizzeria-printing.test.js \
+            test/e43-e47-verticals.test.js
+      - name: Core verification
+        run: npm run verify
