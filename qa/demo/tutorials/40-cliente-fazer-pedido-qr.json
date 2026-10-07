@@ -1,0 +1,100 @@
+{
+  "name": "40-cliente-fazer-pedido-qr",
+  "title": "Cliente fazer pedido pelo QR",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "customer-order"
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "setViewportSize",
+      "width": 412,
+      "height": 915,
+      "name": "viewport-cliente"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "foodMenuUrl",
+      "name": "abrir-cardapio-qr"
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-badge",
+      "name": "mesa-visivel",
+      "expected": "Mesa 08",
+      "timeoutMs": 15000,
+      "holdMs": 300
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".product-card:has-text('Hambúrguer Artesanal')",
+      "name": "produto-visivel",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": ".product-card:has-text('Hambúrguer Artesanal') .add-button",
+      "name": "adicionar-hamburguer",
+      "holdMs": 350
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#cart-rail:not(.hidden)",
+      "name": "carrinho-visivel",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "#review-cart",
+      "name": "revisar-pedido",
+      "holdMs": 350
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#send-order",
+      "name": "enviar-disponivel",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "#send-order",
+      "name": "enviar-pedido",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast",
+      "name": "pedido-confirmado",
+      "expected": "Pedido confirmado e enviado para a cozinha",
+      "timeoutMs": 10000,
+      "holdMs": 800
+    },
+    {
+      "action": "expectText",
+      "selector": "#table-orders",
+      "name": "pedido-na-comanda",
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 600
+    }
+  ]
+}
