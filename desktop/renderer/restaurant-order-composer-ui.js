@@ -2,6 +2,7 @@
 
 (()=>{
   const root=window;
+  const composer=root.PdvOrderComposer;
   const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
   const hasConfiguration=config=>Boolean(config?.variants?.length||config?.groups?.length||config?.combos?.length);
@@ -26,14 +27,11 @@
     modalRoot.querySelectorAll('[data-config-close]').forEach(button=>button.addEventListener('click',close));
     modalRoot.querySelector('#restaurant-config-product-form')?.addEventListener('submit',async event=>{
       event.preventDefault();const form=event.currentTarget;const errorNode=form.querySelector('[data-config-error]');
-      for(const group of form.querySelectorAll('[data-config-group],[data-combo-group]')){
-        const selector=group.hasAttribute('data-config-group')?'[data-option]:checked':'[data-combo]:checked';
-        const count=group.querySelectorAll(selector).length,min=Number(group.dataset.min||0),max=Number(group.dataset.max||1);
-        if(count<min||count>max){errorNode.textContent=`Selecione entre ${min} e ${max} opção(ões) em ${group.querySelector('legend')?.textContent||'este grupo'}.`;errorNode.classList.remove('hidden');return;}
-      }
       const fd=new FormData(form);const variantId=String(fd.get('variantId')||'')||null;
       const selections=[...form.querySelectorAll('[data-option]:checked')].map(input=>input.value);
       const comboSelections=[...form.querySelectorAll('[data-combo]:checked')].map(input=>({groupId:input.dataset.groupId,productId:input.dataset.productId}));
+      const validation=composer?.validateConfiguration?.(config,{variantId,selections,comboSelections})||'';
+      if(validation){errorNode.textContent=validation;errorNode.classList.remove('hidden');return;}
       try{
         const priced=await api.priceConfiguredItem({productId:product.id,variantId:variantId||undefined,selections,comboSelections});
         onAdd({productId:product.id,name:product.name,unitPriceCents:priced.unitPriceCents,quantity,note:String(fd.get('note')||''),configuration:{variantId,selections,comboSelections}});
