@@ -1,0 +1,117 @@
+{
+  "name": "11-sangria-suprimento",
+  "title": "Fazer sangria ou suprimento",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "cash-movements"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-tela-caixa",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "[data-cash-action='supply']",
+      "name": "abrir-suprimento",
+      "holdMs": 300
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "dialogo-suprimento",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "valor-suprimento",
+      "value": "20,00",
+      "holdMs": 200
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog textarea[name='note']",
+      "name": "obs-suprimento",
+      "value": "Reforço tutorial",
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog .ux-dialog__confirm",
+      "name": "confirmar-suprimento",
+      "holdMs": 550
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "saldo-apos-suprimento",
+      "expected": "R$ 120,00",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "[data-cash-action='withdraw']",
+      "name": "abrir-sangria",
+      "holdMs": 300
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "dialogo-sangria",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog input[name='amount']",
+      "name": "valor-sangria",
+      "value": "10,00",
+      "holdMs": 200
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog textarea[name='note']",
+      "name": "obs-sangria",
+      "value": "Sangria tutorial",
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog .ux-dialog__confirm",
+      "name": "confirmar-sangria",
+      "holdMs": 650
+    },
+    {
+      "action": "expectText",
+      "selector": "#route-content",
+      "name": "movimentos-registrados",
+      "expected": "R$ 110,00",
+      "timeoutMs": 10000,
+      "holdMs": 1000
+    }
+  ]
+}
