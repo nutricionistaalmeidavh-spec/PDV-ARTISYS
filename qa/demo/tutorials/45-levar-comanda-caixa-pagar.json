@@ -1,0 +1,123 @@
+{
+  "name": "45-levar-comanda-caixa-pagar",
+  "title": "Levar comanda ao caixa e pagar",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "checkout"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "abrir-alimentacao",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "abrir-mesas",
+      "holdMs": 350
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "mesa-ocupada",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "click",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "abrir-comanda",
+      "holdMs": 350
+    },
+    {
+      "action": "expectText",
+      "selector": ".restaurant-session",
+      "name": "comanda-com-itens",
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "[data-checkout]",
+      "name": "levar-comanda-caixa",
+      "holdMs": 650
+    },
+    {
+      "action": "expectText",
+      "selector": ".checkout-layout",
+      "name": "itens-no-balcao",
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 400
+    },
+    {
+      "action": "click",
+      "selector": "[data-pay='cash']",
+      "name": "pagar-dinheiro",
+      "holdMs": 350
+    },
+    {
+      "action": "waitFor",
+      "selector": "#confirm-payment",
+      "name": "pagamento-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "confirmar-pagamento",
+      "holdMs": 800
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-head",
+      "name": "venda-concluida",
+      "expected": "Itens da venda (0)",
+      "timeoutMs": 10000,
+      "holdMs": 450
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "voltar-alimentacao",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "voltar-mesas",
+      "holdMs": 350
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "mesa-liberada",
+      "expected": "Livre",
+      "timeoutMs": 10000,
+      "holdMs": 800
+    }
+  ]
+}
