@@ -64,10 +64,14 @@ test('cash operational queries expose current session, movements and closed hist
   let n = 0;
   const cash = createCashService({ db, outbox, now: () => '2026-09-09T12:00:00Z', idFactory: p => `${p}-${++n}` });
   const opened = cash.openSession({ terminalId:'PDV-01', operatorId:'u1', initialCashCents:10000, actor:{userId:'u1',profileId:'profile-administrator',terminalId:'PDV-01'} });
+  assert.equal(opened.expectedCashCents, 10000);
   cash.addSupply(opened.id, { amountCents:2000, note:'reforco' });
   assert.equal(cash.getOpenSession('PDV-01').id, opened.id);
-  assert.equal(cash.listSessionMovements(opened.id).length, 2);
-  cash.closeSession(opened.id, { countedByMethod:{ CASH:12000 }, actor:{userId:'u1',profileId:'profile-administrator',terminalId:'PDV-01'} });
+  assert.equal(cash.getOpenSession('PDV-01').expectedCashCents, 12000);
+  cash.withdraw(opened.id, { amountCents:500, note:'sangria' });
+  assert.equal(cash.getOpenSession('PDV-01').expectedCashCents, 11500);
+  assert.equal(cash.listSessionMovements(opened.id).length, 3);
+  cash.closeSession(opened.id, { countedByMethod:{ CASH:11500 }, actor:{userId:'u1',profileId:'profile-administrator',terminalId:'PDV-01'} });
   const history = cash.listSessions({ terminalId:'PDV-01', status:'CLOSED' });
   assert.equal(history.length, 1);
   assert.equal(history[0].status, 'CLOSED');
