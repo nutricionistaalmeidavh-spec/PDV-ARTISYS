@@ -1372,73 +1372,217 @@
     },
     {
       "id": "46-criar-ficha-tecnica-pizza-calabresa",
-      "title": "Criar ficha técnica da Pizza Calabresa",
+      "title": "Criar a ficha técnica base da pizza",
       "phase": "P0",
       "audience": "admin",
       "durationTargetSec": 30,
-      "goal": "Cadastrar Pizza Calabresa com foto e ficha técnica completa de massa, molho, queijo, calabresa, cebola e orégano.",
-      "success": "Pizza fica cadastrada com custo calculado, foto e destino de produção.",
-      "outputFile": "46-criar-ficha-tecnica-pizza-calabresa.mp4",
+      "goal": "Criar a Pizza Artesanal com a receita base de massa e molho, foto e destino de produção.",
+      "success": "A pizza base fica pronta para receber tamanhos, sabores e bordas sem duplicar consumo de ingredientes.",
+      "outputFile": "46-criar-base-pizza-artesanal.mp4",
       "overlays": [
         {
           "purpose": "orient",
           "fromSec": 0,
           "toSec": 2.5,
-          "text": "Crie a ficha técnica da Pizza Calabresa"
-        },
-        {
-          "purpose": "act",
-          "fromSec": 7,
-          "toSec": 13,
-          "text": "Massa, molho, mussarela, calabresa, cebola e orégano"
-        },
-        {
-          "purpose": "act",
-          "fromSec": 18,
-          "toSec": 22,
-          "text": "Defina rendimento, preparo e destino da cozinha"
-        },
-        {
-          "purpose": "confirm",
-          "fromSec": 27,
-          "toSec": 30,
-          "text": "Pizza salva com foto e custo por porção"
-        }
-      ]
-    },
-    {
-      "id": "47-configurar-pizza-tamanhos-sabores-borda",
-      "title": "Configurar tamanhos, sabores e borda da pizza",
-      "phase": "P0",
-      "audience": "admin",
-      "durationTargetSec": 30,
-      "goal": "Configurar a Pizza Calabresa com tamanho Grande, até dois sabores, sabores e borda, e validar a regra de preço.",
-      "success": "Prévia calcula o preço da pizza com tamanho, sabores e borda selecionados.",
-      "outputFile": "47-configurar-pizza-tamanhos-sabores-borda.mp4",
-      "overlays": [
-        {
-          "purpose": "orient",
-          "fromSec": 0,
-          "toSec": 2.5,
-          "text": "Configure como a pizza será vendida"
+          "text": "A pizza começa pela receita base"
         },
         {
           "purpose": "act",
           "fromSec": 7,
           "toSec": 12,
-          "text": "Cadastre tamanho, sabores e borda"
+          "text": "Base: massa + molho de tomate"
         },
         {
           "purpose": "act",
-          "fromSec": 17,
+          "fromSec": 18,
           "toSec": 22,
-          "text": "Escolha Grande, sabores e borda Catupiry"
+          "text": "Defina preço, preparo e KDS"
         },
         {
           "purpose": "confirm",
           "fromSec": 27,
           "toSec": 30,
-          "text": "O ArtiSys calcula o preço da combinação"
+          "text": "A cobertura entra depois como sabor"
+        }
+      ]
+    },
+    {
+      "id": "47-configurar-pizza-tamanhos-sabores-borda",
+      "title": "Criar a ficha técnica do sabor Calabresa",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 30,
+      "goal": "Criar uma ficha interna do sabor Calabresa com mussarela, calabresa, cebola e orégano.",
+      "success": "A ficha do sabor fica disponível para ser vinculada à pizza e consumida proporcionalmente em meio sabor.",
+      "outputFile": "47-criar-ficha-sabor-calabresa.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Cada sabor pode ter sua própria ficha"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 13,
+          "text": "Mussarela, calabresa, cebola e orégano"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 18,
+          "toSec": 22,
+          "text": "Esta ficha não aparece sozinha no cardápio"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Meio sabor consome metade desta cobertura"
+        }
+      ]
+    },
+    {
+      "id": "48-configurar-pizza-canonica",
+      "title": "Configurar tamanhos, sabores e borda da pizza",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 30,
+      "goal": "Vincular tamanho, limite de sabores, fichas dos sabores, borda e regra de preço à Pizza Artesanal.",
+      "success": "Grande aceita até dois sabores, usa as fichas corretas e a prévia calcula o preço canônico.",
+      "outputFile": "48-configurar-pizza-tamanhos-sabores-borda.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Agora configure como a pizza será vendida"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 6,
+          "toSec": 11,
+          "text": "Grande · até 2 sabores · 1,5× da base"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 14,
+          "toSec": 21,
+          "text": "Vincule Calabresa, Marguerita e Catupiry às fichas"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Preço e consumo usam a mesma configuração"
+        }
+      ]
+    },
+    {
+      "id": "49-garcom-pedir-pizza",
+      "title": "Garçom montar e enviar uma pizza",
+      "phase": "P0",
+      "audience": "operador",
+      "durationTargetSec": 30,
+      "goal": "Mostrar o garçom montando uma Pizza Grande com dois sabores e borda na mesa.",
+      "success": "A comanda recebe Grande, meia Calabresa, meia Marguerita e borda Catupiry pelo mesmo pedido canônico.",
+      "outputFile": "49-garcom-pedir-pizza.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "O garçom monta a pizza direto na mesa"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 14,
+          "text": "Grande · ½ Calabresa · ½ Marguerita"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 17,
+          "toSec": 21,
+          "text": "Borda Catupiry e enviar pedido"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "A composição fica registrada na comanda"
+        }
+      ]
+    },
+    {
+      "id": "50-cliente-pedir-pizza-qr",
+      "title": "Cliente pedir uma pizza pelo QR",
+      "phase": "P0",
+      "audience": "todos",
+      "durationTargetSec": 30,
+      "goal": "Mostrar o cliente usando o mesmo configurador de pizza pelo cardápio QR.",
+      "success": "O pedido do cliente usa as mesmas regras de tamanho, sabores, borda e preço do garçom.",
+      "outputFile": "50-cliente-pedir-pizza-qr.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "O cliente usa as mesmas opções pelo QR"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 14,
+          "text": "Escolha tamanho, sabores e borda"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 18,
+          "toSec": 22,
+          "text": "Revise o preço antes de enviar"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Servidor valida a combinação e registra a comanda"
+        }
+      ]
+    },
+    {
+      "id": "51-pizza-kds-comanda-caixa",
+      "title": "Pizza no KDS, comanda e caixa",
+      "phase": "P0",
+      "audience": "operador-admin",
+      "durationTargetSec": 30,
+      "goal": "Acompanhar a mesma pizza da cozinha ao pagamento, preservando sua composição.",
+      "success": "KDS, comanda e Balcão mostram a mesma pizza e o pagamento encerra a mesa sem redigitar.",
+      "outputFile": "51-pizza-kds-comanda-caixa.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "A mesma pizza segue por todo o atendimento"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 6,
+          "toSec": 12,
+          "text": "KDS vê tamanho, meios sabores e borda"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 15,
+          "toSec": 21,
+          "text": "Comanda leva exatamente o mesmo item ao caixa"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Pagamento concluído sem perder a composição"
         }
       ]
     }
