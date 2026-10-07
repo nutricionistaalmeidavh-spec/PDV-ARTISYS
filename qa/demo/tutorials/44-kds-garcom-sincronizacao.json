@@ -1,0 +1,199 @@
+{
+  "name": "44-kds-garcom-sincronizacao",
+  "title": "Atualização entre KDS e garçom",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "sync"
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-equipe"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile",
+      "name": "abrir-equipe"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "login-garcom",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "id-garcom",
+      "valueFrom": "waiterId"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "chave-garcom",
+      "valueFrom": "waiterKey"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "conectar-garcom",
+      "holdMs": 350
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".waiter-layout",
+      "name": "garcom-conectado",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-table]:not(.free)",
+      "name": "abrir-mesa-novo",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "abrir-comanda-nova",
+      "holdMs": 250
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "garcom-ve-novo",
+      "expected": "Novo pedido",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "#logout",
+      "name": "sair-garcom",
+      "holdMs": 250
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "id-kds",
+      "valueFrom": "kitchenId"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "chave-kds",
+      "valueFrom": "kitchenKey"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "conectar-kds",
+      "holdMs": 350
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-novo",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='PREPARING']",
+      "name": "kds-preparar",
+      "holdMs": 350
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.PREPARING",
+      "name": "kds-preparando",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='READY']",
+      "name": "kds-pronto",
+      "holdMs": 450
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.READY",
+      "name": "kds-marcou-pronto",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "#logout",
+      "name": "sair-kds",
+      "holdMs": 250
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "retorno-id-garcom",
+      "valueFrom": "waiterId"
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "retorno-chave-garcom",
+      "valueFrom": "waiterKey"
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "retorno-conectar-garcom",
+      "holdMs": 450
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-waiter-table].ready",
+      "name": "mesa-pronta-no-salao",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-table].ready",
+      "name": "abrir-mesa-pronta",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "abrir-comanda-pronta",
+      "holdMs": 250
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "garcom-ve-pronto",
+      "expected": "Pedido pronto",
+      "timeoutMs": 10000,
+      "holdMs": 800
+    }
+  ]
+}
