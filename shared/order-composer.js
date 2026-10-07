@@ -9,8 +9,32 @@
   const normalizedConfiguration=input=>({
     variantId:input?.variantId||null,
     selections:Array.isArray(input?.selections)?[...input.selections]:[],
-    comboSelections:Array.isArray(input?.comboSelections)?clone(input.comboSelections):[]
+    comboSelections:Array.isArray(input?.comboSelections)?clone(input.comboSelections):[],
+    pizza:input?.pizza?{
+      sizeId:String(input.pizza.sizeId||'')||null,
+      flavorIds:Array.isArray(input.pizza.flavorIds)?input.pizza.flavorIds.map(String):[],
+      crustId:String(input.pizza.crustId||'')||null
+    }:null
   });
+  const fractionLabel=value=>Math.abs(Number(value)-0.5)<0.000001?'½':Math.abs(Number(value)-1/3)<0.000001?'⅓':Math.abs(Number(value)-0.25)<0.000001?'¼':Number(value)===1?'':`${Math.round(Number(value||0)*100)}%`;
+  function configurationSummary(configuration={}){
+    const pizza=configuration?.pizza;
+    if(pizza?.size?.name){
+      const parts=[pizza.size.name];
+      const flavors=(pizza.flavors||[]).map(flavor=>`${fractionLabel(flavor.fraction)}${fractionLabel(flavor.fraction)?' ':''}${flavor.name}`);
+      if(flavors.length)parts.push(flavors.join(' + '));
+      if(pizza.crust?.name)parts.push(`Borda ${pizza.crust.name}`);
+      return parts.join(' · ');
+    }
+    const labels=[];
+    if(configuration?.variant?.name)labels.push(configuration.variant.name);
+    for(const option of configuration?.options||[])if(option?.name)labels.push(option.name);
+    return labels.join(' · ');
+  }
+  function hasConfiguration(product={}){
+    const config=product.configuration||product;
+    return Boolean(config?.pizza?.sizes?.length||config?.variants?.length||config?.groups?.length||config?.combos?.length);
+  }
   const signature=line=>JSON.stringify({
     productId:line.productId,
     note:line.note||'',
@@ -64,10 +88,11 @@
         variantId:item.configuration.variantId,
         selections:[...item.configuration.selections],
         comboSelections:clone(item.configuration.comboSelections),
+        pizza:clone(item.configuration.pizza),
         note:item.note
       }));
     }
     return{add,lines,clear,changeQuantity,setQuantity,summary,toOrderItems};
   }
-  return{createCart};
+  return{createCart,hasConfiguration,configurationSummary};
 });

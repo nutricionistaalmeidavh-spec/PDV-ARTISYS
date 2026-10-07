@@ -11,7 +11,7 @@ const DELIVERY_TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CA
 const PICKUP_TRANSITIONS={NEW:['PREPARING','CANCELLED'],PREPARING:['READY','CANCELLED'],READY:['PICKED_UP','CANCELLED'],PICKED_UP:[],CANCELLED:[]};
 const DELIVERY_FEE_PRODUCT_ID='__artisys_delivery_fee__';
 
-function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
+function createDeliveryService({db,modules,sales,kitchen=null,configuredItemPricing=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules||!sales)throw new TypeError('db, modules and sales are required.');
   const gate=()=>modules.requireEnabled('FOOD');
   function parseJson(value){if(!value)return null;try{return JSON.parse(value);}catch{return null;}}
@@ -37,6 +37,10 @@ function createDeliveryService({db,modules,sales,kitchen=null,now=()=>new Date()
   function normalizeOrderItem(input={}){
     const productId=String(input.productId||'').trim();if(!productId)throw new Error('Produto obrigatorio no pedido.');
     const product=db.prepare('SELECT id,name,sale_price_cents AS salePriceCents FROM products WHERE id=? AND active=1').get(productId);if(!product)throw new Error('Produto nao encontrado ou inativo.');
+    if(configuredItemPricing?.price){
+      const priced=configuredItemPricing.price({...input,productId:product.id});
+      return{productId:product.id,productName:product.name,quantity:priced.quantity,unitPriceCents:priced.unitPriceCents,configurationSnapshot:priced.configurationSnapshot,note:priced.note||null};
+    }
     const quantity=Number(input.quantity??1);if(!Number.isFinite(quantity)||quantity<=0)throw new Error('Quantidade do item deve ser maior que zero.');
     const unitPriceCents=input.unitPriceCents===undefined||input.unitPriceCents===null?Number(product.salePriceCents):assertCents(Number(input.unitPriceCents),'unitPriceCents');
     const configurationSnapshot=input.configurationSnapshot||input.configuration||null;

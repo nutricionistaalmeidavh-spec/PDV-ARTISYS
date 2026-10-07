@@ -44,8 +44,8 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       const comboItem=pathname.match(/^\/api\/v1\/vertical\/catalog\/combo-groups\/([^/]+)\/items$/);
       if(request.method==='POST'&&comboItem){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertComboItem(decodeURIComponent(comboItem[1]),await body(request),actor));return true;}
       const productConfig=pathname.match(/^\/api\/v1\/vertical\/catalog\/products\/([^/]+)\/configuration$/);
-      if(request.method==='GET'&&productConfig){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.getProductConfiguration(decodeURIComponent(productConfig[1])));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.priceConfiguredItem(await body(request)));return true;}
+      if(request.method==='GET'&&productConfig){requireCapability(actor,'products.manage');const productId=decodeURIComponent(productConfig[1]);json(response,200,runtime.configuredItemPricing?.configuration?runtime.configuredItemPricing.configuration(productId):runtime.catalogCustomization.getProductConfiguration(productId));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){requireCapability(actor,'products.manage');const data=await body(request);json(response,200,runtime.configuredItemPricing?.price?runtime.configuredItemPricing.price(data):runtime.catalogCustomization.priceConfiguredItem(data));return true;}
 
       const recipe=pathname.match(/^\/api\/v1\/vertical\/recipes\/([^/]+)$/);
       if(request.method==='GET'&&recipe){requireCapability(actor,'products.manage');const value=runtime.recipes.getRecipe(decodeURIComponent(recipe[1]));if(!value)throw new VerticalHttpError(404,'Ficha tecnica nao encontrada.');json(response,200,value);return true;}
@@ -58,7 +58,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='GET'&&pizzaProfile){moduleRule('FOOD',actor);const value=runtime.pizzeria.getProfile(decodeURIComponent(pizzaProfile[1]));if(!value)throw new VerticalHttpError(404,'Perfil de pizzaria nao encontrado.');json(response,200,value);return true;}
 
       const configuredSale=pathname.match(/^\/api\/v1\/vertical\/sales\/([^/]+)\/configured-item$/);
-      if(request.method==='POST'&&configuredSale){const data=await body(request);json(response,200,runtime.sales.addItem(decodeURIComponent(configuredSale[1]),data));return true;}
+      if(request.method==='POST'&&configuredSale){const data=await body(request);const priced=runtime.configuredItemPricing?.price?runtime.configuredItemPricing.price(data):data;json(response,200,runtime.sales.addItem(decodeURIComponent(configuredSale[1]),{...priced,forceSeparateLine:true}));return true;}
 
       const settlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements$/);
       if(request.method==='POST'&&settlement){moduleRule('FOOD',actor);requireCapabilities(actor,'restaurant.orders.create','sales.create');const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createItemSettlement(decodeURIComponent(settlement[1]),{...data,terminalId},actor));return true;}
