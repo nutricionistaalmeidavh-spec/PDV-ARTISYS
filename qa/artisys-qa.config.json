@@ -405,6 +405,38 @@
       "preset": "landscape-16x9",
       "durationTargetSec": 30,
       "profile": "tutorials-food"
+    },
+    "48-configurar-pizza-canonica": {
+      "file": "demo/tutorials/48-configurar-pizza-canonica.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
+    },
+    "49-garcom-pedir-pizza": {
+      "file": "demo/tutorials/49-garcom-pedir-pizza.json",
+      "preset": "reels-9x16",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food",
+      "captureViewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    "50-cliente-pedir-pizza-qr": {
+      "file": "demo/tutorials/50-cliente-pedir-pizza-qr.json",
+      "preset": "reels-9x16",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food",
+      "captureViewport": {
+        "width": 412,
+        "height": 915
+      }
+    },
+    "51-pizza-kds-comanda-caixa": {
+      "file": "demo/tutorials/51-pizza-kds-comanda-caixa.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
     }
   },
   "launchTimeoutMs": 60000
