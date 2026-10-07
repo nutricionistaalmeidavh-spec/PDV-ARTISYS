@@ -317,6 +317,9 @@
           "path": "js/domains/pizzeria/pizzeria-service.js"
         },
         {
+          "path": "js/domains/catalog/configured-item-pricing-service.js"
+        },
+        {
           "path": "js/domains/delivery/delivery-service.js"
         },
         {
