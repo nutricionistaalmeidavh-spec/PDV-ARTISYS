@@ -168,3 +168,12 @@ test('photo tutorials assert the current canonical product row instead of obsole
     assert.doesNotMatch(photo?.selector||'',/^tr:/);
   }
 });
+
+
+test('mobile format refresh recaptures the waiter and KDS tutorials shown in Drive',()=>{
+  const workflow=text('.github/workflows/tutorial-mobile-format-fix.yml');
+  for(const id of ['42-garcom-acompanhar-pedido','43-kds-preparar-pedido']){
+    assert.match(workflow,new RegExp(`demo: ${id}`),id);
+    assert.match(workflow,new RegExp(`qa/demo/tutorials/${id.replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g,'\\\\$&')}\\.json`),id);
+  }
+});
