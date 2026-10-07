@@ -16,14 +16,6 @@
       "scenario": "sync"
     },
     {
-      "action": "waitFor",
-      "selector": "#app-topbar",
-      "name": "app-ready",
-      "state": "visible",
-      "timeoutMs": 15000,
-      "holdMs": 120
-    },
-    {
       "action": "desktopConfig",
       "name": "capturar-servidor",
       "saveAs": {
@@ -41,6 +33,14 @@
       "urlFrom": "qaApiBase",
       "path": "/mobile",
       "name": "abrir-equipe"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 80
     },
     {
       "action": "waitFor",
