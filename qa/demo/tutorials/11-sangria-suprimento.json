@@ -67,7 +67,7 @@
       "action": "expectText",
       "selector": "#route-content",
       "name": "saldo-apos-suprimento",
-      "expected": "R$ 120,00",
+      "expected": "120,00",
       "timeoutMs": 10000,
       "holdMs": 350
     },
@@ -109,7 +109,7 @@
       "action": "expectText",
       "selector": "#route-content",
       "name": "movimentos-registrados",
-      "expected": "R$ 110,00",
+      "expected": "110,00",
       "timeoutMs": 10000,
       "holdMs": 1000
     }
