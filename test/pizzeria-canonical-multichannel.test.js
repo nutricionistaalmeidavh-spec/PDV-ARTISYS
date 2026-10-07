@@ -58,7 +58,7 @@ function seedPizza(rt){
 }
 
 function genericSelection(){
-  return{variantId:'grande',selections:['cal','mar','cat'],comboSelections:[]};
+  return{variantId:null,selections:['grande','cal','mar','cat'],comboSelections:[]};
 }
 
 test('canonical pizza pricing freezes proportional recipe consumption through KDS checkout and stock',async()=>{
@@ -67,8 +67,9 @@ test('canonical pizza pricing freezes proportional recipe consumption through KD
     seedPizza(rt);
     const config=rt.orderConfiguration.getProductConfiguration('pizza');
     assert.equal(config.configurationKind,'PIZZA');
-    assert.equal(config.variants[0].name,'Grande');
-    assert.equal(config.groups.find(group=>group.name==='Sabores').maxSelectionsByVariant.grande,2);
+    assert.equal(config.variants.length,0);
+    assert.equal(config.groups.find(group=>group.name==='Tamanho').options[0].name,'Grande');
+    assert.equal(config.groups.find(group=>group.name==='Sabores').maxSelectionsBySize.grande,2);
 
     const priced=rt.orderConfiguration.priceConfiguredItem({productId:'pizza',...genericSelection()});
     assert.equal(priced.unitPriceCents,4500);
@@ -121,7 +122,8 @@ test('waiter and QR consume the same generic pizza configuration and ignore clie
     const context=await response.json();
     const waiterPizza=context.products.find(row=>row.id==='pizza');
     assert.equal(waiterPizza.configuration.configurationKind,'PIZZA');
-    assert.deepEqual(waiterPizza.configuration.variants.map(row=>row.name),['Grande']);
+    assert.equal(waiterPizza.configuration.variants.length,0);
+    assert.deepEqual(waiterPizza.configuration.groups.find(row=>row.name==='Tamanho').options.map(row=>row.name),['Grande']);
     assert.deepEqual(waiterPizza.configuration.groups.find(row=>row.name==='Sabores').options.map(row=>row.name),['Calabresa','Marguerita']);
     assert.equal(JSON.stringify(waiterPizza).includes('recipeProductId'),false);
     assert.equal(JSON.stringify(waiterPizza).includes('stockItems'),false);
