@@ -73,12 +73,16 @@ function createConfiguredItemPricingService({catalog,catalogCustomization,pizzer
       const flavorIds=new Set((profile.flavors||[]).map(item=>String(item.id)));
       const crustIds=new Set((profile.crusts||[]).map(item=>String(item.id)));
       const pizzaInput=input.pizza||{};
-      const sizeId=String(pizzaInput.sizeId||input.variantId||'');
+      const snapshotPizza=input.configurationSnapshot?.pizza||input.configuration?.pizza||{};
+      const sizeId=String(pizzaInput.sizeId||input.variantId||snapshotPizza.size?.id||'');
       const selectedFlavorIds=Array.isArray(pizzaInput.flavorIds)&&pizzaInput.flavorIds.length
         ? pizzaInput.flavorIds.map(String)
-        : submittedSelections.filter(id=>flavorIds.has(String(id))).map(String);
-      const crustId=String(pizzaInput.crustId||submittedSelections.find(id=>crustIds.has(String(id)))||'')||null;
-      const genericSelections=submittedSelections.filter(id=>!flavorIds.has(String(id))&&!crustIds.has(String(id)));
+        : submittedSelections.some(id=>flavorIds.has(String(id)))
+          ? submittedSelections.filter(id=>flavorIds.has(String(id))).map(String)
+          : (snapshotPizza.flavors||[]).map(item=>String(item?.id||'')).filter(Boolean);
+      const crustId=String(pizzaInput.crustId||submittedSelections.find(id=>crustIds.has(String(id)))||snapshotPizza.crust?.id||'')||null;
+      const submittedGeneric=submittedSelections.filter(id=>!flavorIds.has(String(id))&&!crustIds.has(String(id)));
+      const genericSelections=submittedGeneric.length?submittedGeneric:(snapshotPizza.additions||[]).map(item=>String(item?.id||item?.optionId||'')).filter(Boolean);
       if(!sizeId||!selectedFlavorIds.length)throw new Error('Escolha o tamanho e ao menos um sabor da pizza.');
       const priced=pizzeria.pricePizza({
         productId:product.id,
@@ -92,6 +96,17 @@ function createConfiguredItemPricingService({catalog,catalogCustomization,pizzer
         quantity,
         unitPriceCents:priced.unitPriceCents,
         configurationSnapshot:priced.configurationSnapshot,
+        note
+      };
+    }
+
+    const hasGenericConfiguration=Boolean((current.groups||[]).length||(current.variants||[]).length||(current.combos||[]).length);
+    if(!hasGenericConfiguration){
+      return{
+        productId:product.id,
+        quantity,
+        unitPriceCents:Number(product.salePriceCents??product.sale_price_cents??0),
+        configurationSnapshot:input.configurationSnapshot||input.configuration||null,
         note
       };
     }
