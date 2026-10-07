@@ -314,6 +314,9 @@
       ],
       "backend": [
         {
+          "path": "js/domains/catalog/order-configuration-service.js"
+        },
+        {
           "path": "js/domains/pizzeria/pizzeria-service.js"
         },
         {
