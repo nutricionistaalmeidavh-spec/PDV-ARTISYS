@@ -58,7 +58,7 @@ test('macOS public release is manual, QA-gated and only uploads DMGs', () => {
   assert.match(workflow, /build_sha/);
   assert.match(workflow, /tag_sha/);
   assert.match(workflow, /gh release upload/);
-  assert.match(workflow, /-name '\\*\\.dmg'/);
+  assert.match(workflow, /-name '\*\.dmg'/);
   assert.doesNotMatch(workflow, /push:/);
   assert.doesNotMatch(workflow, /gh release create/);
 });
