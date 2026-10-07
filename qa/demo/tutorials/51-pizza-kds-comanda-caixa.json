@@ -1,0 +1,245 @@
+{
+  "name": "51-pizza-kds-comanda-caixa",
+  "title": "Pizza no KDS, comanda e caixa",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "pizza-kds-checkout"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 50
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "setViewportSize",
+      "width": 1100,
+      "height": 720,
+      "name": "viewport-kds"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile",
+      "name": "abrir-kds"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "login-kds",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "id-kds",
+      "valueFrom": "kitchenId",
+      "holdMs": 25
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "chave-kds",
+      "valueFrom": "kitchenKey",
+      "holdMs": 25
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "conectar-kds",
+      "holdMs": 160
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".kitchen-board",
+      "name": "painel-kds",
+      "timeoutMs": 15000,
+      "holdMs": 60
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-pizza",
+      "expected": "Pizza Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-grande",
+      "expected": "Grande",
+      "timeoutMs": 10000,
+      "holdMs": 40
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-calabresa",
+      "expected": "½ Calabresa",
+      "timeoutMs": 10000,
+      "holdMs": 40
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-marguerita",
+      "expected": "½ Marguerita",
+      "timeoutMs": 10000,
+      "holdMs": 40
+    },
+    {
+      "action": "expectText",
+      "selector": ".ticket-card.NEW",
+      "name": "kds-borda",
+      "expected": "Borda Catupiry",
+      "timeoutMs": 10000,
+      "holdMs": 120
+    },
+    {
+      "action": "click",
+      "selector": "[data-ticket][data-status='PREPARING']",
+      "name": "iniciar-preparo",
+      "holdMs": 100
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".ticket-card.PREPARING",
+      "name": "preparando",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "goto",
+      "urlFrom": "desktopUrl",
+      "name": "voltar-desktop"
+    },
+    {
+      "action": "setViewportSize",
+      "width": 1440,
+      "height": 900,
+      "name": "viewport-caixa"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "desktop-pronto",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 70
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "alimentacao",
+      "holdMs": 60
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='RESTAURANT']",
+      "name": "mesas",
+      "holdMs": 90
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "mesa-ocupada",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "click",
+      "selector": "[data-table-id='tutorial-table-08']",
+      "name": "abrir-comanda",
+      "holdMs": 90
+    },
+    {
+      "action": "expectText",
+      "selector": ".restaurant-session",
+      "name": "comanda-pizza",
+      "expected": "Pizza Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "expectText",
+      "selector": ".restaurant-session",
+      "name": "comanda-config",
+      "expected": "½ Calabresa",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "[data-checkout]",
+      "name": "data-checkout",
+      "holdMs": 150
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "checkout-pizza",
+      "expected": "Pizza Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "checkout-config",
+      "expected": "Borda Catupiry",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "[data-pay='cash']",
+      "name": "pagar",
+      "holdMs": 90
+    },
+    {
+      "action": "waitFor",
+      "selector": "#confirm-payment",
+      "name": "pagamento-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 50
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "confirm-payment",
+      "holdMs": 250
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-head",
+      "name": "concluido",
+      "expected": "Itens da venda (0)",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    }
+  ]
+}
