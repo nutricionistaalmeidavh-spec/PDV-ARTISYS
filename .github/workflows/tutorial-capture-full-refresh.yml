@@ -1,0 +1,242 @@
+name: Tutorial Capture Full Refresh
+
+on:
+  push:
+    branches:
+      - qa/tutorial-videos-full-refresh-food-20261007
+    paths:
+      - 'qa/**'
+      - 'scripts/tutorial-videos.mjs'
+      - 'desktop/renderer/**'
+      - 'server/customer-menu/**'
+      - 'server/mobile/**'
+      - 'test/tutorial-*.test.js'
+      - '.github/workflows/tutorial-capture-full-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tutorial-capture-full-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate tutorial contracts
+        run: |
+          node --test \
+            test/tutorial-videos-roadmap.test.js \
+            test/tutorial-p0-current-capture.test.js \
+            test/tutorial-p1-p3-capture.test.js \
+            test/tutorial-food-capture.test.js
+          npm run qa:tutorials:validate
+
+  capture:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - demo: 01-fazer-uma-venda
+            profile: tutorials-p0
+            environment: ci
+          - demo: 02-buscar-adicionar-produto
+            profile: tutorials-p0
+            environment: ci
+          - demo: 03-alterar-quantidade-remover-item
+            profile: tutorials-p0
+            environment: ci
+          - demo: 04-aplicar-desconto
+            profile: tutorials-p0
+            environment: ci
+          - demo: 05-identificar-cliente-vendedor
+            profile: tutorials-p0
+            environment: ci
+          - demo: 06-finalizar-dinheiro-troco
+            profile: tutorials-p0
+            environment: ci
+          - demo: 07-finalizar-pix-cartao
+            profile: tutorials-p0
+            environment: ci
+          - demo: 08-pagamento-misto
+            profile: tutorials-p0
+            environment: ci
+          - demo: 09-suspender-retomar-venda
+            profile: tutorials-p0
+            environment: ci
+          - demo: 10-abrir-caixa
+            profile: tutorials-p0
+            environment: ci
+          - demo: 11-sangria-suprimento
+            profile: tutorials-p0
+            environment: ci
+          - demo: 12-fechar-caixa
+            profile: tutorials-p0
+            environment: ci
+          - demo: 13-cadastrar-produto
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 14-alterar-preco-estoque
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 15-cadastrar-cliente
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 16-consultar-estoque
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 17-encontrar-venda
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 18-detalhes-venda
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 19-cancelar-venda
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 20-fazer-devolucao
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 21-relatorio-vendas
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 22-criar-pedido-compra
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 23-receber-mercadoria
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 24-recebimento-parcial
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 25-criar-orcamento-pedido
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 26-reservar-atender-pedido
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 27-contas-pagar-receber
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 28-comissao-vendedor
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 29-criar-usuario-operador
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 30-alterar-permissoes
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 31-parear-terminal
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 32-configurar-impressora
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 33-diagnostico-impressao
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 34-fazer-backup
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 35-restaurar-importar-dados
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 36-ativar-desativar-modulos
+            profile: tutorials-p1-p3
+            environment: ci
+          - demo: 37-criar-ficha-tecnica
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 38-escolher-aparencia-cardapio
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 39-gerar-qr-mesa
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 40-cliente-fazer-pedido-qr
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 41-abrir-mesa-comanda
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 42-garcom-acompanhar-pedido
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 43-kds-preparar-pedido
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 44-kds-garcom-sincronizacao
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 45-levar-comanda-caixa-pagar
+            profile: tutorials-food
+            environment: food-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install application dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Install QA runtime dependencies
+        run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure capture tools
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v ffprobe >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
+      - name: Capture tutorial
+        shell: bash
+        env:
+          DEMO: ${{ matrix.demo }}
+          PROFILE: ${{ matrix.profile }}
+          QA_ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          rm -rf "qa-artifacts-${DEMO}" tutorial-output
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo "${DEMO}" \
+            --profile "${PROFILE}" \
+            --preset landscape-16x9 \
+            --environment "${QA_ENVIRONMENT}" \
+            --output "qa-artifacts-${DEMO}"
+          RAW="$(find "qa-artifacts-${DEMO}" -name demo-video.mp4 -print -quit)"
+          test -n "$RAW"
+          mkdir -p tutorial-output
+          npm run qa:tutorials:edit -- \
+            --tutorial "${DEMO}" \
+            --input "$RAW" \
+            --output "tutorial-output/${DEMO}.mp4"
+      - name: Upload final tutorial
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-${{ matrix.demo }}
+          path: tutorial-output/${{ matrix.demo }}.mp4
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload QA evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-debug-${{ matrix.demo }}
+          path: qa-artifacts-${{ matrix.demo }}
+          if-no-files-found: warn
+          retention-days: 7
