@@ -282,7 +282,7 @@ function createPizzeriaService({db,modules,catalogCustomization=null,recipes=nul
       productId:profile.productId,
       quantity:input.quantity??1,
       unitPriceCents:pizza.unitPriceCents+genericDelta,
-      configurationSnapshot:{...genericSnapshot,pizza:pizza.configurationSnapshot.pizza},
+      configurationSnapshot:{...genericSnapshot,pizza:pizza.configurationSnapshot.pizza,stockItems:pizza.configurationSnapshot.pizza.stockItems},
       note:String(input.note||'').trim().slice(0,500)
     };
   }
