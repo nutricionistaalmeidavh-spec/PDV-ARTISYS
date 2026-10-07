@@ -1,0 +1,120 @@
+{
+  "name": "08-pagamento-misto",
+  "title": "Fazer pagamento misto",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.setup",
+      "scenario": "mixed-payment"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='checkout']",
+      "name": "abrir-balcao",
+      "holdMs": 600
+    },
+    {
+      "action": "fill",
+      "selector": "#product-search",
+      "name": "buscar-produto",
+      "value": "Produto Tutorial",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "[data-add-product='tutorial-product']",
+      "name": "adicionar-produto",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#finalize-sale",
+      "name": "abrir-pagamento",
+      "holdMs": 600
+    },
+    {
+      "action": "click",
+      "selector": "[data-remove-payment='0']",
+      "name": "limpar-pagamento-inicial",
+      "holdMs": 500
+    },
+    {
+      "action": "selectOption",
+      "selector": "#new-payment-method",
+      "name": "forma-dinheiro",
+      "value": "CASH",
+      "holdMs": 300
+    },
+    {
+      "action": "fill",
+      "selector": "#new-payment-value",
+      "name": "valor-dinheiro",
+      "value": "6,00",
+      "holdMs": 400
+    },
+    {
+      "action": "click",
+      "selector": "#add-payment",
+      "name": "adicionar-dinheiro",
+      "holdMs": 500
+    },
+    {
+      "action": "selectOption",
+      "selector": "#new-payment-method",
+      "name": "forma-pix",
+      "value": "PIX",
+      "holdMs": 300
+    },
+    {
+      "action": "fill",
+      "selector": "#new-payment-value",
+      "name": "valor-pix",
+      "value": "4,00",
+      "holdMs": 400
+    },
+    {
+      "action": "click",
+      "selector": "#add-payment",
+      "name": "adicionar-pix",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "#modal-root",
+      "name": "pagamento-completo",
+      "expected": "Restante",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "concluir-venda",
+      "holdMs": 800
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-head",
+      "name": "venda-concluida",
+      "expected": "Itens da venda (0)",
+      "timeoutMs": 10000,
+      "holdMs": 900
+    }
+  ]
+}
