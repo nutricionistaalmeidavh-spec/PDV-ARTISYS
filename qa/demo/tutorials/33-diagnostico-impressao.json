@@ -45,6 +45,22 @@
     },
     {
       "action": "expectText",
+      "selector": "#printing-settings-card",
+      "name": "impressora-simulada-contagem",
+      "expected": "1 IMPRESSORA(S)",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "expectText",
+      "selector": "#printing-settings-card",
+      "name": "impressora-simulada-nome",
+      "expected": "Impressora Tutorial",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "expectText",
       "selector": "#route-content",
       "name": "hardware-impressao",
       "expected": "Impressora",
