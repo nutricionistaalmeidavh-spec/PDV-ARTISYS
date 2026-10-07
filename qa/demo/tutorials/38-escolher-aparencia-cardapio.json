@@ -21,19 +21,19 @@
       "name": "app-ready",
       "state": "visible",
       "timeoutMs": 15000,
-      "holdMs": 150
+      "holdMs": 80
     },
     {
       "action": "click",
       "selector": "[data-route='FOOD']",
       "name": "abrir-alimentacao",
-      "holdMs": 300
+      "holdMs": 100
     },
     {
       "action": "click",
       "selector": "[data-food-capability='RESTAURANT']",
       "name": "abrir-mesas",
-      "holdMs": 400
+      "holdMs": 160
     },
     {
       "action": "waitFor",
@@ -41,20 +41,20 @@
       "name": "cardapio-publico-pronto",
       "state": "visible",
       "timeoutMs": 15000,
-      "holdMs": 250
+      "holdMs": 120
     },
     {
       "action": "click",
       "selector": ".menu-layout-option:has(input[value='PREMIUM']) .menu-layout-copy",
       "name": "escolher-visual-gastronomico",
       "timeoutMs": 10000,
-      "holdMs": 450
+      "holdMs": 180
     },
     {
       "action": "click",
       "selector": "#apply-menu-layout",
       "name": "aplicar-aparencia",
-      "holdMs": 550
+      "holdMs": 300
     },
     {
       "action": "expectText",
@@ -62,7 +62,47 @@
       "name": "aparencia-aplicada",
       "expected": "Aparência do cardápio aplicada",
       "timeoutMs": 10000,
-      "holdMs": 800
+      "holdMs": 250
+    },
+    {
+      "action": "setViewportSize",
+      "width": 412,
+      "height": 915,
+      "name": "visao-cliente"
+    },
+    {
+      "action": "goto",
+      "urlFrom": "foodMenuUrl",
+      "name": "abrir-cardapio-pronto"
+    },
+    {
+      "action": "expectVisible",
+      "selector": "html[data-menu-layout='premium']",
+      "name": "premium-ativo",
+      "timeoutMs": 15000,
+      "holdMs": 120
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".product-card.has-photo:has-text('Hambúrguer Artesanal')",
+      "name": "produto-com-foto",
+      "timeoutMs": 15000,
+      "holdMs": 180
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".product-card:has-text('Hambúrguer Artesanal') img.product-photo",
+      "name": "foto-cardapio",
+      "timeoutMs": 15000,
+      "holdMs": 500
+    },
+    {
+      "action": "expectText",
+      "selector": ".product-card:has-text('Hambúrguer Artesanal')",
+      "name": "descricao-cardapio",
+      "expected": "Pão brioche",
+      "timeoutMs": 10000,
+      "holdMs": 450
     }
   ]
 }
