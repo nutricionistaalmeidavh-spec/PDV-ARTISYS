@@ -230,6 +230,14 @@
       "action": "expectText",
       "selector": "#pizza-price-output",
       "name": "preco-calculado",
+      "expected": "Preço calculado",
+      "timeoutMs": 10000,
+      "holdMs": 600
+    },
+    {
+      "action": "expectText",
+      "selector": "#pizza-price-output",
+      "name": "preco-final-pizza",
       "expected": "45,00",
       "timeoutMs": 10000,
       "holdMs": 600
