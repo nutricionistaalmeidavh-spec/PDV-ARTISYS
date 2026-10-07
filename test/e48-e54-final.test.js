@@ -25,7 +25,7 @@ function setup(){
 test('E48-E54 advance vertical schema to v8 and expose final modular services',()=>{
   const rt=setup();
   try{
-    assert.equal(VERTICAL_SCHEMA_VERSION,8);
+    assert.equal(VERTICAL_SCHEMA_VERSION,9);
     for(const name of ['retail','publicOrdering','onboarding','mobileAccess','hardwareCompatibility']){
       assert.ok(rt[name],`runtime.${name} deve existir`);
     }
