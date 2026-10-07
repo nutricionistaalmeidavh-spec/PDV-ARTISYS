@@ -14,7 +14,8 @@ test('pizza reuses the canonical product configuration contract across waiter QR
   const desktop=read('desktop/renderer/restaurant-order-composer-ui.js');
 
   assert.match(canonical,/configurationKind:'PIZZA'/);
-  assert.match(canonical,/maxSelectionsBySize/);
+  assert.match(canonical,/selectionLimit/);
+  assert.match(canonical,/maxByOptionId/);
   assert.match(canonical,/priceConfiguredItem/);
   assert.match(canonical,/pizzeria\.pricePizza/);
 
