@@ -149,11 +149,11 @@
     },
     {
       "action": "expectText",
-      "selector": "#toast-root",
+      "selector": "#inventory-recipes-card",
       "name": "ficha-salva",
-      "expected": "Ficha Técnica salva",
-      "timeoutMs": 10000,
-      "holdMs": 700
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 15000,
+      "holdMs": 800
     }
   ]
 }
