@@ -4,7 +4,8 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {expandStockItems}=require('../js/domains/inventory/item-stock-expander');
-const {VERTICAL_SCHEMA_VERSION,runVerticalMigrations}=require('../js/core/database/vertical-migrations');
+const {VERTICAL_SCHEMA_VERSION}=require('../js/core/database/vertical-migrations');
+const {PIZZERIA_CANONICAL_SCHEMA_VERSION,runPizzeriaCanonicalMigrations}=require('../js/core/database/pizzeria-canonical-migrations');
 const {openDatabase}=require('../js/core/database/sqlite-database');
 const composer=require('../shared/order-composer');
 
@@ -48,7 +49,8 @@ function seed(rt){
 
 test('pizza schema keeps canonical recipe links and size consumption multiplier',()=>{
   const rt=runtime();try{
-    assert.equal(VERTICAL_SCHEMA_VERSION>=9,true);
+    assert.equal(VERTICAL_SCHEMA_VERSION,8);
+    assert.equal(PIZZERIA_CANONICAL_SCHEMA_VERSION,33);
     const sizeColumns=new Set(rt.db.prepare('PRAGMA table_info(pizza_sizes)').all().map(row=>row.name));
     const flavorColumns=new Set(rt.db.prepare('PRAGMA table_info(pizza_flavors)').all().map(row=>row.name));
     const crustColumns=new Set(rt.db.prepare('PRAGMA table_info(pizza_crusts)').all().map(row=>row.name));
@@ -125,12 +127,12 @@ test('pizza composer requires a size before adding configured pizza',()=>{
   assert.match(customer,/Escolha o tamanho da pizza/);
 });
 
-test('vertical migration upgrades an existing v8 pizza database to v9 without losing configuration',()=>{
+test('global migration upgrades an existing v32 pizza database to v33 without losing configuration',()=>{
   const db=openDatabase(':memory:');
   try{
     db.exec(`
       CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,name TEXT NOT NULL,applied_at TEXT NOT NULL);
-      INSERT INTO schema_migrations(version,name,applied_at) VALUES(8,'pdv_verticals_e48_e54','2026-10-01T00:00:00.000Z');
+      INSERT INTO schema_migrations(version,name,applied_at) VALUES(32,'pdv_public_table_ordering_v32','2026-10-01T00:00:00.000Z');
       CREATE TABLE products(id TEXT PRIMARY KEY);
       INSERT INTO products(id) VALUES('pizza'),('recipe-flavor');
       CREATE TABLE pizza_sizes(
@@ -149,10 +151,10 @@ test('vertical migration upgrades an existing v8 pizza database to v9 without lo
       INSERT INTO pizza_flavors VALUES('cal','pizza','Calabresa',400,1,'old','old');
       INSERT INTO pizza_crusts VALUES('cat','pizza','Catupiry',600,1,'old','old');
     `);
-    assert.equal(runVerticalMigrations(db,()=> '2026-10-07T00:00:00.000Z'),9);
+    assert.equal(runPizzeriaCanonicalMigrations(db,()=> '2026-10-07T00:00:00.000Z'),33);
     assert.equal(db.prepare('SELECT consumption_multiplier FROM pizza_sizes WHERE id=?').get('g').consumption_multiplier,1);
-    assert.equal(db.prepare('SELECT name,price_delta_cents FROM pizza_flavors WHERE id=?').get('cal').name,'Calabresa');
-    assert.equal(db.prepare('SELECT name,price_delta_cents FROM pizza_crusts WHERE id=?').get('cat').name,'Catupiry');
-    assert.equal(db.prepare('SELECT name FROM schema_migrations WHERE version=9').get().name,'pdv_pizzeria_canonical_composer');
+    assert.equal(db.prepare('SELECT name,price_delta_cents,recipe_product_id FROM pizza_flavors WHERE id=?').get('cal').name,'Calabresa');
+    assert.equal(db.prepare('SELECT name,price_delta_cents,recipe_product_id FROM pizza_crusts WHERE id=?').get('cat').name,'Catupiry');
+    assert.equal(db.prepare('SELECT name FROM schema_migrations WHERE version=33').get().name,'pdv_pizzeria_canonical_composer_v33');
   }finally{db.close();}
 });
