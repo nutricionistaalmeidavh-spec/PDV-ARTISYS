@@ -65,7 +65,20 @@ export async function normalizeDemoVideo(inputFile, outputFile, preset, { durati
   return outputFile;
 }
 
-export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 5000 } = {}) {
+export function buildFrameSequenceArgs(inputPattern, outputFile, { effectiveFps, canvasWidth, canvasHeight } = {}) {
+  const fps=Number(effectiveFps);
+  const width=Number(canvasWidth);
+  const height=Number(canvasHeight);
+  if(!Number.isFinite(fps)||fps<=0)throw new TypeError('effectiveFps must be positive');
+  if(!Number.isInteger(width)||width<=0||!Number.isInteger(height)||height<=0)throw new TypeError('canvas dimensions must be positive integers');
+  return [
+    '-y','-framerate',fps.toFixed(6),'-i',inputPattern,
+    '-vf',`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`,
+    '-c:v','libx264','-pix_fmt','yuv420p','-movflags','+faststart',outputFile
+  ];
+}
+
+export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 5000, canvasWidth = 1440, canvasHeight = 900 } = {}) {
   let stopped = false;
   let disabled = false;
   let frameCount = 0;
@@ -128,10 +141,11 @@ export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 500
       const elapsedSec = Math.max((Date.now() - startedAt) / 1000, 0.001);
       const effectiveFps = Math.max((frameCount - 1) / elapsedSec, 0.01);
       try {
-        await run('ffmpeg', [
-          '-y', '-framerate', effectiveFps.toFixed(6), '-i', path.join(dir, '%06d.png'),
-          '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', outputFile,
-        ]);
+        await run('ffmpeg', buildFrameSequenceArgs(path.join(dir, '%06d.png'), outputFile, {
+          effectiveFps,
+          canvasWidth,
+          canvasHeight
+        }));
         await fs.rm(dir, { recursive: true, force: true });
         return outputFile;
       } catch (error) {
