@@ -45,7 +45,7 @@ test('food tutorials are executable QA demos with a dedicated adapter',()=>{
 test('food demos cover recipe, menu layouts, QR, customer order, waiter, KDS synchronization and checkout',()=>{
   const combined=FOOD_IDS.map(id=>text(`qa/demo/tutorials/${id}.json`)).join('\n');
   assert.match(combined,/recipe-product-form/);
-  assert.match(combined,/menuLayout/);
+  assert.match(combined,/menu-layout-option/);
   assert.match(combined,/public-qr-preview/);
   assert.match(combined,/send-order/);
   assert.match(combined,/waiter-layout/);
