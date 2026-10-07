@@ -398,13 +398,15 @@
     const changed = item.catalogUnitPriceCents != null && item.catalogUnitPriceCents !== item.unitPriceCents;
     const weight=item.configuration?.weight||null;
     const sourceDocument=item.configuration?.sourceDocument||null;
+    const configured=Boolean(item.configuration?.pizza||item.configuration?.variant||item.configuration?.options?.length||item.configuration?.comboSelections?.length);
+    const configurationSummary=configured?window.PdvOrderComposer?.configurationSummary?.(item.configuration)||'':'';
     const weightLabel=weight?`${quantityLabel(Number(weight.grams||0))} g · ${escapeHtml(String(weight.source||'MANUAL')==='SCALE'?'balança':String(weight.source||'MANUAL')==='BARCODE'?'etiqueta':'manual')}`:null;
     const documentLabel=sourceDocument?`${escapeHtml(sourceDocument.orderNumber||sourceDocument.id||'Pedido')} · preço do pedido`:null;
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}${documentLabel?` · ${documentLabel}`:''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}${documentLabel?` · ${documentLabel}`:''}</small>`;
     const priceButton = !sourceDocument&&window.PdvAccessPolicy?.hasCapability(state.user,'sales.discount') ? `<button type="button" class="secondary-button cart-price-edit" data-price-item="${item.id}">Alterar preço</button>` : '';
-    const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
-    const remove=sourceDocument?'':weight?`<button type="button" class="cart-remove-button" data-remove-weighted="${item.id}" aria-label="Remover pesagem">×</button>`:`<button type="button" class="cart-remove-button" data-remove="${item.productId}">×</button>`;
-    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
+    const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:configured?`<div class="qty-control"><button type="button" data-configured-qty-minus="${item.id}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-configured-qty-plus="${item.id}">＋</button></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
+    const remove=sourceDocument?'':weight?`<button type="button" class="cart-remove-button" data-remove-weighted="${item.id}" aria-label="Remover pesagem">×</button>`:configured?`<button type="button" class="cart-remove-button" data-remove-configured="${item.id}" aria-label="Remover esta configuração">×</button>`:`<button type="button" class="cart-remove-button" data-remove="${item.productId}">×</button>`;
+    return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${configurationSummary?`<small>${escapeHtml(configurationSummary)}</small>`:''}${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
   }
 
   function bindCheckoutEvents() {
@@ -417,8 +419,11 @@
     content.querySelectorAll('[data-select-product]').forEach((line) => line.addEventListener('click', (event) => { if (event.target.closest('button')) return; state.selectedProductId = line.dataset.selectProduct; renderCheckout(); }));
     content.querySelectorAll('[data-qty-minus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyMinus, -1)));
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
+    content.querySelectorAll('[data-configured-qty-minus]').forEach(button=>button.addEventListener('click',()=>changeConfiguredQuantity(button.dataset.configuredQtyMinus,-1)));
+    content.querySelectorAll('[data-configured-qty-plus]').forEach(button=>button.addEventListener('click',()=>changeConfiguredQuantity(button.dataset.configuredQtyPlus,1)));
     content.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.remove)));
     content.querySelectorAll('[data-remove-weighted]').forEach((button) => button.addEventListener('click', () => removeWeightedItem(button.dataset.removeWeighted)));
+    content.querySelectorAll('[data-remove-configured]').forEach(button=>button.addEventListener('click',()=>removeConfiguredItem(button.dataset.removeConfigured)));
     content.querySelectorAll('[data-price-item]').forEach((button) => button.addEventListener('click', () => openPriceOverride(button.dataset.priceItem)));
     document.getElementById('seller-select')?.addEventListener('change', setSelectedSeller);
     document.getElementById('new-sale')?.addEventListener('click', newSale);
@@ -527,8 +532,47 @@
 
   async function addProduct(productId) {
     const product=state.products.find(item=>item.id===productId);
-    if(product&&['KG','G'].includes(String(product.unit||'').toUpperCase()))return openWeightedProduct(product);
-    try { const sale = await ensureSale(); state.sale = await api.addSaleItem(sale.id, productId, 1); state.selectedProductId = productId; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    if(!product)return showToast('Produto não encontrado.','error');
+    if(['KG','G'].includes(String(product.unit||'').toUpperCase()))return openWeightedProduct(product);
+    try {
+      const configuration=await api.productConfiguration(productId);
+      if(window.PdvOrderComposer?.hasConfiguration?.(configuration)){
+        await window.PdvRestaurantOrderComposerUi.configure({
+          api,modalRoot,product,
+          onAdd:async line=>{
+            const sale=await ensureSale();
+            state.sale=await api.addConfiguredSaleItem(sale.id,{
+              productId:line.productId,quantity:line.quantity,
+              variantId:line.configuration?.variantId||undefined,
+              selections:line.configuration?.selections||[],
+              comboSelections:line.configuration?.comboSelections||[],
+              note:line.note||''
+            });
+            state.selectedProductId=productId;
+            renderCheckout();
+          }
+        });
+        return;
+      }
+      const sale=await ensureSale();
+      state.sale=await api.addSaleItem(sale.id,productId,1);
+      state.selectedProductId=productId;
+      renderCheckout();
+    }catch(error){showToast(error.message,'error');}
+  }
+
+  async function changeConfiguredQuantity(itemId,delta){
+    const item=state.sale?.items.find(row=>row.id===itemId);if(!item)return;
+    const next=Number((item.quantity+delta).toFixed(3));
+    if(next<=0)return removeConfiguredItem(itemId);
+    try{state.sale=await api.updateConfiguredSaleItemQuantity(state.sale.id,itemId,next);renderCheckout();}
+    catch(error){showToast(error.message,'error');}
+  }
+
+  async function removeConfiguredItem(itemId){
+    if(!state.sale)return;
+    try{state.sale=await api.removeConfiguredSaleItem(state.sale.id,itemId);state.selectedProductId=null;renderCheckout();}
+    catch(error){showToast(error.message,'error');}
   }
 
   function openWeightedProduct(product) {
@@ -561,7 +605,7 @@
 
   async function clearCart() {
     if (!state.sale?.items?.length) return;
-    try { for (const item of [...state.sale.items]) state.sale = item.configuration?.weight ? await api.removeWeightedSaleItem(state.sale.id,item.id) : await api.removeSaleItem(state.sale.id,item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    try { for (const item of [...state.sale.items]) state.sale = item.configuration?.weight ? await api.removeWeightedSaleItem(state.sale.id,item.id) : item.configuration? await api.removeConfiguredSaleItem(state.sale.id,item.id) : await api.removeSaleItem(state.sale.id,item.productId); state.selectedProductId = null; renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
   }
 
   async function applyDiscountFromInput() {
