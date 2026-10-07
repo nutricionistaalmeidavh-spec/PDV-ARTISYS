@@ -69,7 +69,7 @@ test('canonical pizza pricing freezes proportional recipe consumption through KD
     assert.equal(config.configurationKind,'PIZZA');
     assert.equal(config.variants.length,0);
     assert.equal(config.groups.find(group=>group.name==='Tamanho').options[0].name,'Grande');
-    assert.equal(config.groups.find(group=>group.name==='Sabores').maxSelectionsBySize.grande,2);
+    assert.deepEqual(config.groups.find(group=>group.name==='Sabores').selectionLimit,{sourceGroupId:'__artisys_pizza_size__',maxByOptionId:{grande:2}});
 
     const priced=rt.orderConfiguration.priceConfiguredItem({productId:'pizza',...genericSelection()});
     assert.equal(priced.unitPriceCents,4500);
