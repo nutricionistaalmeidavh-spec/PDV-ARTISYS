@@ -13,6 +13,10 @@ on:
       - 'qa/demo/tutorials/40-cliente-fazer-pedido-qr.json'
       - 'qa/demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json'
       - 'qa/demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json'
+      - 'qa/demo/tutorials/48-configurar-pizza-canonica.json'
+      - 'qa/demo/tutorials/49-garcom-pedir-pizza.json'
+      - 'qa/demo/tutorials/50-cliente-pedir-pizza-qr.json'
+      - 'qa/demo/tutorials/51-pizza-kds-comanda-caixa.json'
       - 'qa/tutorials/catalog.json'
       - 'qa/artisys-qa.config.json'
       - 'test/tutorial-food-capture.test.js'
@@ -62,6 +66,14 @@ jobs:
             preset: landscape-16x9
           - demo: 47-configurar-pizza-tamanhos-sabores-borda
             preset: landscape-16x9
+          - demo: 48-configurar-pizza-canonica
+            preset: landscape-16x9
+          - demo: 49-garcom-pedir-pizza
+            preset: reels-9x16
+          - demo: 50-cliente-pedir-pizza-qr
+            preset: reels-9x16
+          - demo: 51-pizza-kds-comanda-caixa
+            preset: landscape-16x9
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,8 +86,8 @@ jobs:
         run: |
           set -e
           if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v xvfb-run >/dev/null 2>&1; then
-            timeout 120s sudo apt-get update -y
-            timeout 120s sudo apt-get install -y ffmpeg xvfb
+            timeout 300s sudo apt-get update -y
+            timeout 300s sudo apt-get install -y ffmpeg xvfb
           fi
       - name: Capture tutorial
         shell: bash
