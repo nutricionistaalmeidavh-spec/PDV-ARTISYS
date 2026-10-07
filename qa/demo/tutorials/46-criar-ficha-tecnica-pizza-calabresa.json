@@ -1,6 +1,6 @@
 {
   "name": "46-criar-ficha-tecnica-pizza-calabresa",
-  "title": "Criar ficha técnica da Pizza Calabresa",
+  "title": "Criar a ficha técnica base da pizza",
   "metadata": {
     "qaAutoAdmin": true
   },
@@ -27,13 +27,13 @@
       "action": "click",
       "selector": "button[data-route='catalog']",
       "name": "abrir-cadastros",
-      "holdMs": 70
+      "holdMs": 60
     },
     {
       "action": "click",
       "selector": "button[data-flow-route='inventory']",
       "name": "abrir-estoque",
-      "holdMs": 100
+      "holdMs": 80
     },
     {
       "action": "waitFor",
@@ -41,243 +41,163 @@
       "name": "estoque-pronto",
       "state": "visible",
       "timeoutMs": 10000,
-      "holdMs": 60
+      "holdMs": 50
     },
     {
       "action": "click",
       "selector": "#inventory-new-recipe",
-      "name": "nova-ficha-pizza",
-      "holdMs": 100
+      "name": "nova-ficha-base",
+      "holdMs": 80
     },
     {
       "action": "waitFor",
       "selector": "#recipe-product-form",
-      "name": "form-pizza",
+      "name": "form-base",
       "state": "visible",
       "timeoutMs": 10000,
-      "holdMs": 60
+      "holdMs": 50
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='name']",
       "name": "nome-pizza",
-      "value": "Pizza Calabresa",
-      "holdMs": 50
+      "value": "Pizza Artesanal",
+      "holdMs": 40
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='sku']",
       "name": "sku-pizza",
       "value": "PIZZA-001",
-      "holdMs": 40
+      "holdMs": 35
     },
     {
       "action": "selectOption",
       "selector": "#recipe-product-form select[name='categoryId']",
       "name": "categoria-pizzas",
       "value": "tutorial-cat-pizzas",
-      "holdMs": 50
+      "holdMs": 40
     },
     {
       "action": "fill",
       "selector": "#recipe-sale-price",
-      "name": "preco-pizza",
-      "value": "39,90",
-      "holdMs": 50
+      "name": "preco-base",
+      "value": "35,00",
+      "holdMs": 40
     },
     {
       "action": "selectOption",
       "selector": "#recipe-product-form select[name='productionDestination']",
       "name": "destino-cozinha",
       "value": "PRODUCTION:tutorial-kds",
-      "holdMs": 60
+      "holdMs": 50
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='yieldQuantity']",
-      "name": "rendimento-pizzas",
-      "value": "4",
-      "holdMs": 40
+      "name": "rendimento",
+      "value": "1",
+      "holdMs": 30
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='portionQuantity']",
-      "name": "porcao-pizza",
+      "name": "porcao",
       "value": "1",
-      "holdMs": 40
+      "holdMs": 30
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='prepTimeMinutes']",
-      "name": "tempo-pizza",
+      "name": "tempo-preparo",
       "value": "20",
-      "holdMs": 40
+      "holdMs": 30
     },
     {
       "action": "click",
       "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-1",
-      "holdMs": 40
+      "name": "adicionar-massa",
+      "holdMs": 35
     },
     {
       "action": "selectOption",
       "selector": "[data-recipe-create-row='0'] [data-recipe-product]",
-      "name": "pizza-insumo-1",
+      "name": "selecionar-massa",
       "value": "tutorial-pizza-dough",
-      "holdMs": 55
+      "holdMs": 45
     },
     {
       "action": "fill",
       "selector": "[data-recipe-create-row='0'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-1",
-      "value": "4",
-      "holdMs": 40
+      "name": "quantidade-massa",
+      "value": "1",
+      "holdMs": 35
     },
     {
       "action": "click",
       "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-2",
-      "holdMs": 40
+      "name": "adicionar-molho",
+      "holdMs": 35
     },
     {
       "action": "selectOption",
       "selector": "[data-recipe-create-row='1'] [data-recipe-product]",
-      "name": "pizza-insumo-2",
+      "name": "selecionar-molho",
       "value": "tutorial-pizza-tomato-sauce",
-      "holdMs": 55
+      "holdMs": 45
     },
     {
       "action": "fill",
       "selector": "[data-recipe-create-row='1'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-2",
-      "value": "0.8",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-3",
-      "holdMs": 40
-    },
-    {
-      "action": "selectOption",
-      "selector": "[data-recipe-create-row='2'] [data-recipe-product]",
-      "name": "pizza-insumo-3",
-      "value": "tutorial-pizza-mozzarella",
-      "holdMs": 55
-    },
-    {
-      "action": "fill",
-      "selector": "[data-recipe-create-row='2'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-3",
-      "value": "1.2",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-4",
-      "holdMs": 40
-    },
-    {
-      "action": "selectOption",
-      "selector": "[data-recipe-create-row='3'] [data-recipe-product]",
-      "name": "pizza-insumo-4",
-      "value": "tutorial-pizza-calabresa",
-      "holdMs": 55
-    },
-    {
-      "action": "fill",
-      "selector": "[data-recipe-create-row='3'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-4",
-      "value": "1",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-5",
-      "holdMs": 40
-    },
-    {
-      "action": "selectOption",
-      "selector": "[data-recipe-create-row='4'] [data-recipe-product]",
-      "name": "pizza-insumo-5",
-      "value": "tutorial-pizza-onion",
-      "holdMs": 55
-    },
-    {
-      "action": "fill",
-      "selector": "[data-recipe-create-row='4'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-5",
-      "value": "0.4",
-      "holdMs": 40
-    },
-    {
-      "action": "click",
-      "selector": "#recipe-create-add",
-      "name": "pizza-adicionar-6",
-      "holdMs": 40
-    },
-    {
-      "action": "selectOption",
-      "selector": "[data-recipe-create-row='5'] [data-recipe-product]",
-      "name": "pizza-insumo-6",
-      "value": "tutorial-pizza-oregano",
-      "holdMs": 55
-    },
-    {
-      "action": "fill",
-      "selector": "[data-recipe-create-row='5'] [data-recipe-quantity]",
-      "name": "pizza-quantidade-6",
-      "value": "0.05",
-      "holdMs": 40
+      "name": "quantidade-molho",
+      "value": "0.2",
+      "holdMs": 35
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form textarea[name='preparationNotes']",
-      "name": "preparo-pizza",
-      "value": "Abrir a massa, espalhar o molho, cobrir com mussarela, calabresa e cebola, finalizar com orégano e assar.",
-      "holdMs": 70
+      "name": "preparo-base",
+      "value": "Abrir a massa, espalhar o molho e finalizar conforme os sabores escolhidos.",
+      "holdMs": 50
     },
     {
       "action": "expectText",
       "selector": ".recipe-summary-grid",
-      "name": "custo-pizza",
+      "name": "custo-base",
       "expected": "Custo / porção",
       "timeoutMs": 10000,
-      "holdMs": 150
+      "holdMs": 120
     },
     {
       "action": "click",
       "selector": "#recipe-product-form button[type='submit']",
-      "name": "salvar-ficha-pizza",
-      "holdMs": 450
+      "name": "salvar-base",
+      "holdMs": 400
     },
     {
       "action": "expectText",
       "selector": "#inventory-recipes-card",
-      "name": "pizza-salva",
-      "expected": "Pizza Calabresa",
+      "name": "base-salva",
+      "expected": "Pizza Artesanal",
       "timeoutMs": 15000,
-      "holdMs": 250
+      "holdMs": 200
     },
     {
       "action": "capability",
       "name": "tutorial.food.photo",
-      "productName": "Pizza Calabresa",
+      "productName": "Pizza Artesanal",
       "kind": "pizza",
       "publish": true,
-      "description": "Massa artesanal, molho de tomate, mussarela, calabresa, cebola e orégano."
+      "description": "Massa artesanal e molho da casa. Escolha tamanho, sabores e borda."
     },
     {
       "action": "reload",
-      "name": "recarregar-pizza-com-foto"
+      "name": "recarregar-com-foto"
     },
     {
       "action": "waitFor",
       "selector": "#app-topbar",
-      "name": "foto-pizza-pronta",
+      "name": "foto-pronta",
       "state": "visible",
       "timeoutMs": 15000,
       "holdMs": 80
@@ -286,29 +206,29 @@
       "action": "click",
       "selector": "button[data-route='catalog']",
       "name": "voltar-cadastros",
-      "holdMs": 60
+      "holdMs": 50
     },
     {
       "action": "click",
       "selector": "button[data-flow-route='products']",
       "name": "abrir-cardapio",
-      "holdMs": 160
+      "holdMs": 120
     },
     {
       "action": "expectText",
       "selector": "[data-products-canonical='true']",
       "name": "pizza-no-cardapio",
-      "expected": "Pizza Calabresa",
+      "expected": "Pizza Artesanal",
       "timeoutMs": 10000,
       "holdMs": 180
     },
     {
       "action": "expectText",
-      "selector": "tr:has-text('Pizza Calabresa') [data-product-photo-edit]",
-      "name": "foto-pizza-anexada",
+      "selector": "tr:has-text('Pizza Artesanal') [data-product-photo-edit]",
+      "name": "foto-anexada",
       "expected": "Trocar foto",
       "timeoutMs": 10000,
-      "holdMs": 450
+      "holdMs": 300
     }
   ]
 }
