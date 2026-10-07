@@ -16,6 +16,20 @@
     note:line.note||'',
     configuration:line.configuration
   });
+  function priceConfigured({basePriceCents=0,configuration=null,variantId=null,selections=[],comboSelections=[]}={}){
+    const config=configuration||{};let cents=Math.max(0,Math.trunc(Number(basePriceCents)||0));
+    const variant=(config.variants||[]).find(item=>String(item.id)===String(variantId||''));if(variant)cents+=Number(variant.priceDeltaCents||0);
+    const selected=new Set((selections||[]).map(value=>String(value?.optionId||value)));
+    for(const group of config.groups||[]){
+      const deltas=(group.options||[]).filter(option=>selected.has(String(option.id))).map(option=>Number(option.priceDeltaCents||0));
+      const mode=String(group.pricingMode||'ADDITIVE').toUpperCase();
+      if(mode==='HIGHEST_FLAVOR'||mode==='HIGHEST')cents+=deltas.length?Math.max(...deltas):0;
+      else if(mode==='PROPORTIONAL_AVERAGE'||mode==='AVERAGE')cents+=deltas.length?Math.round(deltas.reduce((sum,value)=>sum+value,0)/deltas.length):0;
+      else cents+=deltas.reduce((sum,value)=>sum+value,0);
+    }
+    for(const pick of comboSelections||[]){const group=(config.combos||[]).find(item=>String(item.id)===String(pick.groupId));const item=group?.items?.find(row=>String(row.productId)===String(pick.productId));if(item)cents+=Number(item.priceDeltaCents||0);}
+    return Math.max(0,Math.trunc(cents));
+  }
   function createCart({idFactory=()=>`line-${Date.now()}-${Math.random().toString(36).slice(2)}`}={}){
     let items=[];
     function add(input={}){
@@ -69,5 +83,5 @@
     }
     return{add,lines,clear,changeQuantity,setQuantity,summary,toOrderItems};
   }
-  return{createCart};
+  return{createCart,priceConfigured};
 });
