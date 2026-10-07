@@ -8,21 +8,6 @@ const { writeAudit }=require('../../core/audit-log');
 function createPizzeriaService({db,modules,catalogCustomization=null,recipes=null,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!modules)throw new TypeError('db and modules are required.');
 
-  function ensureCanonicalColumns(){
-    const additions={
-      pizza_sizes:[['recipe_multiplier','REAL NOT NULL DEFAULT 1']],
-      pizza_flavors:[['recipe_product_id','TEXT']],
-      pizza_crusts:[['recipe_product_id','TEXT']]
-    };
-    for(const [table,columns] of Object.entries(additions)){
-      const exists=db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table);
-      if(!exists)continue;
-      const current=new Set(db.prepare(`PRAGMA table_info(${table})`).all().map(column=>column.name));
-      for(const [name,definition] of columns)if(!current.has(name))db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
-    }
-  }
-  ensureCanonicalColumns();
-
   const gate=()=>modules.requireEnabled('FOOD');
   function product(id){const row=db.prepare('SELECT * FROM products WHERE id=? AND active=1').get(String(id));if(!row)throw new Error('Produto de pizza nao encontrado ou inativo.');return row;}
   function recipeProduct(id,label){
@@ -121,7 +106,16 @@ function createPizzeriaService({db,modules,catalogCustomization=null,recipes=nul
     const flavors=ids.map(id=>{const row=db.prepare('SELECT * FROM pizza_flavors WHERE id=? AND product_id=? AND active=1').get(id,p.id);if(!row)throw new Error(`Sabor de pizza invalido: ${id}.`);return{id:row.id,name:row.name,priceDeltaCents:row.price_delta_cents,recipeProductId:row.recipe_product_id||null,fraction:1/ids.length};});
     let flavorDelta=0;if(profile.pricingPolicy==='HIGHEST_FLAVOR')flavorDelta=Math.max(...flavors.map(f=>f.priceDeltaCents));else flavorDelta=Math.round(flavors.reduce((sum,f)=>sum+f.priceDeltaCents,0)/flavors.length);
     let crust=null;if(input.crustId){const row=db.prepare('SELECT * FROM pizza_crusts WHERE id=? AND product_id=? AND active=1').get(String(input.crustId),p.id);if(!row)throw new Error('Borda de pizza invalida.');crust={id:row.id,name:row.name,priceDeltaCents:row.price_delta_cents,recipeProductId:row.recipe_product_id||null};}
-    let additionsDelta=0;let additions=null;if(catalogCustomization&&Array.isArray(input.selections)&&input.selections.length){const configured=catalogCustomization.priceConfiguredItem({productId:p.id,selections:input.selections});additions=configured.configurationSnapshot.options;additionsDelta=configured.unitPriceCents-p.sale_price_cents;}
+    let additionsDelta=0;let extras=null;
+    if(catalogCustomization&&((Array.isArray(input.selections)&&input.selections.length)||(Array.isArray(input.comboSelections)&&input.comboSelections.length))){
+      const configured=catalogCustomization.priceConfiguredItem({
+        productId:p.id,
+        selections:Array.isArray(input.selections)?input.selections:[],
+        comboSelections:Array.isArray(input.comboSelections)?input.comboSelections:[]
+      });
+      extras=configured.configurationSnapshot;
+      additionsDelta=configured.unitPriceCents-p.sale_price_cents;
+    }
     const unitPriceCents=p.sale_price_cents+size.price_delta_cents+flavorDelta+(crust?.priceDeltaCents||0)+additionsDelta;if(unitPriceCents<0||!Number.isSafeInteger(unitPriceCents))throw new Error('Preco da pizza invalido.');
 
     const recipeMultiplier=Number(size.recipe_multiplier||1);const stock=new Map();
@@ -135,7 +129,7 @@ function createPizzeriaService({db,modules,catalogCustomization=null,recipes=nul
       size:{id:size.id,name:size.name,priceDeltaCents:size.price_delta_cents,maxFlavors:size.max_flavors,recipeMultiplier},
       flavors:flavors.map(({recipeProductId,...safe})=>safe),
       crust:crust?(({recipeProductId,...safe})=>safe)(crust):null,
-      additions:additions||[],
+      extras,
       stockItems
     }}};
   }
