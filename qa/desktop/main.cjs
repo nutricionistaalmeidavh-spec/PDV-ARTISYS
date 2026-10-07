@@ -3,7 +3,7 @@
 const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
-const { app, safeStorage } = require('electron');
+const { app, safeStorage, BrowserWindow } = require('electron');
 
 if (process.env.ARTISYS_QA === '1') {
   const explicit = String(process.env.ARTISYS_QA_USER_DATA_DIR || '').trim();
@@ -22,6 +22,26 @@ if (process.env.ARTISYS_QA === '1') {
       serverUrl:'',
       terminalId:'PDV-01'
     }));
+  }
+
+  if (process.env.ARTISYS_QA_FAKE_PRINTER === '1') {
+    const realGetAllWindows=BrowserWindow.getAllWindows.bind(BrowserWindow);
+    BrowserWindow.getAllWindows=()=>{
+      const windows=realGetAllWindows();
+      for(const window of windows){
+        if(window?.webContents){
+          window.webContents.getPrintersAsync=async()=>[{
+            name:'Impressora Tutorial',
+            displayName:'Impressora Tutorial',
+            description:'Impressora térmica simulada para QA',
+            isDefault:true,
+            status:0,
+            options:{}
+          }];
+        }
+      }
+      return windows;
+    };
   }
 
   // Headless Linux runners do not expose an OS keyring. Production still
