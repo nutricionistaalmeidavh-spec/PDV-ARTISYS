@@ -98,3 +98,18 @@ test('shared cart preserves canonical pizza selection without trusting a client 
     pizza:{size:{name:'Grande'},flavors:[{name:'Calabresa',fraction:0.5},{name:'Marguerita',fraction:0.5}],crust:{name:'Catupiry'}}
   }),/Grande.*½ Calabresa.*½ Marguerita.*Borda Catupiry/);
 });
+
+
+test('pizza composers keep size-specific flavor limits and customer draft price aligned with canonical policy',()=>{
+  const fs=require('node:fs');
+  const path=require('node:path');
+  const desktop=fs.readFileSync(path.join(__dirname,'../desktop/renderer/restaurant-order-composer-ui.js'),'utf8');
+  const customer=fs.readFileSync(path.join(__dirname,'../server/customer-menu/app.js'),'utf8');
+
+  assert.match(desktop,/function syncPizzaFlavorLimit\(/);
+  assert.match(desktop,/data-pizza-size-max-flavors/);
+  assert.match(customer,/function syncPizzaFlavorLimit\(/);
+  assert.match(customer,/function pizzaDraftPrice\(/);
+  assert.match(customer,/HIGHEST_FLAVOR/);
+  assert.match(customer,/PROPORTIONAL_AVERAGE/);
+});
