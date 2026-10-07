@@ -120,7 +120,17 @@ async function setupFood(page,scenario,runtimeContext){
       return api.saveProduct({categoryId:null,unit:'UN',minimumStock:0,active:true,...input});
     }
     async function ingredient(id,name,sku,costCents,unit='UN'){
-      return product({id,name,sku,unit,usageType:'INGREDIENT',salePriceCents:0,costCents,trackStock:true,menuEnabled:false});
+      const saved=await product({id,name,sku,unit,usageType:'INGREDIENT',salePriceCents:0,costCents,trackStock:true,menuEnabled:false});
+      try{await api.saveInventoryMovement({productId:id,type:'adjustment-in',quantityDelta:20,reason:'Estoque tutorial Alimentação'});}catch{}
+      return saved;
+    }
+    async function preparedRecipe({id,name,sku,components,notes=''}) {
+      await product({id,name,sku,usageType:'DIRECT',salePriceCents:0,costCents:0,trackStock:false,menuEnabled:false});
+      await req(`/api/v1/vertical/recipes/${encodeURIComponent(id)}`,{method:'PUT',body:{
+        yieldQuantity:1,yieldUnit:'UN',portionQuantity:1,prepTimeMinutes:0,preparationNotes:notes,
+        components:components.map(component=>({conversionFactor:1,lossPercent:0,...component}))
+      }});
+      return id;
     }
     async function ensureStation(){
       try{return await req('/api/v1/restaurant/kitchen/stations',{method:'POST',body:{id:'tutorial-kds',name:'Cozinha principal',printEnabled:false}});}
@@ -146,6 +156,9 @@ async function setupFood(page,scenario,runtimeContext){
       await ingredient('tutorial-pizza-calabresa','Calabresa','PIZ-CAL',2800,'KG');
       await ingredient('tutorial-pizza-onion','Cebola','PIZ-ONION',500,'KG');
       await ingredient('tutorial-pizza-oregano','Orégano','PIZ-OREGANO',3000,'KG');
+      await ingredient('tutorial-pizza-tomato','Tomate','PIZ-TOMATO',700,'KG');
+      await ingredient('tutorial-pizza-basil','Manjericão','PIZ-BASIL',2500,'KG');
+      await ingredient('tutorial-pizza-catupiry','Catupiry','PIZ-CATUPIRY',3200,'KG');
     }
     async function ensureFoodCatalog(){
       const station=await ensureStation();
@@ -160,11 +173,42 @@ async function setupFood(page,scenario,runtimeContext){
     }
     async function ensurePizzaCatalog(){
       const station=await ensureStation();
-      await category('tutorial-cat-pizzas','Pizzas');
-      await product({id:'tutorial-pizza-main',name:'Pizza Calabresa',sku:'PIZZA-001',categoryId:'tutorial-cat-pizzas',usageType:'DIRECT',salePriceCents:3500,costCents:1450,trackStock:false,menuEnabled:true});
+      await ensurePizzaIngredients();
+      await product({id:'tutorial-pizza-main',name:'Pizza Artesanal',sku:'PIZZA-001',categoryId:'tutorial-cat-pizzas',usageType:'DIRECT',salePriceCents:3500,costCents:0,trackStock:false,menuEnabled:true});
+      await req('/api/v1/vertical/recipes/tutorial-pizza-main',{method:'PUT',body:{
+        yieldQuantity:1,yieldUnit:'UN',portionQuantity:1,prepTimeMinutes:20,
+        preparationNotes:'Abrir a massa, aplicar o molho e finalizar conforme os sabores escolhidos.',
+        components:[
+          {productId:'tutorial-pizza-dough',quantity:1,unit:'UN',conversionFactor:1,lossPercent:0},
+          {productId:'tutorial-pizza-tomato-sauce',quantity:0.2,unit:'LT',conversionFactor:1,lossPercent:0}
+        ]
+      }});
+      await preparedRecipe({id:'tutorial-pizza-flavor-calabresa',name:'Sabor Calabresa',sku:'PIZ-FL-CAL',notes:'Cobertura de Calabresa.',components:[
+        {productId:'tutorial-pizza-mozzarella',quantity:0.2,unit:'KG'},
+        {productId:'tutorial-pizza-calabresa',quantity:0.15,unit:'KG'},
+        {productId:'tutorial-pizza-onion',quantity:0.05,unit:'KG'},
+        {productId:'tutorial-pizza-oregano',quantity:0.002,unit:'KG'}
+      ]});
+      await preparedRecipe({id:'tutorial-pizza-flavor-marguerita',name:'Sabor Marguerita',sku:'PIZ-FL-MAR',notes:'Cobertura de Marguerita.',components:[
+        {productId:'tutorial-pizza-mozzarella',quantity:0.18,unit:'KG'},
+        {productId:'tutorial-pizza-tomato',quantity:0.12,unit:'KG'},
+        {productId:'tutorial-pizza-basil',quantity:0.01,unit:'KG'},
+        {productId:'tutorial-pizza-oregano',quantity:0.002,unit:'KG'}
+      ]});
+      await preparedRecipe({id:'tutorial-pizza-crust-catupiry',name:'Borda Catupiry',sku:'PIZ-CR-CAT',notes:'Recheio da borda.',components:[
+        {productId:'tutorial-pizza-catupiry',quantity:0.12,unit:'KG'}
+      ]});
       await req('/api/v1/restaurant/kitchen/routing',{method:'POST',body:{productId:'tutorial-pizza-main',mode:'PRODUCTION',stationId:station.id||'tutorial-kds'}});
-      await req('/api/v1/restaurant/public-ordering/menu/tutorial-pizza-main',{method:'PATCH',body:{description:'Massa artesanal, molho de tomate, mussarela, calabresa, cebola e orégano.',visible:true}});
+      await req('/api/v1/restaurant/public-ordering/menu/tutorial-pizza-main',{method:'PATCH',body:{description:'Massa artesanal e molho da casa. Escolha tamanho, sabores e borda.',visible:true}});
       return station;
+    }
+    async function ensurePizzaConfigured(){
+      await ensurePizzaCatalog();
+      await req('/api/v1/vertical/pizzeria/profile',{method:'POST',body:{productId:'tutorial-pizza-main',pricingPolicy:'HIGHEST_FLAVOR'}});
+      await req('/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'size',id:'tutorial-pizza-size-grande',productId:'tutorial-pizza-main',name:'Grande',maxFlavors:2,priceDeltaCents:500,recipeMultiplier:1.5}});
+      await req('/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'flavor',id:'tutorial-pizza-flavor-cal',productId:'tutorial-pizza-main',name:'Calabresa',priceDeltaCents:400,recipeProductId:'tutorial-pizza-flavor-calabresa'}});
+      await req('/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'flavor',id:'tutorial-pizza-flavor-mar',productId:'tutorial-pizza-main',name:'Marguerita',priceDeltaCents:200,recipeProductId:'tutorial-pizza-flavor-marguerita'}});
+      await req('/api/v1/vertical/pizzeria/catalog',{method:'POST',body:{kind:'crust',id:'tutorial-pizza-crust-cat',productId:'tutorial-pizza-main',name:'Catupiry',priceDeltaCents:600,recipeProductId:'tutorial-pizza-crust-catupiry'}});
     }
     async function ensureTable(){
       try{return await req('/api/v1/restaurant/tables',{method:'POST',body:{id:'tutorial-table-08',label:'Mesa 08',capacity:4,active:true}});}
@@ -209,6 +253,24 @@ async function setupFood(page,scenario,runtimeContext){
     if(scenario==='pizza-config'){
       await ensurePizzaCatalog();
       return {terminalId:config.terminalId,operatorId,demoPhotoProductId:'tutorial-pizza-main',demoPhotoKind:'pizza'};
+    }
+    if(['pizza-waiter','pizza-qr','pizza-kds-checkout'].includes(scenario)){
+      await ensurePizzaConfigured();
+      await ensureTable();
+      await req('/api/v1/restaurant/public-ordering/config',{method:'PUT',body:{autoOpenTable:true,menuLayout:'PREMIUM'}});
+      const vars={terminalId:config.terminalId,operatorId,demoPhotoProductId:'tutorial-pizza-main',demoPhotoKind:'pizza'};
+      const qr=await req('/api/v1/restaurant/public-ordering/tables/tutorial-table-08/qr');vars.foodMenuUrl=qr.url;
+      if(['pizza-waiter','pizza-kds-checkout'].includes(scenario)){
+        const opened=await openTable();vars.restaurantSessionId=opened.session.id;
+        const waiter=await device('tutorial-waiter','Garçom Tutorial','WAITER');vars.waiterId=waiter?.id||'tutorial-waiter';vars.waiterKey=waiter?.credential||'';
+      }
+      if(scenario==='pizza-kds-checkout'){
+        const kitchen=await device('tutorial-kitchen','KDS Cozinha','KITCHEN');vars.kitchenId=kitchen?.id||'tutorial-kitchen';vars.kitchenKey=kitchen?.credential||'';
+        let cash=null;try{cash=await api.openCash(config.terminalId);}catch{}
+        if(!cash){const openedCash=await api.createCash({terminalId:config.terminalId,initialCashCents:10000});cash=openedCash.session||openedCash;}
+        vars.cashSessionId=cash.id;
+      }
+      return vars;
     }
 
     await ensureFoodCatalog();
