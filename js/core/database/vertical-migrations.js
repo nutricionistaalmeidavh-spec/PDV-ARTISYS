@@ -2,7 +2,7 @@
 
 const { withTransaction }=require('./sqlite-database');
 
-const VERTICAL_SCHEMA_VERSION=9;
+const VERTICAL_SCHEMA_VERSION=8;
 
 const V6_SQL=`
   ALTER TABLE sale_items ADD COLUMN configuration_json TEXT;
@@ -436,17 +436,10 @@ const V8_SQL=`
 `;
 
 
-const V9_SQL=`
-  ALTER TABLE pizza_sizes ADD COLUMN recipe_multiplier REAL NOT NULL DEFAULT 1;
-  ALTER TABLE pizza_flavors ADD COLUMN recipe_product_id TEXT;
-  ALTER TABLE pizza_crusts ADD COLUMN recipe_product_id TEXT;
-`;
-
 const VERTICAL_MIGRATIONS=Object.freeze([
   {version:6,name:'pdv_modular_foundation_e40_e42',sql:V6_SQL},
   {version:7,name:'pdv_verticals_e43_e47',sql:V7_SQL},
-  {version:8,name:'pdv_verticals_e48_e54',sql:V8_SQL},
-  {version:VERTICAL_SCHEMA_VERSION,name:'pizza_recipe_composition_v9',sql:V9_SQL}
+  {version:VERTICAL_SCHEMA_VERSION,name:'pdv_verticals_e48_e54',sql:V8_SQL}
 ]);
 
 function runVerticalMigrations(db,now=()=>new Date().toISOString()){
@@ -464,4 +457,4 @@ function runVerticalMigrations(db,now=()=>new Date().toISOString()){
   return current;
 }
 
-module.exports={VERTICAL_SCHEMA_VERSION,V6_SQL,V7_SQL,V8_SQL,V9_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};
+module.exports={VERTICAL_SCHEMA_VERSION,V6_SQL,V7_SQL,V8_SQL,VERTICAL_MIGRATIONS,runVerticalMigrations};
