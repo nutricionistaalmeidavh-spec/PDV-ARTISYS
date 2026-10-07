@@ -1,6 +1,6 @@
 {
   "name": "37-criar-ficha-tecnica",
-  "title": "Criar e preencher ficha técnica",
+  "title": "Criar ficha técnica completa de hambúrguer",
   "metadata": {
     "qaAutoAdmin": true
   },
@@ -21,19 +21,19 @@
       "name": "app-ready",
       "state": "visible",
       "timeoutMs": 15000,
-      "holdMs": 150
+      "holdMs": 80
     },
     {
       "action": "click",
       "selector": "button[data-route='catalog']",
       "name": "abrir-cadastros",
-      "holdMs": 250
+      "holdMs": 80
     },
     {
       "action": "click",
       "selector": "button[data-flow-route='inventory']",
       "name": "abrir-estoque",
-      "holdMs": 350
+      "holdMs": 100
     },
     {
       "action": "waitFor",
@@ -41,13 +41,13 @@
       "name": "estoque-pronto",
       "state": "visible",
       "timeoutMs": 10000,
-      "holdMs": 150
+      "holdMs": 60
     },
     {
       "action": "click",
       "selector": "#inventory-new-recipe",
       "name": "nova-ficha-tecnica",
-      "holdMs": 350
+      "holdMs": 100
     },
     {
       "action": "waitFor",
@@ -55,83 +55,190 @@
       "name": "form-ficha",
       "state": "visible",
       "timeoutMs": 10000,
-      "holdMs": 150
+      "holdMs": 60
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='name']",
       "name": "nome-prato",
       "value": "Hambúrguer Artesanal",
-      "holdMs": 150
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='sku']",
+      "name": "sku-prato",
+      "value": "FOOD-001",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "#recipe-product-form select[name='categoryId']",
+      "name": "categoria-lanches",
+      "value": "tutorial-cat-lanches",
+      "holdMs": 50
     },
     {
       "action": "fill",
       "selector": "#recipe-sale-price",
       "name": "preco-venda",
       "value": "27,90",
-      "holdMs": 150
+      "holdMs": 50
     },
     {
       "action": "selectOption",
       "selector": "#recipe-product-form select[name='productionDestination']",
       "name": "destino-kds",
       "value": "PRODUCTION:tutorial-kds",
-      "holdMs": 180
+      "holdMs": 60
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='yieldQuantity']",
       "name": "rendimento",
       "value": "10",
-      "holdMs": 120
+      "holdMs": 40
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='portionQuantity']",
       "name": "porcao",
       "value": "1",
-      "holdMs": 120
+      "holdMs": 40
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form input[name='prepTimeMinutes']",
       "name": "tempo-preparo",
       "value": "12",
-      "holdMs": 120
+      "holdMs": 40
     },
     {
       "action": "click",
       "selector": "#recipe-create-add",
-      "name": "adicionar-insumo",
-      "holdMs": 220
+      "name": "burger-adicionar-1",
+      "holdMs": 40
     },
     {
       "action": "selectOption",
       "selector": "[data-recipe-create-row='0'] [data-recipe-product]",
-      "name": "selecionar-pao",
+      "name": "burger-insumo-1",
       "value": "tutorial-ingredient-bread",
-      "holdMs": 160
+      "holdMs": 55
     },
     {
       "action": "fill",
       "selector": "[data-recipe-create-row='0'] [data-recipe-quantity]",
-      "name": "quantidade-pao",
+      "name": "burger-quantidade-1",
       "value": "10",
-      "holdMs": 120
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "burger-adicionar-2",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='1'] [data-recipe-product]",
+      "name": "burger-insumo-2",
+      "value": "tutorial-ingredient-meat",
+      "holdMs": 55
     },
     {
       "action": "fill",
-      "selector": "[data-recipe-create-row='0'] [data-recipe-loss]",
-      "name": "perda-pao",
-      "value": "2",
-      "holdMs": 120
+      "selector": "[data-recipe-create-row='1'] [data-recipe-quantity]",
+      "name": "burger-quantidade-2",
+      "value": "10",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "burger-adicionar-3",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='2'] [data-recipe-product]",
+      "name": "burger-insumo-3",
+      "value": "tutorial-ingredient-cheese",
+      "holdMs": 55
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='2'] [data-recipe-quantity]",
+      "name": "burger-quantidade-3",
+      "value": "10",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "burger-adicionar-4",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='3'] [data-recipe-product]",
+      "name": "burger-insumo-4",
+      "value": "tutorial-ingredient-lettuce",
+      "holdMs": 55
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='3'] [data-recipe-quantity]",
+      "name": "burger-quantidade-4",
+      "value": "5",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "burger-adicionar-5",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='4'] [data-recipe-product]",
+      "name": "burger-insumo-5",
+      "value": "tutorial-ingredient-tomato",
+      "holdMs": 55
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='4'] [data-recipe-quantity]",
+      "name": "burger-quantidade-5",
+      "value": "5",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "burger-adicionar-6",
+      "holdMs": 40
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='5'] [data-recipe-product]",
+      "name": "burger-insumo-6",
+      "value": "tutorial-ingredient-sauce",
+      "holdMs": 55
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='5'] [data-recipe-quantity]",
+      "name": "burger-quantidade-6",
+      "value": "10",
+      "holdMs": 40
     },
     {
       "action": "fill",
       "selector": "#recipe-product-form textarea[name='preparationNotes']",
       "name": "modo-preparo",
-      "value": "Montar, grelhar e finalizar antes de servir.",
-      "holdMs": 180
+      "value": "Grelhar a carne, aquecer o pão e montar com queijo, alface, tomate e molho da casa.",
+      "holdMs": 70
     },
     {
       "action": "expectText",
@@ -139,13 +246,13 @@
       "name": "custos-calculados",
       "expected": "Custo / porção",
       "timeoutMs": 10000,
-      "holdMs": 300
+      "holdMs": 160
     },
     {
       "action": "click",
       "selector": "#recipe-product-form button[type='submit']",
       "name": "salvar-ficha",
-      "holdMs": 650
+      "holdMs": 450
     },
     {
       "action": "expectText",
@@ -153,7 +260,55 @@
       "name": "ficha-salva",
       "expected": "Hambúrguer Artesanal",
       "timeoutMs": 15000,
-      "holdMs": 800
+      "holdMs": 250
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.photo",
+      "productName": "Hambúrguer Artesanal",
+      "kind": "burger",
+      "publish": true,
+      "description": "Pão brioche, hambúrguer 160g, queijo, alface, tomate e molho da casa."
+    },
+    {
+      "action": "reload",
+      "name": "recarregar-com-foto"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "foto-pronta",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "voltar-cadastros",
+      "holdMs": 60
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='products']",
+      "name": "abrir-cardapio",
+      "holdMs": 180
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-products-canonical='true']",
+      "name": "hamburguer-no-cardapio",
+      "expected": "Hambúrguer Artesanal",
+      "timeoutMs": 10000,
+      "holdMs": 180
+    },
+    {
+      "action": "expectText",
+      "selector": "tr:has-text('Hambúrguer Artesanal') [data-product-photo-edit]",
+      "name": "foto-anexada",
+      "expected": "Trocar foto",
+      "timeoutMs": 10000,
+      "holdMs": 400
     }
   ]
 }
