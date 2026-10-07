@@ -44,8 +44,8 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       const comboItem=pathname.match(/^\/api\/v1\/vertical\/catalog\/combo-groups\/([^/]+)\/items$/);
       if(request.method==='POST'&&comboItem){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertComboItem(decodeURIComponent(comboItem[1]),await body(request),actor));return true;}
       const productConfig=pathname.match(/^\/api\/v1\/vertical\/catalog\/products\/([^/]+)\/configuration$/);
-      if(request.method==='GET'&&productConfig){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.getProductConfiguration(decodeURIComponent(productConfig[1])));return true;}
-      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){requireCapability(actor,'products.manage');json(response,200,runtime.catalogCustomization.priceConfiguredItem(await body(request)));return true;}
+      if(request.method==='GET'&&productConfig){requireCapability(actor,'products.manage');json(response,200,runtime.orderConfiguration.getProductConfiguration(decodeURIComponent(productConfig[1])));return true;}
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/price'){requireCapability(actor,'products.manage');json(response,200,runtime.orderConfiguration.priceConfiguredItem(await body(request)));return true;}
 
       const recipe=pathname.match(/^\/api\/v1\/vertical\/recipes\/([^/]+)$/);
       if(request.method==='GET'&&recipe){requireCapability(actor,'products.manage');const value=runtime.recipes.getRecipe(decodeURIComponent(recipe[1]));if(!value)throw new VerticalHttpError(404,'Ficha tecnica nao encontrada.');json(response,200,value);return true;}
