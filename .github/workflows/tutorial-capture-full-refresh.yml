@@ -37,7 +37,10 @@ jobs:
             test/tutorial-p0-current-capture.test.js \
             test/tutorial-p1-p3-capture.test.js \
             test/tutorial-food-capture.test.js \
-            test/food-tutorial-product-flow-regressions.test.js
+            test/food-tutorial-product-flow-regressions.test.js \
+            test/pizzeria-workspace-polish.test.js \
+            qa/runtime/tests/select-option-label.test.js \
+            qa/runtime/tests/video-aspect-ratio.test.js
           npm run qa:tutorials:validate
 
   capture:
