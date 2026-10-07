@@ -1,0 +1,238 @@
+{
+  "name": "47-configurar-pizza-tamanhos-sabores-borda",
+  "title": "Configurar tamanhos, sabores e borda da pizza",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "pizza-config"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "[data-route='FOOD']",
+      "name": "abrir-alimentacao",
+      "holdMs": 90
+    },
+    {
+      "action": "click",
+      "selector": "[data-food-capability='PIZZERIA']",
+      "name": "abrir-pizzaria",
+      "holdMs": 150
+    },
+    {
+      "action": "waitFor",
+      "selector": "#pizza-profile-form",
+      "name": "pizzaria-pronta",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 80
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-profile-form select[name='productId']",
+      "name": "produto-base",
+      "value": "tutorial-pizza-main",
+      "holdMs": 70
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-profile-form select[name='pricingPolicy']",
+      "name": "regra-preco",
+      "value": "HIGHEST_FLAVOR",
+      "holdMs": 60
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-profile-form button[type='submit']",
+      "name": "salvar-politica",
+      "holdMs": 240
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "name": "politica-salva",
+      "expected": "Política da pizza salva",
+      "timeoutMs": 10000,
+      "holdMs": 120
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-size-form select[name='productId']",
+      "name": "pizza-tamanho-produto",
+      "value": "tutorial-pizza-main",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-size-form input[name='name']",
+      "name": "tamanho-grande",
+      "value": "Grande",
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-size-form input[name='maxFlavors']",
+      "name": "ate-dois-sabores",
+      "value": "2",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-size-form input[name='priceDelta']",
+      "name": "acrescimo-tamanho",
+      "value": "5,00",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-size-form button[type='submit']",
+      "name": "salvar-tamanho",
+      "holdMs": 200
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-flavor-form select[name='productId']",
+      "name": "pizza-sabor-produto-1",
+      "value": "tutorial-pizza-main",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-flavor-form input[name='name']",
+      "name": "sabor-calabresa",
+      "value": "Calabresa",
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-flavor-form input[name='priceDelta']",
+      "name": "acrescimo-calabresa",
+      "value": "4,00",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-flavor-form button[type='submit']",
+      "name": "salvar-calabresa",
+      "holdMs": 180
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-flavor-form input[name='name']",
+      "name": "sabor-marguerita",
+      "value": "Marguerita",
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-flavor-form input[name='priceDelta']",
+      "name": "acrescimo-marguerita",
+      "value": "2,00",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-flavor-form button[type='submit']",
+      "name": "salvar-marguerita",
+      "holdMs": 180
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-crust-form select[name='productId']",
+      "name": "pizza-borda-produto",
+      "value": "tutorial-pizza-main",
+      "holdMs": 40
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-crust-form input[name='name']",
+      "name": "borda-catupiry",
+      "value": "Catupiry",
+      "holdMs": 50
+    },
+    {
+      "action": "fill",
+      "selector": "#pizza-crust-form input[name='priceDelta']",
+      "name": "acrescimo-borda",
+      "value": "6,00",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-crust-form button[type='submit']",
+      "name": "salvar-borda",
+      "holdMs": 240
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-price-form select[name='productId']",
+      "name": "simular-pizza",
+      "value": "tutorial-pizza-main",
+      "holdMs": 160
+    },
+    {
+      "action": "waitFor",
+      "selector": "#pizza-price-form select[name='sizeId']",
+      "name": "opcoes-carregadas",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-price-form select[name='sizeId']",
+      "name": "escolher-grande",
+      "optionLabel": "Grande",
+      "holdMs": 70
+    },
+    {
+      "action": "check",
+      "selector": "#pizza-price-form label:has-text('Calabresa') input[name='flavorId']",
+      "name": "escolher-calabresa",
+      "holdMs": 60
+    },
+    {
+      "action": "check",
+      "selector": "#pizza-price-form label:has-text('Marguerita') input[name='flavorId']",
+      "name": "escolher-marguerita",
+      "holdMs": 60
+    },
+    {
+      "action": "selectOption",
+      "selector": "#pizza-price-form select[name='crustId']",
+      "name": "escolher-catupiry",
+      "optionLabel": "Catupiry",
+      "holdMs": 100
+    },
+    {
+      "action": "click",
+      "selector": "#pizza-price-form button[type='submit']",
+      "name": "calcular-preco",
+      "holdMs": 250
+    },
+    {
+      "action": "expectText",
+      "selector": "#pizza-price-output",
+      "name": "preco-calculado",
+      "expected": "45,00",
+      "timeoutMs": 10000,
+      "holdMs": 600
+    }
+  ]
+}
