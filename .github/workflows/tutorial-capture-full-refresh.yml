@@ -184,6 +184,12 @@ jobs:
           - demo: 45-levar-comanda-caixa-pagar
             profile: tutorials-food
             environment: food-ci
+          - demo: 46-criar-ficha-tecnica-pizza-calabresa
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 47-configurar-pizza-tamanhos-sabores-borda
+            profile: tutorials-food
+            environment: food-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
