@@ -65,7 +65,7 @@
     },
     {
       "action": "expectText",
-      "selector": ".checkout-layout",
+      "selector": ".cart-list",
       "name": "itens-no-balcao",
       "expected": "Hambúrguer Artesanal",
       "timeoutMs": 10000,
