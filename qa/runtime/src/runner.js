@@ -113,7 +113,7 @@ export async function runQaFlow({
       page = await electronApp.firstWindow();
       await page.setViewportSize({ width: viewport.width, height: viewport.height }).catch(() => {});
       if (manifest.capture?.video !== false) {
-        frameRecorder = createFrameRecorder(page, { dir: path.join(outputDir, '.video-frames'), fps: manifest.capture?.fps || 4 });
+        frameRecorder = createFrameRecorder(page, { dir: path.join(outputDir, '.video-frames'), fps: manifest.capture?.fps || 4, canvasWidth:viewport.width, canvasHeight:viewport.height });
       }
     } else {
       browser = await chromium.launch({ headless: manifest.headless ?? true });
