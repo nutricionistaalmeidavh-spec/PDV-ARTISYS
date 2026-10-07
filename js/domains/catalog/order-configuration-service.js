@@ -1,5 +1,6 @@
 'use strict';
 
+const PIZZA_SIZE_GROUP_ID='__artisys_pizza_size__';
 const PIZZA_FLAVOR_GROUP_ID='__artisys_pizza_flavors__';
 const PIZZA_CRUST_GROUP_ID='__artisys_pizza_crust__';
 
@@ -21,16 +22,23 @@ function createOrderConfigurationService({catalogCustomization,pizzeria}={}){
       basePriceCents:base.basePriceCents,
       configurationKind:'PIZZA',
       pricingPolicy:pizza.pricingPolicy,
-      variants:pizza.sizes.map(size=>({
-        id:size.id,
-        name:size.name,
-        sku:null,
-        barcode:null,
-        attributes:{kind:'PIZZA_SIZE',maxFlavors:Number(size.maxFlavors||1)},
-        priceDeltaCents:Number(size.priceDeltaCents||0),
-        costCents:null
-      })),
+      variants:[],
       groups:[
+        {
+          id:PIZZA_SIZE_GROUP_ID,
+          name:'Tamanho',
+          selectionType:'SINGLE',
+          minSelections:1,
+          maxSelections:1,
+          required:true,
+          sortOrder:-300,
+          pricingMode:'ADDITIVE',
+          options:pizza.sizes.map(size=>({
+            id:size.id,
+            name:size.name,
+            priceDeltaCents:Number(size.priceDeltaCents||0)
+          }))
+        },
         {
           id:PIZZA_FLAVOR_GROUP_ID,
           name:'Sabores',
@@ -40,7 +48,7 @@ function createOrderConfigurationService({catalogCustomization,pizzeria}={}){
           required:true,
           sortOrder:-200,
           pricingMode:pizza.pricingPolicy,
-          maxSelectionsByVariant:Object.fromEntries(pizza.sizes.map(size=>[size.id,Number(size.maxFlavors||1)])),
+          maxSelectionsBySize:Object.fromEntries(pizza.sizes.map(size=>[size.id,Number(size.maxFlavors||1)])),
           options:pizza.flavors.map(flavor=>({
             id:flavor.id,
             name:flavor.name,
@@ -73,16 +81,20 @@ function createOrderConfigurationService({catalogCustomization,pizzeria}={}){
     if(!pizza)return catalogCustomization.priceConfiguredItem(input);
 
     const selected=(input.selections||[]).map(value=>String(value?.optionId||value));
+    const sizeIds=new Set(pizza.sizes.map(row=>String(row.id)));
     const flavorIds=new Set(pizza.flavors.map(row=>String(row.id)));
     const crustIds=new Set(pizza.crusts.map(row=>String(row.id)));
+    const sizes=selected.filter(id=>sizeIds.has(id));
     const flavors=selected.filter(id=>flavorIds.has(id));
     const crusts=selected.filter(id=>crustIds.has(id));
+    if(sizes.length>1)throw new Error('Selecione somente um tamanho.');
     if(crusts.length>1)throw new Error('Selecione no maximo uma borda.');
-    const genericSelections=selected.filter(id=>!flavorIds.has(id)&&!crustIds.has(id));
+    const sizeId=sizes[0]||String(input.variantId||'');
+    const genericSelections=selected.filter(id=>!sizeIds.has(id)&&!flavorIds.has(id)&&!crustIds.has(id));
 
     return pizzeria.pricePizza({
       productId:input.productId,
-      sizeId:input.variantId,
+      sizeId,
       flavorIds:flavors,
       crustId:crusts[0]||null,
       selections:genericSelections,
@@ -93,4 +105,4 @@ function createOrderConfigurationService({catalogCustomization,pizzeria}={}){
   return{getProductConfiguration,priceConfiguredItem};
 }
 
-module.exports={createOrderConfigurationService,PIZZA_FLAVOR_GROUP_ID,PIZZA_CRUST_GROUP_ID};
+module.exports={createOrderConfigurationService,PIZZA_SIZE_GROUP_ID,PIZZA_FLAVOR_GROUP_ID,PIZZA_CRUST_GROUP_ID};
