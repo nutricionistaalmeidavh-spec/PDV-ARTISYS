@@ -16,6 +16,12 @@
       "scenario": "waiter"
     },
     {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-garcom"
+    },
+    {
       "action": "waitFor",
       "selector": "#app-topbar",
       "name": "app-ready",
@@ -29,12 +35,6 @@
       "saveAs": {
         "qaApiBase": "apiBase"
       }
-    },
-    {
-      "action": "setViewportSize",
-      "width": 390,
-      "height": 844,
-      "name": "viewport-garcom"
     },
     {
       "action": "goto",
