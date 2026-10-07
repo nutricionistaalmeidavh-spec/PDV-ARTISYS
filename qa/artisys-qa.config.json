@@ -352,9 +352,13 @@
     },
     "40-cliente-fazer-pedido-qr": {
       "file": "demo/tutorials/40-cliente-fazer-pedido-qr.json",
-      "preset": "landscape-16x9",
+      "preset": "reels-9x16",
       "durationTargetSec": 28,
-      "profile": "tutorials-food"
+      "profile": "tutorials-food",
+      "captureViewport": {
+        "width": 412,
+        "height": 915
+      }
     },
     "41-abrir-mesa-comanda": {
       "file": "demo/tutorials/41-abrir-mesa-comanda.json",
@@ -364,9 +368,13 @@
     },
     "42-garcom-acompanhar-pedido": {
       "file": "demo/tutorials/42-garcom-acompanhar-pedido.json",
-      "preset": "landscape-16x9",
+      "preset": "reels-9x16",
       "durationTargetSec": 26,
-      "profile": "tutorials-food"
+      "profile": "tutorials-food",
+      "captureViewport": {
+        "width": 390,
+        "height": 844
+      }
     },
     "43-kds-preparar-pedido": {
       "file": "demo/tutorials/43-kds-preparar-pedido.json",
