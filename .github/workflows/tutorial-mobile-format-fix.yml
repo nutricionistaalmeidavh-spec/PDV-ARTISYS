@@ -94,3 +94,12 @@ jobs:
           path: tutorial-output/${{ matrix.demo }}.mp4
           if-no-files-found: error
           retention-days: 14
+      - name: Upload capture diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-format-debug-${{ matrix.demo }}
+          path: qa-artifacts-${{ matrix.demo }}
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 3
