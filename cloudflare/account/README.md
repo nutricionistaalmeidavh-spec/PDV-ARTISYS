@@ -13,7 +13,7 @@ Este serviço é separado do core local do PDV. O PDV continua local/self-hosted
 5. A Central mostra um código de 6 dígitos e o botão **Copiar código**.
 6. **Você envia esse código ao cliente** pelo meio que preferir.
 7. No primeiro acesso, o cliente informa o mesmo e-mail + código.
-8. O código é consumido uma única vez e a instalação fica vinculada à licença.
+8. O código é válido por **48 horas** após sua emissão, é consumido uma única vez e a instalação fica vinculada à licença. O prazo do código não limita a duração da licença.
 9. O primeiro Administrador é criado localmente no PDV; senha e hash nunca são enviados ao Cloudflare.
 
 Não existe envio automático de e-mail neste fluxo.

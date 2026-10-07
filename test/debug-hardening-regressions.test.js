@@ -177,7 +177,7 @@ async function adminCookie(handleRequest, env) {
   return { cookie:String(response.headers.get('set-cookie') || '').split(';')[0] };
 }
 
-test('activation code expires within 30 minutes and locks after five wrong attempts', async () => {
+test('activation code lasts 48 hours and locks after five wrong attempts', async () => {
   const { handleRequest } = await loadAccountWorker();
   const env = workerEnv();
   const before = Date.now();
@@ -189,7 +189,9 @@ test('activation code expires within 30 minutes and locks after five wrong attem
   }), env);
   assert.equal(response.status, 201);
   const released = await response.json();
-  assert.ok(Date.parse(released.codeExpiresAt) - before <= 31 * 60 * 1000);
+  const remainingMs = Date.parse(released.codeExpiresAt) - before;
+  assert.ok(remainingMs >= 48 * 60 * 60 * 1000);
+  assert.ok(remainingMs <= 48 * 60 * 60 * 1000 + 60 * 1000);
 
   const wrongActivationCode = released.code === '000000' ? '000001' : '000000';
   for (let attempt = 0; attempt < 5; attempt += 1) {

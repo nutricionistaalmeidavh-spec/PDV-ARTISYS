@@ -111,6 +111,24 @@ test('admin releases license and displays a six digit code that activates exactl
   assert.equal(replay.status,400);
 });
 
+test('activation code lasts 48 hours, then expires without cancelling its license',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();
+  const {cookie}=await login(handleRequest,e);
+  const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com'})}),e);
+  assert.equal(response.status,201);
+  const released=await response.json();
+  const token=e.ACCOUNT_STORE.tokens[0];
+  assert.equal(Date.parse(released.codeExpiresAt)-Date.parse(token.createdAt),48*60*60*1000);
+  assert.equal(token.expiresAt,released.codeExpiresAt);
+  assert.equal(e.ACCOUNT_STORE.licenses[0].expiresAt,null);
+
+  token.expiresAt=new Date(Date.now()-1000).toISOString();
+  const expired=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-after-expiry',email:'owner@example.com',code:released.code})}),e);
+  assert.equal(expired.status,400);
+  assert.match((await expired.json()).error,/expirado/i);
+  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
+});
+
 test('activation request no longer sends email or creates a code',async()=>{
   const {handleRequest}=await loadWorker();const e=env();
   const response=await handleRequest(request('/v1/activation/request',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com'})}),e);
