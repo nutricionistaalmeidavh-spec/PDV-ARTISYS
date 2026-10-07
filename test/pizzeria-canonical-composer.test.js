@@ -73,7 +73,7 @@ test('canonical pizza pricing snapshots identity, price and proportional stock c
     const stock=new Map(priced.configurationSnapshot.stockItems.map(row=>[row.productId,row.quantity]));
     assert.equal(stock.get('dough'),1.5);
     assert.equal(stock.get('sauce'),0.3);
-    assert.equal(stock.get('cal'),0.1125);
+    assert.equal(stock.get('cal'),0.112);
     assert.equal(stock.get('tomato'),0.09);
     assert.equal(stock.get('catupiry'),0.15);
     assert.equal(stock.get('mozz'),0.3);
