@@ -48,8 +48,8 @@ test('pizza configuration and authoritative price are identical across waiter, Q
     assert.equal(publicData.products.find(row=>row.id==='pizza').configuration.pizza.crusts[0].name,'Catupiry');
     const qrOrder=await fetch(`${base}/api/v1/public/menu/${access.token}/orders`,{method:'POST',headers:{'content-type':'application/json','x-mutation-id':'qr-pizza'},body:JSON.stringify({items:[selection]})});
     assert.equal(qrOrder.status,201);const qrResult=await qrOrder.json();
-    assert.equal(qrResult.items[0].unitPriceCents,4500);
-    assert.equal(qrResult.items[0].configuration.pizza.flavors.length,2);
+    assert.equal(qrResult.order.items[0].unitPriceCents,4500);
+    assert.equal(qrResult.order.items[0].configuration.pizza.flavors.length,2);
 
     const desktopSession=rt.restaurant.openTable('td',{operatorId:user.id,actor:admin});
     const desktopOrder=await fetch(`${base}/api/v1/restaurant/sessions/${desktopSession.id}/orders`,{method:'POST',headers:{'x-pdv-token':'pizza-local','content-type':'application/json','x-mutation-id':'desktop-pizza'},body:JSON.stringify({operatorId:user.id,items:[selection]})});
