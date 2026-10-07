@@ -52,6 +52,29 @@
       "holdMs": 250
     },
     {
+      "action": "expectText",
+      "selector": "#printing-settings-card",
+      "name": "impressora-simulada-contagem",
+      "expected": "1 IMPRESSORA(S)",
+      "timeoutMs": 10000,
+      "holdMs": 200
+    },
+    {
+      "action": "expectText",
+      "selector": "#printing-settings-card",
+      "name": "impressora-simulada-nome",
+      "expected": "Impressora Tutorial",
+      "timeoutMs": 10000,
+      "holdMs": 250
+    },
+    {
+      "action": "selectOption",
+      "selector": "#printing-device-name",
+      "name": "selecionar-impressora",
+      "value": "Impressora Tutorial",
+      "holdMs": 250
+    },
+    {
       "action": "selectOption",
       "selector": "#printing-paper-mm",
       "name": "largura-papel",
