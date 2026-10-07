@@ -41,15 +41,29 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
 
   function prepareMenuItems(items=[]){
     return requireMenuItems(items).map(item=>{
+      const product=runtime.catalog.getProduct(String(item.productId));
+      const base={productId:product.id,quantity:item.quantity??1,note:String(item.note||'').trim().slice(0,500)};
+      if(item.pizza){
+        const pricing=runtime.pizzeria.pricePizza({
+          productId:product.id,
+          sizeId:item.pizza.sizeId,
+          flavorIds:Array.isArray(item.pizza.flavorIds)?item.pizza.flavorIds:[],
+          crustId:item.pizza.crustId||null,
+          selections:Array.isArray(item.selections)?item.selections:[]
+        });
+        return{...base,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot};
+      }
       const configured=Boolean(item.variantId)||(Array.isArray(item.selections)&&item.selections.length)||(Array.isArray(item.comboSelections)&&item.comboSelections.length);
-      if(!configured)return item;
-      const pricing=runtime.catalogCustomization.priceConfiguredItem({
-        productId:item.productId,
-        variantId:item.variantId||undefined,
-        selections:Array.isArray(item.selections)?item.selections:[],
-        comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[]
-      });
-      return{...item,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot};
+      if(configured){
+        const pricing=runtime.catalogCustomization.priceConfiguredItem({
+          productId:product.id,
+          variantId:item.variantId||undefined,
+          selections:Array.isArray(item.selections)?item.selections:[],
+          comboSelections:Array.isArray(item.comboSelections)?item.comboSelections:[]
+        });
+        return{...base,unitPriceCents:pricing.unitPriceCents,configurationSnapshot:pricing.configurationSnapshot};
+      }
+      return{...base,unitPriceCents:product.salePriceCents};
     });
   }
 
@@ -73,8 +87,9 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   }
 
   function serveMobile(pathname,response){
-    if(pathname==='/mobile/order-composer.js'){
-      const full=path.join(__dirname,'..','shared','order-composer.js');if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
+    if(pathname==='/mobile/order-composer.js'||pathname==='/mobile/pizza-composer.js'){
+      const file=pathname.endsWith('pizza-composer.js')?'pizza-composer.js':'order-composer.js';
+      const full=path.join(__dirname,'..','shared',file);if(!fs.existsSync(full)){text(response,404,'Compositor compartilhado nao instalado.');return true;}
       text(response,200,fs.readFileSync(full,'utf8'),'application/javascript; charset=utf-8');return true;
     }
     const files={'/mobile':'index.html','/mobile/':'index.html','/mobile/index.html':'index.html','/mobile/app.js':'app.js','/mobile/styles.css':'styles.css'};
@@ -109,6 +124,10 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const waiterTransfer=pathname.match(/^\/api\/v1\/mobile\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&waiterTransfer){
       const p=mobilePrincipal(request,['WAITER']);const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(waiterTransfer[1]),data.targetTableId,{actor:p.actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;
+    }
+    if(request.method==='POST'&&pathname==='/api/v1/mobile/menu/price'){
+      mobilePrincipal(request,['WAITER']);const data=await body(request);const priced=prepareMenuItems([data])[0];
+      json(response,200,{productId:priced.productId,quantity:priced.quantity,unitPriceCents:priced.unitPriceCents,configurationSnapshot:priced.configurationSnapshot||null});return true;
     }
     if(request.method==='POST'&&pathname==='/api/v1/mobile/orders'){
       const p=mobilePrincipal(request,['WAITER']);const data=await body(request);const sessionId=String(data.sessionId||'').trim();
@@ -149,7 +168,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const sessionDetails=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/details$/);
     if(request.method==='PATCH'&&sessionDetails){const data=await body(request);json(response,200,runtime.restaurant.updateSessionDetails(decodeURIComponent(sessionDetails[1]),{partySize:data.partySize,customerId:data.customerId},actor));return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
-    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:requireMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:prepareMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
     if(request.method==='POST'&&transfer){const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(transfer[1]),data.targetTableId,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const checkout=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/checkout$/);
