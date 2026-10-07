@@ -1,4 +1,4 @@
-const TOKEN_TTL_MS=30*60*1000;
+const ACTIVATION_TOKEN_TTL_MS=48*60*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
 const RECOVERY_RESEND_MS=60*1000;
 const ACTIVATION_MAX_ATTEMPTS=5;
@@ -396,7 +396,7 @@ async function adminRoute(request,env,url){
     const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
-    const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.now()+TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
+    const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
     const provisioned=await store.provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,code,codeExpiresAt,expiresAt},201);
   }
   if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
