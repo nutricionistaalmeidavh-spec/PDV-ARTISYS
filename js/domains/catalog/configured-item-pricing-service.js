@@ -15,11 +15,48 @@ function createConfiguredItemPricingService({catalog,catalogCustomization,pizzer
     try{generic=catalogCustomization.getProductConfiguration(product.id)||generic;}catch{}
     let pizza=null;
     try{pizza=pizzeria.getProfile(product.id);}catch{}
+    if(!pizza)return{groups:generic.groups||[],variants:generic.variants||[],combos:generic.combos||[],pizza:null};
+    const maxFlavors=Math.max(1,...(pizza.sizes||[]).map(size=>Number(size.maxFlavors||1)));
+    const pizzaGroups=[
+      {
+        id:'__pizza_flavors__',
+        name:'Sabores',
+        selectionType:'MULTIPLE',
+        minSelections:1,
+        maxSelections:maxFlavors,
+        required:true,
+        sortOrder:-20,
+        options:(pizza.flavors||[]).map(flavor=>({
+          id:flavor.id,
+          name:flavor.name,
+          priceDeltaCents:flavor.priceDeltaCents
+        }))
+      },
+      {
+        id:'__pizza_crust__',
+        name:'Borda',
+        selectionType:'SINGLE',
+        minSelections:0,
+        maxSelections:1,
+        required:false,
+        sortOrder:-10,
+        options:(pizza.crusts||[]).map(crust=>({
+          id:crust.id,
+          name:crust.name,
+          priceDeltaCents:crust.priceDeltaCents
+        }))
+      }
+    ];
     return{
-      groups:generic.groups||[],
-      variants:generic.variants||[],
+      groups:[...pizzaGroups,...(generic.groups||[])],
+      variants:(pizza.sizes||[]).map(size=>({
+        id:size.id,
+        name:size.name,
+        attributes:{pizzaSize:true,maxFlavors:size.maxFlavors},
+        priceDeltaCents:size.priceDeltaCents
+      })),
       combos:generic.combos||[],
-      pizza:pizza||null
+      pizza
     };
   }
 
@@ -31,14 +68,24 @@ function createConfiguredItemPricingService({catalog,catalogCustomization,pizzer
     const current=configuration(product.id);
 
     if(current.pizza){
-      const pizza=input.pizza||{};
-      if(!pizza.sizeId||!Array.isArray(pizza.flavorIds)||!pizza.flavorIds.length)throw new Error('Escolha o tamanho e ao menos um sabor da pizza.');
+      const profile=current.pizza;
+      const submittedSelections=Array.isArray(input.selections)?input.selections.map(value=>typeof value==='string'?value:value?.optionId).filter(Boolean):[];
+      const flavorIds=new Set((profile.flavors||[]).map(item=>String(item.id)));
+      const crustIds=new Set((profile.crusts||[]).map(item=>String(item.id)));
+      const pizzaInput=input.pizza||{};
+      const sizeId=String(pizzaInput.sizeId||input.variantId||'');
+      const selectedFlavorIds=Array.isArray(pizzaInput.flavorIds)&&pizzaInput.flavorIds.length
+        ? pizzaInput.flavorIds.map(String)
+        : submittedSelections.filter(id=>flavorIds.has(String(id))).map(String);
+      const crustId=String(pizzaInput.crustId||submittedSelections.find(id=>crustIds.has(String(id)))||'')||null;
+      const genericSelections=submittedSelections.filter(id=>!flavorIds.has(String(id))&&!crustIds.has(String(id)));
+      if(!sizeId||!selectedFlavorIds.length)throw new Error('Escolha o tamanho e ao menos um sabor da pizza.');
       const priced=pizzeria.pricePizza({
         productId:product.id,
-        sizeId:pizza.sizeId,
-        flavorIds:pizza.flavorIds,
-        crustId:pizza.crustId||null,
-        selections:Array.isArray(input.selections)?input.selections:[]
+        sizeId,
+        flavorIds:selectedFlavorIds,
+        crustId,
+        selections:genericSelections
       });
       return{
         productId:product.id,
