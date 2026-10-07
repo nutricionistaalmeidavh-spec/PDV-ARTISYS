@@ -12,6 +12,7 @@ Não é uma versão para iOS ou um novo frontend. O Windows NSIS continua inalte
 - [x] Usar o servidor local existente para a operação sem SaaS obrigatório.
 - [x] Configurar matriz de build, checks estáticos e smoke de inicialização do .app no CI.
 - [x] Separar os artefatos macOS dos releases Windows e impedir publicação automática.
+- [x] Criar promoção manual com conferência de commit/tag e aprovação explícita de QA físico.
 - [ ] Confirmar ambos os builds DMG/ZIP verdes no GitHub Actions.
 - [ ] Executar QA operacional completo em Macs reais: ativação, caixa, balcão, comandas, pizza/delivery, backup, restore, LAN, impressoras e dispositivos seriais.
 - [ ] Publicar uma release comercial macOS somente depois dos testes físicos.
@@ -30,6 +31,10 @@ npm run dist:mac
 Saída: `dist/ArtiSys-PDV-<version>-<arch>.dmg` e ZIP correspondente.
 O workflow `.github/workflows/build-macos.yml` roda os dois builds sem necessidade de
 um Mac pessoal e disponibiliza os arquivos como artefatos do GitHub Actions.
+Após QA físico, o workflow **publish-macos** recebe a tag já publicada pelo Windows e o
+ID do build macOS com sucesso; valida o mesmo commit e somente então publica os dois
+DMGs na GitHub Release existente. Não publica ZIP/metadata nem altera o updater Windows.
+Sem confirmação manual `qa_approved`, a promoção não executa.
 O núcleo é gratuito e self-hosted; nenhuma assinatura Apple é exigida no build padrão.
 
 ## Gatekeeper, assinatura e atualizações
