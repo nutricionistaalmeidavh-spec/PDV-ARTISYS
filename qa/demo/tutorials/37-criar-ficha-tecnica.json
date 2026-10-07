@@ -1,0 +1,159 @@
+{
+  "name": "37-criar-ficha-tecnica",
+  "title": "Criar e preencher ficha técnica",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "recipe"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-cadastros",
+      "holdMs": 250
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='inventory']",
+      "name": "abrir-estoque",
+      "holdMs": 350
+    },
+    {
+      "action": "waitFor",
+      "selector": "#inventory-master-actions",
+      "name": "estoque-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "click",
+      "selector": "#inventory-new-recipe",
+      "name": "nova-ficha-tecnica",
+      "holdMs": 350
+    },
+    {
+      "action": "waitFor",
+      "selector": "#recipe-product-form",
+      "name": "form-ficha",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='name']",
+      "name": "nome-prato",
+      "value": "Hambúrguer Artesanal",
+      "holdMs": 150
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-sale-price",
+      "name": "preco-venda",
+      "value": "27,90",
+      "holdMs": 150
+    },
+    {
+      "action": "selectOption",
+      "selector": "#recipe-product-form select[name='productionDestination']",
+      "name": "destino-kds",
+      "value": "PRODUCTION:tutorial-kds",
+      "holdMs": 180
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='yieldQuantity']",
+      "name": "rendimento",
+      "value": "10",
+      "holdMs": 120
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='portionQuantity']",
+      "name": "porcao",
+      "value": "1",
+      "holdMs": 120
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form input[name='prepTimeMinutes']",
+      "name": "tempo-preparo",
+      "value": "12",
+      "holdMs": 120
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-create-add",
+      "name": "adicionar-insumo",
+      "holdMs": 220
+    },
+    {
+      "action": "selectOption",
+      "selector": "[data-recipe-create-row='0'] [data-recipe-product]",
+      "name": "selecionar-pao",
+      "value": "tutorial-ingredient-bread",
+      "holdMs": 160
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='0'] [data-recipe-quantity]",
+      "name": "quantidade-pao",
+      "value": "10",
+      "holdMs": 120
+    },
+    {
+      "action": "fill",
+      "selector": "[data-recipe-create-row='0'] [data-recipe-loss]",
+      "name": "perda-pao",
+      "value": "2",
+      "holdMs": 120
+    },
+    {
+      "action": "fill",
+      "selector": "#recipe-product-form textarea[name='preparationNotes']",
+      "name": "modo-preparo",
+      "value": "Montar, grelhar e finalizar antes de servir.",
+      "holdMs": 180
+    },
+    {
+      "action": "expectText",
+      "selector": ".recipe-summary-grid",
+      "name": "custos-calculados",
+      "expected": "Custo / porção",
+      "timeoutMs": 10000,
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "#recipe-product-form button[type='submit']",
+      "name": "salvar-ficha",
+      "holdMs": 650
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "name": "ficha-salva",
+      "expected": "Ficha Técnica salva",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    }
+  ]
+}
