@@ -48,7 +48,10 @@ function createOrderConfigurationService({catalogCustomization,pizzeria}={}){
           required:true,
           sortOrder:-200,
           pricingMode:pizza.pricingPolicy,
-          maxSelectionsBySize:Object.fromEntries(pizza.sizes.map(size=>[size.id,Number(size.maxFlavors||1)])),
+          selectionLimit:{
+            sourceGroupId:PIZZA_SIZE_GROUP_ID,
+            maxByOptionId:Object.fromEntries(pizza.sizes.map(size=>[size.id,Number(size.maxFlavors||1)]))
+          },
           options:pizza.flavors.map(flavor=>({
             id:flavor.id,
             name:flavor.name,
