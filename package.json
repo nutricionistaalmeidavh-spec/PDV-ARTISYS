@@ -41,7 +41,8 @@
     "qa:e2e:semantic": "node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow semantic-regression --environment ci --viewport compactDesktop --output qa-artifacts-semantic",
     "qa:artifact-semantic": "node qa/semantic/artifact-roundtrip.mjs",
     "qa:fault-recovery": "node --test test/qa-fault-recovery.test.js test/release/concurrency.test.js test/release/recovery.test.js test/e19-printing.test.js test/session-restore-after-reload.test.js",
-    "qa:multi-device:smoke": "node qa/multi-device/run.mjs --profile smoke --output qa-artifacts/multi-device-smoke"
+    "qa:multi-device:smoke": "node qa/multi-device/run.mjs --profile smoke --output qa-artifacts/multi-device-smoke",
+    "dist:mac": "bash scripts/build-macos.sh"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",
@@ -116,6 +117,20 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "ArtiSys-PDV-${version}-${arch}.${ext}",
+      "icon": "build/artisys-pdv.icns",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "O ArtiSys PDV usa a rede local para comunicar terminais, comandas e dispositivos autorizados."
+      }
     }
   },
   "allowScripts": {
