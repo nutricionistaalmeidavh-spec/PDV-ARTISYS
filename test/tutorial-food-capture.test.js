@@ -65,3 +65,16 @@ test('full refresh capture workflow records all 45 tutorials from current main-c
   assert.match(workflow,/qa:tutorials:edit/);
   assert.match(workflow,/actions\/upload-artifact@v4/);
 });
+
+
+test('mobile PWA tutorials use portrait output and mixed KDS/waiter switches viewport without distortion',()=>{
+  const config=json('qa/artisys-qa.config.json');
+  assert.equal(config.demos['40-cliente-fazer-pedido-qr'].preset,'reels-9x16');
+  assert.deepEqual(config.demos['40-cliente-fazer-pedido-qr'].captureViewport,{width:412,height:915});
+  assert.equal(config.demos['42-garcom-acompanhar-pedido'].preset,'reels-9x16');
+  assert.deepEqual(config.demos['42-garcom-acompanhar-pedido'].captureViewport,{width:390,height:844});
+
+  const mixed=json('qa/demo/tutorials/44-kds-garcom-sincronizacao.json');
+  const sizes=mixed.steps.filter(step=>step.action==='setViewportSize').map(step=>[step.width,step.height]);
+  assert.deepEqual(sizes,[[390,844],[1100,720],[390,844]]);
+});
