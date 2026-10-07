@@ -27,7 +27,7 @@ test('QA gate serves staff mobile and public QR menu from the real local server'
     db:runtime.db,
     modules:runtime.modules,
     catalog:runtime.catalog,
-    catalogCustomization:runtime.catalogCustomization,
+    orderConfiguration:runtime.orderConfiguration,
     restaurant:runtime.restaurant,
     productPhotos:runtime.productPhotos,
     tokenFactory:()=> 'qa-public-token-00000001'
