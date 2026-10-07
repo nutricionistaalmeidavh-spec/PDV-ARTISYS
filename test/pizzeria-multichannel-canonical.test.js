@@ -56,8 +56,27 @@ test('pizza configuration and authoritative price are identical across waiter, Q
     assert.equal(desktopOrder.status,201);const desktopResult=await desktopOrder.json();
     assert.equal(desktopResult.order.items[0].unitPriceCents,4500);
 
-    const delivery=rt.delivery.create({customerName:'Cliente Pizza',fulfillmentType:'PICKUP',items:[selection]},admin);
+    const pickup=rt.delivery.create({customerName:'Cliente Pizza',fulfillmentType:'PICKUP',items:[selection]},admin);
+    assert.equal(pickup.items[0].unitPriceCents,4500);
+    assert.equal(pickup.items[0].configurationSnapshot.pizza.crust.name,'Catupiry');
+
+    const delivery=rt.delivery.create({
+      customerName:'Cliente Entrega',fulfillmentType:'DELIVERY',
+      address:{street:'Rua das Pizzas',number:'10',district:'Centro',city:'Sao Paulo',state:'SP'},
+      items:[selection]
+    },admin);
     assert.equal(delivery.items[0].unitPriceCents,4500);
-    assert.equal(delivery.items[0].configurationSnapshot.pizza.crust.name,'Catupiry');
+    assert.deepEqual(delivery.items[0].configurationSnapshot.pizza.flavors.map(row=>row.name),['Calabresa','Marguerita']);
+
+    const counter=rt.delivery.create({
+      customerName:'Cliente Balcao',channel:'COUNTER',items:[
+        selection,
+        {productId:'pizza',quantity:1,variantId:'g',selections:['mar','cat']}
+      ]
+    },admin);
+    assert.equal(counter.items.length,2);
+    assert.deepEqual(counter.items.map(row=>row.unitPriceCents),[4500,4300]);
+    assert.equal(counter.items[0].configurationSnapshot.pizza.flavors.length,2);
+    assert.equal(counter.items[1].configurationSnapshot.pizza.flavors[0].name,'Marguerita');
   }finally{if(server)await server.stop();rt.close();}
 });
