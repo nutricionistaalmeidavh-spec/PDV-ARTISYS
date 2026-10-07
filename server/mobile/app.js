@@ -22,11 +22,11 @@
   function products(list){return `<section class="panel"><div class="section-head"><div><span class="eyebrow">CARDÁPIO</span><h2>Adicionar itens</h2></div></div><div class="product-list">${(list||[]).map(p=>`<div class="product"><div><strong>${esc(p.name)}</strong><small>${esc(p.categoryName||'Outros')} · ${money(p.salePriceCents)}</small></div><button data-add="${esc(p.id)}" type="button" aria-label="Adicionar ${esc(p.name)}">${hasConfiguration(p)?'Escolher':'Adicionar'}</button></div>`).join('')||'<div class="empty">Nenhum produto cadastrado.</div>'}</div></section>`;}
   function optionDelta(delta){const value=Number(delta||0);return value?` (${value>0?'+':''}${money(value)})`:'';}
   function configuredPrice(product,variantId,selections,comboSelections){
-    const cfg=product?.configuration||{};let cents=Number(product?.salePriceCents||0);
-    const variant=(cfg.variants||[]).find(item=>item.id===variantId);if(variant)cents+=Number(variant.priceDeltaCents||0);
-    const selected=new Set(selections||[]);for(const group of cfg.groups||[])for(const option of group.options||[])if(selected.has(option.id))cents+=Number(option.priceDeltaCents||0);
-    for(const pick of comboSelections||[]){const group=(cfg.combos||[]).find(item=>item.id===pick.groupId);const item=group?.items?.find(row=>row.productId===pick.productId);if(item)cents+=Number(item.priceDeltaCents||0);}
-    return cents;
+    return composer.priceConfigured({
+      basePriceCents:product?.salePriceCents||0,
+      configuration:product?.configuration||{},
+      variantId,selections,comboSelections
+    });
   }
   function configureProduct(product){
     if(!hasConfiguration(product)){cart.add({productId:product.id,name:product.name,unitPriceCents:product.salePriceCents,quantity:1});render();return;}
