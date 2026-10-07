@@ -36,6 +36,20 @@
         "PDV_AUTO_PRINT": "false",
         "PDV_REQUIRE_COMMERCIAL_ACTIVATION": "false"
       }
+    },
+    "food-ci": {
+      "env": {
+        "NODE_ENV": "test",
+        "ARTISYS_QA": "1",
+        "ARTISYS_QA_AUTO_ADMIN": "1",
+        "ARTISYS_QA_AUTO_LOCAL": "1",
+        "ARTISYS_QA_PDF_DIR": "../qa-artifacts/pdf",
+        "ARTISYS_QA_SIMULATE_PRINTER": "1",
+        "ARTISYS_QA_NO_PRINTERS": "1",
+        "PDV_ENABLE_LAN": "true",
+        "PDV_AUTO_PRINT": "false",
+        "PDV_REQUIRE_COMMERCIAL_ACTIVATION": "false"
+      }
     }
   },
   "demoProfiles": {
@@ -44,6 +58,12 @@
     },
     "tutorials-p1-p3": {
       "adapter": "runtime/adapters/tutorials-p1-p3.mjs"
+    },
+    "tutorials-p0": {
+      "adapter": "runtime/adapters/tutorials-p0.mjs"
+    },
+    "tutorials-food": {
+      "adapter": "runtime/adapters/tutorials-food.mjs"
     }
   },
   "defaultFlow": "all-pages-audit",
@@ -223,6 +243,132 @@
       "preset": "landscape-16x9",
       "durationTargetSec": 24,
       "profile": "tutorials-p1-p3"
+    },
+    "01-fazer-uma-venda": {
+      "file": "demo/tutorials/01-fazer-uma-venda.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 28,
+      "profile": "tutorials-p0"
+    },
+    "02-buscar-adicionar-produto": {
+      "file": "demo/tutorials/02-buscar-adicionar-produto.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 18,
+      "profile": "tutorials-p0"
+    },
+    "03-alterar-quantidade-remover-item": {
+      "file": "demo/tutorials/03-alterar-quantidade-remover-item.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 20,
+      "profile": "tutorials-p0"
+    },
+    "04-aplicar-desconto": {
+      "file": "demo/tutorials/04-aplicar-desconto.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 20,
+      "profile": "tutorials-p0"
+    },
+    "05-identificar-cliente-vendedor": {
+      "file": "demo/tutorials/05-identificar-cliente-vendedor.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 20,
+      "profile": "tutorials-p0"
+    },
+    "06-finalizar-dinheiro-troco": {
+      "file": "demo/tutorials/06-finalizar-dinheiro-troco.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 28,
+      "profile": "tutorials-p0"
+    },
+    "07-finalizar-pix-cartao": {
+      "file": "demo/tutorials/07-finalizar-pix-cartao.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 24,
+      "profile": "tutorials-p0"
+    },
+    "08-pagamento-misto": {
+      "file": "demo/tutorials/08-pagamento-misto.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-p0"
+    },
+    "09-suspender-retomar-venda": {
+      "file": "demo/tutorials/09-suspender-retomar-venda.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 24,
+      "profile": "tutorials-p0"
+    },
+    "10-abrir-caixa": {
+      "file": "demo/tutorials/10-abrir-caixa.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 22,
+      "profile": "tutorials-p0"
+    },
+    "11-sangria-suprimento": {
+      "file": "demo/tutorials/11-sangria-suprimento.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 26,
+      "profile": "tutorials-p0"
+    },
+    "12-fechar-caixa": {
+      "file": "demo/tutorials/12-fechar-caixa.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 24,
+      "profile": "tutorials-p0"
+    },
+    "37-criar-ficha-tecnica": {
+      "file": "demo/tutorials/37-criar-ficha-tecnica.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
+    },
+    "38-escolher-aparencia-cardapio": {
+      "file": "demo/tutorials/38-escolher-aparencia-cardapio.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 22,
+      "profile": "tutorials-food"
+    },
+    "39-gerar-qr-mesa": {
+      "file": "demo/tutorials/39-gerar-qr-mesa.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 22,
+      "profile": "tutorials-food"
+    },
+    "40-cliente-fazer-pedido-qr": {
+      "file": "demo/tutorials/40-cliente-fazer-pedido-qr.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 28,
+      "profile": "tutorials-food"
+    },
+    "41-abrir-mesa-comanda": {
+      "file": "demo/tutorials/41-abrir-mesa-comanda.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 24,
+      "profile": "tutorials-food"
+    },
+    "42-garcom-acompanhar-pedido": {
+      "file": "demo/tutorials/42-garcom-acompanhar-pedido.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 26,
+      "profile": "tutorials-food"
+    },
+    "43-kds-preparar-pedido": {
+      "file": "demo/tutorials/43-kds-preparar-pedido.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 26,
+      "profile": "tutorials-food"
+    },
+    "44-kds-garcom-sincronizacao": {
+      "file": "demo/tutorials/44-kds-garcom-sincronizacao.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
+    },
+    "45-levar-comanda-caixa-pagar": {
+      "file": "demo/tutorials/45-levar-comanda-caixa-pagar.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
     }
   }
 }
