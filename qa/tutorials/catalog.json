@@ -1090,31 +1090,37 @@
     },
     {
       "id": "37-criar-ficha-tecnica",
-      "title": "Criar e preencher ficha técnica",
+      "title": "Criar ficha técnica completa de hambúrguer",
       "phase": "P0",
       "audience": "admin",
       "durationTargetSec": 30,
-      "goal": "Cadastrar um item preparado com rendimento, insumos, custo e destino de produção.",
-      "success": "Ficha técnica fica salva com custo por porção calculado.",
+      "goal": "Cadastrar um Hambúrguer Artesanal com foto, rendimento, seis insumos e destino de produção.",
+      "success": "Ficha técnica fica salva e o Hambúrguer aparece com foto no cardápio.",
       "outputFile": "37-criar-ficha-tecnica.mp4",
       "overlays": [
         {
           "purpose": "orient",
           "fromSec": 0,
           "toSec": 2.5,
-          "text": "Crie a ficha técnica do item preparado"
+          "text": "Monte um Hambúrguer Artesanal completo"
         },
         {
           "purpose": "act",
-          "fromSec": 8,
+          "fromSec": 7,
           "toSec": 12,
-          "text": "Informe rendimento, insumos e destino KDS"
+          "text": "Pão, carne, queijo, alface, tomate e molho"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 18,
+          "toSec": 22,
+          "text": "Salve a ficha e adicione a foto do prato"
         },
         {
           "purpose": "confirm",
           "fromSec": 27,
           "toSec": 30,
-          "text": "Custo por porção e ficha ficam salvos"
+          "text": "Produto pronto para aparecer no cardápio"
         }
       ]
     },
@@ -1123,28 +1129,34 @@
       "title": "Escolher aparência do cardápio digital",
       "phase": "P0",
       "audience": "admin",
-      "durationTargetSec": 22,
-      "goal": "Alternar entre os modelos Compacto e Visual gastronômico do cardápio QR.",
-      "success": "A aparência escolhida fica aplicada ao cardápio do cliente.",
+      "durationTargetSec": 28,
+      "goal": "Escolher a aparência Premium e conferir o cardápio do cliente com produto e foto reais.",
+      "success": "O cardápio Premium abre no celular mostrando o Hambúrguer Artesanal com foto.",
       "outputFile": "38-escolher-aparencia-cardapio.mp4",
       "overlays": [
         {
           "purpose": "orient",
           "fromSec": 0,
-          "toSec": 2.2,
+          "toSec": 2.5,
           "text": "Escolha o visual do cardápio digital"
         },
         {
           "purpose": "act",
           "fromSec": 7,
           "toSec": 10,
-          "text": "Compare Compacto e Visual gastronômico"
+          "text": "Aplique o modelo Visual gastronômico"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 15,
+          "toSec": 19,
+          "text": "Abra a visão que o cliente verá no celular"
         },
         {
           "purpose": "confirm",
-          "fromSec": 19,
-          "toSec": 22,
-          "text": "A aparência é aplicada ao mesmo cardápio"
+          "fromSec": 25,
+          "toSec": 28,
+          "text": "Produto, descrição, preço e foto aparecem juntos"
         }
       ]
     },
@@ -1355,6 +1367,78 @@
           "fromSec": 27,
           "toSec": 30,
           "text": "Venda concluída e mesa liberada"
+        }
+      ]
+    },
+    {
+      "id": "46-criar-ficha-tecnica-pizza-calabresa",
+      "title": "Criar ficha técnica da Pizza Calabresa",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 30,
+      "goal": "Cadastrar Pizza Calabresa com foto e ficha técnica completa de massa, molho, queijo, calabresa, cebola e orégano.",
+      "success": "Pizza fica cadastrada com custo calculado, foto e destino de produção.",
+      "outputFile": "46-criar-ficha-tecnica-pizza-calabresa.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Crie a ficha técnica da Pizza Calabresa"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 13,
+          "text": "Massa, molho, mussarela, calabresa, cebola e orégano"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 18,
+          "toSec": 22,
+          "text": "Defina rendimento, preparo e destino da cozinha"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Pizza salva com foto e custo por porção"
+        }
+      ]
+    },
+    {
+      "id": "47-configurar-pizza-tamanhos-sabores-borda",
+      "title": "Configurar tamanhos, sabores e borda da pizza",
+      "phase": "P0",
+      "audience": "admin",
+      "durationTargetSec": 30,
+      "goal": "Configurar a Pizza Calabresa com tamanho Grande, até dois sabores, sabores e borda, e validar a regra de preço.",
+      "success": "Prévia calcula o preço da pizza com tamanho, sabores e borda selecionados.",
+      "outputFile": "47-configurar-pizza-tamanhos-sabores-borda.mp4",
+      "overlays": [
+        {
+          "purpose": "orient",
+          "fromSec": 0,
+          "toSec": 2.5,
+          "text": "Configure como a pizza será vendida"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 7,
+          "toSec": 12,
+          "text": "Cadastre tamanho, sabores e borda"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 17,
+          "toSec": 22,
+          "text": "Escolha Grande, sabores e borda Catupiry"
+        },
+        {
+          "purpose": "confirm",
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "O ArtiSys calcula o preço da combinação"
         }
       ]
     }
