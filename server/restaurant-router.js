@@ -41,6 +41,8 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
 
   function prepareMenuItems(items=[]){
     return requireMenuItems(items).map(item=>{
+      const pizzaPricing=runtime.pizzeria?.priceOrderItem?.(item);
+      if(pizzaPricing)return pizzaPricing;
       const configured=Boolean(item.variantId)||(Array.isArray(item.selections)&&item.selections.length)||(Array.isArray(item.comboSelections)&&item.comboSelections.length);
       if(!configured)return item;
       const pricing=runtime.catalogCustomization.priceConfiguredItem({
