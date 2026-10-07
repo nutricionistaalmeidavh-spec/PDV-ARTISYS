@@ -44,8 +44,8 @@
       "holdMs": 250
     },
     {
-      "action": "check",
-      "selector": "input[name='menuLayout'][value='PREMIUM']",
+      "action": "click",
+      "selector": ".menu-layout-option:has(input[value='PREMIUM']) .menu-layout-copy",
       "name": "escolher-visual-gastronomico",
       "timeoutMs": 10000,
       "holdMs": 450
