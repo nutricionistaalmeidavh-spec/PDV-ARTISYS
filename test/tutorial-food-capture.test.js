@@ -94,7 +94,7 @@ test('burger tutorial uses a complete sandwich recipe, attaches a real demo imag
     'tutorial-ingredient-tomato',
     'tutorial-ingredient-sauce'
   ]) assert.match(combined,new RegExp(ingredient));
-  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productId==='tutorial-food-main'));
+  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productName==='Hambúrguer Artesanal'));
   assert.ok(appearance.steps.some(step=>step.action==='expectVisible'&&/product-card.*has-photo/.test(step.selector||'')));
   assert.ok(appearance.steps.some(step=>step.action==='expectVisible'&&/product-photo/.test(step.selector||'')));
 });
@@ -111,7 +111,7 @@ test('pizza tutorials cover full recipe plus friendly size, flavor, crust and pr
     'tutorial-pizza-onion',
     'tutorial-pizza-oregano'
   ]) assert.match(recipeText,new RegExp(ingredient));
-  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productId==='tutorial-pizza-main'));
+  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productName==='Pizza Calabresa'));
 
   const configText=JSON.stringify(config);
   assert.match(configText,/pizza-profile-form/);
