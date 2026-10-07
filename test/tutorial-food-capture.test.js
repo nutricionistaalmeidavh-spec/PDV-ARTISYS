@@ -17,7 +17,9 @@ const FOOD_IDS=[
   '42-garcom-acompanhar-pedido',
   '43-kds-preparar-pedido',
   '44-kds-garcom-sincronizacao',
-  '45-levar-comanda-caixa-pagar'
+  '45-levar-comanda-caixa-pagar',
+  '46-criar-ficha-tecnica-pizza-calabresa',
+  '47-configurar-pizza-tamanhos-sabores-borda'
 ];
 
 test('food tutorial catalog prioritizes the complete customer-to-cash journey',()=>{
@@ -56,10 +58,10 @@ test('food demos cover recipe, menu layouts, QR, customer order, waiter, KDS syn
   assert.match(combined,/confirm-payment/);
 });
 
-test('full refresh capture workflow records all 45 tutorials from current main-compatible QA',()=>{
+test('full refresh capture workflow records all 47 tutorials from current main-compatible QA',()=>{
   const workflow=text('.github/workflows/tutorial-capture-full-refresh.yml');
   const catalog=json('qa/tutorials/catalog.json');
-  assert.equal(catalog.tutorials.length,45);
+  assert.equal(catalog.tutorials.length,47);
   for(const tutorial of catalog.tutorials)assert.ok(workflow.includes(tutorial.id),tutorial.id);
   assert.match(workflow,/artisys-qa\.mjs demo/);
   assert.match(workflow,/qa:tutorials:edit/);
@@ -77,4 +79,48 @@ test('mobile PWA tutorials use portrait output and mixed KDS/waiter switches vie
   const mixed=json('qa/demo/tutorials/44-kds-garcom-sincronizacao.json');
   const sizes=mixed.steps.filter(step=>step.action==='setViewportSize').map(step=>[step.width,step.height]);
   assert.deepEqual(sizes,[[390,844],[1100,720],[390,844]]);
+});
+
+
+test('burger tutorial uses a complete sandwich recipe, attaches a real demo image and shows it in the public menu',()=>{
+  const recipe=json('qa/demo/tutorials/37-criar-ficha-tecnica.json');
+  const appearance=json('qa/demo/tutorials/38-escolher-aparencia-cardapio.json');
+  const combined=JSON.stringify(recipe);
+  for(const ingredient of [
+    'tutorial-ingredient-bread',
+    'tutorial-ingredient-meat',
+    'tutorial-ingredient-cheese',
+    'tutorial-ingredient-lettuce',
+    'tutorial-ingredient-tomato',
+    'tutorial-ingredient-sauce'
+  ]) assert.match(combined,new RegExp(ingredient));
+  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productId==='tutorial-food-main'));
+  assert.ok(appearance.steps.some(step=>step.action==='expectVisible'&&/product-card.*has-photo/.test(step.selector||'')));
+  assert.ok(appearance.steps.some(step=>step.action==='expectVisible'&&/product-photo/.test(step.selector||'')));
+});
+
+test('pizza tutorials cover full recipe plus friendly size, flavor, crust and pricing flow',()=>{
+  const recipe=json('qa/demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json');
+  const config=json('qa/demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json');
+  const recipeText=JSON.stringify(recipe);
+  for(const ingredient of [
+    'tutorial-pizza-dough',
+    'tutorial-pizza-tomato-sauce',
+    'tutorial-pizza-mozzarella',
+    'tutorial-pizza-calabresa',
+    'tutorial-pizza-onion',
+    'tutorial-pizza-oregano'
+  ]) assert.match(recipeText,new RegExp(ingredient));
+  assert.ok(recipe.steps.some(step=>step.action==='capability'&&step.name==='tutorial.food.photo'&&step.productId==='tutorial-pizza-main'));
+
+  const configText=JSON.stringify(config);
+  assert.match(configText,/pizza-profile-form/);
+  assert.match(configText,/pizza-size-form/);
+  assert.match(configText,/pizza-flavor-form/);
+  assert.match(configText,/pizza-crust-form/);
+  assert.match(configText,/Grande/);
+  assert.match(configText,/Calabresa/);
+  assert.match(configText,/Marguerita/);
+  assert.match(configText,/Catupiry/);
+  assert.match(configText,/Preço calculado/);
 });
