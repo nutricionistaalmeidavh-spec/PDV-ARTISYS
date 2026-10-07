@@ -193,6 +193,18 @@ jobs:
           - demo: 47-configurar-pizza-tamanhos-sabores-borda
             profile: tutorials-food
             environment: food-ci
+          - demo: 48-configurar-pizza-canonica
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 49-garcom-pedir-pizza
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 50-cliente-pedir-pizza-qr
+            profile: tutorials-food
+            environment: food-ci
+          - demo: 51-pizza-kds-comanda-caixa
+            profile: tutorials-food
+            environment: food-ci
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -210,8 +222,8 @@ jobs:
           command -v ffprobe >/dev/null 2>&1 || missing+=(ffmpeg)
           command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
           if [ ${#missing[@]} -gt 0 ]; then
-            sudo apt-get update -y
-            sudo apt-get install -y "${missing[@]}"
+            timeout 300s sudo apt-get update -y
+            timeout 300s sudo apt-get install -y "${missing[@]}"
           fi
       - name: Capture tutorial
         shell: bash
@@ -221,11 +233,12 @@ jobs:
           QA_ENVIRONMENT: ${{ matrix.environment }}
         run: |
           rm -rf "qa-artifacts-${DEMO}" tutorial-output
+          PRESET="$(node -e "const c=require('./qa/artisys-qa.config.json'); process.stdout.write(c.demos[process.env.DEMO]?.preset||'landscape-16x9')")"
           xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
             --config qa/artisys-qa.config.json \
             --demo "${DEMO}" \
             --profile "${PROFILE}" \
-            --preset landscape-16x9 \
+            --preset "${PRESET}" \
             --environment "${QA_ENVIRONMENT}" \
             --output "qa-artifacts-${DEMO}"
           RAW="$(find "qa-artifacts-${DEMO}" -name demo-video.mp4 -print -quit)"
