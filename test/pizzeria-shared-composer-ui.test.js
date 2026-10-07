@@ -59,3 +59,11 @@ test('waiter QR desktop and KDS reuse shared validation and configuration labels
   assert.doesNotMatch(mobile,/for\(const group of form\.querySelectorAll\('\[data-group\],\[data-combo-group\]'\)\)/);
   assert.doesNotMatch(customer,/function validateConfiguration\(form\)/);
 });
+
+
+test('desktop comanda KDS and checkout show the same canonical pizza description',()=>{
+  const restaurant=read('desktop/renderer/restaurant-ui.js');
+  const checkout=read('desktop/renderer/app.js');
+  assert.match(restaurant,/PdvOrderComposer.*formatConfiguration|formatConfiguration\(/);
+  assert.match(checkout,/PdvOrderComposer.*formatConfiguration|formatConfiguration\(/);
+});
