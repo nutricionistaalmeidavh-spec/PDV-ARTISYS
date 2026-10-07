@@ -86,8 +86,6 @@ export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 500
   let frameCount = 0;
   let task = Promise.resolve();
   let startedAt = 0;
-  let consecutiveFailures = 0;
-  const maxConsecutiveCaptureFailures = 3;
   const intervalMs = Math.max(100, Math.floor(1000 / fps));
   const boundedCaptureTimeoutMs = Number.isFinite(Number(captureTimeoutMs)) && Number(captureTimeoutMs) > 0
     ? Math.max(1, Math.floor(Number(captureTimeoutMs)))
@@ -115,14 +113,10 @@ export function createFrameRecorder(page, { dir, fps = 4, captureTimeoutMs = 500
         timeoutMessage,
       );
       frameCount += 1;
-      consecutiveFailures = 0;
       return true;
     } catch (error) {
-      consecutiveFailures += 1;
       const reason = error?.message || String(error);
-      if (consecutiveFailures >= maxConsecutiveCaptureFailures) {
-        await disable(/timeout|timed out/i.test(reason) ? timeoutMessage : `Video frame capture failed: ${reason}`);
-      }
+      await disable(/timeout|timed out/i.test(reason) ? timeoutMessage : `Video frame capture failed: ${reason}`);
       return false;
     }
   }
