@@ -1,0 +1,197 @@
+{
+  "name": "49-garcom-pedir-pizza",
+  "title": "Garçom montar e enviar uma pizza",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.food.setup",
+      "scenario": "pizza-waiter"
+    },
+    {
+      "action": "setViewportSize",
+      "width": 390,
+      "height": 844,
+      "name": "viewport-garcom"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#app-topbar",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 60
+    },
+    {
+      "action": "desktopConfig",
+      "name": "capturar-servidor",
+      "saveAs": {
+        "qaApiBase": "apiBase"
+      }
+    },
+    {
+      "action": "goto",
+      "urlFrom": "qaApiBase",
+      "path": "/mobile",
+      "name": "abrir-garcom"
+    },
+    {
+      "action": "waitFor",
+      "selector": "#login",
+      "name": "login-garcom",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 60
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='id']",
+      "name": "id-garcom",
+      "valueFrom": "waiterId",
+      "holdMs": 30
+    },
+    {
+      "action": "fill",
+      "selector": "#login input[name='key']",
+      "name": "chave-garcom",
+      "valueFrom": "waiterKey",
+      "holdMs": 30
+    },
+    {
+      "action": "click",
+      "selector": "#login button[type='submit']",
+      "name": "conectar",
+      "holdMs": 180
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".waiter-layout",
+      "name": "salao",
+      "timeoutMs": 15000,
+      "holdMs": 80
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-table]:not(.free)",
+      "name": "abrir-mesa",
+      "holdMs": 100
+    },
+    {
+      "action": "waitFor",
+      "selector": "button[aria-label='Adicionar Pizza Artesanal']",
+      "name": "pizza-disponivel",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "click",
+      "selector": "button[aria-label='Adicionar Pizza Artesanal']",
+      "name": "escolher-pizza",
+      "holdMs": 100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#mobile-product-config",
+      "name": "configurador-pizza",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 60
+    },
+    {
+      "action": "check",
+      "selector": "#mobile-product-config input[value='tutorial-pizza-size-grande']",
+      "name": "grande",
+      "holdMs": 40
+    },
+    {
+      "action": "check",
+      "selector": "#mobile-product-config input[value='tutorial-pizza-flavor-cal']",
+      "name": "calabresa",
+      "holdMs": 40
+    },
+    {
+      "action": "check",
+      "selector": "#mobile-product-config input[value='tutorial-pizza-flavor-mar']",
+      "name": "marguerita",
+      "holdMs": 40
+    },
+    {
+      "action": "check",
+      "selector": "#mobile-product-config input[value='tutorial-pizza-crust-cat']",
+      "name": "catupiry",
+      "holdMs": 40
+    },
+    {
+      "action": "click",
+      "selector": "#mobile-product-config button[type='submit']",
+      "name": "adicionar-pizza",
+      "holdMs": 120
+    },
+    {
+      "action": "click",
+      "selector": "#waiter-cart-toggle",
+      "name": "revisar-pedido",
+      "holdMs": 100
+    },
+    {
+      "action": "expectText",
+      "selector": ".waiter-cart-sheet",
+      "name": "preco-pizza",
+      "expected": "50,00",
+      "timeoutMs": 10000,
+      "holdMs": 120
+    },
+    {
+      "action": "click",
+      "selector": "#send-order",
+      "name": "Enviar pedido",
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "[data-waiter-tab='orders']",
+      "name": "abrir-comanda",
+      "holdMs": 120
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "comanda-grande",
+      "expected": "Grande",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "comanda-calabresa",
+      "expected": "½ Calabresa",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "comanda-marguerita",
+      "expected": "½ Marguerita",
+      "timeoutMs": 10000,
+      "holdMs": 80
+    },
+    {
+      "action": "expectText",
+      "selector": ".selected-orders",
+      "name": "comanda-borda",
+      "expected": "Borda Catupiry",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    }
+  ]
+}
