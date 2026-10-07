@@ -341,7 +341,7 @@
     "38-escolher-aparencia-cardapio": {
       "file": "demo/tutorials/38-escolher-aparencia-cardapio.json",
       "preset": "landscape-16x9",
-      "durationTargetSec": 22,
+      "durationTargetSec": 28,
       "profile": "tutorials-food"
     },
     "39-gerar-qr-mesa": {
@@ -390,6 +390,18 @@
     },
     "45-levar-comanda-caixa-pagar": {
       "file": "demo/tutorials/45-levar-comanda-caixa-pagar.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
+    },
+    "46-criar-ficha-tecnica-pizza-calabresa": {
+      "file": "demo/tutorials/46-criar-ficha-tecnica-pizza-calabresa.json",
+      "preset": "landscape-16x9",
+      "durationTargetSec": 30,
+      "profile": "tutorials-food"
+    },
+    "47-configurar-pizza-tamanhos-sabores-borda": {
+      "file": "demo/tutorials/47-configurar-pizza-tamanhos-sabores-borda.json",
       "preset": "landscape-16x9",
       "durationTargetSec": 30,
       "profile": "tutorials-food"
