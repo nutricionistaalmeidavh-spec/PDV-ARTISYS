@@ -57,12 +57,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ inputs.build_run_id }}
+          TAG: ${{ inputs.release_tag }}
         run: |
           set -euo pipefail
           gh run download "$RUN_ID" --repo "$REPO" --pattern 'artisys-macos-*' --dir macos-release-artifacts
           find macos-release-artifacts -type f -name '*.dmg' -print
-          test "$(find macos-release-artifacts -type f -name '*-x64.dmg' | wc -l | tr -d ' ')" = 1
-          test "$(find macos-release-artifacts -type f -name '*-arm64.dmg' | wc -l | tr -d ' ')" = 1
+          release_version="${TAG#v}"
+          test "$(find macos-release-artifacts -type f -name "ArtiSys-PDV-${release_version}-x64.dmg" | wc -l | tr -d ' ')" = 1
+          test "$(find macos-release-artifacts -type f -name "ArtiSys-PDV-${release_version}-arm64.dmg" | wc -l | tr -d ' ')" = 1
           find macos-release-artifacts -type f -name '*.dmg' -exec sha256sum '{}' \;
       - name: Add only DMGs to existing release (never overwrite Windows updater metadata)
         shell: bash
