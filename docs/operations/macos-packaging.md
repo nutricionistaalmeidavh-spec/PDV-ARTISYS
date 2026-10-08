@@ -32,8 +32,10 @@ Saída: `dist/ArtiSys-PDV-<version>-<arch>.dmg` e ZIP correspondente.
 O workflow `.github/workflows/build-macos.yml` roda os dois builds sem necessidade de
 um Mac pessoal e disponibiliza os arquivos como artefatos do GitHub Actions.
 Após QA físico, o workflow **publish-macos** recebe a tag já publicada pelo Windows e o
-ID do build macOS com sucesso; valida o mesmo commit e somente então publica os dois
-DMGs na GitHub Release existente. Não publica ZIP/metadata nem altera o updater Windows.
+ID do build macOS com sucesso; valida o mesmo commit **e a mesma versão da tag**,
+e somente então publica os dois DMGs na GitHub Release existente. Para isso, rode
+`build-macos` manualmente selecionando a **tag** da release Windows, pois builds
+de PR são apenas prévias e usam a versão do código-fonte. Não publica ZIP/metadata nem altera o updater Windows.
 Sem confirmação manual `qa_approved`, a promoção não executa.
 O núcleo é gratuito e self-hosted; nenhuma assinatura Apple é exigida no build padrão.
 
