@@ -52,6 +52,15 @@ jobs:
         run: node --test test/macos-packaging.test.js test/updater-service.test.js test/hardware-runtime.test.js
       - name: Check desktop syntax
         run: npm run lint:desktop
+      - name: Use exact existing release tag version for manually tagged builds
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref_type == 'tag' }}
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Release tag inválida'; exit 1; }
+          npm version "${RELEASE_TAG#v}" --no-git-tag-version --allow-same-version
       - name: Build unsigned native macOS DMG and ZIP
         run: npm run dist:mac
       - name: Validate DMG, ZIP and release metadata
