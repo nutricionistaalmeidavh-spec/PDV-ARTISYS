@@ -37,6 +37,8 @@ test('CI builds both Mac architectures independently and requires packaged launc
   assert.match(workflow, /arm64/);
   assert.match(workflow, /x64/);
   assert.match(workflow, /npm run dist:mac/);
+  assert.match(workflow, /npm version/);
+  assert.match(workflow, /github.ref_type == 'tag'/);
   assert.match(workflow, /Smoke test packaged macOS app/);
   assert.match(workflow, /actions\/upload-artifact/);
   assert.doesNotMatch(workflow, /gh release (create|upload)/);
@@ -57,6 +59,7 @@ test('macOS public release is manual, QA-gated and only uploads DMGs', () => {
   assert.match(workflow, /qa_approved/);
   assert.match(workflow, /build_sha/);
   assert.match(workflow, /tag_sha/);
+  assert.match(workflow, /release_version/);
   assert.match(workflow, /gh release upload/);
   assert.match(workflow, /-name '\*\.dmg'/);
   assert.doesNotMatch(workflow, /push:/);
