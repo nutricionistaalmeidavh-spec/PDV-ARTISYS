@@ -800,8 +800,12 @@
 
   async function ensureMenuProductHasDestination(product) {
     if(!product?.id)return null;
-    await refreshProductionRoutes();
-    return (state.productionRoutes||[]).find(item=>item.productId===product.id)?.mode||null;
+    // A listagem de rotas inclui somente produtos já publicados no Cardápio.
+    // Para novos itens, consultar a rota individual cadastrada no Estoque.
+    const route=await api.request(`/api/v1/restaurant/kitchen/routing/${encodeURIComponent(product.id)}`);
+    if(!route?.mode)return null;
+    if(route.mode==='PRODUCTION'&&route.stationActive===false)return null;
+    return route.mode;
   }
 
   async function openInventoryItem(productId) {

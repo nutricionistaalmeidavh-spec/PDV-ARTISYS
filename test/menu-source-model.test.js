@@ -7,6 +7,7 @@ const {DatabaseSync}=require('node:sqlite');
 const fs=require('node:fs');
 const os=require('node:os');
 const path=require('node:path');
+const vm=require('node:vm');
 
 const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 
@@ -62,4 +63,48 @@ test('legacy upgrade does not keep ingredients or prepared products without tech
     assert.equal(rt.catalog.getProduct('x-without-recipe').menuEnabled,false,'prepared-looking legacy item without technical sheet must leave the menu');
     assert.equal(rt.catalog.getProduct('shirt-old').menuEnabled,true,'variant-backed stock parent remains selectable');
   }finally{rt.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
+test('Cardapio reconhece destino cadastrado antes da publicacao sem alterar estoque',async()=>{
+  const rt=createPdvRuntime({dbPath:':memory:'});
+  try{
+    const product=rt.catalog.upsertProduct({
+      id:'agua-com-gas',
+      name:'Agua com gas',
+      salePriceCents:400,
+      costCents:200,
+      trackStock:true,
+      usageType:'DIRECT',
+      menuEnabled:false,
+      active:true
+    },admin);
+    rt.inventory.move({productId:product.id,type:'opening',quantityDelta:12,reason:'estoque inicial'},admin);
+    rt.kitchen.configureProductRoute(product.id,{mode:'DIRECT'},admin);
+
+    // A rota individual existe mesmo quando a listagem do Cardapio a omite.
+    assert.equal(rt.kitchen.listProductRoutes().some(route=>route.productId===product.id),false);
+    assert.equal(rt.kitchen.getProductRoute(product.id)?.mode,'DIRECT');
+
+    const renderer=fs.readFileSync(path.join(__dirname,'../desktop/renderer/app.js'),'utf8');
+    const implementation=renderer.match(/  async function ensureMenuProductHasDestination\(product\) \{[\s\S]*?\n  \}/);
+    assert.ok(implementation,'validador do Cardapio deve existir');
+    const requests=[];
+    const resolveDestination=vm.runInNewContext(
+      `${implementation[0]}\nensureMenuProductHasDestination`,
+      {api:{request:async url=>{
+        requests.push(url);
+        const id=decodeURIComponent(url.split('/').pop());
+        return rt.kitchen.getProductRoute(id);
+      }}}
+    );
+
+    assert.equal(await resolveDestination(product),'DIRECT');
+    assert.deepEqual(requests,['/api/v1/restaurant/kitchen/routing/agua-com-gas']);
+    assert.equal(await resolveDestination({id:'sem-destino'}),null);
+
+    const saved=rt.catalog.upsertProduct({...rt.catalog.getProduct(product.id),menuEnabled:true},admin);
+    assert.equal(saved.menuEnabled,true);
+    assert.equal(rt.catalog.getProduct(product.id).stockQuantity,12);
+    assert.equal(rt.kitchen.listProductRoutes().find(route=>route.productId===product.id)?.mode,'DIRECT');
+  }finally{rt.close();}
 });

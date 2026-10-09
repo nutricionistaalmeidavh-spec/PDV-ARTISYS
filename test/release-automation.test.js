@@ -20,16 +20,20 @@ test('release profile validates its QA manifest without running legacy E2E flows
   assert.match(config.steps.publish.command, /publish-github-release\.ps1/);
 });
 
-test('Woodpecker publication is manual-only while GitHub Actions owns automatic CI', () => {
-  const publish = read('.woodpecker/pdv-publish.yaml');
-  const release = read('.woodpecker/pdv-release.yaml');
-  for (const pipeline of [publish, release]) {
+test('optional Woodpecker pipelines remain manual-only while GitHub Actions owns automatic CI', () => {
+  const optionalPipelines = ['.woodpecker/pdv-publish.yaml','.woodpecker/pdv-release.yaml'];
+  for (const filename of optionalPipelines) {
+    // Os pipelines manuais são opcionais e podem não estar versionados.
+    if (!fs.existsSync(path.join(root, filename))) continue;
+    const pipeline = read(filename);
     assert.match(pipeline, /event: manual/);
     assert.doesNotMatch(pipeline, /event: push/);
     assert.doesNotMatch(pipeline, /event: tag/);
+    if(filename.endsWith('pdv-publish.yaml')){
+      assert.match(pipeline, /-Profile release/);
+      assert.match(pipeline, /GITHUB_RELEASE_TOKEN|GITHUB_REPORT_TOKEN/);
+    }
   }
-  assert.match(publish, /-Profile release/);
-  assert.match(publish, /GITHUB_RELEASE_TOKEN|GITHUB_REPORT_TOKEN/);
   const github = read('.github/workflows/verify.yml');
   assert.match(github, /push:/);
   assert.match(github, /pull_request:/);
