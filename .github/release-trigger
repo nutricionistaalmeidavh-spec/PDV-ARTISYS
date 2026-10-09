@@ -1,4 +1,5 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-07T13:00:00Z
-reason=release-current-main-after-qa-hardening
-source_commit=bb328d999e7a53bd0777c7b8ce0e729ce391d8c9
+requested_at=2026-10-09T10:30:00-03:00
+reason=fix-cardapio-route-before-menu-publish-client-report
+source_pr=176
+requires=verify-release-and-preserve-existing-local-data
