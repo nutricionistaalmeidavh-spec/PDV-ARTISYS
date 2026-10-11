@@ -72,3 +72,21 @@ test('Cardapio bloqueia duplo clique durante inclusão e conserva correção no 
   assert.doesNotMatch(app,/function openMenuDestinationForm\(/,'destino permanece editável somente no Estoque');
 });
 
+
+test('destino indisponível não tenta gravar rota e deixa o salvamento do Estoque seguir',async()=>{
+  const requireSource=app.match(/  async function requireProductionDestination\(root\) \{[\s\S]*?\n  \}/);
+  const persistSource=app.match(/  async function persistProductionDestination\(root,productId\) \{[\s\S]*?\n  \}/);
+  assert.ok(requireSource&&persistSource);
+  let routeWrites=0;
+  const persist=vm.runInNewContext(
+    `${requireSource[0]}\n${persistSource[0]}\npersistProductionDestination`,
+    {api:{request:async()=>{routeWrites++;throw new Error('não deveria chamar API');}}}
+  );
+  const root={
+    _productionDestinationReady:Promise.resolve(null),
+    querySelector:(selector)=>selector==='[data-production-destination]'?{hidden:false,dataset:{available:'false'}}:null
+  };
+  assert.equal(await persist(root,'agua'),null);
+  assert.equal(routeWrites,0);
+});
+
