@@ -1,5 +1,6 @@
 ArtiSys PDV Windows release trigger
-requested_at=2026-10-09T10:30:00-03:00
-reason=fix-cardapio-route-before-menu-publish-client-report
-source_pr=176
+requested_for=fix-checkout-payment-scroll-compact
+source_pr=178
+source_merge_commit=93f1528e47b6bdc675266be244d07b83b745251c
+reason=make-payment-and-finalization-accessible-on-compact-displays
 requires=verify-release-and-preserve-existing-local-data
