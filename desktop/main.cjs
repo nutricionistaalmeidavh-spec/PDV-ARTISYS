@@ -15,6 +15,7 @@ const { DEFAULT_PROFILE_IDS } = require('../js/core/auth/default-profiles');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
+const { createLanReachability } = require('../server/lan-reachability.cjs');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
 const { createTerminalIdentityStore } = require('./terminal-identity.cjs');
@@ -123,6 +124,7 @@ async function startEmbeddedServer() {
     }
   });
 
+  runtime.lanReachability=createLanReachability();
   runtime.pilot.setDeploymentContext({mode:dataServerConfig.mode,selected:dataServerConfig.selected});
 
   if (!app.isPackaged && process.env.ARTISYS_QA === '1' && process.env.ARTISYS_QA_AUTO_ADMIN === '1' && runtime.catalog.countUsers() === 0) {
@@ -326,6 +328,21 @@ function registerIpc() {
   });
 
   ipcMain.handle('artisys:public-network:state', async () => publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer),stableHost:await lanDiscovery?.state()||''}));
+  ipcMain.handle('artisys:public-network:challenge', async (_event,input={}) => {
+    const stableHost=await lanDiscovery?.state()||'';
+    const state=publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer),stableHost});
+    if(!state.enabled||state.remote||!runtime?.lanReachability)throw new Error('Ative o PC principal para testar pelo celular.');
+    const host=String(input.host||'').trim();
+    const port=Number(input.port);
+    if(!state.addresses.includes(host)&&host!==stableHost)throw new Error('Selecione um endereço da rede deste computador.');
+    if(port!==state.port)throw new Error('A porta não corresponde ao servidor local ativo.');
+    const {token,expiresAt}=runtime.lanReachability.start();
+    const lan=runtime.mobileAccess.getLanAccess({host,port,path:'/lan-check/'+token,protocol:'http:'});
+    return{token,expiresAt,url:lan.url,qrSvg:lan.qrSvg};
+  });
+  ipcMain.handle('artisys:public-network:challenge-status', (_event,token) => {
+    return runtime?.lanReachability?.status(token)||{confirmed:false,expired:true};
+  });
   ipcMain.handle('artisys:public-network:test', (_event,input={}) => testPublicNetwork({state:publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer)}),host:input.host,port:input.port}));
 
   ipcMain.handle('artisys:data-server:discover', () => discoverLanServers());
