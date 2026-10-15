@@ -6,7 +6,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
-const {renderTablePreBill}=require('../js/domains/printing/non-fiscal-renderer');
+const {renderTablePreBill,renderKitchenTicket}=require('../js/domains/printing/non-fiscal-renderer');
 
 const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01'};
 function fixture(){
@@ -133,4 +133,36 @@ test('opening several configured products reuses one submit handler and adds ONL
   assert.equal(form.listeners.filter(v=>v.event==='submit').length,0);
   form.onsubmit({preventDefault(){}});
   assert.deepEqual(added.map(x=>x.productId),['juice']);
+});
+
+test('kitchen note prints each distinct variation under its own product in a mixed order',async()=>{
+  const {runtime:rt,token,close}=fixture();
+  try{
+    const station=rt.kitchen.upsertStation({id:'kds',name:'Cozinha',printEnabled:false},admin);
+    rt.kitchen.configureProductRoute('fries',{mode:'PRODUCTION',stationId:station.id},admin);
+    rt.kitchen.configureProductRoute('juice',{mode:'PRODUCTION',stationId:station.id},admin);
+    const order=rt.publicOrdering.submitOrder(token,{items:[
+      {productId:'fries',quantity:1,variantId:'fries-small'},
+      {productId:'soda',quantity:1},
+      {productId:'juice',quantity:1,variantId:'juice-strawberry'},
+      {productId:'fries',quantity:1,variantId:'fries-large'}
+    ]});
+    assert.equal(order.items.length,4);
+    const dispatched=await rt.dispatchPending();
+    assert.deepEqual(dispatched.failures,[]);
+    const tickets=rt.kitchen.listTickets();
+    assert.equal(tickets.length,1);
+    const ticket=tickets[0];
+    assert.equal(ticket.items.length,3);
+    const byProduct=ticket.items.reduce((acc,item)=>(acc[item.productName]??=[]).push(item),{});
+    assert.deepEqual(new Set(byProduct['Porção de fritas'].map(row=>row.configuration.variant.name)),new Set(['150g','300g']));
+    assert.equal(byProduct['Suco'][0].configuration.variant.name,'Morango');
+    const print=renderKitchenTicket({ticket,width:42});
+    const lines=print.split('\n');
+    const sections=[];
+    for(let i=0;i<lines.length;i++)if(/x Porção de fritas|x Suco/.test(lines[i]))sections.push(lines.slice(i,i+3).join('\n'));
+    assert.equal(sections.length,3);
+    assert.ok(sections.filter(x=>x.includes('Porção de fritas')).every(x=>x.includes('Variacao: 150g')||x.includes('Variacao: 300g')));
+    assert.ok(sections.filter(x=>x.includes('Suco')).every(x=>x.includes('Variacao: Morango')&&!x.includes('150g')&&!x.includes('300g')));
+  }finally{close();}
 });
