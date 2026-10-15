@@ -759,6 +759,7 @@
         product?.id?api.request(`/api/v1/restaurant/kitchen/routing/${encodeURIComponent(product.id)}`):Promise.resolve(null)
       ]);
       const activeStations=(Array.isArray(stations)?stations:[]).filter(station=>station.active!==false);
+      const help=host.querySelector('[data-kds-warning]')||document.createElement('small');help.dataset.kdsWarning='true';help.textContent=activeStations.length?'':'Nenhum setor KDS ativo. Para usar produção, cadastre e ative um setor em Alimentação → Gestão → Setores de produção.';if(!help.isConnected)host.appendChild(help);
       select.innerHTML=`<option value="">Selecione o destino</option><option value="DIRECT">Sem KDS — garçom entrega</option>${activeStations.map(station=>`<option value="PRODUCTION:${escapeHtml(station.id)}">KDS · ${escapeHtml(station.name)}</option>`).join('')}`;
       const current=route?.mode==='DIRECT'?'DIRECT':route?.mode==='PRODUCTION'?`PRODUCTION:${route.stationId}`:'';
       if(current&&![...select.options].some(option=>option.value===current)&&route?.mode==='PRODUCTION'){
@@ -774,7 +775,11 @@
       return route||null;
     } catch {
       host.dataset.available='false';
-      host.hidden=true;
+      host.dataset.loadFailed='true';
+      const error=host.querySelector('[data-kds-warning]')||document.createElement('small');
+      error.dataset.kdsWarning='true';error.textContent='Não foi possível carregar os destinos. Verifique a conexão e reabra o cadastro antes de salvar.';
+      if(!error.isConnected)host.appendChild(error);
+      select.disabled=true;
       return null;
     }
   }
@@ -782,7 +787,10 @@
   async function requireProductionDestination(root) {
     if(root._productionDestinationReady)await root._productionDestinationReady;
     const host=root.querySelector('[data-production-destination]');
-    if(!host||host.hidden||host.dataset.available!=='true')return null;
+    if(!host)return null;
+    if(host.dataset.loadFailed==='true'&&!['INGREDIENT'].includes(root.querySelector('#product-usage-type')?.value))throw new Error('Não foi possível carregar os destinos do pedido. Reabra o cadastro para tentar novamente.');
+    if(host.hidden)return null;
+    if(host.dataset.available!=='true')throw new Error('O destino do pedido ainda não está disponível. Aguarde carregar e tente novamente.');
     const value=String(host.querySelector('[name="productionDestination"]')?.value||'');
     if(!value)throw new Error('Defina o destino do pedido: um KDS ou “Sem KDS — garçom entrega”.');
     return value;
@@ -1025,7 +1033,7 @@ function openCategoryForm() {
       const updateMargin=()=>{if(margin)margin.value=`${ui.calculateMarginPercent(centsFromInput(price?.value||'0'),centsFromInput(cost?.value||'0')).toFixed(2)}%`;};
       const syncUsage=()=>{const ingredient=usage?.value==='INGREDIENT';const usedAsIngredient=['INGREDIENT','BOTH'].includes(usage?.value);root.querySelectorAll('[data-product-sale-only]').forEach(node=>node.hidden=ingredient);const pricing=root.querySelector('[data-quantity-pricing]');if(pricing)pricing.hidden=ingredient;const destination=root.querySelector('[data-production-destination]');if(destination)destination.hidden=ingredient||destination.dataset.available==='false';if(ingredient&&price)price.value='0,00';if(usedAsIngredient&&track){track.checked=true;track.disabled=true;}else if(track)track.disabled=false;updateMargin();};
       usage?.addEventListener('change',syncUsage);price?.addEventListener('input',updateMargin);cost?.addEventListener('input',updateMargin);syncUsage();
-      root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const usageType=formValue(form,'usageType'); try { await requireProductionDestination(root); const saved=await api.saveProduct({ id:product?.id,name:formValue(form,'name'),sku:formValue(form,'sku'),barcode:formValue(form,'barcode'),categoryId:formValue(form,'categoryId'),unit:formValue(form,'unit'),usageType,salePriceCents:usageType==='INGREDIENT'?0:centsFromInput(formValue(form,'salePrice')),costCents:centsFromInput(formValue(form,'cost')),minimumStock:Number(formValue(form,'minimumStock')||0),trackStock:form.elements.namedItem('trackStock').checked,menuEnabled:usageType==='INGREDIENT'?false:(product?.menuEnabled??false),active:form.elements.namedItem('active').checked }); await persistQuantityPricingEditor(root,saved.id); await persistProductionDestination(root,saved.id); const index=state.products.findIndex(item=>item.id===saved.id);if(index>=0)state.products[index]=saved;else state.products.push(saved);state.products.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));closeModal();if(isRouteActive('products'))renderProducts();showToast(usageType==='INGREDIENT'?'Insumo salvo no Estoque.':'Produto salvo no Estoque. Adicione-o ao Cardápio quando quiser vendê-lo.','success'); } catch(error){showToast(error.message,'error');} });
+      root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const usageType=formValue(form,'usageType'); let savedProduct=null;try { await requireProductionDestination(root); const saved=await api.saveProduct({ id:product?.id,name:formValue(form,'name'),sku:formValue(form,'sku'),barcode:formValue(form,'barcode'),categoryId:formValue(form,'categoryId'),unit:formValue(form,'unit'),usageType,salePriceCents:usageType==='INGREDIENT'?0:centsFromInput(formValue(form,'salePrice')),costCents:centsFromInput(formValue(form,'cost')),minimumStock:Number(formValue(form,'minimumStock')||0),trackStock:form.elements.namedItem('trackStock').checked,menuEnabled:usageType==='INGREDIENT'?false:(product?.menuEnabled??false),active:form.elements.namedItem('active').checked });savedProduct=saved; await persistQuantityPricingEditor(root,saved.id); await persistProductionDestination(root,saved.id); const index=state.products.findIndex(item=>item.id===saved.id);if(index>=0)state.products[index]=saved;else state.products.push(saved);state.products.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));closeModal();if(isRouteActive('products'))renderProducts();showToast(usageType==='INGREDIENT'?'Insumo salvo no Estoque.':'Produto salvo no Estoque. Adicione-o ao Cardápio quando quiser vendê-lo.','success'); } catch(error){if(!product&&savedProduct){try{await api.removeProduct(savedProduct.id);}catch{showToast('O cadastro parcial não pôde ser revertido. Revise o produto no Estoque.','error');}}showToast(error.message,'error');} });
     } });
     window.dispatchEvent(new CustomEvent('artisys:product-form-opened',{detail:{productId:product?.id||null}}));
   }
