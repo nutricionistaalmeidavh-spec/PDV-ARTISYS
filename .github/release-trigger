@@ -1,6 +1,6 @@
 ArtiSys PDV Windows release trigger
-requested_for=fix-lan-qr-mobile-validation
-source_pr=179
-source_merge_commit=3b9fe474e5630c8ac6ee3865eee5625211d7968a
-reason=publish-ipv4-first-qr-and-phone-confirmed-lan-reachability
-requires=verify-release-and-preserve-existing-local-data
+requested_for=restaurant-customer-qa-four-scenarios
+source_pr=180,181
+source_merge_commit=2b3694963cd63a8fece316576a80e4f7ae0b43ab
+reason=fix-mobile-cart-duplicates-zero-price-configured-items-and-nonfiscal-receipt-variations
+requires=verify-release-packaged-windows-smoke-updater-metadata-and-preserve-store-data
