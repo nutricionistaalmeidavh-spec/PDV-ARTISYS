@@ -5,9 +5,9 @@ const interfaces={wifi:[{family:'IPv4',internal:false,address:'192.168.1.12'}],l
 test('discovery filters unusable and virtual interfaces and refreshes DHCP addresses',()=>{
   const invalid={VPN:[{address:'10.8.0.2'}],vEthernet:[{address:'172.17.0.1'}],off:[{address:'192.168.2.1',active:false}],bad:[{address:'169.254.1.3'},{address:'127.2.3.4'},{address:'::1'}]};
   const state=publicNetworkState({config:{mode:'lan-host'},lanEnabled:true,interfaces:{...interfaces,...invalid},stableHost:'artisys-example.local'});
-  assert.deepEqual(state.addresses,['192.168.1.12']);assert.equal(state.host,'artisys-example.local');
-  const next=publicNetworkState({config:{mode:'lan-host'},lanEnabled:true,interfaces:{wifi:[{address:'192.168.1.99'}]},stableHost:state.host});
-  assert.equal(next.host,state.host);assert.equal(next.currentAddress,'192.168.1.99');
+  assert.deepEqual(state.addresses,['192.168.1.12']);assert.equal(state.host,'192.168.1.12');assert.equal(state.stableHost,'artisys-example.local');
+  const next=publicNetworkState({config:{mode:'lan-host'},lanEnabled:true,interfaces:{wifi:[{address:'192.168.1.99'}]},stableHost:state.stableHost});
+  assert.equal(next.host,'192.168.1.99');assert.equal(next.currentAddress,'192.168.1.99');assert.equal(next.stableHost,state.stableHost);
   assert.equal(publicNetworkState({config:{mode:'lan-host'},lanEnabled:true,interfaces:invalid}).enabled,false);
 });
 test('QR address uses actual host port and excludes loopback',()=>{const state=publicNetworkState({config:{mode:'lan-host',port:4188},lanEnabled:true,interfaces});assert.equal(state.baseUrl,'http://192.168.1.12:4188');assert.deepEqual(state.addresses,['192.168.1.12']);assert.equal(state.enabled,true);});
