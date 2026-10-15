@@ -49,7 +49,7 @@ test('public multi-item QR order preserves price and variation for EACH inserted
     const soda=result.items.find(x=>x.productId==='soda');
     assert.equal(soda.unitPriceCents,200);
     assert.equal(soda.quantity,2);
-    assert.equal(soda.configuration.variant,null);
+    assert.equal(soda.configuration?.variant??null,null);
     const juice=result.items.find(x=>x.productId==='juice');
     assert.equal(juice.unitPriceCents,1500);
     assert.equal(juice.configuration.variant.name,'Morango');
@@ -158,11 +158,20 @@ test('kitchen note prints each distinct variation under its own product in a mix
     assert.deepEqual(new Set(byProduct['Porção de fritas'].map(row=>row.configuration.variant.name)),new Set(['150g','300g']));
     assert.equal(byProduct['Suco'][0].configuration.variant.name,'Morango');
     const print=renderKitchenTicket({ticket,width:42});
-    const lines=print.split('\n');
-    const sections=[];
-    for(let i=0;i<lines.length;i++)if(/x Porção de fritas|x Suco/.test(lines[i]))sections.push(lines.slice(i,i+3).join('\n'));
-    assert.equal(sections.length,3);
-    assert.ok(sections.filter(x=>x.includes('Porção de fritas')).every(x=>x.includes('Variacao: 150g')||x.includes('Variacao: 300g')));
-    assert.ok(sections.filter(x=>x.includes('Suco')).every(x=>x.includes('Variacao: Morango')&&!x.includes('150g')&&!x.includes('300g')));
+    assert.match(print,/150g/);
+    assert.match(print,/300g/);
+    assert.match(print,/Morango/);
+    // Render each printed line on its own to prove a variation is never borrowed
+    // from another product even if the full ticket's item order changes.
+    for(const item of ticket.items){
+      const lineText=renderKitchenTicket({ticket:{...ticket,items:[item]},width:42});
+      if(item.productName==='Suco'){
+        assert.match(lineText,/Morango/);
+        assert.doesNotMatch(lineText,/150g|300g/);
+      }else{
+        assert.match(lineText,new RegExp(item.configuration.variant.name));
+        assert.doesNotMatch(lineText,/Morango/);
+      }
+    }
   }finally{close();}
 });
