@@ -42,3 +42,8 @@
 @media(max-width:880px){.menu-layout-selector{grid-template-columns:1fr}.menu-layout-option{grid-template-columns:180px 1fr}}
 @media(max-width:560px){.menu-layout-option{grid-template-columns:1fr}.menu-layout-preview{min-height:112px}}
 @media(prefers-reduced-motion:reduce){.menu-layout-option{transition:none}}
+
+#public-mobile-test{margin-top:10px;overflow-wrap:anywhere}
+#public-mobile-test .public-qr-preview{padding:6px}
+#public-mobile-test .public-qr-preview svg{width:min(210px,55vw);height:auto}
+#public-qr-validation{font-size:12px;font-weight:700;color:#245685}
