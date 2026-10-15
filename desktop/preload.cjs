@@ -35,7 +35,8 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     state: () => ipcRenderer.invoke('artisys:public-network:state'),
     test: (input) => ipcRenderer.invoke('artisys:public-network:test',input),
     challenge: (input) => ipcRenderer.invoke('artisys:public-network:challenge',input),
-    challengeStatus: (token) => ipcRenderer.invoke('artisys:public-network:challenge-status',token)
+    challengeStatus: (token) => ipcRenderer.invoke('artisys:public-network:challenge-status',token),
+    firewallSettings: () => ipcRenderer.invoke('artisys:public-network:firewall-settings')
   },
   imports: {
     pickFile: () => ipcRenderer.invoke('artisys:imports:pick')
