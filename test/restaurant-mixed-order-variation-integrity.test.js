@@ -4,6 +4,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const vm=require('node:vm');
 const {createPdvRuntime}=require('../js/core/pdv-runtime');
 const {renderTablePreBill}=require('../js/domains/printing/non-fiscal-renderer');
 
@@ -93,4 +94,43 @@ test('inventory warns when no KDS exists and does not silently claim save after 
   assert.match(source,/Nenhum setor KDS ativo/);
   assert.match(source,/savedProduct=saved/);
   assert.match(source,/api\.removeProduct\(savedProduct\.id\)/);
+});
+
+test('opening several configured products reuses one submit handler and adds ONLY the latest product',()=>{
+  const script=fs.readFileSync(path.join(__dirname,'..','server/customer-menu/app.js'),'utf8');
+  const match=script.match(/^  function selectProduct\(productId\)\{.*\}$/m);
+  assert.ok(match,'product dialog handler must be found');
+  const products=[
+    {id:'fries',name:'Porção fritas',available:true,configuration:{variants:[{id:'fries-option'}]}},
+    {id:'juice',name:'Suco',available:true,configuration:{variants:[{id:'juice-option'}]}}
+  ];
+  const added=[];
+  const form={
+    innerHTML:'',onsubmit:null,listeners:[],
+    addEventListener(event,fn){this.listeners.push({event,fn});},
+    querySelector(selector){
+      if(selector==='[data-close]')return{addEventListener(){}};
+      if(selector==='#product-error')return{classList:{add(){},remove(){}},textContent:''};
+      return null;
+    },
+    querySelectorAll(){return[];}
+  };
+  const dialog={showModal(){},close(){}};
+  const context={
+    state:{context:{products},activeProduct:null},
+    $:selector=>selector==='#product-dialog'?dialog:selector==='#product-form'?form:null,
+    hasConfiguration:()=>true,
+    productDialogHtml:()=>'<form>...</form>',
+    syncPizzaFlavorLimit:()=>{},
+    refreshDraftPrice:()=>{},
+    validateConfiguration:()=>'', 
+    FormData:class {get(){return null;}},
+    addLine:line=>added.push(line),
+    calculateDraft:()=>1000
+  };
+  vm.runInNewContext(match[0]+"\nselectProduct('fries');selectProduct('juice');",context);
+  assert.equal(typeof form.onsubmit,'function');
+  assert.equal(form.listeners.filter(v=>v.event==='submit').length,0);
+  form.onsubmit({preventDefault(){}});
+  assert.deepEqual(added.map(x=>x.productId),['juice']);
 });
