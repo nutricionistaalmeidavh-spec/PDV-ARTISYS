@@ -154,7 +154,7 @@ test('kitchen note prints each distinct variation under its own product in a mix
     assert.equal(tickets.length,1);
     const ticket=tickets[0];
     assert.equal(ticket.items.length,3);
-    const byProduct=ticket.items.reduce((acc,item)=>(acc[item.productName]??=[]).push(item),{});
+    const byProduct=ticket.items.reduce((acc,item)=>{(acc[item.productName]??=[]).push(item);return acc;},{});
     assert.deepEqual(new Set(byProduct['Porção de fritas'].map(row=>row.configuration.variant.name)),new Set(['150g','300g']));
     assert.equal(byProduct['Suco'][0].configuration.variant.name,'Morango');
     const print=renderKitchenTicket({ticket,width:42});
