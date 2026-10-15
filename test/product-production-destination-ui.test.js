@@ -2,6 +2,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const test=require('node:test');
 const assert=require('node:assert/strict');
+const vm=require('node:vm');
 
 const root=path.resolve(__dirname,'..');
 const app=fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
@@ -41,3 +42,51 @@ test('menu list exposes destination read-only and inventory has one deep-link ed
   assert.match(app,/function openInventoryItem\(productId\)/);
   assert.match(app,/PdvCatalogAdmin = Object\.freeze\(\{[^}]*openInventoryItem/s);
 });
+
+test('falha em consultar destinos aparece no cadastro sem impedir salvar o Estoque Core',async()=>{
+  const source=app.match(/  async function mountProductionDestination\(root,product=null\) \{[\s\S]*?\n  \}/);
+  assert.ok(source,'carregamento do destino deve existir no cadastro');
+  const mount=vm.runInNewContext(`${source[0]}\nmountProductionDestination`,{
+    api:{request:async()=>{throw new Error('Falha de conexão temporária');}},
+  });
+  const select={disabled:false,innerHTML:''};
+  const help={textContent:''};
+  const host={
+    hidden:true,dataset:{available:'loading'},
+    querySelector:(selector)=>selector==='small'?help:select
+  };
+  const root={querySelector:(selector)=>selector==='[data-production-destination]'?host:null};
+  assert.equal(await mount(root,{id:'agua'}),null);
+  assert.equal(host.dataset.available,'false');
+  assert.equal(host.hidden,false,'falha de carregamento não deve sumir da tela');
+  assert.equal(select.disabled,true,'não é possível escolher destino desconhecido');
+  assert.match(help.textContent,/Não foi possível carregar os destinos/);
+  assert.match(help.textContent,/salvo no Estoque/);
+  assert.match(app,/Não foi possível confirmar o destino do pedido/);
+});
+
+test('Cardapio bloqueia duplo clique durante inclusão e conserva correção no cadastro canônico',()=>{
+  assert.match(app,/button\.disabled=true;try\{await addMenuSourceProduct\(product\)/);
+  assert.match(app,/finally\{if\(button\.isConnected\)button\.disabled=false;/);
+  assert.match(app,/PdvCatalogAdmin\?\.openInventoryItem\?\.\(product\.id\)/);
+  assert.doesNotMatch(app,/function openMenuDestinationForm\(/,'destino permanece editável somente no Estoque');
+});
+
+
+test('destino indisponível não tenta gravar rota e deixa o salvamento do Estoque seguir',async()=>{
+  const requireSource=app.match(/  async function requireProductionDestination\(root\) \{[\s\S]*?\n  \}/);
+  const persistSource=app.match(/  async function persistProductionDestination\(root,productId\) \{[\s\S]*?\n  \}/);
+  assert.ok(requireSource&&persistSource);
+  let routeWrites=0;
+  const persist=vm.runInNewContext(
+    `${requireSource[0]}\n${persistSource[0]}\npersistProductionDestination`,
+    {api:{request:async()=>{routeWrites++;throw new Error('não deveria chamar API');}}}
+  );
+  const root={
+    _productionDestinationReady:Promise.resolve(null),
+    querySelector:(selector)=>selector==='[data-production-destination]'?{hidden:false,dataset:{available:'false'}}:null
+  };
+  assert.equal(await persist(root,'agua'),null);
+  assert.equal(routeWrites,0);
+});
+
