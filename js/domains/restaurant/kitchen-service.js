@@ -202,8 +202,9 @@ function createKitchenService({ db, now = () => new Date().toISOString(), idFact
     const productIds=[...new Set((Array.isArray(items)?items:[]).map(item=>String(item.productId||'').trim()).filter(Boolean))];
     for(const productId of productIds){
       const route=getProductRoute(productId);
-      if(!route)throw new Error('Configure a produção ou marque atendimento direto antes de enviar o produto.');
-      if(route.mode==='PRODUCTION'&&!route.stationActive)throw new Error('Setor de produção do produto está inativo. Configure outro setor antes de enviar.');
+      const name=route?.productName||db.prepare('SELECT name FROM products WHERE id=?').get(productId)?.name||productId;
+      if(!route)throw new Error(`O produto "${name}" não tem destino de pedido. Configure no Estoque: Sem KDS ou Produção.`);
+      if(route.mode==='PRODUCTION'&&!route.stationActive)throw new Error(`O setor de produção do produto "${name}" está inativo. Configure outro setor no Estoque.`);
     }
     return true;
   }
