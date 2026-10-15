@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, safeStorage, dialog, nativeImage, shell } = require('electron');
 const path = require('node:path');
 const { networkInterfaces } = require('node:os');
 const { publicNetworkState, testPublicNetwork } = require('./public-network.cjs');
@@ -344,6 +344,11 @@ function registerIpc() {
     return runtime?.lanReachability?.status(token)||{confirmed:false,expired:true};
   });
   ipcMain.handle('artisys:public-network:test', (_event,input={}) => testPublicNetwork({state:publicNetworkState({config:dataServerConfig,lanEnabled:Boolean(lanServer)}),host:input.host,port:input.port}));
+  ipcMain.handle('artisys:public-network:firewall-settings', async () => {
+    if(process.platform!=='win32')throw new Error('Abra as configurações de firewall do sistema operacional.');
+    await shell.openExternal('ms-settings:windowsdefender-firewall');
+    return{opened:true,message:'Confira as permissões do ArtiSys na rede privada. Não desative o firewall.'};
+  });
 
   ipcMain.handle('artisys:data-server:discover', () => discoverLanServers());
   ipcMain.handle('artisys:data-server:state', () => publicDataServerState());
