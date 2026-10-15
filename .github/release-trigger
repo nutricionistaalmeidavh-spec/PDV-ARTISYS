@@ -1,6 +1,6 @@
 ArtiSys PDV Windows release trigger
-requested_for=fix-checkout-payment-scroll-compact
-source_pr=178
-source_merge_commit=93f1528e47b6bdc675266be244d07b83b745251c
-reason=make-payment-and-finalization-accessible-on-compact-displays
+requested_for=fix-lan-qr-mobile-validation
+source_pr=179
+source_merge_commit=3b9fe474e5630c8ac6ee3865eee5625211d7968a
+reason=publish-ipv4-first-qr-and-phone-confirmed-lan-reachability
 requires=verify-release-and-preserve-existing-local-data
