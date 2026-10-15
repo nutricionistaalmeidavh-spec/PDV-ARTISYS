@@ -34,7 +34,7 @@ function createConfiguredRestaurantService({db,baseService,kitchenService=null,n
       // different product's price or customization to this row.
       // Resolve newly inserted rows in SQLite insertion order before applying
       // per-item prices and configuration snapshots.
-      const createdItems=db.prepare('SELECT id,product_id AS productId FROM restaurant_order_items WHERE order_id=? ORDER BY rowid').all(order.id);
+      const createdItems=db.prepare('SELECT id,product_id AS productId,quantity,unit_price_cents AS unitPriceCents FROM restaurant_order_items WHERE order_id=? ORDER BY rowid').all(order.id);
       if(createdItems.length!==items.length)throw new Error('Inconsistência no pedido: quantidade de linhas divergente.');
       let totalCents=0;
       for(let index=0;index<createdItems.length;index+=1){
