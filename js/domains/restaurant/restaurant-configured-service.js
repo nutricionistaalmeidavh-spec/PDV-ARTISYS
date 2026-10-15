@@ -29,9 +29,17 @@ function createConfiguredRestaurantService({db,baseService,kitchenService=null,n
     if(!configured)return enrichOrder(baseService.addOrder(sessionId,input));
     return withTransaction(db,()=>{
       const order=baseService.addOrder(sessionId,input);
+      // mapOrder() sorts by timestamp and random item ID. That is NOT insertion
+      // order, so matching order.items[index] to input.items[index] can attach a
+      // different product's price or customization to this row.
+      // Resolve newly inserted rows in SQLite insertion order before applying
+      // per-item prices and configuration snapshots.
+      const createdItems=db.prepare('SELECT id,product_id AS productId FROM restaurant_order_items WHERE order_id=? ORDER BY rowid').all(order.id);
+      if(createdItems.length!==items.length)throw new Error('Inconsistência no pedido: quantidade de linhas divergente.');
       let totalCents=0;
-      for(let index=0;index<order.items.length;index+=1){
-        const requested=items[index]||{};const created=order.items[index];
+      for(let index=0;index<createdItems.length;index+=1){
+        const requested=items[index]||{};const created=createdItems[index];
+        if(String(created.productId)!==String(requested.productId||''))throw new Error('Inconsistência no pedido: associação de produtos divergente.');
         const unitPrice=requested.unitPriceCents===undefined?created.unitPriceCents:assertCents(Number(requested.unitPriceCents),'unitPriceCents');
         if(unitPrice<0)throw new Error('Preco configurado nao pode ser negativo.');
         const total=Math.round(unitPrice*Number(created.quantity));totalCents+=total;
