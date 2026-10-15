@@ -13,8 +13,10 @@ function publicNetworkState({config={},lanEnabled=false,interfaces=networkInterf
     return {enabled:true,remote:true,host:url.hostname,port:Number(url.port||(url.protocol==='https:'?443:80)),protocol:url.protocol,addresses:[url.hostname],baseUrl:url.origin};
   }
   const addresses=lanAddresses(interfaces);
-  const host=addresses.length?(stableHost||addresses[0]):'';const port=Number(config.port||4174);
-  return {enabled:config.mode==='lan-host'&&lanEnabled&&Boolean(host),remote:false,host,stable:Boolean(stableHost&&host),currentAddress:addresses[0]||'',port,protocol:'http:',addresses,baseUrl:host?`http://${host}:${port}`:'',reason:config.mode!=='lan-host'?'Habilite este computador como PC principal em Configurações → Dados e servidor.':!lanEnabled?'O acesso pela rede não está ativo.':!host?'Conecte este computador à rede da loja.':''};
+  // A resolução mDNS feita no Windows não comprova acesso pelo iOS/Android.
+  // Priorize IPv4 real nos QR Codes; .local continua disponível como opção avançada.
+  const host=addresses[0]||'';const port=Number(config.port||4174);
+  return {enabled:config.mode==='lan-host'&&lanEnabled&&Boolean(host),remote:false,host,stable:false,stableAvailable:Boolean(stableHost),stableHost:stableHost||'',addressMode:'ip',currentAddress:host,port,protocol:'http:',addresses,baseUrl:host?`http://${host}:${port}`:'',reason:config.mode!=='lan-host'?'Habilite este computador como PC principal em Configurações → Dados e servidor.':!lanEnabled?'O acesso pela rede não está ativo.':!host?'Conecte este computador à rede da loja.':''};
 }
 
 async function testPublicNetwork({state,host=state?.host,port=state?.port,fetchImpl=globalThis.fetch}={}) {
@@ -28,7 +30,7 @@ async function testPublicNetwork({state,host=state?.host,port=state?.port,fetchI
     if(!response.ok)throw new Error('Resposta inválida do servidor.');
     const data=await response.json();
     if(data.ok!==true)throw new Error('O servidor não confirmou que está pronto.');
-    return {ok:true,baseUrl,message:'O servidor respondeu neste endereço. Confirme também o acesso de um celular no Wi-Fi da loja.'};
+    return {ok:true,baseUrl,testedFrom:'pc-local',mobileConfirmed:false,message:'Servidor acessível a partir deste PC. Para comprovar acesso externo, confirme o teste no celular conectado ao Wi-Fi da loja.'};
   } catch {throw new Error('Não foi possível acessar o PC principal neste endereço. Confira a rede e a permissão do ArtiSys no Firewall do Windows.');}
 }
 
