@@ -12,8 +12,8 @@ const admin={userId:'admin',profileId:'profile-administrator',terminalId:'PDV-01
 function fixture(){
   let next=10000;
   const runtime=createPdvRuntime({dbPath:':memory:',now:()=> '2026-10-15T12:00:00.000Z',idFactory:prefix=>prefix+'-'+String(next--)});
-  runtime.modules.setEnabled('FOOD',true,admin);
   runtime.catalog.createUser({id:'admin',username:'admin',name:'Administrador',profileId:'profile-administrator',password:'senha-forte-123'},admin);
+  runtime.modules.setEnabled('FOOD',true,admin);
   for(const [id,name,price] of [
     ['fries','Porção de fritas',0],['soda','Coca lata',200],['juice','Suco',1400],['water','Água',200]
   ]){
@@ -118,7 +118,7 @@ test('opening several configured products reuses one submit handler and adds ONL
   const dialog={showModal(){},close(){}};
   const context={
     state:{context:{products},activeProduct:null},
-    $:selector=>selector==='#product-dialog'?dialog:selector==='#product-form'?form:null,
+    $:selector=>selector==='#product-dialog'?dialog:selector==='#product-form'?form:selector==='#product-error'?{classList:{add(){},remove(){}},textContent:''}:null,
     hasConfiguration:()=>true,
     productDialogHtml:()=>'<form>...</form>',
     syncPizzaFlavorLimit:()=>{},
