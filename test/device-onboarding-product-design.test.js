@@ -185,3 +185,23 @@ test('generic deployment save requires a fresh pairing flow before selecting a r
   }),/novo pareamento/i);
   fs.rmSync(dir,{recursive:true,force:true});
 });
+
+
+test('first computer onboarding clarifies principal setup and provides a way back from terminal pairing',()=>{
+  const app=read('desktop/renderer/app.js');
+  assert.match(app,/Primeiro computador da loja/);
+  assert.match(app,/Apenas um computador\\? Iniciar instalação neste PC/);
+  assert.match(app,/data-setup-primary/);
+  assert.match(app,/dataServer\\.beginNewInstallation\\(\\)/);
+  assert.match(app,/new URL\\(serverUrl\\)/);
+  assert.match(app,/Error invoking remote method 'artisys:data-server:pair'/);
+});
+
+test('invalid LAN pairing address guides a single-PC user instead of showing a generic URL error',()=>{
+  const {normalize}=require('../desktop/data-server-config.cjs');
+  const input={mode:'lan-client',serverUrl:'CAIXA RIBAS',terminalKey:'temporary-pairing-key'};
+  assert.throws(()=>normalize(input),/Se este é o único computador/);
+  assert.throws(()=>normalize({...input,serverUrl:'192.168.0.10:4174'}),/http:\\/\\/192\\.168\\.0\\.10:4174/);
+  assert.doesNotThrow(()=>normalize({...input,serverUrl:'http://192.168.0.10:4174'}));
+  assert.throws(()=>normalize({...input,mode:'own-server',serverUrl:'servidor qualquer'}),/Endereço do servidor remoto inválido/);
+});
