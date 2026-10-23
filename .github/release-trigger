@@ -1,6 +1,6 @@
 ArtiSys PDV Windows release trigger
-requested_for=restaurant-customer-qa-four-scenarios
-source_pr=180,181
-source_merge_commit=2b3694963cd63a8fece316576a80e4f7ae0b43ab
-reason=fix-mobile-cart-duplicates-zero-price-configured-items-and-nonfiscal-receipt-variations
+requested_for=single-pc-first-installation-customer
+source_pr=182
+source_merge_commit=882a0cde81b28bc91839fa0ad2f1100a6ff43b1f
+reason=clarify-primary-installation-vs-terminal-pairing-and-friendly-invalid-server-address
 requires=verify-release-packaged-windows-smoke-updater-metadata-and-preserve-store-data
