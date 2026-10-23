@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-09-11T14:00:00.000Z",
+  "updatedAt": "2026-10-03T13:56:00.000Z",
   "statusDefinitions": {
     "PROTOCOL_VERIFIED": "Contrato e comportamento do protocolo validados automaticamente sem alegar teste de um modelo físico específico.",
     "FIELD_VERIFIED": "Modelo físico específico testado com evidência registrada.",
@@ -20,6 +20,16 @@
       "limitations": "Não declara que qualquer modelo Epson/Star ou compatível foi testado fisicamente. Driver, firmware e interface do equipamento do cliente ainda podem exigir configuração."
     },
     {
+      "manufacturer": "SMX",
+      "model": "SMX-T80E / POS80",
+      "kind": "PRINTER",
+      "connection": "Windows spooler / USB conforme driver",
+      "os": "Windows x64",
+      "status": "PARTIAL",
+      "evidence": "CODE/QA: PR #56 — ajustes específicos de 80 mm, 48 colunas, centralização e largura útil para POS80/SMX-T80E",
+      "limitations": "Há tratamento específico no produto e regressão dedicada, mas esta atualização não registra homologação física em cliente para a impressora."
+    },
+    {
       "manufacturer": "Protocol",
       "model": "Balança serial numérica",
       "kind": "SCALE",
@@ -28,6 +38,16 @@
       "status": "PROTOCOL_VERIFIED",
       "evidence": "CI:test/e54-1-hardware-simulation.test.js",
       "limitations": "Valida leitura numérica, vírgula/ponto, resposta fragmentada, timeout e nova tentativa. Comandos proprietários de cada fabricante podem exigir ajuste de PDV_SCALE_COMMAND e baud rate."
+    },
+    {
+      "manufacturer": "Urano",
+      "model": "US 31/2 POP-S",
+      "kind": "SCALE",
+      "connection": "RS-232 / USB-Serial",
+      "os": "Windows x64",
+      "status": "FIELD_VERIFIED",
+      "evidence": "FIELD: validação física em cliente confirmada pelo projeto em 2026-10-03; integração dedicada PR #47 / commit c0e1b864c2415f00f1bb8a0ecd288a095d96cec6",
+      "limitations": "Perfil dedicado usa 9600/8N2, comandos binários e parser específico. Porta COM, cabo/adaptador e configuração do equipamento ainda dependem do ambiente do cliente."
     },
     {
       "manufacturer": "Protocol",
@@ -46,8 +66,8 @@
       "connection": "USB/HID teclado",
       "os": "Windows x64",
       "status": "PROTOCOL_VERIFIED",
-      "evidence": "CI:test/e54-1-hardware-simulation.test.js",
-      "limitations": "Leitores que exigem SDK proprietário não são cobertos; o modo validado é o que envia o código como teclado."
+      "evidence": "CI:test/e54-1-hardware-simulation.test.js; regressão real de ordem de leitura corrigida na PR #61 / commit 679940893453a2813ef4059ef5c4e5361c8d18cf",
+      "limitations": "Há validação de fluxo e uso real informado pelo projeto, mas fabricante/modelo físico do leitor ainda não está registrado. Leitores que exigem SDK proprietário não são cobertos pelo modo keyboard-wedge."
     },
     {
       "manufacturer": "Generic",
