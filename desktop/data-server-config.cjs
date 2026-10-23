@@ -31,9 +31,12 @@ function normalize(input = {}, { requireTerminalKey = true } = {}) {
   };
   if (mode === 'lan-client' || mode === 'own-server') {
     if (!result.serverUrl) throw new Error('Informe o endereço do servidor.');
+    const addressHelp=mode==='lan-client'
+      ? 'Endereço do PC principal inválido. Use o endereço completo, como http://192.168.0.10:4174. Se este é o único computador, volte e escolha "Iniciar uma nova instalação".'
+      : 'Endereço do servidor remoto inválido. Informe uma URL completa, como https://servidor.exemplo.';
     let parsed;
-    try { parsed = new URL(result.serverUrl); } catch { throw new Error('Endereço do servidor inválido.'); }
-    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('O servidor deve usar HTTP ou HTTPS.');
+    try { parsed = new URL(result.serverUrl); } catch { throw new Error(addressHelp); }
+    if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(addressHelp);
     if (mode === 'own-server' && parsed.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(parsed.hostname)) throw new Error('Servidor próprio remoto deve usar HTTPS.');
     if (requireTerminalKey && !result.terminalKey) throw new Error('Credencial segura deste terminal não está configurada.');
   }
