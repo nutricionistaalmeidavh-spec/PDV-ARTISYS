@@ -32,3 +32,13 @@ test('user email is optional, normalized and unique when present', () => {
     runtime.close();
   }
 });
+test('local sign-in accepts registered email or username without changing the password', () => {
+  const runtime=createPdvRuntime({now:()=> '2026-10-26T12:00:00.000Z'});
+  try{
+    runtime.catalog.createUser({username:'my-owner',name:'Dono',profileId:'profile-administrator',email:' Owner@Example.com ',password:'senha-forte-123'});
+    assert.equal(runtime.catalog.verifyUserPassword('my-owner','senha-forte-123').ok,true);
+    assert.equal(runtime.catalog.verifyUserPassword(' OWNER@EXAMPLE.COM ','senha-forte-123').ok,true);
+    assert.equal(runtime.catalog.verifyUserPassword('owner@example.com','incorreta').ok,false);
+    assert.equal(runtime.catalog.verifyUserPassword('other@example.com','senha-forte-123').ok,false);
+  }finally{runtime.close();}
+});
