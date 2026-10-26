@@ -66,3 +66,15 @@ test('offline API requires password challenge for generation and revokes active 
     assert.equal((await post(path+'local-confirm',{username:'admin',key,password:'another-password-123'})).status,400);
   }finally{await server.stop();runtime.close();}
 });
+
+test('offline recovery key can identify the same active administrator by registered email',()=>{
+  const runtime=createPdvRuntime();
+  try{
+    const user=runtime.catalog.createUser({username:'storeowner',name:'Titular',profileId:'profile-administrator',email:'owner@example.com',password:'old-password-123'});
+    const service=createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
+    const key=service.issue({userId:user.id,password:'old-password-123'}).key;
+    service.recover({username:' OWNER@EXAMPLE.COM ',key,password:'new-password-123'});
+    assert.equal(runtime.catalog.verifyUserPassword('owner@example.com','new-password-123').ok,true);
+    assert.equal(runtime.catalog.verifyUserPassword('storeowner','old-password-123').ok,false);
+  }finally{runtime.close();}
+});
