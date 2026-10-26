@@ -35,6 +35,8 @@ function applyAccountIdentityMigration(db) {
     CREATE INDEX IF NOT EXISTS idx_installation_activation_license ON installation_activation(license_id);
   `);
   ensureColumn(db, 'installation_activation', 'owner_user_id', 'TEXT REFERENCES users(id)');
+  // Private activation proof; never exposed through setup/status or renderer.
+  ensureColumn(db, 'installation_activation', 'identity_sync_secret', 'TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS idx_installation_activation_owner ON installation_activation(owner_user_id)');
 }
 
@@ -48,7 +50,7 @@ function schemaPresent(db) {
   const hasColumns = required.every(name => columns.has(name));
   const activation = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installation_activation'").get();
   const activationColumns=activation?tableColumns(db,'installation_activation'):new Set();
-  return hasColumns && Boolean(activation) && activationColumns.has('owner_user_id');
+  return hasColumns && Boolean(activation) && activationColumns.has('owner_user_id') && activationColumns.has('identity_sync_secret');
 }
 
 function runAccountIdentityMigrations(db, now = () => new Date().toISOString()) {

@@ -396,7 +396,17 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   }
 
   function verifyUserPassword(username, password) {
-    const row = db.prepare('SELECT * FROM users WHERE username=? AND active=1').get(String(username || '').trim().toLowerCase());
+    const identity = String(username || '').trim().toLowerCase();
+    // Existing username logins remain valid; normalized e-mail is a second
+    // identifier for the same LOCAL user. Never consult the license service.
+    const byUsername = db.prepare('SELECT * FROM users WHERE username=? AND active=1').get(identity);
+    const byEmail = identity.includes('@') && hasAccountIdentity
+      ? db.prepare('SELECT * FROM users WHERE email_normalized=? AND active=1').get(identity)
+      : null;
+    // A username colliding with somebody else's email must not be ambiguous.
+    if (byUsername && byEmail && byUsername.id !== byEmail.id)
+      return { ok:false, reason:'invalid-credentials' };
+    const row = byUsername || byEmail;
     if (!row) return { ok: false, reason: 'invalid-credentials' };
     const actual = scryptSync(String(password || ''), row.password_salt, 64);
     const expected = Buffer.from(row.password_hash, 'hex');

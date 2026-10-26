@@ -11,6 +11,16 @@ class MemoryStore {
   async findActivationToken({email,digest,now}){return [...this.tokens].reverse().find(x=>x.email===email&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
+  async syncOwnerIdentity({installationId,digest,userId,username}){
+    const i=this.installations.get(installationId);
+    if(!i||i.identitySecretDigest!==digest)return false;
+    i.ownerUserId=userId;i.ownerUsername=username;return true;
+  }
+  async syncOwnerIdentityFromRecovery({installationId,email,userId,username}){
+    const i=this.installations.get(installationId);
+    if(!i||i.accountEmail!==email)return false;
+    i.ownerUserId=userId;i.ownerUsername=username;return true;
+  }
   async findInstallation(id){return this.installations.get(id)||null;}
   async provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
@@ -19,13 +29,15 @@ class MemoryStore {
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
-  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
+  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null,owner_username:[...this.installations.values()].find(i=>i.licenseId===x.id)?.ownerUsername||null,owner_user_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.ownerUserId||null}));}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
   async deleteAdminSession(digest){const x=this.adminSessions.find(x=>x.tokenDigest===digest);if(x)x.revokedAt=new Date().toISOString();}
   async saveRecoveryToken(token){this.recoveryTokens.push({...token});}
-  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;this.recoveryTokens.push({id:'rec-'+(this.recoveryTokens.length+1),accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId};}
+  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;this.recoveryTokens.push({id:'rec-'+(this.recoveryTokens.length+1),accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {id:'rec-'+this.recoveryTokens.length,accountId:i.accountId};}
+  async findRecoveryCandidate({email,installationId,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&!x.usedAt&&x.expiresAt>now)||null;}
+  async revokeRecoveryToken(id){const x=this.recoveryTokens.find(x=>x.id===id);if(x)x.usedAt=new Date().toISOString();}
   async findRecoveryToken({email,installationId,digest,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
 }
@@ -178,4 +190,53 @@ test('D1 schema bootstrap executes each DDL statement individually',async()=>{
   assert.ok(prepared.some(sql=>/^CREATE INDEX IF NOT EXISTS idx_licenses_account_status/i.test(sql)));
   assert.equal(prepared.filter(sql=>/^CREATE TABLE/i.test(sql)).length,6);
   assert.equal(prepared.filter(sql=>/^CREATE INDEX/i.test(sql)).length,9);
+});
+
+test('new activation binds one local administrator identity to its license email using a private proof',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();
+  const {cookie}=await login(handleRequest,e);
+  let res=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com'})}),e);
+  const license=await res.json();
+  res=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com',code:license.code})}),e);
+  const activation=await res.json();
+  assert.match(activation.identitySecret,/^[a-f0-9]{64}$/);
+  res=await handleRequest(request('/v1/identity/sync',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',identitySecret:activation.identitySecret,userId:'local-user-1',username:'victor-admin'
+  })}),e);
+  assert.equal(res.status,200);
+  const wrong=await handleRequest(request('/v1/identity/sync',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',identitySecret:'a'.repeat(64),userId:'hacker',username:'fake'
+  })}),e);
+  assert.equal(wrong.status,401);
+  const list=await handleRequest(request('/v1/admin/licenses',{headers:cookieHeaders(cookie)}),e);
+  const entry=(await list.json()).licenses[0];
+  assert.equal(entry.owner_username,'victor-admin');
+  assert.equal(entry.owner_user_id,'local-user-1');
+});
+
+test('configured zero-cost HTTP delivery sends a one-time recovery code without disclosing it to requester',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();const delivered=[];
+  e.EMAIL_DELIVERY_URL='https://mail.example.test/send';
+  e.EMAIL_DELIVERY_TOKEN='delivery-private-key';
+  e.FETCH=async(url,opts)=>{delivered.push({url,opts});return {ok:true};};
+  const {cookie}=await login(handleRequest,e);
+  let res=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com'})}),e);
+  const license=await res.json();
+  await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com',code:license.code})}),e);
+  res=await handleRequest(request('/v1/password-recovery/request',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com'})}),e);
+  assert.equal(res.status,202);
+  assert.equal((await res.text()).includes('code'),false);
+  assert.equal(delivered.length,1);
+  const message=JSON.parse(delivered[0].opts.body);
+  assert.equal(message.to,'owner@example.com');
+  assert.match(message.text,/\b\d{6}\b/);
+  const code=message.text.match(/\b\d{6}\b/)[0];
+  const reset=await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',code,userId:'local-user-1',username:'victor-admin'
+  })}),e);
+  assert.equal(reset.status,200);
+  assert.equal((await e.ACCOUNT_STORE.findInstallation('install-001')).ownerUsername,'victor-admin');
+  assert.equal((await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',code
+  })}),e)).status,400);
 });

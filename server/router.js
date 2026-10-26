@@ -38,6 +38,10 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
         if(runtime.account?.status?.().required)throw new HttpError(403,'Ativacao comercial pendente para esta instalacao.');
         const auth=runtime.catalog.verifyUserPassword(body.username,body.password);if(!auth.ok){runtime.accessSecurity?.record({action:'auth.login.failed',entity:'session',actor:{kind:'system'},context:{username:String(body.username||'').trim().toLowerCase(),terminalId}});throw new HttpError(401,'Usuario ou senha invalidos.');}
         if(runtime.account?.syncLicenseStatus&&runtime.account?.status?.().activated){const license=await runtime.account.syncLicenseStatus({allowOffline:true});if(license?.active===false)throw new HttpError(403,'Licenca comercial suspensa, cancelada ou expirada.');}
+        if(runtime.account?.activation?.()?.ownerUserId===auth.user.id){
+          // Best-effort retry for offline activation, never a dependency of local login.
+          void runtime.account.syncOwnerIdentity?.().catch(()=>{});
+        }
         const sessionToken=randomBytes(32).toString('hex');const timestamp=Date.now();const session={id:randomBytes(12).toString('hex'),userId:auth.user.id,name:auth.user.name,terminalId,createdAt:timestamp,lastSeenAt:timestamp,expiresAt:timestamp+sessionTtlMs};sessions.set(sessionToken,session);runtime.accessSecurity?.record({action:'auth.login.success',entity:'session',entityId:session.id,actor:{kind:'human',userId:auth.user.id},context:{terminalId}});sendJson(response,200,{sessionToken,sessionId:session.id,user:userWithAccess(auth.user),terminalId,expiresAt:new Date(session.expiresAt).toISOString()},request,allowedOrigins);return;
       }
 

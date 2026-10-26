@@ -122,11 +122,15 @@ function createAccountService({
     const normalizedRemoteEmail = normalizeEmail(payload.accountEmail || payload.account_email || accountEmail) || accountEmail;
     const activatedAt = String(payload.activatedAt || payload.activated_at || now());
     const metadata = { ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}), licenseActive:true, licenseCheckedAt:activatedAt };
-    db.prepare(`INSERT INTO installation_activation(installation_id,account_email,license_id,activated_at,activation_source,metadata_json)
-      VALUES(?,?,?,?,?,?)
+    // Never put the identity proof in metadata_json: it is included in public setup/status.
+    const identitySecret=typeof payload.identitySecret==='string' && /^[a-f0-9]{64}$/.test(payload.identitySecret)
+      ? payload.identitySecret : null;
+    db.prepare(`INSERT INTO installation_activation(installation_id,account_email,license_id,activated_at,activation_source,metadata_json,identity_sync_secret)
+      VALUES(?,?,?,?,?,?,?)
       ON CONFLICT(installation_id) DO UPDATE SET account_email=excluded.account_email,license_id=excluded.license_id,
-        activated_at=excluded.activated_at,activation_source=excluded.activation_source,metadata_json=excluded.metadata_json`)
-      .run(id, normalizedRemoteEmail, licenseId, activatedAt, 'cloudflare-account', JSON.stringify(metadata));
+        activated_at=excluded.activated_at,activation_source=excluded.activation_source,metadata_json=excluded.metadata_json,
+        identity_sync_secret=excluded.identity_sync_secret`)
+      .run(id, normalizedRemoteEmail, licenseId, activatedAt, 'cloudflare-account', JSON.stringify(metadata),identitySecret);
     return activation();
   }
 
@@ -143,17 +147,34 @@ function createAccountService({
     return activation();
   }
 
+  async function syncOwnerIdentity(){
+    const current=activation();
+    if(!current?.ownerUserId||!current.accountEmail)return {synced:false,reason:'unbound'};
+    const row=db.prepare('SELECT identity_sync_secret FROM installation_activation WHERE installation_id=?').get(id);
+    if(!row?.identity_sync_secret)return {synced:false,reason:'legacy-installation'};
+    const user=db.prepare('SELECT id,username,email_normalized,active FROM users WHERE id=?').get(current.ownerUserId);
+    if(!user?.active||normalizeEmail(user.email_normalized)!==normalizeEmail(current.accountEmail))
+      return {synced:false,reason:'owner-invalid'};
+    return remote('/v1/identity/sync',{
+      installationId:id,email:current.accountEmail,identitySecret:row.identity_sync_secret,
+      userId:user.id,username:user.username
+    });
+  }
+
   async function requestPasswordRecovery(email) {
     const accountEmail = normalizeEmail(email);
     if (!accountEmail) throw new Error('E-mail obrigatorio para recuperacao.');
     return remote('/v1/password-recovery/request', { installationId:id, email:accountEmail });
   }
 
-  async function verifyPasswordRecovery({ email, code }={}) {
+  async function verifyPasswordRecovery({ email, code, userId, username }={}) {
     const accountEmail = normalizeEmail(email);
     const token = String(code || '').trim();
     if (!accountEmail || !token) throw new Error('E-mail e codigo sao obrigatorios para recuperacao.');
-    const payload = await remote('/v1/password-recovery/verify', { installationId:id, email:accountEmail, code:token });
+    const payload = await remote('/v1/password-recovery/verify', {
+      installationId:id,email:accountEmail,code:token,
+      ...(userId&&username?{userId:String(userId),username:String(username)}:{})
+    });
     const verifiedEmail = normalizeEmail(payload.accountEmail || payload.account_email || accountEmail);
     if (!payload.verified || !verifiedEmail) throw new Error('Codigo de recuperacao invalido ou expirado.');
     return { verified:true, accountEmail:verifiedEmail };
@@ -165,6 +186,7 @@ function createAccountService({
     requestActivation,
     verifyActivation,
     bindOwnerUser,
+    syncOwnerIdentity,
     syncLicenseStatus,
     requestPasswordRecovery,
     verifyPasswordRecovery
