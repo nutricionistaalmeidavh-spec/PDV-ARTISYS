@@ -266,7 +266,7 @@ async function syncInstallationIdentity(request,env){
   const username=String(body.username||'').trim().toLowerCase();
   if(!installationId||!email||!/^[a-f0-9]{64}$/.test(secret)
     ||!userId||userId.length>128||!username||username.length>128
-    ||/[\\u0000-\\u001f]/.test(userId+username))return json({error:'Identidade inválida.'},400);
+    ||/[\x00-\x1f]/.test(userId+username))return json({error:'Identidade inválida.'},400);
   const store=await readyStore(env);
   const row=await store.findInstallation(installationId);
   if(!activeInstallation(row,new Date().toISOString())||row.accountEmail!==email
