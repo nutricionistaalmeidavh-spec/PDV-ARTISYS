@@ -119,7 +119,7 @@
   function renderRecoveryRequest() {
     rendering = true;
     overlay.classList.remove('hidden');
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe o e-mail cadastrado. Se houver envio automático configurado, receberá um código; caso contrário, peça o código à ArtiSys.</p><form id="password-recovery-request-form"><div class="field"><label>E-mail</label><input name="recoveryEmail" type="email" autocomplete="email" required></div><button class="primary-button" type="submit">Solicitar recuperação</button><button class="secondary-button" type="button" data-back-login>Voltar</button></form></section>`;
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Recuperar senha</h1><p>Informe seu nome de usuário ou e-mail cadastrado. Com envio configurado, o código chega ao e-mail vinculado; caso contrário, solicite à ArtiSys.</p><form id="password-recovery-request-form"><div class="field"><label>Usuário ou e-mail</label><input name="recoveryEmail" autocomplete="username" required></div><button class="primary-button" type="submit">Solicitar recuperação</button><button class="secondary-button" type="button" data-back-login>Voltar</button></form></section>`;
     overlay.querySelector('[data-back-login]')?.addEventListener('click', () => window.location.reload());
     const form = overlay.querySelector('#password-recovery-request-form');
     form?.addEventListener('submit', async (event) => {
