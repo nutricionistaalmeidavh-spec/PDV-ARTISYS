@@ -35,6 +35,8 @@ function applyAccountIdentityMigration(db) {
     CREATE INDEX IF NOT EXISTS idx_installation_activation_license ON installation_activation(license_id);
   `);
   ensureColumn(db, 'installation_activation', 'owner_user_id', 'TEXT REFERENCES users(id)');
+  // Private activation proof; never exposed through setup/status or renderer.
+  ensureColumn(db, 'installation_activation', 'identity_sync_secret', 'TEXT');
   db.exec('CREATE INDEX IF NOT EXISTS idx_installation_activation_owner ON installation_activation(owner_user_id)');
 }
 
