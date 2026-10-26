@@ -82,6 +82,10 @@ class D1AccountStore{
     );`);
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
+    const identityColumns=new Set(((await this.db.prepare('PRAGMA table_info(installations)').all()).results||[]).map(row=>row.name));
+    for(const [column,type] of [['identity_secret_digest','TEXT'],['owner_user_id','TEXT'],['owner_username','TEXT']]){
+      if(!identityColumns.has(column))await this.db.prepare('ALTER TABLE installations ADD COLUMN '+column+' '+type).run();
+    }
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
     await runDdl(this.db,`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
@@ -132,7 +136,7 @@ class D1AccountStore{
     await this.saveActivationToken({id:newId('token'),accountId:account.id,licenseId,installationId:'PENDING',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId};
   }
-  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
+  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at,i.owner_user_id,i.owner_username FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
   async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
   async findAdminSession({digest,now}){const row=await this.db.prepare('SELECT token_digest,expires_at FROM admin_sessions WHERE token_digest=? AND revoked_at IS NULL AND expires_at>? LIMIT 1').bind(digest,now).first();return row?{tokenDigest:row.token_digest,expiresAt:row.expires_at}:null;}
@@ -140,7 +144,7 @@ class D1AccountStore{
   async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){
     const row=await this.db.prepare(`SELECT i.account_id,a.email_normalized AS email,l.status,l.expires_at FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(installationId).first();
     if(!row||row.email!==email||row.status!=='ACTIVE'||(row.expires_at&&row.expires_at<=createdAt))return null;
-    await this.saveRecoveryToken({id:newId('recovery'),accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:row.account_id};
+    const id=newId('recovery');await this.saveRecoveryToken({id,accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {id,accountId:row.account_id};
   }
   async consumeActivationToken(id,usedAt){await this.db.prepare('UPDATE activation_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(usedAt,id).run();}
   async saveRecoveryToken(token){
@@ -165,14 +169,33 @@ class D1AccountStore{
       ORDER BY created_at DESC LIMIT 1`).bind(email,now,RECOVERY_MAX_ATTEMPTS).first();
     return row?{id:row.id,accountId:row.account_id,email:row.email,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
   }
+  async revokeRecoveryToken(id){await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(new Date().toISOString(),id).run();}
   async consumeRecoveryToken(id,usedAt){await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(usedAt,id).run();}
   async incrementRecoveryAttempts(id){await this.db.prepare('UPDATE password_recovery_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
-  async saveInstallation(record){await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
-    VALUES(?,?,?,?,?) ON CONFLICT(installation_id) DO UPDATE SET account_id=excluded.account_id,license_id=excluded.license_id,last_seen_at=excluded.last_seen_at`).bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt).run();}
+  async saveInstallation(record){
+    await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
+      VALUES(?,?,?,?,?) ON CONFLICT(installation_id) DO UPDATE SET account_id=excluded.account_id,license_id=excluded.license_id,last_seen_at=excluded.last_seen_at`)
+      .bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt).run();
+    // A fresh activation rotates proof and clears any identity linked to an old installation.
+    await this.db.prepare('UPDATE installations SET identity_secret_digest=?,owner_user_id=NULL,owner_username=NULL WHERE installation_id=?')
+      .bind(record.identitySecretDigest,record.installationId).run();
+  }
+  async syncOwnerIdentity({installationId,digest,userId,username}){
+    const result=await this.db.prepare('UPDATE installations SET owner_user_id=?,owner_username=? WHERE installation_id=? AND identity_secret_digest=?')
+      .bind(userId,username,installationId,digest).run();
+    return Number(result.meta?.changes||0)>0;
+  }
+  async syncOwnerIdentityFromRecovery({installationId,email,userId,username}){
+    const row=await this.findInstallation(installationId);
+    if(!row||row.accountEmail!==email)return false;
+    await this.db.prepare('UPDATE installations SET owner_user_id=?,owner_username=? WHERE installation_id=?')
+      .bind(userId,username,installationId).run();
+    return true;
+  }
   async findInstallation(id){
-    const row=await this.db.prepare(`SELECT i.installation_id,i.license_id,i.activated_at,a.email_normalized AS account_email,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT i.installation_id,i.license_id,i.activated_at,i.identity_secret_digest,i.owner_user_id,i.owner_username,a.email_normalized AS account_email,l.status,l.expires_at
       FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(id).first();
-    return row?{installationId:row.installation_id,licenseId:row.license_id,activatedAt:row.activated_at,accountEmail:row.account_email,status:row.status,expiresAt:row.expires_at||null}:null;
+    return row?{installationId:row.installation_id,licenseId:row.license_id,activatedAt:row.activated_at,accountEmail:row.account_email,status:row.status,expiresAt:row.expires_at||null,identitySecretDigest:row.identity_secret_digest||null,ownerUserId:row.owner_user_id||null,ownerUsername:row.owner_username||null}:null;
   }
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
