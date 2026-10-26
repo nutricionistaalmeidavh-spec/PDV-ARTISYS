@@ -50,7 +50,7 @@ function schemaPresent(db) {
   const hasColumns = required.every(name => columns.has(name));
   const activation = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installation_activation'").get();
   const activationColumns=activation?tableColumns(db,'installation_activation'):new Set();
-  return hasColumns && Boolean(activation) && activationColumns.has('owner_user_id');
+  return hasColumns && Boolean(activation) && activationColumns.has('owner_user_id') && activationColumns.has('identity_sync_secret');
 }
 
 function runAccountIdentityMigrations(db, now = () => new Date().toISOString()) {
