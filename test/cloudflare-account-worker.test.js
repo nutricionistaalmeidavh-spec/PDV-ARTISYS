@@ -229,8 +229,8 @@ test('configured zero-cost HTTP delivery sends a one-time recovery code without 
   assert.equal(delivered.length,1);
   const message=JSON.parse(delivered[0].opts.body);
   assert.equal(message.to,'owner@example.com');
-  assert.match(message.text,/\\b\\d{6}\\b/);
-  const code=message.text.match(/\\b\\d{6}\\b/)[0];
+  assert.match(message.text,/\b\d{6}\b/);
+  const code=message.text.match(/\b\d{6}\b/)[0];
   const reset=await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({
     installationId:'install-001',email:'owner@example.com',code,userId:'local-user-1',username:'victor-admin'
   })}),e);
