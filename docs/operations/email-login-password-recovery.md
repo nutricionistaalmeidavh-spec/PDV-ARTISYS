@@ -31,7 +31,8 @@ reative uma licença ou reconfigure a loja só para sincronizar uma identidade.
 ## Recuperação de senha sem perda de dados
 1. Na tela de login, clique em **Esqueci minha senha**.
 2. Utilize a chave local que foi salva no primeiro acesso, ou selecione
-   **Recuperação comercial por e-mail** e informe o e-mail da licença.
+   **Recuperação comercial por e-mail** e informe o usuário ou e-mail cadastrado.
+   O backend resolve o e-mail associado sem devolvê-lo à tela não autenticada.
 3. Com envio configurado, o Worker encaminha código de 6 dígitos ao e-mail;
    o código vence em 15 minutos, é de uso único e limita tentativas.
 4. Sem envio configurado, o código continua sendo gerado pelo painel
