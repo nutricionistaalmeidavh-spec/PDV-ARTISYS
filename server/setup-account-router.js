@@ -48,7 +48,11 @@ function createSetupAccountRouter({runtime,installationToken='',bodyLimitBytes=1
           const recoveryKey=localRecovery.issue({userId:user.id,password:body.password}).key;
           return {user,recoveryKey};
         });
-        if(requiredEmail&&runtime.account?.bindOwnerUser)runtime.account.bindOwnerUser(user.id);
+        if(requiredEmail&&runtime.account?.bindOwnerUser){
+          runtime.account.bindOwnerUser(user.id);
+          // Optional cloud identity sync must never block local setup or erase business data.
+          void runtime.account.syncOwnerIdentity?.().catch(()=>{});
+        }
         sendJson(response,201,{...user,recoveryKey});return true;
       }
       return false;
