@@ -29,13 +29,15 @@ class MemoryStore {
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
-  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
+  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null,owner_username:[...this.installations.values()].find(i=>i.licenseId===x.id)?.ownerUsername||null,owner_user_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.ownerUserId||null}));}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
   async deleteAdminSession(digest){const x=this.adminSessions.find(x=>x.tokenDigest===digest);if(x)x.revokedAt=new Date().toISOString();}
   async saveRecoveryToken(token){this.recoveryTokens.push({...token});}
-  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;this.recoveryTokens.push({id:'rec-'+(this.recoveryTokens.length+1),accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId};}
+  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;this.recoveryTokens.push({id:'rec-'+(this.recoveryTokens.length+1),accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {id:'rec-'+this.recoveryTokens.length,accountId:i.accountId};}
+  async findRecoveryCandidate({email,installationId,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&!x.usedAt&&x.expiresAt>now)||null;}
+  async revokeRecoveryToken(id){const x=this.recoveryTokens.find(x=>x.id===id);if(x)x.usedAt=new Date().toISOString();}
   async findRecoveryToken({email,installationId,digest,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
 }
