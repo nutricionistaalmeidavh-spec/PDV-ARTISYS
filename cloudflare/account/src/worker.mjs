@@ -230,16 +230,73 @@ async function verifyActivation(request,env){
   }
   const license=await store.findActiveLicense(email);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
   await store.consumeActivationToken(token.id,now);
-  await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,status:'ACTIVE',activatedAt:now});
-  return json({licenseId:license.id,accountEmail:email,activatedAt:now});
+  const identitySecret=randomSessionToken();
+  await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,status:'ACTIVE',activatedAt:now,identitySecretDigest:await sha256Hex(identitySecret)});
+  // Returned only to local Node API. It is stripped from renderer responses.
+  return json({licenseId:license.id,accountEmail:email,activatedAt:now,identitySecret});
+}
+
+// Optional self-hosted HTTPS mail bridge; core and manual recovery do not need it.
+async function deliverRecoveryEmail(env,{email,code}){
+  const target=String(env.EMAIL_DELIVERY_URL||'').trim();
+  const token=String(env.EMAIL_DELIVERY_TOKEN||'').trim();
+  if(!target||!token)return false;
+  const url=new URL(target);
+  if(url.protocol!=='https:')throw new Error('URL HTTPS obrigatoria para envio de recuperacao.');
+  const fetcher=env.FETCH||fetch;
+  const result=await fetcher(url.href,{
+    method:'POST',
+    headers:{'content-type':'application/json','authorization':'Bearer '+token},
+    body:JSON.stringify({
+      to:email,
+      subject:'Recuperação de senha — PDV ArtiSys',
+      text:'Seu código de recuperação do PDV ArtiSys é '+code+'.\nVálido por 15 minutos e uso único.\nSe não solicitou, ignore.'
+    })
+  });
+  if(!result.ok)throw new Error('Transporte de e-mail indisponível.');
+  return true;
+}
+
+async function syncInstallationIdentity(request,env){
+  const body=await readBody(request);
+  const installationId=normalizeInstallationId(body.installationId);
+  const email=normalizeEmail(body.email);
+  const secret=String(body.identitySecret||'').trim();
+  const userId=String(body.userId||'').trim();
+  const username=String(body.username||'').trim().toLowerCase();
+  if(!installationId||!email||!/^[a-f0-9]{64}$/.test(secret)
+    ||!userId||userId.length>128||!username||username.length>128
+    ||/[\\u0000-\\u001f]/.test(userId+username))return json({error:'Identidade inválida.'},400);
+  const store=await readyStore(env);
+  const row=await store.findInstallation(installationId);
+  if(!activeInstallation(row,new Date().toISOString())||row.accountEmail!==email
+    ||!row.identitySecretDigest||!(await secureEqual(row.identitySecretDigest,await sha256Hex(secret))))
+    return json({error:'Identidade da instalação não autorizada.'},401);
+  if(!store.syncOwnerIdentity)return json({error:'Armazenamento de identidade indisponível.'},503);
+  const saved=await store.syncOwnerIdentity({installationId,digest:row.identitySecretDigest,userId,username});
+  return saved?json({synced:true}):json({error:'Instalação não encontrada.'},404);
 }
 
 async function requestPasswordRecovery(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
-  if(!email||!installationId)return json({accepted:true},202);
+  const generic={accepted:true,message:'Se os dados estiverem corretos, confira seu e-mail ou solicite o código à ArtiSys.'};
+  if(!email||!installationId)return json(generic,202);
   const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
-  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
-  return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
+  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json(generic,202);
+  if(!env.EMAIL_DELIVERY_URL||!env.EMAIL_DELIVERY_TOKEN)return json(generic,202);
+  const previous=await store.findRecoveryCandidate?.({email,installationId,now});
+  if(previous&&Date.now()-Date.parse(previous.createdAt)<RECOVERY_RESEND_MS)return json(generic,202);
+  const pepper=recoveryPepper(env);
+  if(!pepper)return json(generic,202);
+  const code=randomCode();
+  const created=await store.createRecoveryForInstallation({
+    installationId,email,codeDigest:await digestToken({pepper,email,code}),
+    createdAt:now,expiresAt:new Date(Date.now()+RECOVERY_TTL_MS).toISOString()
+  });
+  if(!created)return json(generic,202);
+  try{await deliverRecoveryEmail(env,{email,code});}
+  catch{if(created.id&&store.revokeRecoveryToken)await store.revokeRecoveryToken(created.id);}
+  return json(generic,202);
 }
 
 async function verifyPasswordRecovery(request,env){
@@ -256,6 +313,9 @@ async function verifyPasswordRecovery(request,env){
     return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   }
   await store.consumeRecoveryToken(token.id,now);
+  const userId=String(body.userId||'').trim(),username=String(body.username||'').trim().toLowerCase();
+  if(userId&&userId.length<=128&&username&&username.length<=128&&store.syncOwnerIdentityFromRecovery)
+    await store.syncOwnerIdentityFromRecovery({installationId,email,userId,username});
   return json({verified:true,accountEmail:email,installationId});
 }
 
@@ -444,6 +504,7 @@ export async function handleRequest(request,env={}){
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
+    if(request.method==='POST'&&url.pathname==='/v1/identity/sync')return await syncInstallationIdentity(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/request')return await requestPasswordRecovery(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/verify')return await verifyPasswordRecovery(request,env);
     if(request.method==='GET'&&url.pathname==='/v1/license/status')return await licenseStatus(url,env);
