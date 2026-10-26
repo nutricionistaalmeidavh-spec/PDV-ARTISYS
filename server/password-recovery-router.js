@@ -4,7 +4,7 @@ const {createLocalRecoveryService}=require('../js/core/auth/local-recovery-servi
 const { writeAudit }=require('../js/core/audit-log');
 const { normalizeEmail }=require('../js/core/account/account-activation');
 
-const GENERIC_MESSAGE='Se os dados estiverem vinculados a esta instalacao, solicite o codigo de recuperacao ao administrador ArtiSys.';
+const GENERIC_MESSAGE='Se os dados estiverem vinculados a esta instalacao, confira o e-mail ou solicite o codigo ao administrador ArtiSys.';
 
 function sendJson(response,statusCode,payload){
   response.writeHead(statusCode,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -78,10 +78,10 @@ function createPasswordRecoveryRouter({runtime,sessionStore=new Map(),bodyLimitB
         if(!email||!code){sendJson(response,400,{error:'E-mail e codigo sao obrigatorios.'});return true;}
         if(password.length<10){sendJson(response,400,{error:'Senha deve possuir pelo menos 10 caracteres.'});return true;}
 
-        const verified=await runtime.account.verifyPasswordRecovery({email,code});
-        if(!verified?.verified||normalizeEmail(verified.accountEmail)!==email){sendJson(response,400,{error:'Codigo de recuperacao invalido ou expirado.'});return true;}
         const user=localUserByEmail(email);
         if(!user){sendJson(response,400,{error:'Codigo de recuperacao invalido ou expirado.'});return true;}
+        const verified=await runtime.account.verifyPasswordRecovery({email,code,userId:user.id,username:user.username});
+        if(!verified?.verified||normalizeEmail(verified.accountEmail)!==email){sendJson(response,400,{error:'Codigo de recuperacao invalido ou expirado.'});return true;}
 
         runtime.catalog.upsertUser({
           id:user.id,
