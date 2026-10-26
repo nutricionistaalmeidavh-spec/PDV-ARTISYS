@@ -11,6 +11,16 @@ class MemoryStore {
   async findActivationToken({email,digest,now}){return [...this.tokens].reverse().find(x=>x.email===email&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
+  async syncOwnerIdentity({installationId,digest,userId,username}){
+    const i=this.installations.get(installationId);
+    if(!i||i.identitySecretDigest!==digest)return false;
+    i.ownerUserId=userId;i.ownerUsername=username;return true;
+  }
+  async syncOwnerIdentityFromRecovery({installationId,email,userId,username}){
+    const i=this.installations.get(installationId);
+    if(!i||i.accountEmail!==email)return false;
+    i.ownerUserId=userId;i.ownerUsername=username;return true;
+  }
   async findInstallation(id){return this.installations.get(id)||null;}
   async provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
