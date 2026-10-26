@@ -31,7 +31,9 @@ function createLocalRecoveryService({db,catalog,now=()=>Date.now()}={}){
     limit('recover:installation');
     if(String(password||'').length<10)throw new Error('Senha deve possuir pelo menos 10 caracteres.');
     return withTransaction(db,()=>{
-      const user=db.prepare('SELECT * FROM users WHERE username=? AND active=1').get(String(username||'').trim().toLowerCase());
+      const identity=String(username||'').trim().toLowerCase();
+      const user=db.prepare('SELECT * FROM users WHERE username=? AND active=1').get(identity)
+        || (identity.includes('@') ? db.prepare('SELECT * FROM users WHERE email_normalized=? AND active=1').get(identity) : null);
       const row=user&&db.prepare('SELECT * FROM local_recovery_keys WHERE user_id=?').get(user.id);
       const expected=row?Buffer.from(row.key_hash,'hex'):Buffer.alloc(32);
       const actual=digest(String(key||'').trim());
