@@ -179,3 +179,52 @@ test('D1 schema bootstrap executes each DDL statement individually',async()=>{
   assert.equal(prepared.filter(sql=>/^CREATE TABLE/i.test(sql)).length,6);
   assert.equal(prepared.filter(sql=>/^CREATE INDEX/i.test(sql)).length,9);
 });
+
+test('new activation binds one local administrator identity to its license email using a private proof',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();
+  const {cookie}=await login(handleRequest,e);
+  let res=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com'})}),e);
+  const license=await res.json();
+  res=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com',code:license.code})}),e);
+  const activation=await res.json();
+  assert.match(activation.identitySecret,/^[a-f0-9]{64}$/);
+  res=await handleRequest(request('/v1/identity/sync',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',identitySecret:activation.identitySecret,userId:'local-user-1',username:'victor-admin'
+  })}),e);
+  assert.equal(res.status,200);
+  const wrong=await handleRequest(request('/v1/identity/sync',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',identitySecret:'a'.repeat(64),userId:'hacker',username:'fake'
+  })}),e);
+  assert.equal(wrong.status,401);
+  const list=await handleRequest(request('/v1/admin/licenses',{headers:cookieHeaders(cookie)}),e);
+  const entry=(await list.json()).licenses[0];
+  assert.equal(entry.owner_username,'victor-admin');
+  assert.equal(entry.owner_user_id,'local-user-1');
+});
+
+test('configured zero-cost HTTP delivery sends a one-time recovery code without disclosing it to requester',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();const delivered=[];
+  e.EMAIL_DELIVERY_URL='https://mail.example.test/send';
+  e.EMAIL_DELIVERY_TOKEN='delivery-private-key';
+  e.FETCH=async(url,opts)=>{delivered.push({url,opts});return {ok:true};};
+  const {cookie}=await login(handleRequest,e);
+  let res=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com'})}),e);
+  const license=await res.json();
+  await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com',code:license.code})}),e);
+  res=await handleRequest(request('/v1/password-recovery/request',{method:'POST',body:JSON.stringify({installationId:'install-001',email:'owner@example.com'})}),e);
+  assert.equal(res.status,202);
+  assert.equal((await res.text()).includes('code'),false);
+  assert.equal(delivered.length,1);
+  const message=JSON.parse(delivered[0].opts.body);
+  assert.equal(message.to,'owner@example.com');
+  assert.match(message.text,/\\b\\d{6}\\b/);
+  const code=message.text.match(/\\b\\d{6}\\b/)[0];
+  const reset=await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',code,userId:'local-user-1',username:'victor-admin'
+  })}),e);
+  assert.equal(reset.status,200);
+  assert.equal((await e.ACCOUNT_STORE.findInstallation('install-001')).ownerUsername,'victor-admin');
+  assert.equal((await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({
+    installationId:'install-001',email:'owner@example.com',code
+  })}),e)).status,400);
+});
