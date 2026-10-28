@@ -19,6 +19,14 @@ class MemoryStore {
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
+
+  async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
+    const license=this.licenses.find(x=>x.id===licenseId&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>createdAt));
+    if(!license)return null;
+    for(const token of this.tokens.filter(x=>x.licenseId===licenseId&&!x.usedAt))token.usedAt=createdAt;
+    this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:license.accountId,licenseId,installationId:'PENDING',email:license.email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
+    return {accountId:license.accountId,licenseId,email:license.email};
+  }
   async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
@@ -178,4 +186,53 @@ test('D1 schema bootstrap executes each DDL statement individually',async()=>{
   assert.ok(prepared.some(sql=>/^CREATE INDEX IF NOT EXISTS idx_licenses_account_status/i.test(sql)));
   assert.equal(prepared.filter(sql=>/^CREATE TABLE/i.test(sql)).length,6);
   assert.equal(prepared.filter(sql=>/^CREATE INDEX/i.test(sql)).length,9);
+});
+
+
+test('administrator can reissue a 48-hour activation code after formatting without cancelling the existing license',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();const {cookie}=await login(handleRequest,e);
+  const headers=cookieHeaders(cookie);
+  const firstResponse=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,body:JSON.stringify({email:'owner@example.com'})}),e);
+  assert.equal(firstResponse.status,201);const original=await firstResponse.json();
+  const firstActivation=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'old-pc-001',email:original.email,code:original.code})}),e);
+  assert.equal(firstActivation.status,200);
+  const route='/v1/admin/licenses/'+encodeURIComponent(original.licenseId)+'/activation-code';
+  const unauthorized=await handleRequest(request(route,{method:'POST'}),e);
+  assert.equal(unauthorized.status,401);
+  const reissuedResponse=await handleRequest(request(route,{method:'POST',headers}),e);
+  assert.equal(reissuedResponse.status,201);
+  const reissued=await reissuedResponse.json();
+  assert.match(reissued.code,/^\\d{6}$/);
+  assert.equal(reissued.licenseId,original.licenseId);
+  assert.equal(reissued.email,original.email);
+  assert.equal(Date.parse(reissued.codeExpiresAt)-Date.parse(e.ACCOUNT_STORE.tokens.at(-1).createdAt),48*60*60*1000);
+  assert.equal(e.ACCOUNT_STORE.licenses.length,1);
+  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
+  assert.equal((await e.ACCOUNT_STORE.findInstallation('old-pc-001')).licenseId,original.licenseId);
+  const nextActivation=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'formatted-pc-002',email:original.email,code:reissued.code})}),e);
+  assert.equal(nextActivation.status,200);
+  assert.equal((await e.ACCOUNT_STORE.findInstallation('formatted-pc-002')).licenseId,original.licenseId);
+  const replay=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'third-pc-003',email:original.email,code:reissued.code})}),e);
+  assert.equal(replay.status,400);
+});
+
+test('reissuing a pending code invalidates the previous code without revoking the license',async()=>{
+  const {handleRequest}=await loadWorker();const e=env();const {cookie}=await login(handleRequest,e);
+  const headers=cookieHeaders(cookie);
+  let r=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,body:JSON.stringify({email:'owner@example.com'})}),e);
+  const initial=await r.json();
+  r=await handleRequest(request('/v1/admin/licenses/'+initial.licenseId+'/activation-code',{method:'POST',headers}),e);
+  assert.equal(r.status,201);const renewed=await r.json();
+  assert.equal(e.ACCOUNT_STORE.tokens[0].usedAt!==undefined,true);
+  const old=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'old-code-pc',email:initial.email,code:initial.code})}),e);
+  assert.equal(old.status,400);
+  const accepted=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({installationId:'new-code-pc',email:initial.email,code:renewed.code})}),e);
+  assert.equal(accepted.status,200);
+  const duplicateRelease=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,body:JSON.stringify({email:initial.email})}),e);
+  assert.equal(duplicateRelease.status,409);
+  assert.equal(e.ACCOUNT_STORE.licenses.length,1);
+  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
+  await e.ACCOUNT_STORE.setLicenseStatus(initial.licenseId,'SUSPENDED');
+  const suspended=await handleRequest(request('/v1/admin/licenses/'+initial.licenseId+'/activation-code',{method:'POST',headers}),e);
+  assert.equal(suspended.status,409);
 });
