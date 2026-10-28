@@ -410,10 +410,24 @@ async function adminRoute(request,env,url){
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
     const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
+    if(await store.findActiveLicense(email))return json({error:'Este e-mail ja possui licenca ativa. Use Reativar instalacao na lista para emitir outro codigo sem cancelar a licenca.'},409);
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
     const provisioned=await store.provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,code,codeExpiresAt,expiresAt},201);
+  }
+
+  if(request.method==='POST'&&url.pathname.startsWith('/v1/admin/licenses/')&&url.pathname.endsWith('/activation-code')){
+    const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length,-'/activation-code'.length));
+    if(!id||id.includes('/')||id.length>128)return json({error:'Licenca invalida.'},400);
+    const license=await store.findLicenseById(id);
+    const now=new Date().toISOString();
+    if(!license||license.status!=='ACTIVE'||(license.expiresAt&&license.expiresAt<=now))return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
+    const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
+    const code=randomCode(),codeExpiresAt=new Date(Date.parse(now)+ACTIVATION_TOKEN_TTL_MS).toISOString();
+    const rotated=await store.rotateActivationTokenForLicense({licenseId:id,codeDigest:await digestToken({pepper,email:license.email,code}),codeExpiresAt,createdAt:now});
+    if(!rotated)return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
+    return json({...rotated,code,codeExpiresAt},201);
   }
   if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
   if(request.method==='POST'&&url.pathname==='/v1/admin/recovery'){
