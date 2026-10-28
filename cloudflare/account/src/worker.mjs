@@ -132,6 +132,22 @@ class D1AccountStore{
     await this.saveActivationToken({id:newId('token'),accountId:account.id,licenseId,installationId:'PENDING',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId};
   }
+
+  async findLicenseById(id){
+    const row=await this.db.prepare(`SELECT l.id,l.account_id,a.email_normalized AS email,l.status,l.expires_at
+      FROM licenses l JOIN accounts a ON a.id=l.account_id WHERE l.id=? LIMIT 1`).bind(id).first();
+    return row?{id:row.id,accountId:row.account_id,email:row.email,status:row.status,expiresAt:row.expires_at||null}:null;
+  }
+  async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
+    const license=await this.findLicenseById(licenseId);
+    if(!license||license.status!=='ACTIVE'||(license.expiresAt&&license.expiresAt<=createdAt))return null;
+    await this.db.batch([
+      this.db.prepare('UPDATE activation_tokens SET used_at=? WHERE license_id=? AND used_at IS NULL').bind(createdAt,licenseId),
+      this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
+        VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(newId('token'),license.accountId,licenseId,'PENDING',codeDigest,codeExpiresAt,createdAt)
+    ]);
+    return {accountId:license.accountId,licenseId,email:license.email};
+  }
   async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
   async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
