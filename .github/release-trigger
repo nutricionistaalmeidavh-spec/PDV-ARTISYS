@@ -1,6 +1,6 @@
 ArtiSys PDV Windows release trigger
-requested_for=single-pc-first-installation-customer
-source_pr=182
-source_merge_commit=882a0cde81b28bc91839fa0ad2f1100a6ff43b1f
-reason=clarify-primary-installation-vs-terminal-pairing-and-friendly-invalid-server-address
+requested_for=customer-reinstallation-license-reactivation
+source_pr=184
+source_merge_commit=2fa3cd7eaba797b80d21be6dc425873f06098e14
+reason=reissue-48h-activation-code-for-active-license-without-cancellation-and-guide-backup-after-format
 requires=verify-release-packaged-windows-smoke-updater-metadata-and-preserve-store-data
