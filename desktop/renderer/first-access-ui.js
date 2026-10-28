@@ -77,7 +77,7 @@
   function renderActivation({ continueToSetup = true } = {}) {
     rendering = true;
     overlay.classList.remove('hidden');
-    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Ativar instalação</h1><p>Informe o e-mail liberado e o código de ativação fornecido pela ArtiSys. Dados operacionais e senhas permanecem neste computador.</p><form id="activation-verify-form"><div class="field"><label>E-mail da conta</label><input name="email" type="email" autocomplete="email" required></div><div class="field"><label>Código de ativação</label><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><button class="primary-button" type="submit">Ativar e definir senha</button></form></section>`;
+    overlay.innerHTML = `<section class="auth-card"><div class="auth-logo">A</div><h1>Ativar instalação</h1><p>Informe seu e-mail e um código novo de ativação ou reativação fornecido pela ArtiSys. O código vale 48 horas e só pode ser usado uma vez. Se o computador foi formatado, será necessário restaurar um backup para recuperar vendas, cadastros e senhas anteriores. A ativação não restaura dados.</p><form id="activation-verify-form"><div class="field"><label>E-mail da conta</label><input name="email" type="email" autocomplete="email" required></div><div class="field"><label>Código de ativação</label><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" required></div><button class="primary-button" type="submit">${continueToSetup ? 'Ativar e definir senha' : 'Reativar instalação'}</button></form><p>Já utilizava o PDV e formatou o computador? Peça à ArtiSys um novo código para a licença existente. O link do instalador continua o mesmo; não é necessário comprar outra licença.</p></section>`;
     const form = overlay.querySelector('#activation-verify-form');
     form?.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -93,7 +93,10 @@
         else window.location.reload();
       } catch (error) {
         if (button) button.disabled = false;
-        showToast(error.message, 'error');
+        const message = String(error?.message || '');
+        showToast(/codigo de ativacao invalido ou expirado/i.test(message)
+          ? 'Código inválido, vencido ou já utilizado. Solicite um novo código de reativação à ArtiSys para sua licença existente.'
+          : message, 'error');
       }
     });
     queueMicrotask(() => { rendering = false; });
