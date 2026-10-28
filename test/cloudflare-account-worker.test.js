@@ -202,7 +202,7 @@ test('administrator can reissue a 48-hour activation code after formatting witho
   const reissuedResponse=await handleRequest(request(route,{method:'POST',headers}),e);
   assert.equal(reissuedResponse.status,201);
   const reissued=await reissuedResponse.json();
-  assert.match(reissued.code,/^\\d{6}$/);
+  assert.match(reissued.code,/^\d{6}$/);
   assert.equal(reissued.licenseId,original.licenseId);
   assert.equal(reissued.email,original.email);
   assert.equal(Date.parse(reissued.codeExpiresAt)-Date.parse(e.ACCOUNT_STORE.tokens.at(-1).createdAt),48*60*60*1000);
