@@ -20,6 +20,7 @@ class MemoryStore {
     return {accountId:account.id,licenseId:license.id};
   }
 
+  async findLicenseById(id){const x=this.licenses.find(l=>l.id===id);return x?{...x}:null;}
   async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
     const license=this.licenses.find(x=>x.id===licenseId&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>createdAt));
     if(!license)return null;
