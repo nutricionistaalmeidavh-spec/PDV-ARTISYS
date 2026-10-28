@@ -18,6 +18,18 @@ Este serviço é separado do core local do PDV. O PDV continua local/self-hosted
 
 Não existe envio automático de e-mail neste fluxo.
 
+## Reinstalação após formatação
+
+1. Confirme que o cliente está na tela **Ativar instalação**, usando o instalador ArtiSys já divulgado. O link não gera nem renova códigos.
+2. Na Central em `/admin`, localize a licença **ACTIVE** pelo e-mail e clique em **Reativar instalação**.
+3. Copie e envie o novo código de seis dígitos ao cliente (48 horas, uso único).
+4. O cliente informa o e-mail da licença e o novo código. A licença original permanece ativa; não é criada outra cobrança nem uma nova licença.
+5. Se a formatação removeu a base local, restaure um backup do banco operacional antes de esperar recuperar cadastros, estoque, vendas e credenciais. O serviço de licenças **não guarda dados operacionais nem senhas**. Não prometa recuperar dados apagados sem backup.
+6. Para senha esquecida em instalação que conserva a base local, use recuperação local ou administrativa; não confunda código de recuperação de senha (15 minutos) com código de ativação (48 horas).
+
+Não use **Liberar novo acesso** para reativar a licença de um cliente existente.
+
+
 ## Login administrativo
 
 A Central não mantém mais o `ADMIN_TOKEN` na interface depois do login.
@@ -38,7 +50,8 @@ As APIs administrativas de licença exigem uma sessão válida.
 
 - `GET /admin` — interface da Central.
 - `GET /v1/admin/licenses` — lista licenças; exige Bearer `ADMIN_TOKEN`.
-- `POST /v1/admin/licenses` — cria/libera uma licença e retorna o código.
+- `POST /v1/admin/licenses` — cria/libera uma licença nova. Se o e-mail já tem licença ativa, retorna 409 e não cancela a licença.
+- `POST /v1/admin/licenses/:id/activation-code` — **Reativar instalação**: gera outro código de 48 horas para a mesma licença ativa; os códigos pendentes anteriores são invalidados. Exige sessão administrativa.
 - `PATCH /v1/admin/licenses/:id` — altera status para `ACTIVE`, `SUSPENDED`, `CANCELLED` ou `EXPIRED`.
 - `POST /v1/admin/recovery` — gera código manual de recuperação para uma instalação ativa.
 

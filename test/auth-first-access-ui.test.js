@@ -70,3 +70,13 @@ test('renderer API exposes activation endpoints without changing local login API
   assert.match(api,/\/api\/v1\/setup\/activation\/verify/);
   assert.match(api,/async login\(body\)/);
 });
+
+
+test('reinstall activation explains old-code expiry and local backup recovery',()=>{
+  const ui=read('desktop/renderer/first-access-ui.js');
+  assert.match(ui,/código vale 48 horas/i);
+  assert.match(ui,/A ativação não restaura dados/i);
+  assert.match(ui,/Peça à ArtiSys um novo código/i);
+  assert.match(ui,/Reativar instalação/);
+  assert.doesNotMatch(ui,/Dados operacionais e senhas permanecem neste computador/);
+});
