@@ -47,7 +47,7 @@ function profileInput(value={}){
  if(!csosn&&!cst)throw Error('Perfil tributário exige CST ou CSOSN revisado');
  const reviewedBy=mandatory(value.reviewedBy,'Responsável pela revisão tributária',120);
  const reviewedAt=mandatory(value.reviewedAt,'Data da revisão tributária',10);
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(reviewedAt))throw Error('Data da revisão tributária inválida');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(reviewedAt))throw Error('Data da revisão tributária inválida');
  const unit=mandatory(value.unit,'Unidade comercial',8).toUpperCase();
  if(!/^[A-Z0-9]{1,8}$/.test(unit))throw Error('Unidade inválida');
  return {productId,ncm:digits(value.ncm,8,'NCM'),cest:digits(value.cest,7,'CEST',true),
