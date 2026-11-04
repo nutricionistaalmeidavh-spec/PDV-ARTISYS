@@ -552,11 +552,20 @@ def native_library(library_path):
     return ct.CDLL(str(Path(library_path).resolve(strict=True)))
 
 
+def required_exports(prefix):
+    base = (prefix + "_Inicializar", prefix + "_Finalizar",
+            prefix + "_CarregarINI", prefix + "_LimparLista")
+    if prefix == "NFE":
+        return base + ("NFE_Assinar", "NFE_Validar", "NFE_ObterXml",
+                       "NFE_Enviar", "NFE_Consultar", "NFE_CarregarEventoINI",
+                       "NFE_EnviarEvento", "NFE_ConfigGravarValor")
+    return base
+
+
 def probe_library(path):
     lib = native_library(path)
     prefix = "NFSE" if "nfse" in Path(path).name.lower() else "NFE"
-    required = (prefix + "_Inicializar", prefix + "_Finalizar",
-                prefix + "_CarregarINI", prefix + "_LimparLista")
+    required = required_exports(prefix)
     for name in required:
         if not hasattr(lib, name):
             raise ACBrError("DLL nativa sem exportação obrigatória: " + name)
