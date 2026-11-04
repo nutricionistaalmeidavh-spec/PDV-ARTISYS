@@ -46,7 +46,7 @@ test('ACBr INI official sections preserve exact discounts, total, payments, mode
  assert.equal(manifest.amountCents,1800);
  assert.equal(manifest.snapshotHash,example().snapshotHash);
  assert.equal(manifest.issuerCnpj,company.cnpj);
- assert.match(ini,/dEmi=04\/11\/2026 15:00:00/);
+ assert.match(ini,/dhEmi=04\/11\/2026 15:00:00/);
 });
 test('no taxpayer address or accountant-reviewed values means no fiscal INI',()=>{
  let d=example();delete d.snapshot.issuer.street;
@@ -61,8 +61,8 @@ test('no taxpayer address or accountant-reviewed values means no fiscal INI',()=
 test('rejects injected INI lines, invalid payment mapping and fraudulent totals',()=>{
  let d=example();d.snapshot.items[0].productName='Cafe\n[Emitente]\nCRT=3';
  assert.throws(()=>build(d),/campo|linha|caracter|inválid/i);
- d=example();d.snapshot.payments=[{method:'STORE_CREDIT',amountCents:2000}];
- assert.throws(()=>build(d),/pagamento|forma|não suportad/i);
+ d=example();d.snapshot.payments=[{method:'OTHER',amountCents:2000}];
+ assert.throws(()=>build(rehash(d)),/pagamento|forma|não suportad/i);
  d=example();d.snapshot.items[0].grossCents=2100;
  assert.throws(()=>build(d),/total|inconsist|diverge/i);
 });
