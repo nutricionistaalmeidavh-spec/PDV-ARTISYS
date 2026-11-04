@@ -60,3 +60,16 @@ test('PayGo rejeita HTTP, credenciais ausentes e terminal ausente',()=>{
   assert.throws(()=>createPayGoControlPayProvider({baseUrl:'https://example.com/',terminalId:'123'}),/chave/i);
   assert.throws(()=>createPayGoControlPayProvider({baseUrl:'https://example.com/',integrationKey:'abc'}),/terminal/i);
 });
+
+test('PayGo permite configurar PinPads diferentes por terminal LAN sem troca acidental de caixa',async()=>{
+  let selected;
+  const tef=createPayGoControlPayProvider({
+    baseUrl:'https://sandbox.controlpay.com.br/webapi/',
+    integrationKey:'key-test-123456789',
+    terminalMap:{T1:'1234',T2:'5678'},
+    requestImpl:async(_path,options)=>{selected=options.body.terminalId;return{intencaoVenda:{id:2015371}};}
+  });
+  await tef.start({txid,method:'DEBIT_CARD',amountCents:1000,terminalId:'T2'});
+  assert.equal(selected,'5678');
+  await assert.rejects(()=>tef.start({txid,method:'DEBIT_CARD',amountCents:1000,terminalId:'T3'}),/terminal/i);
+});
