@@ -205,6 +205,10 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   return {id,status:'REJECTED',cStat:code,reason,retryAllowed:false};
  }
 
+ function getOfflineStatus(id){
+  const row=db.prepare('SELECT status FROM acbr_fiscal_offline_queue WHERE document_id=?').get(String(id));
+  return row?.status||null;
+ }
  function listOfflineQueue({limit=100}={}){
   const n=Number.isSafeInteger(limit)?Math.max(1,Math.min(limit,200)):100;
   return db.prepare('SELECT document_id,reference,access_key,status,created_at,submitted_at,finalized_at FROM acbr_fiscal_offline_queue ORDER BY created_at,document_id LIMIT ?')
@@ -624,6 +628,6 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }
   return {documentId:id,sequence,status:'UNKNOWN',requiresManualReconciliation:true};
  }
- return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory,getIssuanceMode,offlineIssue,flushOfflineQueue,listOfflineQueue,getOfflineDanfe});
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory,getIssuanceMode,offlineIssue,flushOfflineQueue,listOfflineQueue,getOfflineDanfe,getOfflineStatus});
 }
 module.exports={createFiscalIssuanceService};
