@@ -105,5 +105,49 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         self.assertEqual(ok["status"], "INUTILIZADA")
         self.assertIsNone(worker.confirmed_nfe_inutilization({"INUTILIZACAO":{"CSTAT":"102","TPAMB":"2","XML":xml}}, {**req,"startNumber":4}))
 
+
+    def test_cce_ini_uses_official_nfe_event_and_blocks_ini_injection(self):
+        request = {"issuerCnpj":"11222333000181", "accessKey":KEY,"model":55,
+                   "environment":"HOMOLOGACAO","sequence":1,"lot":1,
+                   "eventAt":"2026-11-04T15:40:00-03:00",
+                   "correction":"Correcao da descricao de produto sem mudar valores fiscais."}
+        payload = worker.nfe_cce_ini(request)
+        self.assertIn("[EVENTO001]", payload)
+        self.assertIn("tpEvento=110110", payload)
+        self.assertIn("chNFe="+KEY, payload)
+        self.assertIn("nSeqEvento=1", payload)
+        self.assertIn("versaoEvento=1.00", payload)
+        self.assertIn("xCorrecao=",payload)
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"correction":"Correcao normal\n[EVENTO002]\nCNPJ=99999999000199"})
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"model":65})
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"environment":"PRODUCAO"})
+
+    def test_cce_accepts_only_matching_official_event_protocol(self):
+        response = {"EVENTO001":{"TPAMB":"2", "CSTAT":"135", "CHDFE":KEY,
+                                 "NPROT":"135260000000987","TPEVENTO":"110110","NSEQEVENTO":"1"}}
+        proof=worker.confirmed_nfe_cce(response,KEY,"2",1)
+        self.assertEqual(proof["status"],"CCE_REGISTERED")
+        self.assertEqual(proof["eventProtocol"],"135260000000987")
+        self.assertIsNone(worker.confirmed_nfe_cce(response, "0"*44,"2",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(response,KEY,"1",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(response,KEY,"2",2))
+        self.assertIsNone(worker.confirmed_nfe_cce(
+            {"EVENTO001":{**response["EVENTO001"],"CSTAT":"136"}},KEY,"2",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(
+            {"EVENTO001":{**response["EVENTO001"],"TPEVENTO":"110111"}},KEY,"2",1))
+
+    def test_offline_nfc_e_key_and_signature_not_relabelled_as_normal(self):
+        req={"issuerCnpj":"11222333000181","model":65,"number":1,
+             "series":1,"cNF":"00000001","issuanceMode":"nfce-offline"}
+        key=worker.nfe_key_for_test("3526111122233300018165001000000001900000001")
+        worker.ensure_signed_number(req,key,"1","1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"issuanceMode":"normal"},key,"1","1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"model":55},key,"1","1")
+
 if __name__ == "__main__":
     unittest.main()
