@@ -9,7 +9,7 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {createFiscalDraftService}=require('../server/acbrlib/fiscal-draft-service');
 const {createFiscalIssuanceService}=require('../server/acbrlib/fiscal-issuance-service');
-function fixture(t,adapter,documentType='nfce'){
+function fixture(t,adapter,documentType='nfce',uf='SP'){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-issue-tdd-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const db=openDatabase(':memory:');t.after(()=>db.close());runMigrations(db);
@@ -20,9 +20,9 @@ function fixture(t,adapter,documentType='nfce'){
  totalCents:2000,allocatedDiscountCents:200,netTotalCents:1800}],
  payments:[{method:'CASH',amountCents:2000}]})};
  const drafts=createFiscalDraftService({db,sales,now:()=> '2026-11-04T15:00:00-03:00'});
- drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf:'SP',
+ drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf,
  crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,street:'RUA DAS FLORES',streetNumber:'20',
- district:'CENTRO',municipalityCode:'3543402',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'});
+ district:'CENTRO',municipalityCode:uf==='RJ'?'3304557':'3543402',municipalityName:uf==='RJ'?'RIO DE JANEIRO':'RIBEIRAO PRETO',postalCode:'14000000'});
  drafts.saveProductProfile({productId:'prod1',ncm:'09012100',cfop:'5102',origin:'0',
  csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
  ibsCbsCst:'000',cClassTrib:'000001',zeroLegacyTaxesConfirmed:true,
@@ -184,7 +184,7 @@ test('inutilization only covers unreferenced historical gaps and never sends a d
  const f=fixture(t,{issue:async()=>({ok:false}),inutilize:async request=>{
   calls++;assert.equal(request.environment,'homologation');
   return{ok:true,data:{cStat:102,year:2026,model:65,series:1,
-   startNumber:2,endNumber:3,eventProtocol:'135260000000444'}};}});
+   startNumber:2,endNumber:3,eventProtocol:'135260000000444'}};}},'nfce','RJ');
  const svc=f.build(true);svc.prepare(f.draft.id);
  f.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=5 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
  await assert.rejects(()=>svc.inutilize({model:65,series:1,year:2026,startNumber:1,endNumber:2,
@@ -256,4 +256,16 @@ test('CC-e unknown SEFAZ response is not resent after restart and NFC-e is rejec
  const s=nfce.build(true);s.prepare(nfce.draft.id);await s.issue(nfce.draft.id);
  await assert.rejects(()=>s.cce(nfce.draft.id,command),/NF-e|55|CC-e/i);
  assert.equal(attempts,1);
+});
+
+
+test('SP no longer accepts inutilization requests after November 1 2026',async t=>{
+ let called=0;
+ const f=fixture(t,{issue:async()=>({ok:false}),inutilize:async()=>{called++;return {ok:true}}});
+ const svc=f.build(true);
+ svc.prepare(f.draft.id);
+ f.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=4 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
+ await assert.rejects(()=>svc.inutilize({model:65,series:1,year:2026,startNumber:2,
+  endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'}),/SP|S[aã]o Paulo|inutiliza[cç][aã]o/i);
+ assert.equal(called,0);
 });
