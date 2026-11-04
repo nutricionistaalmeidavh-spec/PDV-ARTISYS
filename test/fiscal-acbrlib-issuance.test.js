@@ -9,7 +9,7 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {createFiscalDraftService}=require('../server/acbrlib/fiscal-draft-service');
 const {createFiscalIssuanceService}=require('../server/acbrlib/fiscal-issuance-service');
-function fixture(t,adapter){
+function fixture(t,adapter,documentType='nfce'){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-issue-tdd-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const db=openDatabase(':memory:');t.after(()=>db.close());runMigrations(db);
@@ -29,7 +29,7 @@ function fixture(t,adapter){
  reformTax:{baseCents:1800,ibsUfRate:'0.1000',ibsUfCents:2,
  ibsMunRate:'0.0000',ibsMunCents:0,cbsRate:'0.9000',cbsCents:16},
  reviewedBy:'contador',reviewedAt:'2026-11-04'});
- const draft=drafts.prepareSale('sale-1');
+ const draft=drafts.prepareSale('sale-1',{documentType});
  const inputDir=path.join(dir,'inputs');
  function build(allowHomologation=false){
   return createFiscalIssuanceService({db,drafts,inputDir,
@@ -206,4 +206,54 @@ test('native per-document preflight blocks a missing NFC-e CSC before consuming 
  await assert.rejects(()=>svc.issue(f.draft.id),/preflight|configura|valid[açã]|prepara|CSC/i);
  assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
  assert.equal(sent,false);
+});
+
+
+test('CC-e for NF-e is durable, checks accounting approval and prevents duplicate sequence',async t=>{
+ let attempts=0;
+ const key='1'.repeat(44);
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:key,protocolo:'135260000000001',xml:'<authorized/>'}}),
+  cce:async args=>{attempts++;assert.equal(args.sequence,1);assert.equal(args.accessKey,key);
+   return {ok:true,data:{accessKey:key,cStat:135,sequence:1,eventProtocol:'135260000000999'}};}},'nfe');
+ const svc=f.build(true);
+ const recipient={uf:'SP',municipalityCode:'3543402',taxId:'12345678909',
+  name:'CONSUMIDOR TESTE',indIEDest:'9',street:'RUA PRINCIPAL',
+  streetNumber:'10',district:'CENTRO',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'};
+ svc.prepare(f.draft.id,{recipient});
+ await svc.issue(f.draft.id);
+ const command={sequence:1,correction:'Correcao da descricao adicional do produto sem mudar a operacao.',
+  reviewedBy:'Contabilidade teste',confirmNoMaterialChange:true};
+ await assert.rejects(()=>svc.cce(f.draft.id,{...command,confirmNoMaterialChange:false}),/revis|confirma|contab/i);
+ assert.deepEqual(svc.getCceHistory(f.draft.id),[]);
+ const event=await svc.cce(f.draft.id,command);
+ assert.equal(event.status,'CONFIRMED');
+ assert.equal(event.sequence,1);
+ assert.equal(svc.getCceHistory(f.draft.id)[0].eventProtocol,'135260000000999');
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'AUTHORIZED');
+ await assert.rejects(()=>svc.cce(f.draft.id,command),/sequ|registrad|anterior|confirmad/i);
+ assert.equal(attempts,1);
+});
+
+test('CC-e unknown SEFAZ response is not resent after restart and NFC-e is rejected',async t=>{
+ let attempts=0;
+ const key='1'.repeat(44);
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:key,protocolo:'135260000000001',xml:'<authorized/>'}}),
+  cce:async()=>{attempts++;throw Error('SEFAZ timeout');}},'nfe');
+ const recipient={uf:'SP',municipalityCode:'3543402',taxId:'12345678909',
+  name:'CONSUMIDOR TESTE',indIEDest:'9',street:'RUA PRINCIPAL',
+  streetNumber:'10',district:'CENTRO',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'};
+ const first=f.build(true);first.prepare(f.draft.id,{recipient});await first.issue(f.draft.id);
+ const command={sequence:1,correction:'Correcao da descricao complementar da mercadoria.',
+  reviewedBy:'Contador',confirmNoMaterialChange:true};
+ const unknown=await first.cce(f.draft.id,command);
+ assert.equal(unknown.status,'UNKNOWN');
+ const afterRestart=f.build(true);
+ assert.equal(afterRestart.getCceHistory(f.draft.id)[0].status,'UNKNOWN');
+ await assert.rejects(()=>afterRestart.cce(f.draft.id,command),/SEFAZ|consulta|anterior|indeterminad/i);
+ assert.equal(attempts,1);
+ const nfce=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:key,protocolo:'135260000000001',xml:'<authorized/>'}}),
+  cce:async()=>{attempts++;return{ok:true};}});
+ const s=nfce.build(true);s.prepare(nfce.draft.id);await s.issue(nfce.draft.id);
+ await assert.rejects(()=>s.cce(nfce.draft.id,command),/NF-e|55|CC-e/i);
+ assert.equal(attempts,1);
 });
