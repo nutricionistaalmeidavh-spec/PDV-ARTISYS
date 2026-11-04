@@ -3,6 +3,7 @@
 // Field names follow official ACBrLib NFe 4.00 examples.
 // No tax percentages, fiscal operation, issuer address or recipient are inferred.
 const {createHash}=require('node:crypto');
+const {compileLegacyTaxGroups}=require('./fiscal-tax-regimes');
 const UF_CODES=Object.freeze({RO:'11',AC:'12',AM:'13',RR:'14',PA:'15',AP:'16',
  TO:'17',MA:'21',PI:'22',CE:'23',RN:'24',PB:'25',PE:'26',AL:'27',SE:'28',
  BA:'29',MG:'31',ES:'32',RJ:'33',SP:'35',PR:'41',SC:'42',RS:'43',
@@ -92,16 +93,11 @@ function recipientGroup(recipient){
   cPais:'1058',xPais:'BRASIL'
  };
 }
-function taxSections(lines,tax,index,net){
+function taxSections(lines,tax,index,net,crt){
  if(!tax||typeof tax!=='object')throw Error('Perfil tributário não revisado');
- if(tax.csosn!=='102'||tax.pisCst!=='49'||tax.cofinsCst!=='49'||
-    tax.zeroLegacyTaxesConfirmed!==true)
-    throw Error('Tratamento ICMS/PIS/COFINS não suportado ou tributos zero não confirmados por contador');
- required(tax.reviewedBy,'responsável pela revisão tributária');
- required(tax.reviewedAt,'data da revisão tributária',{max:10,pattern:/^\d{4}-\d{2}-\d{2}$/});
- group(lines,'ICMS'+index,{CSOSN:'102',orig:required(tax.origin,'origem',{max:1,pattern:/^[0-8]$/})});
- group(lines,'PIS'+index,{CST:'49',vBC:'0.00',pPIS:'0.00',vPIS:'0.00'});
- group(lines,'COFINS'+index,{CST:'49',vBC:'0.00',pCOFINS:'0.00',vCOFINS:'0.00'});
+ const legacy=compileLegacyTaxGroups({profile:tax,crt,netCents:net});
+ for(const section of ['ICMS','PIS','COFINS'])
+   group(lines,section+index,legacy.sections[section]);
  if(!tax.ibsCbsCst||!tax.cClassTrib||!tax.reformTax)
   throw Error('IBS/CBS requer código, classificação e cálculo revisados em 2026');
  const r=tax.reformTax,base=cents(r.baseCents,'base IBS/CBS');
@@ -120,7 +116,7 @@ function taxSections(lines,tax,index,net){
  group(lines,'gIBSUF'+index,{pIBSUF:ibsUF.text,vIBSUF:brl(ufC)});
  group(lines,'gIBSMun'+index,{pIBSMun:ibsMun.text,vIBSMun:brl(munC)});
  group(lines,'gCBS'+index,{pCBS:cbs.text,vCBS:brl(cbsC)});
- return {base,ufC,munC,cbsC};
+ return {base,ufC,munC,cbsC,legacy:legacy.totals};
 }
 function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  if(!document||!document.snapshot)throw Error('Documento fiscal canônico obrigatório');
@@ -146,13 +142,14 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  const lines=[];
  group(lines,'infNFe',{versao:'4.00'});
  group(lines,'Identificacao',{nNF:document.number,cNF:c,serie:document.series,
-  natOp:'VENDA DE MERCADORIA',mod:s.model,dEmi:stamp,tpNF:1,idDest:1,
+  natOp:'VENDA DE MERCADORIA',mod:s.model,dhEmi:stamp,tpNF:1,idDest:1,
   finNFe:1,indFinal:1,indPres:1,tpImp:s.model===65?4:1,
   tpAmb:2,tpEmis:1,procEmi:0,verProc:'ArtiSys-ACBrLib',cUF:emit.code,
   cMunFG:s.issuer.municipalityCode});
  group(lines,'Emitente',emit.values);
  if(dest)group(lines,'Destinatario',dest);
  let gross=0,discount=0,net=0,reform={base:0,ufC:0,munC:0,cbsC:0};
+ const legacyTotals={icmsCents:0,icmsBaseCents:0,stCents:0,stBaseCents:0,pisCents:0,cofinsCents:0};
  const items=s.items;
  if(!Array.isArray(items)||items.length<1||items.length>990)throw Error('Quantidade de itens fiscais inválida');
  items.forEach((item,i)=>{
@@ -173,14 +170,20 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
    qCom:quantity,vUnCom:brl(item.unitPriceCents),vProd:brl(g),vDesc:brl(d),
    uTrib:tax.unit,qTrib:quantity,vUnTrib:brl(item.unitPriceCents),cEANTrib:'SEM GTIN',indTot:1
   });
-  const t=taxSections(lines,tax,index,n);
+  const t=taxSections(lines,tax,index,n,s.issuer.crt);
   for(const k of Object.keys(reform))reform[k]+=t[k];
+  for(const k of Object.keys(legacyTotals))legacyTotals[k]+=t.legacy[k];
   gross+=g;discount+=d;net+=n;
  });
  if(gross!==s.subtotalCents||discount!==s.discountCents||net!==s.totalCents)
   throw Error('Totais do INI não conferem com a venda canônica');
- group(lines,'Total',{vBC:'0.00',vICMS:'0.00',vBCST:'0.00',vST:'0.00',
-  vProd:brl(gross),vDesc:brl(discount),vPIS:'0.00',vCOFINS:'0.00',vNF:brl(net)});
+ // ST due increases vNF under NF-e rules. The commercial sale currently
+ // lacks a separate ST-addition field: refuse rather than issue a wrong total.
+ if(legacyTotals.stCents>0)throw Error('ICMS ST devido requer integração explícita ao total comercial da venda antes da emissão');
+ group(lines,'Total',{vBC:brl(legacyTotals.icmsBaseCents),vICMS:brl(legacyTotals.icmsCents),
+  vBCST:brl(legacyTotals.stBaseCents),vST:brl(legacyTotals.stCents),
+  vProd:brl(gross),vDesc:brl(discount),vPIS:brl(legacyTotals.pisCents),
+  vCOFINS:brl(legacyTotals.cofinsCents),vNF:brl(net)});
  group(lines,'IBSCBSTot',{vBCIBSCBS:brl(reform.base)});
  group(lines,'gIBS',{vIBS:brl(reform.ufC+reform.munC)});
  group(lines,'gIBSUFTot',{vIBSUF:brl(reform.ufC)});
