@@ -168,7 +168,9 @@
           }
           const result=await api.request(endpoint+'/'+operation,{method:'POST',body});
           message(card,operation==='compile'?'INI gerado para revisão, nenhuma nota emitida.':
-            result.status==='AUTHORIZED'?'Autorização SEFAZ confirmada.':'Resultado pendente: consultar SEFAZ antes de qualquer reenvio.');
+            result.status==='AUTHORIZED'?'Autorização SEFAZ confirmada.':
+            result.status==='REJECTED'?'SEFAZ rejeitou a nota (cStat '+result.cStat+'): '+result.reason+'. Não reenviar automaticamente.':
+            'Resultado pendente: consultar SEFAZ antes de qualquer reenvio.');
           await refreshDocuments(card);
         }catch(e){message(card,e.message||'Falha no processo fiscal',true);}
         finally{button.disabled=false;}
