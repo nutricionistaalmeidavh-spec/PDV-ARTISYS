@@ -128,9 +128,9 @@ test('admin can compile and attempt one NFC-e homologation from a completed sale
   ctx.runtime.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=4 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
   const inutilization=await request(ctx,'/inutilizations',admin,{method:'POST',
    body:{model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'}});
-  assert.equal(inutilization.status,200);
-  assert.equal((await inutilization.json()).status,'CONFIRMED');
-  assert.equal(ctx.nativeCalls,3);
-  assert.equal((await (await request(ctx,'/inutilizations',admin)).json()).length,1);
+  assert.equal(inutilization.status,400);
+  assert.match((await inutilization.json()).error,/SP|S[aã]o Paulo|inutiliza/i);
+  assert.equal(ctx.nativeCalls,2);
+  assert.equal((await (await request(ctx,'/inutilizations',admin)).json()).length,0);
  }finally{await ctx.close();}
 });
