@@ -664,7 +664,14 @@
     try {
       if (!(await ensureCashOpen())) return;
       if (!isRouteActive('checkout')) return;
-      const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; state.paymentDraft = [{ method, amountCents: state.sale.totalCents }]; renderPaymentModal();
+      const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; const previousIntents=await api.listPaymentIntents(state.sale.id);
+      const activeIntents=previousIntents.filter(intent=>!['FAILED','CANCELLED','CONSUMED'].includes(intent.status));
+      state.paymentDraft=activeIntents.length
+        ? activeIntents.map(intent=>({method:intent.method,amountCents:intent.amountCents,metadata:{paymentIntentId:intent.id}}))
+        : [{method,amountCents:state.sale.totalCents}];
+      const pendingCents=state.sale.totalCents-state.paymentDraft.reduce((sum,item)=>sum+item.amountCents,0);
+      if(activeIntents.length&&pendingCents>0)state.paymentDraft.push({method:allowed.includes('CASH')?'CASH':allowed[0],amountCents:pendingCents});
+      renderPaymentModal();
     } finally {
       paymentFlowInFlight = false;
     }
