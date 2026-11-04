@@ -128,7 +128,7 @@ test('DANFE PDF is generated only after confirmed authorization and linked to th
  const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:'1'.repeat(44),protocolo:'135260000000001',xml:'<authorized/>'}}),
   pdf:async()=>{pdfCalls++;return {ok:true,data:{pdfBase64:validPdf.toString('base64')}}}});
  const svc=f.build(true),ready=svc.prepare(f.draft.id);
- await assert.rejects(()=>svc.danfe(f.draft.id),/autorizad|protocolo/i);
+ await assert.rejects(()=>svc.danfe(f.draft.id),/autoriza|protocolo/i);
  const authorized=await svc.issue(f.draft.id);
  assert.equal(authorized.status,'AUTHORIZED');
  const pdf=await svc.danfe(f.draft.id);
