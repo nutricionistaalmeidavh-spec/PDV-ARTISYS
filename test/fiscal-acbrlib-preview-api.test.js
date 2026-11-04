@@ -55,11 +55,11 @@ test('explicit fiscal preview is authenticated, role-checked and does not enable
   assert.equal((await request(ctx,'/status',cashier)).status,403);
   const status=await request(ctx,'/status',admin);assert.equal(status.status,200);
   assert.equal((await status.json()).emissionEnabled,false);
-  const company={name:'Loja',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',environment:'homologation',series:1};
+  const company={name:'Loja',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1};
   const created=await request(ctx,'/company',admin,{method:'PUT',body:company});
   assert.equal(created.status,200);
   assert.equal((await created.json()).autoIssue,false);
-  const profile=await request(ctx,'/products/SKU-123',admin,{method:'PUT',body:{ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',pisCst:'49',cofinsCst:'49',unit:'UN',reviewedBy:'contabilidade',reviewedAt:'2026-11-04'}});
+  const profile=await request(ctx,'/products/SKU-123',admin,{method:'PUT',body:{ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',reviewedBy:'contabilidade',reviewedAt:'2026-11-04'}});
   assert.equal(profile.status,200);
   assert.equal((await profile.json()).productId,'SKU-123');
   assert.equal((await request(ctx,'/company',cashier,{method:'PUT',body:company})).status,403);
@@ -83,10 +83,10 @@ test('admin can compile and attempt one NFC-e homologation from a completed sale
   const cashier=await login(ctx,'cashier','senha-caixa-123');
   const status=await (await request(ctx,'/status',admin)).json();
   assert.equal(status.emissionEnabled,true);
-  const company={name:'EMPRESA TESTE',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',environment:'homologation',series:1,
+  const company={name:'EMPRESA TESTE',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,
     street:'RUA DAS FLORES',streetNumber:'10',district:'CENTRO',municipalityCode:'3543402',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'};
   assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:company})).status,200);
-  const profile={ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',pisCst:'49',cofinsCst:'49',unit:'UN',
+  const profile={ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
    reviewedBy:'contador',reviewedAt:'2026-11-04',zeroLegacyTaxesConfirmed:true,
    ibsCbsCst:'000',cClassTrib:'000001',reformTax:{ibsUfRate:'0.1000',ibsMunRate:'0.0000',cbsRate:'0.9000'}};
   assert.equal((await request(ctx,'/products/SKU-123',admin,{method:'PUT',body:profile})).status,200);
