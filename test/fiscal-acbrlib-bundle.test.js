@@ -26,7 +26,7 @@ function fixture(t){
 test('bundle verifier returns disabled when package is absent',t=>{
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-empty-'));
  t.after(()=>fs.rmSync(root,{recursive:true,force:true}));
- const result=verifyAcbrBundle({resourcesPath:root});
+ const result=verifyAcbrBundle({resourcesPath:root,platform:'win32',arch:'x64'});
  assert.equal(result.valid,false);
  assert.equal(result.reason,'missing');
 });
