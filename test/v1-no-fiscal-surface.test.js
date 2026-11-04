@@ -40,8 +40,12 @@ test('V1 local server does not mount fiscal or NFS-e routers', () => {
 test('V1 desktop exposes no fiscal IPC, sidecar or provider bootstrap', () => {
   const main = read('desktop/main.cjs');
   const preload = read('desktop/preload.cjs');
-  assert.doesNotMatch(main, /fiscal-bridge|fiscal-credential-store|fiscal-sidecar-runtime|fiscal-runtime-paths|nfse-provider-resolver|registerFiscalIpc|artisys:fiscal/);
-  assert.doesNotMatch(preload, /artisys:fiscal|\bfiscal:\s*\{/);
+  // Legacy fiscal sidecar is forbidden. New ACBrLib credential IPC is
+  // local-only and administrator-authorized by deployment session.
+  assert.doesNotMatch(main, /fiscal-bridge|fiscal-sidecar-runtime|fiscal-runtime-paths|nfse-provider-resolver|registerFiscalIpc/);
+  assert.doesNotMatch(preload, /fiscal-sidecar-runtime|nfse-provider-resolver/);
+  assert.match(main, /authorizeDeploymentChange/);
+  assert.match(preload, /artisys:fiscal:import/);
 });
 
 test('V1 runtime has no fiscal or NFS-e services, migrations or sale effects', () => {
