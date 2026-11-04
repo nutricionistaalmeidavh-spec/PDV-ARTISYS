@@ -164,6 +164,15 @@
     validateBackup(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/validate`, { method:'POST', body:{} }); }
     prepareRestore(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/restore`, { method:'POST', body:{} }); }
 
+    paymentCapabilities() { return this.request('/api/v1/payment-intents/capabilities'); }
+    createPaymentIntent(body) { return this.request('/api/v1/payment-intents', {method:'POST',body}); }
+    paymentIntents(saleId) { return this.request('/api/v1/payment-intents'+this.params({saleId})); }
+    paymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)); }
+    startPaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/start',{method:'POST',body:{}}); }
+    reconcilePaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/reconcile',{method:'POST',body:{}}); }
+    confirmManualPix(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/confirm-manual',{method:'POST',body:{checkedAccountCredit:true}}); }
+    cancelPaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/cancel',{method:'POST',body:{}}); }
+
     settings(filters={}) { return this.request(`/api/v1/settings${this.params(filters)}`); }
     saveSetting(key,value,scope='global') { return this.request(`/api/v1/settings/${encodeURIComponent(key)}`, { method:'PUT', body:{value,scope} }); }
     removeSetting(key,scope='global') { return this.request(`/api/v1/settings/${encodeURIComponent(key)}${this.params({scope})}`, { method:'DELETE' }); }
