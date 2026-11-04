@@ -82,6 +82,7 @@ function createPayGoControlPayProvider({
   }
   const methodId=method=>method==='DEBIT_CARD'?22:21;
   return {
+    validateTerminal:resolveTerminal,
     async start({txid,method,amountCents,saleId,terminalId:localTerminalId}={}){
       validCommand({txid,method,amountCents});
       const response=await call('POST','Venda/Vender/',{body:{
