@@ -77,9 +77,25 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     const body=await readBody(req,bodyLimitBytes);
     send(res,201,service.prepareSale(decodeURIComponent(matched[1]),{documentType:body.documentType||'nfce'}));return true;
    }
-   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/(compile|transmit|consult)$/))&&req.method==='POST'){
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/danfe\\.pdf$/))&&req.method==='GET'){
+    if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
+    const bytes=issuance.getDanfe(decodeURIComponent(matched[1]));
+    res.writeHead(200,{
+     'content-type':'application/pdf',
+     'content-disposition':'attachment; filename="artisys-danfe.pdf"',
+     'content-length':bytes.length,
+     'cache-control':'no-store',
+     'x-content-type-options':'nosniff'
+    });
+    res.end(bytes);return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/(compile|transmit|consult|danfe)$/))&&req.method==='POST'){
     const id=decodeURIComponent(matched[1]),operation=matched[2];
     if(!issuance)throw new FiscalHttpError(409,'ACBrLib local não configurada; emissão desabilitada');
+    if(operation==='danfe'){
+     const result=await issuance.danfe(id);
+     send(res,200,result);return true;
+    }
     if(operation==='compile'){
      const body=await readBody(req,bodyLimitBytes);
      send(res,200,issuance.prepare(id,{recipient:body.recipient||null}));return true;
