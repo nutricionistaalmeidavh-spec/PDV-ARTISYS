@@ -72,6 +72,7 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   const {iniPath,manifest}=readManifest(dir,meta.reference);
   if(manifest.snapshotHash!==document.snapshotHash||manifest.amountCents!==document.totalCents||
      manifest.issuerCnpj!==document.snapshot.issuer.cnpj||
+     manifest.issuerUF!==document.snapshot.issuer.uf||
      manifest.environment!=='homologation'||manifest.model!==document.model||
      manifest.documentType!==document.documentType)
    throw Error('Manifesto fiscal diverge do documento canônico');
