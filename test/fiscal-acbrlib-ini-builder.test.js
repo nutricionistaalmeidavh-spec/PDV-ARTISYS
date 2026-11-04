@@ -198,7 +198,7 @@ test('offline contingency NFCE has distinct tpEmis=9, reason, timestamp and immu
  const d=example();
  const options={document:d,cNF:'87654321',issuedAt:'2026-11-04T15:00:00-03:00',
   contingency:{startedAt:'2026-11-04T15:30:00-03:00',
-   reason:'Falha de conexao com a SEFAZ; contingencia de teste.'}};
+   reason:'Falha de conexao com a SEFAZ durante teste offline.'}};
  const out=compileAcbrIni(options);
  assert.match(out.ini,/tpEmis=9/);
  assert.match(out.ini,/dhCont=04\/11\/2026 15:30:00/);
