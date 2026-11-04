@@ -73,7 +73,7 @@ function createPaymentIntentService({
       const reserved=db.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payment_intents WHERE sale_id=? AND status NOT IN ('CANCELLED','FAILED')").get(String(saleId)).amount;
       if(amount+reserved>sale.totalCents)throw new Error('Valor das tentativas excede o total atual da venda.');
       const id=String(idFactory('intent'));
-      const txid=createHash('sha256').update(id).digest('hex').slice(0,25).toUpperCase();
+      const txid=createHash('sha256').update(id).digest('hex').slice(0,kind==='PIX_STATIC'?25:26).toUpperCase();
       const brCode=kind==='PIX_STATIC'?buildStaticPix({
         key:staticConfig.key,merchantName:staticConfig.merchantName,merchantCity:staticConfig.merchantCity,
         amountCents:amount,txid
