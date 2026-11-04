@@ -64,7 +64,7 @@ test('TEF falho ou indeterminado nunca se converte em autorizado',async()=>{
 test('TEF PayGo nao libera venda ate conciliacao real e reaproveita intencao sem repetir cobranca',async()=>{
   let charges=0;
   const provider={
-    async start({txid,amountCents}){charges++;return{status:'PENDING',txid,amountCents,providerReference:'2015371'};},
+    async start({txid,amountCents,terminalId}){assert.equal(terminalId,'T1');charges++;return{status:'PENDING',txid,amountCents,providerReference:'2015371'};},
     async reconcile({txid,amountCents,providerReference}){
       assert.equal(providerReference,'2015371');
       return{status:'APPROVED',txid,amountCents,providerReference,
