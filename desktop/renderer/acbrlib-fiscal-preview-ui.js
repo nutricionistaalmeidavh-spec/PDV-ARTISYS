@@ -34,6 +34,14 @@
       <label class="field"><span>CEP (somente números)</span><input name="postalCode" required pattern="[0-9]{8}" maxlength="8"></label>
       <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" value="SP"></label>
       <label class="field"><span>CRT</span><select name="crt"><option value="1">1 — Simples Nacional</option><option value="2">2 — Simples excesso sublimite</option><option value="3">3 — Regime normal</option><option value="4">4 — MEI</option></select></label>
+      <label class="field"><span>Regime de apuração IBS/CBS (NT 2026.005)</span>
+        <select name="ibsCbsRegime" required>
+          <option value="unconfigured">Não confirmado — emissão bloqueada</option>
+          <option value="regular">Regime regular de IBS/CBS revisado</option>
+          <option value="simples">Simples Nacional sem regime regular (aguardando gTribSN ACBr)</option>
+          <option value="mei">MEI — sem grupo IBS/CBS</option>
+        </select>
+      </label>
       <label class="field"><span>Série</span><input name="series" type="number" required min="1" max="999" value="1"></label>
       <p class="ops-muted wide">Ambiente: homologação. Emissão automática e produção permanecem bloqueadas.</p>
       <div class="modal-actions"><button class="primary-button" type="submit">Salvar dados para revisão</button></div>
@@ -42,6 +50,7 @@
     <form data-acbr-product class="field-grid">
       <label class="field wide"><span>Produto</span><select name="productId" required><option value="">Carregando produtos...</option></select></label>
       <label class="field"><span>NCM</span><input name="ncm" required minlength="8" maxlength="8"></label>
+      <label class="field"><span>cAtivSN (CRT 1/2, NT 2026.005)</span><input name="cAtivSN" maxlength="2" pattern="(01|02|03|04|90)" placeholder="01"></label>
       <label class="field"><span>CEST (quando aplicável)</span><input name="cest" maxlength="7"></label>
       <label class="field"><span>CFOP</span><input name="cfop" required minlength="4" maxlength="4"></label>
       <label class="field"><span>Origem (0–8)</span><input name="origin" required maxlength="1" value="0"></label>
