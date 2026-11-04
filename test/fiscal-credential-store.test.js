@@ -65,3 +65,12 @@ test('plain secret, malformed certificate path, unencrypted safeStorage and inpu
  assert.throws(()=>g.store.importCertificate({certificatePath:f.source,password:'test',uf:'XX'}),/UF|estado|inválid/i);
  assert.throws(()=>g.store.importCertificate({certificatePath:'/not-there.pfx',password:'test',uf:'SP'}),/certificado|arquivo|PFX/i);
 });
+
+test('homologation opt-in does not keep decrypted A1 password in an INI at rest',t=>{
+ const f=make(t);
+ f.store.importCertificate({certificatePath:f.source,password:'SECRET-IN-MEMORY',uf:'SP',csc:'TEST',idCsc:'1'});
+ const flag=f.store.enableHomologation();
+ assert.equal(flag.homologationEnabled,true);
+ assert.equal(f.store.status().homologationEnabled,true);
+ assert.equal(fs.existsSync(f.store.paths.iniPath),false);
+});
