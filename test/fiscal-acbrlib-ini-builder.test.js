@@ -127,3 +127,39 @@ test('card payments without canonical acquirer metadata are rejected',()=>{
  d.snapshot.changeCents=0;
  assert.throws(()=>build(rehash(d)),/adquirente|cartão|integração|CNPJ/i);
 });
+
+test('NT 2026.005: Simples regular must declare explicit regime and activity',()=>{
+ let d=example();d.snapshot.issuer.ibsCbsRegime='unconfigured';
+ assert.throws(()=>build(rehash(d)),/IBS|CBS|regime|opção/i);
+ d=example();d.snapshot.items[0].taxProfile.cAtivSN='';
+ assert.throws(()=>build(rehash(d)),/cAtivSN|atividade|Simples/i);
+ const {ini}=build();
+ assert.match(ini,/\[Emitente\][\s\S]*tpRegimeIBSCBS=1/);
+ assert.match(ini,/\[Produto001\][\s\S]*cAtivSN=01/);
+});
+test('NT 2026.005: excess sublimite CRT2 uses CST ICMS and not CSOSN',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ d.snapshot.issuer.crt='2';
+ p.cst='00';p.csosn='';
+ p.icms={basePercent:'100.0000',rate:'18.0000'};
+ const {ini}=build(rehash(d));
+ assert.match(ini,/CRT=2/);assert.match(ini,/\[ICMS001\][\s\S]*CST=00/);
+ assert.doesNotMatch(ini,/CSOSN=/);
+ d.snapshot.items[0].taxProfile.cst='';
+ d.snapshot.items[0].taxProfile.csosn='102';
+ assert.throws(()=>build(rehash(d)),/CST|CRT 2|regime/i);
+});
+test('NT 2026.005: MEI CRT4 omits IBS/CBS group entirely',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ d.snapshot.issuer.crt='4';d.snapshot.issuer.ibsCbsRegime='mei';
+ delete p.cAtivSN;delete p.reformTax;delete p.cClassTrib;delete p.ibsCbsCst;
+ const {ini}=build(rehash(d));
+ assert.match(ini,/CRT=4/);
+ assert.doesNotMatch(ini,/\[IBSCBS001\]|\[gIBSCBS001\]|\[IBSCBSTot\]|tpRegimeIBSCBS=/);
+ p.csosn='101';
+ assert.throws(()=>build(rehash(d)),/MEI|CSOSN|regime/i);
+});
+test('NT 2026.005: regime regular is not assumed for CRT1/2 by default',()=>{
+ const d=example();d.snapshot.issuer.ibsCbsRegime='simples';
+ assert.throws(()=>build(rehash(d)),/gTribSN|regime|Simples|IBS/i);
+});
