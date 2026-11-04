@@ -136,11 +136,12 @@ function createPdvRuntime({
   }:null);
   const tefProvider=paymentOptions.tefProvider||(process.env.PDV_TEF_BRIDGE_EXE
     ?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE})
-    :(process.env.PDV_PAYGO_API_URL&&process.env.PDV_PAYGO_INTEGRATION_KEY&&process.env.PDV_PAYGO_TERMINAL_ID
+    :(process.env.PDV_PAYGO_API_URL&&process.env.PDV_PAYGO_INTEGRATION_KEY&&(process.env.PDV_PAYGO_TERMINAL_ID||process.env.PDV_PAYGO_TERMINAL_MAP)
       ?createPayGoControlPayProvider({
         baseUrl:process.env.PDV_PAYGO_API_URL,
         integrationKey:process.env.PDV_PAYGO_INTEGRATION_KEY,
-        terminalId:process.env.PDV_PAYGO_TERMINAL_ID
+        terminalId:process.env.PDV_PAYGO_TERMINAL_ID,
+        terminalMap:process.env.PDV_PAYGO_TERMINAL_MAP?JSON.parse(process.env.PDV_PAYGO_TERMINAL_MAP):null
       }):null));
   const paymentIntents=createPaymentIntentService({db,sales:coreSales,now,idFactory,
     pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,tefProvider});
