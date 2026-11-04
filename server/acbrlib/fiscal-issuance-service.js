@@ -3,7 +3,7 @@
 // durable before a single SEFAZ send. UNKNOWN can ONLY be consulted, not sent again.
 const fs=require('node:fs');
 const path=require('node:path');
-const {createHash}=require('node:crypto');
+const {createHash,randomInt}=require('node:crypto');
 const {withTransaction}=require('../../js/core/database/sqlite-database');
 const {compileAcbrIni}=require('./fiscal-ini-builder');
 const {readManifest}=require('./acbrlib-adapter');
@@ -25,8 +25,13 @@ function ensureInputDirectory(dir){
  return fs.realpathSync(dir);
 }
 function createFiscalIssuanceService({db,drafts,adapter,inputDir,allowHomologation=false,
- randomCNF=()=>String(Math.floor(Math.random()*1e8)).padStart(8,'0'),
- now=()=>new Date().toISOString()}={}){
+ randomCNF=()=>String(randomInt(0,100000000)).padStart(8,'0'),
+ now=()=>{
+  const d=new Date(),two=n=>String(n).padStart(2,'0'),mins=-d.getTimezoneOffset();
+  const offset=(mins>=0?'+':'-')+two(Math.floor(Math.abs(mins)/60))+':'+two(Math.abs(mins)%60);
+  return [d.getFullYear(),two(d.getMonth()+1),two(d.getDate())].join('-')+'T'+
+   [two(d.getHours()),two(d.getMinutes()),two(d.getSeconds())].join(':')+offset;
+ }}={}){
  if(!db||!drafts||!adapter||typeof adapter.issue!=='function')
   throw TypeError('SQLite, serviço fiscal canônico e adaptador ACBr são obrigatórios');
  const dir=ensureInputDirectory(inputDir);
