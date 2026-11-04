@@ -48,6 +48,19 @@ let installationWasExisting = true;
 let dataServerConfig = null;
 let dataServerConfigPath = '';
 let fiscalCredentialStore = null;
+let fiscalConfigQueue = Promise.resolve();
+function withFiscalConfig(operation) {
+  // Serialize short-lived decrypted ACBr INI leases across HTTP requests/workers.
+  const pending = fiscalConfigQueue.catch(()=>{}).then(async()=>{
+    if(!fiscalCredentialStore?.status().configured)throw Error('Certificado fiscal local indisponível');
+    try {
+      fiscalCredentialStore.materialize();
+      return await operation();
+    } finally {fiscalCredentialStore.removeRuntimeConfig();}
+  });
+  fiscalConfigQueue = pending.catch(()=>{});
+  return pending;
+}
 let installationTransition = false;
 const installToken = randomBytes(32).toString('hex');
 const API_TIMEOUT_MS = 12000;
@@ -79,7 +92,9 @@ function fiscalServerOptions() {
     resourcesPath,userData:app.getPath('userData'),
     platform:process.platform,arch:process.arch,embeddedServer:true
   });
-  if(fiscal.enabled)return {fiscalPreviewEnabled:true,fiscalNativeOptions:fiscal.nativeOptions};
+  if(fiscal.enabled)return {fiscalPreviewEnabled:true,fiscalNativeOptions:{
+    ...fiscal.nativeOptions,withConfig:withFiscalConfig
+  }};
   // Development-only overrides, never enabled by a packaged install.
   if(!app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1'){
     const env=process.env;
@@ -476,7 +491,7 @@ function registerIpc() {
       certificatePath:selection.filePaths[0],password:input.password,
       uf:input.uf,csc:input.csc,idCsc:input.idCsc
     });
-    fiscalCredentialStore.materialize();
+    // Materialize only for a native operation. The user's A1 remains sealed at rest.
     return {...outcome,restartRequired:true};
   });
   ipcMain.handle('artisys:fiscal:save-danfe', async(event,input={})=>{
@@ -509,9 +524,11 @@ function registerIpc() {
     const saved=runtime.db.prepare('SELECT public_json FROM acbr_fiscal_company WHERE id=1').get();
     if(!saved)throw Error('Configure primeiro os dados do emitente fiscal');
     const issuer=JSON.parse(saved.public_json);
-    fiscalCredentialStore.materialize();
-    inspectLocalAcbrConfig({file:fiscalCredentialStore.paths.iniPath,model:55,issuerUF:issuer.uf});
-    return fiscalCredentialStore.enableHomologation();
+    try {
+      fiscalCredentialStore.materialize();
+      inspectLocalAcbrConfig({file:fiscalCredentialStore.paths.iniPath,model:55,issuerUF:issuer.uf});
+      return fiscalCredentialStore.enableHomologation();
+    } finally {fiscalCredentialStore.removeRuntimeConfig();}
   });
 
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
@@ -582,13 +599,9 @@ app.whenReady().then(async () => {
     });
     if(fiscalBundle.enabled){
       fiscalCredentialStore=createFiscalCredentialStore({userData:app.getPath('userData'),safeStorage});
-      if(fiscalCredentialStore.status().configured){
-        try{fiscalCredentialStore.materialize();}
-        catch{
-          fiscalCredentialStore.disableHomologation();
-          console.warn('Certificado fiscal local indisponível; homologação permanece bloqueada.');
-        }
-      }
+      // Recover after a crash: remove the previous ephemeral plaintext configuration.
+      // The A1 PFX, sealed password, approval state and SQLite stay untouched.
+      fiscalCredentialStore.removeRuntimeConfig();
     }
   }
   terminalIdentityStore = createTerminalIdentityStore({ userDataPath:app.getPath('userData') });
