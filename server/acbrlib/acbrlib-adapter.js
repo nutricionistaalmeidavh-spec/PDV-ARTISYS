@@ -157,7 +157,8 @@ function createAcbrLibAdapter(options={}){
     return {iniPath,manifest,command:{
       kind:'NFE',operation:null,libraryPath,configPath,iniPath,
       issuerCnpj:manifest.issuerCnpj,environment:manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO',
-      amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model
+      amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model,
+      number:manifest.number,series:manifest.series,cNF:manifest.cNF
     },workerExe};
   }
   const runner=options.runner||((args)=>executeWorker(args,{workerExe:options.workerExe,timeoutMs:options.timeoutMs}));
