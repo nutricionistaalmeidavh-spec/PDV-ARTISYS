@@ -186,6 +186,10 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    if(status.changes!==1)throw Error('Estado fiscal mudou durante autorização');
    db.prepare('UPDATE acbr_fiscal_issuance_meta SET access_key=?,protocol=?,xml_sha256=?,updated_at=? '+
      'WHERE document_id=?').run(key,protocol,sha(xml),now(),id);
+   // Atomic with the fiscal document, so a crash cannot leave a confirmed
+   // authorization incorrectly shown as an unresolved offline queue item.
+   db.prepare("UPDATE acbr_fiscal_offline_queue SET status='AUTHORIZED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
+    .run(now(),String(id));
   });
   return {id,status:'AUTHORIZED',accessKey:key,protocol,xmlSha256:sha(xml)};
  }
@@ -201,6 +205,8 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    if(changed!==1)throw Error('Estado fiscal mudou durante rejeição');
    db.prepare('INSERT INTO acbr_fiscal_rejections(document_id,c_stat,reason,reported_at) VALUES(?,?,?,?)')
     .run(id,code,reason,now());
+   db.prepare("UPDATE acbr_fiscal_offline_queue SET status='REJECTED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
+    .run(now(),String(id));
   });
   return {id,status:'REJECTED',cStat:code,reason,retryAllowed:false};
  }
@@ -337,15 +343,11 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
      signedXmlSha256:proof.row.xml_sha256});
     if(result?.ok){
      const authorizedResult=authorized(id,result);
-     db.prepare("UPDATE acbr_fiscal_offline_queue SET status='AUTHORIZED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
-      .run(now(),String(id));
      output.push(authorizedResult);
      continue;
     }
     if(result?.rejected===true){
      const rejection=rejected(id,result);
-     db.prepare("UPDATE acbr_fiscal_offline_queue SET status='REJECTED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
-      .run(now(),String(id));
      output.push(rejection);
      continue;
     }
@@ -403,12 +405,7 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   try{
    const result=await adapter.query({type:manifest.documentType,reference:meta.reference,
     environment:'homologation',accessKey:key});
-   if(result?.ok&&result.data.chave_nfe===key){
-    const finalized=authorized(id,result);
-    db.prepare("UPDATE acbr_fiscal_offline_queue SET status='AUTHORIZED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
-     .run(now(),String(id));
-    return finalized;
-   }
+   if(result?.ok&&result.data.chave_nfe===key)return authorized(id,result);
   }catch{/* UNKNOWN persists. */}
   return {id,status:'UNKNOWN',requiresConsultation:true};
  }
