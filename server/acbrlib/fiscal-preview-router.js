@@ -1,6 +1,8 @@
 'use strict';
 // Opt-in fiscal preparation endpoint. No real issuance, secret storage or SEFAZ call.
 const {createFiscalDraftService}=require('./fiscal-draft-service');
+const {createAcbrLibAdapter}=require('./acbrlib-adapter');
+const {createFiscalIssuanceService}=require('./fiscal-issuance-service');
 class FiscalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function send(res,status,data){
  res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -14,10 +16,20 @@ async function readBody(req,limit){
  if(!body||typeof body!=='object'||Array.isArray(body))throw new FiscalHttpError(400,'Corpo fiscal inválido');
  return body;
 }
-function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTerminalAuth=false,bodyLimitBytes=32*1024}={}){
+function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTerminalAuth=false,bodyLimitBytes=32*1024,nativeOptions=null}={}){
  if(!enabled)return async()=>false;
  if(!runtime?.db||!runtime?.sales||!runtime?.authorization)throw TypeError('Runtime fiscal indisponível');
  const service=createFiscalDraftService({db:runtime.db,sales:runtime.sales});
+ // Native paths and certificate configuration are supplied locally by the
+ // operator, never from HTTP requests or the central cloud.
+ const adapter=nativeOptions?.inputDir?createAcbrLibAdapter(nativeOptions):null;
+ const issuance=adapter?createFiscalIssuanceService({
+  db:runtime.db,drafts:service,adapter,inputDir:nativeOptions.inputDir,
+  allowHomologation:nativeOptions.allowHomologation===true,
+  now:nativeOptions.now,randomCNF:nativeOptions.randomCNF
+ }):null;
+ const nativeConfigured=Boolean(nativeOptions?.inputDir&&nativeOptions?.nfeLib&&nativeOptions?.nfeConfig&&nativeOptions?.workerExe);
+
  const sessions=sessionStore||new Map();
  function sessionFor(req){
   const bearer=String(req.headers.authorization||'');
@@ -39,7 +51,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
   try{
    sessionFor(req);
    let matched;
-   if(req.method==='GET'&&p===prefix+'/status'){send(res,200,service.getStatus());return true;}
+   if(req.method==='GET'&&p===prefix+'/status'){send(res,200,{...service.getStatus(),iniPreparationEnabled:Boolean(issuance),emissionEnabled:Boolean(issuance&&nativeConfigured&&nativeOptions.allowHomologation===true)});return true;}
    if(req.method==='GET'&&p===prefix+'/company'){send(res,200,service.getCompany());return true;}
    if(req.method==='PUT'&&p===prefix+'/company'){
     const body=await readBody(req,bodyLimitBytes);
@@ -64,8 +76,17 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     const body=await readBody(req,bodyLimitBytes);
     send(res,201,service.prepareSale(decodeURIComponent(matched[1]),{documentType:body.documentType||'nfce'}));return true;
    }
-   if(req.method==='POST'&&/^\/api\/v1\/fiscal-preview\/documents\/[^/]+\/transmit$/.test(p)){
-    throw new FiscalHttpError(409,'Emissão fiscal desabilitada até homologação SEFAZ e integração ACBrLib');
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/(compile|transmit|consult)$/))&&req.method==='POST'){
+    const id=decodeURIComponent(matched[1]),operation=matched[2];
+    if(!issuance)throw new FiscalHttpError(409,'ACBrLib local não configurada; emissão desabilitada');
+    if(operation==='compile'){
+     const body=await readBody(req,bodyLimitBytes);
+     send(res,200,issuance.prepare(id,{recipient:body.recipient||null}));return true;
+    }
+    if(operation==='transmit'&&nativeOptions.allowHomologation!==true)
+      throw new FiscalHttpError(409,'Emissão fiscal desabilitada até liberação explícita para homologação');
+    const result=operation==='transmit'?await issuance.issue(id):await issuance.consult(id);
+    send(res,result.status==='AUTHORIZED'?200:202,result);return true;
    }
    throw new FiscalHttpError(405,'Operação fiscal não suportada');
   }catch(error){
