@@ -134,7 +134,8 @@ function createPdvRuntime({
   const configuredStaticPix=()=>settings.get('payments.pix.static',{defaultValue:null})||paymentOptions.pixStatic||(process.env.PDV_PIX_KEY?{
     key:process.env.PDV_PIX_KEY,merchantName:process.env.PDV_PIX_MERCHANT_NAME,merchantCity:process.env.PDV_PIX_CITY
   }:null);
-  const tefProvider=paymentOptions.tefProvider||(process.env.PDV_TEF_BRIDGE_EXE
+  const tefProvider=Object.prototype.hasOwnProperty.call(paymentOptions,'tefProvider')
+    ?paymentOptions.tefProvider:(process.env.PDV_TEF_BRIDGE_EXE
     ?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE})
     :(process.env.PDV_PAYGO_API_URL&&process.env.PDV_PAYGO_INTEGRATION_KEY&&(process.env.PDV_PAYGO_TERMINAL_ID||process.env.PDV_PAYGO_TERMINAL_MAP)
       ?createPayGoControlPayProvider({
