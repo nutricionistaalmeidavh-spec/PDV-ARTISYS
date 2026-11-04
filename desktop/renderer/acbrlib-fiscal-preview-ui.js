@@ -180,6 +180,15 @@
             if(!approval.confirmed)return;
           }
           const result=await api.request(endpoint+'/'+operation,{method:'POST',body});
+          if(operation==='danfe'){
+            if(!result.ready)throw Error('PDF DANFE indisponível');
+            const save=window.artisysDesktop?.fiscal?.saveDanfe;
+            if(!save)throw Error('Salvar DANFE exige PDV ArtiSys Desktop');
+            const saved=await save(d.id,api.sessionToken);
+            message(card,saved?.saved?'DANFE PDF autorizado salvo no computador.':
+              'DANFE gerado e validado; salvamento cancelado.');
+            return;
+          }
           message(card,operation==='compile'?'INI gerado para revisão, nenhuma nota emitida.':
             result.status==='AUTHORIZED'?'Autorização SEFAZ confirmada.':
             result.status==='REJECTED'?'SEFAZ rejeitou a nota (cStat '+result.cStat+'): '+result.reason+'. Não reenviar automaticamente.':
@@ -192,6 +201,7 @@
     if(d.status==='REVIEW_REQUIRED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar INI','compile');
     if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction('Emitir em homologação','transmit');
     if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
+    if(d.status==='AUTHORIZED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar e salvar DANFE PDF','danfe');
     list.append(li);
    }
    root.append(list);
