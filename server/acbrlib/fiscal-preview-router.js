@@ -68,6 +68,32 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
      send(res,200,service.saveProductProfile({...body,productId}));return true;}
    }
    if(req.method==='GET'&&p===prefix+'/documents'){send(res,200,service.listDocuments({limit:Number(url.searchParams.get('limit')||100)}));return true;}
+
+   if(req.method==='GET'&&p===prefix+'/inutilizations'){
+    if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
+    send(res,200,issuance.listInutilizations());return true;
+   }
+   if(req.method==='POST'&&p===prefix+'/inutilizations'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'Inutilização somente em homologação habilitada');
+    const body=await readBody(req,bodyLimitBytes);
+    const result=await issuance.inutilize(body);
+    send(res,result.status==='CONFIRMED'?200:202,result);return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cancellation$/))&&req.method==='GET'){
+    if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
+    const result=issuance.getCancellationStatus(decodeURIComponent(matched[1]));
+    if(!result)throw new FiscalHttpError(404,'Nenhum cancelamento registrado');
+    send(res,200,result);return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cancel$/))&&req.method==='POST'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'Cancelamento somente em homologação habilitada');
+    const body=await readBody(req,bodyLimitBytes);
+    const result=await issuance.cancel(decodeURIComponent(matched[1]),{reason:body.reason});
+    send(res,result.status==='CANCELLED'?200:202,result);return true;
+   }
+
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)$/))&&req.method==='GET'){
     const doc=service.getDocument(decodeURIComponent(matched[1]));
     if(!doc)throw new FiscalHttpError(404,'Documento não encontrado');
