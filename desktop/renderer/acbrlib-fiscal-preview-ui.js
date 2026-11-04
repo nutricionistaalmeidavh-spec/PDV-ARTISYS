@@ -55,8 +55,25 @@
       <label class="field"><span>Alíquota IBS UF (%)</span><input name="ibsUfRate" required placeholder="0.1000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
       <label class="field"><span>Alíquota IBS município (%)</span><input name="ibsMunRate" required placeholder="0.0000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
       <label class="field"><span>Alíquota CBS (%)</span><input name="cbsRate" required placeholder="0.9000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
-      <label class="field wide"><span><input name="zeroLegacyTaxesConfirmed" type="checkbox" required> Contabilidade confirmou tratamento sem valor de ICMS/PIS/COFINS para este perfil?</span></label>
-      <p class="ops-muted wide">Não presumimos alíquotas. Informar somente valores e classificação aprovados pela contabilidade. Piloto limitado ao CSOSN 102, PIS/COFINS 49, IBS/CBS CST 000.</p>
+      <label class="field wide"><span><input name="zeroLegacyTaxesConfirmed" type="checkbox"> Contabilidade confirmou tratamento sem valor de ICMS/PIS/COFINS para este perfil?</span></label>
+      <p class="ops-muted wide">Informar classificação e valores aprovados pela contabilidade. ST devido exige integração separada ao total da venda; até lá o envio permanece bloqueado.</p>
+      <details class="wide" data-acbr-legacy><summary>Tributação ICMS / PIS / COFINS e ST — campos avançados</summary>
+        <div class="field-grid">
+          <p class="ops-muted wide">Os campos seguintes são informados e revisados pela contabilidade. Não há alíquotas preenchidas automaticamente. Taxa percentual com quatro decimais, por exemplo 18.0000.</p>
+          <label class="field"><span>Base do ICMS próprio (% do item líquido)</span><input name="icmsBasePercent" inputmode="decimal" placeholder="100.0000"></label>
+          <label class="field"><span>Alíquota ICMS próprio (%)</span><input name="icmsRate" inputmode="decimal" placeholder="18.0000"></label>
+          <label class="field"><span>Redução de base ICMS (%)</span><input name="icmsReduction" inputmode="decimal" placeholder="40.0000"></label>
+          <label class="field"><span>Alíquota PIS (%)</span><input name="pisRate" inputmode="decimal" placeholder="1.6500"></label>
+          <label class="field"><span>Alíquota COFINS (%)</span><input name="cofinsRate" inputmode="decimal" placeholder="7.6000"></label>
+          <label class="field"><span>Base de ST retido (centavos)</span><input name="stRetainedBaseCents" type="number" min="0" step="1"></label>
+          <label class="field"><span>Valor ICMS-ST retido (centavos)</span><input name="stRetainedAmountCents" type="number" min="0" step="1"></label>
+          <label class="field"><span>Base ST devido (centavos por operação)</span><input name="stDueBaseCents" type="number" min="0" step="1"></label>
+          <label class="field"><span>Alíquota ST devido (%)</span><input name="stDueRate" inputmode="decimal"></label>
+          <label class="field"><span>Valor ST devido (centavos por operação)</span><input name="stDueAmountCents" type="number" min="0" step="1"></label>
+          <label class="field"><span>Crédito Simples (%)</span><input name="simpleCreditRate" inputmode="decimal"></label>
+          <label class="field"><span>Valor crédito Simples (centavos)</span><input name="simpleCreditAmountCents" type="number" min="0" step="1"></label>
+        </div>
+      </details>
       <label class="field"><span>Responsável pela revisão</span><input name="reviewedBy" required maxlength="120"></label>
       <label class="field"><span>Data da revisão</span><input name="reviewedAt" type="date" required></label>
       <div class="modal-actions"><button class="primary-button" type="submit">Salvar perfil revisado</button></div>
@@ -175,7 +192,20 @@
     const data=values(product);
     data.zeroLegacyTaxesConfirmed=product.elements.zeroLegacyTaxesConfirmed.checked;
     data.reformTax={ibsUfRate:data.ibsUfRate,ibsMunRate:data.ibsMunRate,cbsRate:data.cbsRate};
-    delete data.ibsUfRate;delete data.ibsMunRate;delete data.cbsRate;
+    const maybeInt=value=>value===''?null:Number(value);
+    if(data.icmsBasePercent||data.icmsRate||data.icmsReduction)
+      data.icms={basePercent:data.icmsBasePercent,rate:data.icmsRate,...(data.icmsReduction?{reduction:data.icmsReduction}:{})};
+    if(data.pisRate)data.pis={rate:data.pisRate};
+    if(data.cofinsRate)data.cofins={rate:data.cofinsRate};
+    if(data.stRetainedBaseCents||data.stRetainedAmountCents)
+      data.icmsRetained={baseCents:maybeInt(data.stRetainedBaseCents),amountCents:maybeInt(data.stRetainedAmountCents)};
+    if(data.stDueBaseCents||data.stDueRate||data.stDueAmountCents)
+      data.icmsSt={baseCents:maybeInt(data.stDueBaseCents),rate:data.stDueRate,amountCents:maybeInt(data.stDueAmountCents)};
+    if(data.simpleCreditRate||data.simpleCreditAmountCents)
+      data.simpleCredit={rate:data.simpleCreditRate,amountCents:maybeInt(data.simpleCreditAmountCents)};
+    for(const key of ['ibsUfRate','ibsMunRate','cbsRate','icmsBasePercent','icmsRate','icmsReduction',
+      'pisRate','cofinsRate','stRetainedBaseCents','stRetainedAmountCents','stDueBaseCents',
+      'stDueRate','stDueAmountCents','simpleCreditRate','simpleCreditAmountCents'])delete data[key];
     await api.request(prefix+'/products/'+encodeURIComponent(data.productId),{method:'PUT',body:data});
   });});
   draft.addEventListener('submit',event=>{event.preventDefault();void locked(draft,async()=>{
@@ -197,6 +227,12 @@
     for(const [key,value] of Object.entries(data)){
      if(key==='zeroLegacyTaxesConfirmed')product.elements.zeroLegacyTaxesConfirmed.checked=value===true;
      else if(key==='reformTax'&&value){for(const name of ['ibsUfRate','ibsMunRate','cbsRate'])if(value[name]!=null)product.elements[name].value=value[name];}
+     else if(key==='icms'&&value){product.elements.icmsBasePercent.value=value.basePercent||'';product.elements.icmsRate.value=value.rate||'';product.elements.icmsReduction.value=value.reduction||'';}
+     else if(key==='pis'&&value){product.elements.pisRate.value=value.rate||'';}
+     else if(key==='cofins'&&value){product.elements.cofinsRate.value=value.rate||'';}
+     else if(key==='icmsRetained'&&value){product.elements.stRetainedBaseCents.value=value.baseCents??'';product.elements.stRetainedAmountCents.value=value.amountCents??'';}
+     else if(key==='icmsSt'&&value){product.elements.stDueBaseCents.value=value.baseCents??'';product.elements.stDueRate.value=value.rate||'';product.elements.stDueAmountCents.value=value.amountCents??'';}
+     else if(key==='simpleCredit'&&value){product.elements.simpleCreditRate.value=value.rate||'';product.elements.simpleCreditAmountCents.value=value.amountCents??'';}
      else if(key!=='productId'&&product.elements.namedItem(key))product.elements.namedItem(key).value=value||'';
     }
    }).catch(()=>{});
