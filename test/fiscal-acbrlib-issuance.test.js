@@ -82,6 +82,6 @@ test('uncertain worker result permanently blocks blind resend even after service
 test('corrupted INI is rejected before marking any operation as sent',async t=>{
  const f=fixture(t);const issue=f.build(true),ready=issue.prepare(f.draft.id);
  fs.appendFileSync(path.join(f.inputDir,ready.reference+'.ini'),'\nMUDANCA=1');
- await assert.rejects(()=>issue.issue(f.draft.id),/hash|alterad|manifesto|arquivo/i);
+ await assert.rejects(()=>issue.issue(f.draft.id),/hash|SHA-256|diverge|alterad|manifesto|arquivo/i);
  assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
 });
