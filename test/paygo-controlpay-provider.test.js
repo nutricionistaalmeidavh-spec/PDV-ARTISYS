@@ -38,7 +38,7 @@ test('PayGo status final precisa confirmar valor, metodo, autorizacao e pagament
   });
   assert.deepEqual(await tef.reconcile({txid,providerReference:'2015371',method:'CREDIT_CARD',amountCents:12345}),{
     status:'APPROVED',txid,amountCents:12345,providerReference:'2015371',
-    authorizationCode:'AUT123',acquirer:'PAYGO',nsu:'2025992'
+    authorizationCode:'AUT123',acquirer:'PAYGO',paymentExternalId:'2025992'
   });
 });
 test('PayGo resultado nao final nao comprova pagamento',async()=>{
