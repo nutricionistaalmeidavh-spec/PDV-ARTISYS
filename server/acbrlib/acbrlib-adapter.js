@@ -6,6 +6,7 @@ const {spawn}=require('node:child_process');
 const {createHash}=require('node:crypto');
 const fs=require('node:fs');
 const path=require('node:path');
+const {inspectLocalAcbrConfig}=require('./acbr-config-check');
 
 const REF=/^[A-Za-z0-9._-]{1,80}$/;
 const HASH=/^[a-f0-9]{64}$/;
@@ -44,6 +45,7 @@ function readManifest(dir,reference){
      !HASH.test(String(manifest.snapshotHash||''))||
      !Number.isSafeInteger(manifest.amountCents)||manifest.amountCents<=0||
      !CNPJ.test(String(manifest.issuerCnpj||'').toUpperCase())||
+     !/^[A-Z]{2}$/.test(String(manifest.issuerUF||''))||
      !['homologation','production'].includes(manifest.environment)||
      !Number.isSafeInteger(manifest.lot)||manifest.lot<=0||manifest.lot>999999999||
      !Number.isSafeInteger(manifest.number)||manifest.number<1||manifest.number>999999999||
@@ -56,7 +58,7 @@ function readManifest(dir,reference){
 }
 function sameSnapshot(document,manifest){
   if(!document||typeof document!=='object'||Array.isArray(document))return false;
-  return ['reference','documentType','snapshotHash','amountCents','issuerCnpj','environment','lot','model','number','series','cNF']
+  return ['reference','documentType','snapshotHash','amountCents','issuerCnpj','issuerUF','environment','lot','model','number','series','cNF']
     .every(key=>document[key]===manifest[key]);
 }
 function unknown(){
@@ -148,6 +150,7 @@ function createAcbrLibAdapter(options={}){
     const configPath=localFile(options.nfeConfig,'Configuração ACBrLib');
     const workerExe=localFile(options.workerExe,'Executor ACBrLib local');
     const {iniPath,manifest}=readManifest(dir,reference);
+    inspectLocalAcbrConfig({file:configPath,model:manifest.model,issuerUF:manifest.issuerUF});
     if(type!==manifest.documentType||environment!==manifest.environment)
       throw Error('Tipo/ambiente diferem do manifesto fiscal');
     if(environment==='production'&&options.allowProduction!==true)
@@ -186,9 +189,17 @@ function createAcbrLibAdapter(options={}){
      try{
       localDirectory(options.inputDir);
       localFile(options.nfeLib,'ACBrNFe');
-      localFile(options.nfeConfig,'Configuração ACBrLib');
+      const cfg=localFile(options.nfeConfig,'Configuração ACBrLib');
       localFile(options.workerExe,'Executor ACBrLib');
-      ready=true;
+      // Status is only ready when the private config is explicitly tied to a
+      // known issuer UF and safe homologation certificate. Never infer UF.
+      if(options.issuerUF){
+       try{inspectLocalAcbrConfig({file:cfg,model:65,issuerUF:options.issuerUF});ready=true;}
+       catch{inspectLocalAcbrConfig({file:cfg,model:55,issuerUF:options.issuerUF});ready=true;}
+      }else{
+       // Per-document preflight will validate issuerUF when issuing.
+       ready=true;
+      }
      }catch{/* Fail closed: no library or private config. */}
     }
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
