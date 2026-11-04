@@ -65,13 +65,13 @@ O adaptador nunca salva token, certificado ou chave privada no SQLite. O operado
 
 ## Contrato do TEF
 
-`paymentOptions.tefProvider` recebe uma implementacao local e isolada. A resposta so sera marcada VERIFIED quando contiver `{status:'APPROVED',txid,amountCents,nsu,authorizationCode,acquirer}` associados exatamente a tentativa. Recusa vira FAILED; perda de conexao, resposta duvidosa ou queda vira REVIEW e **nao** provoca repeticao automatica. Exigir status de transacao da operadora antes de nova tentativa.
+`paymentOptions.tefProvider` recebe uma implementacao local e isolada. A resposta so sera marcada VERIFIED quando contiver `{status:'APPROVED',txid,amountCents,nsu,authorizationCode,acquirer}` associados exatamente a tentativa. Recusa vira FAILED; perda de conexao, resposta duvidosa ou queda vira REVIEW e **nao** provoca repeticao automatica. Para recuperar um resultado indeterminado, o adaptador pode implementar `tefProvider.verify({id,txid,amountCents,method,saleId})`; somente uma resposta autenticada, com valor e identificador coincidentes, devolve VERIFIED. Exigir status de transacao da operadora antes de nova tentativa.
 
 O contrato do provedor **nao substitui** um executavel ACBr/PayGo/SiTef, PinPad homologado ou credenciamento. Esta fase entrega o motor de transacoes, nao um conector especifico de maquininha pronto para producao.
 
 ## Estorno, fiscal e limites
 
-Pagamentos integrados consumidos bloqueiam o cancelamento automatico da venda ate existir fluxo de estorno/conciliacao externa. Devolucoes parciais, Pix devolucao, cancelamento TEF e conciliacao fiscal em producao **ainda necessitam de implementacao/homologacao**. Nao usar a compensacao contabil local como prova de estorno real.
+Tentativas integradas pendentes, indeterminadas ou consumidas bloqueiam o cancelamento da venda ate cancelamento seguro/estorno/conciliacao externa. Devolucoes de vendas com Pix/TEF integrado recebido tambem ficam bloqueadas, pois o movimento contabil local nao restitui dinheiro no banco ou adquirente. Pix devolucao, cancelamento TEF e conciliacao fiscal em producao **ainda necessitam de implementacao/homologacao**. Nao usar a compensacao contabil local como prova de estorno real.
 
 Nao armazenar PAN, trilha, senha do PinPad, token OAuth ou senha de certificado em `payment_intents` ou logs. A tabela persiste somente status e referencias. Dados e migrations sao aditivos; nao ha reset de estoque nem das vendas existentes.
 
