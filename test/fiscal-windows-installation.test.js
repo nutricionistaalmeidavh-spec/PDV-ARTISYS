@@ -46,6 +46,9 @@ test('old installation and new machine share the original appId, productName, ex
  const config=createWindowsFiscalInstallerConfig({packageBuild:pkg.build,resourcesPath:resources});
  assert.equal(pkg.build.appId,'com.artisys.pdv');
  assert.equal(pkg.build.productName,'ArtiSys PDV');
+ assert.equal(pkg.build.files.some(pattern=>pattern==='!desktop/fiscal-*.cjs'),false,
+  'The standard Windows app must ship modules required by desktop/main.cjs or it crashes at startup');
+ assert.ok(pkg.build.files.some(pattern=>pattern==='desktop/**/*'));
  assert.equal(config.appId,pkg.build.appId);
  assert.equal(config.productName,pkg.build.productName);
  assert.equal(config.win.artifactName,'ArtiSys-PDV-${version}-${arch}-Setup.${ext}');
