@@ -205,3 +205,81 @@ emissão/resposta da ACBrLib no runtime, reconciliação e cancelamento,
 DANFE, contingência e evidência de autorização real da SEFAZ.
 Sem isso, a emissão fiscal permanece **indisponível**, mesmo com dados
 e rascunhos preenchidos. Nenhum serviço pago é dependência do core.
+
+
+## Etapas 2 e 3: compilador ACBr e homologação local (04/11/2026)
+
+Foram acrescentados o compilador server/acbrlib/fiscal-ini-builder.js
+e o coordenador server/acbrlib/fiscal-issuance-service.js. Eles
+permitem preparar INI e manifesto vinculados à venda e acionar a
+ACBrLib para assinatura e envio em homologação, quando habilitados
+explicitamente. **Não houve autorização real da SEFAZ neste trabalho.**
+
+### Perfil tributário coberto inicialmente
+
+- Venda interna de mercadoria: CFOP 5102.
+- Emitente Simples Nacional, CSOSN 102, PIS e COFINS CST 49; o
+  tratamento sem valores de ICMS/PIS/COFINS exige confirmação
+  expressa da contabilidade.
+- Reforma tributária: códigos IBS/CBS CST 000 e cClassTrib informado,
+  alíquotas IBS UF, IBS município e CBS fornecidas e revisadas.
+  Os valores por item são calculados a partir do total líquido
+  da venda, em centavos, sem taxas padrão presumidas.
+- Emitente precisa ter endereço completo e código IBGE municipal
+  coerente com UF. NF-e modelo 55 exige destinatário completo.
+  NFC-e modelo 65 pode ser preparada sem destinatário identificado.
+- Meios aceitos nesta versão: dinheiro e PIX. Cartões, crédito de loja,
+  crédito fiscal, ICMS ST, tributação especial, operações
+  interestaduais e outros cenários não mapeados são bloqueados.
+
+Este escopo é propositalmente estreito: não converter todos os itens
+para CSOSN 102 ou IBS/CBS CST 000 por padrão. Cada cenário adicional
+precisa de mapeamento e validação contábil.
+
+### Fluxo HTTP disponível somente em desenvolvimento
+
+1. POST /api/v1/fiscal-preview/sales/:id/prepare — snapshot e numeração
+   idempotentes da venda concluída, sem estoque/caixa adicionais.
+2. POST /api/v1/fiscal-preview/documents/:id/compile — gera INI ACBr
+   e manifesto com SHA-256, CNPJ, modelo, número, série e cNF.
+3. POST /api/v1/fiscal-preview/documents/:id/transmit — grava
+   estado UNKNOWN antes do worker e solicita envio à SEFAZ somente
+   em homologação explicitamente habilitada.
+4. POST /api/v1/fiscal-preview/documents/:id/consult — consulta
+   pela chave do XML assinado sem retransmitir a nota.
+
+O retorno da autorização é confrontado com chave e DV, emitente,
+ambiente, modelo, número/série, cNF, total, assinatura, cStat e
+protocolo. A resposta desconhecida não dispara reenvio. A mesma venda
+não pode gerar NFC-e e NF-e simultaneamente.
+
+### Configuração manual de teste
+
+O operador deve compilar ou instalar localmente bibliotecas ACBr OSS,
+configurar certificado/CSC no INI privado da ACBrLib (fora do banco
+e do controle de versão) e definir as variáveis seguintes no PC de
+desenvolvimento Windows, ajustando os caminhos reais:
+
+    ARTISYS_FISCAL_PREVIEW=1
+    ARTISYS_ACBR_INPUT_DIR=C:\ArtiSys-Privado\Fiscal\input
+    ARTISYS_ACBR_NFE_DLL=C:\ArtiSys-OSS\ACBrNFe64.dll
+    ARTISYS_ACBR_WORKER_EXE=C:\ArtiSys-OSS\acbrlib-worker.exe
+    ARTISYS_ACBR_CONFIG_INI=C:\ArtiSys-Privado\ACBrLibNFe.ini
+    ARTISYS_ACBR_HOMOLOGATION=1
+
+O modo não funciona no Electron empacotado e o servidor standalone
+somente admite host loopback. Certificado, senha e CSC não devem
+ser registrados no Git, enviados pela API ou gravados em logs.
+
+### Pendências para considerar concluída a etapa 3
+
+- Build real da DLL/worker em Windows e smoke test do instalador.
+- Certificado A1/CSC e credenciamento válido do cliente para sua UF.
+- Validação XML/schema e notas técnicas vigentes pelo ACBr e SEFAZ,
+  autorização real, rejeição, consulta e teste de internet interrompida.
+- DANFE, cancelamento, contingência e configuração de certificado
+  na interface final do PDV.
+
+Os testes automatizados usam um worker simulado e não substituem
+respostas reais da SEFAZ. Main e clientes instalados não são alterados.
+Nenhum serviço pago é dependência do módulo local.
