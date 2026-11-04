@@ -1,3 +1,62 @@
+# ESTADO ATUAL — 04/11/2026 (leia antes das seções históricas)
+
+> **NÃO HOMOLOGADO / NÃO LIBERADO A CLIENTES EM PRODUÇÃO.**
+> As seções mais abaixo documentam ciclos anteriores e podem descrever
+> limitações já removidas ou comportamentos substituídos por este resumo.
+
+## O que foi implementado
+
+- ACBrLib OSS local, worker nativo, verificação de binários e instalador
+  fiscal experimental separado, sem dependência de ACBr Pro/API comercial.
+- SQLite fiscal opt-in; perfis tributários auditáveis, snapshots de
+  vendas concluídas, numeração idempotente, tentativas persistentes
+  antes de enviar e consulta sem reenvio cego.
+- NFC-e/NF-e: emitente, destinatário NF-e, NCM, CEST, CFOP interno
+  5102/5405 e 5403 com condições; CST/CSOSN e alíquotas explícitas,
+  ICMS normal, base reduzida, ST retido, ST devido (mapeado **mas
+  bloqueado para emitir** até fechar total comercial), crédito Simples,
+  PIS/COFINS tributados ou não tributados sob revisão contábil.
+- Regimes CRT 1 e CRT 4 usam CSOSN; CRT 2 e 3 usam CST ICMS.
+  Lucro Real e Presumido são representados pelo CRT 3, mas a forma
+  de apuração e as regras tributárias continuam por produto e operação.
+- NT 2026.005: escolha explícita de regime IBS/CBS, cAtivSN e
+  tpRegimeIBSCBS=1 para CRT 1/2 regular; MEI CRT 4 omite grupo
+  IBS/CBS; **Simples fora do IBS/CBS regular fica bloqueado**
+  até o mapeamento do gTribSN e validação do XML.
+- Dinheiro, PIX e cartão com metadados de adquirente/TEF originários
+  do pagamento comercial, sem cartão/PAN no documento.
+- Rejeita emissão de tributos ausentes, CST incompatível, CFOP/CEST
+  inconsistente, imposto ST que mudaria o total canônico, duplicidade,
+  UF divergente e certificado/CSC não configurados.
+- Leitura estrita do arquivo privado da ACBr: [NFe] Ambiente=1
+  (homologação), FormaEmissao=0, [DFe] certificado A1 PFX,
+  senha, UF e validação de validade. NFC-e exige CSC/IdCSC.
+  **Nenhuma senha/certificado/CSC deve ser registrada no Git ou
+  transportada pela API fiscal do PDV.**
+
+## Restrições da liberação
+
+A primeira emissão verdadeira ainda requer: compilação e instalação
+Windows x64 dos recursos oficiais ACBr OSS, certificado/CSC e
+credenciamento do usuário por UF, XML validado por schemas vigentes
+(NT 2025.002 v1.53, NT 2026.005 v1.00, NT 2026.006 v1.01,
+NT 2026.008 v1.01), respostas reais SEFAZ e QA de rejeição,
+recuperação e contingência. Também faltam DANFE e cancelamento
+integrados à interface definitiva, ST devido no total da venda e
+situações tributárias especiais/interestaduais.
+
+As verificações Node/Python simulam o worker/SEFAZ e **não provam**
+emissão oficial autorizada. O instalador comercial da main permanece
+sem emissão fiscal até QA e aprovação. O core continua gratuito,
+self-hosted e livre.
+
+Referências oficiais:
+- https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=04BIflQt1aY=
+- https://acbr.sourceforge.io/ACBrLib/ConfiguracoesdaBiblioteca16.html
+- https://acbr.sourceforge.io/ACBrLib/DFe.html
+
+---
+
 # Fiscal ACBrLib OSS — adaptação da Oficina ao PDV
 
 ## Estado do trabalho
