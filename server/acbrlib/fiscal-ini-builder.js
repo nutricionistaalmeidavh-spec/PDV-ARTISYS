@@ -60,8 +60,20 @@ function issuer(emit){
  const cnpj=required(emit.cnpj,'CNPJ',{max:14,pattern:/^\d{14}$/});
  // Reject obvious invalid identifiers even if a test environment is used.
  if(/^(\d)\1{13}$/.test(cnpj))throw Error('CNPJ inválido');
+ const crt=required(emit.crt,'CRT',{max:1,pattern:/^[1-4]$/});
+ const taxRegime=String(emit.ibsCbsRegime||'unconfigured');
+ // NT 2026.005: CRT 1/2 in regular IBS/CBS regime require indicator 1,
+ // MEI (CRT 4) must omit all IBS/CBS groups, and Simples nonregular
+ // requires gTribSN, which needs a separate validated ACBr layout.
+ if(['1','2'].includes(crt)&&taxRegime!=='regular')
+  throw Error('Simples Nacional sem opção pelo IBS/CBS regular exige gTribSN conforme NT 2026.005: emissão bloqueada até integração do layout');
+ if(crt==='3'&&taxRegime!=='regular')
+  throw Error('Regime IBS/CBS normal precisa ser confirmado, incluindo possíveis opções pendentes do Simples');
+ if(crt==='4'&&taxRegime!=='mei')
+  throw Error('MEI exige tratamento específico sem IBS/CBS conforme NT 2026.005');
  const r={
-  CRT:required(emit.crt,'CRT',{max:1,pattern:/^[1-4]$/}),
+  CRT:crt,
+  ...(['1','2'].includes(crt)?{tpRegimeIBSCBS:'1'}:{}),
   CNPJCPF:cnpj,xNome:required(emit.name,'razão social',{max:60}),
   xFant:emit.tradeName?required(emit.tradeName,'nome fantasia',{max:60}):undefined,
   IE:required(emit.stateRegistration,'inscrição estadual',{max:32}),
@@ -94,10 +106,15 @@ function recipientGroup(recipient){
  };
 }
 function taxSections(lines,tax,index,net,crt){
+ const mei=String(crt)==='4';
  if(!tax||typeof tax!=='object')throw Error('Perfil tributário não revisado');
  const legacy=compileLegacyTaxGroups({profile:tax,crt,netCents:net});
  for(const section of ['ICMS','PIS','COFINS'])
    group(lines,section+index,legacy.sections[section]);
+ if(mei){
+  // NT 2026.005: MEI cannot provide group IBSCBS.
+  return {base:0,ufC:0,munC:0,cbsC:0,legacy:legacy.totals};
+ }
  if(!tax.ibsCbsCst||!tax.cClassTrib||!tax.reformTax)
   throw Error('IBS/CBS requer código, classificação e cálculo revisados em 2026');
  const r=tax.reformTax,base=cents(r.baseCents,'base IBS/CBS');
@@ -166,7 +183,10 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
    xProd:required(item.productName,'descrição produto',{max:120}),
    NCM:required(tax.ncm,'NCM',{max:8,pattern:/^\d{8}$/}),
    CEST:tax.cest?required(tax.cest,'CEST',{max:7,pattern:/^\d{7}$/}):undefined,
-   CFOP:'5102',uCom:required(tax.unit,'unidade',{max:8,pattern:/^[A-Z0-9]+$/}),
+   CFOP:'5102',
+   ...(['1','2'].includes(String(s.issuer.crt))?
+    {cAtivSN:required(tax.cAtivSN,'cAtivSN atividade Simples Nacional',{max:2,pattern:/^(?:01|02|03|04|90)$/})}:{ }),
+   uCom:required(tax.unit,'unidade',{max:8,pattern:/^[A-Z0-9]+$/}),
    qCom:quantity,vUnCom:brl(item.unitPriceCents),vProd:brl(g),vDesc:brl(d),
    uTrib:tax.unit,qTrib:quantity,vUnTrib:brl(item.unitPriceCents),cEANTrib:'SEM GTIN',indTot:1
   });
@@ -184,11 +204,13 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
   vBCST:brl(legacyTotals.stBaseCents),vST:brl(legacyTotals.stCents),
   vProd:brl(gross),vDesc:brl(discount),vPIS:brl(legacyTotals.pisCents),
   vCOFINS:brl(legacyTotals.cofinsCents),vNF:brl(net)});
- group(lines,'IBSCBSTot',{vBCIBSCBS:brl(reform.base)});
- group(lines,'gIBS',{vIBS:brl(reform.ufC+reform.munC)});
- group(lines,'gIBSUFTot',{vIBSUF:brl(reform.ufC)});
- group(lines,'gIBSMunTot',{vIBSMun:brl(reform.munC)});
- group(lines,'gCBSTot',{vCBS:brl(reform.cbsC)});
+ if(String(s.issuer.crt)!=='4'){
+  group(lines,'IBSCBSTot',{vBCIBSCBS:brl(reform.base)});
+  group(lines,'gIBS',{vIBS:brl(reform.ufC+reform.munC)});
+  group(lines,'gIBSUFTot',{vIBSUF:brl(reform.ufC)});
+  group(lines,'gIBSMunTot',{vIBSMun:brl(reform.munC)});
+  group(lines,'gCBSTot',{vCBS:brl(reform.cbsC)});
+ }
  group(lines,'Transportador',{modFrete:9});
  const payments=s.payments;
  if(!Array.isArray(payments)||!payments.length||payments.length>99)throw Error('Pagamentos fiscais ausentes');
