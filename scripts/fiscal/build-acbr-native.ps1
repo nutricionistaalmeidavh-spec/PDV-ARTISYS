@@ -68,17 +68,19 @@ foreach ($pkg in $extraPackages) {
   if (-not (Test-Path $pkg)) { throw "Pacote externo open source ausente: $pkg" }
   Run $lazbuild @("--pcp=$pcp",'--add-package-link',$pkg)
 }
+# Use named records: a one-item nested PowerShell array is flattened and
+# would turn 'NFe' into the characters N/F instead of a project path.
 $projects = @(
-  @('NFe','ACBrLibNFe.lpi','ACBrNFe64.dll')
+  @{Directory='NFe'; File='ACBrLibNFe.lpi'; Binary='ACBrNFe64.dll'}
 )
 foreach ($item in $projects) {
-  $projectDir = Join-Path $source ('Projetos/ACBrLib/Fontes/'+$item[0])
-  $project = Join-Path $projectDir $item[1]
+  $projectDir = Join-Path $source ('Projetos/ACBrLib/Fontes/'+$item.Directory)
+  $project = Join-Path $projectDir $item.File
   if (-not (Test-Path $project)) { throw "Fonte ACBr não encontrado: $project" }
   Run $lazbuild @("--pcp=$pcp",'-B','--build-mode=Win64-x86_64-CDECL',$project)
-  $nativeFile = Join-Path $projectDir ('bin/Windows/ST/Cdecl/'+$item[2])
+  $nativeFile = Join-Path $projectDir ('bin/Windows/ST/Cdecl/'+$item.Binary)
   if (-not (Test-Path $nativeFile)) { throw "DLL não foi gerada: $nativeFile" }
-  Copy-Item -Path $nativeFile -Destination (Join-Path $output $item[2]) -Force
+  Copy-Item -Path $nativeFile -Destination (Join-Path $output $item.Binary) -Force
 }
 $depDir = Join-Path $output 'deps'
 New-Item -ItemType Directory -Path $depDir -Force | Out-Null
