@@ -164,7 +164,7 @@
    const list=document.createElement('ul');
    for(const d of docs.slice(0,20)){
     const li=document.createElement('li');
-    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}`;
+    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)':''}`;
     const endpoint=prefix+'/documents/'+encodeURIComponent(d.id);
     const addAction=(title,operation)=>{
       const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=title;
@@ -211,7 +211,46 @@
       });
     };
     if(d.status==='REVIEW_REQUIRED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar INI','compile');
-    if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction('Emitir em homologação','transmit');
+
+    if(d.status==='REVIEW_REQUIRED'&&d.documentType==='nfce'&&fiscalStatus.emissionEnabled){
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');summary.textContent='Preparar NFC-e de contingência (modo offline)';
+      const form=document.createElement('form');form.className='field-grid';
+      const label=document.createElement('label');label.className='field wide';
+      const title=document.createElement('span');title.textContent='Justificativa da indisponibilidade da SEFAZ (mínimo 15 caracteres)';
+      const reason=document.createElement('textarea');
+      reason.minLength=15;reason.maxLength=256;reason.required=true;
+      reason.setAttribute('data-acbr-offline-reason','');
+      const warning=document.createElement('p');
+      warning.textContent='A preparação offline não representa nota fiscal emitida nem autorizada. Não imprima DANFE fiscal; transmita e confira a autorização após reconexão.';
+      const btn=document.createElement('button');btn.type='submit';btn.className='secondary-button';
+      btn.textContent='Preparar documento para contingência';
+      label.append(title,reason);form.append(label,warning,btn);
+      details.append(summary,form);li.append(details);
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(!form.reportValidity())return;
+        const ux=window.ArtisysUxComponents;
+        if(!ux?.openFormDialog){message(card,'Confirmação de contingência indisponível',true);return;}
+        const approval=await ux.openFormDialog({
+          title:'Preparar NFC-e em contingência',
+          description:'Somente para falha de comunicação comprovada com a SEFAZ. Este passo não emite nem autoriza a nota.',
+          confirmLabel:'Confirmar preparação',cancelLabel:'Voltar',tone:'default',
+          body:'<p>O documento manterá tpEmis=9 e só será transmitido manualmente após reconexão.</p>'
+        });
+        if(!approval.confirmed)return;
+        btn.disabled=true;
+        try{
+          const result=await api.request(endpoint+'/compile',{method:'POST',
+            body:{contingency:{reason:reason.value.trim()}}});
+          message(card,result.issuanceMode==='nfce-offline'?
+            'Contingência preparada; NFC-e não emitida, sem DANFE autorizado. Transmita após reconectar.':
+            'Preparação fiscal não confirmou modo de contingência.',result.issuanceMode!=='nfce-offline');
+          await refreshDocuments(card);
+        }catch(err){message(card,err.message||'Falha ao preparar contingência',true);}
+        finally{btn.disabled=false;}
+      });
+    }
+    if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction(d.issuanceMode==='nfce-offline'?'Transmitir à SEFAZ após reconexão':'Emitir em homologação','transmit');
     if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
     if(d.status==='AUTHORIZED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar e salvar DANFE PDF','danfe');
     if(d.status==='AUTHORIZED'&&fiscalStatus.emissionEnabled){
