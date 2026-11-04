@@ -191,6 +191,27 @@ function createAcbrLibAdapter(options={}){
   }
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
+  async function pdf(request={}){
+    // Never render from arbitrary request paths, only the exact authorized XML
+    // stored under this installation's verified fiscal input directory.
+    const context=prepare({...request,requirePayload:false});
+    const verified=localDirectory(options.inputDir);
+    const exact=localFile(path.join(verified,request.reference+'.authorized.xml'),'XML autorizado');
+    if(!inside(verified,exact)||request.xmlPath!==exact)
+     throw Error('Arquivo XML fiscal fora do documento autorizado');
+    const xml=fs.readFileSync(exact,'utf8');
+    const protocol=String(request.protocol||'');
+    if(!/^\\d{10,20}$/.test(protocol)||xmlField(xml,'nProt')!==protocol||
+       xmlField(xml,'cStat')!=='100'||xmlValueCents(xmlField(xml,'vNF'))!==context.manifest.amountCents)
+     throw Error('XML autorizado ou protocolo divergente do documento fiscal');
+    const result=await runner({...context.command,operation:'pdf',xmlPath:exact,protocol});
+    if(result?.status!=='PDF_READY'||typeof result.pdfBase64!=='string')
+     return blocked('PDF da ACBrLib indisponível ou não confirmado');
+    const base64=result.pdfBase64;
+    if(base64.length>4*1024*1024||!/^\\w/.test(base64))
+     return blocked('PDF fiscal ACBr excede limite de tamanho');
+    return {ok:true,status:200,data:{pdfBase64:base64}};
+  }
   async function cancel(){return{ok:false,status:501,data:null,error:'Cancelamento fiscal ainda não homologado na ACBrLib nativa.'};}
   async function status(){
     let ready=false;
@@ -211,6 +232,6 @@ function createAcbrLibAdapter(options={}){
     }
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
   }
-  return Object.freeze({status,issue,query,cancel});
+  return Object.freeze({status,issue,query,cancel,pdf});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
