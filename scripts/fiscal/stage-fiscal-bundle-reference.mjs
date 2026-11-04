@@ -11,8 +11,7 @@ const native=resolve('build/fiscal-native');
 const nativeDeps=join(native,'deps');
 const required=[
   ['acbrlib-worker.exe',worker],
-  ['ACBrNFe64.dll',join(native,'ACBrNFe64.dll')],
-  ['ACBrNFSe64.dll',join(native,'ACBrNFSe64.dll')]
+  ['ACBrNFe64.dll',join(native,'ACBrNFe64.dll')]
 ];
 const rev=readFileSync(resolve('build/acbr-revision.txt'),'utf8').trim();
 if(!/^\d+$/.test(rev))throw new Error('Revisão SVN ACBr não verificada');
