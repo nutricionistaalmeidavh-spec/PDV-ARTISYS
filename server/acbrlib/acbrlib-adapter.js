@@ -67,7 +67,7 @@ function xmlField(xml,field){
   return expression.exec(xml)?.[1]?.trim()||'';
 }
 function xmlValueCents(text){
-  const match=/^([0-9]{1,13})\\.([0-9]{2})$/.exec(String(text||''));
+  const match=/^([0-9]{1,13})\.([0-9]{2})$/.exec(String(text||''));
   if(!match)return null;
   const cents=Number(match[1])*100+Number(match[2]);
   return Number.isSafeInteger(cents)?cents:null;
