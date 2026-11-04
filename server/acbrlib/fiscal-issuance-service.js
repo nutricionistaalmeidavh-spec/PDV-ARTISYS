@@ -104,11 +104,14 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    throw Error('Manifesto fiscal diverge do documento canônico');
   return {meta,iniPath,manifest};
  }
- function prepare(id,{recipient=null}={}){
+ function prepare(id,{recipient=null,contingency=null}={}){
   const document=draftFor(id);
   if(document.status==='READY'){
    const ready=verifyReady(document);
-   return {id:document.id,status:'READY',reference:ready.meta.reference,model:document.model};
+   const mode=ready.manifest.issuanceMode||'normal';
+   if(contingency!==null || mode!=='normal')
+    throw Error('Documento já preparado: contingência tem identidade fiscal imutável e não pode ser convertida');
+   return {id:document.id,status:'READY',reference:ready.meta.reference,model:document.model,issuanceMode:mode};
   }
   if(document.status!=='REVIEW_REQUIRED')
    throw Error('Documento já enviado ou com consulta fiscal obrigatória');
@@ -116,7 +119,18 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   // Preserve cNF and emission timestamp if preparation was interrupted.
   const cNF=existing?.cnf||randomCNF();
   const issuedAt=existing?.issued_at||now();
-  const compiled=compileAcbrIni({document,cNF,issuedAt,recipient});
+  if(contingency!==null){
+   if(!allowHomologation)throw Error('Preparação de contingência somente em homologação habilitada');
+   if(document.documentType!=='nfce'||document.model!==65)
+    throw Error('Contingência offline exclusiva NFC-e 65');
+   if(typeof contingency!=='object'||Array.isArray(contingency))
+    throw Error('Justificativa da contingência obrigatória');
+  }
+  // Keep event timestamp server-owned; never trust a browser clock as the fiscal record.
+  const offline=contingency===null?null:{
+   reason:String(contingency.reason||''),startedAt:issuedAt
+  };
+  const compiled=compileAcbrIni({document,cNF,issuedAt,recipient,contingency:offline});
   const {reference,ini,manifest}=compiled;
   if(existing&&existing.reference!==reference)throw Error('Referência fiscal divergente');
   const iniPath=path.join(dir,reference+'.ini');
@@ -134,7 +148,8 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
      "WHERE id=? AND status='REVIEW_REQUIRED'").run(now(),document.id);
    if(count.changes!==1)throw Error('Documento fiscal já preparado por outra operação');
   });
-  return {id:document.id,status:'READY',reference,model:document.model};
+  return {id:document.id,status:'READY',reference,model:document.model,
+   issuanceMode:manifest.issuanceMode||'normal'};
  }
  function authorized(id,result){
   if(result?.ok!==true||!result.data)throw Error('ACBr não retornou autorização confirmada');
