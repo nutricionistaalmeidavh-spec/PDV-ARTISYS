@@ -211,7 +211,7 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  return {reference,ini,manifest:{
   reference,documentType:s.documentType,snapshotHash:document.snapshotHash,
   amountCents:s.totalCents,issuerCnpj:s.issuer.cnpj,
-  environment:'homologation',model:s.model,lot:document.number,
+  environment:'homologation',model:s.model,lot:document.number,number:document.number,series:document.series,cNF:c,
   iniSha256:createHash('sha256').update(ini).digest('hex')
  }};
 }
