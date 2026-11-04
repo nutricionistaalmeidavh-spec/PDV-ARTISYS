@@ -56,7 +56,7 @@
           <div class="field wide"><strong>Etapa 3 — Instalar e ativar o PayGo Windows em cada caixa</strong>
             <p>O cliente PayGo é fornecido pela operadora, não acompanha o instalador ArtiSys. Instale, ative com ID e senha de instalação e teste o PinPad no próprio PayGo antes de usar no PDV.</p>
             <button type="button" class="secondary-button" data-paygo-download ${manage?'':'disabled'}>Abrir download oficial do PayGo Windows</button></div>
-          <div class="field wide"><label for="payment-paygo-url">Servidor da API PayGo</label><input id="payment-paygo-url" name="baseUrl" type="url" value="https://sandbox.controlpay.com.br/webapi/" placeholder="https://.../webapi/" required ${manage?'':'disabled'}></div>
+          <div class="field wide"><label for="payment-paygo-url">Servidor da API PayGo</label><input id="payment-paygo-url" name="baseUrl" type="url" value="https://sandbox.controlpay.com.br/webapi/" placeholder="https://.../webapi/" ${manage?'':'disabled'}></div>
           <div class="field wide"><label for="payment-paygo-key">Chave de integração fornecida pela operadora</label><input id="payment-paygo-key" name="integrationKey" type="password" autocomplete="new-password" placeholder="Deixe vazio para conservar a chave já salva" ${manage?'':'disabled'}></div>
           <div class="field"><label for="payment-paygo-terminal">ID PayGo (um único caixa)</label><input id="payment-paygo-terminal" name="terminalId" placeholder="Ex.: 1234" ${manage?'':'disabled'}></div>
           <div class="field wide"><label for="payment-paygo-map">Vários caixas: uma linha por terminal LAN (substitui o ID acima)</label>
@@ -82,6 +82,7 @@
     const status=card.querySelector('[data-payment-mode-summary]');
     const errorBox=card.querySelector('[data-payment-setup-error]');
     const updateMode=()=>{
+      tefForm.elements.namedItem('baseUrl').required=mode.value==='paygo';
       card.querySelector('[data-payment-paygo]').hidden=mode.value!=='paygo';
       card.querySelector('[data-payment-bridge]').hidden=mode.value!=='bridge';
     };
