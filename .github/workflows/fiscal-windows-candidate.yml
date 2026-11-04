@@ -46,8 +46,15 @@ jobs:
         run: |
           choco install lazarus --version=4.0.0 --no-progress -y
           if ($LASTEXITCODE -ne 0) { throw 'Lazarus/FPC toolchain installation failed' }
-          choco install subversion --no-progress -y
-          if ($LASTEXITCODE -ne 0) { throw 'SVN installation failed' }
+          choco install sliksvn --version=1.14.5 --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'SlikSVN OSS installation failed' }
+          # The Chocolatey package can omit bin from PATH. Persist it across Actions steps.
+          $svnBin = Join-Path $env:ProgramFiles 'SlikSvn\bin'
+          if (!(Test-Path (Join-Path $svnBin 'svn.exe'))) { throw 'svn.exe missing after installing SlikSVN' }
+          $env:PATH = "$svnBin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $svnBin
+          & svn --version --quiet
+          if ($LASTEXITCODE -ne 0) { throw 'Subversion CLI probe failed' }
       - name: Build ACBrLib and probe real DLL exports (no certificate, no SEFAZ)
         shell: pwsh
         run: |
