@@ -8,7 +8,7 @@ const UF_CODES=Object.freeze({RO:'11',AC:'12',AM:'13',RR:'14',PA:'15',AP:'16',
  TO:'17',MA:'21',PI:'22',CE:'23',RN:'24',PB:'25',PE:'26',AL:'27',SE:'28',
  BA:'29',MG:'31',ES:'32',RJ:'33',SP:'35',PR:'41',SC:'42',RS:'43',
  MS:'50',MT:'51',GO:'52',DF:'53'});
-const PAYMENT=Object.freeze({CASH:'01',PIX:'17',DEBIT_CARD:'04',CREDIT_CARD:'03'});
+const PAYMENT=Object.freeze({CASH:'01',PIX:'17',DEBIT_CARD:'04',CREDIT_CARD:'03',STORE_CREDIT:'05'});
 function required(v,label,{max=120,pattern=null}={}){
  const s=String(v??'').trim();
  if(!s||s.length>max||(pattern&&!pattern.test(s)))throw Error('Campo fiscal inválido ou ausente: '+label);
@@ -196,12 +196,18 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  payments.forEach((p,i)=>{
   const key=required(p.method,'forma de pagamento',{max:30});
   if(!Object.hasOwn(PAYMENT,key))throw Error('Forma de pagamento não suportada no piloto fiscal');
-  // Card receipts need acquirer metadata (integration, brand and auth code)
-  // which the current canonical snapshot does not provide.
-  if(['CREDIT_CARD','DEBIT_CARD'].includes(key))throw Error('Pagamento com cartão exige integração TEF/adquirente revisada');
   const amount=cents(p.amountCents,'pagamento');if(!amount)throw Error('Pagamento fiscal zerado');
   paid+=amount;
   const fields={tPag:PAYMENT[key],vPag:brl(amount),indPag:0};
+  if(['CREDIT_CARD','DEBIT_CARD'].includes(key)){
+   const meta=p.fiscalMetadata;
+   if(!meta||typeof meta!=='object')throw Error('Pagamento com cartão exige metadados canônicos da adquirente/integração');
+   fields.tpIntegra=required(meta.tpIntegra,'integração TEF/adquirente',{max:1,pattern:/^[12]$/});
+   fields.CNPJ=required(meta.cnpj,'CNPJ adquirente',{max:14,pattern:/^[0-9]{14}$/});
+   fields.tBand=required(meta.tBand,'bandeira do cartão',{max:2,pattern:/^[0-9]{2}$/});
+   fields.cAut=required(meta.cAut,'autorização cartão',{max:20,pattern:/^[A-Za-z0-9_-]{1,20}$/});
+   if(meta.indPag!=null)fields.indPag=required(meta.indPag,'indicador pagamento',{max:1,pattern:/^[01]$/});
+  }
   if(i===payments.length-1)fields.vTroco=brl(s.changeCents||0);
   group(lines,'pag'+String(i+1).padStart(3,'0'),fields);
  });
