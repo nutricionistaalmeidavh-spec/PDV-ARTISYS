@@ -46,6 +46,9 @@ function readManifest(dir,reference){
      !CNPJ.test(String(manifest.issuerCnpj||'').toUpperCase())||
      !['homologation','production'].includes(manifest.environment)||
      !Number.isSafeInteger(manifest.lot)||manifest.lot<=0||manifest.lot>999999999||
+     !Number.isSafeInteger(manifest.number)||manifest.number<1||manifest.number>999999999||
+     !Number.isSafeInteger(manifest.series)||manifest.series<1||manifest.series>999||
+     !/^\d{8}$/.test(String(manifest.cNF||''))||
      !Number.isSafeInteger(manifest.model)||
      manifest.model!==(manifest.documentType==='nfce'?65:55))
     throw Error('Manifesto fiscal incompleto ou inconsistente');
@@ -53,7 +56,7 @@ function readManifest(dir,reference){
 }
 function sameSnapshot(document,manifest){
   if(!document||typeof document!=='object'||Array.isArray(document))return false;
-  return ['reference','documentType','snapshotHash','amountCents','issuerCnpj','environment','lot','model']
+  return ['reference','documentType','snapshotHash','amountCents','issuerCnpj','environment','lot','model','number','series','cNF']
     .every(key=>document[key]===manifest[key]);
 }
 function unknown(){
@@ -72,6 +75,19 @@ function xmlValueCents(text){
   const cents=Number(match[1])*100+Number(match[2]);
   return Number.isSafeInteger(cents)?cents:null;
 }
+function accessKeyMatches(key,manifest){
+ if(!ACCESS_KEY.test(key))return false;
+ let weight=2,sum=0;
+ for(let i=42;i>=0;i--){sum+=Number(key[i])*weight;weight=weight===9?2:weight+1;}
+ const v=11-(sum%11),digit=v>=10?0:v;
+ return Number(key[43])===digit&&
+  key.slice(6,20)===manifest.issuerCnpj&&
+  key.slice(20,22)===String(manifest.model)&&
+  Number(key.slice(22,25))===manifest.series&&
+  Number(key.slice(25,34))===manifest.number&&
+  key.slice(34,35)==='1'&&
+  key.slice(35,43)===manifest.cNF;
+}
 function validated(result,manifest){
   if(!result||typeof result!=='object'||result.status!=='AUTORIZADA')return unknown();
   const xml=String(result.xml||'');
@@ -81,8 +97,14 @@ function validated(result,manifest){
   const xmlEnvironment=environment==='HOMOLOGACAO'?'2':'1';
   // The native worker separately parses and verifies signature, protocol and XML totals.
   // These checks prevent a malformed worker response becoming AUTHORIZED in the PDV.
-  if(!ACCESS_KEY.test(key)||!/^\d{10,20}$/.test(protocol)||result.environment!==environment||
+  if(!accessKeyMatches(key,manifest)||!/^\d{10,20}$/.test(protocol)||result.environment!==environment||
      xmlField(xml,'mod')!==String(manifest.model)||
+     Number(xmlField(xml,'nNF'))!==manifest.number||
+     Number(xmlField(xml,'serie'))!==manifest.series||
+     xmlField(xml,'CNPJ')!==manifest.issuerCnpj||
+     xmlField(xml,'chNFe')!==key||
+     Number(result.number)!==manifest.number||
+     Number(result.series)!==manifest.series||
      xmlField(xml,'tpAmb')!==xmlEnvironment||
      xmlValueCents(xmlField(xml,'vNF'))!==manifest.amountCents||
      !xml.includes('NFe'+key)||!/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
