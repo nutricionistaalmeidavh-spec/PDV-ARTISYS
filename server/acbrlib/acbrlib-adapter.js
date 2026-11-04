@@ -52,7 +52,12 @@ function readManifest(dir,reference){
      !Number.isSafeInteger(manifest.series)||manifest.series<1||manifest.series>999||
      !/^\d{8}$/.test(String(manifest.cNF||''))||
      !Number.isSafeInteger(manifest.model)||
-     manifest.model!==(manifest.documentType==='nfce'?65:55))
+     manifest.model!==(manifest.documentType==='nfce'?65:55)||
+     !['normal','nfce-offline'].includes(manifest.issuanceMode||'normal')||
+     ((manifest.issuanceMode||'normal')==='nfce-offline'&&(
+       manifest.model!==65||manifest.environment!=='homologation'||
+       !HASH.test(String(manifest.contingencyReasonSha256||''))||
+       !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/.test(String(manifest.contingencyStartedAt||'')))))
     throw Error('Manifesto fiscal incompleto ou inconsistente');
   return{iniPath:ini,manifest};
 }
@@ -87,7 +92,7 @@ function accessKeyMatches(key,manifest){
   key.slice(20,22)===String(manifest.model)&&
   Number(key.slice(22,25))===manifest.series&&
   Number(key.slice(25,34))===manifest.number&&
-  key.slice(34,35)==='1'&&
+  key.slice(34,35)===(manifest.issuanceMode==='nfce-offline'?'9':'1')&&
   key.slice(35,43)===manifest.cNF;
 }
 function validated(result,manifest){
@@ -117,6 +122,7 @@ function validated(result,manifest){
      Number(result.number)!==manifest.number||
      Number(result.series)!==manifest.series||
      xmlField(xml,'tpAmb')!==xmlEnvironment||
+     (manifest.issuanceMode==='nfce-offline'&&xmlField(xml,'tpEmis')!=='9')||
      xmlValueCents(xmlField(xml,'vNF'))!==manifest.amountCents||
      !xml.includes('NFe'+key)||!/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
      !/<(?:\w+:)?infProt(?:\s|>)/.test(xml)||
@@ -170,7 +176,8 @@ function createAcbrLibAdapter(options={}){
       kind:'NFE',operation:null,libraryPath,configPath,iniPath,
       issuerCnpj:manifest.issuerCnpj,environment:manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO',
       amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model,
-      number:manifest.number,series:manifest.series,cNF:manifest.cNF
+      number:manifest.number,series:manifest.series,cNF:manifest.cNF,
+      issuanceMode:manifest.issuanceMode||'normal'
     },workerExe};
   }
   const runner=options.runner||((args)=>executeWorker(args,{workerExe:options.workerExe,timeoutMs:options.timeoutMs}));
