@@ -29,7 +29,7 @@ test('Configuracao TEF nao usa campo comum de Settings nem revela chave em IPC',
   const service=read('desktop/payment-provider-config.cjs');
   assert.match(main,/authorizedPaymentSetup\(event,sessionToken\)/);
   assert.match(main,/authorizeDeploymentChange\(sessionToken\)/);
-  assert.match(main,/paymentProviderStore\.runtimeOptions\(\)/);
+  assert.match(main,/paymentProviderStore\.runtimeOptions\(\{localTerminalId:/);
   assert.match(main,/tefProvider:null/);
   assert.match(preload,/artisys:payments:save/);
   assert.match(service,/safeStorage\.encryptString/);
