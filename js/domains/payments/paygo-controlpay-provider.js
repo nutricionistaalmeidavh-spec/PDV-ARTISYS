@@ -16,7 +16,7 @@ function brlToCentavos(text){
   return cents;
 }
 function createPayGoControlPayProvider({
-  baseUrl,integrationKey,terminalId,requestImpl=null,
+  baseUrl,integrationKey,terminalId,terminalMap=null,requestImpl=null,
   fetchImpl=globalThis.fetch,timeoutMs=DEFAULT_TIMEOUT_MS
 }={}){
   let origin;
@@ -28,7 +28,23 @@ function createPayGoControlPayProvider({
   const secret=String(integrationKey||'').trim();
   if(!secret||secret.length>1024)throw new Error('Chave de integracao PayGo obrigatoria.');
   const terminal=String(terminalId||'').trim();
-  if(!/^[A-Za-z0-9_-]{1,40}$/.test(terminal))throw new Error('Terminal PayGo invalido.');
+  const map=terminalMap==null?null:terminalMap;
+  if(map!==null&&(typeof map!=='object'||Array.isArray(map)))
+    throw new Error('Mapa de terminais PayGo invalido.');
+  if(map!==null){
+    if(!Object.keys(map).length)throw new Error('Mapa de terminais PayGo vazio.');
+    for(const [local,remote] of Object.entries(map)){
+      if(!local.trim()||!/^[A-Za-z0-9_-]{1,40}$/.test(String(remote||'')))
+        throw new Error('Mapa de terminais PayGo invalido.');
+    }
+  }
+  if(!map&&!/^[A-Za-z0-9_-]{1,40}$/.test(terminal))throw new Error('Terminal PayGo invalido.');
+  function resolveTerminal(localTerminal){
+    if(!map)return terminal;
+    const ref=String(localTerminal||'');
+    if(!Object.hasOwn(map,ref))throw new Error('Terminal LAN sem PinPad PayGo configurado.');
+    return String(map[ref]);
+  }
   if(!Number.isInteger(timeoutMs)||timeoutMs<100||timeoutMs>120000)throw new Error('Timeout PayGo invalido.');
   async function call(method,route,{query={},body=null}={}){
     const url=new URL(route,origin);
@@ -66,11 +82,11 @@ function createPayGoControlPayProvider({
   }
   const methodId=method=>method==='DEBIT_CARD'?22:21;
   return {
-    async start({txid,method,amountCents,saleId}={}){
+    async start({txid,method,amountCents,saleId,terminalId:localTerminalId}={}){
       validCommand({txid,method,amountCents});
       const response=await call('POST','Venda/Vender/',{body:{
         formaPagamentoId:methodId(method),
-        pedidoId:null,terminalId:terminal,
+        pedidoId:null,terminalId:resolveTerminal(localTerminalId),
         observacao:txid,aguardarTefIniciarTransacao:true,
         parcelamentoAdmin:true,quantidadeParcelas:1,
         valorTotalVendido:centavosToBRL(amountCents)
