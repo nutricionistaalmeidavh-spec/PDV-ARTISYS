@@ -36,7 +36,7 @@ function companyInput(value={}){
  if(!['1','2','3','4'].includes(crt))throw Error('CRT inválido');
  const series=Number(value.series);
  if(!Number.isSafeInteger(series)||series<1||series>999)throw Error('Série fiscal inválida');
- return {name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false};
+ return {name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false,tradeName:String(value.tradeName||'').trim().slice(0,60),street:String(value.street||'').trim().slice(0,60),streetNumber:String(value.streetNumber||'').trim().slice(0,60),district:String(value.district||'').trim().slice(0,60),municipalityCode:String(value.municipalityCode||'').trim().slice(0,7),municipalityName:String(value.municipalityName||'').trim().slice(0,60),postalCode:String(value.postalCode||'').trim().slice(0,8)};
 }
 function profileInput(value={}){
  const productId=mandatory(value.productId,'Produto',128);
@@ -55,7 +55,9 @@ function profileInput(value={}){
   pisCst:digits(value.pisCst,2,'CST PIS'),cofinsCst:digits(value.cofinsCst,2,'CST COFINS'),
   unit,ibsCbsCst:digits(value.ibsCbsCst,3,'CST IBS/CBS',true),
   cClassTrib:digits(value.cClassTrib,6,'cClassTrib',true),
-  reviewedBy,reviewedAt};
+  reviewedBy,reviewedAt,zeroLegacyTaxesConfirmed:value.zeroLegacyTaxesConfirmed===true,
+  reformTax:value.reformTax&&typeof value.reformTax==='object'&&!Array.isArray(value.reformTax)?
+   Object.fromEntries(['baseCents','ibsUfRate','ibsUfCents','ibsMunRate','ibsMunCents','cbsRate','cbsCents'].map(key=>[key,value.reformTax[key]])):null};
 }
 function ensureSchema(db){
  db.exec(`
