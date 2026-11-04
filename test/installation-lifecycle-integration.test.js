@@ -16,9 +16,6 @@ test('new-store archive and safety backup reopen with original records while new
  runtime.db.prepare('INSERT INTO archive_probe VALUES(?,?)').run('sale-original','Preserve original business data');
  fs.writeFileSync(path.join(userData,'data-server.json'),JSON.stringify({mode:'lan-host',selected:true,port:4312}));
  fs.writeFileSync(path.join(userData,'hardware.json'),'{"scale":{"port":"COM1"}}');
- const fiscalPrivate=path.join(userData,'fiscal','private');
- fs.mkdirSync(fiscalPrivate,{recursive:true});
- fs.writeFileSync(path.join(fiscalPrivate,'credentials.bin'),Buffer.from('encrypted-by-Windows'));
  const fiscalInput=path.join(userData,'fiscal','input');fs.mkdirSync(fiscalInput,{recursive:true});
  fs.writeFileSync(path.join(fiscalInput,'authorized.xml'),'<nfeProc/>');
 
@@ -33,7 +30,7 @@ test('new-store archive and safety backup reopen with original records while new
  const archive=archiveInstallation({userData,confirmation:'NOVA LOJA',backup});
  assert.equal(fs.existsSync(dbPath),false);assert.equal(fs.existsSync(path.join(userData,'data-server.json')),false);
  assert.equal(fs.existsSync(path.join(userData,'fiscal')),false,'New store must not inherit prior certificate or invoice XML');
- assert.equal(fs.readFileSync(path.join(archive.archivePath,'fiscal','private','credentials.bin'),'utf8'),'encrypted-by-Windows');
+ assert.equal(fs.readFileSync(path.join(archive.archivePath,'fiscal','private','credentials.bin'),'utf8'),'encrypted-test-fixture');
  assert.equal(fs.readFileSync(path.join(archive.archivePath,'fiscal','input','authorized.xml'),'utf8'),'<nfeProc/>');
 
  for(const file of [path.join(archive.archivePath,'pdv-artisys.sqlite'),backup.filePath]){
