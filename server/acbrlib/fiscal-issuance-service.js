@@ -212,9 +212,14 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
  function listOfflineQueue({limit=100}={}){
   const n=Number.isSafeInteger(limit)?Math.max(1,Math.min(limit,200)):100;
   return db.prepare('SELECT document_id,reference,access_key,status,created_at,submitted_at,finalized_at FROM acbr_fiscal_offline_queue ORDER BY created_at,document_id LIMIT ?')
-   .all(n).map(row=>({documentId:row.document_id,reference:row.reference,accessKey:row.access_key,
-    status:row.status,createdAt:row.created_at,submittedAt:row.submitted_at,
-    finalizedAt:row.finalized_at}));
+   .all(n).map(row=>{
+    const {manifest}=readManifest(dir,row.reference);
+    const dueMs=Date.parse(manifest.contingencyStartedAt)+24*3600*1000;
+    return {documentId:row.document_id,reference:row.reference,accessKey:row.access_key,
+      status:row.status,createdAt:row.created_at,submittedAt:row.submitted_at,
+      finalizedAt:row.finalized_at,deadlineAt:new Date(dueMs).toISOString(),
+      overdue:['PENDING','UNKNOWN'].includes(row.status)&&Date.parse(now())>dueMs};
+   });
  }
  function offlineProof(id){
   const row=db.prepare('SELECT * FROM acbr_fiscal_offline_queue WHERE document_id=?').get(String(id));
@@ -250,6 +255,12 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   const {meta,manifest}=verifyReady(document);
   if(manifest.issuanceMode!=='nfce-offline')
    throw Error('Documento não preparado em modo contingência offline');
+  // The reviewed pilot is scoped to SP. Other UFs require their own
+  // SEFAZ/QR rules and accountant authorization before offline issuance.
+  if(manifest.issuerUF!=='SP')throw Error('Emissão offline habilitada somente para SP neste piloto homologado');
+  const elapsed=Date.parse(now())-Date.parse(manifest.contingencyStartedAt);
+  if(!Number.isFinite(elapsed)||elapsed<0||elapsed>24*3600*1000)
+   throw Error('Prazo da NFC-e de contingência expirado: conciliação fiscal manual necessária');
   if(db.prepare('SELECT 1 FROM acbr_fiscal_offline_queue WHERE document_id=?').get(String(id)))
    throw Error('NFC-e offline já emitida e registrada na fila');
   if(fs.existsSync(path.join(dir,meta.reference+'.signed.xml')))
