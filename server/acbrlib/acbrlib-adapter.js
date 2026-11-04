@@ -41,6 +41,20 @@ function readManifest(dir,reference){
   const contentHash=createHash('sha256').update(fs.readFileSync(ini)).digest('hex');
   if(!HASH.test(String(manifest.iniSha256||''))||manifest.iniSha256!==contentHash)
     throw Error('INI fiscal diverge do SHA-256 aprovado');
+  // Cross-check signed issuance identity against the exact INI contents.
+  const rawIni=fs.readFileSync(ini,'utf8');
+  const modes=rawIni.match(/^tpEmis=[0-9]+$/gm)||[];
+  if(manifest.issuanceMode==='nfce-offline'){
+   const reason=(rawIni.match(/^xJust=(.+)$/gm)||[]).map(s=>s.slice('xJust='.length));
+   const instant=String(manifest.contingencyStartedAt||'');
+   const localDate=instant.slice(8,10)+'/'+instant.slice(5,7)+'/'+instant.slice(0,4)+' '+instant.slice(11,19);
+   if(modes.length!==1||modes[0]!=='tpEmis=9'||reason.length!==1||
+      createHash('sha256').update(reason[0]).digest('hex')!==manifest.contingencyReasonSha256||
+      (rawIni.match(/^dhCont=(.*)$/gm)||[]).join('')!=='dhCont='+localDate)
+    throw Error('INI da contingência não confere com o manifesto fiscal imutável');
+  }else if(modes.includes('tpEmis=9')){
+   throw Error('INI fiscal offline sem manifesto de contingência');
+  }
   if(manifest.reference!==reference||!['nfe','nfce'].includes(manifest.documentType)||
      !HASH.test(String(manifest.snapshotHash||''))||
      !Number.isSafeInteger(manifest.amountCents)||manifest.amountCents<=0||
@@ -177,6 +191,7 @@ function createAcbrLibAdapter(options={}){
       issuerCnpj:manifest.issuerCnpj,environment:manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO',
       amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model,
       number:manifest.number,series:manifest.series,cNF:manifest.cNF,
+      issuanceMode:manifest.issuanceMode||'normal',
       issuanceMode:manifest.issuanceMode||'normal'
     },workerExe};
   }
