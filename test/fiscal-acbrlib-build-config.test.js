@@ -31,3 +31,9 @@ test('manual Windows lab config includes only verified OSS DLLs as extra resourc
  assert.deepEqual(config.publish,[]);
  assert.deepEqual(pkg.build.extraResources,[]);
 });
+
+test('native ACBr target is a named record, never a flattened PowerShell array',()=>{
+ const script=fs.readFileSync(path.join(root,'scripts/fiscal/build-acbr-native.ps1'),'utf8');
+ assert.match(script,/Directory='NFe'; File='ACBrLibNFe\.lpi'; Binary='ACBrNFe64\.dll'/);
+ assert.doesNotMatch(script,/\$item\[[012]\]/);
+});
