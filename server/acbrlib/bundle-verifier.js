@@ -25,6 +25,19 @@ function verifyAcbrBundle({resourcesPath,platform=process.platform,arch=process.
   const entries=Object.entries(parsed.files);
   if(entries.length<4||entries.length>150||!REQUIRED.every(name=>Object.hasOwn(parsed.files,name))||
      !entries.some(([name])=>name.startsWith('deps/')))return invalid('incomplete');
+  // Reject DLL side-loading: a native loader can resolve files that the
+  // manifest does not list. Never silently trust unlisted bundle contents.
+  if(!fs.lstatSync(dir).isDirectory()||fs.lstatSync(dir).isSymbolicLink()||
+     !fs.lstatSync(path.join(dir,'deps')).isDirectory()||
+     fs.lstatSync(path.join(dir,'deps')).isSymbolicLink())return invalid('unsafe-directory');
+  const allowed=new Set([...entries.map(([name])=>name),'acbr-bundle.json']);
+  for(const entity of fs.readdirSync(dir,{withFileTypes:true})){
+   if(entity.name==='deps'){if(!entity.isDirectory())return invalid('unsafe-entry');continue;}
+   if(!entity.isFile()||!allowed.has(entity.name))return invalid('unlisted-entry');
+  }
+  for(const entity of fs.readdirSync(path.join(dir,'deps'),{withFileTypes:true})){
+   if(!entity.isFile()||!allowed.has('deps/'+entity.name))return invalid('unlisted-entry');
+  }
   for(const [name,hash] of entries){
    if(!SAFE.test(name)||name==='.'||name==='..'||!HEX.test(String(hash||'')))return invalid('unsafe-entry');
    const candidate=path.join(dir,name),relative=path.relative(dir,candidate);
