@@ -97,7 +97,8 @@ test('same data path permits fiscal opt-in after restart without resetting SQLit
  const first=resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
  assert.equal(first.nativeOptions.allowHomologation,false);
  const privateDir=path.join(userData,'fiscal','private');
- fs.writeFileSync(path.join(privateDir,'ACBrLibNFe.ini'),'existing-certificate-config');
+ fs.writeFileSync(path.join(privateDir,'credentials.bin'),'SEALED-LOCAL');
+ fs.writeFileSync(path.join(privateDir,'certificate.pfx'),Buffer.alloc(1500,1));
  fs.writeFileSync(path.join(privateDir,'homologation-enabled.json'),JSON.stringify({enabled:true}));
  const second=resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
  assert.equal(second.nativeOptions.allowHomologation,true);
