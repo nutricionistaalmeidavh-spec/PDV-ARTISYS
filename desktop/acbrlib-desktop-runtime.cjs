@@ -35,7 +35,8 @@ function resolveFiscalDesktopRuntime({resourcesPath,userData,platform=process.pl
   const stat=fs.lstatSync(approvalFile);
   allowHomologation=stat.isFile()&&!stat.isSymbolicLink()&&
    JSON.parse(fs.readFileSync(approvalFile,'utf8')).enabled===true&&
-   fs.existsSync(nfeConfig);
+   fs.existsSync(path.join(privateDir,'certificate.pfx'))&&
+   fs.existsSync(path.join(privateDir,'credentials.bin'));
  }catch{allowHomologation=false;}
  return Object.freeze({
   enabled:true,
