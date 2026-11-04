@@ -191,6 +191,49 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }catch{/* UNKNOWN persists. */}
   return {id,status:'UNKNOWN',requiresConsultation:true};
  }
- return Object.freeze({prepare,issue,consult});
+ async function danfe(id){
+  const document=draftFor(id);
+  if(document.status!=='AUTHORIZED')throw Error('DANFE só pode ser gerado após autorização fiscal confirmada');
+  const record=metaFor(id);
+  if(!record?.xml_sha256||!record?.access_key||!record?.protocol)
+   throw Error('Documento sem protocolo de autorização fiscal');
+  const xmlPath=path.join(dir,record.reference+'.authorized.xml');
+  if(!fs.existsSync(xmlPath)||sha(fs.readFileSync(xmlPath))!==record.xml_sha256)
+   throw Error('XML autorizado alterado ou indisponível');
+  const pdfPath=path.join(dir,record.reference+'.danfe.pdf');
+  const proofPath=path.join(dir,record.reference+'.danfe.json');
+  if(fs.existsSync(pdfPath)){
+   if(!fs.existsSync(proofPath))throw Error('PDF DANFE sem manifesto de integridade');
+   const p=JSON.parse(fs.readFileSync(proofPath,'utf8'));
+   const current=fs.readFileSync(pdfPath);
+   if(p.xmlSha256!==record.xml_sha256||p.pdfSha256!==sha(current)||
+      current.subarray(0,5).toString('ascii')!=='%PDF-')
+    throw Error('Integridade do PDF DANFE comprometida');
+   return {id,ready:true,reference:record.reference,sha256:p.pdfSha256};
+  }
+  if(typeof adapter.pdf!=='function')throw Error('ACBr nativa não possui renderizador de PDF DANFE');
+  const result=await adapter.pdf({
+   type:document.documentType,reference:record.reference,
+   environment:'homologation',xmlPath,protocol:record.protocol
+  });
+  if(result?.ok!==true||!result.data?.pdfBase64)
+   throw Error('ACBr não confirmou PDF DANFE');
+  const encoded=String(result.data.pdfBase64);
+  if(encoded.length>4*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
+   throw Error('PDF fiscal Base64 inválido');
+  const bytes=Buffer.from(encoded,'base64');
+  if(bytes.length<16||bytes.length>3*1024*1024||
+     bytes.subarray(0,5).toString('ascii')!=='%PDF-'||
+     !bytes.toString('ascii',Math.max(0,bytes.length-128)).includes('%%EOF'))
+   throw Error('DANFE não é um PDF válido gerado pela ACBr');
+  const pdfSha256=sha(bytes);
+  writeOnce(pdfPath,bytes);
+  writeOnce(proofPath,Buffer.from(JSON.stringify({
+   xmlSha256:record.xml_sha256,pdfSha256,reference:record.reference,
+   accessKey:record.access_key,protocol:record.protocol
+  }),'utf8'));
+  return {id,ready:true,reference:record.reference,sha256:pdfSha256};
+ }
+ return Object.freeze({prepare,issue,consult,danfe});
 }
 module.exports={createFiscalIssuanceService};
