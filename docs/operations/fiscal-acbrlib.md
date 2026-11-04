@@ -342,3 +342,16 @@ ser registrados no Git, enviados pela API ou gravados em logs.
 Os testes automatizados usam um worker simulado e não substituem
 respostas reais da SEFAZ. Main e clientes instalados não são alterados.
 Nenhum serviço pago é dependência do módulo local.
+
+## Atualização do PR #185: eventos e credenciais locais
+
+**Esta seção atualiza os estados de implementação das etapas históricas acima.** Não substitui homologação oficial.
+
+- Cancelamento em homologação: POST /api/v1/fiscal-preview/documents/:id/cancel com JSON contendo reason (15 a 255 caracteres). Exige nota autorizada e XML íntegro. Persiste UNKNOWN antes de invocar NFE_Cancelar. Apenas recibo oficial associado à chave/ambiente com cStat 135 ou 155 confirma CANCELLED. Falhas exigem conciliação manual e jamais reenvio cego.
+- Consulta do evento: GET /api/v1/fiscal-preview/documents/:id/cancellation. Estado UNKNOWN exige verificação no ambiente SEFAZ; consulta automatizada de eventos por UF ainda carece de homologação.
+- Inutilização em homologação: POST /api/v1/fiscal-preview/inutilizations com model (55/65), series, year, startNumber, endNumber e reason. Apenas lacuna numérica já reservada e sem documento fiscal. Envia uma única tentativa via NFE_Inutilizar. Exige cStat 102 e XML oficial correspondente a faixa, emitente, ambiente e protocolo para CONFIRMED; resultados incertos ficam UNKNOWN, sem retentativa automática.
+- Listagem: GET /api/v1/fiscal-preview/inutilizations. Todas as operações exigem permissão administrativa settings.manage e habilitação local de homologação.
+- A1: arquivo PFX em pasta local do perfil, senha e CSC criptografados com Electron safeStorage. Configuração INI com credenciais em texto somente durante a execução nativa, removida ao final; no reinício, o aplicativo também remove eventual INI de um encerramento inesperado. Durante a execução, o arquivo ainda existe e depende das permissões do usuário Windows.
+- Builder Windows: Lazarus/FPC 4.0, SlikSVN 1.14.5, ACBr OSS com revisão fixa e PyInstaller. Estes utilitários são exclusivos da máquina de build, não do cliente.
+
+**Ainda não liberar emissão em produção:** contingência, CC-e, eventos especiais, reconciliação automática de eventos desconhecidos, cenários fiscais por UF, DANFE nativo e autorização/rejeição real SEFAZ dependem de homologação com certificado A1 válido. Mock/CI não substitui SEFAZ. O core segue gratuito, self-hosted e open source sem provedor fiscal pago obrigatório.
