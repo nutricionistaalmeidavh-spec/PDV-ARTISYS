@@ -253,6 +253,12 @@ test('offline issue signs and produces DANFE through worker but never sends; sea
  const sent=[];
  const adapter=createAcbrLibAdapter({...f.options,runner:async x=>{sent.push(x);return {status:'OFFLINE_SIGNED',environment:'HOMOLOGACAO',accessKey:key,xml,pdfBase64};}});
  const result=await adapter.offlineIssue({type:'nfce',reference:'sale-123',environment:'homologation'});
+ const withCdata=createAcbrLibAdapter({...f.options,runner:async()=>({
+  status:'OFFLINE_SIGNED',environment:'HOMOLOGACAO',accessKey:key,
+  xml:xml.replace('https://sefaz.test?p='+key,'<![CDATA[https://sefaz.test?p='+key+']]>' ),
+  pdfBase64
+ })});
+ assert.equal((await withCdata.offlineIssue({type:'nfce',reference:'sale-123',environment:'homologation'})).ok,true);
  assert.equal(result.ok,true);
  assert.equal(result.data.accessKey,key);
  assert.equal(sent[0].operation,'offline-issue');
