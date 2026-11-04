@@ -24,11 +24,11 @@ const {createFiscalPreviewRouter}=require('./acbrlib/fiscal-preview-router');
 const { attachRuntimeTelemetry }=require('../js/core/telemetry/telemetry-runtime');
 const { registerTelemetryEffects }=require('../js/core/telemetry/telemetry-effects');
 const { observeTelemetryResponse }=require('../js/core/telemetry/telemetry-http');
-function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true,returnApprovalStore=null,telemetrySender=null,telemetryEndpoint='',telemetryReleaseId='',fiscalPreviewEnabled=false}={}){
+function createLocalServer({runtime,host='127.0.0.1',port=4174,token='',bodyLimitBytes=1024*1024,allowedOrigins=[],requireTerminalAuth=false,isExistingInstall=true,returnApprovalStore=null,telemetrySender=null,telemetryEndpoint='',telemetryReleaseId='',fiscalPreviewEnabled=false,fiscalNativeOptions=null}={}){
   const telemetry=attachRuntimeTelemetry({runtime,httpSender:telemetrySender,defaultEndpoint:telemetryEndpoint,releaseId:telemetryReleaseId});
   registerTelemetryEffects({bus:runtime.bus,telemetry});
   const sessionStore=new Map();
-  const fiscalPreviewHandler=createFiscalPreviewRouter({runtime,sessionStore,enabled:fiscalPreviewEnabled,requireTerminalAuth,bodyLimitBytes:Math.min(32768,bodyLimitBytes)});
+  const fiscalPreviewHandler=createFiscalPreviewRouter({runtime,sessionStore,enabled:fiscalPreviewEnabled,requireTerminalAuth,bodyLimitBytes:Math.min(32768,bodyLimitBytes),nativeOptions:fiscalNativeOptions});
   const erpFinanceHandler=createErpFinanceRouter({runtime,sessionStore,bodyLimitBytes,requireTerminalAuth});
   const approvalStore=returnApprovalStore||createReturnApprovalStore();
   const setupAccountHandler=createSetupAccountRouter({runtime,installationToken:token,bodyLimitBytes});
