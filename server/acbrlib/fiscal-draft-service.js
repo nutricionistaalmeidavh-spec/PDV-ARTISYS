@@ -147,7 +147,18 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
      quantityMilli:qtyMilli,unitPriceCents:money(item.unitPriceCents,'Preço unitário'),
      grossCents:gross,discountCents:discount,netTotalCents:net,
      configuration:item.configuration||null,
-     taxProfile:{...profile}};
+     taxProfile:{...profile,
+      reformTax:profile.reformTax?.ibsUfRate&&profile.reformTax?.ibsMunRate&&profile.reformTax?.cbsRate
+       ? (()=>{const r=profile.reformTax;
+          const rate=value=>{const s=String(value);if(!/^[0-9]{1,3}\\.[0-9]{4}$/.test(s))throw Error('Alíquota IBS/CBS precisa de quatro casas decimais revisadas');
+            const parts=s.split('.');const numerator=Number(parts[0])*10000+Number(parts[1]);if(numerator>1000000)throw Error('Alíquota fiscal inválida');return numerator;};
+          const out={baseCents:net,ibsUfRate:r.ibsUfRate,ibsMunRate:r.ibsMunRate,cbsRate:r.cbsRate,
+           ibsUfCents:Math.round(net*rate(r.ibsUfRate)/1000000),
+           ibsMunCents:Math.round(net*rate(r.ibsMunRate)/1000000),
+           cbsCents:Math.round(net*rate(r.cbsRate)/1000000)};
+          if(['baseCents','ibsUfCents','ibsMunCents','cbsCents'].some(k=>r[k]!=null&&r[k]!==out[k]))
+            throw Error('Base ou valor IBS/CBS configurado diverge da venda concluída');
+          return out;})():null}};
   });
   if(!items.length)throw Error('Venda sem itens fiscais');
   const sums=items.reduce((a,i)=>({gross:a.gross+i.grossCents,discount:a.discount+i.discountCents,net:a.net+i.netTotalCents}),{gross:0,discount:0,net:0});
