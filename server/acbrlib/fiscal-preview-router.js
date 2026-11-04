@@ -24,7 +24,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
  // operator, never from HTTP requests or the central cloud.
  const adapter=nativeOptions?.inputDir?createAcbrLibAdapter(nativeOptions):null;
  const issuance=adapter?createFiscalIssuanceService({
-  db:runtime.db,drafts:service,adapter,inputDir:nativeOptions.inputDir,
+  db:runtime.db,drafts:service,sales:runtime.sales,adapter,inputDir:nativeOptions.inputDir,
   allowHomologation:nativeOptions.allowHomologation===true,
   ...(typeof nativeOptions.now==='function'?{now:nativeOptions.now}:{}),
   ...(typeof nativeOptions.randomCNF==='function'?{randomCNF:nativeOptions.randomCNF}:{})
