@@ -127,7 +127,19 @@
             form.hidden=false;if(!form.reportValidity())throw Error('Informe o destinatário completo da NF-e');
             body={recipient:values(form)};
           }
-          if(operation==='transmit'&&!window.confirm('Enviar esta nota à SEFAZ em HOMOLOGAÇÃO? Esta ação é real no ambiente de testes.'))return;
+          if(operation==='transmit'){
+            const ux=window.ArtisysUxComponents;
+            if(!ux?.openFormDialog)throw Error('Confirmação de emissão indisponível');
+            const approval=await ux.openFormDialog({
+              title:'Confirmar emissão em homologação',
+              description:'Esta ação envia um documento real ao ambiente de testes da SEFAZ. Não gera nota de produção.',
+              confirmLabel:'Enviar para homologação',
+              cancelLabel:'Voltar',
+              tone:'default',
+              body:'<p>Confirme a emissão apenas após conferir emitente, tributação, valores e certificado.</p>'
+            });
+            if(!approval.confirmed)return;
+          }
           const result=await api.request(endpoint+'/'+operation,{method:'POST',body});
           message(card,operation==='compile'?'INI gerado para revisão, nenhuma nota emitida.':
             result.status==='AUTHORIZED'?'Autorização SEFAZ confirmada.':'Resultado pendente: consultar SEFAZ antes de qualquer reenvio.');
