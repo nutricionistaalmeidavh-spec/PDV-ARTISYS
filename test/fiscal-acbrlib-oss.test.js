@@ -155,3 +155,23 @@ test('native ACBr uses an ephemeral credential configuration and removes it on s
   assert.equal((await bad.issue(request(f))).indeterminate,true);
   assert.equal(fs.existsSync(f.options.nfeConfig),false);
 });
+
+test('cancellation only accepts a matching SEFAZ event protocol and never guesses success',async t=>{
+ const f=fixture(t),args={...request(f),accessKey:KEY,reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'};
+ let workerArgs;
+ const official={status:'CANCELADA',environment:'HOMOLOGACAO',accessKey:KEY,eventProtocol:'135260000000111',cStat:135};
+ const adapter=createAcbrLibAdapter({...f.options,runner:async command=>{workerArgs=command;return official;}});
+ const result=await adapter.cancel(args);
+ assert.equal(result.ok,true);
+ assert.equal(result.data.cStat,135);
+ assert.equal(workerArgs.operation,'cancel');
+ assert.equal(workerArgs.accessKey,KEY);
+ const wrong=createAcbrLibAdapter({...f.options,runner:async()=>({...official,accessKey:'0'.repeat(44)})});
+ assert.equal((await wrong.cancel(args)).ok,false);
+});
+test('number-range invalidation is blocked for missing native configuration and production',async()=>{
+ const adapter=createAcbrLibAdapter({});
+ const result=await adapter.inutilize({environment:'production',issuerCnpj:'12345678000195',issuerUF:'SP',
+  model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'NUMEROS NAO UTILIZADOS'});
+ assert.equal(result.ok,false);
+});
