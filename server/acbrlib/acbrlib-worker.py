@@ -193,6 +193,24 @@ def ensure_signed_number(req, key, number, series):
         raise ACBrError("Identidade fiscal do XML diverge da venda e numeração reservada")
 
 
+
+def ensure_signed_issuance_mode(xml, req):
+    """Never transmit an offline key with normal-mode signed XML, or vice versa."""
+    root = root_or_none(xml)
+    if root is None:
+        raise ACBrError("XML fiscal não é válido para o modo informado")
+    mode = req.get("issuanceMode", "normal")
+    if mode not in ("normal", "nfce-offline"):
+        raise ACBrError("Modo de emissão fiscal desconhecido")
+    expected = "9" if mode == "nfce-offline" else "1"
+    if find_text(root, "tpEmis") != expected:
+        raise ACBrError("tpEmis do XML assinado diverge do manifesto imutável")
+    if expected == "9":
+        if int(req.get("model", 0)) != 65:
+            raise ACBrError("Contingência offline só pode ser NFC-e modelo 65")
+        if not find_text(root, "dhCont") or len(find_text(root, "xJust")) < 15:
+            raise ACBrError("NFC-e offline sem data ou motivo de contingência")
+
 def verified_nfe_rejection(parts, key, environment):
     """Only a matching per-document SEFAZ status is a confirmed rejection.
 
@@ -350,6 +368,7 @@ def nfe_transmit(lib, req):
     do(lib, "NFE_Assinar")
     do(lib, "NFE_Validar")
     signed = response(lib, "NFE_ObterXml", (0,), [ct.c_int])
+    ensure_signed_issuance_mode(signed, req)
     key = stash_signed_xml(req["iniPath"], signed)
     _, number, series, ambiente, cnpj = nfe_identity(signed)
     ensure_signed_number(req, key, number, series)
@@ -425,6 +444,7 @@ def nfe_consult(lib, req):
     if not path.is_file():
         return {"status": "INDETERMINADO", "message": "XML assinado para consulta não localizado"}
     signed = path.read_text(encoding="utf-8-sig")
+    ensure_signed_issuance_mode(signed, req)
     key, number, series, environment, cnpj = nfe_identity(signed)
     ensure_signed_number(req, key, number, series)
     if find_text(root_or_none(signed), "mod") != str(req["model"]) or nfe_total_cents(signed) != int(req["amountCents"]):
