@@ -1,0 +1,33 @@
+name: fiscal-acbrlib-oss
+on:
+  push:
+    branches:
+      - feat/fiscal-acbrlib-oss-oficina
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'server/acbrlib/**'
+      - 'test/fiscal-acbrlib-oss.test.js'
+      - 'test/python/test_acbrlib_worker.py'
+      - '.github/workflows/fiscal-acbrlib.yml'
+permissions:
+  contents: read
+jobs:
+  acbrlib-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Contract tests without SEFAZ or paid provider
+        run: node --test test/fiscal-acbrlib-oss.test.js
+      - name: Native worker Python invariants
+        run: python -m unittest discover -s test/python -p 'test_acbrlib_worker.py'
+      - name: Native worker syntax check
+        run: python -m py_compile server/acbrlib/acbrlib-worker.py
