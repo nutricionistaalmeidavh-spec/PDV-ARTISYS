@@ -87,7 +87,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     if(operation==='transmit'&&nativeOptions.allowHomologation!==true)
       throw new FiscalHttpError(409,'Emissão fiscal desabilitada até liberação explícita para homologação');
     const result=operation==='transmit'?await issuance.issue(id):await issuance.consult(id);
-    send(res,result.status==='AUTHORIZED'?200:202,result);return true;
+    send(res,['AUTHORIZED','REJECTED'].includes(result.status)?200:202,result);return true;
    }
    throw new FiscalHttpError(405,'Operação fiscal não suportada');
   }catch(error){
