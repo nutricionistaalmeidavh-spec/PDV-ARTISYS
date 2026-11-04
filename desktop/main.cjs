@@ -63,7 +63,12 @@ function rendererPath(...parts) {
 }
 
 function currentPrintingPreferences() {
-  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting, fiscalPreviewEnabled: !app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1' });
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting, fiscalPreviewEnabled: !app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1',
+    fiscalNativeOptions:!app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1'&&process.env.ARTISYS_ACBR_INPUT_DIR?{
+      inputDir:process.env.ARTISYS_ACBR_INPUT_DIR,nfeLib:process.env.ARTISYS_ACBR_NFE_DLL,
+      nfeConfig:process.env.ARTISYS_ACBR_CONFIG_INI,workerExe:process.env.ARTISYS_ACBR_WORKER_EXE,
+      allowHomologation:process.env.ARTISYS_ACBR_HOMOLOGATION==='1'
+    }:null });
 }
 
 function terminalCredentialConfigured() {
