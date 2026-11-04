@@ -181,3 +181,13 @@ test('ST-retained code with CFOP 5102 never issues tax-inconsistent document',()
  p.csosn='500';p.icmsRetained={baseCents:1800,amountCents:324};
  assert.throws(()=>build(rehash(d)),/CFOP|ST/i);
 });
+
+test('CRT2 uses reviewed CSOSN 500 and ST retained on CFOP 5405, not the regime-normal CST',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ d.snapshot.issuer.crt='2';p.csosn='500';p.cst='';p.cest='1234567';p.cAtivSN='01';
+ p.cfop='5405';p.icmsRetained={baseCents:1800,amountCents:324};
+ const {ini}=build(rehash(d));
+ assert.match(ini,/CFOP=5405/);
+ assert.match(ini,/CSOSN=500/);
+ assert.match(ini,/vICMSSTRet=3\.24/);
+});
