@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs');const path=require('node:path');const {randomUUID}=require('node:crypto');
 function executableSignature(){try{const stat=fs.statSync(process.execPath);return `${process.execPath}:${stat.mtimeMs}:${stat.size}`;}catch{return process.execPath;}}
-const INSTALLATION_FILES=['pdv-artisys.sqlite','pdv-artisys.sqlite-wal','pdv-artisys.sqlite-shm','data-server.json','deployment.json','terminal-credential.bin','terminal-identity.json'];
+const INSTALLATION_FILES=['pdv-artisys.sqlite','pdv-artisys.sqlite-wal','pdv-artisys.sqlite-shm','data-server.json','deployment.json','terminal-credential.bin','terminal-identity.json','fiscal'];
 function readJson(file){try{return JSON.parse(fs.readFileSync(file,'utf8'));}catch{return {};}}
 function installationState({userData,version,existing=false,signature=executableSignature()}={}) {
   const marker=readJson(path.join(userData,'installation-review.json'));
