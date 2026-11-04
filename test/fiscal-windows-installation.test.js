@@ -139,3 +139,15 @@ test('desktop fiscal homologation provides cancel and unused-number forms for th
  assert.match(html,/data-acbr-cancel-reason/);
  assert.match(html,/homologa/i);
 });
+
+test('CI new-PC smoke uses isolated Electron userData instead of trusting APPDATA on Windows',()=>{
+ const {resolveQaUserDataPath}=require('../desktop/qa-user-data-path.cjs');
+ const qaDir=path.resolve(os.tmpdir(),'artisys-qa-profile');
+ assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:qaDir}),qaDir);
+ assert.equal(resolveQaUserDataPath({CI:'false',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:qaDir}),null);
+ assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'0',ARTISYS_QA_USERDATA_DIR:qaDir}),null);
+ assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:'relative-path'}),null);
+ const workflow=fs.readFileSync(path.join(__dirname,'..','.github','workflows','fiscal-windows-candidate.yml'),'utf8');
+ assert.match(workflow,/ARTISYS_QA_USERDATA_DIR/);
+ assert.match(workflow,/pdv-artisys\.sqlite/);
+});
