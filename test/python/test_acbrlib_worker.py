@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-MODULE = ROOT / "src" / "platform" / "acbrlib-worker.py"
+MODULE = ROOT / "server" / "acbrlib" / "acbrlib-worker.py"
 spec = importlib.util.spec_from_file_location("acbrlib_worker", MODULE)
 worker = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(worker)
