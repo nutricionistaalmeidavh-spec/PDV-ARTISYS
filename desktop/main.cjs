@@ -115,7 +115,7 @@ async function startEmbeddedServer() {
   // prevent cash sales, stock, or the local database from opening.
   let paymentOptions={tefProvider:null};
   try{
-    paymentOptions={...paymentOptions,...paymentProviderStore.runtimeOptions()};
+    paymentOptions={...paymentOptions,...paymentProviderStore.runtimeOptions({localTerminalId:dataServerConfig?.terminalId||bootstrapConfig?.terminalId})};
     paymentProviderConfigError=null;
   }catch(error){paymentProviderConfigError=String(error.message||error);}
   runtime = createPdvRuntime({
