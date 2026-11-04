@@ -192,6 +192,16 @@ function createAcbrLibAdapter(options={}){
       return unknown();
     }
   }
+  async function preflight(request){
+    // This check is read-only: no XML is signed and no call reaches SEFAZ.
+    // Validate the exact model (including the NFC-e CSC) before UNKNOWN is persisted.
+    try{
+      return await withConfig(async()=>{
+        const {manifest}=prepare({...request,requirePayload:false});
+        return {ok:true,model:manifest.model,environment:manifest.environment};
+      });
+    }catch{return blocked('Configuração fiscal local incompleta para o modelo da nota: certificado, CSC, DLL ou manifesto');}
+  }
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
   async function pdf(request={}){
@@ -289,6 +299,6 @@ function createAcbrLibAdapter(options={}){
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
     }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
-  return Object.freeze({status,issue,query,cancel,inutilize,pdf});
+  return Object.freeze({status,preflight,issue,query,cancel,inutilize,pdf});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
