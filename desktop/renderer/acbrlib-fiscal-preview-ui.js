@@ -1,6 +1,5 @@
 'use strict';
-// Developer-only fiscal preview surface. The backend must explicitly opt in.
-// Never transmits, authorizes, cancels or prints a fiscal document.
+// Opt-in fiscal administration, with official transactions restricted to homologation.
 (() => {
  const lifecycle=window.PdvUiLifecycle,ApiClient=window.PdvApiClient?.ApiClient;
  if(!lifecycle||!ApiClient)return;
@@ -17,7 +16,7 @@
   card.id='settings-acbrlib-preview';card.className='ops-card';card.dataset.settingsCategory='company';
   card.innerHTML=`
    <div class="ops-card-head"><div><h2>Fiscal — preparação e homologação ACBrLib</h2>
-    <p class="ops-muted">Somente preparação de rascunhos. NFC-e/NF-e sem emissão, envio à SEFAZ ou DANFE fiscal. Requer revisão contábil.</p>
+    <p class="ops-muted">Prepare documentos e realize testes de homologação na SEFAZ. O contador aprova os tributos; produção permanece bloqueada.</p>
    </div></div>
    <div class="ops-card-body">
     <h3>1. Dados do estabelecimento</h3>
@@ -120,6 +119,19 @@
       <label class="field"><span>UF</span><input name="uf" required maxlength="2"></label>
       <label class="field"><span>CEP</span><input name="postalCode" required pattern="[0-9]{8}"></label>
     </form>
+    <section data-acbr-inutilization hidden>
+     <h3>4. Inutilização de números (somente homologação)</h3>
+     <p class="ops-muted">Somente numerações reservadas e não utilizadas. Consulte a contabilidade. Um resultado indeterminado jamais pode ser reenviado sem conciliação na SEFAZ.</p>
+     <form data-acbr-inutilization-form class="field-grid">
+      <label class="field"><span>Modelo</span><select name="model"><option value="65">NFC-e (65)</option><option value="55">NF-e (55)</option></select></label>
+      <label class="field"><span>Série</span><input name="series" type="number" min="1" max="999" value="1" required></label>
+      <label class="field"><span>Ano</span><input name="year" type="number" min="2000" max="2099" required></label>
+      <label class="field"><span>Primeiro número</span><input name="startNumber" type="number" min="1" max="999999999" required></label>
+      <label class="field"><span>Último número</span><input name="endNumber" type="number" min="1" max="999999999" required></label>
+      <label class="field wide"><span>Justificativa (15 a 255 caracteres)</span><textarea name="reason" minlength="15" maxlength="255" required></textarea></label>
+      <div class="modal-actions"><button class="secondary-button" type="submit">Inutilizar faixa em homologação</button></div>
+     </form><div data-acbr-inutilization-history role="status"></div>
+    </section>
     <p data-fiscal-preview-status role="status" aria-live="polite"></p>
     <div data-acbr-documents class="ops-muted"></div>
    </div>`;
@@ -202,6 +214,36 @@
     if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction('Emitir em homologação','transmit');
     if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
     if(d.status==='AUTHORIZED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar e salvar DANFE PDF','danfe');
+    if(d.status==='AUTHORIZED'&&fiscalStatus.emissionEnabled){
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');summary.textContent='Solicitar cancelamento na SEFAZ de homologação';
+      const form=document.createElement('form');form.className='field-grid';
+      const label=document.createElement('label');label.className='field wide';
+      const hint=document.createElement('span');hint.textContent='Justificativa (15 a 255 caracteres)';
+      const field=document.createElement('textarea');field.setAttribute('data-acbr-cancel-reason','');
+      field.minLength=15;field.maxLength=255;field.required=true;
+      const submit=document.createElement('button');submit.type='submit';submit.className='secondary-button';
+      submit.textContent='Confirmar cancelamento de teste';
+      label.append(hint,field);form.append(label,submit);details.append(summary,form);li.append(details);
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(!form.reportValidity())return;
+        const ux=window.ArtisysUxComponents;
+        if(!ux?.openFormDialog){message(card,'Confirmação indisponível',true);return;}
+        const approval=await ux.openFormDialog({title:'Cancelar nota em homologação',
+          description:'Ação fiscal não pode ser repetida automaticamente se a SEFAZ não responder.',
+          confirmLabel:'Confirmar cancelamento',cancelLabel:'Voltar',tone:'default',
+          body:'<p>Confirme a autorização da nota e a justificativa aprovada pela contabilidade.</p>'});
+        if(!approval.confirmed)return;
+        submit.disabled=true;
+        try{
+          const result=await api.request(endpoint+'/cancel',{method:'POST',body:{reason:field.value.trim()}});
+          message(card,result.status==='CANCELLED'?'Cancelamento confirmado pela SEFAZ de homologação.':
+            'Cancelamento sem confirmação: consultar SEFAZ antes de nova operação.',result.status!=='CANCELLED');
+          await refreshDocuments(card);
+        }catch(error){message(card,error.message||'Não foi possível cancelar',true);}
+        finally{submit.disabled=false;}
+      });
+    }
     list.append(li);
    }
    root.append(list);
