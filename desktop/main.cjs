@@ -15,6 +15,7 @@ const { DEFAULT_PROFILE_IDS } = require('../js/core/auth/default-profiles');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
+const { resolveFiscalDesktopRuntime } = require('./fiscal-desktop-runtime.cjs');
 const { createLanReachability } = require('../server/lan-reachability.cjs');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
@@ -63,12 +64,32 @@ function rendererPath(...parts) {
 }
 
 function currentPrintingPreferences() {
-  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting, fiscalPreviewEnabled: !app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1',
-    fiscalNativeOptions:!app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1'&&process.env.ARTISYS_ACBR_INPUT_DIR?{
-      inputDir:process.env.ARTISYS_ACBR_INPUT_DIR,nfeLib:process.env.ARTISYS_ACBR_NFE_DLL,
-      nfeConfig:process.env.ARTISYS_ACBR_CONFIG_INI,workerExe:process.env.ARTISYS_ACBR_WORKER_EXE,
-      allowHomologation:process.env.ARTISYS_ACBR_HOMOLOGATION==='1'
-    }:null });
+  return resolvePrintingPreferences({
+    settings:runtime?.settings || null,
+    env:process.env,
+    isExistingInstall:installationWasExisting
+  });
+}
+function fiscalServerOptions() {
+  const resourcesPath=app.isPackaged?process.resourcesPath:path.join(__dirname,'..','build');
+  const fiscal=resolveFiscalDesktopRuntime({
+    resourcesPath,userData:app.getPath('userData'),
+    platform:process.platform,arch:process.arch,embeddedServer:true
+  });
+  if(fiscal.enabled)return {fiscalPreviewEnabled:true,fiscalNativeOptions:fiscal.nativeOptions};
+  // Development-only overrides, never enabled by a packaged install.
+  if(!app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1'){
+    const env=process.env;
+    return {
+      fiscalPreviewEnabled:true,
+      fiscalNativeOptions:env.ARTISYS_ACBR_INPUT_DIR?{
+        inputDir:env.ARTISYS_ACBR_INPUT_DIR,nfeLib:env.ARTISYS_ACBR_NFE_DLL,
+        nfeConfig:env.ARTISYS_ACBR_CONFIG_INI,workerExe:env.ARTISYS_ACBR_WORKER_EXE,
+        allowHomologation:env.ARTISYS_ACBR_HOMOLOGATION==='1'
+      }:null
+    };
+  }
+  return {fiscalPreviewEnabled:false,fiscalNativeOptions:null};
 }
 
 function terminalCredentialConfigured() {
@@ -143,7 +164,7 @@ async function startEmbeddedServer() {
     },{kind:'system',id:'system'});
   }
 
-  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
+  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting, ...fiscalServerOptions() });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
 
@@ -323,7 +344,7 @@ function registerIpc() {
       if(stopped){
         if(!runtime){await startEmbeddedServer();}
         else {
-          if(!localServer){localServer=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false,isExistingInstall:true});const address=await localServer.start();apiBase=`http://127.0.0.1:${address.port}`;}
+          if(!localServer){localServer=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false,isExistingInstall:true,...fiscalServerOptions()});const address=await localServer.start();apiBase=`http://127.0.0.1:${address.port}`;}
           if(isHostMode(dataServerConfig)&&!lanServer){lanServer=createLocalServer({runtime,host:dataServerConfig.host,port:dataServerConfig.port,token:installToken,requireTerminalAuth:true,isExistingInstall:true});await lanServer.start();}
         }
         startPrintWorker();
