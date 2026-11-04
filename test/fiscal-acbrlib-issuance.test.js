@@ -107,3 +107,17 @@ test('missing local ACBr DLL or certificate config cannot consume invoice attemp
  assert.equal(sent,false);
  assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
 });
+
+test('confirmed rejection persists cStat and is never automatically resent',async t=>{
+ let calls=0;
+ const adapter={issue:async()=>{calls++;return {ok:false,rejected:true,
+  data:{cStat:778,reason:'NCM inválido'}}},query:async()=>({ok:false,indeterminate:true})};
+ const f=fixture(t,adapter),svc=f.build(true);
+ svc.prepare(f.draft.id);
+ const response=await svc.issue(f.draft.id);
+ assert.equal(response.status,'REJECTED');
+ assert.equal(response.cStat,778);
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'REJECTED');
+ await assert.rejects(()=>svc.issue(f.draft.id),/rejeitad|consulta|reenvio|enviad/i);
+ assert.equal(calls,1);
+});
