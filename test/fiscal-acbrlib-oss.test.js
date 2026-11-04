@@ -7,8 +7,8 @@ const path=require('node:path');
 const {createHash}=require('node:crypto');
 const {createAcbrLibAdapter}=require('../server/acbrlib/acbrlib-adapter');
 
-const KEY='35261112345678000195650010000001231000001236';
-const XML=`<nfeProc><NFe><infNFe Id="NFe${KEY}"><ide><mod>65</mod><tpAmb>2</tpAmb></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>12.50</vNF></ICMSTot></total><Signature/></NFe><protNFe><infProt><cStat>100</cStat><nProt>135260000000001</nProt><chNFe>${KEY}</chNFe></infProt></protNFe></nfeProc>`;
+const KEY='35261112345678000195650010000001231000001238';
+const XML=`<nfeProc><NFe><infNFe Id="NFe${KEY}"><ide><mod>65</mod><tpAmb>2</tpAmb><serie>1</serie><nNF>123</nNF></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>12.50</vNF></ICMSTot></total><Signature/></NFe><protNFe><infProt><cStat>100</cStat><nProt>135260000000001</nProt><chNFe>${KEY}</chNFe></infProt></protNFe></nfeProc>`;
 function fixture(t, overrides={}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-acbrlib-'));
   t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
@@ -16,7 +16,7 @@ function fixture(t, overrides={}){
   fs.writeFileSync(ini,'[infNFe]\nversao=4.00\n[ide]\nmod=65\n');
   for(const file of [lib,conf,worker])fs.writeFileSync(file,'fixture');
   const snapshotHash='a'.repeat(64);
-  const manifest={reference:'sale-123',documentType:'nfce',snapshotHash,amountCents:1250,issuerCnpj:'12345678000195',environment:'homologation',model:65,lot:123,iniSha256:createHash('sha256').update(fs.readFileSync(ini)).digest('hex')};
+  const manifest={reference:'sale-123',documentType:'nfce',snapshotHash,amountCents:1250,issuerCnpj:'12345678000195',environment:'homologation',model:65,lot:123,number:123,series:1,cNF:'00000123',iniSha256:createHash('sha256').update(fs.readFileSync(ini)).digest('hex')};
   fs.writeFileSync(path.join(dir,'sale-123.json'),JSON.stringify({...manifest,...overrides}));
   const options={inputDir:dir,nfeLib:lib,nfeConfig:conf,workerExe:worker};
   return {dir,ini,manifest,options};
@@ -76,4 +76,20 @@ test('ACBrLib rejects pseudo-authorization without an official 44-digit key, pro
   const adapter=createAcbrLibAdapter({...f.options,runner:async()=>({...authorized,xml:'<fake/>',accessKey:'fake'})});
   const result=await adapter.issue(request(f));
   assert.equal(result.ok,false);assert.equal(result.indeterminate,true);
+});
+
+test('ACBrLib cannot authorize a different invoice number, serie, issuer or key',async t=>{
+ const f=fixture(t);
+ for(const response of [
+  {...authorized,number:'999'},
+  {...authorized,series:'2'},
+  {...authorized,xml:authorized.xml.replace('<nNF>123</nNF>','<nNF>124</nNF>')},
+  {...authorized,xml:authorized.xml.replace('<CNPJ>12345678000195</CNPJ>','<CNPJ>99999999000199</CNPJ>')},
+  {...authorized,accessKey:'35261112345678000195650010000001231000001236'}
+ ]){
+  const adapter=createAcbrLibAdapter({...f.options,runner:async()=>response});
+  const result=await adapter.issue(request(f));
+  assert.equal(result.ok,false);
+  assert.equal(result.indeterminate,true);
+ }
 });
