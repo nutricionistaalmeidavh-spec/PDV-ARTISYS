@@ -46,6 +46,19 @@
       <p class="ops-muted wide">Ambiente: homologação. Emissão automática e produção permanecem bloqueadas.</p>
       <div class="modal-actions"><button class="primary-button" type="submit">Salvar dados para revisão</button></div>
     </form>
+    <h3>1b. Certificado digital A1 — somente no PC principal</h3>
+    <div data-acbr-local-cert hidden>
+      <p data-acbr-cert-status class="ops-muted" role="status" aria-live="polite"></p>
+      <form data-acbr-cert-form class="field-grid" autocomplete="off">
+        <label class="field"><span>UF do certificado</span><input name="uf" required maxlength="2" value="SP"></label>
+        <label class="field"><span>Senha do A1</span><input name="password" type="password" required autocomplete="new-password"></label>
+        <label class="field"><span>CSC NFC-e de homologação</span><input name="csc" type="password" autocomplete="off"></label>
+        <label class="field"><span>Identificador CSC</span><input name="idCsc" autocomplete="off" maxlength="8"></label>
+        <div class="modal-actions"><button class="primary-button" type="submit">Escolher arquivo PFX/P12 e importar localmente</button></div>
+      </form>
+      <button class="secondary-button" data-acbr-enable-homologation type="button" hidden>Habilitar envio somente em homologação</button>
+      <p class="ops-muted">A1 e CSC ficam neste computador. O arquivo não vai para a API nem para o GitHub. A emissão requer reinicialização após habilitar.</p>
+    </div>
     <h3>2. Perfil tributário por produto</h3>
     <form data-acbr-product class="field-grid">
       <label class="field wide"><span>Produto</span><select name="productId" required><option value="">Carregando produtos...</option></select></label>
@@ -186,6 +199,51 @@
  }
  function bind(card){
   const company=$(card,'[data-acbr-company]'),product=$(card,'[data-acbr-product]'),draft=$(card,'[data-acbr-draft]');
+  const localFiscal=window.artisysDesktop?.fiscal;
+  const localSection=$(card,'[data-acbr-local-cert]');
+  const localState=$(card,'[data-acbr-cert-status]');
+  const importForm=$(card,'[data-acbr-cert-form]');
+  const enableButton=$(card,'[data-acbr-enable-homologation]');
+  if(localFiscal?.status&&localFiscal?.importCertificate&&localFiscal?.enableHomologation){
+    const refreshCertificate=async()=>{
+      const state=await localFiscal.status();
+      localSection.hidden=!state.available;
+      if(!state.available)return;
+      localState.textContent=!state.encryptionAvailable?
+        'O armazenamento criptografado do Windows está indisponível. Não é possível importar o certificado.':
+        state.homologationEnabled?'Homologação habilitada neste PC. Somente notas de teste.':
+        state.configured?'Certificado A1 importado. Para liberar o teste, habilite homologação.':
+        'Nenhum certificado A1 configurado neste PC.';
+      enableButton.hidden=!state.configured||state.homologationEnabled||!state.encryptionAvailable;
+    };
+    importForm.addEventListener('submit',async e=>{
+      e.preventDefault();
+      const button=importForm.querySelector('button[type=submit]');button.disabled=true;
+      try{
+        const values=Object.fromEntries(new FormData(importForm).entries());
+        const result=await localFiscal.importCertificate({...values,sessionToken:api.sessionToken});
+        if(!result.cancelled){
+          message(card,'Certificado importado no PC principal. Reinicie o PDV antes de habilitar o envio em homologação.');
+          await refreshCertificate();
+        }
+      }catch(err){message(card,err.message||'Falha ao importar certificado',true);}
+      finally{
+        importForm.elements.password.value='';
+        importForm.elements.csc.value='';
+        button.disabled=false;
+      }
+    });
+    enableButton.addEventListener('click',async()=>{
+      enableButton.disabled=true;
+      try{
+        const result=await localFiscal.enableHomologation(api.sessionToken);
+        message(card,result.restartRequired?'Homologação liberada localmente. Reinicie o PDV para ativar.':'Configuração salva.');
+        await refreshCertificate();
+      }catch(err){message(card,err.message||'Configuração fiscal incompleta',true);}
+      finally{enableButton.disabled=false;}
+    });
+    void refreshCertificate().catch(()=>{localSection.hidden=true;});
+  }
   product.elements.reviewedAt.value=new Date().toISOString().slice(0,10);
   const recipient=$(card,'[data-acbr-recipient]');
   const toggleRecipient=()=>{recipient.hidden=draft.elements.documentType.value!=='nfe';};
