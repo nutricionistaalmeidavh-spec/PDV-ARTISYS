@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
-const {createFiscalCredentialStore}=require('../desktop/fiscal-credential-store.cjs');
+const {createFiscalCredentialStore}=require('../desktop/acbrlib-credential-store.cjs');
 function make(t,{encryption=true}={}){
  const userData=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-fiscal-pfx-'));
  t.after(()=>fs.rmSync(userData,{recursive:true,force:true}));
