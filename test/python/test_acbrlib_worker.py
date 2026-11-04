@@ -156,5 +156,23 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         with self.assertRaises(worker.ACBrError):
             worker.ensure_signed_number({**req,"model":55},key,"1","1")
 
+
+    def test_signed_xml_mode_prevents_offline_documents_being_relabelled_as_normal(self):
+        offline = ('<NFe><infNFe><ide><tpEmis>9</tpEmis>'
+                   '<dhCont>2026-11-04T15:30:00-03:00</dhCont>'
+                   '<xJust>Falha de rede testada com NFC-e</xJust>'
+                   '</ide></infNFe></NFe>')
+        worker.ensure_signed_issuance_mode(offline, {"model":65,"issuanceMode":"nfce-offline"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline, {"model":65,"issuanceMode":"normal"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline.replace("<tpEmis>9</tpEmis>","<tpEmis>1</tpEmis>"),
+                                              {"model":65,"issuanceMode":"nfce-offline"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline.replace("<xJust>Falha de rede testada com NFC-e</xJust>",""),
+                                              {"model":65,"issuanceMode":"nfce-offline"})
+        worker.ensure_signed_issuance_mode("<NFe><ide><tpEmis>1</tpEmis></ide></NFe>",
+                                          {"model":55,"issuanceMode":"normal"})
+
 if __name__ == "__main__":
     unittest.main()
