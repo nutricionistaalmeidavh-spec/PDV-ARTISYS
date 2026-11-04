@@ -174,8 +174,10 @@ function createAcbrLibAdapter(options={}){
     },workerExe};
   }
   const runner=options.runner||((args)=>executeWorker(args,{workerExe:options.workerExe,timeoutMs:options.timeoutMs}));
+  const withConfig=typeof options.withConfig==='function'?options.withConfig:async operation=>operation();
   async function call(request,operation){
     try{
+      return await withConfig(async()=>{
       const context=prepare({...request,requirePayload:operation==='transmit'});
       // A signed XML is persisted before sending: NEVER blindly resend an unknown invoice.
       if(operation==='transmit'&&fs.existsSync(path.join(path.dirname(context.iniPath),path.basename(context.iniPath,'.ini')+'.signed.xml')))
@@ -183,6 +185,7 @@ function createAcbrLibAdapter(options={}){
       const response=await runner({...context.command,operation,
         ...(operation==='consult'?{accessKey:request.accessKey||null}:{})});
       return validated(response,context.manifest);
+      });
     }catch(error){
       if(/não configurada|bloqueada|inválid|incompleto|inconsistente|diverge|obrigatório|fora do diretório|ENOENT|missing/i.test(String(error.message||'')))
         return blocked('Preparação fiscal inválida ou incompleta. Nenhuma emissão foi realizada.');
@@ -192,6 +195,7 @@ function createAcbrLibAdapter(options={}){
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
   async function pdf(request={}){
+    return withConfig(async()=>{
     // Never render from arbitrary request paths, only the exact authorized XML
     // stored under this installation's verified fiscal input directory.
     const context=prepare({...request,requirePayload:false});
@@ -211,9 +215,11 @@ function createAcbrLibAdapter(options={}){
     if(base64.length>4*1024*1024||!/^\\w/.test(base64))
      return blocked('PDF fiscal ACBr excede limite de tamanho');
     return {ok:true,status:200,data:{pdfBase64:base64}};
+    });
   }
   async function cancel(){return{ok:false,status:501,data:null,error:'Cancelamento fiscal ainda não homologado na ACBrLib nativa.'};}
   async function status(){
+    return withConfig(async()=>{
     let ready=false;
     if(configured){
      try{
@@ -231,6 +237,7 @@ function createAcbrLibAdapter(options={}){
      }catch{/* Fail closed: no library or private config. */}
     }
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
+    }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
   return Object.freeze({status,issue,query,cancel,pdf});
 }
