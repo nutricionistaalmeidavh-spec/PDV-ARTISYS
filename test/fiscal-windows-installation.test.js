@@ -130,3 +130,12 @@ test('approval survives restart without a plaintext ACBr INI at rest',t=>{
  assert.equal(state.nativeOptions.allowHomologation,true);
  assert.equal(fs.existsSync(state.nativeOptions.nfeConfig),false);
 });
+
+test('desktop fiscal homologation provides cancel and unused-number forms for the store operator',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(html,/data-acbr-inutilization/);
+ assert.match(html,/documents\/.*\/cancel|endpoint\+'\/cancel'/);
+ assert.match(html,/inutilizations/);
+ assert.match(html,/data-acbr-cancel-reason/);
+ assert.match(html,/homologa/i);
+});
