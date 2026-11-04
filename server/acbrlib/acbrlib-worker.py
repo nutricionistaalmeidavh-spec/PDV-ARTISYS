@@ -181,11 +181,15 @@ def ensure_signed_number(req, key, number, series):
         n, s = int(number), int(series)
     except (ValueError, TypeError):
         raise ACBrError("Nota sem número ou série numérica")
+    mode = req.get("issuanceMode", "normal")
+    if mode not in ("normal", "nfce-offline") or (mode == "nfce-offline" and req["model"] != 65):
+        raise ACBrError("Modo de emissão fiscal não autorizado para o modelo")
+    emission_digit = "9" if mode == "nfce-offline" else "1"
     if (n != int(req["number"]) or s != int(req["series"]) or
             key[6:20] != req["issuerCnpj"] or
             key[20:22] != str(req["model"]) or
             int(key[22:25]) != s or int(key[25:34]) != n or
-            key[34:35] != "1" or key[35:43] != req["cNF"]):
+            key[34:35] != emission_digit or key[35:43] != req["cNF"]):
         raise ACBrError("Identidade fiscal do XML diverge da venda e numeração reservada")
 
 
@@ -285,6 +289,60 @@ def nfe_inutilize(lib, req):
     return {**proof, "environment": req["environment"]} if proof else {
         "status": "INDETERMINADO", "message": "Inutilização sem XML oficial do intervalo confirmado"}
 
+
+
+def nfe_cce_ini(req):
+    """Official ACBr NFE_CarregarEventoINI format; never append unsanitized INI fields."""
+    key = str(req.get("accessKey", ""))
+    issuer = str(req.get("issuerCnpj", ""))
+    text = str(req.get("correction", "")).strip()
+    event_at = str(req.get("eventAt", ""))
+    try:
+        model = int(req.get("model", 0))
+        seq = int(req.get("sequence", 0))
+        lot = int(req.get("lot", 0))
+    except (TypeError, ValueError):
+        raise ACBrError("Identidade de CC-e inválida")
+    if (req.get("environment") != "HOMOLOGACAO" or model != 55 or
+            not re.fullmatch(r"\d{44}", key) or
+            key[20:22] != "55" or key[6:20] != issuer or
+            not 1 <= seq <= 20 or not 1 <= lot <= 999999999):
+        raise ACBrError("Carta de correção exige NF-e 55 e emitente da mesma chave")
+    if (not 15 <= len(text) <= 1000 or
+            re.search(r"[\r\n\x00-\x1f]", text)):
+        raise ACBrError("Texto da carta de correção inválido ou contém comandos INI")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}", event_at):
+        raise ACBrError("CC-e exige data e hora local com fuso")
+    return "\n".join(("[EVENTO]", "idLote="+str(lot), "",
+        "[EVENTO001]", "cOrgao="+key[:2], "CNPJ="+issuer,
+        "chNFe="+key, "dhEvento="+event_at, "tpEvento=110110",
+        "nSeqEvento="+str(seq), "versaoEvento=1.00",
+        "xCorrecao="+text, ""))
+
+
+def confirmed_nfe_cce(parts, key, environment, sequence):
+    # cStat 136 means event received but NOT linked to the NF-e; do not confirm.
+    fields = parts.get("EVENTO001", {})
+    protocol = fields.get("NPROT", "")
+    if (fields.get("CSTAT") != "135" or
+            fields.get("CHDFE") != key or
+            fields.get("TPAMB") != environment or
+            fields.get("TPEVENTO") != "110110" or
+            fields.get("NSEQEVENTO") != str(sequence) or
+            not re.fullmatch(r"\d{10,20}", protocol)):
+        return None
+    return {"status":"CCE_REGISTERED","cStat":135,"accessKey":key,
+            "eventProtocol":protocol,"sequence":sequence}
+
+
+def nfe_cce(lib, req):
+    event_ini = nfe_cce_ini(req)
+    do(lib, "NFE_CarregarEventoINI", encoded(event_ini), types=[ct.c_char_p])
+    result = response(lib, "NFE_EnviarEvento",
+                      (int(req["lot"]),), [ct.c_int])
+    proof = confirmed_nfe_cce(parse_sections(result), str(req["accessKey"]), "2", int(req["sequence"]))
+    return {**proof, "environment":"HOMOLOGACAO"} if proof else {
+        "status":"INDETERMINADO","message":"CC-e sem evento SEFAZ vinculado à NF-e"}
 
 def nfe_transmit(lib, req):
     do(lib, "NFE_LimparLista")
@@ -470,7 +528,7 @@ def probe_library(path):
 
 
 def execute(req):
-    if req.get("operation") not in ("transmit", "consult", "pdf", "cancel", "inutilize") or req.get("kind") not in ("NFE", "NFSE"):
+    if req.get("operation") not in ("transmit", "consult", "pdf", "cancel", "inutilize", "cce") or req.get("kind") not in ("NFE", "NFSE"):
         raise ACBrError("Operação fiscal inválida")
     if req.get("environment") != "HOMOLOGACAO":
         raise ACBrError("Somente homologação fiscal pode ser executada nesta versão")
@@ -489,12 +547,14 @@ def execute(req):
         if req["kind"] == "NFE":
             if req["operation"] == "cancel":
                 return nfe_cancel(lib, req)
+            if req["operation"] == "cce":
+                return nfe_cce(lib, req)
             if req["operation"] == "inutilize":
                 return nfe_inutilize(lib, req)
             if req["operation"] == "pdf":
                 return nfe_danfe(lib, req)
             return nfe_transmit(lib, req) if req["operation"] == "transmit" else nfe_consult(lib, req)
-        if req["operation"] in ("pdf", "cancel", "inutilize"):
+        if req["operation"] in ("pdf", "cancel", "inutilize", "cce"):
             raise ACBrError("Operação fora do escopo ACBr NFSe")
         return nfse_transmit(lib, req) if req["operation"] == "transmit" else nfse_consult(lib, req)
     finally:
