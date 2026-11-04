@@ -110,7 +110,7 @@ function createPaymentProviderStore({app,safeStorage}={}){
     }
     return publicStatus(config);
   }
-  function runtimeOptions(){
+  function runtimeOptions({localTerminalId=null}={}){
     const config=read();
     if(config.mode==='manual')return{};
     if(config.mode==='paygo'){
@@ -121,7 +121,7 @@ function createPaymentProviderStore({app,safeStorage}={}){
       })};
     }
     const valid=validateBridge(config);
-    return{tefProvider:createLocalTefProvider({executable:valid.executable})};
+    return{tefProvider:createLocalTefProvider({executable:valid.executable,allowedTerminalId:localTerminalId})};
   }
   return{status,save,runtimeOptions};
 }
