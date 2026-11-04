@@ -67,7 +67,13 @@ jobs:
           & svn --version --quiet
           if ($LASTEXITCODE -ne 0) { throw 'Subversion CLI probe failed' }
           $env:PATH = [Environment]::GetEnvironmentVariable('PATH','Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH','User')
-          lazbuild --version
+          $lazbuild = 'C:\lazarus\lazbuild.exe'
+          if (!(Test-Path $lazbuild)) {
+            $cmd = Get-Command lazbuild -ErrorAction SilentlyContinue
+            if (!$cmd) { throw 'Lazarus compiler missing after installation' }
+            $lazbuild = $cmd.Source
+          }
+          & $lazbuild --version
           if ($LASTEXITCODE -ne 0) { throw 'Lazarus toolchain not available' }
       - name: Build and verify native ACBr OSS bundle
         shell: pwsh
