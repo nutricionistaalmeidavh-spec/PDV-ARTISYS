@@ -245,7 +245,9 @@ function createAcbrLibAdapter(options={}){
         if(fs.existsSync(signed))return blocked('NFC-e já assinada: recuperação manual obrigatória');
         const result=await runner({...context.command,operation:'offline-issue'});
         const key=String(result?.accessKey||''),xml=String(result?.xml||'');
-        const qr=xmlField(xml,'qrCode'),protocol=xmlField(xml,'nProt');
+        const qrValue=/<(?:[A-Za-z0-9_]+:)?qrCode(?:\s[^>]*)?>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]+))<\/(?:[A-Za-z0-9_]+:)?qrCode\s*>/i.exec(xml);
+        const qr=(qrValue?.[1]||qrValue?.[2]||'').trim();
+        const protocol=xmlField(xml,'nProt');
         const encoded=String(result?.pdfBase64||'');
         if(result?.status!=='OFFLINE_SIGNED'||result.environment!=='HOMOLOGACAO'||
            !accessKeyMatches(key,context.manifest)||!xml.includes('NFe'+key)||
