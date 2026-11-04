@@ -2,6 +2,7 @@
 const {randomUUID,createHash}=require('node:crypto');
 const {withTransaction}=require('../../core/database/sqlite-database');
 const {buildStaticPix}=require('./pix-brcode');
+const {pixQrSvg}=require('./pix-qr-svg');
 const {assertCents}=require('../shared/money');
 
 const CHANNEL_METHODS=Object.freeze({PIX_STATIC:['PIX'],PIX_API:['PIX'],TEF:['DEBIT_CARD','CREDIT_CARD']});
@@ -39,7 +40,9 @@ function createPaymentIntentService({
   const getRow=id=>db.prepare('SELECT * FROM payment_intents WHERE id=?').get(String(id));
   function publicRow(row){
     if(!row)return null;
-    return{id:row.id,saleId:row.sale_id,channel:row.channel,method:row.method,amountCents:row.amount_cents,
+    let qrSvg=null;
+    if(row.br_code){try{qrSvg=pixQrSvg(row.br_code);}catch{/* copied payload still available */}}
+    return{qrSvg,id:row.id,saleId:row.sale_id,channel:row.channel,method:row.method,amountCents:row.amount_cents,
       status:row.status,brCode:row.br_code,txid:row.txid,endToEndId:row.end_to_end_id,
       providerReference:row.provider_reference,confirmationSource:row.confirmation_source,
       confirmedBy:row.confirmed_by,startedAt:row.started_at,verifiedAt:row.verified_at,
