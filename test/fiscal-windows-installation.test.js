@@ -180,7 +180,7 @@ test('desktop operator can issue NFC-e offline, save contingency DANFE and flush
  assert.match(ui,/endpoint\+'\/offline-issue'/);
  assert.match(ui,/offline-queue\/flush/);
  assert.match(ui,/saveOfflineDanfe/);
- assert.match(main,/artisys:fiscal:save-offline-danfe/);
+ assert.match(main,/['"]save-offline-danfe['"]/);
  assert.match(main,/offline-danfe\.pdf/);
  assert.match(preload,/saveOfflineDanfe/);
 });
