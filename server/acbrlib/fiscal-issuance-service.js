@@ -41,6 +41,17 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   'access_key TEXT, protocol TEXT, updated_at TEXT NOT NULL)');
  db.exec('CREATE TABLE IF NOT EXISTS acbr_fiscal_rejections ('+
   'document_id TEXT PRIMARY KEY, c_stat INTEGER NOT NULL,reason TEXT NOT NULL,reported_at TEXT NOT NULL)');
+
+ db.exec(\`CREATE TABLE IF NOT EXISTS acbr_fiscal_cancellations(
+  document_id TEXT PRIMARY KEY,justification TEXT NOT NULL,status TEXT NOT NULL
+  CHECK(status IN('UNKNOWN','CANCELLED')),requested_at TEXT NOT NULL,
+  event_protocol TEXT,c_stat INTEGER,confirmed_at TEXT);
+ CREATE TABLE IF NOT EXISTS acbr_fiscal_inutilizations(
+  id TEXT PRIMARY KEY,environment TEXT NOT NULL,year INTEGER NOT NULL,
+  model INTEGER NOT NULL,series INTEGER NOT NULL,first_number INTEGER NOT NULL,
+  last_number INTEGER NOT NULL,justification TEXT NOT NULL,status TEXT NOT NULL
+  CHECK(status IN('UNKNOWN','CONFIRMED')),requested_at TEXT NOT NULL,
+  event_protocol TEXT,confirmed_at TEXT);\`);
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
  const draftFor=id=>{
   const draft=drafts.getDocument(id);
@@ -253,6 +264,104 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   if(sha(original)!==meta.xml_sha256)throw Error('XML autorizado não confere com DANFE');
   return pdf;
  }
- return Object.freeze({prepare,issue,consult,danfe,getDanfe});
+
+ function justification(value){
+  const reason=String(value||'').trim();
+  if(reason.length<15||reason.length>255||/[\r\n\0]/.test(reason))
+   throw Error('Justificativa fiscal deve conter de 15 a 255 caracteres sem quebras');
+  return reason;
+ }
+ function getCancellationStatus(id){
+  const row=db.prepare('SELECT * FROM acbr_fiscal_cancellations WHERE document_id=?').get(String(id));
+  return row?{documentId:id,status:row.status,eventProtocol:row.event_protocol||null,
+   cStat:row.c_stat||null,requestedAt:row.requested_at}:null;
+ }
+ async function cancel(id,{reason}={}){
+  if(!allowHomologation)throw Error('Cancelamento somente em homologação habilitada');
+  if(typeof adapter.cancel!=='function')throw Error('ACBr local não suporta cancelamento');
+  const document=draftFor(id);
+  if(document.status!=='AUTHORIZED')throw Error('Cancelamento exige nota autorizada');
+  const meta=metaFor(id);
+  if(!meta?.access_key||!meta.protocol||!meta.xml_sha256)
+   throw Error('Nota sem protocolo autorizado verificável');
+  const xmlPath=path.join(dir,meta.reference+'.authorized.xml');
+  if(!fs.existsSync(xmlPath)||sha(fs.readFileSync(xmlPath))!==meta.xml_sha256)
+   throw Error('XML autorizado alterado: cancelamento bloqueado');
+  const text=justification(reason);
+  if(getCancellationStatus(id))throw Error('Cancelamento anterior exige consulta, nunca reenvio');
+  if(typeof adapter.status==='function'){
+   const ready=await adapter.status();
+   if(ready?.data?.ready===false)throw Error('ACBr local não pronta para cancelamento');
+  }
+  // Persist UNKNOWN before the native event is sent. Never retry a timeout.
+  withTransaction(db,()=>db.prepare("INSERT INTO acbr_fiscal_cancellations(document_id,justification,status,requested_at) VALUES(?,?,'UNKNOWN',?)")
+   .run(String(id),text,now()));
+  let result=null;
+  try{result=await adapter.cancel({type:document.documentType,reference:meta.reference,
+   environment:'homologation',accessKey:meta.access_key,reason:text});}
+  catch{/* Unknown official outcome remains durable. */}
+  const d=result?.data;
+  if(result?.ok===true&&d?.accessKey===meta.access_key&&[135,155].includes(Number(d.cStat))&&
+    /^\d{10,20}$/.test(String(d.eventProtocol||''))){
+   withTransaction(db,()=>{
+    const changed=db.prepare("UPDATE acbr_fiscal_documents SET status='CANCELLED',updated_at=? WHERE id=? AND status='AUTHORIZED'")
+     .run(now(),id).changes;
+    if(changed!==1)throw Error('Estado fiscal mudou; cancelamento requer conciliação');
+    db.prepare("UPDATE acbr_fiscal_cancellations SET status='CANCELLED',event_protocol=?,c_stat=?,confirmed_at=? WHERE document_id=? AND status='UNKNOWN'")
+     .run(d.eventProtocol,Number(d.cStat),now(),id);
+   });
+   return {id,status:'CANCELLED',eventProtocol:d.eventProtocol,cStat:Number(d.cStat)};
+  }
+  return {id,status:'UNKNOWN',requiresManualReconciliation:true};
+ }
+ function listInutilizations(){
+  return db.prepare('SELECT * FROM acbr_fiscal_inutilizations ORDER BY requested_at DESC LIMIT 100').all()
+   .map(r=>({id:r.id,status:r.status,model:r.model,series:r.series,year:r.year,
+    startNumber:r.first_number,endNumber:r.last_number,eventProtocol:r.event_protocol||null}));
+ }
+ async function inutilize({model,series,year,startNumber,endNumber,reason}={}){
+  if(!allowHomologation)throw Error('Inutilização somente em homologação habilitada');
+  if(typeof adapter.inutilize!=='function')throw Error('ACBr local não suporta inutilização');
+  const company=drafts.getCompany();
+  if(!company||company.environment!=='homologation')throw Error('Emitente fiscal não configurado');
+  if(![55,65].includes(model)||series!==company.series||!Number.isSafeInteger(series)||
+     !Number.isSafeInteger(year)||year!==Number(String(now()).slice(0,4))||
+     !Number.isSafeInteger(startNumber)||startNumber<1||startNumber>999999999||
+     !Number.isSafeInteger(endNumber)||endNumber<startNumber||endNumber-startNumber>99)
+   throw Error('Faixa ou exercício fiscal inválido');
+  const text=justification(reason),type=model===65?'nfce':'nfe';
+  const sequence=db.prepare("SELECT next_number FROM acbr_fiscal_sequences WHERE document_type=? AND environment='homologation' AND series=?")
+   .get(type,series);
+  if(!sequence||sequence.next_number<=endNumber)
+   throw Error('Faixa ainda não reservada no histórico fiscal');
+  const used=db.prepare("SELECT count(*) AS n FROM acbr_fiscal_documents WHERE environment='homologation' AND model=? AND series=? AND number BETWEEN ? AND ?")
+   .get(model,series,startNumber,endNumber);
+  if(used.n>0)throw Error('Faixa contém documento fiscal utilizado');
+  const overlap=db.prepare("SELECT 1 FROM acbr_fiscal_inutilizations WHERE environment='homologation' AND model=? AND series=? AND year=? AND first_number<=? AND last_number>=? LIMIT 1")
+   .get(model,series,year,endNumber,startNumber);
+  if(overlap)throw Error('Faixa anterior exige consulta, nunca reenvio');
+  if(typeof adapter.status==='function'){
+   const ready=await adapter.status();
+   if(ready?.data?.ready===false)throw Error('ACBr local não pronta para inutilização');
+  }
+  const id=[year,model,series,startNumber,endNumber].join('-');
+  // State is durable before any potential SEFAZ call.
+  withTransaction(db,()=>db.prepare("INSERT INTO acbr_fiscal_inutilizations(id,environment,year,model,series,first_number,last_number,justification,status,requested_at) VALUES(?,'homologation',?,?,?,?,?,?,'UNKNOWN',?)")
+   .run(id,year,model,series,startNumber,endNumber,text,now()));
+  let result=null;
+  try{result=await adapter.inutilize({environment:'homologation',issuerCnpj:company.cnpj,
+   issuerUF:company.uf,model,series,year,startNumber,endNumber,reason:text});}
+  catch{/* UNKNOWN persists; do not repeat. */}
+  const d=result?.data;
+  if(result?.ok===true&&d?.cStat===102&&d.model===model&&d.series===series&&
+     d.year===year&&d.startNumber===startNumber&&d.endNumber===endNumber&&
+     /^\d{10,20}$/.test(String(d.eventProtocol||''))){
+    withTransaction(db,()=>db.prepare("UPDATE acbr_fiscal_inutilizations SET status='CONFIRMED',event_protocol=?,confirmed_at=? WHERE id=? AND status='UNKNOWN'")
+     .run(d.eventProtocol,now(),id));
+    return {id,status:'CONFIRMED',eventProtocol:d.eventProtocol};
+  }
+  return {id,status:'UNKNOWN',requiresManualReconciliation:true};
+ }
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations});
 }
 module.exports={createFiscalIssuanceService};
