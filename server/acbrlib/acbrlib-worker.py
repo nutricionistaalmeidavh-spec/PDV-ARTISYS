@@ -229,7 +229,7 @@ def nfe_cancel(lib, req):
     key = str(req.get("accessKey", ""))
     reason = str(req.get("reason", "")).strip()
     ensure_signed_number(req, key, req.get("number"), req.get("series"))
-    if not (15 <= len(reason) <= 255) or re.search(r"[\\r\\n\\x00]", reason):
+    if not (15 <= len(reason) <= 255) or re.search(r"[\r\n\x00]", reason):
         raise ACBrError("Justificativa de cancelamento inválida")
     response_text = response(lib, "NFE_Cancelar",
                              (encoded(key), encoded(reason), encoded(req["issuerCnpj"]), int(req["lot"])),
@@ -273,7 +273,7 @@ def confirmed_nfe_inutilization(parts, req):
 
 def nfe_inutilize(lib, req):
     reason = str(req.get("reason", "")).strip()
-    if not (15 <= len(reason) <= 255) or re.search(r"[\\r\\n\\x00]", reason):
+    if not (15 <= len(reason) <= 255) or re.search(r"[\r\n\x00]", reason):
         raise ACBrError("Justificativa de inutilização inválida")
     response_text = response(lib, "NFE_Inutilizar",
                              (encoded(req["issuerCnpj"]), encoded(reason), int(req["year"]),
