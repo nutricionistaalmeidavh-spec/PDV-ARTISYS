@@ -97,3 +97,13 @@ test('sale voided after drafting can never be sent to SEFAZ',async t=>{
  assert.equal(sent,false);
  assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
 });
+
+test('missing local ACBr DLL or certificate config cannot consume invoice attempt state',async t=>{
+ let sent=false;
+ const f=fixture(t,{status:async()=>({ok:true,data:{configured:true,ready:false}}),issue:async()=>{sent=true;}});
+ const service=f.build(true);
+ service.prepare(f.draft.id);
+ await assert.rejects(()=>service.issue(f.draft.id),/biblioteca|configura|ACBr|ausent/i);
+ assert.equal(sent,false);
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
+});
