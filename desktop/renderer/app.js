@@ -697,10 +697,15 @@
   function showIntegratedPayment(index,intent) {
   const isPix=intent.method==='PIX';
   const statusText={PENDING:'Aguardando pagamento',REVIEW:'Resultado indeterminado: conferir com o provedor',VERIFIED:'Confirmado pelo provedor',MANUAL_CONFIRMED:'Confirmado manualmente pelo responsável',CONSUMED:'Vinculado à venda',FAILED:'Recusado',CANCELLED:'Cancelado'}[intent.status]||intent.status;
+  let safeQrSvg=intent.qrSvg||'';
+  if(intent.brCode&&typeof window.qrcode==='function'){
+    try{const qr=window.qrcode(0,'L');qr.addData(intent.brCode,'Byte');qr.make();safeQrSvg=qr.createSvgTag({cellSize:5,margin:4});}
+    catch{ /* Pix Copia e Cola remains available */ }
+  }
   const html=`
     <p><strong>${escapeHtml(statusText)}</strong></p>
     <p>${isPix?'Pix Copia e Cola vinculado a esta venda.':'TEF: confira o resultado do PinPad e o comprovante.'}</p>
-    ${intent.qrSvg?'<div class="pix-qr" style="max-width:260px;margin:12px auto;overflow:hidden">'+intent.qrSvg+'</div>':''}
+    ${safeQrSvg?'<div class="pix-qr" style="max-width:260px;margin:12px auto;overflow:hidden">'+safeQrSvg+'</div>':''}
     ${intent.brCode?'<div class="field"><label>Pix Copia e Cola</label><textarea id="integrated-pix-code" readonly rows="4">'+escapeHtml(intent.brCode)+'</textarea></div>':''}
     <div class="modal-actions">
       <button type="button" class="secondary-button" id="integrated-back">Voltar</button>
