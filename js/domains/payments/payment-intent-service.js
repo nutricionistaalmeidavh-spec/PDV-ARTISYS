@@ -126,6 +126,21 @@ function createPaymentIntentService({
   }
   async function reconcile(id){
     const row=requireIntent(id);
+    if(row.channel==='TEF'){
+      if(row.status==='VERIFIED'||row.status==='CONSUMED')return get(id);
+      if(row.status!=='REVIEW'||!row.started_at)throw new Error('TEF nao esta em estado conciliavel.');
+      if(!tefProvider||typeof tefProvider.verify!=='function')throw new Error('Operadora TEF nao disponibilizou consulta da transacao; exige conferencia externa.');
+      const receipt=await tefProvider.verify({id:row.id,txid:row.txid,amountCents:row.amount_cents,
+        method:row.method,saleId:row.sale_id});
+      if(receipt?.status==='APPROVED'&&receipt.nsu&&receipt.authorizationCode&&receipt.acquirer
+        &&receipt.txid===row.txid&&receipt.amountCents===row.amount_cents){
+        withTransaction(db,()=>db.prepare("UPDATE payment_intents SET status='VERIFIED',confirmation_source='TEF',provider_reference=?,verified_at=?,updated_at=? WHERE id=? AND status='REVIEW'")
+          .run(String(receipt.acquirer)+':'+String(receipt.nsu)+':'+String(receipt.authorizationCode),now(),now(),row.id));
+      }else if(receipt?.status==='DECLINED'&&receipt.txid===row.txid){
+        db.prepare("UPDATE payment_intents SET status='FAILED',updated_at=? WHERE id=? AND status='REVIEW'").run(now(),row.id);
+      }
+      return get(id);
+    }
     if(row.channel!=='PIX_API')throw new Error('Conciliacao automatica disponivel apenas para Pix bancario.');
     if(row.status==='VERIFIED'||row.status==='CONSUMED')return get(id);
     if(row.status==='CANCELLED'||row.status==='FAILED')throw new Error('Tentativa encerrada.');
