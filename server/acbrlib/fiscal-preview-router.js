@@ -67,7 +67,11 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
      if(body.productId&&body.productId!==productId)throw new FiscalHttpError(400,'Produto não corresponde ao caminho');
      send(res,200,service.saveProductProfile({...body,productId}));return true;}
    }
-   if(req.method==='GET'&&p===prefix+'/documents'){send(res,200,service.listDocuments({limit:Number(url.searchParams.get('limit')||100)}));return true;}
+   if(req.method==='GET'&&p===prefix+'/documents'){
+    const documents=service.listDocuments({limit:Number(url.searchParams.get('limit')||100)});
+    send(res,200,documents.map(document=>({...document,
+      issuanceMode:issuance?.getIssuanceMode(document.id)||null})));return true;
+   }
 
    if(req.method==='GET'&&p===prefix+'/inutilizations'){
     if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
@@ -113,7 +117,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)$/))&&req.method==='GET'){
     const doc=service.getDocument(decodeURIComponent(matched[1]));
     if(!doc)throw new FiscalHttpError(404,'Documento não encontrado');
-    send(res,200,doc);return true;
+    send(res,200,{...doc,issuanceMode:issuance?.getIssuanceMode(doc.id)||null});return true;
    }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/sales\/([^/]+)\/prepare$/))&&req.method==='POST'){
     const body=await readBody(req,bodyLimitBytes);
