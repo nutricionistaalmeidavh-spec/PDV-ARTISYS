@@ -97,10 +97,12 @@ function createFiscalCredentialStore({userData,safeStorage}={}){
   return iniPath;
  }
  function enableHomologation(){
-  // This call must only be exposed through authenticated administrative IPC.
-  materialize();
-  atomic(enabledPath,Buffer.from(JSON.stringify({enabled:true,at:new Date().toISOString()})));
-  return {homologationEnabled:true,restartRequired:true};
+  // Validate the private A1 locally, but never leave the plaintext INI at rest.
+  try {
+   materialize();
+   atomic(enabledPath,Buffer.from(JSON.stringify({enabled:true,at:new Date().toISOString()})));
+   return {homologationEnabled:true,restartRequired:true};
+  } finally {removeRuntimeConfig();}
  }
  return Object.freeze({
   status,importCertificate,materialize,enableHomologation,disableHomologation,
