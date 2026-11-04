@@ -79,3 +79,51 @@ test('requires legitimate cNF and rejects snapshot tampering and inconsistent IB
  d=example();d.snapshot.totalCents=1801;
  assert.throws(()=>build(d),/snapshot|alterado|hash/i);
 });
+
+function rehash(d){d.snapshotHash=createHash('sha256').update(JSON.stringify(d.snapshot)).digest('hex');return d;}
+test('normal CRT3 with reviewed ICMS/PIS/COFINS produces real taxable totals',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ d.snapshot.issuer.crt='3';p.cst='00';p.csosn='';
+ p.icms={basePercent:'100.0000',rate:'18.0000'};
+ p.pisCst='01';p.pis={rate:'1.6500'};
+ p.cofinsCst='01';p.cofins={rate:'7.6000'};
+ const {ini}=build(rehash(d));
+ for(const line of ['[ICMS001]','CST=00','pICMS=18.0000','vICMS=3.24',
+  '[PIS001]','pPIS=1.6500','vPIS=0.30',
+  '[COFINS001]','pCOFINS=7.6000','vCOFINS=1.37',
+  '[Total]','vBC=18.00','vICMS=3.24','vCOFINS=1.37'])
+  assert.ok(ini.includes(line),line);
+});
+test('retained ICMS-ST in CSOSN 500 is recorded without duplicating ST due',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ p.csosn='500';p.icmsRetained={baseCents:1800,amountCents:324};
+ const {ini}=build(rehash(d));
+ assert.match(ini,/\[ICMS001\][\s\S]*CSOSN=500/);
+ assert.match(ini,/vBCSTRet=18\.00/);
+ assert.match(ini,/vICMSSTRet=3\.24/);
+ assert.match(ini,/\[Total\][\s\S]*vST=0\.00/);
+});
+test('ST due is not emitted until commercial settlement includes the extra fiscal amount',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ p.csosn='202';p.icmsSt={baseCents:2400,rate:'18.0000',amountCents:432};
+ assert.throws(()=>build(rehash(d)),/ICMS ST|total comercial/i);
+});
+test('reviewed card acquirer metadata becomes ACBr card payment fields, never card PAN',()=>{
+ const d=example();
+ d.snapshot.payments=[{method:'CREDIT_CARD',amountCents:1800,fiscalMetadata:{
+  tpIntegra:'1',cnpj:'12345678000195',tBand:'01',cAut:'ABC123',indPag:'0'
+ }}];
+ d.snapshot.changeCents=0;
+ const {ini}=build(rehash(d));
+ assert.match(ini,/\[pag001\][\s\S]*tPag=03/);
+ assert.match(ini,/tpIntegra=1/);
+ assert.match(ini,/tBand=01/);
+ assert.match(ini,/cAut=ABC123/);
+ assert.doesNotMatch(ini,/cardNumber|pan|cvv/i);
+});
+test('card payments without canonical acquirer metadata are rejected',()=>{
+ const d=example();
+ d.snapshot.payments=[{method:'DEBIT_CARD',amountCents:1800}];
+ d.snapshot.changeCents=0;
+ assert.throws(()=>build(rehash(d)),/adquirente|cartão|integração|CNPJ/i);
+});
