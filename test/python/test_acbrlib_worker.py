@@ -174,5 +174,20 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         worker.ensure_signed_issuance_mode("<NFe><ide><tpEmis>1</tpEmis></ide></NFe>",
                                           {"model":55,"issuanceMode":"normal"})
 
+
+    def test_offline_acbr_runtime_sets_explicit_teoffline8_without_changing_disk_config(self):
+        from unittest.mock import patch
+        with patch.object(worker,"do") as native:
+            worker.configure_nfe_emission(object(),{"issuanceMode":"nfce-offline","model":65})
+            self.assertEqual(native.call_count,1)
+            self.assertEqual(native.call_args.args[1:],
+                             ("NFE_ConfigGravarValor",b"NFe",b"FormaEmissao",b"8"))
+            self.assertEqual(native.call_args.kwargs["types"],[worker.ct.c_char_p]*3)
+        with patch.object(worker,"do") as native:
+            worker.configure_nfe_emission(object(),{"issuanceMode":"normal","model":65})
+            native.assert_not_called()
+        with self.assertRaises(worker.ACBrError):
+            worker.configure_nfe_emission(object(),{"issuanceMode":"nfce-offline","model":55})
+
 if __name__ == "__main__":
     unittest.main()
