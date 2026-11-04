@@ -63,6 +63,31 @@ const runtime=createPdvRuntime({paymentOptions:{pixProvider}});
 
 O adaptador nunca salva token, certificado ou chave privada no SQLite. O operador precisa configurar um banco de verdade e validar ambiente de homologacao com o provedor. Nao ha proxy Cloudflare, Asaas nem tarifa obrigatoria. Se nao existe adaptador configurado, Pix automatico fica desabilitado. O tokenProvider representa um fluxo OAuth2 proprio do banco, que ainda precisa ser provido para a instituicao escolhida.
 
+## TEF real opcional — PayGo Windows (ControlPay)
+
+Foi implementado o adaptador `js/domains/payments/paygo-controlpay-provider.js`, usando as rotas oficiais **Venda/Vender** e **IntencaoVenda/GetById**. Ele inicia débito ou crédito com valor e terminal definidos e só considera a transação aprovada após obter o status **Creditado (10)**, pagamento externo **Finalizado (15)**, valor, modalidade e código de autorização coerentes. Um timeout nunca executa nova cobrança automaticamente.
+
+É uma **opção explícita**, não faz parte do núcleo obrigatório R$ 0. O estabelecimento precisa de conta/credenciamento PayGo, chave de integração, PayGo Windows configurado e PinPad compatível; encargos e homologação são tratados com o prestador, não pelo ArtiSys. Não é necessário usar essa opção para vendas manuais, QR Pix ou operação offline do PDV.
+
+Configure apenas no servidor autoritativo, através de variáveis de ambiente protegidas (não nas telas de login ou no banco de dados):
+
+```text
+PDV_PAYGO_API_URL=https://sandbox.controlpay.com.br/webapi/
+PDV_PAYGO_INTEGRATION_KEY=<chave-fornecida-ao-estabelecimento>
+PDV_PAYGO_TERMINAL_ID=<id-do-terminal-cadastrado>
+```
+
+Para produção, substitua o endereço sandbox pela URL da conta fornecida pela PayGo e conclua o roteiro de homologação do provedor. A API PayGo ControlPay requer acesso ao servidor do prestador; **não é um sistema TEF self-hosted**. A opção `PDV_TEF_BRIDGE_EXE` continua disponível para um bridge nativo ACBr/SiTef/PayGo **separado**, com caminho absoluto; ele tem precedência sobre o ControlPay quando ambas as configurações estiverem presentes.
+
+Fluxo de uso: no checkout, selecione débito/crédito, escolha **Cartão integrado**, aguarde o PayGo Windows/PinPad, clique **Consultar operadora TEF** e conclua a venda **somente quando o status for Confirmado**. Após falha de rede ou queda de energia, use a consulta pela mesma tentativa; nunca lance outra cobrança sem reconciliar a pendência.
+
+Documentação técnica oficial de referência:
+- https://paygodev.readme.io/docs/exemplo-de-fluxo-m%C3%ADnimo-para-uso
+- https://paygodev.readme.io/docs/valores-de-status-ids-e-tipos
+- https://paygodev.readme.io/docs/kit-de-integracao-api
+
+**Limite de homologação:** este adaptador foi validado com respostas simuladas baseadas na documentação, mas ainda não passou teste real com credenciais, PayGo Windows, adquirente e PinPad. Como é uma alternativa à ponte ACBr, não se deve anunciar o TEF ACBr como homologado.
+
 ## Contrato do TEF
 
 `paymentOptions.tefProvider` recebe uma implementacao local e isolada. A resposta so sera marcada VERIFIED quando contiver `{status:'APPROVED',txid,amountCents,nsu,authorizationCode,acquirer}` associados exatamente a tentativa. Recusa vira FAILED; perda de conexao, resposta duvidosa ou queda vira REVIEW e **nao** provoca repeticao automatica. Para recuperar um resultado indeterminado, o adaptador pode implementar `tefProvider.verify({id,txid,amountCents,method,saleId})`; somente uma resposta autenticada, com valor e identificador coincidentes, devolve VERIFIED. Exigir status de transacao da operadora antes de nova tentativa.
