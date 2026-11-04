@@ -93,3 +93,17 @@ test('Pix vinculado nao pode ser estornado somente por cancelamento ou devolucao
     assert.throws(()=>service.createReturn({saleId:'s1',terminalId:'T1',operatorId:'u1',reason:'teste',actor:{userId:'u1'},items:[],refunds:[]}),/reembolso externo/i);
   }finally{rt.close();}
 });
+
+test('TEF indeterminado somente volta a confirmado apos consulta autenticada do provedor',async()=>{
+  const tefProvider={
+    async start(){return{status:'UNKNOWN'};},
+    async verify({txid,amountCents}){return{status:'APPROVED',txid,amountCents,nsu:'000123',authorizationCode:'456789',acquirer:'ADQUIRENTE_TESTE'};}
+  };
+  const rt=testRuntime({paymentOptions:{tefProvider}});
+  try{
+    const intent=rt.paymentIntents.create({saleId:'s1',channel:'TEF',method:'DEBIT_CARD',amountCents:10000,idempotencyKey:'tef-recover'});
+    assert.equal((await rt.paymentIntents.start(intent.id)).status,'REVIEW');
+    assert.equal((await rt.paymentIntents.reconcile(intent.id)).status,'VERIFIED');
+    assert.match(rt.paymentIntents.get(intent.id).providerReference,/ADQUIRENTE_TESTE:000123/);
+  }finally{rt.close();}
+});
