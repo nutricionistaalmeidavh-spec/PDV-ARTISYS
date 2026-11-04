@@ -175,3 +175,13 @@ test('number-range invalidation is blocked for missing native configuration and 
   model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'NUMEROS NAO UTILIZADOS'});
  assert.equal(result.ok,false);
 });
+
+test('preflight validates the exact NF-e/NFC-e model without invoking the native worker or SEFAZ',async t=>{
+ const f=fixture(t);let sent=0;
+ const a=createAcbrLibAdapter({...f.options,runner:async()=>{sent++;return authorized;}});
+ assert.equal((await a.preflight(request(f))).ok,true);
+ let cfg=fs.readFileSync(f.options.nfeConfig,'utf8');
+ fs.writeFileSync(f.options.nfeConfig,cfg.replace('CSC=TEST_CSC','CSC='));
+ assert.equal((await a.preflight(request(f))).ok,false);
+ assert.equal(sent,0);
+});
