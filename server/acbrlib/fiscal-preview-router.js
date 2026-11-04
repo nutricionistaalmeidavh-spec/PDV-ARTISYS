@@ -80,6 +80,22 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     const result=await issuance.inutilize(body);
     send(res,result.status==='CONFIRMED'?200:202,result);return true;
    }
+
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cce$/))&&req.method==='GET'){
+    if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
+    send(res,200,issuance.getCceHistory(decodeURIComponent(matched[1])));return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cce$/))&&req.method==='POST'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'CC-e somente em homologação habilitada');
+    const body=await readBody(req,bodyLimitBytes);
+    const result=await issuance.cce(decodeURIComponent(matched[1]),{
+      correction:body.correction,sequence:body.sequence,reviewedBy:body.reviewedBy,
+      confirmNoMaterialChange:body.confirmNoMaterialChange,
+      replacesPrevious:body.replacesPrevious
+    });
+    send(res,result.status==='CONFIRMED'?200:202,result);return true;
+   }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cancellation$/))&&req.method==='GET'){
     if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
     const result=issuance.getCancellationStatus(decodeURIComponent(matched[1]));
