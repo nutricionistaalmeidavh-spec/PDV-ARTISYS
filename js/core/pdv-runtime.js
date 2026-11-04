@@ -129,7 +129,7 @@ function createPdvRuntime({
   const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,authorization,now,idFactory});const commercialPricing=createCommercialPricingService({db,modules,authorization,now,idFactory});
   const resolveStockRequirements=items=>expandStockItems(items,recipes);
   const coreSales=createSaleService({db,outbox,authorization,now,idFactory,stockRequirementsResolver:resolveStockRequirements,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
-  const configuredStaticPix=paymentOptions.pixStatic||(process.env.PDV_PIX_KEY?{
+  const configuredStaticPix=()=>settings.get('payments.pix.static',{defaultValue:null})||paymentOptions.pixStatic||(process.env.PDV_PIX_KEY?{
     key:process.env.PDV_PIX_KEY,merchantName:process.env.PDV_PIX_MERCHANT_NAME,merchantCity:process.env.PDV_PIX_CITY
   }:null);
   const paymentIntents=createPaymentIntentService({db,sales:coreSales,now,idFactory,
