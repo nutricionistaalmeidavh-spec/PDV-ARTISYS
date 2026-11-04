@@ -60,3 +60,33 @@ test('TEF falho ou indeterminado nunca se converte em autorizado',async()=>{
     assert.throws(()=>rt.sales.completeSale('s1',{payments:[{method:'DEBIT_CARD',amountCents:1999,metadata:{paymentIntentId:intent.id}}]}),/confirmado/i);
   }finally{rt.close();}
 });
+
+test('TEF PayGo nao libera venda ate conciliacao real e reaproveita intencao sem repetir cobranca',async()=>{
+  let charges=0;
+  const provider={
+    async start({txid,amountCents}){charges++;return{status:'PENDING',txid,amountCents,providerReference:'2015371'};},
+    async reconcile({txid,amountCents,providerReference}){
+      assert.equal(providerReference,'2015371');
+      return{status:'APPROVED',txid,amountCents,providerReference,
+        paymentExternalId:'2025992',authorizationCode:'AUT123',acquirer:'PAYGO'};
+    }
+  };
+  const rt=fixture({tefProvider:provider});
+  try{
+    const created=rt.paymentIntents.create({saleId:'s1',channel:'TEF',method:'DEBIT_CARD',
+      amountCents:1999,idempotencyKey:'paygo123'});
+    const started=await rt.paymentIntents.start(created.id);
+    assert.equal(started.status,'PENDING');
+    assert.equal(started.providerReference,'2015371');
+    assert.throws(()=>rt.sales.completeSale('s1',{payments:[{method:'DEBIT_CARD',amountCents:1999,
+      metadata:{paymentIntentId:created.id}}]}),/confirmado/i);
+    await rt.paymentIntents.start(created.id);
+    assert.equal(charges,1,'repeticao nao deve iniciar outra operacao no terminal');
+    const confirmed=await rt.paymentIntents.reconcile(created.id);
+    assert.equal(confirmed.status,'VERIFIED');
+    assert.equal(confirmed.confirmationSource,'TEF');
+    assert.equal(rt.sales.completeSale('s1',{payments:[{method:'DEBIT_CARD',amountCents:1999,
+      metadata:{paymentIntentId:created.id}}]}).status,'COMPLETED');
+    assert.equal(rt.paymentIntents.get(created.id).status,'CONSUMED');
+  }finally{rt.close();}
+});
