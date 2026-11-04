@@ -42,7 +42,7 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
  db.exec('CREATE TABLE IF NOT EXISTS acbr_fiscal_rejections ('+
   'document_id TEXT PRIMARY KEY, c_stat INTEGER NOT NULL,reason TEXT NOT NULL,reported_at TEXT NOT NULL)');
 
- db.exec(\`CREATE TABLE IF NOT EXISTS acbr_fiscal_cancellations(
+ db.exec(`CREATE TABLE IF NOT EXISTS acbr_fiscal_cancellations(
   document_id TEXT PRIMARY KEY,justification TEXT NOT NULL,status TEXT NOT NULL
   CHECK(status IN('UNKNOWN','CANCELLED')),requested_at TEXT NOT NULL,
   event_protocol TEXT,c_stat INTEGER,confirmed_at TEXT);
@@ -51,7 +51,7 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   model INTEGER NOT NULL,series INTEGER NOT NULL,first_number INTEGER NOT NULL,
   last_number INTEGER NOT NULL,justification TEXT NOT NULL,status TEXT NOT NULL
   CHECK(status IN('UNKNOWN','CONFIRMED')),requested_at TEXT NOT NULL,
-  event_protocol TEXT,confirmed_at TEXT);\`);
+  event_protocol TEXT,confirmed_at TEXT);`);
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
  const draftFor=id=>{
   const draft=drafts.getDocument(id);
