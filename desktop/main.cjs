@@ -27,6 +27,7 @@ const { createHardwareConfigStore } = require('./hardware-config-store.cjs');
 const { createReceiptActions, registerReceiptIpc } = require('./receipt-actions.cjs');
 const { loadDataServerConfig, saveDataServerConfig, saveDataServerIntent, isHostMode, isExternalMode, publicDataServerConfig } = require('./data-server-config.cjs');
 const { migrateLegacyDataServerCredential, saveDataServerSelection, testDataServerTarget, pairDataServerTerminal } = require('./data-server-runtime.cjs');
+const { createPaymentProviderStore, PAYGO_DOWNLOAD_URL } = require('./payment-provider-config.cjs');
 
 let mainWindow = null;
 let runtime = null;
@@ -45,6 +46,8 @@ let installationWasExisting = true;
 let dataServerConfig = null;
 let dataServerConfigPath = '';
 let installationTransition = false;
+let paymentProviderStore = null;
+let paymentProviderConfigError = null;
 const installToken = randomBytes(32).toString('hex');
 const API_TIMEOUT_MS = 12000;
 
@@ -108,7 +111,15 @@ async function startEmbeddedServer() {
   applyPendingRestore({ dbPath, backupDir });
   installationWasExisting = existsSync(dbPath);
   const installationId=createHash('sha256').update(path.resolve(dbPath)).digest('hex').slice(0,32);
+  // Payment providers are opt-in. An invalid/locked credential file must never
+  // prevent cash sales, stock, or the local database from opening.
+  let paymentOptions={tefProvider:null};
+  try{
+    paymentOptions={...paymentOptions,...paymentProviderStore.runtimeOptions()};
+    paymentProviderConfigError=null;
+  }catch(error){paymentProviderConfigError=String(error.message||error);}
   runtime = createPdvRuntime({
+    paymentOptions,
     dbPath,
     backupDir,
     diagnosticsDir:path.join(app.getPath('userData'),'diagnostics'),
@@ -290,6 +301,47 @@ function registerIpc() {
     installation:installationState({userData:app.getPath('userData'),version:productVersion,existing:installationWasExisting}),
     dataServer: publicDataServerState()
   }));
+
+  const authorizedPaymentSetup=async(event,sessionToken)=>{
+    if(!mainWindow||event.sender!==mainWindow.webContents)throw new Error('Origem do assistente nao autorizada.');
+    if(isExternalMode(dataServerConfig)||!runtime)
+      throw new Error('Configure TEF no PC principal que hospeda os dados, nao neste terminal conectado.');
+    await authorizeDeploymentChange(sessionToken);
+  };
+  ipcMain.handle('artisys:payments:state',async(event,{sessionToken}={})=>{
+    await authorizedPaymentSetup(event,sessionToken);
+    const state=paymentProviderStore.status();
+    return paymentProviderConfigError?{...state,error:paymentProviderConfigError}:state;
+  });
+  ipcMain.handle('artisys:payments:select-bridge',async(event,{sessionToken}={})=>{
+    await authorizedPaymentSetup(event,sessionToken);
+    const chosen=await dialog.showOpenDialog(mainWindow,{
+      title:'Selecionar executavel TEF instalado e autorizado',
+      properties:['openFile'],filters:[{name:'Executaveis TEF',extensions:['exe']}]
+    });
+    return chosen.canceled?{cancelled:true}:{cancelled:false,executable:chosen.filePaths?.[0]||''};
+  });
+  ipcMain.handle('artisys:payments:save',async(event,{sessionToken,input}={})=>{
+    await authorizedPaymentSetup(event,sessionToken);
+    const state=paymentProviderStore.save(input);
+    paymentProviderConfigError=null;
+    // The embedded payment runtime is immutable for in-flight transactions.
+    // Only activating configuration after restart avoids split-brain billing.
+    return{...state,restartRequired:true};
+  });
+  ipcMain.handle('artisys:payments:download',async(event,{sessionToken}={})=>{
+    await authorizedPaymentSetup(event,sessionToken);
+    // Only this audited, constant official URL may be opened by this IPC.
+    await shell.openExternal(PAYGO_DOWNLOAD_URL);
+    return{opened:true};
+  });
+  ipcMain.handle('artisys:payments:restart',async(event,{sessionToken}={})=>{
+    await authorizedPaymentSetup(event,sessionToken);
+    if(process.env.ARTISYS_QA==='1'&&process.env.ARTISYS_QA_NO_RELAUNCH==='1')
+      return{restartRequired:true,suppressed:true};
+    app.relaunch();app.exit(0);
+    return{restartRequired:true};
+  });
 
   ipcMain.handle('artisys:installation:acknowledge', () => {acknowledgeInstallation({userData:app.getPath('userData'),version:productVersion});return {ok:true};});
   ipcMain.handle('artisys:installation:new-store', async (_event,payload={}) => {
@@ -484,6 +536,7 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  paymentProviderStore = createPaymentProviderStore({ app, safeStorage });
   terminalIdentityStore = createTerminalIdentityStore({ userDataPath:app.getPath('userData') });
   dataServerConfig = migrateLegacyDataServerCredential({ config:dataServerConfig, filePath:dataServerConfigPath, credentialStore:terminalCredentialStore });
   hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
