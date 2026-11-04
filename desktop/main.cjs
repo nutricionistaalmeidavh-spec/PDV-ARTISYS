@@ -63,7 +63,7 @@ function rendererPath(...parts) {
 }
 
 function currentPrintingPreferences() {
-  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting });
+  return resolvePrintingPreferences({ settings:runtime?.settings || null, env:process.env, isExistingInstall:installationWasExisting, fiscalPreviewEnabled: !app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1' });
 }
 
 function terminalCredentialConfigured() {
