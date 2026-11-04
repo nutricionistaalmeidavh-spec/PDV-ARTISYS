@@ -19,7 +19,7 @@ function example(overrides={}){
  ibsCbsCst:'000',cClassTrib:'000001',
  reformTax:{baseCents:1800,ibsUfRate:'0.1000',ibsUfCents:2,
  ibsMunRate:'0.0000',ibsMunCents:0,cbsRate:'0.9000',cbsCents:16}}};
- const snapshot={schemaVersion:1,documentType:'nfce',model:65,issuer:company,
+ const snapshot={schemaVersion:1,documentType:'nfce',model:65,issuer:{...company},
  sale:{id:'sale-1',saleNumber:'V100',completedAt:'2026-11-04T12:00:00-03:00'},
  subtotalCents:2000,discountCents:200,totalCents:1800,changeCents:200,
  items:[item],payments:[{method:'CASH',amountCents:2000}]};
