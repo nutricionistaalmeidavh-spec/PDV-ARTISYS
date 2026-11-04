@@ -71,6 +71,10 @@ jobs:
           $env:PDV_ENABLE_LAN='false'
           $env:APPDATA=Join-Path $env:RUNNER_TEMP 'artisys-new-pc-appdata'
           New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
+          $env:CI='true'
+          $env:ARTISYS_QA='1'
+          $env:ARTISYS_QA_USERDATA_DIR=$env:APPDATA
+          $env:ARTISYS_QA_AUTO_LOCAL='1'
           $process=Start-Process -FilePath $exe -PassThru
           try {
             Start-Sleep -Seconds 15
@@ -91,13 +95,17 @@ jobs:
           $exe=Join-Path $installation 'ArtiSys PDV.exe'
           if(!(Test-Path $exe)) { throw 'Instalador alterou o nome do executável ou não instalou' }
           $env:APPDATA=$profile
+          $env:CI='true'
           $env:ARTISYS_QA='1'
+          $env:ARTISYS_QA_USERDATA_DIR=$profile
           $env:ARTISYS_QA_AUTO_LOCAL='1'
           $env:ARTISYS_QA_AUTO_ADMIN='1'
           $instance=Start-Process -FilePath $exe -PassThru
           try {
             Start-Sleep -Seconds 20
             if($instance.HasExited) { throw "Executável instalado encerrou antes da inicialização: $($instance.ExitCode)" }
+            $expectedDb=Join-Path $profile 'pdv-artisys.sqlite'
+            if(!(Test-Path $expectedDb)) { throw "Banco local não foi criado no userData isolado após instalação NSIS" }
             $dbs=@(Get-ChildItem -Path $profile -Recurse -Filter 'pdv-artisys.sqlite' -File)
             if($dbs.Count -ne 1) { throw "Banco local da instalação nova ausente ou duplicado: $($dbs.Count)" }
           } finally {
