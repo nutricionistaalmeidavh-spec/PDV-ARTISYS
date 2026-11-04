@@ -185,3 +185,94 @@ test('preflight validates the exact NF-e/NFC-e model without invoking the native
  assert.equal((await a.preflight(request(f))).ok,false);
  assert.equal(sent,0);
 });
+
+
+test('CC-e is NF-e-only, checks SEFAZ event type/sequence/protocol and never trusts unlinked events',async t=>{
+ const f=fixture(t,{documentType:'nfe',model:55});
+ const manifest={...f.manifest,documentType:'nfe',model:55};
+ const base='3526111234567800019555001000000123100000123';
+ let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(base[i])*weight;weight=weight===9?2:weight+1;}
+ const dv=11-(sum%11),key=base+(dv>=10?0:dv);
+ let calls=0;let seen;
+ const adapter=createAcbrLibAdapter({...f.options,runner:async cmd=>{calls++;seen=cmd;
+  return {status:'CCE_REGISTERED',cStat:135,environment:'HOMOLOGACAO',
+    accessKey:key,eventProtocol:'135260000000567',sequence:1};}});
+ const request={type:'nfe',reference:'sale-123',environment:'homologation',
+  accessKey:key,sequence:1,eventAt:'2026-11-04T15:40:00-03:00',
+  correction:'Correcao da descricao adicional sem alterar valores ou dados cadastrais.'};
+ const result=await adapter.cce(request);
+ assert.equal(result.ok,true);
+ assert.equal(result.data.eventProtocol,'135260000000567');
+ assert.equal(seen.operation,'cce');assert.equal(seen.model,55);assert.equal(seen.sequence,1);
+ assert.equal((await adapter.cce({...request,type:'nfce'})).ok,false);
+ assert.equal((await adapter.cce({...request,environment:'production'})).ok,false);
+ assert.equal((await adapter.cce({...request,correction:'Preco do produto alterado para 90 reais'})).ok,false);
+ assert.equal(calls,1);
+ const mismatched=createAcbrLibAdapter({...f.options,runner:async()=>({status:'CCE_REGISTERED',
+  cStat:135,environment:'HOMOLOGACAO',accessKey:key,eventProtocol:'135260000000567',sequence:2})});
+ assert.equal((await mismatched.cce(request)).indeterminate,true);
+});
+
+
+test('offline NFC-e passes same signed issuance mode to worker and rejects INI/mode mismatch',async t=>{
+ const f=fixture(t);let sent;
+ const stamp='2026-11-04T15:30:00-03:00';
+ const ini='[infNFe]\nversao=4.00\n[Identificacao]\nmod=65\ntpEmis=9\ndhCont=04/11/2026 15:30:00\nxJust=Falha de comunicacao durante a venda de teste\n';
+ fs.writeFileSync(f.ini,ini);
+ let manifest=JSON.parse(fs.readFileSync(path.join(f.dir,'sale-123.json'),'utf8'));
+ manifest={...manifest,issuanceMode:'nfce-offline',contingencyStartedAt:stamp,
+  contingencyReasonSha256:createHash('sha256').update('Falha de comunicacao durante a venda de teste').digest('hex'),iniSha256:createHash('sha256').update(ini).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(manifest));
+ const adapter=createAcbrLibAdapter({...f.options,runner:async args=>{sent=args;return {status:'INDETERMINADO'};}});
+ const result=await adapter.issue(request(f));
+ assert.equal(result.indeterminate,true);
+ assert.equal(sent.issuanceMode,'nfce-offline');
+ const badIni=ini.replace('tpEmis=9','tpEmis=1');
+ fs.writeFileSync(f.ini,badIni);
+ const badManifest={...manifest,iniSha256:createHash('sha256').update(badIni).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(badManifest));
+ sent=null;
+ assert.equal((await adapter.issue(request(f))).ok,false);
+ assert.equal(sent,null);
+});
+
+
+test('offline issue signs and produces DANFE through worker but never sends; sealed transmission preserves original XML SHA',async t=>{
+ const f=fixture(t);
+ const offlineIni='[infNFe]\nversao=4.00\n[Identificacao]\nmod=65\ntpEmis=9\ndhCont=04/11/2026 15:30:00\nxJust=Falha de rede durante teste offline\n';
+ fs.writeFileSync(f.ini,offlineIni);
+ const manifest={...f.manifest,issuanceMode:'nfce-offline',contingencyStartedAt:'2026-11-04T15:30:00-03:00',
+  contingencyReasonSha256:createHash('sha256').update('Falha de rede durante teste offline').digest('hex'),
+  iniSha256:createHash('sha256').update(offlineIni).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(manifest));
+ const raw='3526111234567800019565001000000123900000123';
+ let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(raw[i])*weight;weight=weight===9?2:weight+1;}
+ const dv=11-(sum%11),key=raw+(dv>=10?0:dv);
+ const xml='<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><tpEmis>9</tpEmis><nNF>123</nNF><serie>1</serie><tpAmb>2</tpAmb></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>12.50</vNF></ICMSTot></total></infNFe><Signature/><infNFeSupl><qrCode>https://sefaz.test?p='+key+'</qrCode></infNFeSupl></NFe>';
+ const pdfBase64=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF').toString('base64');
+ const sent=[];
+ const adapter=createAcbrLibAdapter({...f.options,runner:async x=>{sent.push(x);return {status:'OFFLINE_SIGNED',environment:'HOMOLOGACAO',accessKey:key,xml,pdfBase64};}});
+ const result=await adapter.offlineIssue({type:'nfce',reference:'sale-123',environment:'homologation'});
+ const withCdata=createAcbrLibAdapter({...f.options,runner:async()=>({
+  status:'OFFLINE_SIGNED',environment:'HOMOLOGACAO',accessKey:key,
+  xml:xml.replace('https://sefaz.test?p='+key,'<![CDATA[https://sefaz.test?p='+key+']]>' ),
+  pdfBase64
+ })});
+ assert.equal((await withCdata.offlineIssue({type:'nfce',reference:'sale-123',environment:'homologation'})).ok,true);
+ assert.equal(result.ok,true);
+ assert.equal(result.data.accessKey,key);
+ assert.equal(sent[0].operation,'offline-issue');
+ assert.equal(sent.length,1);
+ fs.writeFileSync(path.join(f.dir,'sale-123.signed.xml'),xml);
+ const tx=createAcbrLibAdapter({...f.options,runner:async x=>{sent.push(x);return {
+  status:'INDETERMINADO',environment:'HOMOLOGACAO',accessKey:key};}});
+ const txResult=await tx.transmitSigned({type:'nfce',reference:'sale-123',environment:'homologation',
+  accessKey:key,signedXmlSha256:createHash('sha256').update(xml).digest('hex')});
+ assert.equal(txResult.indeterminate,true);
+ assert.equal(sent[1].operation,'transmit-signed');
+ assert.equal(sent[1].accessKey,key);
+ assert.equal(sent[1].signedXmlSha256,createHash('sha256').update(xml).digest('hex'));
+ assert.equal((await tx.transmitSigned({type:'nfce',reference:'sale-123',environment:'homologation',
+  accessKey:key,signedXmlSha256:'0'.repeat(64)})).ok,false);
+ assert.equal(sent.length,2);
+});

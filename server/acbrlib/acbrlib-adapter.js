@@ -41,6 +41,20 @@ function readManifest(dir,reference){
   const contentHash=createHash('sha256').update(fs.readFileSync(ini)).digest('hex');
   if(!HASH.test(String(manifest.iniSha256||''))||manifest.iniSha256!==contentHash)
     throw Error('INI fiscal diverge do SHA-256 aprovado');
+  // Cross-check signed issuance identity against the exact INI contents.
+  const rawIni=fs.readFileSync(ini,'utf8');
+  const modes=rawIni.match(/^tpEmis=[0-9]+$/gm)||[];
+  if(manifest.issuanceMode==='nfce-offline'){
+   const reason=(rawIni.match(/^xJust=(.+)$/gm)||[]).map(s=>s.slice('xJust='.length));
+   const instant=String(manifest.contingencyStartedAt||'');
+   const localDate=instant.slice(8,10)+'/'+instant.slice(5,7)+'/'+instant.slice(0,4)+' '+instant.slice(11,19);
+   if(modes.length!==1||modes[0]!=='tpEmis=9'||reason.length!==1||
+      createHash('sha256').update(reason[0]).digest('hex')!==manifest.contingencyReasonSha256||
+      (rawIni.match(/^dhCont=(.*)$/gm)||[]).join('')!=='dhCont='+localDate)
+    throw Error('INI da contingência não confere com o manifesto fiscal imutável');
+  }else if(modes.includes('tpEmis=9')){
+   throw Error('INI fiscal offline sem manifesto de contingência');
+  }
   if(manifest.reference!==reference||!['nfe','nfce'].includes(manifest.documentType)||
      !HASH.test(String(manifest.snapshotHash||''))||
      !Number.isSafeInteger(manifest.amountCents)||manifest.amountCents<=0||
@@ -52,7 +66,12 @@ function readManifest(dir,reference){
      !Number.isSafeInteger(manifest.series)||manifest.series<1||manifest.series>999||
      !/^\d{8}$/.test(String(manifest.cNF||''))||
      !Number.isSafeInteger(manifest.model)||
-     manifest.model!==(manifest.documentType==='nfce'?65:55))
+     manifest.model!==(manifest.documentType==='nfce'?65:55)||
+     !['normal','nfce-offline'].includes(manifest.issuanceMode||'normal')||
+     ((manifest.issuanceMode||'normal')==='nfce-offline'&&(
+       manifest.model!==65||manifest.environment!=='homologation'||
+       !HASH.test(String(manifest.contingencyReasonSha256||''))||
+       !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/.test(String(manifest.contingencyStartedAt||'')))))
     throw Error('Manifesto fiscal incompleto ou inconsistente');
   return{iniPath:ini,manifest};
 }
@@ -87,7 +106,7 @@ function accessKeyMatches(key,manifest){
   key.slice(20,22)===String(manifest.model)&&
   Number(key.slice(22,25))===manifest.series&&
   Number(key.slice(25,34))===manifest.number&&
-  key.slice(34,35)==='1'&&
+  key.slice(34,35)===(manifest.issuanceMode==='nfce-offline'?'9':'1')&&
   key.slice(35,43)===manifest.cNF;
 }
 function validated(result,manifest){
@@ -117,6 +136,7 @@ function validated(result,manifest){
      Number(result.number)!==manifest.number||
      Number(result.series)!==manifest.series||
      xmlField(xml,'tpAmb')!==xmlEnvironment||
+     (manifest.issuanceMode==='nfce-offline'&&xmlField(xml,'tpEmis')!=='9')||
      xmlValueCents(xmlField(xml,'vNF'))!==manifest.amountCents||
      !xml.includes('NFe'+key)||!/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
      !/<(?:\w+:)?infProt(?:\s|>)/.test(xml)||
@@ -170,7 +190,8 @@ function createAcbrLibAdapter(options={}){
       kind:'NFE',operation:null,libraryPath,configPath,iniPath,
       issuerCnpj:manifest.issuerCnpj,environment:manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO',
       amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model,
-      number:manifest.number,series:manifest.series,cNF:manifest.cNF
+      number:manifest.number,series:manifest.series,cNF:manifest.cNF,
+      issuanceMode:manifest.issuanceMode||'normal'
     },workerExe};
   }
   const runner=options.runner||((args)=>executeWorker(args,{workerExe:options.workerExe,timeoutMs:options.timeoutMs}));
@@ -182,8 +203,19 @@ function createAcbrLibAdapter(options={}){
       // A signed XML is persisted before sending: NEVER blindly resend an unknown invoice.
       if(operation==='transmit'&&fs.existsSync(path.join(path.dirname(context.iniPath),path.basename(context.iniPath,'.ini')+'.signed.xml')))
         return unknown();
+      if(operation==='transmit-signed'){
+        const file=path.join(path.dirname(context.iniPath),path.basename(context.iniPath,'.ini')+'.signed.xml');
+        const hash=String(request.signedXmlSha256||''),key=String(request.accessKey||'');
+        if(context.manifest.issuanceMode!=='nfce-offline'||!HASH.test(hash)||
+           !accessKeyMatches(key,context.manifest)||!fs.existsSync(file)||
+           createHash('sha256').update(fs.readFileSync(file)).digest('hex')!==hash)
+          return blocked('Fila offline com XML assinado ou identidade inconsistentes');
+      }
       const response=await runner({...context.command,operation,
-        ...(operation==='consult'?{accessKey:request.accessKey||null}:{})});
+        ...(operation==='consult'?{accessKey:request.accessKey||null}:{}),
+        ...(operation==='transmit-signed'?{
+          accessKey:request.accessKey,signedXmlSha256:request.signedXmlSha256
+        }:{})});
       return validated(response,context.manifest);
       });
     }catch(error){
@@ -202,6 +234,41 @@ function createAcbrLibAdapter(options={}){
       });
     }catch{return blocked('Configuração fiscal local incompleta para o modelo da nota: certificado, CSC, DLL ou manifesto');}
   }
+
+  async function offlineIssue(request){
+    try{
+      return await withConfig(async()=>{
+        const context=prepare({...request,requirePayload:false});
+        if(context.manifest.issuanceMode!=='nfce-offline'||context.manifest.model!==65)
+          return blocked('NFC-e não está preparada para emissão offline');
+        const signed=path.join(path.dirname(context.iniPath),request.reference+'.signed.xml');
+        if(fs.existsSync(signed))return blocked('NFC-e já assinada: recuperação manual obrigatória');
+        const result=await runner({...context.command,operation:'offline-issue'});
+        const key=String(result?.accessKey||''),xml=String(result?.xml||'');
+        const qrValue=/<(?:[A-Za-z0-9_]+:)?qrCode(?:\s[^>]*)?>(?:<!\[CDATA\[([\s\S]*?)\]\]>|([^<]+))<\/(?:[A-Za-z0-9_]+:)?qrCode\s*>/i.exec(xml);
+        const qr=(qrValue?.[1]||qrValue?.[2]||'').trim();
+        const protocol=xmlField(xml,'nProt');
+        const encoded=String(result?.pdfBase64||'');
+        if(result?.status!=='OFFLINE_SIGNED'||result.environment!=='HOMOLOGACAO'||
+           !accessKeyMatches(key,context.manifest)||!xml.includes('NFe'+key)||
+           xmlField(xml,'tpEmis')!=='9'||xmlField(xml,'tpAmb')!=='2'||
+           xmlField(xml,'mod')!=='65'||xmlField(xml,'CNPJ')!==context.manifest.issuerCnpj||
+           xmlValueCents(xmlField(xml,'vNF'))!==context.manifest.amountCents||
+           !/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
+           !qr.includes(key)||protocol||
+           encoded.length>4*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
+          return unknown();
+        const bytes=Buffer.from(encoded,'base64');
+        if(bytes.length<16||bytes.length>3*1024*1024||
+           bytes.subarray(0,5).toString('ascii')!=='%PDF-'||
+           !bytes.toString('ascii',Math.max(0,bytes.length-128)).includes('%%EOF'))
+          return unknown();
+        return {ok:true,status:200,data:{accessKey:key,xml,pdfBase64:encoded}};
+      });
+    }catch{return unknown();}
+  }
+  async function transmitSigned(request){return call(request,'transmit-signed');}
+
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
   async function pdf(request={}){
@@ -243,6 +310,35 @@ function createAcbrLibAdapter(options={}){
            !/^\d{10,20}$/.test(protocol))
           return unknown();
         return{ok:true,status:200,data:{accessKey:key,cStat:code,eventProtocol:protocol}};
+      });
+    }catch{return unknown();}
+  }
+
+  async function cce({type,reference,environment,accessKey,sequence,correction,eventAt}={}){
+    try{
+      return await withConfig(async()=>{
+        const context=prepare({type,reference,environment});
+        const key=String(accessKey||''),content=String(correction||'').trim();
+        const date=String(eventAt||'');
+        // A CC-e cannot modify amount, prices, taxes, quantities, issuer,
+        // recipient identity or issue/exit dates. A human accountant must
+        // review the proposed text; this conservative filter is not a legal
+        // classifier and intentionally rejects common monetary corrections.
+        const monetary=/\b(?:pre[cç]o|valor|imposto|tributo|quantidade|al[ií]quota|base de c[aá]lculo)\b.{0,65}\b(?:alterad|aumentad|reduzid|passa|corrig|modific)/i;
+        if(type!=='nfe'||context.manifest.model!==55||environment!=='homologation'||
+           !accessKeyMatches(key,context.manifest)||!Number.isSafeInteger(sequence)||
+           sequence<1||sequence>20||content.length<15||content.length>1000||
+           /[\r\n\0]/.test(content)||monetary.test(content)||
+           !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/.test(date))
+          return blocked('CC-e exige NF-e 55 autorizada, justificativa revisada e evento válido');
+        const result=await runner({...context.command,operation:'cce',accessKey:key,
+          correction:content,sequence,eventAt:date});
+        if(result?.status!=='CCE_REGISTERED'||result.environment!=='HOMOLOGACAO'||
+           result.accessKey!==key||result.sequence!==sequence||result.cStat!==135||
+           !/^\d{10,20}$/.test(String(result.eventProtocol||'')))
+          return unknown();
+        return {ok:true,status:200,data:{accessKey:key,sequence,cStat:135,
+          eventProtocol:String(result.eventProtocol)}};
       });
     }catch{return unknown();}
   }
@@ -299,6 +395,6 @@ function createAcbrLibAdapter(options={}){
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
     }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
-  return Object.freeze({status,preflight,issue,query,cancel,inutilize,pdf});
+  return Object.freeze({status,preflight,issue,query,cancel,cce,inutilize,pdf,offlineIssue,transmitSigned});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};

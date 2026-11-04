@@ -164,7 +164,7 @@
    const list=document.createElement('ul');
    for(const d of docs.slice(0,20)){
     const li=document.createElement('li');
-    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}`;
+    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?(d.offlineStatus==='PENDING'?' — EMITIDA OFFLINE (fila pendente)':d.offlineStatus==='UNKNOWN'?' — TRANSMISSÃO INDETERMINADA (consultar SEFAZ)':d.offlineStatus==='AUTHORIZED'?' — CONTINGÊNCIA AUTORIZADA':d.offlineStatus==='REJECTED'?' — NFC-e OFFLINE REJEITADA: consultar contabilidade para regularização':' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)'):''}`;
     const endpoint=prefix+'/documents/'+encodeURIComponent(d.id);
     const addAction=(title,operation)=>{
       const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=title;
@@ -211,7 +211,104 @@
       });
     };
     if(d.status==='REVIEW_REQUIRED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar INI','compile');
-    if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction('Emitir em homologação','transmit');
+
+    if(d.status==='REVIEW_REQUIRED'&&d.documentType==='nfce'&&fiscalStatus.emissionEnabled){
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');summary.textContent='Preparar NFC-e de contingência (modo offline)';
+      const form=document.createElement('form');form.className='field-grid';
+      const label=document.createElement('label');label.className='field wide';
+      const title=document.createElement('span');title.textContent='Justificativa da indisponibilidade da SEFAZ (mínimo 15 caracteres)';
+      const reason=document.createElement('textarea');
+      reason.minLength=15;reason.maxLength=256;reason.required=true;
+      reason.setAttribute('data-acbr-offline-reason','');
+      const warning=document.createElement('p');
+      warning.textContent='A preparação offline não representa nota fiscal emitida nem autorizada. Não imprima DANFE fiscal; transmita e confira a autorização após reconexão.';
+      const btn=document.createElement('button');btn.type='submit';btn.className='secondary-button';
+      btn.textContent='Preparar documento para contingência';
+      label.append(title,reason);form.append(label,warning,btn);
+      details.append(summary,form);li.append(details);
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();if(!form.reportValidity())return;
+        const ux=window.ArtisysUxComponents;
+        if(!ux?.openFormDialog){message(card,'Confirmação de contingência indisponível',true);return;}
+        const approval=await ux.openFormDialog({
+          title:'Preparar NFC-e em contingência',
+          description:'Somente para falha de comunicação comprovada com a SEFAZ. Este passo não emite nem autoriza a nota.',
+          confirmLabel:'Confirmar preparação',cancelLabel:'Voltar',tone:'default',
+          body:'<p>O documento manterá tpEmis=9 e só será transmitido manualmente após reconexão.</p>'
+        });
+        if(!approval.confirmed)return;
+        btn.disabled=true;
+        try{
+          const result=await api.request(endpoint+'/compile',{method:'POST',
+            body:{contingency:{reason:reason.value.trim()}}});
+          message(card,result.issuanceMode==='nfce-offline'?
+            'Contingência preparada; NFC-e não emitida, sem DANFE autorizado. Transmita após reconectar.':
+            'Preparação fiscal não confirmou modo de contingência.',result.issuanceMode!=='nfce-offline');
+          await refreshDocuments(card);
+        }catch(err){message(card,err.message||'Falha ao preparar contingência',true);}
+        finally{btn.disabled=false;}
+      });
+    }
+    if(d.status==='READY'&&fiscalStatus.emissionEnabled&&d.issuanceMode!=='nfce-offline')addAction('Emitir em homologação','transmit');
+
+    if(d.issuanceMode==='nfce-offline'&&fiscalStatus.emissionEnabled){
+      const button=(text,onClick)=>{
+        const control=document.createElement('button');
+        control.type='button';control.className='secondary-button';control.textContent=text;
+        li.append(' ',control);
+        control.addEventListener('click',async()=>{
+          control.disabled=true;
+          try{await onClick();}catch(err){message(card,err.message||'Falha de contingência',true);}
+          finally{control.disabled=false;}
+        });
+      };
+      const savePdf=async()=>{
+        const save=window.artisysDesktop?.fiscal?.saveOfflineDanfe;
+        if(!save)throw Error('DANFE NFC-e offline exige aplicativo Windows no PC principal');
+        const result=await save(d.id,api.sessionToken);
+        message(card,result?.saved?'DANFE de contingência salvo. Imprima DUAS vias, uma para consumidor e uma para arquivo do estabelecimento.':
+          'Salvamento cancelado.');
+      };
+      if(d.status==='READY'&&!d.offlineStatus){
+        button('Emitir NFC-e OFFLINE e gerar DANFE de contingência',async()=>{
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de emissão offline indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Emitir NFC-e offline na homologação',
+            description:'A emissão gera XML fiscal assinado, QR Code de contingência, DANFE e fila para envio após reconexão. A emissão local não significa autorização pela SEFAZ.',
+            confirmLabel:'Assinar e emitir offline',cancelLabel:'Voltar',tone:'default',
+            body:'<p>Confirme que a SEFAZ está indisponível. Depois imprima DUAS vias do DANFE e transmita a nota à SEFAZ após reconexão, dentro do prazo regulamentar.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(endpoint+'/offline-issue',{method:'POST',body:{}});
+          if(result.status!=='ISSUED_OFFLINE')throw Error('Emissão offline não foi confirmada');
+          message(card,'NFC-e assinada offline. Sem autorização SEFAZ; o XML está na fila. Salve e imprima o DANFE em duas vias.');
+          await savePdf();
+          await refreshDocuments(card);
+        });
+      }
+      if(['PENDING','UNKNOWN','AUTHORIZED'].includes(d.offlineStatus))
+        button('Salvar DANFE NFC-e de contingência',savePdf);
+      if(d.offlineStatus==='PENDING'){
+        button('Transmitir fila offline após reconexão',async()=>{
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de envio indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Transmitir NFC-e da fila à SEFAZ',
+            description:'Cada nota assinada será transmitida uma única vez. Sem resposta oficial, o documento ficará indeterminado para consulta, sem reenvio automático.',
+            confirmLabel:'Transmitir fila após reconexão',cancelLabel:'Voltar',tone:'default',
+            body:'<p>Certifique-se de que o PC voltou a ter conexão e o certificado A1 está disponível.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(prefix+'/offline-queue/flush',{method:'POST',body:{limit:10}});
+          const uncertain=result.filter(x=>x.status==='UNKNOWN');
+          message(card,uncertain.length?'Há NFC-e indeterminada: CONSULTAR SEFAZ, nunca reenviar cegamente.':
+            'Fila processada; verifique cada autorização e protocolo.',uncertain.length>0);
+          await refreshDocuments(card);
+        });
+      }
+    }
     if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
     if(d.status==='AUTHORIZED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar e salvar DANFE PDF','danfe');
     if(d.status==='AUTHORIZED'&&fiscalStatus.emissionEnabled){
@@ -241,6 +338,61 @@
             'Cancelamento sem confirmação: consultar SEFAZ antes de nova operação.',result.status!=='CANCELLED');
           await refreshDocuments(card);
         }catch(error){message(card,error.message||'Não foi possível cancelar',true);}
+        finally{submit.disabled=false;}
+      });
+    }
+
+    if(d.status==='AUTHORIZED'&&d.documentType==='nfe'&&fiscalStatus.emissionEnabled){
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');
+      summary.textContent='Carta de Correção (CC-e) — NF-e 55';
+      const form=document.createElement('form');form.className='field-grid';
+      const textLabel=document.createElement('label');textLabel.className='field wide';
+      const textHint=document.createElement('span');
+      textHint.textContent='Texto da CC-e (15–1000 caracteres, sem mudar valores, imposto, quantidade, identidade ou datas)';
+      const correction=document.createElement('textarea');correction.minLength=15;correction.maxLength=1000;correction.required=true;
+      correction.setAttribute('data-acbr-cce-text','');
+      textLabel.append(textHint,correction);
+      const reviewerLabel=document.createElement('label');reviewerLabel.className='field wide';
+      const reviewerText=document.createElement('span');reviewerText.textContent='Contador ou responsável pela revisão';
+      const reviewer=document.createElement('input');reviewer.maxLength=120;reviewer.minLength=3;reviewer.required=true;
+      reviewerLabel.append(reviewerText,reviewer);
+      const ackLabel=document.createElement('label');ackLabel.className='field wide';
+      const ack=document.createElement('input');ack.type='checkbox';ack.required=true;
+      ackLabel.append(ack,' Contabilidade confirmou que a CC-e não altera imposto, valor, quantidade, emitente, destinatário ou data.');
+      const previousLabel=document.createElement('label');previousLabel.className='field wide';
+      const replacesPrevious=document.createElement('input');replacesPrevious.type='checkbox';
+      previousLabel.append(replacesPrevious,' Se houver CC-e anterior, esta nova carta consolida e substitui todas as correções anteriores.');
+      const submit=document.createElement('button');submit.className='secondary-button';submit.type='submit';
+      submit.textContent='Enviar CC-e de homologação';
+      form.append(textLabel,reviewerLabel,ackLabel,previousLabel,submit);
+      details.append(summary,form);li.append(details);
+      form.addEventListener('submit',async e=>{
+        e.preventDefault();if(!form.reportValidity())return;
+        submit.disabled=true;
+        try{
+          const history=await api.request(endpoint+'/cce');
+          const prior=history.at(-1);
+          if(prior?.status==='UNKNOWN')throw Error('CC-e anterior sem resposta: consulte a SEFAZ, não reenvie');
+          if(prior&&!replacesPrevious.checked)throw Error('Confirme que a nova CC-e substitui todas as anteriores');
+          const sequence=(prior?.sequence||0)+1;
+          if(sequence>20)throw Error('Limite de sequências CC-e atingido');
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de CC-e indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Enviar carta de correção em homologação',
+            description:'A CC-e é evento fiscal e não pode modificar valores, impostos ou identidade das partes. Um timeout exige conciliação, não nova tentativa.',
+            confirmLabel:'Transmitir CC-e',cancelLabel:'Voltar',tone:'default',
+            body:'<p>O contador revisou a correção? O documento original continuará autorizado, com o evento vinculado.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(endpoint+'/cce',{method:'POST',body:{
+            correction:correction.value.trim(),reviewedBy:reviewer.value.trim(),sequence,
+            confirmNoMaterialChange:ack.checked,replacesPrevious:replacesPrevious.checked
+          }});
+          message(card,result.status==='CONFIRMED'?'CC-e registrada na SEFAZ de homologação, sequência '+sequence+'.':
+            'CC-e indeterminada: consultar a SEFAZ antes de outra operação.',result.status!=='CONFIRMED');
+        }catch(error){message(card,error.message||'CC-e não enviada',true);}
         finally{submit.disabled=false;}
       });
     }

@@ -67,7 +67,39 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
      if(body.productId&&body.productId!==productId)throw new FiscalHttpError(400,'Produto não corresponde ao caminho');
      send(res,200,service.saveProductProfile({...body,productId}));return true;}
    }
-   if(req.method==='GET'&&p===prefix+'/documents'){send(res,200,service.listDocuments({limit:Number(url.searchParams.get('limit')||100)}));return true;}
+   if(req.method==='GET'&&p===prefix+'/documents'){
+    const documents=service.listDocuments({limit:Number(url.searchParams.get('limit')||100)});
+    send(res,200,documents.map(document=>({...document,
+      issuanceMode:issuance?.getIssuanceMode(document.id)||null,
+      offlineStatus:issuance?.getOfflineStatus(document.id)||null})));return true;
+   }
+
+
+   if(req.method==='GET'&&p===prefix+'/offline-queue'){
+    if(!issuance)throw new FiscalHttpError(409,'Fila offline não configurada');
+    send(res,200,issuance.listOfflineQueue());return true;
+   }
+   if(req.method==='POST'&&p===prefix+'/offline-queue/flush'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'Fila offline exige homologação habilitada');
+    const body=await readBody(req,bodyLimitBytes);
+    const result=await issuance.flushOfflineQueue({limit:body.limit??10});
+    send(res,result.some(item=>item.status==='UNKNOWN')?202:200,result);return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/offline-issue$/))&&req.method==='POST'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'Emissão offline exige homologação habilitada');
+    const result=await issuance.offlineIssue(decodeURIComponent(matched[1]));
+    send(res,201,result);return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/offline-danfe\.pdf$/))&&req.method==='GET'){
+    if(!issuance)throw new FiscalHttpError(409,'DANFE offline não configurada');
+    const bytes=issuance.getOfflineDanfe(decodeURIComponent(matched[1]));
+    res.writeHead(200,{'content-type':'application/pdf',
+      'content-disposition':'attachment; filename="artisys-danfe-contingencia.pdf"',
+      'content-length':bytes.length,'cache-control':'no-store','x-content-type-options':'nosniff'});
+    res.end(bytes);return true;
+   }
 
    if(req.method==='GET'&&p===prefix+'/inutilizations'){
     if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
@@ -78,6 +110,22 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
      throw new FiscalHttpError(409,'Inutilização somente em homologação habilitada');
     const body=await readBody(req,bodyLimitBytes);
     const result=await issuance.inutilize(body);
+    send(res,result.status==='CONFIRMED'?200:202,result);return true;
+   }
+
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cce$/))&&req.method==='GET'){
+    if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
+    send(res,200,issuance.getCceHistory(decodeURIComponent(matched[1])));return true;
+   }
+   if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cce$/))&&req.method==='POST'){
+    if(!issuance||nativeOptions.allowHomologation!==true)
+     throw new FiscalHttpError(409,'CC-e somente em homologação habilitada');
+    const body=await readBody(req,bodyLimitBytes);
+    const result=await issuance.cce(decodeURIComponent(matched[1]),{
+      correction:body.correction,sequence:body.sequence,reviewedBy:body.reviewedBy,
+      confirmNoMaterialChange:body.confirmNoMaterialChange,
+      replacesPrevious:body.replacesPrevious
+    });
     send(res,result.status==='CONFIRMED'?200:202,result);return true;
    }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/cancellation$/))&&req.method==='GET'){
@@ -97,7 +145,8 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)$/))&&req.method==='GET'){
     const doc=service.getDocument(decodeURIComponent(matched[1]));
     if(!doc)throw new FiscalHttpError(404,'Documento não encontrado');
-    send(res,200,doc);return true;
+    send(res,200,{...doc,issuanceMode:issuance?.getIssuanceMode(doc.id)||null,
+      offlineStatus:issuance?.getOfflineStatus(doc.id)||null});return true;
    }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/sales\/([^/]+)\/prepare$/))&&req.method==='POST'){
     const body=await readBody(req,bodyLimitBytes);
@@ -124,7 +173,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     }
     if(operation==='compile'){
      const body=await readBody(req,bodyLimitBytes);
-     send(res,200,issuance.prepare(id,{recipient:body.recipient||null}));return true;
+     send(res,200,issuance.prepare(id,{recipient:body.recipient||null,contingency:body.contingency||null}));return true;
     }
     if(operation==='transmit'&&nativeOptions.allowHomologation!==true)
       throw new FiscalHttpError(409,'Emissão fiscal desabilitada até liberação explícita para homologação');

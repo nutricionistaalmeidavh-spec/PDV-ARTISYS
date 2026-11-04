@@ -135,7 +135,7 @@ function taxSections(lines,tax,index,net,crt){
  group(lines,'gCBS'+index,{pCBS:cbs.text,vCBS:brl(cbsC)});
  return {base,ufC,munC,cbsC,legacy:legacy.totals};
 }
-function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
+function compileAcbrIni({document,issuedAt,cNF,recipient,contingency=null}={}){
  if(!document||!document.snapshot)throw Error('Documento fiscal canônico obrigatório');
  const s=document.snapshot;
  if(document.documentType!==s.documentType||
@@ -153,6 +153,19 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  const c=required(cNF,'cNF aleatório',{max:8,pattern:/^\d{8}$/});
  if(!/^\d{8}$/.test(c))throw Error('Código cNF inválido');
  const stamp=dateForAcbr(issuedAt);
+ // Off-line issuance has a distinct access key (tpEmis=9), never rewrite a
+ // normal signed XML or silently fall back after an unknown SEFAZ response.
+ const offline=contingency!==null;
+ let startedAt=null,justification=null;
+ if(offline){
+  if(s.model!==65||s.documentType!=='nfce')throw Error('Contingência offline exclusiva NFC-e 65');
+  startedAt=String(contingency?.startedAt||'');
+  dateForAcbr(startedAt);
+  if(Date.parse(startedAt)<Date.parse(issuedAt)||Date.parse(startedAt)-Date.parse(issuedAt)>24*3600*1000)
+   throw Error('Data de entrada em contingência anterior à emissão ou fora do limite seguro');
+  justification=required(contingency?.reason,'justificativa da contingência',{max:256});
+  if(justification.length<15)throw Error('Justificativa de contingência exige ao menos 15 caracteres');
+ }
  if(s.model===55&&!recipient)throw Error('NF-e exige destinatário explícito');
  const dest=s.model===55?recipientGroup(recipient):null;
  if(dest&&dest.UF!==emit.uf)throw Error('Venda interestadual não suportada neste piloto');
@@ -161,8 +174,9 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  group(lines,'Identificacao',{nNF:document.number,cNF:c,serie:document.series,
   natOp:'VENDA DE MERCADORIA',mod:s.model,dhEmi:stamp,tpNF:1,idDest:1,
   finNFe:1,indFinal:1,indPres:1,tpImp:s.model===65?4:1,
-  tpAmb:2,tpEmis:1,procEmi:0,verProc:'ArtiSys-ACBrLib',cUF:emit.code,
-  cMunFG:s.issuer.municipalityCode});
+  tpAmb:2,tpEmis:offline?9:1,procEmi:0,verProc:'ArtiSys-ACBrLib',cUF:emit.code,
+  cMunFG:s.issuer.municipalityCode,
+  ...(offline?{dhCont:dateForAcbr(startedAt),xJust:justification}:{})});
  group(lines,'Emitente',emit.values);
  if(dest)group(lines,'Destinatario',dest);
  let gross=0,discount=0,net=0,reform={base:0,ufC:0,munC:0,cbsC:0};
@@ -245,12 +259,15 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  const serialized=JSON.stringify(s);
  if(createHash('sha256').update(serialized).digest('hex')!==document.snapshotHash)
   throw Error('Hash do snapshot fiscal alterado');
- const reference='acbr-'+required(document.id,'identificador documento',{max:80,pattern:/^[A-Za-z0-9_-]+$/});
+ const baseId=required(document.id,'identificador documento',{max:72,pattern:/^[A-Za-z0-9_-]+$/});
+ const reference=(offline?'acbr-offline-':'acbr-')+baseId;
  const ini=lines.join('\n').replace(/\n{3,}/g,'\n\n')+'\n';
  return {reference,ini,manifest:{
   reference,documentType:s.documentType,snapshotHash:document.snapshotHash,
   amountCents:s.totalCents,issuerCnpj:s.issuer.cnpj,issuerUF:s.issuer.uf,
   environment:'homologation',model:s.model,lot:document.number,number:document.number,series:document.series,cNF:c,
+  issuanceMode:offline?'nfce-offline':'normal',
+  ...(offline?{contingencyStartedAt:startedAt,contingencyReasonSha256:createHash('sha256').update(justification).digest('hex')}:{ }),
   iniSha256:createHash('sha256').update(ini).digest('hex')
  }};
 }

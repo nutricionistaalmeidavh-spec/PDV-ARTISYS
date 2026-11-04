@@ -151,3 +151,44 @@ test('CI new-PC smoke uses isolated Electron userData instead of trusting APPDAT
  assert.match(workflow,/ARTISYS_QA_USERDATA_DIR/);
  assert.match(workflow,/pdv-artisys\.sqlite/);
 });
+
+
+test('fiscal settings expose accountant-reviewed CC-e only on authorized NF-e',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/d\.documentType==='nfe'/);
+ assert.match(ui,/endpoint\+'\/cce'/);
+ assert.match(ui,/confirmNoMaterialChange/);
+ assert.match(ui,/replacesPrevious/);
+ assert.match(ui,/Contabilidade|contador/i);
+});
+
+
+test('operator can explicitly stage NFC-e offline without misleading printing/authorization',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/data-acbr-offline-reason/);
+ assert.match(ui,/issuanceMode==='nfce-offline'/);
+ assert.match(ui,/Transmitir.*reconex[aã]o/);
+ assert.match(ui,/n[aã]o.*autoriza|n[aã]o.*emitida/i);
+});
+
+
+test('desktop operator can issue NFC-e offline, save contingency DANFE and flush signed queue',()=>{
+ const root=path.join(__dirname,'..');
+ const ui=fs.readFileSync(path.join(root,'desktop/renderer/acbrlib-fiscal-preview-ui.js'),'utf8');
+ const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
+ const preload=fs.readFileSync(path.join(root,'desktop/preload.cjs'),'utf8');
+ assert.match(ui,/endpoint\+'\/offline-issue'/);
+ assert.match(ui,/offline-queue\/flush/);
+ assert.match(ui,/saveOfflineDanfe/);
+ assert.match(main,/['"]save-offline-danfe['"]/);
+ assert.match(main,/offline-danfe\.pdf/);
+ assert.match(preload,/saveOfflineDanfe/);
+});
+
+
+test('offline issuance UI never labels a rejected or unknown issued NFC-e as an unissued draft',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/d\.offlineStatus==='REJECTED'/);
+ assert.match(ui,/contabilidade|regulariza/i);
+ assert.match(ui,/d\.offlineStatus==='UNKNOWN'/);
+});

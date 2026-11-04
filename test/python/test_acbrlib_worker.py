@@ -105,5 +105,142 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         self.assertEqual(ok["status"], "INUTILIZADA")
         self.assertIsNone(worker.confirmed_nfe_inutilization({"INUTILIZACAO":{"CSTAT":"102","TPAMB":"2","XML":xml}}, {**req,"startNumber":4}))
 
+
+    def test_cce_ini_uses_official_nfe_event_and_blocks_ini_injection(self):
+        request = {"issuerCnpj":"11222333000181", "accessKey":KEY,"model":55,
+                   "environment":"HOMOLOGACAO","sequence":1,"lot":1,
+                   "eventAt":"2026-11-04T15:40:00-03:00",
+                   "correction":"Correcao da descricao de produto sem mudar valores fiscais."}
+        payload = worker.nfe_cce_ini(request)
+        self.assertIn("[EVENTO001]", payload)
+        self.assertIn("tpEvento=110110", payload)
+        self.assertIn("chNFe="+KEY, payload)
+        self.assertIn("nSeqEvento=1", payload)
+        self.assertIn("versaoEvento=1.00", payload)
+        self.assertIn("xCorrecao=",payload)
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"correction":"Correcao normal\n[EVENTO002]\nCNPJ=99999999000199"})
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"model":65})
+        with self.assertRaises(worker.ACBrError):
+            worker.nfe_cce_ini({**request,"environment":"PRODUCAO"})
+
+    def test_cce_accepts_only_matching_official_event_protocol(self):
+        response = {"EVENTO001":{"TPAMB":"2", "CSTAT":"135", "CHDFE":KEY,
+                                 "NPROT":"135260000000987","TPEVENTO":"110110","NSEQEVENTO":"1"}}
+        proof=worker.confirmed_nfe_cce(response,KEY,"2",1)
+        self.assertEqual(proof["status"],"CCE_REGISTERED")
+        self.assertEqual(proof["eventProtocol"],"135260000000987")
+        self.assertIsNone(worker.confirmed_nfe_cce(response, "0"*44,"2",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(response,KEY,"1",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(response,KEY,"2",2))
+        self.assertIsNone(worker.confirmed_nfe_cce(
+            {"EVENTO001":{**response["EVENTO001"],"CSTAT":"136"}},KEY,"2",1))
+        self.assertIsNone(worker.confirmed_nfe_cce(
+            {"EVENTO001":{**response["EVENTO001"],"TPEVENTO":"110111"}},KEY,"2",1))
+
+    def test_offline_nfc_e_key_and_signature_not_relabelled_as_normal(self):
+        req={"issuerCnpj":"11222333000181","model":65,"number":1,
+             "series":1,"cNF":"00000001","issuanceMode":"nfce-offline"}
+        raw="3526111122233300018165001000000001900000001"
+        weight=2
+        total=0
+        for digit in reversed(raw):
+            total+=int(digit)*weight
+            weight=2 if weight==9 else weight+1
+        check=11-total%11
+        key=raw+str(0 if check>=10 else check)
+        worker.ensure_signed_number(req,key,"1","1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"issuanceMode":"normal"},key,"1","1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"model":55},key,"1","1")
+
+
+    def test_signed_xml_mode_prevents_offline_documents_being_relabelled_as_normal(self):
+        offline = ('<NFe><infNFe><ide><tpEmis>9</tpEmis>'
+                   '<dhCont>2026-11-04T15:30:00-03:00</dhCont>'
+                   '<xJust>Falha de rede testada com NFC-e</xJust>'
+                   '</ide></infNFe></NFe>')
+        worker.ensure_signed_issuance_mode(offline, {"model":65,"issuanceMode":"nfce-offline"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline, {"model":65,"issuanceMode":"normal"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline.replace("<tpEmis>9</tpEmis>","<tpEmis>1</tpEmis>"),
+                                              {"model":65,"issuanceMode":"nfce-offline"})
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_issuance_mode(offline.replace("<xJust>Falha de rede testada com NFC-e</xJust>",""),
+                                              {"model":65,"issuanceMode":"nfce-offline"})
+        worker.ensure_signed_issuance_mode("<NFe><ide><tpEmis>1</tpEmis></ide></NFe>",
+                                          {"model":55,"issuanceMode":"normal"})
+
+
+    def test_offline_acbr_runtime_sets_explicit_teoffline8_without_changing_disk_config(self):
+        from unittest.mock import patch
+        with patch.object(worker,"do") as native:
+            worker.configure_nfe_emission(object(),{"issuanceMode":"nfce-offline","model":65})
+            self.assertEqual(native.call_count,1)
+            self.assertEqual(native.call_args.args[1:],
+                             ("NFE_ConfigGravarValor",b"NFe",b"FormaEmissao",b"8"))
+            self.assertEqual(native.call_args.kwargs["types"],[worker.ct.c_char_p]*3)
+        with patch.object(worker,"do") as native:
+            worker.configure_nfe_emission(object(),{"issuanceMode":"normal","model":65})
+            native.assert_not_called()
+        with self.assertRaises(worker.ACBrError):
+            worker.configure_nfe_emission(object(),{"issuanceMode":"nfce-offline","model":55})
+
+
+    def test_native_windows_probe_requires_cce_and_offline_exports(self):
+        exports=worker.required_exports("NFE")
+        for name in ("NFE_EnviarEvento", "NFE_CarregarEventoINI",
+                     "NFE_ConfigGravarValor", "NFE_Assinar",
+                     "NFE_Validar", "NFE_ObterXml"):
+            self.assertIn(name,exports)
+        self.assertNotIn("NFE_EnviarEvento",worker.required_exports("NFSE"))
+
+
+    def test_offline_signing_requires_qr_code_and_never_calls_network(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            ini=Path(temp)/"acbr-offline-example.ini"
+            ini.write_text("[Identificacao]\ntpEmis=9\n",encoding="utf-8")
+            request={"kind":"NFE","operation":"offline-issue","environment":"HOMOLOGACAO",
+                "iniPath":str(ini),"model":65,"number":1,"series":1,"lot":1,
+                "issuerCnpj":"11222333000181","cNF":"00000001","amountCents":1000,
+                "issuanceMode":"nfce-offline"}
+            raw="3526111122233300018165001000000001900000001"
+            total,weight=0,2
+            for digit in reversed(raw):
+                total+=int(digit)*weight
+                weight=2 if weight==9 else weight+1
+            digit=11-total%11
+            key=raw+str(0 if digit>=10 else digit)
+            xml=('<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><nNF>1</nNF>'
+                 '<serie>1</serie><tpAmb>2</tpAmb><tpEmis>9</tpEmis>'
+                 '<dhCont>2026-11-04T15:30:00-03:00</dhCont>'
+                 '<xJust>Falha de rede durante teste offline</xJust></ide>'
+                 '<emit><CNPJ>11222333000181</CNPJ></emit>'
+                 '<total><ICMSTot><vNF>10.00</vNF></ICMSTot></total>'
+                 '</infNFe><Signature/><infNFeSupl><qrCode>https://example.test/p?'
+                 +key+'</qrCode></infNFeSupl></NFe>')
+            import base64
+            fakepdf=base64.b64encode(b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF").decode()
+            def fake_response(_lib,name,*_args,**_kwargs):
+                if name=="NFE_ObterXml":
+                    return xml
+                if name=="NFE_SalvarPDF":
+                    return fakepdf
+                raise AssertionError("No SEFAZ network call allowed: "+name)
+            with patch.object(worker,"do"),patch.object(worker,"response",side_effect=fake_response):
+                result=worker.nfe_offline_issue(object(),request)
+            self.assertEqual(result["status"],"OFFLINE_SIGNED")
+            self.assertEqual(result["accessKey"],key)
+            self.assertEqual(result["pdfBase64"],fakepdf)
+            self.assertTrue(ini.with_suffix(".signed.xml").is_file())
+            bad=xml.replace("<qrCode>https://example.test/p?"+key+"</qrCode>","")
+            with self.assertRaises(worker.ACBrError):
+                worker.validate_offline_signed(bad,request)
+
 if __name__ == "__main__":
     unittest.main()

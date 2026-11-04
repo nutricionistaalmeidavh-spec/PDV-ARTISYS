@@ -38,7 +38,8 @@ contextBridge.exposeInMainWorld('artisysDesktop', {
     status: () => ipcRenderer.invoke('artisys:fiscal:status'),
     importCertificate: (input) => ipcRenderer.invoke('artisys:fiscal:import', input),
     enableHomologation: (sessionToken) => ipcRenderer.invoke('artisys:fiscal:enable-homologation', {sessionToken}),
-    saveDanfe: (documentId,sessionToken) => ipcRenderer.invoke('artisys:fiscal:save-danfe',{documentId,sessionToken})
+    saveDanfe: (documentId,sessionToken) => ipcRenderer.invoke('artisys:fiscal:save-danfe',{documentId,sessionToken}),
+    saveOfflineDanfe: (documentId,sessionToken) => ipcRenderer.invoke('artisys:fiscal:save-offline-danfe',{documentId,sessionToken})
   },
   installation: {
     acknowledge: () => ipcRenderer.invoke('artisys:installation:acknowledge'),

@@ -11,6 +11,7 @@ import base64
 import ctypes as ct
 from decimal import Decimal, InvalidOperation
 import json
+import hashlib
 import os
 from pathlib import Path
 import re
@@ -181,13 +182,35 @@ def ensure_signed_number(req, key, number, series):
         n, s = int(number), int(series)
     except (ValueError, TypeError):
         raise ACBrError("Nota sem número ou série numérica")
+    mode = req.get("issuanceMode", "normal")
+    if mode not in ("normal", "nfce-offline") or (mode == "nfce-offline" and req["model"] != 65):
+        raise ACBrError("Modo de emissão fiscal não autorizado para o modelo")
+    emission_digit = "9" if mode == "nfce-offline" else "1"
     if (n != int(req["number"]) or s != int(req["series"]) or
             key[6:20] != req["issuerCnpj"] or
             key[20:22] != str(req["model"]) or
             int(key[22:25]) != s or int(key[25:34]) != n or
-            key[34:35] != "1" or key[35:43] != req["cNF"]):
+            key[34:35] != emission_digit or key[35:43] != req["cNF"]):
         raise ACBrError("Identidade fiscal do XML diverge da venda e numeração reservada")
 
+
+
+def ensure_signed_issuance_mode(xml, req):
+    """Never transmit an offline key with normal-mode signed XML, or vice versa."""
+    root = root_or_none(xml)
+    if root is None:
+        raise ACBrError("XML fiscal não é válido para o modo informado")
+    mode = req.get("issuanceMode", "normal")
+    if mode not in ("normal", "nfce-offline"):
+        raise ACBrError("Modo de emissão fiscal desconhecido")
+    expected = "9" if mode == "nfce-offline" else "1"
+    if find_text(root, "tpEmis") != expected:
+        raise ACBrError("tpEmis do XML assinado diverge do manifesto imutável")
+    if expected == "9":
+        if int(req.get("model", 0)) != 65:
+            raise ACBrError("Contingência offline só pode ser NFC-e modelo 65")
+        if not find_text(root, "dhCont") or len(find_text(root, "xJust")) < 15:
+            raise ACBrError("NFC-e offline sem data ou motivo de contingência")
 
 def verified_nfe_rejection(parts, key, environment):
     """Only a matching per-document SEFAZ status is a confirmed rejection.
@@ -286,12 +309,146 @@ def nfe_inutilize(lib, req):
         "status": "INDETERMINADO", "message": "Inutilização sem XML oficial do intervalo confirmado"}
 
 
+
+def nfe_cce_ini(req):
+    """Official ACBr NFE_CarregarEventoINI format; never append unsanitized INI fields."""
+    key = str(req.get("accessKey", ""))
+    issuer = str(req.get("issuerCnpj", ""))
+    text = str(req.get("correction", "")).strip()
+    event_at = str(req.get("eventAt", ""))
+    try:
+        model = int(req.get("model", 0))
+        seq = int(req.get("sequence", 0))
+        lot = int(req.get("lot", 0))
+    except (TypeError, ValueError):
+        raise ACBrError("Identidade de CC-e inválida")
+    if (req.get("environment") != "HOMOLOGACAO" or model != 55 or
+            not re.fullmatch(r"\d{44}", key) or
+            key[20:22] != "55" or key[6:20] != issuer or
+            not 1 <= seq <= 20 or not 1 <= lot <= 999999999):
+        raise ACBrError("Carta de correção exige NF-e 55 e emitente da mesma chave")
+    if (not 15 <= len(text) <= 1000 or
+            re.search(r"[\r\n\x00-\x1f]", text)):
+        raise ACBrError("Texto da carta de correção inválido ou contém comandos INI")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}", event_at):
+        raise ACBrError("CC-e exige data e hora local com fuso")
+    return "\n".join(("[EVENTO]", "idLote="+str(lot), "",
+        "[EVENTO001]", "cOrgao="+key[:2], "CNPJ="+issuer,
+        "chNFe="+key, "dhEvento="+event_at, "tpEvento=110110",
+        "nSeqEvento="+str(seq), "versaoEvento=1.00",
+        "xCorrecao="+text, ""))
+
+
+def confirmed_nfe_cce(parts, key, environment, sequence):
+    # cStat 136 means event received but NOT linked to the NF-e; do not confirm.
+    fields = parts.get("EVENTO001", {})
+    protocol = fields.get("NPROT", "")
+    if (fields.get("CSTAT") != "135" or
+            fields.get("CHDFE") != key or
+            fields.get("TPAMB") != environment or
+            fields.get("TPEVENTO") != "110110" or
+            fields.get("NSEQEVENTO") != str(sequence) or
+            not re.fullmatch(r"\d{10,20}", protocol)):
+        return None
+    return {"status":"CCE_REGISTERED","cStat":135,"accessKey":key,
+            "eventProtocol":protocol,"sequence":sequence}
+
+
+def nfe_cce(lib, req):
+    event_ini = nfe_cce_ini(req)
+    do(lib, "NFE_CarregarEventoINI", encoded(event_ini), types=[ct.c_char_p])
+    result = response(lib, "NFE_EnviarEvento",
+                      (int(req["lot"]),), [ct.c_int])
+    proof = confirmed_nfe_cce(parse_sections(result), str(req["accessKey"]), "2", int(req["sequence"]))
+    return {**proof, "environment":"HOMOLOGACAO"} if proof else {
+        "status":"INDETERMINADO","message":"CC-e sem evento SEFAZ vinculado à NF-e"}
+
+
+def configure_nfe_emission(lib, req):
+    """The ACBr internal enum is teOffLine=8 (the XML's tpEmis is 9).
+
+    Apply this to this worker process only, without writing a persistent
+    configuration containing the A1 secret/CSC or altering another invoice.
+    """
+    mode = req.get("issuanceMode","normal")
+    if mode == "normal":
+        return
+    if mode != "nfce-offline" or int(req.get("model",0)) != 65:
+        raise ACBrError("Modo de emissão inválido para o documento")
+    do(lib, "NFE_ConfigGravarValor", encoded("NFe"), encoded("FormaEmissao"),
+       encoded("8"), types=[ct.c_char_p]*3)
+
+
+def validate_offline_signed(xml, req):
+    if req.get("issuanceMode") != "nfce-offline" or int(req.get("model",0)) != 65:
+        raise ACBrError("Somente NFC-e 65 offline pode ser assinada nesta operação")
+    ensure_signed_issuance_mode(xml, req)
+    key, number, series, environment, issuer = nfe_identity(xml)
+    ensure_signed_number(req, key, number, series)
+    root = root_or_none(xml)
+    if (not any(local_tag(el) == "Signature" for el in root.iter()) or
+            find_text(root, "mod") != "65" or
+            environment != "2" or issuer != req["issuerCnpj"] or
+            nfe_total_cents(xml) != int(req["amountCents"])):
+        raise ACBrError("XML NFC-e offline não possui assinatura ou dados da venda original")
+    qr = find_text(root, "qrCode")
+    if not qr or key not in qr or len(qr) > 4000:
+        raise ACBrError("XML NFC-e offline sem QR Code correspondente à chave assinada")
+    if any(local_tag(el) == "infProt" for el in root.iter()):
+        raise ACBrError("NFC-e offline sem autorização não pode conter protocolo fictício")
+    return key
+
+
+def nfe_offline_issue(lib, req):
+    """Sign/validate, create contingency DANFE, then seal the signed XML.
+
+    Absolutely no network functions are used in this operation. ACBrLib
+    owns XML signature and CSC-dependent QR calculation.
+    """
+    configure_nfe_emission(lib, req)
+    signed_file = Path(req["iniPath"]).with_suffix(".signed.xml")
+    if signed_file.exists():
+        raise ACBrError("XML offline já assinado. Recuperação manual, não reassinar")
+    do(lib, "NFE_LimparLista")
+    do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
+    do(lib, "NFE_Assinar")
+    do(lib, "NFE_Validar")
+    xml = response(lib, "NFE_ObterXml", (0,), [ct.c_int])
+    key = validate_offline_signed(xml, req)
+    pdf = verify_danfe_pdf(response(lib, "NFE_SalvarPDF"))
+    stash_signed_xml(req["iniPath"], xml)
+    return {"status":"OFFLINE_SIGNED","environment":req["environment"],
+            "accessKey":key,"xml":xml,"pdfBase64":pdf}
+
+
+def nfe_transmit_signed(lib, req):
+    """Transmit the exact previously sealed signed XML; never regenerate it."""
+    if req.get("issuanceMode") != "nfce-offline":
+        raise ACBrError("Fila offline exige NFC-e em modo contingência")
+    signed_file = Path(req["iniPath"]).with_suffix(".signed.xml")
+    if not signed_file.is_file():
+        raise ACBrError("XML de contingência não foi assinado previamente")
+    signed_bytes = signed_file.read_bytes()
+    if len(signed_bytes)>4*1024*1024 or hashlib.sha256(signed_bytes).hexdigest()!=req.get("signedXmlSha256"):
+        raise ACBrError("Arquivo de contingência diverge do hash persistido")
+    xml = signed_bytes.decode("utf-8-sig")
+    key = validate_offline_signed(xml, req)
+    if key != req.get("accessKey"):
+        raise ACBrError("Chave da NFC-e assinada difere da fila")
+    configure_nfe_emission(lib, req)
+    do(lib, "NFE_LimparLista")
+    do(lib, "NFE_CarregarXML", encoded(str(signed_file)), types=[ct.c_char_p])
+    do(lib, "NFE_Validar")
+    return nfe_finish_send(lib, req, key, str(req["number"]), str(req["series"]))
+
 def nfe_transmit(lib, req):
+    configure_nfe_emission(lib, req)
     do(lib, "NFE_LimparLista")
     do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
     do(lib, "NFE_Assinar")
     do(lib, "NFE_Validar")
     signed = response(lib, "NFE_ObterXml", (0,), [ct.c_int])
+    ensure_signed_issuance_mode(signed, req)
     key = stash_signed_xml(req["iniPath"], signed)
     _, number, series, ambiente, cnpj = nfe_identity(signed)
     ensure_signed_number(req, key, number, series)
@@ -302,6 +459,10 @@ def nfe_transmit(lib, req):
     expect_amb = "2" if req["environment"] == "HOMOLOGACAO" else "1"
     if ambiente != expect_amb or cnpj.upper() != req["issuerCnpj"].upper():
         raise ACBrError("XML fiscal diverge do ambiente/CNPJ do snapshot")
+    return nfe_finish_send(lib, req, key, number, series)
+
+
+def nfe_finish_send(lib, req, key, number, series):
     send = response(lib, "NFE_Enviar",
                     (int(req["lot"]), False, True, False),
                     [ct.c_int, ct.c_bool, ct.c_bool, ct.c_bool])
@@ -367,6 +528,7 @@ def nfe_consult(lib, req):
     if not path.is_file():
         return {"status": "INDETERMINADO", "message": "XML assinado para consulta não localizado"}
     signed = path.read_text(encoding="utf-8-sig")
+    ensure_signed_issuance_mode(signed, req)
     key, number, series, environment, cnpj = nfe_identity(signed)
     ensure_signed_number(req, key, number, series)
     if find_text(root_or_none(signed), "mod") != str(req["model"]) or nfe_total_cents(signed) != int(req["amountCents"]):
@@ -458,11 +620,21 @@ def native_library(library_path):
     return ct.CDLL(str(Path(library_path).resolve(strict=True)))
 
 
+def required_exports(prefix):
+    base = (prefix + "_Inicializar", prefix + "_Finalizar",
+            prefix + "_CarregarINI", prefix + "_LimparLista")
+    if prefix == "NFE":
+        return base + ("NFE_Assinar", "NFE_Validar", "NFE_ObterXml",
+                       "NFE_Enviar", "NFE_Consultar", "NFE_CarregarEventoINI",
+                       "NFE_EnviarEvento", "NFE_ConfigGravarValor",
+                       "NFE_CarregarXML", "NFE_SalvarPDF")
+    return base
+
+
 def probe_library(path):
     lib = native_library(path)
     prefix = "NFSE" if "nfse" in Path(path).name.lower() else "NFE"
-    required = (prefix + "_Inicializar", prefix + "_Finalizar",
-                prefix + "_CarregarINI", prefix + "_LimparLista")
+    required = required_exports(prefix)
     for name in required:
         if not hasattr(lib, name):
             raise ACBrError("DLL nativa sem exportação obrigatória: " + name)
@@ -470,7 +642,7 @@ def probe_library(path):
 
 
 def execute(req):
-    if req.get("operation") not in ("transmit", "consult", "pdf", "cancel", "inutilize") or req.get("kind") not in ("NFE", "NFSE"):
+    if req.get("operation") not in ("transmit", "consult", "pdf", "cancel", "inutilize", "cce", "offline-issue", "transmit-signed") or req.get("kind") not in ("NFE", "NFSE"):
         raise ACBrError("Operação fiscal inválida")
     if req.get("environment") != "HOMOLOGACAO":
         raise ACBrError("Somente homologação fiscal pode ser executada nesta versão")
@@ -489,12 +661,18 @@ def execute(req):
         if req["kind"] == "NFE":
             if req["operation"] == "cancel":
                 return nfe_cancel(lib, req)
+            if req["operation"] == "cce":
+                return nfe_cce(lib, req)
             if req["operation"] == "inutilize":
                 return nfe_inutilize(lib, req)
             if req["operation"] == "pdf":
                 return nfe_danfe(lib, req)
+            if req["operation"] == "offline-issue":
+                return nfe_offline_issue(lib, req)
+            if req["operation"] == "transmit-signed":
+                return nfe_transmit_signed(lib, req)
             return nfe_transmit(lib, req) if req["operation"] == "transmit" else nfe_consult(lib, req)
-        if req["operation"] in ("pdf", "cancel", "inutilize"):
+        if req["operation"] in ("pdf", "cancel", "inutilize", "cce", "offline-issue", "transmit-signed"):
             raise ACBrError("Operação fora do escopo ACBr NFSe")
         return nfse_transmit(lib, req) if req["operation"] == "transmit" else nfse_consult(lib, req)
     finally:

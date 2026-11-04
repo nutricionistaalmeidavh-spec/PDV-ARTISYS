@@ -67,3 +67,7 @@ test('incorrect decimal rate, arithmetic overflow and missing ST block issuance'
  assert.throws(()=>tax({cst:'10',icms:{basePercent:'100.0000',rate:'18.0000'},pisCst:'49',cofinsCst:'49',zeroLegacyTaxesConfirmed:true}),/ST/i);
  assert.throws(()=>tax({cst:'00',icms:{basePercent:'100.0000',rate:'18.0000'},pisCst:'01',cofinsCst:'01'}),/PIS|COFINS|alíquota/i);
 });
+
+test('retained ST exceeding its reviewed base is blocked',()=>{
+ assert.throws(()=>tax({csosn:'500',icmsRetained:{baseCents:1000,amountCents:5000},pisCst:'49',cofinsCst:'49',zeroLegacyTaxesConfirmed:true},'1'),/ST|retid|base/i);
+});

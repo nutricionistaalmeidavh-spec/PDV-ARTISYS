@@ -192,3 +192,22 @@ test('CRT2 (Simples excesso de sublimite) requires normal-regime CST 60 for reta
  assert.match(ini,/vICMSSTRet=3\.24/);
  assert.doesNotMatch(ini,/CSOSN=/);
 });
+
+
+test('offline contingency NFCE has distinct tpEmis=9, reason, timestamp and immutable manifest',()=>{
+ const d=example();
+ const options={document:d,cNF:'87654321',issuedAt:'2026-11-04T15:00:00-03:00',
+  contingency:{startedAt:'2026-11-04T15:30:00-03:00',
+   reason:'Falha de conexao com a SEFAZ durante teste offline.'}};
+ const out=compileAcbrIni(options);
+ assert.match(out.ini,/tpEmis=9/);
+ assert.match(out.ini,/dhCont=04\/11\/2026 15:30:00/);
+ assert.match(out.ini,/xJust=Falha de conexao com a SEFAZ/);
+ assert.equal(out.manifest.issuanceMode,'nfce-offline');
+ assert.match(out.reference,/offline/);
+ assert.notEqual(out.reference,build().reference);
+ assert.notEqual(out.manifest.iniSha256,build().manifest.iniSha256);
+ const nfe=example({documentType:'nfe',model:55});nfe.documentType='nfe';nfe.model=55;
+ assert.throws(()=>compileAcbrIni({...options,document:nfe}),/NFC-e|65|conting/i);
+ assert.throws(()=>compileAcbrIni({...options,contingency:{...options.contingency,reason:'falha'}}),/justificativa|conting/i);
+});
