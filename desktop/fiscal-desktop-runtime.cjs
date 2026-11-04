@@ -29,6 +29,14 @@ function resolveFiscalDesktopRuntime({resourcesPath,userData,platform=process.pl
  const privateDir=ownDirectory(path.join(fiscalRoot,'private'));
  const inputDir=ownDirectory(path.join(fiscalRoot,'input'));
  const nfeConfig=path.join(privateDir,'ACBrLibNFe.ini');
+ const approvalFile=path.join(privateDir,'homologation-enabled.json');
+ let allowHomologation=false;
+ try{
+  const stat=fs.lstatSync(approvalFile);
+  allowHomologation=stat.isFile()&&!stat.isSymbolicLink()&&
+   JSON.parse(fs.readFileSync(approvalFile,'utf8')).enabled===true&&
+   fs.existsSync(nfeConfig);
+ }catch{allowHomologation=false;}
  return Object.freeze({
   enabled:true,
   status:fs.existsSync(nfeConfig)?'configuration-present':'requires-certificate',
@@ -37,7 +45,7 @@ function resolveFiscalDesktopRuntime({resourcesPath,userData,platform=process.pl
    inputDir,nfeLib:verified.nfeLib,nfeConfig,workerExe:verified.workerExe,
    // In a newly installed app, nothing may contact SEFAZ until the operator
    // explicitly configures homologation and reviews the fiscal profile.
-   allowHomologation:false
+   allowHomologation
   }
  });
 }
