@@ -191,7 +191,6 @@ function createAcbrLibAdapter(options={}){
       issuerCnpj:manifest.issuerCnpj,environment:manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO',
       amountCents:manifest.amountCents,lot:manifest.lot,model:manifest.model,
       number:manifest.number,series:manifest.series,cNF:manifest.cNF,
-      issuanceMode:manifest.issuanceMode||'normal',
       issuanceMode:manifest.issuanceMode||'normal'
     },workerExe};
   }
@@ -204,8 +203,19 @@ function createAcbrLibAdapter(options={}){
       // A signed XML is persisted before sending: NEVER blindly resend an unknown invoice.
       if(operation==='transmit'&&fs.existsSync(path.join(path.dirname(context.iniPath),path.basename(context.iniPath,'.ini')+'.signed.xml')))
         return unknown();
+      if(operation==='transmit-signed'){
+        const file=path.join(path.dirname(context.iniPath),path.basename(context.iniPath,'.ini')+'.signed.xml');
+        const hash=String(request.signedXmlSha256||''),key=String(request.accessKey||'');
+        if(context.manifest.issuanceMode!=='nfce-offline'||!HASH.test(hash)||
+           !accessKeyMatches(key,context.manifest)||!fs.existsSync(file)||
+           createHash('sha256').update(fs.readFileSync(file)).digest('hex')!==hash)
+          return blocked('Fila offline com XML assinado ou identidade inconsistentes');
+      }
       const response=await runner({...context.command,operation,
-        ...(operation==='consult'?{accessKey:request.accessKey||null}:{})});
+        ...(operation==='consult'?{accessKey:request.accessKey||null}:{}),
+        ...(operation==='transmit-signed'?{
+          accessKey:request.accessKey,signedXmlSha256:request.signedXmlSha256
+        }:{})});
       return validated(response,context.manifest);
       });
     }catch(error){
@@ -224,6 +234,39 @@ function createAcbrLibAdapter(options={}){
       });
     }catch{return blocked('Configuração fiscal local incompleta para o modelo da nota: certificado, CSC, DLL ou manifesto');}
   }
+
+  async function offlineIssue(request){
+    try{
+      return await withConfig(async()=>{
+        const context=prepare({...request,requirePayload:false});
+        if(context.manifest.issuanceMode!=='nfce-offline'||context.manifest.model!==65)
+          return blocked('NFC-e não está preparada para emissão offline');
+        const signed=path.join(path.dirname(context.iniPath),request.reference+'.signed.xml');
+        if(fs.existsSync(signed))return blocked('NFC-e já assinada: recuperação manual obrigatória');
+        const result=await runner({...context.command,operation:'offline-issue'});
+        const key=String(result?.accessKey||''),xml=String(result?.xml||'');
+        const qr=xmlField(xml,'qrCode'),protocol=xmlField(xml,'nProt');
+        const encoded=String(result?.pdfBase64||'');
+        if(result?.status!=='OFFLINE_SIGNED'||result.environment!=='HOMOLOGACAO'||
+           !accessKeyMatches(key,context.manifest)||!xml.includes('NFe'+key)||
+           xmlField(xml,'tpEmis')!=='9'||xmlField(xml,'tpAmb')!=='2'||
+           xmlField(xml,'mod')!=='65'||xmlField(xml,'CNPJ')!==context.manifest.issuerCnpj||
+           xmlValueCents(xmlField(xml,'vNF'))!==context.manifest.amountCents||
+           !/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
+           !qr.includes(key)||protocol||
+           encoded.length>4*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
+          return unknown();
+        const bytes=Buffer.from(encoded,'base64');
+        if(bytes.length<16||bytes.length>3*1024*1024||
+           bytes.subarray(0,5).toString('ascii')!=='%PDF-'||
+           !bytes.toString('ascii',Math.max(0,bytes.length-128)).includes('%%EOF'))
+          return unknown();
+        return {ok:true,status:200,data:{accessKey:key,xml,pdfBase64:encoded}};
+      });
+    }catch{return unknown();}
+  }
+  async function transmitSigned(request){return call(request,'transmit-signed');}
+
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
   async function pdf(request={}){
@@ -350,6 +393,6 @@ function createAcbrLibAdapter(options={}){
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
     }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
-  return Object.freeze({status,preflight,issue,query,cancel,cce,inutilize,pdf});
+  return Object.freeze({status,preflight,issue,query,cancel,cce,inutilize,pdf,offlineIssue,transmitSigned});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
