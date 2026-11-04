@@ -37,3 +37,9 @@ test('TEF bridge interrompe processo travado e retorna estado indeterminado',asy
   const provider=createLocalTefProvider({executable:process.execPath,args:['-e','setInterval(()=>{},1000)'],timeoutMs:200});
   await assert.rejects(()=>provider.start(payment),/indeterminado/);
 });
+
+test('bridge nativo no PC principal nao executa pagamento de outro terminal LAN',()=>{
+  const provider=createLocalTefProvider({executable:process.execPath,allowedTerminalId:'T1'});
+  assert.equal(provider.validateTerminal('T1'),'T1');
+  assert.throws(()=>provider.validateTerminal('T2'),/terminal/i);
+});
