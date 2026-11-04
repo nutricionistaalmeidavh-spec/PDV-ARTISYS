@@ -21,10 +21,10 @@ function fixture(t,adapter){
  payments:[{method:'CASH',amountCents:2000}]})};
  const drafts=createFiscalDraftService({db,sales,now:()=> '2026-11-04T15:00:00-03:00'});
  drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf:'SP',
- crt:'1',environment:'homologation',series:1,street:'RUA DAS FLORES',streetNumber:'20',
+ crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,street:'RUA DAS FLORES',streetNumber:'20',
  district:'CENTRO',municipalityCode:'3543402',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'});
  drafts.saveProductProfile({productId:'prod1',ncm:'09012100',cfop:'5102',origin:'0',
- csosn:'102',pisCst:'49',cofinsCst:'49',unit:'UN',
+ csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
  ibsCbsCst:'000',cClassTrib:'000001',zeroLegacyTaxesConfirmed:true,
  reformTax:{baseCents:1800,ibsUfRate:'0.1000',ibsUfCents:2,
  ibsMunRate:'0.0000',ibsMunCents:0,cbsRate:'0.9000',cbsCents:16},
