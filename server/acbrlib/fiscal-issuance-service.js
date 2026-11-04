@@ -168,6 +168,13 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    const state=await adapter.status();
    if(state?.data?.ready===false)throw Error('ACBrLib nativa ou configuração ausente; envio não iniciado');
   }
+  if(typeof adapter.preflight==='function'){
+   // Validate this document's model and CSC before the irreversible UNKNOWN state.
+   const preflight=await adapter.preflight({
+    type:manifest.documentType,reference:meta.reference,environment:draft.environment
+   });
+   if(preflight?.ok!==true)throw Error('Validação fiscal local incompleta; corrija certificado/CSC ou manifesto antes de enviar');
+  }
   if(fs.existsSync(path.join(dir,meta.reference+'.signed.xml')))
    throw Error('XML fiscal já assinado; somente consulta, não reenvio');
   const changed=withTransaction(db,()=>db.prepare("UPDATE acbr_fiscal_documents SET status='UNKNOWN',updated_at=? "+
