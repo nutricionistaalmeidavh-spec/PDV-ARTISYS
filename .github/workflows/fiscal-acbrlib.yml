@@ -15,6 +15,7 @@ on:
       - 'test/fiscal-acbrlib-build-config.test.js'
       - 'test/fiscal-acbrlib-ini-builder.test.js'
       - 'test/fiscal-acbrlib-regimes.test.js'
+      - 'test/fiscal-acbrlib-config-security.test.js'
       - 'test/fiscal-acbrlib-issuance.test.js'
       - 'test/python/test_acbrlib_worker.py'
       - '.github/workflows/fiscal-acbrlib.yml'
@@ -35,7 +36,7 @@ jobs:
       - name: Install core dependencies
         run: npm ci --no-audit --no-fund
       - name: Contract tests without SEFAZ or paid provider
-        run: node --test test/fiscal-acbrlib-oss.test.js test/fiscal-acbrlib-drafts.test.js test/fiscal-acbrlib-preview-api.test.js test/fiscal-acbrlib-bundle.test.js test/fiscal-acbrlib-build-config.test.js test/fiscal-acbrlib-ini-builder.test.js test/fiscal-acbrlib-issuance.test.js test/fiscal-acbrlib-regimes.test.js
+        run: node --test test/fiscal-acbrlib-oss.test.js test/fiscal-acbrlib-drafts.test.js test/fiscal-acbrlib-preview-api.test.js test/fiscal-acbrlib-bundle.test.js test/fiscal-acbrlib-build-config.test.js test/fiscal-acbrlib-ini-builder.test.js test/fiscal-acbrlib-issuance.test.js test/fiscal-acbrlib-regimes.test.js test/fiscal-acbrlib-config-security.test.js
       - name: Native worker Python invariants
         run: python -m unittest discover -s test/python -p 'test_acbrlib_worker.py'
       - name: Native worker syntax check
