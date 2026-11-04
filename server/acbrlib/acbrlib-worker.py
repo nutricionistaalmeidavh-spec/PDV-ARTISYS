@@ -188,6 +188,29 @@ def ensure_signed_number(req, key, number, series):
         raise ACBrError("Identidade fiscal do XML diverge da venda e numeração reservada")
 
 
+def verified_nfe_rejection(parts, key, environment):
+    """Only a matching per-document SEFAZ status is a confirmed rejection.
+
+    Duplicate/possibly authorized cStat must remain indeterminate.
+    """
+    ambiguous = {100, 101, 103, 104, 105, 106, 107, 108, 204, 205, 539}
+    for group, values in parts.items():
+        if not re.fullmatch(r"NFE[0-9]+", group):
+            continue
+        raw = values.get("CSTAT", "")
+        if not re.fullmatch(r"[0-9]{3,4}", raw):
+            continue
+        status = int(raw)
+        if (status in ambiguous or status < 200 or
+                values.get("CHDFE") != key or
+                values.get("TPAMB") != environment):
+            continue
+        reason = re.sub(r"[\\x00-\\x1f]", " ", values.get("XMOTIVO", ""))[:180].strip()
+        return {"status": "REJEITADA", "cStat": status,
+                "reason": reason or "Rejeição fiscal confirmada", "accessKey": key}
+    return None
+
+
 def nfe_transmit(lib, req):
     do(lib, "NFE_LimparLista")
     do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
@@ -211,6 +234,9 @@ def nfe_transmit(lib, req):
     official = next((v for k, v in parts.items()
                      if re.fullmatch(r"NFE\d+", k) and v.get("CSTAT") == "100"), None)
     if not official:
+        rejection = verified_nfe_rejection(parts, key, expect_amb)
+        if rejection:
+            return {**rejection, "environment": req["environment"]}
         return {"status": "INDETERMINADO", "message": "Envio ACBr não comprovou autorização por NF-e"}
     protocol = official.get("NPROT", "")
     if official.get("CHDFE") != key or official.get("TPAMB") != expect_amb or not protocol:
