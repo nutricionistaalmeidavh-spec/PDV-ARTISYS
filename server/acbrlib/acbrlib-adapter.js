@@ -62,15 +62,29 @@ function unknown(){
 function blocked(reason){
   return{ok:false,status:503,data:null,error:reason};
 }
+function xmlField(xml,field){
+  const expression=new RegExp('<(?:[A-Za-z0-9_]+:)?'+field+'(?:\\s[^>]*)?>\\s*([^<]+)\\s*</(?:[A-Za-z0-9_]+:)?'+field+'\\s*>','i');
+  return expression.exec(xml)?.[1]?.trim()||'';
+}
+function xmlValueCents(text){
+  const match=/^([0-9]{1,13})\\.([0-9]{2})$/.exec(String(text||''));
+  if(!match)return null;
+  const cents=Number(match[1])*100+Number(match[2]);
+  return Number.isSafeInteger(cents)?cents:null;
+}
 function validated(result,manifest){
   if(!result||typeof result!=='object'||result.status!=='AUTORIZADA')return unknown();
   const xml=String(result.xml||'');
   const key=String(result.accessKey||'');
   const protocol=String(result.protocol||'');
   const environment=manifest.environment==='homologation'?'HOMOLOGACAO':'PRODUCAO';
+  const xmlEnvironment=environment==='HOMOLOGACAO'?'2':'1';
   // The native worker separately parses and verifies signature, protocol and XML totals.
   // These checks prevent a malformed worker response becoming AUTHORIZED in the PDV.
   if(!ACCESS_KEY.test(key)||!/^\d{10,20}$/.test(protocol)||result.environment!==environment||
+     xmlField(xml,'mod')!==String(manifest.model)||
+     xmlField(xml,'tpAmb')!==xmlEnvironment||
+     xmlValueCents(xmlField(xml,'vNF'))!==manifest.amountCents||
      !xml.includes('NFe'+key)||!/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
      !/<(?:\w+:)?infProt(?:\s|>)/.test(xml)||
      !new RegExp('<(?:\\w+:)?nProt>\\s*'+protocol+'\\s*</').test(xml)||
@@ -86,8 +100,9 @@ function executeWorker(data,{workerExe,timeoutMs=90000}={}){
   return new Promise((resolve,reject)=>{
     const proc=spawn(workerExe,[],{windowsHide:true,stdio:['pipe','pipe','pipe'],env:{...process.env,PYTHONDONTWRITEBYTECODE:'1'}});
     let settled=false,out='',errBytes=0;
-    const fail=()=>{if(settled)return;settled=true;proc.kill();reject(Error('Executor ACBr não confirmou o resultado'));};
-    const timer=setTimeout(fail,Math.min(120000,Math.max(3000,Number(timeoutMs)||90000)));
+    let timer;
+    const fail=()=>{if(settled)return;settled=true;clearTimeout(timer);proc.kill();reject(Error('Executor ACBr não confirmou o resultado'));};
+    timer=setTimeout(fail,Math.min(120000,Math.max(3000,Number(timeoutMs)||90000)));
     proc.on('error',fail);
     proc.stdout.setEncoding('utf8');
     proc.stdout.on('data',chunk=>{out+=chunk;if(Buffer.byteLength(out,'utf8')>4*1024*1024)fail();});
