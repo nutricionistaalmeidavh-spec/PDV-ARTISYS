@@ -100,7 +100,7 @@ function createPaymentIntentService({
     if(!claimed)return get(id);
     try{
       const response=await provider.start({id:row.id,txid:row.txid,amountCents:row.amount_cents,
-        method:row.method,saleId:row.sale_id});
+        method:row.method,saleId:row.sale_id,terminalId:sales.getSale(row.sale_id)?.terminalId});
       if(row.channel==='PIX_API'){
         if(response?.txid!==row.txid||typeof response.brCode!=='string'||!response.brCode.trim())
           throw new Error('Banco nao retornou QR Pix com identificador valido.');
