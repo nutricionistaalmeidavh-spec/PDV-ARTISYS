@@ -90,3 +90,19 @@ test('TEF PayGo nao libera venda ate conciliacao real e reaproveita intencao sem
     assert.equal(rt.paymentIntents.get(created.id).status,'CONSUMED');
   }finally{rt.close();}
 });
+
+test('Terminal LAN sem PinPad configurado falha antes de reservar cobranca e pode ser corrigido',async()=>{
+  let charges=0;
+  const tefProvider={
+    validateTerminal(terminalId){if(terminalId!=='T2')throw new Error('PinPad nao configurado para '+terminalId);},
+    async start(){charges++;return{status:'PENDING',txid:'A'.repeat(26),amountCents:1999,providerReference:'123'};}
+  };
+  const rt=fixture({tefProvider});
+  try{
+    const intent=rt.paymentIntents.create({saleId:'s1',channel:'TEF',method:'DEBIT_CARD',amountCents:1999,idempotencyKey:'preflight1'});
+    await assert.rejects(()=>rt.paymentIntents.start(intent.id),/PinPad nao configurado/);
+    assert.equal(rt.paymentIntents.get(intent.id).status,'PENDING');
+    assert.equal(rt.paymentIntents.get(intent.id).startedAt,null);
+    assert.equal(charges,0);
+  }finally{rt.close();}
+});
