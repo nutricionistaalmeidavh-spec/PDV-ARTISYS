@@ -212,6 +212,80 @@ def verified_nfe_rejection(parts, key, environment):
     return None
 
 
+
+def confirmed_nfe_cancellation(parts, key, environment):
+    """A cancellation is confirmed only by an official, matching event receipt."""
+    fields = parts.get("CANCELAMENTO", {})
+    protocol = fields.get("NPROT", "")
+    if (fields.get("CSTAT") not in ("135", "155") or
+            fields.get("CHDFE") != key or fields.get("TPAMB") != environment or
+            not re.fullmatch(r"[0-9]{10,20}", protocol)):
+        return None
+    return {"status": "CANCELADA", "cStat": int(fields["CSTAT"]),
+            "eventProtocol": protocol, "accessKey": key}
+
+
+def nfe_cancel(lib, req):
+    key = str(req.get("accessKey", ""))
+    reason = str(req.get("reason", "")).strip()
+    ensure_signed_number(req, key, req.get("number"), req.get("series"))
+    if not (15 <= len(reason) <= 255) or re.search(r"[\\r\\n\\x00]", reason):
+        raise ACBrError("Justificativa de cancelamento inválida")
+    response_text = response(lib, "NFE_Cancelar",
+                             (encoded(key), encoded(reason), encoded(req["issuerCnpj"]), int(req["lot"])),
+                             [ct.c_char_p, ct.c_char_p, ct.c_char_p, ct.c_int])
+    expected = "2" if req["environment"] == "HOMOLOGACAO" else "1"
+    proof = confirmed_nfe_cancellation(parse_sections(response_text), key, expected)
+    return {**proof, "environment": req["environment"]} if proof else {
+        "status": "INDETERMINADO", "message": "Cancelamento sem protocolo oficial confirmado"}
+
+
+def confirmed_nfe_inutilization(parts, req):
+    """The XML must identify the exact number range, environment, issuer and protocol."""
+    fields = parts.get("INUTILIZACAO", {})
+    expected = "2" if req["environment"] == "HOMOLOGACAO" else "1"
+    if fields.get("CSTAT") != "102" or fields.get("TPAMB") != expected:
+        return None
+    root = root_or_none(fields.get("XML", ""))
+    if root is None:
+        return None
+    infos = [node for node in root.iter() if local_tag(node) == "infInut"]
+    if len(infos) != 1:
+        return None
+    inf = infos[0]
+    year = str(req["year"])
+    fields_match = {
+        "tpAmb": expected, "CNPJ": str(req["issuerCnpj"]),
+        "mod": str(req["model"]), "serie": str(req["series"]),
+        "nNFIni": str(req["startNumber"]), "nNFFin": str(req["endNumber"]),
+        "cStat": "102"}
+    if (any(find_text(inf, tag) != value for tag, value in fields_match.items()) or
+            find_text(inf, "ano") not in (year, year[-2:])):
+        return None
+    protocol = find_text(inf, "nProt")
+    if not re.fullmatch(r"[0-9]{10,20}", protocol):
+        return None
+    return {"status": "INUTILIZADA", "cStat": 102, "eventProtocol": protocol,
+            "issuerCnpj": req["issuerCnpj"], "model": int(req["model"]),
+            "series": int(req["series"]), "startNumber": int(req["startNumber"]),
+            "endNumber": int(req["endNumber"])}
+
+
+def nfe_inutilize(lib, req):
+    reason = str(req.get("reason", "")).strip()
+    if not (15 <= len(reason) <= 255) or re.search(r"[\\r\\n\\x00]", reason):
+        raise ACBrError("Justificativa de inutilização inválida")
+    response_text = response(lib, "NFE_Inutilizar",
+                             (encoded(req["issuerCnpj"]), encoded(reason), int(req["year"]),
+                              int(req["model"]), int(req["series"]),
+                              int(req["startNumber"]), int(req["endNumber"])),
+                             [ct.c_char_p, ct.c_char_p, ct.c_int, ct.c_int,
+                              ct.c_int, ct.c_int, ct.c_int])
+    proof = confirmed_nfe_inutilization(parse_sections(response_text), req)
+    return {**proof, "environment": req["environment"]} if proof else {
+        "status": "INDETERMINADO", "message": "Inutilização sem XML oficial do intervalo confirmado"}
+
+
 def nfe_transmit(lib, req):
     do(lib, "NFE_LimparLista")
     do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
@@ -396,10 +470,10 @@ def probe_library(path):
 
 
 def execute(req):
-    if req.get("operation") not in ("transmit", "consult", "pdf") or req.get("kind") not in ("NFE", "NFSE"):
+    if req.get("operation") not in ("transmit", "consult", "pdf", "cancel", "inutilize") or req.get("kind") not in ("NFE", "NFSE"):
         raise ACBrError("Operação fiscal inválida")
-    if req.get("environment") not in ("HOMOLOGACAO", "PRODUCAO"):
-        raise ACBrError("Ambiente fiscal não identificado")
+    if req.get("environment") != "HOMOLOGACAO":
+        raise ACBrError("Somente homologação fiscal pode ser executada nesta versão")
     if not re.fullmatch(r"[A-Za-z0-9]{14}", str(req.get("issuerCnpj", ""))):
         raise ACBrError("CNPJ de emitente ausente")
     for field in ("libraryPath", "configPath", "iniPath"):
@@ -413,11 +487,15 @@ def execute(req):
            types=[ct.c_char_p, ct.c_char_p])
         initialized = True
         if req["kind"] == "NFE":
+            if req["operation"] == "cancel":
+                return nfe_cancel(lib, req)
+            if req["operation"] == "inutilize":
+                return nfe_inutilize(lib, req)
             if req["operation"] == "pdf":
                 return nfe_danfe(lib, req)
             return nfe_transmit(lib, req) if req["operation"] == "transmit" else nfe_consult(lib, req)
-        if req["operation"] == "pdf":
-            raise ACBrError("PDF NFSe fora do escopo ACBr NFe")
+        if req["operation"] in ("pdf", "cancel", "inutilize"):
+            raise ACBrError("Operação fora do escopo ACBr NFSe")
         return nfse_transmit(lib, req) if req["operation"] == "transmit" else nfse_consult(lib, req)
     finally:
         if initialized:
