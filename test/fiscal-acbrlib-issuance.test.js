@@ -350,3 +350,24 @@ test('normal invoice and unsigned contingency can never enter offline transmissi
  await assert.rejects(()=>svc.offlineIssue(f.draft.id),/conting|offline|modo/i);
  assert.equal(svc.listOfflineQueue().length,0);
 });
+
+
+test('authorized offline queue settles the same fiscal record and cannot transmit it twice',async t=>{
+ const signed=offlineSignedFixture(),pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+ let sends=0;
+ const f=fixture(t,{offlineIssue:async()=>({ok:true,data:{...signed,pdfBase64:pdf.toString('base64')}}),
+  issue:async()=>{throw Error('Normal emission forbidden');},
+  transmitSigned:async req=>{sends++;assert.equal(req.accessKey,signed.accessKey);
+   assert.match(req.signedXmlSha256,/^[a-f0-9]{64}$/);
+   return {ok:true,data:{chave_nfe:signed.accessKey,protocolo:'135260000000001',
+    xml:'<nfeProc><Signature/><infProt><nProt>135260000000001</nProt></infProt></nfeProc>'}};}});
+ const svc=f.build(true);
+ svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de rede durante atendimento em contingência'}});
+ await svc.offlineIssue(f.draft.id);
+ const sent=await svc.flushOfflineQueue();
+ assert.equal(sent[0].status,'AUTHORIZED');
+ assert.equal(svc.listOfflineQueue()[0].status,'AUTHORIZED');
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'AUTHORIZED');
+ assert.deepEqual(await f.build(true).flushOfflineQueue(),[]);
+ assert.equal(sends,1);
+});
