@@ -1,4 +1,4 @@
-# ACBr embarcado no instalador Windows x64 — branch de integração
+# Referência histórica do ArtiSys Oficina (NÃO é um manual do PDV)\n\n> Fonte copiada para estudo. Os caminhos, scripts e afirmações de empacotamento abaixo descrevem o ArtiSys Oficina, **não** o PDV. No PDV, o adaptador ACBrLib é experimental e não está ativado ou incluído no instalador comercial. Consulte `docs/operations/fiscal-acbrlib.md`.\n\n# ACBr embarcado no instalador Windows x64 — referência da Oficina
 
 ## Distribuição sem mensalidade / sem Python no cliente
 
