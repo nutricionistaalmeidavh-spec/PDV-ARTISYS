@@ -85,5 +85,25 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
                             "issuerCnpj": "11222333000181", "libraryPath": "/nonexistent/library.so",
                             "configPath": "/missing", "iniPath": "/missing"})
 
+
+    def test_cancellation_proof_requires_original_key_environment_and_event_protocol(self):
+        event = {"CANCELAMENTO":{"CSTAT":"135","CHDFE":KEY,"TPAMB":"2","NPROT":"135260000000111"}}
+        ok = worker.confirmed_nfe_cancellation(event, KEY, "2")
+        self.assertEqual(ok["status"], "CANCELADA")
+        self.assertEqual(ok["eventProtocol"], "135260000000111")
+        self.assertIsNone(worker.confirmed_nfe_cancellation(event, "0"*44, "2"))
+        self.assertIsNone(worker.confirmed_nfe_cancellation(event, KEY, "1"))
+        self.assertIsNone(worker.confirmed_nfe_cancellation({"CANCELAMENTO":{"CSTAT":"135"}}, KEY, "2"))
+
+    def test_inutilization_proof_requires_matching_range_and_official_xml(self):
+        xml = ('<retInutNFe><infInut><tpAmb>2</tpAmb><CNPJ>11222333000181</CNPJ>'
+               '<ano>26</ano><mod>55</mod><serie>1</serie><nNFIni>2</nNFIni><nNFFin>3</nNFFin>'
+               '<cStat>102</cStat><nProt>135260000000222</nProt></infInut></retInutNFe>')
+        req = {"issuerCnpj":"11222333000181","environment":"HOMOLOGACAO","year":2026,
+               "model":55,"series":1,"startNumber":2,"endNumber":3}
+        ok = worker.confirmed_nfe_inutilization({"INUTILIZACAO":{"CSTAT":"102","TPAMB":"2","XML":xml}}, req)
+        self.assertEqual(ok["status"], "INUTILIZADA")
+        self.assertIsNone(worker.confirmed_nfe_inutilization({"INUTILIZACAO":{"CSTAT":"102","TPAMB":"2","XML":xml}}, {**req,"startNumber":4}))
+
 if __name__ == "__main__":
     unittest.main()
