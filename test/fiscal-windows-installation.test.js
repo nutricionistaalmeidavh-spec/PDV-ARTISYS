@@ -170,3 +170,17 @@ test('operator can explicitly stage NFC-e offline without misleading printing/au
  assert.match(ui,/Transmitir.*reconex[aã]o/);
  assert.match(ui,/n[aã]o.*autoriza|n[aã]o.*emitida/i);
 });
+
+
+test('desktop operator can issue NFC-e offline, save contingency DANFE and flush signed queue',()=>{
+ const root=path.join(__dirname,'..');
+ const ui=fs.readFileSync(path.join(root,'desktop/renderer/acbrlib-fiscal-preview-ui.js'),'utf8');
+ const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
+ const preload=fs.readFileSync(path.join(root,'desktop/preload.cjs'),'utf8');
+ assert.match(ui,/endpoint\+'\/offline-issue'/);
+ assert.match(ui,/offline-queue\/flush/);
+ assert.match(ui,/saveOfflineDanfe/);
+ assert.match(main,/artisys:fiscal:save-offline-danfe/);
+ assert.match(main,/offline-danfe\.pdf/);
+ assert.match(preload,/saveOfflineDanfe/);
+});
