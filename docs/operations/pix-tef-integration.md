@@ -11,7 +11,9 @@
 
 ## Como ativar Pix estatico (sem mensalidade)
 
-No ambiente **do servidor autoritativo** (nunca nos terminais da LAN) configure:
+Na tela **Balcão → Pagamento da venda → Configurar Pix da loja**, o gestor autorizado cadastra chave, nome do recebedor e cidade. A configuração fica no SQLite do servidor da loja, não no terminal e não é apagada por atualização. A chave Pix é pública para recebimentos; nenhuma senha bancária deve ser inserida nesse formulário.
+
+Como alternativa para instalação administrada, no ambiente **do servidor autoritativo** (nunca nos terminais da LAN) configure:
 
 ```text
 PDV_PIX_KEY=chave-registrada-do-estabelecimento
