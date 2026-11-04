@@ -7,7 +7,7 @@ const { publicNetworkState, testPublicNetwork } = require('./public-network.cjs'
 const { createLanDiscovery, discoverLanServers } = require('./lan-discovery.cjs');
 const { installationState, acknowledgeInstallation, archiveInstallation } = require('./installation-lifecycle.cjs');
 const { version: productVersion } = require('../package.json');
-const { existsSync } = require('node:fs');
+const { existsSync, mkdirSync, lstatSync } = require('node:fs');
 const { mkdir, writeFile } = require('node:fs/promises');
 const { randomBytes, createHash } = require('node:crypto');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
@@ -17,6 +17,7 @@ const { resolvePrintingPreferences } = require('../js/domains/printing/printing-
 const { createLocalServer } = require('../server/local-server');
 const { resolveFiscalDesktopRuntime } = require('./acbrlib-desktop-runtime.cjs');
 const { createFiscalCredentialStore } = require('./acbrlib-credential-store.cjs');
+const { resolveQaUserDataPath } = require('./qa-user-data-path.cjs');
 const { inspectLocalAcbrConfig } = require('../server/acbrlib/acbr-config-check');
 const { createLanReachability } = require('../server/lan-reachability.cjs');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
@@ -579,6 +580,15 @@ async function shutdown() {
 }
 
 app.whenReady().then(async () => {
+  // GitHub Actions isolates its profile explicitly, never relying only on APPDATA.
+  // Production profiles and user installations ignore this CI-only setting.
+  const qaUserData=resolveQaUserDataPath(process.env);
+  if(qaUserData){
+    mkdirSync(qaUserData,{recursive:true,mode:0o700});
+    const st=lstatSync(qaUserData);
+    if(!st.isDirectory()||st.isSymbolicLink())throw Error('Pasta de teste isolada inválida');
+    app.setPath('userData',qaUserData);
+  }
   dataServerConfigPath = path.join(app.getPath('userData'), 'data-server.json');
   dataServerConfig = loadDataServerConfig(dataServerConfigPath);
   // QA runs must be deterministic: choose local storage without opening the
