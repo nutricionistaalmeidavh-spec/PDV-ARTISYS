@@ -84,3 +84,20 @@ test('fiscal profile from existing installation is preserved and never replaced 
  resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
  assert.equal(fs.readFileSync(marker,'utf8'),'existing-user-owned-configuration');
 });
+
+test('same data path permits fiscal opt-in after restart without resetting SQLite or stock records',t=>{
+ const resources=bundle(t),userData=path.join(resources,'profile');
+ fs.mkdirSync(userData,{recursive:true});
+ const db=path.join(userData,'pdv-artisys.sqlite');
+ fs.writeFileSync(db,'UNCHANGED-SQLITE-BYTES');
+ const first=resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
+ assert.equal(first.nativeOptions.allowHomologation,false);
+ const privateDir=path.join(userData,'fiscal','private');
+ fs.writeFileSync(path.join(privateDir,'ACBrLibNFe.ini'),'existing-certificate-config');
+ fs.writeFileSync(path.join(privateDir,'homologation-enabled.json'),JSON.stringify({enabled:true}));
+ const second=resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
+ assert.equal(second.nativeOptions.allowHomologation,true);
+ assert.equal(fs.readFileSync(db,'utf8'),'UNCHANGED-SQLITE-BYTES');
+ assert.equal(first.nativeOptions.inputDir,second.nativeOptions.inputDir);
+ assert.equal(first.nativeOptions.workerExe,second.nativeOptions.workerExe);
+});
