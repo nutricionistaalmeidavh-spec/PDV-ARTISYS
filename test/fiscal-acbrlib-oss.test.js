@@ -235,3 +235,38 @@ test('offline NFC-e passes same signed issuance mode to worker and rejects INI/m
  assert.equal((await adapter.issue(request(f))).ok,false);
  assert.equal(sent,null);
 });
+
+
+test('offline issue signs and produces DANFE through worker but never sends; sealed transmission preserves original XML SHA',async t=>{
+ const f=fixture(t);
+ const offlineIni='[infNFe]\nversao=4.00\n[Identificacao]\nmod=65\ntpEmis=9\ndhCont=04/11/2026 15:30:00\nxJust=Falha de rede durante teste offline\n';
+ fs.writeFileSync(f.ini,offlineIni);
+ const manifest={...f.manifest,issuanceMode:'nfce-offline',contingencyStartedAt:'2026-11-04T15:30:00-03:00',
+  contingencyReasonSha256:createHash('sha256').update('Falha de rede durante teste offline').digest('hex'),
+  iniSha256:createHash('sha256').update(offlineIni).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(manifest));
+ const raw='3526111234567800019565001000000123900000123';
+ let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(raw[i])*weight;weight=weight===9?2:weight+1;}
+ const dv=11-(sum%11),key=raw+(dv>=10?0:dv);
+ const xml='<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><tpEmis>9</tpEmis><nNF>123</nNF><serie>1</serie><tpAmb>2</tpAmb></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>12.50</vNF></ICMSTot></total></infNFe><Signature/><infNFeSupl><qrCode>https://sefaz.test?p='+key+'</qrCode></infNFeSupl></NFe>';
+ const pdfBase64=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF').toString('base64');
+ const sent=[];
+ const adapter=createAcbrLibAdapter({...f.options,runner:async x=>{sent.push(x);return {status:'OFFLINE_SIGNED',environment:'HOMOLOGACAO',accessKey:key,xml,pdfBase64};}});
+ const result=await adapter.offlineIssue({type:'nfce',reference:'sale-123',environment:'homologation'});
+ assert.equal(result.ok,true);
+ assert.equal(result.data.accessKey,key);
+ assert.equal(sent[0].operation,'offline-issue');
+ assert.equal(sent.length,1);
+ fs.writeFileSync(path.join(f.dir,'sale-123.signed.xml'),xml);
+ const tx=createAcbrLibAdapter({...f.options,runner:async x=>{sent.push(x);return {
+  status:'INDETERMINADO',environment:'HOMOLOGACAO',accessKey:key};}});
+ const txResult=await tx.transmitSigned({type:'nfce',reference:'sale-123',environment:'homologation',
+  accessKey:key,signedXmlSha256:createHash('sha256').update(xml).digest('hex')});
+ assert.equal(txResult.indeterminate,true);
+ assert.equal(sent[1].operation,'transmit-signed');
+ assert.equal(sent[1].accessKey,key);
+ assert.equal(sent[1].signedXmlSha256,createHash('sha256').update(xml).digest('hex'));
+ assert.equal((await tx.transmitSigned({type:'nfce',reference:'sale-123',environment:'homologation',
+  accessKey:key,signedXmlSha256:'0'.repeat(64)})).ok,false);
+ assert.equal(sent.length,2);
+});
