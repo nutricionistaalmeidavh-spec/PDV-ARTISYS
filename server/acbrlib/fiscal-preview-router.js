@@ -22,7 +22,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
  const service=createFiscalDraftService({db:runtime.db,sales:runtime.sales});
  // Native paths and certificate configuration are supplied locally by the
  // operator, never from HTTP requests or the central cloud.
- const adapter=nativeOptions?.inputDir?createAcbrLibAdapter(nativeOptions):null;
+ const adapter=nativeOptions?.inputDir?createAcbrLibAdapter({...nativeOptions,issuerUF:()=>service.getCompany()?.uf}):null;
  const issuance=adapter?createFiscalIssuanceService({
   db:runtime.db,drafts:service,sales:runtime.sales,adapter,inputDir:nativeOptions.inputDir,
   allowHomologation:nativeOptions.allowHomologation===true,
