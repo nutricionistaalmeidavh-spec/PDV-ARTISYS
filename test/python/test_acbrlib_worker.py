@@ -67,6 +67,16 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         self.assertIsNone(worker.verified_nfe_rejection({"NFE1":{"CSTAT":"204","CHDFE":KEY,"TPAMB":"2"}},KEY,"2"))
         self.assertIsNone(worker.verified_nfe_rejection({"NFE1":{"CSTAT":"539","CHDFE":KEY,"TPAMB":"2"}},KEY,"2"))
 
+    def test_acbr_pdf_payload_is_validated_not_fabricated(self):
+        import base64
+        original = b"%PDF-1.7\\n1 0 obj\\n<<>>\\nendobj\\n%%EOF"
+        encoded = base64.b64encode(original).decode("ascii")
+        self.assertEqual(worker.verify_danfe_pdf(encoded), encoded)
+        for invalid in ("", "abcd", base64.b64encode(b"not a pdf").decode("ascii"),
+                        base64.b64encode(b"%PDF-1.4 missing trailer").decode("ascii")):
+            with self.assertRaises(worker.ACBrError):
+                worker.verify_danfe_pdf(invalid)
+
     def test_wrong_environment_and_missing_binary_fail_before_ctypes(self):
         with self.assertRaises(worker.ACBrError):
             worker.execute({"operation": "transmit", "kind": "NFE", "environment": "DEV"})
