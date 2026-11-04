@@ -105,3 +105,16 @@ test('same data path permits fiscal opt-in after restart without resetting SQLit
  assert.equal(first.nativeOptions.inputDir,second.nativeOptions.inputDir);
  assert.equal(first.nativeOptions.workerExe,second.nativeOptions.workerExe);
 });
+
+test('packaged Electron main can resolve required fiscal JS runtime and safeStorage modules',()=>{
+ const pkg=require('../package.json');
+ const main=fs.readFileSync(path.join(__dirname,'..','desktop','main.cjs'),'utf8');
+ for(const entry of ['acbrlib-desktop-runtime.cjs','acbrlib-credential-store.cjs']){
+  assert.match(main,new RegExp(entry.replaceAll('.','\\.')));
+  assert.ok(fs.existsSync(path.join(__dirname,'..','desktop',entry)));
+  assert.equal(pkg.build.files.some(pattern=>pattern.startsWith('!')&&
+    pattern.endsWith('/'+entry)),false);
+  assert.equal(entry.startsWith('fiscal-'),false,'Legacy desktop/fiscal-*.cjs is excluded from the production package');
+ }
+ assert.ok(pkg.build.files.includes('desktop/**/*'));
+});
