@@ -371,3 +371,22 @@ test('authorized offline queue settles the same fiscal record and cannot transmi
  assert.deepEqual(await f.build(true).flushOfflineQueue(),[]);
  assert.equal(sends,1);
 });
+
+
+test('offline SEFAZ authorization and delivery queue settle atomically if SQLite rejects final state',async t=>{
+ const signed=offlineSignedFixture(),pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+ let count=0;
+ const f=fixture(t,{issue:async()=>({ok:false}),
+  offlineIssue:async()=>({ok:true,data:{...signed,pdfBase64:pdf.toString('base64')}}),
+  transmitSigned:async()=>{count++;return {ok:true,data:{chave_nfe:signed.accessKey,protocolo:'135260000000001',xml:'<authorized/>'}};}});
+ const svc=f.build(true);
+ svc.prepare(f.draft.id,{contingency:{reason:'Indisponibilidade fiscal durante venda de teste em SP'}});
+ await svc.offlineIssue(f.draft.id);
+ f.db.exec("CREATE TRIGGER fail_offline_finalization BEFORE UPDATE OF status ON acbr_fiscal_offline_queue WHEN NEW.status='AUTHORIZED' BEGIN SELECT RAISE(ABORT,'test-fiscal-rollback'); END");
+ const result=await svc.flushOfflineQueue();
+ assert.equal(result[0].status,'UNKNOWN');
+ assert.equal(count,1);
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'UNKNOWN');
+ assert.equal(svc.listOfflineQueue()[0].status,'UNKNOWN');
+ assert.equal((await svc.flushOfflineQueue()).length,0);
+});
