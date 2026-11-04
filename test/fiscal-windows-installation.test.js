@@ -161,3 +161,12 @@ test('fiscal settings expose accountant-reviewed CC-e only on authorized NF-e',(
  assert.match(ui,/replacesPrevious/);
  assert.match(ui,/Contabilidade|contador/i);
 });
+
+
+test('operator can explicitly stage NFC-e offline without misleading printing/authorization',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/data-acbr-offline-reason/);
+ assert.match(ui,/issuanceMode==='nfce-offline'/);
+ assert.match(ui,/Transmitir.*reconex[aã]o/);
+ assert.match(ui,/n[aã]o.*autoriza|n[aã]o.*emitida/i);
+});
