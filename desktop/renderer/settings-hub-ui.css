@@ -85,3 +85,11 @@
 .ops-restore-dialog{position:relative;width:min(520px,calc(100vw - 32px));display:grid;gap:16px;padding:22px;border:1px solid #d5e0ef;border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(16,38,69,.24)}
 .ops-restore-dialog h3{margin:0;color:#142b4b;font-size:20px}.ops-restore-dialog p{margin:5px 0 0;color:#66758c;font-size:13px}.ops-restore-dialog .ops-details{margin:0}.restore-actions{justify-content:flex-end}.ops-primary.danger{background:#b42318;border-color:#b42318;color:#fff}
 @media(max-width:620px){.ops-restore-modal{padding:12px}.ops-restore-dialog{padding:18px}.restore-actions{flex-direction:column-reverse}.restore-actions button{width:100%}}
+
+#settings-payment-setup [hidden]{display:none!important}
+#settings-payment-setup .field-grid[data-payment-paygo],#settings-payment-setup .field-grid[data-payment-bridge]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0;padding:14px;border:1px solid #d6e0ec;border-radius:12px}
+#settings-payment-setup .field-grid .field.wide{grid-column:1/-1}
+#settings-payment-setup .field-grid p{margin:.35rem 0 .7rem;line-height:1.5}
+#settings-payment-setup [data-payment-mode-summary]{font-size:13px;color:#364963}
+#settings-payment-setup [data-payment-setup-error]{color:#ad2020}
+@media(max-width:620px){#settings-payment-setup .field-grid[data-payment-paygo],#settings-payment-setup .field-grid[data-payment-bridge]{grid-template-columns:1fr}}

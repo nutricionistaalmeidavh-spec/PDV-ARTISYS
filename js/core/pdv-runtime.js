@@ -1,7 +1,7 @@
 'use strict';
 const path=require('node:path');
 const { randomUUID }=require('node:crypto');
-const { openDatabase }=require('./database/sqlite-database');
+const { openDatabase,withTransaction }=require('./database/sqlite-database');
 const { runMigrations }=require('./database/migrations');
 const { runReleaseMigrations }=require('./database/release-migrations');
 const { runVerticalMigrations }=require('./database/vertical-migrations');
@@ -42,6 +42,9 @@ const { createRecipeService }=require('../domains/inventory/recipe-service');
 const { expandStockItems }=require('../domains/inventory/item-stock-expander');
 const { registerInventoryEffects }=require('../domains/inventory/inventory-effects');
 const { createSaleService }=require('../domains/sales/sale-service');
+const { createPaymentIntentService }=require('../domains/payments/payment-intent-service');
+const { createLocalTefProvider }=require('../domains/payments/tef-local-provider');
+const { createPayGoControlPayProvider }=require('../domains/payments/paygo-controlpay-provider');
 const { createAvailabilitySaleService }=require('../domains/sales/availability-sale-service');
 const { createCommissionService }=require('../domains/sales/commission-service');
 const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
@@ -96,7 +99,8 @@ function createPdvRuntime({
   dbPath=':memory:',now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`,
   receiptOptions={},serverVersion='1.0.0',minimumTerminalVersion='1.0.0',capabilities,
   backupDir=null,backupRetention=30,diagnosticsDir=null,productPhotoDir=null,logRetention=5000,appVersion=serverVersion,readScale=null,
-  installationId='local',accountEndpoint='',requireCommercialActivation=false,accountFetchImpl=globalThis.fetch
+  installationId='local',accountEndpoint='',requireCommercialActivation=false,accountFetchImpl=globalThis.fetch,
+  paymentOptions={}
 }={}){
   const db=openDatabase(dbPath);runMigrations(db,now);runReleaseMigrations(db,now);runVerticalMigrations(db,now);runHardwareMigrations(db,now);runSaleObservationMigrations(db,now);runRestaurantRoutingMigrations(db,now);runKitComboMigrations(db,now);runEnterpriseDepthMigrations(db,now);runWholesaleMigrations(db,now);
   const outbox=new SqliteOutboxStore(db);const effectStore=new SqliteEffectStore(db);const bus=new DomainEventBus();
@@ -127,6 +131,33 @@ function createPdvRuntime({
   const cash=createCashService({db,outbox,now,idFactory});const commissions=createCommissionService({db,authorization,now,idFactory});const commercialPricing=createCommercialPricingService({db,modules,authorization,now,idFactory});
   const resolveStockRequirements=items=>expandStockItems(items,recipes);
   const coreSales=createSaleService({db,outbox,authorization,now,idFactory,stockRequirementsResolver:resolveStockRequirements,commissionService:commissions,cashSessionResolver:terminalId=>cash.getOpenSession(terminalId)});
+  const configuredStaticPix=()=>settings.get('payments.pix.static',{defaultValue:null})||paymentOptions.pixStatic||(process.env.PDV_PIX_KEY?{
+    key:process.env.PDV_PIX_KEY,merchantName:process.env.PDV_PIX_MERCHANT_NAME,merchantCity:process.env.PDV_PIX_CITY
+  }:null);
+  const tefProvider=Object.prototype.hasOwnProperty.call(paymentOptions,'tefProvider')
+    ?paymentOptions.tefProvider:(process.env.PDV_TEF_BRIDGE_EXE
+    ?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE})
+    :(process.env.PDV_PAYGO_API_URL&&process.env.PDV_PAYGO_INTEGRATION_KEY&&(process.env.PDV_PAYGO_TERMINAL_ID||process.env.PDV_PAYGO_TERMINAL_MAP)
+      ?createPayGoControlPayProvider({
+        baseUrl:process.env.PDV_PAYGO_API_URL,
+        integrationKey:process.env.PDV_PAYGO_INTEGRATION_KEY,
+        terminalId:process.env.PDV_PAYGO_TERMINAL_ID,
+        terminalMap:process.env.PDV_PAYGO_TERMINAL_MAP?JSON.parse(process.env.PDV_PAYGO_TERMINAL_MAP):null
+      }):null));
+  const paymentIntents=createPaymentIntentService({db,sales:coreSales,now,idFactory,
+    pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,tefProvider});
+  const originalCompleteSale=coreSales.completeSale;
+  coreSales.completeSale=(saleId,input={})=>withTransaction(db,()=>{
+    const linked=paymentIntents.validateCheckout(saleId,input.payments||[]);
+    const result=originalCompleteSale(saleId,input);
+    paymentIntents.consumeCheckout(saleId,linked);
+    return result;
+  });
+  const originalCancelSale=coreSales.cancelSale;
+  coreSales.cancelSale=(saleId,input={})=>{
+    paymentIntents.assertCancellationAllowed(saleId);
+    return originalCancelSale(saleId,input);
+  };
   const availableSales=createAvailabilitySaleService({db,baseSales:coreSales,logistics,stockRequirementsResolver:resolveStockRequirements,now});
   const sales=createPromotionSaleService({db,baseSales:availableSales,promotionService:kitsCombos,commercialPricingService:commercialPricing,now});
   const orders=createSalesOrderService({db,sales,logistics,authorization,now,idFactory});
@@ -143,6 +174,6 @@ function createPdvRuntime({
   const health=createSystemHealth({db,version:appVersion,backupStatus:()=>backups?backups.getBackupStatus():({count:0,latest:null,pendingRestore:false})});const resolvedDiagnosticsDir=dbPath!==':memory:'?(diagnosticsDir||path.join(path.dirname(dbPath),'diagnostics')):null;const diagnostics=resolvedDiagnosticsDir?createDiagnosticPackage({db,health,settings,logger,authorization,diagnosticsDir:resolvedDiagnosticsDir,version:appVersion,now,idFactory}):null;
   registerInventoryEffects({bus,inventoryService:inventory,effectStore,recipeService:recipes,logisticsService:logistics});registerRetailEffects({bus,retailService:retail,effectStore});registerCashEffects({bus,cashService:cash,effectStore});registerReturnEffects({bus,inventoryService:inventory,cashService:cash,effectStore,recipeService:recipes});registerPrintEffects({bus,effectStore,printService:printing,saleService:sales,settings,...receiptOptions});registerNonFiscalEffects({bus,effectStore,cashService:cash,nonFiscalPrintService:nonFiscalPrinting});registerRestaurantEffects({bus,effectStore,restaurantService:restaurant,kitchenService:kitchen,nonFiscalPrintService:nonFiscalPrinting});
   const dispatcher=new DomainEventDispatcher({bus,outbox});
-  return {db,outbox,effectStore,bus,dispatcher,authorization,profiles,accessProfiles:profiles,accessSecurity,catalog,account,productPhotos,catalogCustomization,configuredItemPricing,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,publicOrdering,pizzeria,delivery,fastFood,marketBakery,retail,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
+  return {db,outbox,effectStore,bus,dispatcher,paymentIntents,authorization,profiles,accessProfiles:profiles,accessSecurity,catalog,account,productPhotos,catalogCustomization,configuredItemPricing,kitsCombos,inventory,logistics,procurement,orders,wholesale,commercialPricing,recipes,sales,commissions,cash,returns,finance,reports,printing,nonFiscalPrinting,modules,onboarding,mobileAccess,hardwareCompatibility,restaurant,restaurantSettlement,kitchen,mobileDevices,deviceAccess,restaurantReports,publicOrdering,pizzeria,delivery,fastFood,marketBakery,retail,terminals,mutations,backups,settings,imports,logger,health,diagnostics,pilot,backupDir:resolvedBackupDir,diagnosticsDir:resolvedDiagnosticsDir,dispatchPending:()=>dispatcher.dispatchPending(),close(){db.close();}};
 }
 module.exports={createPdvRuntime};

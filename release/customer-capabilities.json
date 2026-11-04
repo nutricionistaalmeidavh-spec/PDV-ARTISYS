@@ -41,6 +41,9 @@
           "path": "js/domains/sales/sale-service.js"
         },
         {
+          "path": "js/domains/payments/payment-intent-service.js"
+        },
+        {
           "path": "js/domains/sales/promotion-sale-service.js"
         },
         {
@@ -53,6 +56,9 @@
         },
         {
           "path": "server/kit-combo-router.js"
+        },
+        {
+          "path": "server/payment-intent-router.js"
         },
         {
           "path": "server/product-variant-router.js"

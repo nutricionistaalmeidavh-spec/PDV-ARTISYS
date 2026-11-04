@@ -53,6 +53,7 @@
     customerQuery: '',
     discountPercent: 0,
     paymentDraft: [],
+    paymentCapabilities: {pixStatic:false,pixApi:false,tef:false},
     selectedSellerId: '',
     photoSyncStatus: null,
     productionRoutes: []
@@ -664,15 +665,129 @@
     try {
       if (!(await ensureCashOpen())) return;
       if (!isRouteActive('checkout')) return;
-      const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; state.paymentDraft = [{ method, amountCents: state.sale.totalCents }]; renderPaymentModal();
+      try{state.paymentCapabilities=await api.paymentCapabilities();}catch{state.paymentCapabilities={pixStatic:false,pixApi:false,tef:false};}
+      const allowed=allowedPaymentMethodsForCurrentSale();let method=preferredMethod ? ui.paymentMethodFromUi(preferredMethod) : allowed[0];if(!allowed.includes(method))method=allowed[0]; const previousIntents=await api.listPaymentIntents(state.sale.id);
+      const activeIntents=previousIntents.filter(intent=>!['FAILED','CANCELLED','CONSUMED'].includes(intent.status));
+      state.paymentDraft=activeIntents.length
+        ? activeIntents.map(intent=>({method:intent.method,amountCents:intent.amountCents,metadata:{paymentIntentId:intent.id}}))
+        : [{method,amountCents:state.sale.totalCents}];
+      const pendingCents=state.sale.totalCents-state.paymentDraft.reduce((sum,item)=>sum+item.amountCents,0);
+      if(activeIntents.length&&pendingCents>0)state.paymentDraft.push({method:allowed.includes('CASH')?'CASH':allowed[0],amountCents:pendingCents});
+      renderPaymentModal();
     } finally {
       paymentFlowInFlight = false;
     }
   }
 
+
+  async function openPixSettingsModal() {
+    if(!window.PdvAccessPolicy?.hasCapability(state.user,'settings.manage'))
+      return showToast('Somente gestor pode configurar a conta Pix da loja.','error');
+    try{
+      const rows=await api.settings({scope:'global',prefix:'payments.pix.static'});
+      const config=rows.find(x=>x.key==='payments.pix.static')?.value||{};
+      openModal('Configurar Pix da loja', `<form id="pix-merchant-config-form">
+        <p>Geração local de QR Code, sem mensalidade. Confirme o crédito no extrato antes de concluir.</p>
+        <div class="field"><label>Chave Pix</label><input name="key" required value="${escapeHtml(config.key||'')}"></div>
+        <div class="field"><label>Nome do recebedor</label><input name="merchantName" required maxlength="25" value="${escapeHtml(config.merchantName||'')}"></div>
+        <div class="field"><label>Cidade</label><input name="merchantCity" required maxlength="15" value="${escapeHtml(config.merchantCity||'')}"></div>
+        <div class="modal-actions"><button type="button" class="secondary-button" id="pix-merchant-back">Voltar</button>
+        <button type="submit" class="primary-button">Salvar configuração</button></div>
+      </form>`,{onMount(root){
+        root.querySelector('#pix-merchant-back')?.addEventListener('click',renderPaymentModal);
+        root.querySelector('#pix-merchant-config-form')?.addEventListener('submit',async event=>{
+          event.preventDefault();
+          const form=event.currentTarget;
+          try{
+            await api.saveSetting('payments.pix.static',{
+              key:form.elements.namedItem('key').value.trim(),
+              merchantName:form.elements.namedItem('merchantName').value.trim(),
+              merchantCity:form.elements.namedItem('merchantCity').value.trim()
+            });
+            state.paymentCapabilities=await api.paymentCapabilities();
+            showToast('Pix configurado para esta loja.','success');
+            renderPaymentModal();
+          }catch(error){showToast(error.message,'error');}
+        });
+      }});
+    }catch(error){showToast(error.message,'error');}
+  }
+
+  async function openIntegratedPayment(index,channel) {
+  const payment=state.paymentDraft[index];
+  if(!payment||!state.sale)return;
+  try{
+    let intent;
+    if(payment.metadata?.paymentIntentId)intent=await api.getPaymentIntent(payment.metadata.paymentIntentId);
+    else{
+      if(!payment.intentRequestId)payment.intentRequestId=api.mutationId();
+      intent=await api.createPaymentIntent({saleId:state.sale.id,channel,method:payment.method,amountCents:payment.amountCents,idempotencyKey:payment.intentRequestId});
+      payment.metadata={...payment.metadata,paymentIntentId:intent.id};
+    }
+    if(intent.channel!=='PIX_STATIC'&&intent.status==='PENDING'&&!intent.startedAt)
+      intent=await api.startPaymentIntent(intent.id);
+    showIntegratedPayment(index,intent);
+  }catch(error){showToast(error.message,'error');renderPaymentModal();}
+}
+
+  function showIntegratedPayment(index,intent) {
+  const isPix=intent.method==='PIX';
+  const statusText={PENDING:'Aguardando pagamento',REVIEW:'Resultado indeterminado: conferir com o provedor',VERIFIED:'Confirmado pelo provedor',MANUAL_CONFIRMED:'Confirmado manualmente pelo responsável',CONSUMED:'Vinculado à venda',FAILED:'Recusado',CANCELLED:'Cancelado'}[intent.status]||intent.status;
+  let safeQrSvg=intent.qrSvg||'';
+  if(intent.brCode&&typeof window.qrcode==='function'){
+    try{const qr=window.qrcode(0,'L');qr.addData(intent.brCode,'Byte');qr.make();safeQrSvg=qr.createSvgTag({cellSize:5,margin:4});}
+    catch{ /* Pix Copia e Cola remains available */ }
+  }
+  const html=`
+    <p><strong>${escapeHtml(statusText)}</strong></p>
+    <p>${isPix?'Pix Copia e Cola vinculado a esta venda.':'TEF: confira o resultado do PinPad e o comprovante.'}</p>
+    ${safeQrSvg?'<div class="pix-qr">'+safeQrSvg+'</div>':''}
+    ${intent.brCode?'<div class="field"><label>Pix Copia e Cola</label><textarea id="integrated-pix-code" readonly rows="4">'+escapeHtml(intent.brCode)+'</textarea></div>':''}
+    <div class="modal-actions">
+      <button type="button" class="secondary-button" id="integrated-back">Voltar</button>
+      ${intent.brCode?'<button type="button" class="secondary-button" id="integrated-copy">Copiar Pix</button>':''}
+      ${intent.channel==='PIX_STATIC'&&intent.status==='PENDING'?'<button type="button" class="secondary-button" id="integrated-cancel">Cancelar QR</button><button type="button" class="primary-button" id="integrated-manual">Conferi o crédito no banco</button>':''}
+      ${['PIX_API','TEF'].includes(intent.channel)&&['PENDING','REVIEW'].includes(intent.status)?'<button type="button" class="primary-button" id="integrated-reconcile">'+(intent.channel==='TEF'?'Consultar operadora TEF':'Verificar no banco')+'</button>':''}
+    </div>`;
+  openModal(isPix?'Pagamento Pix':'Pagamento TEF',html,{wide:true,onMount(root){
+    root.querySelector('#integrated-back')?.addEventListener('click',renderPaymentModal);
+    root.querySelector('#integrated-copy')?.addEventListener('click',async()=>{
+      const code=root.querySelector('#integrated-pix-code');
+      try{if(navigator.clipboard?.writeText)await navigator.clipboard.writeText(code.value);else{code.select();document.execCommand('copy');}showToast('Pix copiado.','success');}
+      catch{showToast('Selecione e copie o código Pix.','error');}
+    });
+    root.querySelector('#integrated-manual')?.addEventListener('click',()=>{
+      openModal('Conferir recebimento Pix',`
+        <p><strong>Você conferiu a entrada do valor no extrato da conta bancária?</strong></p>
+        <p>Não confirme apenas com print ou comprovante enviado pelo cliente.</p>
+        <div class="modal-actions">
+          <button type="button" class="secondary-button" id="manual-pix-back">Voltar</button>
+          <button type="button" class="primary-button" id="manual-pix-accept">Sim, dinheiro recebido</button>
+        </div>`,{onMount(dialog){
+        dialog.querySelector('#manual-pix-back')?.addEventListener('click',()=>showIntegratedPayment(index,intent));
+        dialog.querySelector('#manual-pix-accept')?.addEventListener('click',async()=>{
+          try{showIntegratedPayment(index,await api.confirmManualPaymentIntent(intent.id));}
+          catch(error){showToast(error.message,'error');}
+        });
+      }});
+    });
+    root.querySelector('#integrated-reconcile')?.addEventListener('click',async()=>{
+      try{showIntegratedPayment(index,await api.reconcilePaymentIntent(intent.id));}
+      catch(error){showToast(error.message,'error');}
+    });
+    root.querySelector('#integrated-cancel')?.addEventListener('click',async()=>{
+      try{await api.cancelPaymentIntent(intent.id);delete state.paymentDraft[index].metadata;renderPaymentModal();}
+      catch(error){showToast(error.message,'error');}
+    });
+  }});
+}
+
   function renderPaymentModal() {
     const paid = state.paymentDraft.reduce((sum, payment) => sum + payment.amountCents, 0); const remaining = Math.max((state.sale?.totalCents || 0) - paid, 0);
-    openModal('Pagamento da venda', `<div class="total-row grand-total"><span>Total</span><strong>${ui.formatCents(state.sale.totalCents)}</strong></div><div class="payment-list">${state.paymentDraft.map((payment, index) => `<div class="payment-line"><strong>${escapeHtml(paymentLabel(payment.method))}</strong><span>${ui.formatCents(payment.amountCents)}</span><button class="danger-button" data-remove-payment="${index}" aria-label="Remover pagamento">×</button></div>`).join('')}</div><div class="total-row"><span>Restante</span><strong>${ui.formatCents(remaining)}</strong></div><div class="payment-add"><div class="field"><label>Forma</label><select id="new-payment-method">${allowedPaymentMethodsForCurrentSale().map(method=>`<option value="${method}">${escapeHtml(paymentLabel(method))}</option>`).join('')}</select></div><div class="field"><label>Valor</label><input id="new-payment-value" inputmode="decimal" value="${(remaining / 100).toFixed(2).replace('.', ',')}"></div><button class="secondary-button" id="add-payment">Adicionar</button></div><div class="modal-actions"><button class="secondary-button" data-close-modal>Voltar</button><button class="primary-button" id="confirm-payment">Concluir venda</button></div>`, { wide: true, onMount(root) { root.querySelectorAll('[data-remove-payment]').forEach((button) => button.addEventListener('click', () => { state.paymentDraft.splice(Number(button.dataset.removePayment), 1); renderPaymentModal(); })); root.querySelector('#add-payment').addEventListener('click', () => { const amountCents = centsFromInput(root.querySelector('#new-payment-value').value); if (amountCents <= 0) return showToast('Informe um valor maior que zero.', 'error'); state.paymentDraft.push({ method: root.querySelector('#new-payment-method').value, amountCents }); renderPaymentModal(); }); root.querySelector('#confirm-payment').addEventListener('click', completeCurrentSale); } });
+    openModal('Pagamento da venda', `<div class="total-row grand-total"><span>Total</span><strong>${ui.formatCents(state.sale.totalCents)}</strong></div><div class="payment-list">${state.paymentDraft.map((payment, index) => `<div class="payment-line"><strong>${escapeHtml(paymentLabel(payment.method))}</strong><span>${ui.formatCents(payment.amountCents)}</span>${payment.method==='PIX'
+      ? '<button class="secondary-button" data-channel="PIX_STATIC" data-integrate-payment="'+index+'">QR Pix</button>'+(state.paymentCapabilities?.pixApi?'<button class="secondary-button" data-channel="PIX_API" data-integrate-payment="'+index+'">Pix automático</button>':'')
+      : (payment.method==='DEBIT_CARD'||payment.method==='CREDIT_CARD'
+        ? (state.paymentCapabilities?.tef?'<button class="secondary-button" data-channel="TEF" data-integrate-payment="'+index+'">Cartão integrado</button>':'') : '')}<button class="danger-button" data-remove-payment="${index}" aria-label="Remover pagamento">×</button></div>`).join('')}</div><div class="total-row"><span>Restante</span><strong>${ui.formatCents(remaining)}</strong></div><button type="button" class="secondary-button" id="configure-local-pix">Configurar Pix da loja</button><div class="payment-add"><div class="field"><label>Forma</label><select id="new-payment-method">${allowedPaymentMethodsForCurrentSale().map(method=>`<option value="${method}">${escapeHtml(paymentLabel(method))}</option>`).join('')}</select></div><div class="field"><label>Valor</label><input id="new-payment-value" inputmode="decimal" value="${(remaining / 100).toFixed(2).replace('.', ',')}"></div><button class="secondary-button" id="add-payment">Adicionar</button></div><div class="modal-actions"><button class="secondary-button" data-close-modal>Voltar</button><button class="primary-button" id="confirm-payment">Concluir venda</button></div>`, { wide: true, onMount(root) { root.querySelectorAll('[data-integrate-payment]').forEach(button=>button.addEventListener('click',()=>openIntegratedPayment(Number(button.dataset.integratePayment),button.dataset.channel))); root.querySelectorAll('[data-remove-payment]').forEach((button) => button.addEventListener('click', () => { const i=Number(button.dataset.removePayment);if(state.paymentDraft[i]?.metadata?.paymentIntentId)return showToast('Cancele ou concilie a tentativa vinculada antes de remover.', 'error');state.paymentDraft.splice(i, 1); renderPaymentModal(); })); root.querySelector('#add-payment').addEventListener('click', () => { const amountCents = centsFromInput(root.querySelector('#new-payment-value').value); if (amountCents <= 0) return showToast('Informe um valor maior que zero.', 'error'); state.paymentDraft.push({ method: root.querySelector('#new-payment-method').value, amountCents }); renderPaymentModal(); }); root.querySelector('#configure-local-pix')?.addEventListener('click',openPixSettingsModal); root.querySelector('#confirm-payment').addEventListener('click', completeCurrentSale); } });
   }
 
   function paymentLabel(method) { return ({ CASH: 'Dinheiro', PIX: 'PIX', DEBIT_CARD: 'Cartão débito', CREDIT_CARD: 'Cartão crédito', STORE_CREDIT: 'A prazo', OTHER: 'Outro' })[method] || method; }

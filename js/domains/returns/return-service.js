@@ -121,6 +121,10 @@ function createReturnService({ db, outbox, now = () => new Date().toISOString(),
     if (!reason) throw new Error('Informe o motivo da devolucao.');
     const sale = db.prepare("SELECT * FROM sales WHERE id=? AND status='COMPLETED'").get(saleId);
     if (!sale) throw new Error('Somente venda concluida pode receber devolucao.');
+    if (db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='payment_intents'").get()) {
+      const external=db.prepare("SELECT id FROM payment_intents WHERE sale_id=? AND status='CONSUMED' LIMIT 1").get(saleId);
+      if(external)throw new Error('Esta venda tem pagamento Pix ou TEF integrado; concilie o reembolso externo antes da devolucao. O caixa local nao efetua estorno bancario.');
+    }
     if (!Array.isArray(input.items) || !input.items.length) throw new Error('Informe ao menos um item para devolucao.');
     const cashSession=resolveCashSession(terminalId);
     const completion=getSaleCompletionPayload(saleId);

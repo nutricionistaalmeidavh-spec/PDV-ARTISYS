@@ -1,0 +1,44 @@
+name: Validate Windows installer (Pix and TEF wizard)
+on:
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - 'js/domains/payments/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/validate-payment-windows-installer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install source dependencies
+        run: npm ci
+      - name: Confirm payment wizard and provider tests
+        run: node --test test/payment-provider-installation.test.js test/payment-setup-wiring.test.js test/payment-intents.test.js test/paygo-controlpay-provider.test.js test/tef-local-provider.test.js
+      - name: Build NSIS installer without publishing
+        run: npm run dist:win
+      - name: Confirm Windows setup executable exists
+        shell: pwsh
+        run: |
+          $setups = @(Get-ChildItem dist -File -Filter '*Setup.exe')
+          if ($setups.Count -eq 0) { throw 'Windows installer was not generated.' }
+          $setups | ForEach-Object { Write-Output "$($_.Name) ($($_.Length) bytes)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArtiSys-Windows-Installer-TEF-Wizard
+          path: dist/*Setup.exe
+          if-no-files-found: error
+          retention-days: 7

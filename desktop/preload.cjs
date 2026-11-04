@@ -17,6 +17,13 @@ function dataServerTestInput(input = {}) {
 
 contextBridge.exposeInMainWorld('artisysDesktop', {
   getConfig: () => ipcRenderer.invoke('artisys:config'),
+  payments: {
+    state: (sessionToken='') => ipcRenderer.invoke('artisys:payments:state',{sessionToken}),
+    save: (input,sessionToken='') => ipcRenderer.invoke('artisys:payments:save',{input,sessionToken}),
+    chooseBridge: (sessionToken='') => ipcRenderer.invoke('artisys:payments:select-bridge',{sessionToken}),
+    openPayGoDownload: (sessionToken='') => ipcRenderer.invoke('artisys:payments:download',{sessionToken}),
+    restart: (sessionToken='') => ipcRenderer.invoke('artisys:payments:restart',{sessionToken})
+  },
   apiRequest: (request) => ipcRenderer.invoke('artisys:api', request),
   dataServer: {
     state: () => ipcRenderer.invoke('artisys:data-server:state'),
