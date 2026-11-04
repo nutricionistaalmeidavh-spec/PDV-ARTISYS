@@ -8,7 +8,7 @@ const {isAbsolute}=require('node:path');
  * The bridge itself MUST be provided by a separately audited and
  * homologated ACBr/PayGo/SiTef implementation.
  */
-function createLocalTefProvider({executable,args=[],timeoutMs=45000,spawnImpl=spawn}={}){
+function createLocalTefProvider({executable,args=[],timeoutMs=45000,allowedTerminalId=null,spawnImpl=spawn}={}){
   const executablePath=String(executable||'').trim();
   if(!executablePath||!isAbsolute(executablePath))throw new Error('TEF exige caminho absoluto para bridge nativa local.');
   if(!Array.isArray(args)||args.some(arg=>typeof arg!=='string'||arg.length>512))
@@ -55,8 +55,16 @@ function createLocalTefProvider({executable,args=[],timeoutMs=45000,spawnImpl=sp
       child.stdin.end(JSON.stringify(command)+'\n');
     });
   }
+  function validateTerminal(terminalId){
+    const configured=String(allowedTerminalId||'').trim();
+    if(configured&&String(terminalId||'').trim()!==configured)
+      throw new Error('Bridge TEF local nao atende outro terminal LAN.');
+    return String(terminalId||'').trim();
+  }
   return{
-    async start({id,txid,amountCents,method,saleId}={}){
+    validateTerminal,
+    async start({id,txid,amountCents,method,saleId,terminalId}={}){
+      validateTerminal(terminalId);
       if(!/^[A-Za-z0-9]{26,35}$/.test(String(txid||''))||
         !Number.isSafeInteger(amountCents)||amountCents<=0||
         !['DEBIT_CARD','CREDIT_CARD'].includes(method))throw new Error('Transacao TEF invalida.');
