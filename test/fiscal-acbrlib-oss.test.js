@@ -14,9 +14,11 @@ function fixture(t, overrides={}){
   t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const ini=path.join(dir,'sale-123.ini'), lib=path.join(dir,'ACBrNFe64.dll'), conf=path.join(dir,'ACBrLibNFe.ini'), worker=path.join(dir,'acbrlib-worker.exe');
   fs.writeFileSync(ini,'[infNFe]\nversao=4.00\n[ide]\nmod=65\n');
-  for(const file of [lib,conf,worker])fs.writeFileSync(file,'fixture');
+  for(const file of [lib,worker])fs.writeFileSync(file,'fixture');
+  const pfx=path.join(dir,'issuer-test.pfx');fs.writeFileSync(pfx,Buffer.alloc(1024,5));
+  fs.writeFileSync(conf,'[NFe]\nAmbiente=1\nFormaEmissao=0\nCSC=TEST_CSC\nIdCSC=1\n[DFe]\nUF=SP\nArquivoPFX='+pfx+'\nSenha=test-local-only\nVerificarValidade=1\n');
   const snapshotHash='a'.repeat(64);
-  const manifest={reference:'sale-123',documentType:'nfce',snapshotHash,amountCents:1250,issuerCnpj:'12345678000195',environment:'homologation',model:65,lot:123,number:123,series:1,cNF:'00000123',iniSha256:createHash('sha256').update(fs.readFileSync(ini)).digest('hex')};
+  const manifest={reference:'sale-123',documentType:'nfce',snapshotHash,amountCents:1250,issuerCnpj:'12345678000195',issuerUF:'SP',environment:'homologation',model:65,lot:123,number:123,series:1,cNF:'00000123',iniSha256:createHash('sha256').update(fs.readFileSync(ini)).digest('hex')};
   fs.writeFileSync(path.join(dir,'sale-123.json'),JSON.stringify({...manifest,...overrides}));
   const options={inputDir:dir,nfeLib:lib,nfeConfig:conf,workerExe:worker};
   return {dir,ini,manifest,options};
