@@ -121,3 +121,32 @@ test('confirmed rejection persists cStat and is never automatically resent',asyn
  await assert.rejects(()=>svc.issue(f.draft.id),/rejeitad|consulta|reenvio|enviad/i);
  assert.equal(calls,1);
 });
+
+test('DANFE PDF is generated only after confirmed authorization and linked to the authorized XML hash',async t=>{
+ let pdfCalls=0;
+ const validPdf=Buffer.from('%PDF-1.4\n% ACBr test fixture\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF');
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:'1'.repeat(44),protocolo:'135260000000001',xml:'<authorized/>'}}),
+  pdf:async()=>{pdfCalls++;return {ok:true,data:{pdfBase64:validPdf.toString('base64')}}}});
+ const svc=f.build(true),ready=svc.prepare(f.draft.id);
+ await assert.rejects(()=>svc.danfe(f.draft.id),/autorizad|protocolo/i);
+ const authorized=await svc.issue(f.draft.id);
+ assert.equal(authorized.status,'AUTHORIZED');
+ const pdf=await svc.danfe(f.draft.id);
+ assert.equal(pdf.ready,true);
+ const stored=path.join(f.inputDir,ready.reference+'.danfe.pdf');
+ assert.ok(fs.readFileSync(stored).equals(validPdf));
+ assert.equal(pdf.sha256,createHash('sha256').update(validPdf).digest('hex'));
+ assert.equal(pdfCalls,1);
+ assert.equal((await svc.danfe(f.draft.id)).sha256,pdf.sha256);
+ assert.equal(pdfCalls,1);
+ fs.appendFileSync(stored,'CORRUPTION');
+ await assert.rejects(()=>svc.danfe(f.draft.id),/PDF|alterad|hash|integridade/i);
+});
+test('wrong PDF magic and missing ACBr renderer never create fake DANFE',async t=>{
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:'1'.repeat(44),protocolo:'135260000000001',xml:'<authorized/>'}}),
+  pdf:async()=>({ok:true,data:{pdfBase64:Buffer.from('NOT A PDF').toString('base64')}})});
+ const svc=f.build(true),ready=svc.prepare(f.draft.id);
+ await svc.issue(f.draft.id);
+ await assert.rejects(()=>svc.danfe(f.draft.id),/PDF|ACBr|inválid/i);
+ assert.equal(fs.existsSync(path.join(f.inputDir,ready.reference+'.danfe.pdf')),false);
+});
