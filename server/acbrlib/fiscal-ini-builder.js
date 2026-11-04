@@ -174,7 +174,7 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
   const tax=item.taxProfile;
   if(!tax||!['5102','5403','5405'].includes(tax.cfop))
     throw Error('CFOP não suportado para venda interna neste fluxo fiscal');
-  const code=String(s.issuer.crt)==='3'?tax.cst:tax.csosn;
+  const code=['2','3'].includes(String(s.issuer.crt))?tax.cst:tax.csosn;
   if(tax.cfop==='5405'&&(!['60','500'].includes(code)||!tax.cest))
     throw Error('CFOP 5405 exige ICMS-ST retido (CSOSN 500/CST 60) e CEST revisado');
   if(tax.cfop==='5403'&&(!['10','30','70','201','202','203'].includes(code)||!tax.cest))
