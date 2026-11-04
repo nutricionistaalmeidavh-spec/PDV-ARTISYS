@@ -142,7 +142,14 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
     def test_offline_nfc_e_key_and_signature_not_relabelled_as_normal(self):
         req={"issuerCnpj":"11222333000181","model":65,"number":1,
              "series":1,"cNF":"00000001","issuanceMode":"nfce-offline"}
-        key=worker.nfe_key_for_test("3526111122233300018165001000000001900000001")
+        raw="3526111122233300018165001000000001900000001"
+        weight=2
+        total=0
+        for digit in reversed(raw):
+            total+=int(digit)*weight
+            weight=2 if weight==9 else weight+1
+        check=11-total%11
+        key=raw+str(0 if check>=10 else check)
         worker.ensure_signed_number(req,key,"1","1")
         with self.assertRaises(worker.ACBrError):
             worker.ensure_signed_number({**req,"issuanceMode":"normal"},key,"1","1")
