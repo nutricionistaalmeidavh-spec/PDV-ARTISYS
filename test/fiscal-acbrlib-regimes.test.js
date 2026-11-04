@@ -53,7 +53,7 @@ test('normal CST10 requires reviewed own ICMS and ST, no zero-default',()=>{
 });
 test('CRT2/4 have distinct explicit profiles and CST incompatible with Simples is refused',()=>{
  assert.equal(tax({csosn:'102',pisCst:'49',cofinsCst:'49',zeroLegacyTaxesConfirmed:true},'4').sections.ICMS.CSOSN,'102');
- assert.equal(tax({csosn:'102',pisCst:'49',cofinsCst:'49',zeroLegacyTaxesConfirmed:true},'2').sections.ICMS.CSOSN,'102');
+ assert.equal(tax({cst:'00',icms:{basePercent:'100.0000',rate:'18.0000'},pisCst:'49',cofinsCst:'49',zeroLegacyTaxesConfirmed:true},'2').sections.ICMS.CST,'00');
  assert.throws(()=>tax({cst:'00',icms:{basePercent:'100.0000',rate:'18.0000'},pisCst:'49',cofinsCst:'49'},'1'),/CSOSN|regime/i);
  assert.throws(()=>tax({csosn:'102',pisCst:'49',cofinsCst:'49'},'3'),/CST|regime/i);
 });
