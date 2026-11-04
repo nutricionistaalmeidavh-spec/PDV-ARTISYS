@@ -11,6 +11,8 @@ on:
       - 'test/fiscal-acbrlib-oss.test.js'
       - 'test/fiscal-acbrlib-drafts.test.js'
       - 'test/fiscal-acbrlib-preview-api.test.js'
+      - 'test/fiscal-acbrlib-bundle.test.js'
+      - 'test/fiscal-acbrlib-build-config.test.js'
       - 'test/python/test_acbrlib_worker.py'
       - '.github/workflows/fiscal-acbrlib.yml'
 permissions:
