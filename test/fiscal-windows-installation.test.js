@@ -118,3 +118,14 @@ test('packaged Electron main can resolve required fiscal JS runtime and safeStor
  }
  assert.ok(pkg.build.files.includes('desktop/**/*'));
 });
+
+test('approval survives restart without a plaintext ACBr INI at rest',t=>{
+ const resources=bundle(t),userData=path.join(resources,'profile');
+ const privateDir=path.join(userData,'fiscal','private');fs.mkdirSync(privateDir,{recursive:true});
+ fs.writeFileSync(path.join(privateDir,'certificate.pfx'),Buffer.alloc(1500,1));
+ fs.writeFileSync(path.join(privateDir,'credentials.bin'),'sealed');
+ fs.writeFileSync(path.join(privateDir,'homologation-enabled.json'),JSON.stringify({enabled:true}));
+ const state=resolveFiscalDesktopRuntime({resourcesPath:resources,userData,platform:'win32',arch:'x64',embeddedServer:true});
+ assert.equal(state.nativeOptions.allowHomologation,true);
+ assert.equal(fs.existsSync(state.nativeOptions.nfeConfig),false);
+});
