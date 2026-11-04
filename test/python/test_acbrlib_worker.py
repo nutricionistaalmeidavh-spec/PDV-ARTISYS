@@ -54,6 +54,19 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         with self.assertRaises(worker.ACBrError):
             worker.ensure_signed_number({**req,"cNF":"87654321"}, KEY, "1", "1")
 
+
+    def test_official_per_invoice_rejection_is_distinguished_from_ambiguous_response(self):
+        response = {"NFE1":{"CSTAT":"778","CHDFE":KEY,"TPAMB":"2","XMOTIVO":"NFC-e rejeitada"}}
+        result = worker.verified_nfe_rejection(response, KEY, "2")
+        self.assertEqual(result["status"], "REJEITADA")
+        self.assertEqual(result["cStat"], 778)
+        self.assertEqual(result["reason"], "NFC-e rejeitada")
+        self.assertIsNone(worker.verified_nfe_rejection(response, KEY, "1"))
+        self.assertIsNone(worker.verified_nfe_rejection(response, "2"*44, "2"))
+        self.assertIsNone(worker.verified_nfe_rejection({"ENVIO":{"CSTAT":"778"}},KEY,"2"))
+        self.assertIsNone(worker.verified_nfe_rejection({"NFE1":{"CSTAT":"204","CHDFE":KEY,"TPAMB":"2"}},KEY,"2"))
+        self.assertIsNone(worker.verified_nfe_rejection({"NFE1":{"CSTAT":"539","CHDFE":KEY,"TPAMB":"2"}},KEY,"2"))
+
     def test_wrong_environment_and_missing_binary_fail_before_ctypes(self):
         with self.assertRaises(worker.ACBrError):
             worker.execute({"operation": "transmit", "kind": "NFE", "environment": "DEV"})
