@@ -269,3 +269,30 @@ test('SP no longer accepts inutilization requests after November 1 2026',async t
   endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'}),/SP|S[aã]o Paulo|inutiliza[cç][aã]o/i);
  assert.equal(called,0);
 });
+
+
+test('offline NFC-e is explicitly prepared and remains READY without contacting SEFAZ',t=>{
+ let calls=0;
+ const f=fixture(t,{issue:async()=>{calls++;return{ok:true};}});
+ const svc=f.build(true);
+ const prepared=svc.prepare(f.draft.id,{
+  contingency:{reason:'Falha de comunicacao com a SEFAZ durante a venda de teste.'}
+ });
+ assert.equal(prepared.status,'READY');
+ assert.equal(prepared.issuanceMode,'nfce-offline');
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
+ const ini=fs.readFileSync(path.join(f.inputDir,prepared.reference+'.ini'),'utf8');
+ const manifest=JSON.parse(fs.readFileSync(path.join(f.inputDir,prepared.reference+'.json')));
+ assert.match(ini,/tpEmis=9/);
+ assert.match(ini,/dhCont=/);
+ assert.equal(manifest.issuanceMode,'nfce-offline');
+ assert.equal(calls,0);
+ assert.throws(()=>svc.prepare(f.draft.id),/conting[eê]ncia|modo|identidade|preparad/i);
+});
+
+test('offline NFC-e preparation is forbidden for NF-e model 55 and for disabled homologation',t=>{
+ const f=fixture(t,null,'nfe');
+ const svc=f.build(true);
+ const reason={reason:'Falha de conexao com a SEFAZ durante o teste da loja'};
+ assert.throws(()=>svc.prepare(f.draft.id,{contingency:reason}),/NFC-e|65|conting[eê]ncia/i);
+});
