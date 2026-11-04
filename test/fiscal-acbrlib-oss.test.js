@@ -212,3 +212,26 @@ test('CC-e is NF-e-only, checks SEFAZ event type/sequence/protocol and never tru
   cStat:135,environment:'HOMOLOGACAO',accessKey:key,eventProtocol:'135260000000567',sequence:2})});
  assert.equal((await mismatched.cce(request)).indeterminate,true);
 });
+
+
+test('offline NFC-e passes same signed issuance mode to worker and rejects INI/mode mismatch',async t=>{
+ const f=fixture(t);let sent;
+ const stamp='2026-11-04T15:30:00-03:00';
+ const ini=fs.readFileSync(f.ini,'utf8')+'tpEmis=9\n';
+ fs.writeFileSync(f.ini,ini);
+ let manifest=JSON.parse(fs.readFileSync(path.join(f.dir,'sale-123.json'),'utf8'));
+ manifest={...manifest,issuanceMode:'nfce-offline',contingencyStartedAt:stamp,
+  contingencyReasonSha256:'c'.repeat(64),iniSha256:createHash('sha256').update(ini).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(manifest));
+ const adapter=createAcbrLibAdapter({...f.options,runner:async args=>{sent=args;return {status:'INDETERMINADO'};}});
+ const result=await adapter.issue(request(f));
+ assert.equal(result.indeterminate,true);
+ assert.equal(sent.issuanceMode,'nfce-offline');
+ const badIni=ini.replace('tpEmis=9','tpEmis=1');
+ fs.writeFileSync(f.ini,badIni);
+ const badManifest={...manifest,iniSha256:createHash('sha256').update(badIni).digest('hex')};
+ fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(badManifest));
+ sent=null;
+ assert.equal((await adapter.issue(request(f))).ok,false);
+ assert.equal(sent,null);
+});
