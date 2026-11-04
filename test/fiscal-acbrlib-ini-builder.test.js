@@ -5,7 +5,7 @@ const {createHash}=require('node:crypto');
 const {compileAcbrIni}=require('../server/acbrlib/fiscal-ini-builder');
 const company={
  name:'COMERCIO TESTE LTDA',tradeName:'Loja Teste',cnpj:'12345678000195',
- stateRegistration:'123456789',uf:'SP',crt:'1',environment:'homologation',series:1,
+ stateRegistration:'123456789',uf:'SP',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,
  street:'RUA DAS FLORES',streetNumber:'123',district:'CENTRO',municipalityCode:'3543402',
  municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'
 };
@@ -13,7 +13,7 @@ function example(overrides={}){
  const item={itemId:'item-1',productId:'ABC-123',productName:'Café torrado',
  sku:'CAF-1',quantityMilli:2000,unitPriceCents:1000,grossCents:2000,
  discountCents:200,netTotalCents:1800,
- taxProfile:{ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',
+ taxProfile:{ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',
  pisCst:'49',cofinsCst:'49',unit:'UN',reviewedBy:'Contador',reviewedAt:'2026-11-04',
  zeroLegacyTaxesConfirmed:true,
  ibsCbsCst:'000',cClassTrib:'000001',
