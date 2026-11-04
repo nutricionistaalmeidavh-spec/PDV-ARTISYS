@@ -65,6 +65,18 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    confirmed_at TEXT,
    PRIMARY KEY(document_id,sequence)
  );`);
+
+ db.exec(`CREATE TABLE IF NOT EXISTS acbr_fiscal_offline_queue(
+  document_id TEXT PRIMARY KEY,
+  reference TEXT NOT NULL UNIQUE,
+  access_key TEXT NOT NULL,
+  xml_sha256 TEXT NOT NULL,
+  pdf_sha256 TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN('PENDING','UNKNOWN','AUTHORIZED','REJECTED')),
+  created_at TEXT NOT NULL,
+  submitted_at TEXT,
+  finalized_at TEXT
+ );`);
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
  function getIssuanceMode(id){
   const meta=metaFor(id);
@@ -192,12 +204,149 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   });
   return {id,status:'REJECTED',cStat:code,reason,retryAllowed:false};
  }
+
+ function listOfflineQueue({limit=100}={}){
+  const n=Number.isSafeInteger(limit)?Math.max(1,Math.min(limit,200)):100;
+  return db.prepare('SELECT document_id,reference,access_key,status,created_at,submitted_at,finalized_at FROM acbr_fiscal_offline_queue ORDER BY created_at,document_id LIMIT ?')
+   .all(n).map(row=>({documentId:row.document_id,reference:row.reference,accessKey:row.access_key,
+    status:row.status,createdAt:row.created_at,submittedAt:row.submitted_at,
+    finalizedAt:row.finalized_at}));
+ }
+ function offlineProof(id){
+  const row=db.prepare('SELECT * FROM acbr_fiscal_offline_queue WHERE document_id=?').get(String(id));
+  if(!row)throw Error('Contingência ainda não emitida: documento offline não está na fila');
+  const meta=metaFor(id);
+  if(!meta||meta.reference!==row.reference)throw Error('Referência de contingência divergente');
+  const xmlPath=path.join(dir,row.reference+'.signed.xml');
+  const pdfPath=path.join(dir,row.reference+'.offline.danfe.pdf');
+  if(!fs.existsSync(xmlPath)||!fs.existsSync(pdfPath)||
+    sha(fs.readFileSync(xmlPath))!==row.xml_sha256||
+    sha(fs.readFileSync(pdfPath))!==row.pdf_sha256)
+   throw Error('XML/PDF da contingência ausente ou alterado; bloqueado para investigação');
+  return {row,xmlPath,pdfPath};
+ }
+ function getOfflineDanfe(id){
+  const document=draftFor(id);
+  if(document.model!==65||getIssuanceMode(id)!=='nfce-offline')
+   throw Error('DANFE de contingência somente para NFC-e offline');
+  const {pdfPath}=offlineProof(id);
+  const data=fs.readFileSync(pdfPath);
+  if(data.length<16||data.length>3*1024*1024||data.subarray(0,5).toString('ascii')!=='%PDF-'||
+     !data.toString('ascii',Math.max(0,data.length-128)).includes('%%EOF'))
+   throw Error('PDF de contingência inválido');
+  return data;
+ }
+ async function offlineIssue(id){
+  if(!allowHomologation||typeof adapter.offlineIssue!=='function')
+   throw Error('Emissão offline disponível somente em homologação com ACBr nativa');
+  const document=draftFor(id);
+  if(document.status!=='READY'||document.model!==65||document.documentType!=='nfce')
+   throw Error('Emissão offline exige NFC-e 65 preparada e ainda não transmitida');
+  assertSaleCurrent(document);
+  const {meta,manifest}=verifyReady(document);
+  if(manifest.issuanceMode!=='nfce-offline')
+   throw Error('Documento não preparado em modo contingência offline');
+  if(db.prepare('SELECT 1 FROM acbr_fiscal_offline_queue WHERE document_id=?').get(String(id)))
+   throw Error('NFC-e offline já emitida e registrada na fila');
+  if(fs.existsSync(path.join(dir,meta.reference+'.signed.xml')))
+   throw Error('NFC-e já assinada, sem registro completo: verificar antes de qualquer tentativa');
+  if(typeof adapter.preflight==='function'){
+   const result=await adapter.preflight({type:'nfce',reference:meta.reference,environment:'homologation'});
+   if(result?.ok!==true)throw Error('Certificado/CSC ou ACBr não prontos para emissão offline');
+  }
+  // The native worker signs and renders locally; NO SEFAZ request happens here.
+  const result=await adapter.offlineIssue({type:'nfce',reference:meta.reference,
+   environment:'homologation'});
+  const data=result?.data,xml=String(data?.xml||''),key=String(data?.accessKey||'');
+  if(result?.ok!==true||!KEY.test(key)||key.slice(6,20)!==manifest.issuerCnpj||
+     key.slice(20,22)!=='65'||key.slice(34,35)!=='9'||
+     Number(key.slice(22,25))!==manifest.series||
+     Number(key.slice(25,34))!==manifest.number||
+     key.slice(35,43)!==manifest.cNF||
+     !xml.includes('NFe'+key)||!/<(?:\w+:)?Signature(?:\s|\/|>)/.test(xml)||
+     !xml.includes('<tpEmis>9</tpEmis>')||!/<(?:\w+:)?qrCode>/.test(xml)||
+     !xml.includes(key)||/<(?:\w+:)?infProt(?:\s|>)/.test(xml))
+   throw Error('ACBr não retornou NFC-e offline assinada com QR Code e identidade fiscal validada');
+  const encoded=String(data?.pdfBase64||'');
+  if(encoded.length>4*1024*1024||!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))
+   throw Error('ACBr não retornou DANFE PDF de contingência');
+  const bytes=Buffer.from(encoded,'base64');
+  if(bytes.length<16||bytes.length>3*1024*1024||
+     bytes.subarray(0,5).toString('ascii')!=='%PDF-'||
+     !bytes.toString('ascii',Math.max(0,bytes.length-128)).includes('%%EOF'))
+   throw Error('DANFE de contingência não é PDF válido');
+  // Durable artifacts precede queue row; a crash here is a blocked manual
+  // recovery, never a second signing with an already-consumed fiscal key.
+  writeOnce(path.join(dir,meta.reference+'.signed.xml'),Buffer.from(xml,'utf8'));
+  writeOnce(path.join(dir,meta.reference+'.offline.danfe.pdf'),bytes);
+  withTransaction(db,()=>{
+   const latest=db.prepare('SELECT status FROM acbr_fiscal_documents WHERE id=?').get(String(id));
+   if(latest?.status!=='READY')throw Error('Estado fiscal mudou durante assinatura offline');
+   db.prepare("INSERT INTO acbr_fiscal_offline_queue(document_id,reference,access_key,xml_sha256,pdf_sha256,status,created_at) VALUES(?,?,?,?,?,'PENDING',?)")
+    .run(String(id),meta.reference,key,sha(Buffer.from(xml,'utf8')),sha(bytes),now());
+  });
+  return {id,status:'ISSUED_OFFLINE',accessKey:key,requiresTransmission:true,pdfReady:true};
+ }
+ async function flushOfflineQueue({limit=10}={}){
+  if(!allowHomologation||typeof adapter.transmitSigned!=='function')
+   throw Error('Transmissão de contingência exige ACBr em homologação');
+  const n=Number.isSafeInteger(limit)?Math.max(1,Math.min(limit,20)):10;
+  const rows=db.prepare("SELECT document_id FROM acbr_fiscal_offline_queue WHERE status='PENDING' ORDER BY created_at,document_id LIMIT ?").all(n);
+  const output=[];
+  for(const row of rows){
+   const id=row.document_id;
+   const document=draftFor(id);
+   const {meta,manifest}=verifyReady(document);
+   if(manifest.issuanceMode!=='nfce-offline'||document.status!=='READY')
+    throw Error('Fila offline contém documento inconsistente: operação interrompida');
+   const proof=offlineProof(id);
+   if(proof.row.reference!==meta.reference)throw Error('Fila e manifesto de NFC-e divergentes');
+   if(typeof adapter.preflight==='function'){
+    const state=await adapter.preflight({type:'nfce',reference:meta.reference,environment:'homologation'});
+    if(state?.ok!==true)throw Error('ACBr ou certificado local indisponível; fila mantida intacta');
+   }
+   // One-way durable transition BEFORE calling SEFAZ. UNKNOWN cannot be resent.
+   const updated=withTransaction(db,()=>{
+    const marked=db.prepare("UPDATE acbr_fiscal_offline_queue SET status='UNKNOWN',submitted_at=? WHERE document_id=? AND status='PENDING'")
+     .run(now(),String(id)).changes;
+    if(marked!==1)return false;
+    const docChanged=db.prepare("UPDATE acbr_fiscal_documents SET status='UNKNOWN',updated_at=? WHERE id=? AND status='READY'")
+     .run(now(),String(id)).changes;
+    if(docChanged!==1)throw Error('Estado fiscal incompatível com fila');
+    return true;
+   });
+   if(!updated)continue;
+   try{
+    const result=await adapter.transmitSigned({type:'nfce',reference:meta.reference,
+     environment:'homologation',accessKey:proof.row.access_key,
+     signedXmlSha256:proof.row.xml_sha256});
+    if(result?.ok){
+     const authorizedResult=authorized(id,result);
+     db.prepare("UPDATE acbr_fiscal_offline_queue SET status='AUTHORIZED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
+      .run(now(),String(id));
+     output.push(authorizedResult);
+     continue;
+    }
+    if(result?.rejected===true){
+     const rejection=rejected(id,result);
+     db.prepare("UPDATE acbr_fiscal_offline_queue SET status='REJECTED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
+      .run(now(),String(id));
+     output.push(rejection);
+     continue;
+    }
+   }catch{/* Need official SEFAZ reconciliation; never automatic retry. */}
+   output.push({id,status:'UNKNOWN',requiresConsultation:true});
+  }
+  return output;
+ }
+
  async function issue(id){
   if(allowHomologation!==true)throw Error('Envio fiscal desabilitado; somente homologação habilitada manualmente');
   const draft=draftFor(id);
   if(draft.status!=='READY')throw Error('Documento já enviado; consulta obrigatória antes de qualquer reenvio');
   assertSaleCurrent(draft);
   const {manifest,meta}=verifyReady(draft);
+  if(manifest.issuanceMode==='nfce-offline')throw Error('NFC-e offline deve ser assinada e transmitida exclusivamente pela fila');
   if(typeof adapter.status==='function'){
    const state=await adapter.status();
    if(state?.data?.ready===false)throw Error('ACBrLib nativa ou configuração ausente; envio não iniciado');
@@ -239,7 +388,12 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   try{
    const result=await adapter.query({type:manifest.documentType,reference:meta.reference,
     environment:'homologation',accessKey:key});
-   if(result?.ok&&result.data.chave_nfe===key)return authorized(id,result);
+   if(result?.ok&&result.data.chave_nfe===key){
+    const finalized=authorized(id,result);
+    db.prepare("UPDATE acbr_fiscal_offline_queue SET status='AUTHORIZED',finalized_at=? WHERE document_id=? AND status='UNKNOWN'")
+     .run(now(),String(id));
+    return finalized;
+   }
   }catch{/* UNKNOWN persists. */}
   return {id,status:'UNKNOWN',requiresConsultation:true};
  }
@@ -470,6 +624,6 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }
   return {documentId:id,sequence,status:'UNKNOWN',requiresManualReconciliation:true};
  }
- return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory,getIssuanceMode});
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory,getIssuanceMode,offlineIssue,flushOfflineQueue,listOfflineQueue,getOfflineDanfe});
 }
 module.exports={createFiscalIssuanceService};
