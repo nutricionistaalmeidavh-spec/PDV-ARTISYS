@@ -234,6 +234,25 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }),'utf8'));
   return {id,ready:true,reference:record.reference,sha256:pdfSha256};
  }
- return Object.freeze({prepare,issue,consult,danfe});
+ function getDanfe(id){
+  const document=draftFor(id);
+  if(document.status!=='AUTHORIZED')throw Error('DANFE não disponível: nota não autorizada');
+  const meta=metaFor(id);
+  if(!meta?.xml_sha256||!meta?.access_key||!meta?.protocol)
+   throw Error('Protocolo ou XML fiscal indisponível');
+  const pdfPath=path.join(dir,meta.reference+'.danfe.pdf'),proof=path.join(dir,meta.reference+'.danfe.json');
+  if(!fs.existsSync(pdfPath)||!fs.existsSync(proof))
+   throw Error('PDF DANFE ainda não foi gerado');
+  const pdf=fs.readFileSync(pdfPath),data=JSON.parse(fs.readFileSync(proof,'utf8'));
+  if(data.reference!==meta.reference||data.accessKey!==meta.access_key||
+     data.protocol!==meta.protocol||data.xmlSha256!==meta.xml_sha256||
+     data.pdfSha256!==sha(pdf)||pdf.length>3*1024*1024||
+     pdf.subarray(0,5).toString('ascii')!=='%PDF-')
+   throw Error('Integridade do DANFE PDF inválida');
+  const original=fs.readFileSync(path.join(dir,meta.reference+'.authorized.xml'));
+  if(sha(original)!==meta.xml_sha256)throw Error('XML autorizado não confere com DANFE');
+  return pdf;
+ }
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe});
 }
 module.exports={createFiscalIssuanceService};
