@@ -96,7 +96,7 @@ test('normal CRT3 with reviewed ICMS/PIS/COFINS produces real taxable totals',()
 });
 test('retained ICMS-ST in CSOSN 500 is recorded without duplicating ST due',()=>{
  const d=example(),p=d.snapshot.items[0].taxProfile;
- p.csosn='500';p.icmsRetained={baseCents:1800,amountCents:324};
+ p.csosn='500';p.cfop='5405';p.cest='1701200';p.icmsRetained={baseCents:1800,amountCents:324};
  const {ini}=build(rehash(d));
  assert.match(ini,/\[ICMS001\][\s\S]*CSOSN=500/);
  assert.match(ini,/vBCSTRet=18\.00/);
@@ -162,4 +162,22 @@ test('NT 2026.005: MEI CRT4 omits IBS/CBS group entirely',()=>{
 test('NT 2026.005: regime regular is not assumed for CRT1/2 by default',()=>{
  const d=example();d.snapshot.issuer.ibsCbsRegime='simples';
  assert.throws(()=>build(rehash(d)),/gTribSN|regime|Simples|IBS/i);
+});
+
+test('CFOP 5405 retail ST-retained requires tax code 500/60 and a reviewed CEST',()=>{
+ let d=example(),p=d.snapshot.items[0].taxProfile;
+ p.cfop='5405';p.csosn='500';p.cest='1701200';
+ p.icmsRetained={baseCents:1800,amountCents:324};
+ const {ini}=build(rehash(d));assert.match(ini,/CFOP=5405/);
+ assert.match(ini,/CEST=1701200/);
+ d=example();p=d.snapshot.items[0].taxProfile;p.cfop='5405';
+ assert.throws(()=>build(rehash(d)),/CFOP|ST|CSOSN|CST/i);
+ d=example();p=d.snapshot.items[0].taxProfile;p.cfop='5405';p.csosn='500';
+ p.icmsRetained={baseCents:1800,amountCents:324};
+ assert.throws(()=>build(rehash(d)),/CEST|ST/i);
+});
+test('ST-retained code with CFOP 5102 never issues tax-inconsistent document',()=>{
+ const d=example(),p=d.snapshot.items[0].taxProfile;
+ p.csosn='500';p.icmsRetained={baseCents:1800,amountCents:324};
+ assert.throws(()=>build(rehash(d)),/CFOP|ST/i);
 });
