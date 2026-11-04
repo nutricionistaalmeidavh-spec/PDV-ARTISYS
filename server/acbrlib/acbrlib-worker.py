@@ -362,7 +362,23 @@ def nfe_cce(lib, req):
     return {**proof, "environment":"HOMOLOGACAO"} if proof else {
         "status":"INDETERMINADO","message":"CC-e sem evento SEFAZ vinculado à NF-e"}
 
+
+def configure_nfe_emission(lib, req):
+    """The ACBr internal enum is teOffLine=8 (the XML's tpEmis is 9).
+
+    Apply this to this worker process only, without writing a persistent
+    configuration containing the A1 secret/CSC or altering another invoice.
+    """
+    mode = req.get("issuanceMode","normal")
+    if mode == "normal":
+        return
+    if mode != "nfce-offline" or int(req.get("model",0)) != 65:
+        raise ACBrError("Modo de emissão inválido para o documento")
+    do(lib, "NFE_ConfigGravarValor", encoded("NFe"), encoded("FormaEmissao"),
+       encoded("8"), types=[ct.c_char_p]*3)
+
 def nfe_transmit(lib, req):
+    configure_nfe_emission(lib, req)
     do(lib, "NFE_LimparLista")
     do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
     do(lib, "NFE_Assinar")
