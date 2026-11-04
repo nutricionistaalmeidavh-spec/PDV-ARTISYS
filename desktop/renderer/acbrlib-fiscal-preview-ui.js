@@ -334,6 +334,34 @@
     await api.request(prefix+'/sales/'+encodeURIComponent(data.saleId)+'/prepare',{method:'POST',body:{documentType:data.documentType}});
     await refreshDocuments(card);
   });});
+  const inutPanel=$(card,'[data-acbr-inutilization]');
+  const inutForm=$(card,'[data-acbr-inutilization-form]');
+  inutPanel.hidden=!fiscalStatus.emissionEnabled;
+  inutForm.elements.year.value=String(new Date().getFullYear());
+  inutForm.elements.series.value=company.elements.series.value||'1';
+  company.elements.series.addEventListener('change',()=>{inutForm.elements.series.value=company.elements.series.value;});
+  inutForm.addEventListener('submit',async event=>{
+   event.preventDefault();if(!fiscalStatus.emissionEnabled||!inutForm.reportValidity())return;
+   const ux=window.ArtisysUxComponents;
+   if(!ux?.openFormDialog){message(card,'Confirmação indisponível',true);return;}
+   const approval=await ux.openFormDialog({title:'Inutilização em homologação',
+    description:'Use somente intervalos reservados sem nota emitida, confirmados pela contabilidade.',
+    confirmLabel:'Confirmar inutilização',cancelLabel:'Voltar',tone:'default',
+    body:'<p>Resultado indeterminado exige consulta à SEFAZ antes de repetir.</p>'});
+   if(!approval.confirmed)return;
+   const body=values(inutForm);
+   for(const k of ['model','series','year','startNumber','endNumber'])body[k]=Number(body[k]);
+   const submit=inutForm.querySelector('button[type="submit"]');submit.disabled=true;
+   try{
+    const result=await api.request(prefix+'/inutilizations',{method:'POST',body});
+    message(card,result.status==='CONFIRMED'?'Faixa inutilizada em homologação, protocolo confirmado.':
+      'Inutilização indeterminada: consulte a SEFAZ antes de nova tentativa.',result.status!=='CONFIRMED');
+    const history=await api.request(prefix+'/inutilizations');
+    const target=$(card,'[data-acbr-inutilization-history]');
+    if(target)target.textContent='Faixas registradas: '+history.length+'; último estado: '+(history[0]?.status||'nenhum');
+   }catch(err){message(card,err.message||'Falha na inutilização',true);}
+   finally{submit.disabled=false;}
+  });
   void api.request(prefix+'/company').then(cfg=>{
    if(!cfg||!card.isConnected)return;
    for(const [key,value] of Object.entries(cfg)){if(company.elements.namedItem(key))company.elements.namedItem(key).value=String(value);}
