@@ -63,6 +63,20 @@ const runtime=createPdvRuntime({paymentOptions:{pixProvider}});
 
 O adaptador nunca salva token, certificado ou chave privada no SQLite. O operador precisa configurar um banco de verdade e validar ambiente de homologacao com o provedor. Nao ha proxy Cloudflare, Asaas nem tarifa obrigatoria. Se nao existe adaptador configurado, Pix automatico fica desabilitado. O tokenProvider representa um fluxo OAuth2 proprio do banco, que ainda precisa ser provido para a instituicao escolhida.
 
+## Assistente de instalação integrado no ArtiSys (Windows)
+
+O próprio `ArtiSys-PDV-*-Setup.exe` inclui o código dos conectores Pix e TEF e o assistente (não há download de plugins ou serviço SaaS obrigatório para inicializar o núcleo). **Após instalar e entrar como gestor**, abra **Configurações → Pagamentos · Pix e TEF**.
+
+1. **Pix local, R$ 0**: informe chave Pix, recebedor e cidade. O ArtiSys gera o QR no checkout. Confirmação é **manual, olhando o crédito no extrato**, sem cobrança de API bancária.
+2. **Cartão manual, R$ 0**: é o padrão. Não necessita configurar TEF, certificado, máquina específica nem operadora.
+3. **PayGo Windows (opcional)**: clique **Abrir download oficial do PayGo Windows** para obter o instalador diretamente da PayGo. Instale e ative no **Windows de cada caixa com PinPad**, conforme orientações e credenciais emitidas pelo prestador. Depois cadastre a URL da API HTTPS, a chave de integração e o terminal. Para múltiplos caixas, associe um `terminalId` local por linha ao ID PayGo correspondente.
+4. **Bridge TEF próprio (avançado)**: escolha um executável `.exe` instalado separadamente e homologado, desde que implemente o contrato JSON descrito abaixo. O ACBr por si só **não é** esse bridge: é necessário compilar/distribuir legalmente o módulo ou obter um bridge compatível.
+5. **Salvar e reiniciar o PDV**: a configuração do provedor só entra no runtime depois do reinício, preservando transações que já estejam em aberto. Faça uma venda de teste em ambiente autorizado e confira o status antes de liberar produção.
+
+O assistente só permite alterações a um gestor com a permissão `deployment.manage`, no **PC principal que hospeda o banco**. Num terminal LAN conectado, configure o TEF pelo PC principal. A chave de integração não vai para o `settings` do SQLite, para o PWA nem para o instalador. Ela é guardada no perfil da instalação, em `payment-provider.bin`, **criptografada pelo Electron safeStorage**. Se o armazenamento seguro não estiver disponível, o assistente bloqueia o salvamento da credencial e mantém os pagamentos manuais disponíveis. Um arquivo TEF corrompido não impede o PDV de abrir e operar sem integração.
+
+**Distribuição e licenças:** os módulos Node.js e a interface de instalação ficam dentro do instalador do ArtiSys. O binário **PayGo Windows**, seus drivers e SDKs de operadora continuam externos: sua aquisição, autorização de distribuição e habilitação de captura pertencem ao fornecedor. A biblioteca ACBr tem fontes LGPL e pode ser compilada e integrada com o devido cumprimento da licença, mas não é um substituto automático do aplicativo TEF da credenciadora. Não anunciamos executáveis nativos como embutidos, nem a homologação como concluída, enquanto isso não estiver comprovado.
+
 ## TEF real opcional — PayGo Windows (ControlPay)
 
 Foi implementado o adaptador `js/domains/payments/paygo-controlpay-provider.js`, usando as rotas oficiais **Venda/Vender** e **IntencaoVenda/GetById**. Ele inicia débito ou crédito com valor e terminal definidos e só considera a transação aprovada após obter o status **Creditado (10)**, pagamento externo **Finalizado (15)**, valor, modalidade e código de autorização coerentes. Um timeout nunca executa nova cobrança automaticamente.
