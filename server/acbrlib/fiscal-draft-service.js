@@ -56,6 +56,13 @@ function profileInput(value={}){
   unit,ibsCbsCst:digits(value.ibsCbsCst,3,'CST IBS/CBS',true),
   cClassTrib:digits(value.cClassTrib,6,'cClassTrib',true),
   reviewedBy,reviewedAt,zeroLegacyTaxesConfirmed:value.zeroLegacyTaxesConfirmed===true,
+  // Optional tax structures are reviewed per-product. Never store arbitrary extra keys.
+  ...Object.fromEntries(['icms','icmsRetained','icmsSt','simpleCredit','pis','cofins'].map(key=>[
+   key,value[key]&&typeof value[key]==='object'&&!Array.isArray(value[key])
+    ? Object.fromEntries(Object.entries(value[key]).filter(([k])=>
+      ({icms:['basePercent','rate','reduction'],icmsRetained:['baseCents','amountCents'],
+       icmsSt:['baseCents','rate','amountCents'],simpleCredit:['rate','amountCents'],
+       pis:['rate'],cofins:['rate']})[key].includes(k))):null])),
   reformTax:value.reformTax&&typeof value.reformTax==='object'&&!Array.isArray(value.reformTax)?
    Object.fromEntries(['baseCents','ibsUfRate','ibsUfCents','ibsMunRate','ibsMunCents','cbsRate','cbsCents'].map(key=>[key,value.reformTax[key]])):null};
 }
@@ -136,7 +143,7 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
   const items=(sale.items||[]).map(item=>{
     const profile=getProductProfile(item.productId);
     if(!profile)throw Error('Produto '+String(item.productId||'sem identificação')+' sem perfil tributário revisado');
-    if(company.crt==='1'&&!profile.csosn)throw Error('CSOSN obrigatório para CRT Simples Nacional');
+    if(['1','2','4'].includes(company.crt)&&!profile.csosn)throw Error('CSOSN obrigatório para CRT Simples Nacional/MEI');
     if(company.crt==='3'&&!profile.cst)throw Error('CST obrigatório para CRT normal');
     const qtyMilli=milli(item.quantity),gross=money(item.totalCents,'Subtotal do item');
     const discount=money(item.allocatedDiscountCents||0,'Desconto do item');
@@ -164,7 +171,14 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
   const sums=items.reduce((a,i)=>({gross:a.gross+i.grossCents,discount:a.discount+i.discountCents,net:a.net+i.netTotalCents}),{gross:0,discount:0,net:0});
   if(sums.gross!==subtotalCents||sums.discount!==discountCents||sums.net!==totalCents)
     throw Error('Somatória fiscal por item diverge do total canônico');
-  const payments=(sale.payments||[]).map(p=>({method:mandatory(p.method,'Forma de pagamento',40),amountCents:money(p.amountCents,'Pagamento')}));
+  const payments=(sale.payments||[]).map(p=>({
+   method:mandatory(p.method,'Forma de pagamento',40),
+   amountCents:money(p.amountCents,'Pagamento'),
+   // Payment metadata must originate in the canonical settlement, not user
+   // input to the invoice API. It may include acquirer identity, never PAN.
+   fiscalMetadata:p.metadata&&typeof p.metadata==='object'&&!Array.isArray(p.metadata)?
+    Object.fromEntries(['tpIntegra','cnpj','tBand','cAut','indPag'].filter(k=>p.metadata[k]!=null).map(k=>[k,String(p.metadata[k]).slice(0,60)])):null
+  }));
   if(!payments.length||payments.reduce((total,p)=>total+p.amountCents,0)-changeCents!==totalCents)
     throw Error('Pagamentos ou troco não correspondem ao total canônico');
   return {schemaVersion:1,documentType,model:FISCAL_MODEL[documentType],
