@@ -5,7 +5,7 @@
  const lifecycle=window.PdvUiLifecycle,ApiClient=window.PdvApiClient?.ApiClient;
  if(!lifecycle||!ApiClient)return;
  const api=new ApiClient();
- let pending=false;
+ let pending=false;let fiscalStatus={};
  const prefix='/api/v1/fiscal-preview';
  const $=(root,selector)=>root.querySelector(selector);
  const message=(root,text,error=false)=>{
@@ -25,6 +25,13 @@
       <label class="field"><span>Razão social</span><input name="name" required maxlength="160"></label>
       <label class="field"><span>CNPJ</span><input name="cnpj" required maxlength="14" minlength="14"></label>
       <label class="field"><span>Inscrição estadual</span><input name="stateRegistration" required maxlength="32"></label>
+      <label class="field"><span>Nome fantasia</span><input name="tradeName" maxlength="60"></label>
+      <label class="field"><span>Logradouro</span><input name="street" required maxlength="60"></label>
+      <label class="field"><span>Número</span><input name="streetNumber" required maxlength="60"></label>
+      <label class="field"><span>Bairro</span><input name="district" required maxlength="60"></label>
+      <label class="field"><span>Código IBGE município</span><input name="municipalityCode" required pattern="[0-9]{7}" maxlength="7"></label>
+      <label class="field"><span>Município</span><input name="municipalityName" required maxlength="60"></label>
+      <label class="field"><span>CEP (somente números)</span><input name="postalCode" required pattern="[0-9]{8}" maxlength="8"></label>
       <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" value="SP"></label>
       <label class="field"><span>CRT</span><select name="crt"><option value="1">1 — Simples Nacional</option><option value="2">2 — Simples excesso sublimite</option><option value="3">3 — Regime normal</option><option value="4">4 — MEI</option></select></label>
       <label class="field"><span>Série</span><input name="series" type="number" required min="1" max="999" value="1"></label>
@@ -45,6 +52,11 @@
       <label class="field"><span>Unidade</span><input name="unit" maxlength="8" required value="UN"></label>
       <label class="field"><span>CST IBS/CBS (se aplicável)</span><input name="ibsCbsCst" maxlength="3"></label>
       <label class="field"><span>cClassTrib (se aplicável)</span><input name="cClassTrib" maxlength="6"></label>
+      <label class="field"><span>Alíquota IBS UF (%)</span><input name="ibsUfRate" required placeholder="0.1000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
+      <label class="field"><span>Alíquota IBS município (%)</span><input name="ibsMunRate" required placeholder="0.0000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
+      <label class="field"><span>Alíquota CBS (%)</span><input name="cbsRate" required placeholder="0.9000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
+      <label class="field wide"><span><input name="zeroLegacyTaxesConfirmed" type="checkbox" required> Contabilidade confirmou tratamento sem valor de ICMS/PIS/COFINS para este perfil?</span></label>
+      <p class="ops-muted wide">Não presumimos alíquotas. Informar somente valores e classificação aprovados pela contabilidade. Piloto limitado ao CSOSN 102, PIS/COFINS 49, IBS/CBS CST 000.</p>
       <label class="field"><span>Responsável pela revisão</span><input name="reviewedBy" required maxlength="120"></label>
       <label class="field"><span>Data da revisão</span><input name="reviewedAt" type="date" required></label>
       <div class="modal-actions"><button class="primary-button" type="submit">Salvar perfil revisado</button></div>
@@ -54,6 +66,20 @@
       <label class="field wide"><span>Venda concluída</span><select name="saleId" required><option value="">Carregando vendas...</option></select></label>
       <label class="field"><span>Documento</span><select name="documentType"><option value="nfce">NFC-e — modelo 65</option><option value="nfe">NF-e — modelo 55</option></select></label>
       <div class="modal-actions"><button class="primary-button" type="submit">Preparar rascunho (não emitir)</button></div>
+    </form>
+    <form data-acbr-recipient class="field-grid" hidden>
+      <h3 class="wide">Destinatário da NF-e (modelo 55)</h3>
+      <label class="field"><span>CPF/CNPJ</span><input name="taxId" required maxlength="14"></label>
+      <label class="field"><span>Nome/razão social</span><input name="name" required maxlength="60"></label>
+      <label class="field"><span>Indicador de IE</span><select name="indIEDest"><option value="9">Não contribuinte</option><option value="1">Contribuinte</option><option value="2">Isento</option></select></label>
+      <label class="field"><span>IE (quando aplicável)</span><input name="ie"></label>
+      <label class="field"><span>Logradouro</span><input name="street" required></label>
+      <label class="field"><span>Número</span><input name="streetNumber" required></label>
+      <label class="field"><span>Bairro</span><input name="district" required></label>
+      <label class="field"><span>Código IBGE município</span><input name="municipalityCode" required pattern="[0-9]{7}"></label>
+      <label class="field"><span>Município</span><input name="municipalityName" required></label>
+      <label class="field"><span>UF</span><input name="uf" required maxlength="2"></label>
+      <label class="field"><span>CEP</span><input name="postalCode" required pattern="[0-9]{8}"></label>
     </form>
     <p data-fiscal-preview-status role="status" aria-live="polite"></p>
     <div data-acbr-documents class="ops-muted"></div>
@@ -88,6 +114,31 @@
    for(const d of docs.slice(0,20)){
     const li=document.createElement('li');
     li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}`;
+    const endpoint=prefix+'/documents/'+encodeURIComponent(d.id);
+    const addAction=(title,operation)=>{
+      const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=title;
+      li.append(' ',button);
+      button.addEventListener('click',async()=>{
+        button.disabled=true;
+        try{
+          let body={};
+          if(operation==='compile'&&d.documentType==='nfe'){
+            const form=$(card,'[data-acbr-recipient]');
+            form.hidden=false;if(!form.reportValidity())throw Error('Informe o destinatário completo da NF-e');
+            body={recipient:values(form)};
+          }
+          if(operation==='transmit'&&!window.confirm('Enviar esta nota à SEFAZ em HOMOLOGAÇÃO? Esta ação é real no ambiente de testes.'))return;
+          const result=await api.request(endpoint+'/'+operation,{method:'POST',body});
+          message(card,operation==='compile'?'INI gerado para revisão, nenhuma nota emitida.':
+            result.status==='AUTHORIZED'?'Autorização SEFAZ confirmada.':'Resultado pendente: consultar SEFAZ antes de qualquer reenvio.');
+          await refreshDocuments(card);
+        }catch(e){message(card,e.message||'Falha no processo fiscal',true);}
+        finally{button.disabled=false;}
+      });
+    };
+    if(d.status==='REVIEW_REQUIRED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar INI','compile');
+    if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction('Emitir em homologação','transmit');
+    if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
     list.append(li);
    }
    root.append(list);
@@ -96,6 +147,9 @@
  function bind(card){
   const company=$(card,'[data-acbr-company]'),product=$(card,'[data-acbr-product]'),draft=$(card,'[data-acbr-draft]');
   product.elements.reviewedAt.value=new Date().toISOString().slice(0,10);
+  const recipient=$(card,'[data-acbr-recipient]');
+  const toggleRecipient=()=>{recipient.hidden=draft.elements.documentType.value!=='nfe';};
+  draft.elements.documentType.addEventListener('change',toggleRecipient);toggleRecipient();
   const locked=async(form,fn)=>{
    const button=form.querySelector('button[type="submit"]');button.disabled=true;
    try{await fn();message(card,'Dados fiscais salvos para revisão. Nenhuma nota foi emitida.');}
@@ -107,6 +161,9 @@
   });});
   product.addEventListener('submit',event=>{event.preventDefault();void locked(product,async()=>{
     const data=values(product);
+    data.zeroLegacyTaxesConfirmed=product.elements.zeroLegacyTaxesConfirmed.checked;
+    data.reformTax={ibsUfRate:data.ibsUfRate,ibsMunRate:data.ibsMunRate,cbsRate:data.cbsRate};
+    delete data.ibsUfRate;delete data.ibsMunRate;delete data.cbsRate;
     await api.request(prefix+'/products/'+encodeURIComponent(data.productId),{method:'PUT',body:data});
   });});
   draft.addEventListener('submit',event=>{event.preventDefault();void locked(draft,async()=>{
@@ -125,7 +182,11 @@
    const id=product.elements.productId.value;if(!id)return;
    void api.request(prefix+'/products/'+encodeURIComponent(id)).then(data=>{
     if(!product.isConnected||product.elements.productId.value!==id)return;
-    for(const [key,value] of Object.entries(data)){if(key!=='productId'&&product.elements.namedItem(key))product.elements.namedItem(key).value=value||'';}
+    for(const [key,value] of Object.entries(data)){
+     if(key==='zeroLegacyTaxesConfirmed')product.elements.zeroLegacyTaxesConfirmed.checked=value===true;
+     else if(key==='reformTax'&&value){for(const name of ['ibsUfRate','ibsMunRate','cbsRate'])if(value[name]!=null)product.elements[name].value=value[name];}
+     else if(key!=='productId'&&product.elements.namedItem(key))product.elements.namedItem(key).value=value||'';
+    }
    }).catch(()=>{});
   });
  }
@@ -139,7 +200,8 @@
   pending=true;
   try{
    const status=await api.request(prefix+'/status');
-   if(!status?.reviewOnly||status.emissionEnabled||lifecycle.activeRoute!=='settings'||!page.isConnected)return;
+   if(!status?.reviewOnly||lifecycle.activeRoute!=='settings'||!page.isConnected)return;
+   fiscalStatus=status;
    const card=buildCard();page.append(card);bind(card);
    window.PdvSettingsHub?.mount(page);
   }catch{/* Default commercial V1: no fiscal preview endpoint and no fiscal UI. */}
