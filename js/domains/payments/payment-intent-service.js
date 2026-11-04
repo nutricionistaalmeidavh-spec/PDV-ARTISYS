@@ -92,6 +92,10 @@ function createPaymentIntentService({
     if(row.status!=='PENDING'||row.started_at)return get(id); // Never re-charge after a crash or timeout.
     const provider=row.channel==='PIX_API'?pixProvider:tefProvider;
     if(!provider||typeof provider.start!=='function')throw new Error('Provedor nao configurado.');
+    // A missing LAN PinPad is a configuration error, not an indeterminate
+    // acquirer timeout. Validate before reserving this charge on disk.
+    if(row.channel==='TEF'&&typeof provider.validateTerminal==='function')
+      provider.validateTerminal(sales.getSale(row.sale_id)?.terminalId);
     const claimed=withTransaction(db,()=>{
       const updated=db.prepare("UPDATE payment_intents SET started_at=?,updated_at=? WHERE id=? AND started_at IS NULL AND status='PENDING'")
         .run(now(),now(),row.id);
