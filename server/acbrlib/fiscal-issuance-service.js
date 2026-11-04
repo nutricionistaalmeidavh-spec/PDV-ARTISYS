@@ -135,6 +135,10 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   if(draft.status!=='READY')throw Error('Documento já enviado; consulta obrigatória antes de qualquer reenvio');
   assertSaleCurrent(draft);
   const {manifest,meta}=verifyReady(draft);
+  if(typeof adapter.status==='function'){
+   const state=await adapter.status();
+   if(state?.data?.ready===false)throw Error('ACBrLib nativa ou configuração ausente; envio não iniciado');
+  }
   if(fs.existsSync(path.join(dir,meta.reference+'.signed.xml')))
    throw Error('XML fiscal já assinado; somente consulta, não reenvio');
   const changed=withTransaction(db,()=>db.prepare("UPDATE acbr_fiscal_documents SET status='UNKNOWN',updated_at=? "+
