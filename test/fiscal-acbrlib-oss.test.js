@@ -119,3 +119,16 @@ test('ACBr private config cannot use mismatched issuer UF or missing CSC',async 
  assert.equal((await adapter.issue(request(f))).ok,false);
  assert.equal(invoked,false);
 });
+
+test('officially matched rejection is not mistaken for network failure, nor retried blindly',async t=>{
+ const f=fixture(t),key=KEY;
+ const adapter=createAcbrLibAdapter({...f.options,runner:async()=>({status:'REJEITADA',
+  environment:'HOMOLOGACAO',accessKey:key,cStat:778,reason:'NFC-e rejeitada: NCM incorreto'})});
+ const result=await adapter.issue(request(f));
+ assert.equal(result.ok,false);
+ assert.equal(result.rejected,true);
+ assert.equal(result.data.cStat,778);
+ const mismatched=createAcbrLibAdapter({...f.options,runner:async()=>({
+  status:'REJEITADA',environment:'HOMOLOGACAO',accessKey:'0'.repeat(44),cStat:778,reason:'bad'})});
+ assert.equal((await mismatched.issue(request(f))).indeterminate,true);
+});
