@@ -20,7 +20,7 @@ async function setup({enabled=false,native=false}={}){
   now:()=> '2026-11-04T15:00:00-03:00',randomCNF:()=> '00000011',
   runner:async req=>{
    nativeCalls++;
-   const base='35261112345678000195650010000000011000000011';
+   const base='35'+'2611'+'12345678000195'+'65'+'001'+'000000001'+'1'+'00000011';
    let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(base[i])*weight;weight=weight===9?2:weight+1;}
    const value=11-(sum%11),key=base.slice(0,43)+String(value>=10?0:value);
    const xml='<nfeProc><NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><tpAmb>2</tpAmb><nNF>1</nNF><serie>1</serie></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>18.00</vNF></ICMSTot></total></infNFe><Signature/></NFe><protNFe><infProt><cStat>100</cStat><nProt>135260000000001</nProt><chNFe>'+key+'</chNFe></infProt></protNFe></nfeProc>';
