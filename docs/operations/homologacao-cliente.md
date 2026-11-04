@@ -21,10 +21,18 @@
 | Rejeição | Exercitar um cenário de rejeição recomendado pelo contador | Status REJECTED sem baixa indevida de estoque e sem envio automático adicional |
 | Interrupção / timeout | Simular queda antes da resposta da SEFAZ em ambiente controlado | Status UNKNOWN, somente consulta / conciliação; nunca repetir envio às cegas |
 | Cancelamento | Cancelar documento de teste autorizado, dentro do prazo e com justificativa válida | Evento aceito com protocolo e status CANCELLED |
-| Inutilização | Verificar faixa histórica realmente não utilizada e previamente reservada | Protocolo oficial e status CONFIRMED para modelo/série/ano/faixa correspondentes |
+| Inutilização | Fora de SP, conferir com a SEFAZ/contador se o pedido é aplicável e a faixa está realmente não utilizada | Protocolo oficial e status CONFIRMED; em SP o sistema bloqueia pedidos desde 01/11/2026 |
 | Instalação / restauração | Reabrir aplicativo e atualizar versão, mantendo o perfil existente | Banco, certificado criptografado, XMLs e numeração preservados |
 
 Para cada prova registre **UF, ambiente, modelo, versão do instalador, data, resultado, cStat, chave/protocolo e eventual mensagem**. Não inclua senha do certificado, CSC, chave privada ou dados pessoais de consumidores em tickets públicos.
+
+## 2.1. CC-e e preparação da contingência
+
+- **Carta de Correção Eletrônica (CC-e), somente NF-e 55 autorizada:** no documento, abrir **Carta de Correção**, inserir texto de 15–1000 caracteres e identificar o contador responsável. A correção não pode mudar valores, impostos, quantidades, datas ou identificação fiscal das partes. Sequência de 1 a 20, sempre crescente; a segunda e posteriores devem consolidar todas as correções anteriores. O evento só fica **CONFIRMED** com protocolo oficial associado à NF-e. Na dúvida/timeout, o evento fica **UNKNOWN** e não deve ser retransmitido sem conciliação.
+- **Preparação da NFC-e em contingência:** usar apenas para indisponibilidade real da autorização normal, com justificativa revisada. O sistema prepara INI/XML com **tpEmis=9** e manifesto independente, mas **preparar não é emitir**. Esta implementação não imprime DANFE de contingência nem considera a NFC-e autorizada durante indisponibilidade; a transmissão é manual após restabelecer comunicação. O fluxo completo de emissão offline e impressão com aviso legal necessita testes específicos por UF e não deve ser tratado como operacional sem esses testes.
+- **São Paulo (desde 01/11/2026):** a SEFAZ/SP dispensou pedidos de inutilização de números NF-e (55) e NFC-e (65). O sistema bloqueia esses pedidos e mantém a numeração sequencial com registro de lacunas conforme orientação do contador. A regra não é aplicada automaticamente a outras UFs.
+
+Fontes: https://portal.fazenda.sp.gov.br/servicos/nfe e https://portal.fazenda.sp.gov.br/servicos/nfce/Paginas/Conting%C3%AAncia.aspx
 
 ## 3. Regras de segurança
 
