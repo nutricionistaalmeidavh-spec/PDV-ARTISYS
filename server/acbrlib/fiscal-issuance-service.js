@@ -66,6 +66,12 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    PRIMARY KEY(document_id,sequence)
  );`);
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
+ function getIssuanceMode(id){
+  const meta=metaFor(id);
+  if(!meta)return null;
+  const {manifest}=readManifest(dir,meta.reference);
+  return manifest.issuanceMode||'normal';
+ }
  const draftFor=id=>{
   const draft=drafts.getDocument(id);
   if(!draft)throw Error('Documento fiscal não encontrado');
@@ -464,6 +470,6 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }
   return {documentId:id,sequence,status:'UNKNOWN',requiresManualReconciliation:true};
  }
- return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory});
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory,getIssuanceMode});
 }
 module.exports={createFiscalIssuanceService};
