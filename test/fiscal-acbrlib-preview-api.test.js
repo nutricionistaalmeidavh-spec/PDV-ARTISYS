@@ -101,8 +101,9 @@ test('admin can compile and attempt one NFC-e homologation from a completed sale
   assert.equal((await request(ctx,'/documents/'+doc.id+'/transmit',cashier,{method:'POST',body:{}})).status,403);
   assert.equal(ctx.nativeCalls,0);
   const issued=await request(ctx,'/documents/'+doc.id+'/transmit',admin,{method:'POST',body:{}});
-  assert.equal(issued.status,200);
-  assert.equal((await issued.json()).status,'AUTHORIZED');
+  const issuedBody=await issued.json();
+  assert.equal(issued.status,200,JSON.stringify({issuedBody,nativeCalls:ctx.nativeCalls}));
+  assert.equal(issuedBody.status,'AUTHORIZED');
   assert.equal(ctx.nativeCalls,1);
   const retry=await request(ctx,'/documents/'+doc.id+'/transmit',admin,{method:'POST',body:{}});
   assert.equal(retry.status,400);
