@@ -44,6 +44,7 @@ const { registerInventoryEffects }=require('../domains/inventory/inventory-effec
 const { createSaleService }=require('../domains/sales/sale-service');
 const { createPaymentIntentService }=require('../domains/payments/payment-intent-service');
 const { createLocalTefProvider }=require('../domains/payments/tef-local-provider');
+const { createPayGoControlPayProvider }=require('../domains/payments/paygo-controlpay-provider');
 const { createAvailabilitySaleService }=require('../domains/sales/availability-sale-service');
 const { createCommissionService }=require('../domains/sales/commission-service');
 const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
@@ -133,9 +134,16 @@ function createPdvRuntime({
   const configuredStaticPix=()=>settings.get('payments.pix.static',{defaultValue:null})||paymentOptions.pixStatic||(process.env.PDV_PIX_KEY?{
     key:process.env.PDV_PIX_KEY,merchantName:process.env.PDV_PIX_MERCHANT_NAME,merchantCity:process.env.PDV_PIX_CITY
   }:null);
+  const tefProvider=paymentOptions.tefProvider||(process.env.PDV_TEF_BRIDGE_EXE
+    ?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE})
+    :(process.env.PDV_PAYGO_API_URL&&process.env.PDV_PAYGO_INTEGRATION_KEY&&process.env.PDV_PAYGO_TERMINAL_ID
+      ?createPayGoControlPayProvider({
+        baseUrl:process.env.PDV_PAYGO_API_URL,
+        integrationKey:process.env.PDV_PAYGO_INTEGRATION_KEY,
+        terminalId:process.env.PDV_PAYGO_TERMINAL_ID
+      }):null));
   const paymentIntents=createPaymentIntentService({db,sales:coreSales,now,idFactory,
-    pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,
-    tefProvider:paymentOptions.tefProvider||(process.env.PDV_TEF_BRIDGE_EXE?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE}):null)});
+    pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,tefProvider});
   const originalCompleteSale=coreSales.completeSale;
   coreSales.completeSale=(saleId,input={})=>withTransaction(db,()=>{
     const linked=paymentIntents.validateCheckout(saleId,input.payments||[]);
