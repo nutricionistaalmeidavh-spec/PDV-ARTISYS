@@ -43,6 +43,7 @@ const { expandStockItems }=require('../domains/inventory/item-stock-expander');
 const { registerInventoryEffects }=require('../domains/inventory/inventory-effects');
 const { createSaleService }=require('../domains/sales/sale-service');
 const { createPaymentIntentService }=require('../domains/payments/payment-intent-service');
+const { createLocalTefProvider }=require('../domains/payments/tef-local-provider');
 const { createAvailabilitySaleService }=require('../domains/sales/availability-sale-service');
 const { createCommissionService }=require('../domains/sales/commission-service');
 const { createPromotionSaleService }=require('../domains/sales/promotion-sale-service');
@@ -133,7 +134,8 @@ function createPdvRuntime({
     key:process.env.PDV_PIX_KEY,merchantName:process.env.PDV_PIX_MERCHANT_NAME,merchantCity:process.env.PDV_PIX_CITY
   }:null);
   const paymentIntents=createPaymentIntentService({db,sales:coreSales,now,idFactory,
-    pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,tefProvider:paymentOptions.tefProvider||null});
+    pixStatic:configuredStaticPix,pixProvider:paymentOptions.pixProvider||null,
+    tefProvider:paymentOptions.tefProvider||(process.env.PDV_TEF_BRIDGE_EXE?createLocalTefProvider({executable:process.env.PDV_TEF_BRIDGE_EXE}):null)});
   const originalCompleteSale=coreSales.completeSale;
   coreSales.completeSale=(saleId,input={})=>withTransaction(db,()=>{
     const linked=paymentIntents.validateCheckout(saleId,input.payments||[]);
