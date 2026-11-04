@@ -16,6 +16,8 @@ const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
 const { resolveFiscalDesktopRuntime } = require('./fiscal-desktop-runtime.cjs');
+const { createFiscalCredentialStore } = require('./fiscal-credential-store.cjs');
+const { inspectLocalAcbrConfig } = require('../server/acbrlib/acbr-config-check');
 const { createLanReachability } = require('../server/lan-reachability.cjs');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
@@ -45,6 +47,7 @@ let printWorkerBusy = false;
 let installationWasExisting = true;
 let dataServerConfig = null;
 let dataServerConfigPath = '';
+let fiscalCredentialStore = null;
 let installationTransition = false;
 const installToken = randomBytes(32).toString('hex');
 const API_TIMEOUT_MS = 12000;
@@ -451,6 +454,43 @@ function registerIpc() {
 
   hardwareController = buildHardwareController();
   const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
+  // Fiscal certificate never traverses the local HTTP API. Only the current
+  // desktop window with a validated administrator session may import an A1.
+  ipcMain.handle('artisys:fiscal:status', async(event)=>{
+    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
+    const available=Boolean(fiscalCredentialStore);
+    const state=fiscalCredentialStore?.status()||{configured:false,homologationEnabled:false,encryptionAvailable:false};
+    return {available,...state};
+  });
+  ipcMain.handle('artisys:fiscal:import', async(event,input={})=>{
+    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
+    if(!fiscalCredentialStore||!runtime||isExternalMode(dataServerConfig))throw Error('Configure o certificado no PC principal Windows');
+    await authorizeDeploymentChange(input.sessionToken);
+    const selection=await dialog.showOpenDialog(mainWindow,{
+      title:'Selecionar certificado A1 (.pfx / .p12)',
+      properties:['openFile'],
+      filters:[{name:'Certificado digital A1',extensions:['pfx','p12']}]
+    });
+    if(selection.canceled||!selection.filePaths?.length)return {cancelled:true};
+    const outcome=fiscalCredentialStore.importCertificate({
+      certificatePath:selection.filePaths[0],password:input.password,
+      uf:input.uf,csc:input.csc,idCsc:input.idCsc
+    });
+    fiscalCredentialStore.materialize();
+    return {...outcome,restartRequired:true};
+  });
+  ipcMain.handle('artisys:fiscal:enable-homologation', async(event,input={})=>{
+    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
+    if(!fiscalCredentialStore||!runtime||isExternalMode(dataServerConfig))throw Error('Operação fiscal disponível somente no PC principal');
+    await authorizeDeploymentChange(input.sessionToken);
+    const saved=runtime.db.prepare('SELECT public_json FROM acbr_fiscal_company WHERE id=1').get();
+    if(!saved)throw Error('Configure primeiro os dados do emitente fiscal');
+    const issuer=JSON.parse(saved.public_json);
+    fiscalCredentialStore.materialize();
+    inspectLocalAcbrConfig({file:fiscalCredentialStore.paths.iniPath,model:55,issuerUF:issuer.uf});
+    return fiscalCredentialStore.enableHomologation();
+  });
+
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
   const receiptActions=createReceiptActions({
     BrowserWindow,
@@ -510,6 +550,24 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
+  // Own-source ACBr DLLs remain in resources/fiscal; business data and
+  // operator-owned credentials remain in Electron userData across updates.
+  if(process.platform==='win32'&&process.arch==='x64'&&!isExternalMode(dataServerConfig)){
+    const fiscalBundle=resolveFiscalDesktopRuntime({
+      resourcesPath:app.isPackaged?process.resourcesPath:path.join(__dirname,'..','build'),
+      userData:app.getPath('userData'),platform:process.platform,arch:process.arch,embeddedServer:true
+    });
+    if(fiscalBundle.enabled){
+      fiscalCredentialStore=createFiscalCredentialStore({userData:app.getPath('userData'),safeStorage});
+      if(fiscalCredentialStore.status().configured){
+        try{fiscalCredentialStore.materialize();}
+        catch{
+          fiscalCredentialStore.disableHomologation();
+          console.warn('Certificado fiscal local indisponível; homologação permanece bloqueada.');
+        }
+      }
+    }
+  }
   terminalIdentityStore = createTerminalIdentityStore({ userDataPath:app.getPath('userData') });
   dataServerConfig = migrateLegacyDataServerCredential({ config:dataServerConfig, filePath:dataServerConfigPath, credentialStore:terminalCredentialStore });
   hardwareConfigStore = createHardwareConfigStore({ filePath:path.join(app.getPath('userData'), 'hardware.json') });
@@ -554,4 +612,4 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-app.on('before-quit', () => { void shutdown(); });
+app.on('before-quit', () => { fiscalCredentialStore?.removeRuntimeConfig(); void shutdown(); });
