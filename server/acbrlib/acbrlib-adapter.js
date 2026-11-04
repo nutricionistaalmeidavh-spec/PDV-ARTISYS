@@ -91,6 +91,15 @@ function accessKeyMatches(key,manifest){
   key.slice(35,43)===manifest.cNF;
 }
 function validated(result,manifest){
+  if(result?.status==='REJEITADA'){
+    const key=String(result.accessKey||''),code=Number(result.cStat);
+    // Never treat duplicates, receipts or mismatched keys as a fresh rejection.
+    if(!accessKeyMatches(key,manifest)||result.environment!=='HOMOLOGACAO'||
+      !Number.isSafeInteger(code)||code<200||[204,205,539].includes(code))
+      return unknown();
+    const reason=String(result.reason||'Rejeição fiscal confirmada').replace(/[\r\n\0]/g,' ').slice(0,180);
+    return {ok:false,status:422,rejected:true,data:{cStat:code,reason},error:null};
+  }
   if(!result||typeof result!=='object'||result.status!=='AUTORIZADA')return unknown();
   const xml=String(result.xml||'');
   const key=String(result.accessKey||'');
