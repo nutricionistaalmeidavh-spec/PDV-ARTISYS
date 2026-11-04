@@ -198,5 +198,49 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
             self.assertIn(name,exports)
         self.assertNotIn("NFE_EnviarEvento",worker.required_exports("NFSE"))
 
+
+    def test_offline_signing_requires_qr_code_and_never_calls_network(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            ini=Path(temp)/"acbr-offline-example.ini"
+            ini.write_text("[Identificacao]\ntpEmis=9\n",encoding="utf-8")
+            request={"kind":"NFE","operation":"offline-issue","environment":"HOMOLOGACAO",
+                "iniPath":str(ini),"model":65,"number":1,"series":1,"lot":1,
+                "issuerCnpj":"11222333000181","cNF":"00000001","amountCents":1000,
+                "issuanceMode":"nfce-offline"}
+            raw="3526111122233300018165001000000001900000001"
+            total,weight=0,2
+            for digit in reversed(raw):
+                total+=int(digit)*weight
+                weight=2 if weight==9 else weight+1
+            digit=11-total%11
+            key=raw+str(0 if digit>=10 else digit)
+            xml=('<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><nNF>1</nNF>'
+                 '<serie>1</serie><tpAmb>2</tpAmb><tpEmis>9</tpEmis>'
+                 '<dhCont>2026-11-04T15:30:00-03:00</dhCont>'
+                 '<xJust>Falha de rede durante teste offline</xJust></ide>'
+                 '<emit><CNPJ>11222333000181</CNPJ></emit>'
+                 '<total><ICMSTot><vNF>10.00</vNF></ICMSTot></total>'
+                 '</infNFe><Signature/><infNFeSupl><qrCode>https://example.test/p?'
+                 +key+'</qrCode></infNFeSupl></NFe>')
+            import base64
+            fakepdf=base64.b64encode(b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF").decode()
+            def fake_response(_lib,name,*_args,**_kwargs):
+                if name=="NFE_ObterXml":
+                    return xml
+                if name=="NFE_SalvarPDF":
+                    return fakepdf
+                raise AssertionError("No SEFAZ network call allowed: "+name)
+            with patch.object(worker,"do"),patch.object(worker,"response",side_effect=fake_response):
+                result=worker.nfe_offline_issue(object(),request)
+            self.assertEqual(result["status"],"OFFLINE_SIGNED")
+            self.assertEqual(result["accessKey"],key)
+            self.assertEqual(result["pdfBase64"],fakepdf)
+            self.assertTrue(ini.with_suffix(".signed.xml").is_file())
+            bad=xml.replace("<qrCode>https://example.test/p?"+key+"</qrCode>","")
+            with self.assertRaises(worker.ACBrError):
+                worker.validate_offline_signed(bad,request)
+
 if __name__ == "__main__":
     unittest.main()
