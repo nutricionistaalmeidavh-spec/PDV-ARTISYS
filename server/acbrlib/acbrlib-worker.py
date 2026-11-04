@@ -172,6 +172,22 @@ def stash_signed_xml(ini_path, xml):
     return key
 
 
+def ensure_signed_number(req, key, number, series):
+    """Check fiscal identity before network send or after loading signed XML."""
+    if not re.fullmatch(r"[0-9]{44}", str(key)):
+        raise ACBrError("Chave de acesso fiscal inválida")
+    try:
+        n, s = int(number), int(series)
+    except (ValueError, TypeError):
+        raise ACBrError("Nota sem número ou série numérica")
+    if (n != int(req["number"]) or s != int(req["series"]) or
+            key[6:20] != req["issuerCnpj"] or
+            key[20:22] != str(req["model"]) or
+            int(key[22:25]) != s or int(key[25:34]) != n or
+            key[34:35] != "1" or key[35:43] != req["cNF"]):
+        raise ACBrError("Identidade fiscal do XML diverge da venda e numeração reservada")
+
+
 def nfe_transmit(lib, req):
     do(lib, "NFE_LimparLista")
     do(lib, "NFE_CarregarINI", encoded(req["iniPath"]), types=[ct.c_char_p])
@@ -180,6 +196,7 @@ def nfe_transmit(lib, req):
     signed = response(lib, "NFE_ObterXml", (0,), [ct.c_int])
     key = stash_signed_xml(req["iniPath"], signed)
     _, number, series, ambiente, cnpj = nfe_identity(signed)
+    ensure_signed_number(req, key, number, series)
     if find_text(root_or_none(signed), "mod") != str(req["model"]):
         raise ACBrError("Modelo fiscal diferente do esperado para NFC-e/NF-e")
     if nfe_total_cents(signed) != int(req["amountCents"]):
@@ -215,6 +232,7 @@ def nfe_consult(lib, req):
         return {"status": "INDETERMINADO", "message": "XML assinado para consulta não localizado"}
     signed = path.read_text(encoding="utf-8-sig")
     key, number, series, environment, cnpj = nfe_identity(signed)
+    ensure_signed_number(req, key, number, series)
     if find_text(root_or_none(signed), "mod") != str(req["model"]) or nfe_total_cents(signed) != int(req["amountCents"]):
         raise ACBrError("XML para consulta diverge do modelo ou total canônico")
     expect_amb = "2" if req["environment"] == "HOMOLOGACAO" else "1"
