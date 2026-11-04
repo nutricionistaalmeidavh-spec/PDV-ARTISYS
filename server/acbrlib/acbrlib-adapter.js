@@ -246,6 +246,35 @@ function createAcbrLibAdapter(options={}){
       });
     }catch{return unknown();}
   }
+
+  async function cce({type,reference,environment,accessKey,sequence,correction,eventAt}={}){
+    try{
+      return await withConfig(async()=>{
+        const context=prepare({type,reference,environment});
+        const key=String(accessKey||''),content=String(correction||'').trim();
+        const date=String(eventAt||'');
+        // A CC-e cannot modify amount, prices, taxes, quantities, issuer,
+        // recipient identity or issue/exit dates. A human accountant must
+        // review the proposed text; this conservative filter is not a legal
+        // classifier and intentionally rejects common monetary corrections.
+        const monetary=/\b(?:pre[cç]o|valor|imposto|tributo|quantidade|al[ií]quota|base de c[aá]lculo)\b.{0,65}\b(?:alterad|aumentad|reduzid|passa|corrig|modific)/i;
+        if(type!=='nfe'||context.manifest.model!==55||environment!=='homologation'||
+           !accessKeyMatches(key,context.manifest)||!Number.isSafeInteger(sequence)||
+           sequence<1||sequence>20||content.length<15||content.length>1000||
+           /[\r\n\0]/.test(content)||monetary.test(content)||
+           !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d$/.test(date))
+          return blocked('CC-e exige NF-e 55 autorizada, justificativa revisada e evento válido');
+        const result=await runner({...context.command,operation:'cce',accessKey:key,
+          correction:content,sequence,eventAt:date});
+        if(result?.status!=='CCE_REGISTERED'||result.environment!=='HOMOLOGACAO'||
+           result.accessKey!==key||result.sequence!==sequence||result.cStat!==135||
+           !/^\d{10,20}$/.test(String(result.eventProtocol||'')))
+          return unknown();
+        return {ok:true,status:200,data:{accessKey:key,sequence,cStat:135,
+          eventProtocol:String(result.eventProtocol)}};
+      });
+    }catch{return unknown();}
+  }
   async function inutilize({environment,issuerCnpj,issuerUF,model,series,year,startNumber,endNumber,reason}={}){
     try{
       return await withConfig(async()=>{
@@ -299,6 +328,6 @@ function createAcbrLibAdapter(options={}){
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
     }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
-  return Object.freeze({status,preflight,issue,query,cancel,inutilize,pdf});
+  return Object.freeze({status,preflight,issue,query,cancel,cce,inutilize,pdf});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
