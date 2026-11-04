@@ -164,7 +164,7 @@
    const list=document.createElement('ul');
    for(const d of docs.slice(0,20)){
     const li=document.createElement('li');
-    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)':''}`;
+    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?(d.offlineStatus==='PENDING'?' — EMITIDA OFFLINE (fila pendente)':d.offlineStatus==='UNKNOWN'?' — TRANSMISSÃO INDETERMINADA (consultar SEFAZ)':d.offlineStatus==='AUTHORIZED'?' — CONTINGÊNCIA AUTORIZADA':' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)'):''}`;
     const endpoint=prefix+'/documents/'+encodeURIComponent(d.id);
     const addAction=(title,operation)=>{
       const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=title;
@@ -250,7 +250,65 @@
         finally{btn.disabled=false;}
       });
     }
-    if(d.status==='READY'&&fiscalStatus.emissionEnabled)addAction(d.issuanceMode==='nfce-offline'?'Transmitir à SEFAZ após reconexão':'Emitir em homologação','transmit');
+    if(d.status==='READY'&&fiscalStatus.emissionEnabled&&d.issuanceMode!=='nfce-offline')addAction('Emitir em homologação','transmit');
+
+    if(d.issuanceMode==='nfce-offline'&&fiscalStatus.emissionEnabled){
+      const button=(text,onClick)=>{
+        const control=document.createElement('button');
+        control.type='button';control.className='secondary-button';control.textContent=text;
+        li.append(' ',control);
+        control.addEventListener('click',async()=>{
+          control.disabled=true;
+          try{await onClick();}catch(err){message(card,err.message||'Falha de contingência',true);}
+          finally{control.disabled=false;}
+        });
+      };
+      const savePdf=async()=>{
+        const save=window.artisysDesktop?.fiscal?.saveOfflineDanfe;
+        if(!save)throw Error('DANFE NFC-e offline exige aplicativo Windows no PC principal');
+        const result=await save(d.id,api.sessionToken);
+        message(card,result?.saved?'DANFE de contingência salvo. Imprima DUAS vias, uma para consumidor e uma para arquivo do estabelecimento.':
+          'Salvamento cancelado.');
+      };
+      if(d.status==='READY'&&!d.offlineStatus){
+        button('Emitir NFC-e OFFLINE e gerar DANFE de contingência',async()=>{
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de emissão offline indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Emitir NFC-e offline na homologação',
+            description:'A emissão gera XML fiscal assinado, QR Code de contingência, DANFE e fila para envio após reconexão. A emissão local não significa autorização pela SEFAZ.',
+            confirmLabel:'Assinar e emitir offline',cancelLabel:'Voltar',tone:'default',
+            body:'<p>Confirme que a SEFAZ está indisponível. Depois imprima DUAS vias do DANFE e transmita a nota à SEFAZ após reconexão, dentro do prazo regulamentar.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(endpoint+'/offline-issue',{method:'POST',body:{}});
+          if(result.status!=='ISSUED_OFFLINE')throw Error('Emissão offline não foi confirmada');
+          message(card,'NFC-e assinada offline. Sem autorização SEFAZ; o XML está na fila. Salve e imprima o DANFE em duas vias.');
+          await savePdf();
+          await refreshDocuments(card);
+        });
+      }
+      if(['PENDING','UNKNOWN','AUTHORIZED'].includes(d.offlineStatus))
+        button('Salvar DANFE NFC-e de contingência',savePdf);
+      if(d.offlineStatus==='PENDING'){
+        button('Transmitir fila offline após reconexão',async()=>{
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de envio indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Transmitir NFC-e da fila à SEFAZ',
+            description:'Cada nota assinada será transmitida uma única vez. Sem resposta oficial, o documento ficará indeterminado para consulta, sem reenvio automático.',
+            confirmLabel:'Transmitir fila após reconexão',cancelLabel:'Voltar',tone:'default',
+            body:'<p>Certifique-se de que o PC voltou a ter conexão e o certificado A1 está disponível.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(prefix+'/offline-queue/flush',{method:'POST',body:{limit:10}});
+          const uncertain=result.filter(x=>x.status==='UNKNOWN');
+          message(card,uncertain.length?'Há NFC-e indeterminada: CONSULTAR SEFAZ, nunca reenviar cegamente.':
+            'Fila processada; verifique cada autorização e protocolo.',uncertain.length>0);
+          await refreshDocuments(card);
+        });
+      }
+    }
     if(d.status==='UNKNOWN'&&fiscalStatus.emissionEnabled)addAction('Consultar SEFAZ','consult');
     if(d.status==='AUTHORIZED'&&fiscalStatus.iniPreparationEnabled)addAction('Gerar e salvar DANFE PDF','danfe');
     if(d.status==='AUTHORIZED'&&fiscalStatus.emissionEnabled){
