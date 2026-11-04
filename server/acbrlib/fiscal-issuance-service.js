@@ -52,6 +52,19 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   last_number INTEGER NOT NULL,justification TEXT NOT NULL,status TEXT NOT NULL
   CHECK(status IN('UNKNOWN','CONFIRMED')),requested_at TEXT NOT NULL,
   event_protocol TEXT,confirmed_at TEXT);`);
+
+ db.exec(`CREATE TABLE IF NOT EXISTS acbr_fiscal_cce_events(
+   document_id TEXT NOT NULL,
+   sequence INTEGER NOT NULL CHECK(sequence BETWEEN 1 AND 20),
+   correction TEXT NOT NULL,
+   correction_sha256 TEXT NOT NULL,
+   reviewed_by TEXT NOT NULL,
+   status TEXT NOT NULL CHECK(status IN('UNKNOWN','CONFIRMED')),
+   requested_at TEXT NOT NULL,
+   event_protocol TEXT,
+   confirmed_at TEXT,
+   PRIMARY KEY(document_id,sequence)
+ );`);
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
  const draftFor=id=>{
   const draft=drafts.getDocument(id);
@@ -369,6 +382,69 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   }
   return {id,status:'UNKNOWN',requiresManualReconciliation:true};
  }
- return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations});
+
+ function getCceHistory(id){
+  return db.prepare('SELECT sequence,correction,correction_sha256,reviewed_by,status,requested_at,event_protocol,confirmed_at FROM acbr_fiscal_cce_events WHERE document_id=? ORDER BY sequence')
+   .all(String(id)).map(r=>({sequence:r.sequence,correction:r.correction,
+    correctionSha256:r.correction_sha256,reviewedBy:r.reviewed_by,status:r.status,
+    requestedAt:r.requested_at,eventProtocol:r.event_protocol||null,confirmedAt:r.confirmed_at||null}));
+ }
+ async function cce(id,{sequence,correction,reviewedBy,confirmNoMaterialChange=false,replacesPrevious=false}={}){
+  if(!allowHomologation)throw Error('Carta de correção só em homologação explicitamente habilitada');
+  if(typeof adapter.cce!=='function')throw Error('ACBr local sem suporte a CC-e');
+  const doc=draftFor(id);
+  if(doc.status!=='AUTHORIZED'||doc.model!==55||doc.documentType!=='nfe')
+   throw Error('CC-e exige NF-e modelo 55 autorizada');
+  const meta=metaFor(id),text=String(correction||'').trim(),reviewer=String(reviewedBy||'').trim();
+  if(!meta?.access_key||!meta?.protocol||!meta?.xml_sha256)
+   throw Error('Protocolo de autorização ausente: CC-e bloqueada');
+  const xmlPath=path.join(dir,meta.reference+'.authorized.xml');
+  if(!fs.existsSync(xmlPath)||sha(fs.readFileSync(xmlPath))!==meta.xml_sha256)
+   throw Error('XML autorizado não confere com o evento de CC-e');
+  if(confirmNoMaterialChange!==true||reviewer.length<3||reviewer.length>120||
+     /[\r\n\0]/.test(reviewer))
+   throw Error('CC-e exige confirmação de revisão pela contabilidade');
+  if(text.length<15||text.length>1000||/[\r\n\0]/.test(text))
+   throw Error('Texto de correção inválido: use 15 a 1000 caracteres, sem quebras de linha');
+  if(!Number.isSafeInteger(sequence)||sequence<1||sequence>20)
+   throw Error('Sequência CC-e deve estar entre 1 e 20');
+  const cancellation=getCancellationStatus(id);
+  if(cancellation)throw Error('CC-e bloqueada: cancelamento anterior exige consulta');
+  const prior=db.prepare('SELECT sequence,status FROM acbr_fiscal_cce_events WHERE document_id=? ORDER BY sequence DESC LIMIT 1').get(String(id));
+  if(prior?.status==='UNKNOWN')throw Error('CC-e anterior indeterminada: consulte a SEFAZ, nunca reenvie');
+  if(sequence!==(prior?.sequence||0)+1)
+   throw Error('Sequência CC-e já registrada ou fora de ordem');
+  if(prior&&!replacesPrevious)
+   throw Error('Nova CC-e substitui as anteriores: contabilidade deve confirmar conteúdo consolidado');
+  if(typeof adapter.status==='function'){
+   const ready=await adapter.status();
+   if(ready?.data?.ready===false)throw Error('ACBr local indisponível para CC-e');
+  }
+  const timestamp=now();
+  // Unique sequence and durable UNKNOWN BEFORE any SEFAZ call.
+  withTransaction(db,()=>{
+   const latest=db.prepare('SELECT status FROM acbr_fiscal_documents WHERE id=?').get(String(id));
+   if(latest?.status!=='AUTHORIZED')throw Error('NF-e alterada durante revisão de CC-e');
+   db.prepare("INSERT INTO acbr_fiscal_cce_events(document_id,sequence,correction,correction_sha256,reviewed_by,status,requested_at) VALUES(?,?,?,?,?,'UNKNOWN',?)")
+    .run(String(id),sequence,text,sha(text),reviewer,timestamp);
+  });
+  let result=null;
+  try{result=await adapter.cce({type:'nfe',reference:meta.reference,
+   environment:'homologation',accessKey:meta.access_key,sequence,
+   correction:text,eventAt:timestamp});}
+  catch{/* Unknown result is never retried blindly. */}
+  const d=result?.data;
+  if(result?.ok===true&&d?.accessKey===meta.access_key&&
+     d?.sequence===sequence&&d.cStat===135&&/^\d{10,20}$/.test(String(d.eventProtocol||''))){
+   withTransaction(db,()=>{
+    const changed=db.prepare("UPDATE acbr_fiscal_cce_events SET status='CONFIRMED',event_protocol=?,confirmed_at=? WHERE document_id=? AND sequence=? AND status='UNKNOWN'")
+     .run(d.eventProtocol,now(),String(id),sequence).changes;
+    if(changed!==1)throw Error('CC-e já processada: consultar histórico');
+   });
+   return {documentId:id,sequence,status:'CONFIRMED',eventProtocol:d.eventProtocol,cStat:135};
+  }
+  return {documentId:id,sequence,status:'UNKNOWN',requiresManualReconciliation:true};
+ }
+ return Object.freeze({prepare,issue,consult,danfe,getDanfe,cancel,getCancellationStatus,inutilize,listInutilizations,cce,getCceHistory});
 }
 module.exports={createFiscalIssuanceService};
