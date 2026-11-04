@@ -70,3 +70,26 @@ test('Pix pago sem associacao explicita a venda nao baixa caixa nem estoque',()=
     assert.equal(rt.paymentIntents.get(intent.id).status,'MANUAL_CONFIRMED');
   }finally{rt.close();}
 });
+
+test('venda aberta com Pix pendente nao pode ser cancelada antes de reconciliar ou cancelar o QR',()=>{
+  const rt=testRuntime({paymentOptions:{pixStatic:config}});
+  try{
+    const intent=rt.paymentIntents.create({saleId:'s1',channel:'PIX_STATIC',method:'PIX',amountCents:10000,idempotencyKey:'before-cancel'});
+    assert.throws(()=>rt.sales.cancelSale('s1',{reason:'desistencia'}),/estorno externo/i);
+    rt.paymentIntents.cancel(intent.id);
+    assert.equal(rt.sales.cancelSale('s1',{reason:'desistencia'}).status,'CANCELLED');
+  }finally{rt.close();}
+});
+test('Pix vinculado nao pode ser estornado somente por cancelamento ou devolucao locais',()=>{
+  const rt=testRuntime({paymentOptions:{pixStatic:config}});
+  try{
+    rt.cash.openSession({terminalId:'T1',operatorId:'u1',openingAmountCents:0});
+    const intent=rt.paymentIntents.create({saleId:'s1',channel:'PIX_STATIC',method:'PIX',amountCents:10000,idempotencyKey:'paid-refund'});
+    rt.paymentIntents.confirmManual(intent.id,{checkedAccountCredit:true,actorId:'u1'});
+    assert.equal(rt.sales.completeSale('s1',{payments:[{method:'PIX',amountCents:10000,metadata:{paymentIntentId:intent.id}}]}).status,'COMPLETED');
+    assert.throws(()=>rt.sales.cancelSale('s1',{reason:'tentativa de estorno'}),/estorno externo/i);
+    const {createReturnService}=require('../js/domains/returns/return-service');
+    const service=createReturnService({db:rt.db,outbox:rt.outbox});
+    assert.throws(()=>service.createReturn({saleId:'s1',terminalId:'T1',operatorId:'u1',reason:'teste',actor:{userId:'u1'},items:[],refunds:[]}),/reembolso externo/i);
+  }finally{rt.close();}
+});
