@@ -27,7 +27,12 @@ function createServerFromEnvironment(env = process.env, cwd = process.cwd()) {
   const runtime = createPdvRuntime({ dbPath: config.dbPath, appVersion, serverVersion:appVersion });
   const credentialStore={load:()=>config.telemetryToken||null,save(){throw new Error('Servidor headless nao persiste credencial automaticamente.');},remove(){}};
   const telemetrySender=config.telemetryEndpoint&&config.telemetryToken?createTelemetryHttpSender({endpoint:config.telemetryEndpoint,credentialStore,allowRegistration:false}):null;
-  const server = createLocalServer({ runtime, host: config.host, port: config.port, token: config.token, allowedOrigins: config.allowedOrigins, requireTerminalAuth:config.requireTerminalAuth, telemetrySender, telemetryEndpoint:config.telemetryEndpoint, telemetryReleaseId:config.releaseId, fiscalPreviewEnabled: env.ARTISYS_FISCAL_PREVIEW==='1' && ['127.0.0.1','localhost','::1'].includes(config.host) });
+  const server = createLocalServer({ runtime, host: config.host, port: config.port, token: config.token, allowedOrigins: config.allowedOrigins, requireTerminalAuth:config.requireTerminalAuth, telemetrySender, telemetryEndpoint:config.telemetryEndpoint, telemetryReleaseId:config.releaseId, fiscalPreviewEnabled: env.ARTISYS_FISCAL_PREVIEW==='1' && ['127.0.0.1','localhost','::1'].includes(config.host),
+   fiscalNativeOptions:env.ARTISYS_FISCAL_PREVIEW==='1'&&env.ARTISYS_ACBR_INPUT_DIR?{
+    inputDir:env.ARTISYS_ACBR_INPUT_DIR,nfeLib:env.ARTISYS_ACBR_NFE_DLL,
+    nfeConfig:env.ARTISYS_ACBR_CONFIG_INI,workerExe:env.ARTISYS_ACBR_WORKER_EXE,
+    allowHomologation:env.ARTISYS_ACBR_HOMOLOGATION==='1'&&['127.0.0.1','localhost','::1'].includes(config.host)
+   }:null });
   const telemetryHost=createTelemetryBackgroundHost({telemetry:runtime.telemetry,httpSender:telemetrySender,endpoint:config.telemetryEndpoint});
   return { config, runtime, server, async start(){telemetryHost.start();return server.start();}, async stop(){try{await telemetryHost.stop();await server.stop();}finally{runtime.close();}} };
 }
