@@ -37,3 +37,10 @@ test('native ACBr target is a named record, never a flattened PowerShell array',
  assert.match(script,/Directory='NFe'; File='ACBrLibNFe\.lpi'; Binary='ACBrNFe64\.dll'/);
  assert.doesNotMatch(script,/\$item\[[012]\]/);
 });
+
+test('release Windows resolves actual Lazarus installation without depending on Chocolatey shims',()=>{
+ const workflow=fs.readFileSync(path.join(root,'.github','workflows','release-windows.yml'),'utf8');
+ assert.match(workflow,/lazarus\\lazbuild\.exe/);
+ assert.match(workflow,/Get-Command lazbuild/);
+ assert.match(workflow,/SlikSVN OSS installation failed/);
+});
