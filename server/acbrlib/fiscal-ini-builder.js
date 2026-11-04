@@ -172,7 +172,15 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  items.forEach((item,i)=>{
   const index=String(i+1).padStart(3,'0');
   const tax=item.taxProfile;
-  if(!tax||tax.cfop!=='5102')throw Error('CFOP não suportado na operação interna do piloto');
+  if(!tax||!['5102','5403','5405'].includes(tax.cfop))
+    throw Error('CFOP não suportado para venda interna neste fluxo fiscal');
+  const code=['2','3'].includes(String(s.issuer.crt))?tax.cst:tax.csosn;
+  if(tax.cfop==='5405'&&(!['60','500'].includes(code)||!tax.cest))
+    throw Error('CFOP 5405 exige ICMS-ST retido (CSOSN 500/CST 60) e CEST revisado');
+  if(tax.cfop==='5403'&&(!['10','30','70','201','202','203'].includes(code)||!tax.cest))
+    throw Error('CFOP 5403 exige ICMS-ST devido e CEST revisado');
+  if(tax.cfop==='5102'&&['60','500','10','30','70','201','202','203'].includes(code))
+    throw Error('CFOP 5102 incompatível com grupo ICMS-ST; revisar classificação');
   const quantity=mm(item.quantityMilli);
   const g=cents(item.grossCents,'valor bruto'),d=cents(item.discountCents,'desconto'),n=cents(item.netTotalCents,'valor líquido');
   if(g-d!==n||Math.round(cents(item.unitPriceCents,'preço unitário')*item.quantityMilli/1000)!==g)
@@ -183,7 +191,7 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
    xProd:required(item.productName,'descrição produto',{max:120}),
    NCM:required(tax.ncm,'NCM',{max:8,pattern:/^\d{8}$/}),
    CEST:tax.cest?required(tax.cest,'CEST',{max:7,pattern:/^\d{7}$/}):undefined,
-   CFOP:'5102',
+   CFOP:tax.cfop,
    ...(['1','2'].includes(String(s.issuer.crt))?
     {cAtivSN:required(tax.cAtivSN,'cAtivSN atividade Simples Nacional',{max:2,pattern:/^(?:01|02|03|04|90)$/})}:{ }),
    uCom:required(tax.unit,'unidade',{max:8,pattern:/^[A-Z0-9]+$/}),
