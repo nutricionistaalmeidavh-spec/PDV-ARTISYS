@@ -56,3 +56,9 @@ test('manifest never accepts traversal or symlinked DLLs',t=>{
  fs.renameSync(dll,outside);fs.symlinkSync(outside,dll);
  assert.equal(verifyAcbrBundle({resourcesPath:f.root,platform:'win32',arch:'x64'}).valid,false);
 });
+
+test('unlisted native DLLs are rejected to prevent Windows side-loading',t=>{
+ const f=fixture(t);
+ fs.writeFileSync(path.join(f.fiscal,'deps','unlisted.dll'),'unexpected native dependency '.repeat(20));
+ assert.equal(verifyAcbrBundle({resourcesPath:f.root,platform:'win32',arch:'x64'}).valid,false);
+});
