@@ -3,7 +3,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {createHash}=require('node:crypto');
-const {resolveFiscalDesktopRuntime}=require('../desktop/fiscal-desktop-runtime.cjs');
+const {resolveFiscalDesktopRuntime}=require('../desktop/acbrlib-desktop-runtime.cjs');
 const {createWindowsFiscalInstallerConfig}=require('../scripts/fiscal/create-release-builder-config.js');
 
 function bundle(t){
