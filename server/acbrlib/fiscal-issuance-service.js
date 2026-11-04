@@ -39,6 +39,8 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   'document_id TEXT PRIMARY KEY, reference TEXT NOT NULL UNIQUE,'+
   'cnf TEXT NOT NULL, issued_at TEXT NOT NULL, xml_sha256 TEXT,'+
   'access_key TEXT, protocol TEXT, updated_at TEXT NOT NULL)');
+ db.exec('CREATE TABLE IF NOT EXISTS acbr_fiscal_rejections ('+
+  'document_id TEXT PRIMARY KEY, c_stat INTEGER NOT NULL,reason TEXT NOT NULL,reported_at TEXT NOT NULL)');
  const metaFor=id=>db.prepare('SELECT * FROM acbr_fiscal_issuance_meta WHERE document_id=?').get(String(id));
  const draftFor=id=>{
   const draft=drafts.getDocument(id);
@@ -130,6 +132,21 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   });
   return {id,status:'AUTHORIZED',accessKey:key,protocol,xmlSha256:sha(xml)};
  }
+ function rejected(id,result){
+  if(result?.rejected!==true||!result.data)throw Error('Rejeição fiscal não comprovada');
+  const code=Number(result.data.cStat);
+  if(!Number.isSafeInteger(code)||code<200||[204,205,539].includes(code))
+   throw Error('Status SEFAZ ambíguo, requer consulta');
+  const reason=String(result.data.reason||'Documento rejeitado pela SEFAZ').replace(/[\r\n\0]/g,' ').slice(0,180);
+  withTransaction(db,()=>{
+   const changed=db.prepare("UPDATE acbr_fiscal_documents SET status='REJECTED',updated_at=? "+
+    "WHERE id=? AND status='UNKNOWN'").run(now(),id).changes;
+   if(changed!==1)throw Error('Estado fiscal mudou durante rejeição');
+   db.prepare('INSERT INTO acbr_fiscal_rejections(document_id,c_stat,reason,reported_at) VALUES(?,?,?,?)')
+    .run(id,code,reason,now());
+  });
+  return {id,status:'REJECTED',cStat:code,reason,retryAllowed:false};
+ }
  async function issue(id){
   if(allowHomologation!==true)throw Error('Envio fiscal desabilitado; somente homologação habilitada manualmente');
   const draft=draftFor(id);
@@ -150,6 +167,7 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
    const result=await adapter.issue({type:manifest.documentType,reference:meta.reference,
     environment:'homologation',payload:{document:manifest}});
    if(result?.ok)return authorized(id,result);
+   if(result?.rejected===true)return rejected(id,result);
   }catch{/* The worker/SEFAZ state is unknown, so no automatic retry. */}
   return {id,status:'UNKNOWN',requiresConsultation:true};
  }
