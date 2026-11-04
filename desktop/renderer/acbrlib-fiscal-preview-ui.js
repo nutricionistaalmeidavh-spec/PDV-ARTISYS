@@ -164,7 +164,7 @@
    const list=document.createElement('ul');
    for(const d of docs.slice(0,20)){
     const li=document.createElement('li');
-    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?(d.offlineStatus==='PENDING'?' — EMITIDA OFFLINE (fila pendente)':d.offlineStatus==='UNKNOWN'?' — TRANSMISSÃO INDETERMINADA (consultar SEFAZ)':d.offlineStatus==='AUTHORIZED'?' — CONTINGÊNCIA AUTORIZADA':' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)'):''}`;
+    li.textContent=`${d.documentType.toUpperCase()} ${d.series}/${d.number} — Venda ${d.snapshot.sale.saleNumber} — R$ ${(d.totalCents/100).toFixed(2)} — ${d.status}${d.issuanceMode==='nfce-offline'?(d.offlineStatus==='PENDING'?' — EMITIDA OFFLINE (fila pendente)':d.offlineStatus==='UNKNOWN'?' — TRANSMISSÃO INDETERMINADA (consultar SEFAZ)':d.offlineStatus==='AUTHORIZED'?' — CONTINGÊNCIA AUTORIZADA':d.offlineStatus==='REJECTED'?' — NFC-e OFFLINE REJEITADA: consultar contabilidade para regularização':' — CONTINGÊNCIA PREPARADA (não emitida nem autorizada)'):''}`;
     const endpoint=prefix+'/documents/'+encodeURIComponent(d.id);
     const addAction=(title,operation)=>{
       const button=document.createElement('button');button.type='button';button.className='secondary-button';button.textContent=title;
