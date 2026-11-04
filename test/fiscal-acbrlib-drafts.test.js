@@ -86,3 +86,10 @@ test('fiscal remains disabled for real transmissions even with a prepared docume
  assert.throws(()=>service.transmit(draft.id),/homolog|bloquead|desabilitad/i);
  assert.equal(service.getDocument(draft.id).status,'REVIEW_REQUIRED');
 });
+
+test('the same completed sale cannot reserve both NFC-e and NF-e for the same environment',t=>{
+ const {db,service}=make(t);config(service);
+ service.prepareSale('sale-1',{documentType:'nfce'});
+ assert.throws(()=>service.prepareSale('sale-1',{documentType:'nfe'}),/já possui|outra nota|modelo|documento fiscal/i);
+ assert.equal(db.prepare('SELECT COUNT(*) AS n FROM acbr_fiscal_documents').get().n,1);
+});
