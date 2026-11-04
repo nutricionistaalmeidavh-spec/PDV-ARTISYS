@@ -205,7 +205,7 @@ def verified_nfe_rejection(parts, key, environment):
                 values.get("CHDFE") != key or
                 values.get("TPAMB") != environment):
             continue
-        reason = re.sub(r"[\\x00-\\x1f]", " ", values.get("XMOTIVO", ""))[:180].strip()
+        reason = re.sub(r"[\x00-\x1f]", " ", values.get("XMOTIVO", ""))[:180].strip()
         return {"status": "REJEITADA", "cStat": status,
                 "reason": reason or "Rejeição fiscal confirmada", "accessKey": key}
     return None
