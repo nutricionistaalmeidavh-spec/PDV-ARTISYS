@@ -180,6 +180,9 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
    const existing=db.prepare(`SELECT * FROM acbr_fiscal_documents
     WHERE sale_id=? AND document_type=? AND environment=?`).get(String(saleId),documentType,company.environment);
    if(existing)return mapDocument(existing);
+   const sibling=db.prepare('SELECT id,document_type FROM acbr_fiscal_documents WHERE sale_id=? AND environment=? LIMIT 1')
+    .get(String(saleId),company.environment);
+   if(sibling)throw Error('Esta venda já possui documento fiscal de outro modelo: emissão duplicada bloqueada');
    const sale=sales.getSaleDetails(saleId);
    if(!sale)throw Error('Venda não encontrada');
    const snapshot=buildSnapshot(sale,company,documentType);
