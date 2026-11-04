@@ -7,6 +7,7 @@ no INI da ACBrLib, fora do banco de dados e do payload do Node.
 NENHUM retorno é marcado AUTORIZADA sem resposta e XML de autorização.
 """
 import configparser
+import base64
 import ctypes as ct
 from decimal import Decimal, InvalidOperation
 import json
@@ -252,6 +253,41 @@ def nfe_transmit(lib, req):
             "xml": received}
 
 
+def verify_danfe_pdf(encoded):
+    """Never treat an arbitrary string or PDF-like text as an ACBr DANFE."""
+    if not isinstance(encoded, str) or not encoded or len(encoded) > 4 * 1024 * 1024:
+        raise ACBrError("DANFE fiscal ausente ou excessivo")
+    try:
+        value = base64.b64decode(encoded, validate=True)
+    except (ValueError, base64.binascii.Error):
+        raise ACBrError("ACBr devolveu PDF Base64 inválido")
+    if len(value) < 16 or len(value) > 3 * 1024 * 1024 or not value.startswith(b"%PDF-") or b"%%EOF" not in value[-128:]:
+        raise ACBrError("ACBr não devolveu DANFE PDF válido")
+    return encoded
+
+
+def nfe_danfe(lib, req):
+    if req.get("kind") != "NFE" or req.get("operation") != "pdf":
+        raise ACBrError("Operação PDF fiscal inválida")
+    xml_path = Path(req.get("xmlPath", ""))
+    if not xml_path.is_file() or not xml_path.name.endswith(".authorized.xml"):
+        raise ACBrError("DANFE exige XML autorizado local")
+    authorized = xml_path.read_text(encoding="utf-8-sig")
+    if not authorized_nfe_xml(authorized, req.get("protocol", "")):
+        raise ACBrError("DANFE exige protocolo validado")
+    key, number, series, environment, issuer = nfe_identity(authorized)
+    ensure_signed_number(req, key, number, series)
+    if find_text(root_or_none(authorized), "mod") != str(req["model"]) or nfe_total_cents(authorized) != int(req["amountCents"]):
+        raise ACBrError("XML do DANFE diverge da venda canônica")
+    expected = "2" if req["environment"] == "HOMOLOGACAO" else "1"
+    if environment != expected or issuer != req["issuerCnpj"]:
+        raise ACBrError("XML do DANFE diverge de emitente ou ambiente")
+    do(lib, "NFE_LimparLista")
+    do(lib, "NFE_CarregarXML", encoded(str(xml_path)), types=[ct.c_char_p])
+    pdf_base64 = response(lib, "NFE_SalvarPDF")
+    return {"status":"PDF_READY", "pdfBase64":verify_danfe_pdf(pdf_base64)}
+
+
 def nfe_consult(lib, req):
     path = Path(req["iniPath"]).with_suffix(".signed.xml")
     if not path.is_file():
@@ -360,7 +396,7 @@ def probe_library(path):
 
 
 def execute(req):
-    if req.get("operation") not in ("transmit", "consult") or req.get("kind") not in ("NFE", "NFSE"):
+    if req.get("operation") not in ("transmit", "consult", "pdf") or req.get("kind") not in ("NFE", "NFSE"):
         raise ACBrError("Operação fiscal inválida")
     if req.get("environment") not in ("HOMOLOGACAO", "PRODUCAO"):
         raise ACBrError("Ambiente fiscal não identificado")
@@ -377,7 +413,11 @@ def execute(req):
            types=[ct.c_char_p, ct.c_char_p])
         initialized = True
         if req["kind"] == "NFE":
+            if req["operation"] == "pdf":
+                return nfe_danfe(lib, req)
             return nfe_transmit(lib, req) if req["operation"] == "transmit" else nfe_consult(lib, req)
+        if req["operation"] == "pdf":
+            raise ACBrError("PDF NFSe fora do escopo ACBr NFe")
         return nfse_transmit(lib, req) if req["operation"] == "transmit" else nfse_consult(lib, req)
     finally:
         if initialized:
