@@ -118,3 +118,90 @@ concluídos. O core permanece R$ 0, local-first e sem API fiscal paga obrigatór
 
 Fontes: https://projetoacbr.com.br/fontes/ e
 https://acbr.sourceforge.io/ACBrLib/BemVindo.html
+
+
+## Continuação de integração — preparação canônica e interface opcional
+
+A implementação atual inclui:
+
+- `server/acbrlib/fiscal-draft-service.js`: extensão SQLite aditiva, carregada
+  somente quando a API opcional de laboratório é habilitada. Preserva
+  cadastro público da empresa, perfis fiscais revisados por produto,
+  sequência e snapshot imutável da venda.
+- `server/acbrlib/fiscal-preview-router.js`: API administrativa autenticada
+  de configuração, perfis e rascunhos; nega tentativa de transmissão.
+- `desktop/renderer/acbrlib-fiscal-preview-ui.js`: cartão de Configurações
+  com razão social/CNPJ/IE/CRT/série, perfil por produto (NCM/CEST/CFOP/
+  CST/CSOSN/PIS/COFINS/IBS-CBS) e escolha da venda concluída.
+- `server/acbrlib/bundle-verifier.js`: verifica SHA-256, origem, formato,
+  DLL, worker, dependências, arquitetura Windows x64 e aviso de licença.
+- `scripts/fiscal/build-windows-lab.ps1`: constrói o ACBr OSS via SVN,
+  Lazarus/FPC e PyInstaller, cria um NSIS **separado** de laboratório
+  em `dist-fiscal-lab/`. Não publica Release, não toca em `dist/`.
+  
+### Ativação do laboratório (sem emissão)
+
+**Por padrão não há endpoint fiscal, migração fiscal, card nem emissão.**
+Somente em execução de desenvolvimento, no próprio PC servidor:
+
+```powershell
+$env:ARTISYS_FISCAL_PREVIEW='1'
+npm start
+```
+
+No servidor `server/start.js`, o modo só é permitido no host loopback.
+No Electron, só é permitido quando `app.isPackaged === false`;
+não pode ser ativado por variável de ambiente no instalador comercial.
+
+Rotas autenticadas, restritas à capacidade `settings.manage`:
+
+```text
+GET   /api/v1/fiscal-preview/status
+GET   /api/v1/fiscal-preview/company
+PUT   /api/v1/fiscal-preview/company
+GET   /api/v1/fiscal-preview/products/:productId
+PUT   /api/v1/fiscal-preview/products/:productId
+GET   /api/v1/fiscal-preview/documents
+GET   /api/v1/fiscal-preview/documents/:id
+POST  /api/v1/fiscal-preview/sales/:saleId/prepare
+POST  /api/v1/fiscal-preview/documents/:id/transmit -> bloqueio 409
+```
+
+O motor de venda do PDV continua canônico. O rascunho só aceita uma
+venda `COMPLETED`, valida subtotais, descontos alocados por item,
+pagamentos menos troco e quantidade com até três casas. Não recalcula
+impostos, movimenta estoque, grava pagamento, imprime DANFE ou emite NF.
+A mesma venda/tipo/ambiente usa a mesma numeração e documento, inclusive
+após reinício. A configuração tributária é revisada pelo operador,
+nunca inferida automaticamente.
+
+Testes:
+
+```bash
+node --test test/fiscal-acbrlib-oss.test.js test/fiscal-acbrlib-drafts.test.js test/fiscal-acbrlib-preview-api.test.js test/fiscal-acbrlib-bundle.test.js test/fiscal-acbrlib-build-config.test.js
+python3 -m unittest discover -s test/python -p 'test_acbrlib_worker.py'
+```
+
+### Empacotamento separado de laboratório
+
+No builder Windows x64 com toolchains OSS instaladas:
+
+```powershell
+./scripts/fiscal/build-windows-lab.ps1 -Revision 48608
+```
+
+O processo falha se faltar fonte, DLL, worker, dependência ou hash.
+O instalador comercial padrão permanece **sem recursos fiscais**, e
+o pacote de laboratório também **não habilita** emissão no Electron
+empacotado. É apenas verificação de distribuição, sujeito a smoke
+Windows e QA físico. O build nativo de verdade ainda não foi
+comprovado em CI/hardware.
+
+### Pendências reais de emissão
+
+Ainda falta integrar o rascunho revisado a um gerador de INI tributário
+completo e validado contra os schemas vigentes, certificado A1/CSC,
+emissão/resposta da ACBrLib no runtime, reconciliação e cancelamento,
+DANFE, contingência e evidência de autorização real da SEFAZ.
+Sem isso, a emissão fiscal permanece **indisponível**, mesmo com dados
+e rascunhos preenchidos. Nenhum serviço pago é dependência do core.
