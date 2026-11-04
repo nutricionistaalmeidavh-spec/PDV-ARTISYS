@@ -1491,16 +1491,9 @@
       "timeoutMs": 15000
     },
     {
-      "action": "fill",
-      "selector": "#report-v2-filter input[name='fromDate']",
-      "value": "01/10/2026",
-      "name": "relatorios-data-inicial-fixada-pelo-qa",
-      "timeoutMs": 10000
-    },
-    {
       "action": "expectValue",
       "selector": "#report-v2-filter input[name='fromDate']",
-      "expected": "01/10/2026",
+      "expected": "@current-month-start:pt-BR",
       "name": "relatorios-data-inicial-ptbr",
       "timeoutMs": 10000
     },

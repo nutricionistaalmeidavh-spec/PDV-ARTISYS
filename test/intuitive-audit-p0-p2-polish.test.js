@@ -38,7 +38,9 @@ test('date entry surfaces are explicit pt-BR instead of browser-locale native da
   assert.match(wholesale,/data-datetime-ptbr/);
 
   const steps=flow().steps;
-  assert.equal(steps.some(step=>step.name==='relatorios-data-inicial-ptbr'&&step.action==='expectValue'&&step.expected==='01/10/2026'),true);
+  assert.equal(steps.some(step=>step.name==='relatorios-data-inicial-ptbr'&&step.action==='expectValue'&&step.expected==='@current-month-start:pt-BR'),true);
+  const qaRunner=read('qa/runtime/src/steps.js');
+  assert.match(qaRunner,/step\.expected==='@current-month-start:pt-BR'\?monthStartPtBr\(\)/);
   assert.equal(steps.some(step=>step.name==='atacado-previsao-ptbr'&&step.action==='expectValue'&&step.expected==='08/10/2026 17:00'),true);
 });
 

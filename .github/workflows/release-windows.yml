@@ -18,7 +18,7 @@ concurrency:
 jobs:
   windows-package:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,8 +52,40 @@ jobs:
       - name: Apply release version
         shell: pwsh
         run: npm version $env:RELEASE_VERSION --no-git-tag-version --allow-same-version
-      - name: Build Windows x64 installer
-        run: npm run dist:win
+      - name: Install OSS Windows compiler prerequisites
+        shell: pwsh
+        run: |
+          choco install lazarus --version=4.0.0 --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'Lazarus/FPC OSS installation failed' }
+          choco install sliksvn --version=1.14.5 --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'SlikSVN OSS installation failed' }
+          # The Chocolatey package can omit bin from PATH. Persist it across Actions steps.
+          $svnBin = Join-Path $env:ProgramFiles 'SlikSvn\bin'
+          if (!(Test-Path (Join-Path $svnBin 'svn.exe'))) { throw 'svn.exe missing after installing SlikSVN' }
+          $env:PATH = "$svnBin;$env:PATH"
+          Add-Content -Path $env:GITHUB_PATH -Value $svnBin
+          & svn --version --quiet
+          if ($LASTEXITCODE -ne 0) { throw 'Subversion CLI probe failed' }
+          $env:PATH = [Environment]::GetEnvironmentVariable('PATH','Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH','User')
+          $lazbuild = 'C:\lazarus\lazbuild.exe'
+          if (!(Test-Path $lazbuild)) {
+            $cmd = Get-Command lazbuild -ErrorAction SilentlyContinue
+            if (!$cmd) { throw 'Lazarus compiler missing after installation' }
+            $lazbuild = $cmd.Source
+          }
+          & $lazbuild --version
+          if ($LASTEXITCODE -ne 0) { throw 'Lazarus toolchain not available' }
+      - name: Build and verify native ACBr OSS bundle
+        shell: pwsh
+        run: |
+          $env:PATH = [Environment]::GetEnvironmentVariable('PATH','Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH','User')
+          & ./scripts/fiscal/build-windows-native.ps1
+      - name: Build Windows x64 installer (native ACBr bundled, production emission still disabled)
+        run: npm run dist:win:fiscal
+      - name: Verify packaged native resources
+        shell: pwsh
+        run: |
+          node -e "const {verifyAcbrBundle}=require('./server/acbrlib/bundle-verifier');const path=require('path');const result=verifyAcbrBundle({resourcesPath:path.resolve('dist/win-unpacked/resources'),platform:'win32',arch:'x64'});if(!result.valid)throw Error('Packaged ACBr bundle invalid: '+result.reason);console.log('ACBr revision',result.revision)"
       - name: Smoke test packaged Windows app
         shell: pwsh
         run: |

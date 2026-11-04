@@ -1,3 +1,4 @@
+import { monthStartPtBr } from './date-assertions.js';
 import path from 'node:path';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
@@ -393,7 +394,8 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
       const target = locator(page, step);
       await target.waitFor({ state: 'visible', timeout: step.timeoutMs });
       const actual = await target.inputValue();
-      if (actual !== String(step.expected)) throw new Error(`${label}: expected value ${JSON.stringify(String(step.expected))}, got ${JSON.stringify(actual)}`);
+      const expected=step.expected==='@current-month-start:pt-BR'?monthStartPtBr():String(step.expected);
+      if (actual !== expected) throw new Error(`${label}: expected value ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
       break;
     }
     case 'expectSameRow': {
