@@ -189,5 +189,14 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         with self.assertRaises(worker.ACBrError):
             worker.configure_nfe_emission(object(),{"issuanceMode":"nfce-offline","model":55})
 
+
+    def test_native_windows_probe_requires_cce_and_offline_exports(self):
+        exports=worker.required_exports("NFE")
+        for name in ("NFE_EnviarEvento", "NFE_CarregarEventoINI",
+                     "NFE_ConfigGravarValor", "NFE_Assinar",
+                     "NFE_Validar", "NFE_ObterXml"):
+            self.assertIn(name,exports)
+        self.assertNotIn("NFE_EnviarEvento",worker.required_exports("NFSE"))
+
 if __name__ == "__main__":
     unittest.main()
