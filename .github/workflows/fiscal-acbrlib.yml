@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Install core dependencies
+        run: npm ci --no-audit --no-fund
       - name: Contract tests without SEFAZ or paid provider
         run: node --test test/fiscal-acbrlib-oss.test.js test/fiscal-acbrlib-drafts.test.js test/fiscal-acbrlib-preview-api.test.js
       - name: Native worker Python invariants
