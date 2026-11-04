@@ -747,7 +747,7 @@
       <button type="button" class="secondary-button" id="integrated-back">Voltar</button>
       ${intent.brCode?'<button type="button" class="secondary-button" id="integrated-copy">Copiar Pix</button>':''}
       ${intent.channel==='PIX_STATIC'&&intent.status==='PENDING'?'<button type="button" class="secondary-button" id="integrated-cancel">Cancelar QR</button><button type="button" class="primary-button" id="integrated-manual">Conferi o crédito no banco</button>':''}
-      ${intent.channel==='PIX_API'&&['PENDING','REVIEW'].includes(intent.status)?'<button type="button" class="primary-button" id="integrated-reconcile">Verificar no banco</button>':''}
+      ${['PIX_API','TEF'].includes(intent.channel)&&['PENDING','REVIEW'].includes(intent.status)?'<button type="button" class="primary-button" id="integrated-reconcile">'+(intent.channel==='TEF'?'Consultar operadora TEF':'Verificar no banco')+'</button>':''}
     </div>`;
   openModal(isPix?'Pagamento Pix':'Pagamento TEF',html,{wide:true,onMount(root){
     root.querySelector('#integrated-back')?.addEventListener('click',renderPaymentModal);
