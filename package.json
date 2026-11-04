@@ -75,7 +75,6 @@
       "release/**/*",
       "vendor/**/*",
       "package.json",
-      "!desktop/fiscal-*.cjs",
       "!desktop/nfse-provider-resolver.cjs",
       "!desktop/renderer/fiscal-*",
       "!desktop/renderer/nfse-*",
