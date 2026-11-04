@@ -187,8 +187,8 @@ function createPaymentIntentService({
     }
   }
   function assertCancellationAllowed(saleId){
-    const row=db.prepare("SELECT id FROM payment_intents WHERE sale_id=? AND status='CONSUMED' AND channel<>'PIX_STATIC' LIMIT 1").get(String(saleId));
-    if(row)throw new Error('Venda com Pix bancario ou TEF integrado exige estorno/conciliacao externa antes do cancelamento.');
+    const row=db.prepare("SELECT id FROM payment_intents WHERE sale_id=? AND status='CONSUMED' LIMIT 1").get(String(saleId));
+    if(row)throw new Error('Venda com pagamento integrado exige estorno/conciliacao externa antes do cancelamento.');
   }
   function fiscalReferences(saleId){
     return listBySale(saleId).filter(x=>x.status==='CONSUMED').map(x=>({
