@@ -132,3 +132,26 @@ test('officially matched rejection is not mistaken for network failure, nor retr
   status:'REJEITADA',environment:'HOMOLOGACAO',accessKey:'0'.repeat(44),cStat:778,reason:'bad'})});
  assert.equal((await mismatched.issue(request(f))).indeterminate,true);
 });
+
+test('native ACBr uses an ephemeral credential configuration and removes it on success, failure and status checks',async t=>{
+  const f=fixture(t),original=fs.readFileSync(f.options.nfeConfig);
+  fs.rmSync(f.options.nfeConfig);
+  let leases=0;
+  const withConfig=async operation=>{
+    leases++;
+    fs.writeFileSync(f.options.nfeConfig,original);
+    try{return await operation();}finally{fs.rmSync(f.options.nfeConfig,{force:true});}
+  };
+  const adapter=createAcbrLibAdapter({...f.options,withConfig,runner:async()=>{
+    assert.equal(fs.existsSync(f.options.nfeConfig),true);
+    return authorized;
+  }});
+  assert.equal((await adapter.status()).data.ready,true);
+  assert.equal(fs.existsSync(f.options.nfeConfig),false);
+  assert.equal((await adapter.issue(request(f))).ok,true);
+  assert.equal(fs.existsSync(f.options.nfeConfig),false);
+  assert.ok(leases>=2);
+  const bad=createAcbrLibAdapter({...f.options,withConfig,runner:async()=>{throw Error('worker crashed')}});
+  assert.equal((await bad.issue(request(f))).indeterminate,true);
+  assert.equal(fs.existsSync(f.options.nfeConfig),false);
+});
