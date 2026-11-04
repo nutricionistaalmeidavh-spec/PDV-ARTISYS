@@ -249,7 +249,7 @@ function compileAcbrIni({document,issuedAt,cNF,recipient}={}){
  const ini=lines.join('\n').replace(/\n{3,}/g,'\n\n')+'\n';
  return {reference,ini,manifest:{
   reference,documentType:s.documentType,snapshotHash:document.snapshotHash,
-  amountCents:s.totalCents,issuerCnpj:s.issuer.cnpj,
+  amountCents:s.totalCents,issuerCnpj:s.issuer.cnpj,issuerUF:s.issuer.uf,
   environment:'homologation',model:s.model,lot:document.number,number:document.number,series:document.series,cNF:c,
   iniSha256:createHash('sha256').update(ini).digest('hex')
  }};
