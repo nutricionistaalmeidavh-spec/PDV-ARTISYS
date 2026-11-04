@@ -653,3 +653,7 @@ textarea:focus-visible,
 .delivery-address-grid { margin-top: var(--space-2); }
 .catalog-supplier-management { margin-top: var(--space-3); }
 .hardware-scale-status.is-error { color: var(--danger-text); }
+
+/* Payment QR stays inside compact checkout modals and remains readable offline. */
+.pix-qr {max-width:260px; margin:12px auto; overflow:hidden;}
+.pix-qr svg {display:block;max-width:100%;height:auto;margin:0 auto;}
