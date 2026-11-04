@@ -184,3 +184,11 @@ test('desktop operator can issue NFC-e offline, save contingency DANFE and flush
  assert.match(main,/offline-danfe\.pdf/);
  assert.match(preload,/saveOfflineDanfe/);
 });
+
+
+test('offline issuance UI never labels a rejected or unknown issued NFC-e as an unissued draft',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/d\.offlineStatus==='REJECTED'/);
+ assert.match(ui,/contabilidade|regulariza/i);
+ assert.match(ui,/d\.offlineStatus==='UNKNOWN'/);
+});
