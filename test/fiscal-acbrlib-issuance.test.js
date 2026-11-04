@@ -296,3 +296,49 @@ test('offline NFC-e preparation is forbidden for NF-e model 55 and for disabled 
  const reason={reason:'Falha de conexao com a SEFAZ durante o teste da loja'};
  assert.throws(()=>svc.prepare(f.draft.id,{contingency:reason}),/NFC-e|65|conting[eê]ncia/i);
 });
+
+
+test('offline issue seals signed NFC-e, DANFE and durable queue before any SEFAZ send',async t=>{
+ let sent=0;
+ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+ const f=fixture(t,{offlineIssue:async()=>({
+  ok:true,data:{accessKey:'1'.repeat(44),xml:'<signed-nfce/>',pdfBase64:pdf.toString('base64')}
+ }),issue:async()=>{sent++;throw Error('No network expected')}});
+ const svc=f.build(true);
+ const prepared=svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de conexão com a SEFAZ durante o atendimento'}});
+ const result=await svc.offlineIssue(f.draft.id);
+ assert.equal(result.status,'ISSUED_OFFLINE');
+ assert.equal(sent,0);
+ assert.equal(svc.listOfflineQueue()[0].status,'PENDING');
+ assert.deepEqual(svc.getOfflineDanfe(f.draft.id),pdf);
+ assert.equal(fs.readFileSync(path.join(f.inputDir,prepared.reference+'.signed.xml'),'utf8'),'<signed-nfce/>');
+ const afterRestart=f.build(true);
+ assert.equal(afterRestart.listOfflineQueue()[0].status,'PENDING');
+ await assert.rejects(()=>afterRestart.offlineIssue(f.draft.id),/emitid|fila|assinad/i);
+});
+
+test('offline queue submits the original signed XML once; unknown outcome stays locked after restart',async t=>{
+ let count=0;
+ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+ const f=fixture(t,{offlineIssue:async()=>({ok:true,data:{accessKey:'1'.repeat(44),xml:'<signed-nfce/>',pdfBase64:pdf.toString('base64')}}),
+  transmitSigned:async()=>{count++;throw Error('timeout');}});
+ const svc=f.build(true);
+ svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de conexão com a SEFAZ durante o atendimento'}});
+ await svc.offlineIssue(f.draft.id);
+ const outcome=await svc.flushOfflineQueue();
+ assert.equal(outcome[0].status,'UNKNOWN');
+ assert.equal(count,1);
+ const restart=f.build(true);
+ assert.equal(restart.listOfflineQueue()[0].status,'UNKNOWN');
+ const repeated=await restart.flushOfflineQueue();
+ assert.equal(repeated.length,0);
+ assert.equal(count,1);
+});
+
+test('normal invoice and unsigned contingency can never enter offline transmission queue',async t=>{
+ const f=fixture(t,{offlineIssue:async()=>({ok:true})});
+ const svc=f.build(true);
+ svc.prepare(f.draft.id);
+ await assert.rejects(()=>svc.offlineIssue(f.draft.id),/conting|offline|modo/i);
+ assert.equal(svc.listOfflineQueue().length,0);
+});
