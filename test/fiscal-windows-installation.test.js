@@ -151,3 +151,13 @@ test('CI new-PC smoke uses isolated Electron userData instead of trusting APPDAT
  assert.match(workflow,/ARTISYS_QA_USERDATA_DIR/);
  assert.match(workflow,/pdv-artisys\.sqlite/);
 });
+
+
+test('fiscal settings expose accountant-reviewed CC-e only on authorized NF-e',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.match(ui,/d\.documentType==='nfe'/);
+ assert.match(ui,/endpoint\+'\/cce'/);
+ assert.match(ui,/confirmNoMaterialChange/);
+ assert.match(ui,/replacesPrevious/);
+ assert.match(ui,/Contabilidade|contador/i);
+});
