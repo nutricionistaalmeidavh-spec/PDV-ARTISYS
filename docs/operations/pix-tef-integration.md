@@ -77,6 +77,14 @@ PDV_PAYGO_INTEGRATION_KEY=<chave-fornecida-ao-estabelecimento>
 PDV_PAYGO_TERMINAL_ID=<id-do-terminal-cadastrado>
 ```
 
+Se o PDV tem **vários caixas LAN**, não reutilize um único PinPad. Substitua a variável de terminal fixo pelo mapa JSON abaixo, configurado apenas no servidor:
+
+```text
+PDV_PAYGO_TERMINAL_MAP={"T1":"1234","T2":"5678"}
+```
+
+As chaves são os IDs dos terminais locais da venda e os valores são os IDs PayGo cadastrados. Uma venda originada em terminal ausente do mapa é bloqueada, sem cobrar no equipamento de outro caixa.
+
 Para produção, substitua o endereço sandbox pela URL da conta fornecida pela PayGo e conclua o roteiro de homologação do provedor. A API PayGo ControlPay requer acesso ao servidor do prestador; **não é um sistema TEF self-hosted**. A opção `PDV_TEF_BRIDGE_EXE` continua disponível para um bridge nativo ACBr/SiTef/PayGo **separado**, com caminho absoluto; ele tem precedência sobre o ControlPay quando ambas as configurações estiverem presentes.
 
 Fluxo de uso: no checkout, selecione débito/crédito, escolha **Cartão integrado**, aguarde o PayGo Windows/PinPad, clique **Consultar operadora TEF** e conclua a venda **somente quando o status for Confirmado**. Após falha de rede ou queda de energia, use a consulta pela mesma tentativa; nunca lance outra cobrança sem reconciliar a pendência.
