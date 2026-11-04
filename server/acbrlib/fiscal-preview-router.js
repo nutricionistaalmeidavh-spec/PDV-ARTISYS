@@ -26,7 +26,8 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
  const issuance=adapter?createFiscalIssuanceService({
   db:runtime.db,drafts:service,adapter,inputDir:nativeOptions.inputDir,
   allowHomologation:nativeOptions.allowHomologation===true,
-  now:nativeOptions.now,randomCNF:nativeOptions.randomCNF
+  ...(typeof nativeOptions.now==='function'?{now:nativeOptions.now}:{}),
+  ...(typeof nativeOptions.randomCNF==='function'?{randomCNF:nativeOptions.randomCNF}:{})
  }):null;
  const nativeConfigured=Boolean(nativeOptions?.inputDir&&nativeOptions?.nfeLib&&nativeOptions?.nfeConfig&&nativeOptions?.workerExe);
 
