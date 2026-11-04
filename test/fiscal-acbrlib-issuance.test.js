@@ -298,11 +298,19 @@ test('offline NFC-e preparation is forbidden for NF-e model 55 and for disabled 
 });
 
 
+
+function offlineSignedFixture(){
+ const raw='3526111234567800019565001000000001912345678';
+ let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(raw[i])*weight;weight=weight===9?2:weight+1;}
+ const dv=11-sum%11,key=raw+(dv>=10?0:dv);
+ return {accessKey:key,xml:'<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><tpEmis>9</tpEmis></ide></infNFe><Signature/><infNFeSupl><qrCode>https://sefaz.test/?p='+key+'</qrCode></infNFeSupl></NFe>'};
+}
+
 test('offline issue seals signed NFC-e, DANFE and durable queue before any SEFAZ send',async t=>{
  let sent=0;
  const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
  const f=fixture(t,{offlineIssue:async()=>({
-  ok:true,data:{accessKey:'1'.repeat(44),xml:'<signed-nfce/>',pdfBase64:pdf.toString('base64')}
+  ok:true,data:{...offlineSignedFixture(),pdfBase64:pdf.toString('base64')}
  }),issue:async()=>{sent++;throw Error('No network expected')}});
  const svc=f.build(true);
  const prepared=svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de conexão com a SEFAZ durante o atendimento'}});
@@ -311,7 +319,7 @@ test('offline issue seals signed NFC-e, DANFE and durable queue before any SEFAZ
  assert.equal(sent,0);
  assert.equal(svc.listOfflineQueue()[0].status,'PENDING');
  assert.deepEqual(svc.getOfflineDanfe(f.draft.id),pdf);
- assert.equal(fs.readFileSync(path.join(f.inputDir,prepared.reference+'.signed.xml'),'utf8'),'<signed-nfce/>');
+ assert.equal(fs.readFileSync(path.join(f.inputDir,prepared.reference+'.signed.xml'),'utf8'),offlineSignedFixture().xml);
  const afterRestart=f.build(true);
  assert.equal(afterRestart.listOfflineQueue()[0].status,'PENDING');
  await assert.rejects(()=>afterRestart.offlineIssue(f.draft.id),/emitid|fila|assinad/i);
@@ -320,7 +328,7 @@ test('offline issue seals signed NFC-e, DANFE and durable queue before any SEFAZ
 test('offline queue submits the original signed XML once; unknown outcome stays locked after restart',async t=>{
  let count=0;
  const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
- const f=fixture(t,{offlineIssue:async()=>({ok:true,data:{accessKey:'1'.repeat(44),xml:'<signed-nfce/>',pdfBase64:pdf.toString('base64')}}),
+ const f=fixture(t,{offlineIssue:async()=>({ok:true,data:{...offlineSignedFixture(),pdfBase64:pdf.toString('base64')}}),
   transmitSigned:async()=>{count++;throw Error('timeout');}});
  const svc=f.build(true);
  svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de conexão com a SEFAZ durante o atendimento'}});
