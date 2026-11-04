@@ -14,7 +14,11 @@ function createWindowsFiscalInstallerConfig({packageBuild,resourcesPath}={}){
  const config=JSON.parse(JSON.stringify(packageBuild));
  if((config.extraResources||[]).length)throw Error('Recursos adicionais inesperados no instalador');
  config.extraResources=[{from:'build/fiscal',to:'fiscal',filter:['**/*']}];
- config.publish=[]; // Release workflow publishes approved installer + updater metadata.
+ // Keep GitHub publish provider so electron-builder generates latest.yml and
+ // blockmaps for the existing updater. The build CLI uses --publish never;
+ // only the guarded release workflow may upload artifacts.
+ if(!Array.isArray(config.publish)||!config.publish.some(p=>p.provider==='github'))
+  throw Error('Canal GitHub do atualizador ArtiSys ausente');
  config.directories={...config.directories,output:'dist'};
  config.win={...config.win,artifactName:'ArtiSys-PDV-${version}-${arch}-Setup.${ext}'};
  config.nsis={...config.nsis,deleteAppDataOnUninstall:false};
