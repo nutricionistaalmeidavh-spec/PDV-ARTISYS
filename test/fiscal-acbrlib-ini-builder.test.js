@@ -105,7 +105,7 @@ test('retained ICMS-ST in CSOSN 500 is recorded without duplicating ST due',()=>
 });
 test('ST due is not emitted until commercial settlement includes the extra fiscal amount',()=>{
  const d=example(),p=d.snapshot.items[0].taxProfile;
- p.csosn='202';p.icmsSt={baseCents:2400,rate:'18.0000',amountCents:432};
+ p.csosn='202';p.cfop='5403';p.cest='1701200';p.icmsSt={baseCents:2400,rate:'18.0000',amountCents:432};
  assert.throws(()=>build(rehash(d)),/ICMS ST|total comercial/i);
 });
 test('reviewed card acquirer metadata becomes ACBr card payment fields, never card PAN',()=>{
