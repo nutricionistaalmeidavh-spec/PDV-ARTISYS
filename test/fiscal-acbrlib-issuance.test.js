@@ -150,3 +150,49 @@ test('wrong PDF magic and missing ACBr renderer never create fake DANFE',async t
  await assert.rejects(()=>svc.danfe(f.draft.id),/PDF|ACBr|inválid/i);
  assert.equal(fs.existsSync(path.join(f.inputDir,ready.reference+'.danfe.pdf')),false);
 });
+
+test('official cancellation is durable, requires authorization, and never repeats the SEFAZ event',async t=>{
+ let cancelCalls=0;
+ const key='1'.repeat(44);
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:key,protocolo:'135260000000001',xml:'<authorized/>'}}),
+  cancel:async args=>{cancelCalls++;assert.equal(args.accessKey,key);return{ok:true,data:{
+   accessKey:key,cStat:135,eventProtocol:'135260000000333'}};}});
+ const svc=f.build(true),ready=svc.prepare(f.draft.id);
+ await assert.rejects(()=>svc.cancel(f.draft.id,{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}),/autoriza|emitida/i);
+ await svc.issue(f.draft.id);
+ const response=await svc.cancel(f.draft.id,{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'});
+ assert.equal(response.status,'CANCELLED');
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'CANCELLED');
+ assert.equal(svc.getCancellationStatus(f.draft.id).eventProtocol,'135260000000333');
+ await assert.rejects(()=>svc.cancel(f.draft.id,{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}),/cancelamento|consult|autorizad/i);
+ assert.equal(cancelCalls,1);
+});
+test('unconfirmed cancellation persists UNKNOWN and cannot be retransmitted after a restart',async t=>{
+ let calls=0;const key='1'.repeat(44);
+ const f=fixture(t,{issue:async()=>({ok:true,data:{chave_nfe:key,protocolo:'135260000000001',xml:'<authorized/>'}}),
+  cancel:async()=>{calls++;throw Error('timeout')}});
+ const svc=f.build(true);svc.prepare(f.draft.id);await svc.issue(f.draft.id);
+ const result=await svc.cancel(f.draft.id,{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'});
+ assert.equal(result.status,'UNKNOWN');
+ const resumed=f.build(true);
+ assert.equal(resumed.getCancellationStatus(f.draft.id).status,'UNKNOWN');
+ await assert.rejects(()=>resumed.cancel(f.draft.id,{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}),/consulta|anterior|cancelamento/i);
+ assert.equal(calls,1);
+});
+test('inutilization only covers unreferenced historical gaps and never sends a duplicate range',async t=>{
+ let calls=0;
+ const f=fixture(t,{issue:async()=>({ok:false}),inutilize:async request=>{
+  calls++;assert.equal(request.environment,'homologation');
+  return{ok:true,data:{cStat:102,year:2026,model:65,series:1,
+   startNumber:2,endNumber:3,eventProtocol:'135260000000444'}};}});
+ const svc=f.build(true);svc.prepare(f.draft.id);
+ f.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=5 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
+ await assert.rejects(()=>svc.inutilize({model:65,series:1,year:2026,startNumber:1,endNumber:2,
+   reason:'FAIXA NUMERICA NAO UTILIZADA'}),/documento|utilizad|nota/i);
+ const req={model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'};
+ const result=await svc.inutilize(req);
+ assert.equal(result.status,'CONFIRMED');
+ assert.equal(calls,1);
+ await assert.rejects(()=>svc.inutilize(req),/duplicad|faixa|consulta|anterior/i);
+ assert.equal(calls,1);
+});
