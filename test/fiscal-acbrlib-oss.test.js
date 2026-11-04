@@ -95,3 +95,27 @@ test('ACBrLib cannot authorize a different invoice number, serie, issuer or key'
   assert.equal(result.indeterminate,true);
  }
 });
+
+test('ACBr private production mode is refused before native worker even if manifest is homologation',async t=>{
+  const f=fixture(t);
+  const config=f.options.nfeConfig;
+  const safe=fs.readFileSync(config,'utf8');
+  fs.writeFileSync(config,safe.replace('Ambiente=1','Ambiente=0'));
+  let invoked=false;
+  const adapter=createAcbrLibAdapter({...f.options,runner:async()=>{invoked=true;return authorized;}});
+  const result=await adapter.issue(request(f));
+  assert.equal(result.ok,false);
+  assert.equal(invoked,false);
+});
+test('ACBr private config cannot use mismatched issuer UF or missing CSC',async t=>{
+ const f=fixture(t);
+ const config=f.options.nfeConfig;
+ const src=fs.readFileSync(config,'utf8');
+ let invoked=false;
+ const adapter=createAcbrLibAdapter({...f.options,runner:async()=>{invoked=true;return authorized;}});
+ fs.writeFileSync(config,src.replace('UF=SP','UF=RJ'));
+ assert.equal((await adapter.issue(request(f))).ok,false);
+ fs.writeFileSync(config,src.replace('CSC=TEST_CSC','CSC='));
+ assert.equal((await adapter.issue(request(f))).ok,false);
+ assert.equal(invoked,false);
+});
