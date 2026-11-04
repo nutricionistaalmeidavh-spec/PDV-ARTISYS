@@ -28,6 +28,7 @@ function createPaymentIntentRouter({runtime,sessionStore,bodyLimitBytes=1024*102
         requireCapability(session,'sales.view');
         json(res,200,service.capabilities());return true;
       }
+      if(req.method==='GET'&&pathname==='/api/v1/payment-intents/capabilities'){requireCapability(session,'sales.view');json(res,200,service.capabilities());return true;}
       const idMatch=pathname.match(/^\/api\/v1\/payment-intents\/([^/]+)(?:\/(start|reconcile|confirm-manual|cancel))?$/);
       if(req.method==='POST'&&pathname==='/api/v1/payment-intents'){
         requireCapability(session,'sales.create');
