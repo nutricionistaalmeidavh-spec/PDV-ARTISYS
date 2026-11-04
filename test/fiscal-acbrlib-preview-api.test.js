@@ -22,6 +22,9 @@ async function setup({enabled=false,native=false}={}){
   now:()=> '2026-11-04T15:00:00-03:00',randomCNF:()=> '00000011',
   runner:async req=>{
    nativeCalls++;
+   if(req.operation==='cancel')return {status:'CANCELADA',environment:'HOMOLOGACAO',accessKey:req.accessKey,cStat:135,eventProtocol:'135260000000333'};
+   if(req.operation==='inutilize')return {status:'INUTILIZADA',environment:'HOMOLOGACAO',issuerCnpj:req.issuerCnpj,cStat:102,
+    model:req.model,series:req.series,startNumber:req.startNumber,endNumber:req.endNumber,eventProtocol:'135260000000444'};
    const base='35'+'2611'+'12345678000195'+'65'+'001'+'000000001'+'1'+'00000011';
    let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(base[i])*weight;weight=weight===9?2:weight+1;}
    const value=11-(sum%11),key=base.slice(0,43)+String(value>=10?0:value);
@@ -111,5 +114,23 @@ test('admin can compile and attempt one NFC-e homologation from a completed sale
   const retry=await request(ctx,'/documents/'+doc.id+'/transmit',admin,{method:'POST',body:{}});
   assert.equal(retry.status,400);
   assert.equal(ctx.nativeCalls,1);
+  assert.equal((await request(ctx,'/documents/'+doc.id+'/cancel',cashier,{method:'POST',
+   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}})).status,403);
+  const cancellation=await request(ctx,'/documents/'+doc.id+'/cancel',admin,{method:'POST',
+   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}});
+  assert.equal(cancellation.status,200);
+  assert.equal((await cancellation.json()).status,'CANCELLED');
+  assert.equal((await (await request(ctx,'/documents/'+doc.id+'/cancellation',admin)).json()).status,'CANCELLED');
+  assert.equal(ctx.nativeCalls,2);
+  assert.equal((await request(ctx,'/documents/'+doc.id+'/cancel',admin,{method:'POST',
+   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}})).status,400);
+  assert.equal(ctx.nativeCalls,2);
+  ctx.runtime.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=4 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
+  const inutilization=await request(ctx,'/inutilizations',admin,{method:'POST',
+   body:{model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'}});
+  assert.equal(inutilization.status,200);
+  assert.equal((await inutilization.json()).status,'CONFIRMED');
+  assert.equal(ctx.nativeCalls,3);
+  assert.equal((await (await request(ctx,'/inutilizations',admin)).json()).length,1);
  }finally{await ctx.close();}
 });
