@@ -150,7 +150,7 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
      taxProfile:{...profile,
       reformTax:profile.reformTax?.ibsUfRate&&profile.reformTax?.ibsMunRate&&profile.reformTax?.cbsRate
        ? (()=>{const r=profile.reformTax;
-          const rate=value=>{const s=String(value);if(!/^[0-9]{1,3}\\.[0-9]{4}$/.test(s))throw Error('Alíquota IBS/CBS precisa de quatro casas decimais revisadas');
+          const rate=value=>{const s=String(value);if(!/^[0-9]{1,3}\.[0-9]{4}$/.test(s))throw Error('Alíquota IBS/CBS precisa de quatro casas decimais revisadas');
             const parts=s.split('.');const numerator=Number(parts[0])*10000+Number(parts[1]);if(numerator>1000000)throw Error('Alíquota fiscal inválida');return numerator;};
           const out={baseCents:net,ibsUfRate:r.ibsUfRate,ibsMunRate:r.ibsMunRate,cbsRate:r.cbsRate,
            ibsUfCents:Math.round(net*rate(r.ibsUfRate)/1000000),
