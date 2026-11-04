@@ -164,6 +164,9 @@
     validateBackup(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/validate`, { method:'POST', body:{} }); }
     prepareRestore(id) { return this.request(`/api/v1/backups/${encodeURIComponent(id)}/restore`, { method:'POST', body:{} }); }
 
+    listPaymentIntents(saleId) { return this.paymentIntents(saleId); }
+    getPaymentIntent(id) { return this.paymentIntent(id); }
+    confirmManualPaymentIntent(id) { return this.confirmManualPix(id); }
     paymentCapabilities() { return this.request('/api/v1/payment-intents/capabilities'); }
     createPaymentIntent(body) { return this.request('/api/v1/payment-intents', {method:'POST',body}); }
     paymentIntents(saleId) { return this.request('/api/v1/payment-intents'+this.params({saleId})); }
