@@ -244,6 +244,61 @@
         finally{submit.disabled=false;}
       });
     }
+
+    if(d.status==='AUTHORIZED'&&d.documentType==='nfe'&&fiscalStatus.emissionEnabled){
+      const details=document.createElement('details');
+      const summary=document.createElement('summary');
+      summary.textContent='Carta de Correção (CC-e) — NF-e 55';
+      const form=document.createElement('form');form.className='field-grid';
+      const textLabel=document.createElement('label');textLabel.className='field wide';
+      const textHint=document.createElement('span');
+      textHint.textContent='Texto da CC-e (15–1000 caracteres, sem mudar valores, imposto, quantidade, identidade ou datas)';
+      const correction=document.createElement('textarea');correction.minLength=15;correction.maxLength=1000;correction.required=true;
+      correction.setAttribute('data-acbr-cce-text','');
+      textLabel.append(textHint,correction);
+      const reviewerLabel=document.createElement('label');reviewerLabel.className='field wide';
+      const reviewerText=document.createElement('span');reviewerText.textContent='Contador ou responsável pela revisão';
+      const reviewer=document.createElement('input');reviewer.maxLength=120;reviewer.minLength=3;reviewer.required=true;
+      reviewerLabel.append(reviewerText,reviewer);
+      const ackLabel=document.createElement('label');ackLabel.className='field wide';
+      const ack=document.createElement('input');ack.type='checkbox';ack.required=true;
+      ackLabel.append(ack,' Contabilidade confirmou que a CC-e não altera imposto, valor, quantidade, emitente, destinatário ou data.');
+      const previousLabel=document.createElement('label');previousLabel.className='field wide';
+      const replacesPrevious=document.createElement('input');replacesPrevious.type='checkbox';
+      previousLabel.append(replacesPrevious,' Se houver CC-e anterior, esta nova carta consolida e substitui todas as correções anteriores.');
+      const submit=document.createElement('button');submit.className='secondary-button';submit.type='submit';
+      submit.textContent='Enviar CC-e de homologação';
+      form.append(textLabel,reviewerLabel,ackLabel,previousLabel,submit);
+      details.append(summary,form);li.append(details);
+      form.addEventListener('submit',async e=>{
+        e.preventDefault();if(!form.reportValidity())return;
+        submit.disabled=true;
+        try{
+          const history=await api.request(endpoint+'/cce');
+          const prior=history.at(-1);
+          if(prior?.status==='UNKNOWN')throw Error('CC-e anterior sem resposta: consulte a SEFAZ, não reenvie');
+          if(prior&&!replacesPrevious.checked)throw Error('Confirme que a nova CC-e substitui todas as anteriores');
+          const sequence=(prior?.sequence||0)+1;
+          if(sequence>20)throw Error('Limite de sequências CC-e atingido');
+          const ux=window.ArtisysUxComponents;
+          if(!ux?.openFormDialog)throw Error('Confirmação de CC-e indisponível');
+          const approval=await ux.openFormDialog({
+            title:'Enviar carta de correção em homologação',
+            description:'A CC-e é evento fiscal e não pode modificar valores, impostos ou identidade das partes. Um timeout exige conciliação, não nova tentativa.',
+            confirmLabel:'Transmitir CC-e',cancelLabel:'Voltar',tone:'default',
+            body:'<p>O contador revisou a correção? O documento original continuará autorizado, com o evento vinculado.</p>'
+          });
+          if(!approval.confirmed)return;
+          const result=await api.request(endpoint+'/cce',{method:'POST',body:{
+            correction:correction.value.trim(),reviewedBy:reviewer.value.trim(),sequence,
+            confirmNoMaterialChange:ack.checked,replacesPrevious:replacesPrevious.checked
+          }});
+          message(card,result.status==='CONFIRMED'?'CC-e registrada na SEFAZ de homologação, sequência '+sequence+'.':
+            'CC-e indeterminada: consultar a SEFAZ antes de outra operação.',result.status!=='CONFIRMED');
+        }catch(error){message(card,error.message||'CC-e não enviada',true);}
+        finally{submit.disabled=false;}
+      });
+    }
     list.append(li);
    }
    root.append(list);
