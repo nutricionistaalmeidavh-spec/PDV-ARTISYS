@@ -36,7 +36,7 @@ function companyInput(value={}){
  if(!['1','2','3','4'].includes(crt))throw Error('CRT inválido');
  const series=Number(value.series);
  if(!Number.isSafeInteger(series)||series<1||series>999)throw Error('Série fiscal inválida');
- return {name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false,tradeName:String(value.tradeName||'').trim().slice(0,60),street:String(value.street||'').trim().slice(0,60),streetNumber:String(value.streetNumber||'').trim().slice(0,60),district:String(value.district||'').trim().slice(0,60),municipalityCode:String(value.municipalityCode||'').trim().slice(0,7),municipalityName:String(value.municipalityName||'').trim().slice(0,60),postalCode:String(value.postalCode||'').trim().slice(0,8)};
+ return {ibsCbsRegime:['regular','simples','mei','unconfigured'].includes(String(value.ibsCbsRegime||'unconfigured'))?String(value.ibsCbsRegime||'unconfigured'):'unconfigured',name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false,tradeName:String(value.tradeName||'').trim().slice(0,60),street:String(value.street||'').trim().slice(0,60),streetNumber:String(value.streetNumber||'').trim().slice(0,60),district:String(value.district||'').trim().slice(0,60),municipalityCode:String(value.municipalityCode||'').trim().slice(0,7),municipalityName:String(value.municipalityName||'').trim().slice(0,60),postalCode:String(value.postalCode||'').trim().slice(0,8)};
 }
 function profileInput(value={}){
  const productId=mandatory(value.productId,'Produto',128);
@@ -53,7 +53,7 @@ function profileInput(value={}){
  return {productId,ncm:digits(value.ncm,8,'NCM'),cest:digits(value.cest,7,'CEST',true),
   cfop:digits(value.cfop,4,'CFOP'),origin,cst,csosn,
   pisCst:digits(value.pisCst,2,'CST PIS'),cofinsCst:digits(value.cofinsCst,2,'CST COFINS'),
-  unit,ibsCbsCst:digits(value.ibsCbsCst,3,'CST IBS/CBS',true),
+  unit,cAtivSN:digits(value.cAtivSN,2,'Atividade Simples Nacional',true),ibsCbsCst:digits(value.ibsCbsCst,3,'CST IBS/CBS',true),
   cClassTrib:digits(value.cClassTrib,6,'cClassTrib',true),
   reviewedBy,reviewedAt,zeroLegacyTaxesConfirmed:value.zeroLegacyTaxesConfirmed===true,
   // Optional tax structures are reviewed per-product. Never store arbitrary extra keys.
@@ -143,8 +143,8 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
   const items=(sale.items||[]).map(item=>{
     const profile=getProductProfile(item.productId);
     if(!profile)throw Error('Produto '+String(item.productId||'sem identificação')+' sem perfil tributário revisado');
-    if(['1','2','4'].includes(company.crt)&&!profile.csosn)throw Error('CSOSN obrigatório para CRT Simples Nacional/MEI');
-    if(company.crt==='3'&&!profile.cst)throw Error('CST obrigatório para CRT normal');
+    if(['1','4'].includes(company.crt)&&!profile.csosn)throw Error('CSOSN obrigatório para CRT Simples Nacional/MEI');
+    if(['2','3'].includes(company.crt)&&!profile.cst)throw Error('CST obrigatório para CRT normal');
     const qtyMilli=milli(item.quantity),gross=money(item.totalCents,'Subtotal do item');
     const discount=money(item.allocatedDiscountCents||0,'Desconto do item');
     const net=money(item.netTotalCents==null?gross-discount:item.netTotalCents,'Total líquido do item');
