@@ -108,11 +108,17 @@ function createPaymentIntentService({
           .run(response.brCode,now(),row.id);
       }else{
         // The adapter must return actual acquirer credentials, never a UI boolean.
-        if(response?.status==='APPROVED'&&response.nsu&&response.authorizationCode&&response.acquirer
-          &&response.txid===row.txid&&response.amountCents===row.amount_cents){
+        const matching=response?.txid===row.txid&&response.amountCents===row.amount_cents;
+        const reference=String(response?.providerReference||'').trim();
+        if(response?.status==='APPROVED'&&matching&&response.authorizationCode&&response.acquirer
+          &&(response.nsu||(reference&&response.paymentExternalId))){
           db.prepare("UPDATE payment_intents SET status='VERIFIED',confirmation_source='TEF',provider_reference=?,verified_at=?,updated_at=? WHERE id=? AND status='PENDING'")
-            .run(String(response.acquirer)+':'+String(response.nsu)+':'+String(response.authorizationCode),now(),now(),row.id);
-        }else if(response?.status==='DECLINED'){
+            .run(reference||String(response.acquirer)+':'+String(response.nsu)+':'+String(response.authorizationCode),now(),now(),row.id);
+        }else if(response?.status==='PENDING'&&matching&&reference.length<=200&&reference.length>0){
+          // Persist vendor intent identifier for safe read-only reconciliation after restart.
+          db.prepare("UPDATE payment_intents SET provider_reference=?,updated_at=? WHERE id=? AND status='PENDING'")
+            .run(reference,now(),row.id);
+        }else if(response?.status==='DECLINED'&&response.txid===row.txid){
           db.prepare("UPDATE payment_intents SET status='FAILED',updated_at=? WHERE id=?").run(now(),row.id);
         }else{
           db.prepare("UPDATE payment_intents SET status='REVIEW',updated_at=? WHERE id=?").run(now(),row.id);
@@ -128,16 +134,19 @@ function createPaymentIntentService({
     const row=requireIntent(id);
     if(row.channel==='TEF'){
       if(row.status==='VERIFIED'||row.status==='CONSUMED')return get(id);
-      if(row.status!=='REVIEW'||!row.started_at)throw new Error('TEF nao esta em estado conciliavel.');
-      if(!tefProvider||typeof tefProvider.verify!=='function')throw new Error('Operadora TEF nao disponibilizou consulta da transacao; exige conferencia externa.');
-      const receipt=await tefProvider.verify({id:row.id,txid:row.txid,amountCents:row.amount_cents,
-        method:row.method,saleId:row.sale_id});
-      if(receipt?.status==='APPROVED'&&receipt.nsu&&receipt.authorizationCode&&receipt.acquirer
-        &&receipt.txid===row.txid&&receipt.amountCents===row.amount_cents){
-        withTransaction(db,()=>db.prepare("UPDATE payment_intents SET status='VERIFIED',confirmation_source='TEF',provider_reference=?,verified_at=?,updated_at=? WHERE id=? AND status='REVIEW'")
-          .run(String(receipt.acquirer)+':'+String(receipt.nsu)+':'+String(receipt.authorizationCode),now(),now(),row.id));
+      if(!['PENDING','REVIEW'].includes(row.status)||!row.started_at)throw new Error('TEF nao esta em estado conciliavel.');
+      const check=tefProvider?.reconcile||tefProvider?.verify;
+      if(typeof check!=='function')throw new Error('Operadora TEF nao disponibilizou consulta da transacao; exige conferencia externa.');
+      const receipt=await check.call(tefProvider,{id:row.id,txid:row.txid,amountCents:row.amount_cents,
+        method:row.method,saleId:row.sale_id,providerReference:row.provider_reference});
+      const matching=receipt?.txid===row.txid&&receipt.amountCents===row.amount_cents
+        &&(!row.provider_reference||String(receipt.providerReference||'')===row.provider_reference);
+      if(receipt?.status==='APPROVED'&&matching&&receipt.authorizationCode&&receipt.acquirer
+        &&(receipt.nsu||(row.provider_reference&&receipt.paymentExternalId))){
+        withTransaction(db,()=>db.prepare("UPDATE payment_intents SET status='VERIFIED',confirmation_source='TEF',provider_reference=?,verified_at=?,updated_at=? WHERE id=? AND status IN ('PENDING','REVIEW')")
+          .run(row.provider_reference||String(receipt.acquirer)+':'+String(receipt.nsu)+':'+String(receipt.authorizationCode),now(),now(),row.id));
       }else if(receipt?.status==='DECLINED'&&receipt.txid===row.txid){
-        db.prepare("UPDATE payment_intents SET status='FAILED',updated_at=? WHERE id=? AND status='REVIEW'").run(now(),row.id);
+        db.prepare("UPDATE payment_intents SET status='FAILED',updated_at=? WHERE id=? AND status IN ('PENDING','REVIEW')").run(now(),row.id);
       }
       return get(id);
     }
