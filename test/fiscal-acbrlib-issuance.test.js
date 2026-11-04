@@ -13,7 +13,8 @@ function fixture(t,adapter){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-issue-tdd-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const db=openDatabase(':memory:');t.after(()=>db.close());runMigrations(db);
- const sales={getSaleDetails:()=>({id:'sale-1',saleNumber:'100',status:'COMPLETED',
+ let saleStatus='COMPLETED';
+ const sales={getSaleDetails:()=>({id:'sale-1',saleNumber:'100',status:saleStatus,
  subtotalCents:2000,discountCents:200,totalCents:1800,changeCents:200,completedAt:'2026-11-04T13:45:00-03:00',
  items:[{id:'i1',productId:'prod1',productName:'CAFÉ',sku:'CAF-01',quantity:2,unitPriceCents:1000,
  totalCents:2000,allocatedDiscountCents:200,netTotalCents:1800}],
@@ -32,11 +33,11 @@ function fixture(t,adapter){
  const inputDir=path.join(dir,'inputs');
  function build(allowHomologation=false){
   return createFiscalIssuanceService({db,drafts,inputDir,
-   adapter:adapter||{issue:async()=>({ok:true,status:200,data:{chave_nfe:'1'.repeat(44),protocolo:'135260000000001',xml:'<authorized/>'}}),
+   sales,adapter:adapter||{issue:async()=>({ok:true,status:200,data:{chave_nfe:'1'.repeat(44),protocolo:'135260000000001',xml:'<authorized/>'}}),
     query:async()=>({ok:false,indeterminate:true})},
    allowHomologation,randomCNF:()=> '12345678',now:()=> '2026-11-04T15:00:00-03:00'});
  }
- return {db,dir,inputDir,draft,drafts,build};
+ return {db,dir,inputDir,draft,drafts,build,setSaleStatus(value){saleStatus=value;}};
 }
 test('only reviewed canonical drafts can be staged with matching manifest SHA and private files',t=>{
  const f=fixture(t);
@@ -83,5 +84,16 @@ test('corrupted INI is rejected before marking any operation as sent',async t=>{
  const f=fixture(t);const issue=f.build(true),ready=issue.prepare(f.draft.id);
  fs.appendFileSync(path.join(f.inputDir,ready.reference+'.ini'),'\nMUDANCA=1');
  await assert.rejects(()=>issue.issue(f.draft.id),/hash|SHA-256|diverge|alterad|manifesto|arquivo/i);
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
+});
+
+test('sale voided after drafting can never be sent to SEFAZ',async t=>{
+ let sent=false;
+ const adapter={issue:async()=>{sent=true;return {ok:true}},query:async()=>({ok:false})};
+ const f=fixture(t,adapter),issue=f.build(true);
+ issue.prepare(f.draft.id);
+ f.setSaleStatus('CANCELLED');
+ await assert.rejects(()=>issue.issue(f.draft.id),/cancelad|concluíd|venda/i);
+ assert.equal(sent,false);
  assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
 });
