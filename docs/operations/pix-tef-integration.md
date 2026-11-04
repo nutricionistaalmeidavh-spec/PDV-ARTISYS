@@ -67,7 +67,7 @@ O adaptador nunca salva token, certificado ou chave privada no SQLite. O operado
 
 `paymentOptions.tefProvider` recebe uma implementacao local e isolada. A resposta so sera marcada VERIFIED quando contiver `{status:'APPROVED',txid,amountCents,nsu,authorizationCode,acquirer}` associados exatamente a tentativa. Recusa vira FAILED; perda de conexao, resposta duvidosa ou queda vira REVIEW e **nao** provoca repeticao automatica. Para recuperar um resultado indeterminado, o adaptador pode implementar `tefProvider.verify({id,txid,amountCents,method,saleId})`; somente uma resposta autenticada, com valor e identificador coincidentes, devolve VERIFIED. Exigir status de transacao da operadora antes de nova tentativa.
 
-O contrato do provedor **nao substitui** um executavel ACBr/PayGo/SiTef, PinPad homologado ou credenciamento. Esta fase entrega o motor de transacoes, nao um conector especifico de maquininha pronto para producao.
+O contrato do provedor **nao substitui** um executavel ACBr/PayGo/SiTef, PinPad homologado ou credenciamento. O bridge isolado `js/domains/payments/tef-local-provider.js` executa um binario local (subprocesso com stdin/stdout JSON) quando o administrador configura explicitamente `PDV_TEF_BRIDGE_EXE` com caminho absoluto. Nenhuma binario/bridge e incluido no instalador: somente usar depois da integracao e homologacao real do ACBr e adquirente. Timeout nao e recobrado automaticamente; status fica REVIEW para conciliacao.
 
 ## Estorno, fiscal e limites
 
