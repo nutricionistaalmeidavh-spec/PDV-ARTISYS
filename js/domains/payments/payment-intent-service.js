@@ -58,7 +58,8 @@ function createPaymentIntentService({
     if(amount<=0)throw new Error('Valor de pagamento invalido.');
     const requestId=String(idempotencyKey||'').trim();
     if(!requestId||requestId.length>128)throw new Error('Chave de idempotencia obrigatoria.');
-    if(kind==='PIX_STATIC'&&!pixStatic?.key)throw new Error('Pix local nao configurado.');
+    const staticConfig=typeof pixStatic==='function'?pixStatic():pixStatic;
+    if(kind==='PIX_STATIC'&&!staticConfig?.key)throw new Error('Pix local nao configurado.');
     if(kind==='PIX_API'&&!pixProvider)throw new Error('Banco Pix nao configurado.');
     if(kind==='TEF'&&!tefProvider)throw new Error('TEF nao configurado.');
     return withTransaction(db,()=>{
@@ -72,9 +73,9 @@ function createPaymentIntentService({
       const reserved=db.prepare("SELECT COALESCE(SUM(amount_cents),0) AS amount FROM payment_intents WHERE sale_id=? AND status NOT IN ('CANCELLED','FAILED')").get(String(saleId)).amount;
       if(amount+reserved>sale.totalCents)throw new Error('Valor das tentativas excede o total atual da venda.');
       const id=String(idFactory('intent'));
-      const txid=createHash('sha256').update(id).digest('hex').slice(0,26).toUpperCase();
+      const txid=createHash('sha256').update(id).digest('hex').slice(0,25).toUpperCase();
       const brCode=kind==='PIX_STATIC'?buildStaticPix({
-        key:pixStatic.key,merchantName:pixStatic.merchantName,merchantCity:pixStatic.merchantCity,
+        key:staticConfig.key,merchantName:staticConfig.merchantName,merchantCity:staticConfig.merchantCity,
         amountCents:amount,txid
       }):null;
       const timestamp=now();
@@ -196,6 +197,7 @@ function createPaymentIntentService({
       confirmationSource:x.confirmationSource
     }));
   }
-  return{create,start,reconcile,confirmManual,cancel,get,listBySale,validateCheckout,consumeCheckout,assertCancellationAllowed,fiscalReferences};
+  function capabilities(){const config=typeof pixStatic==='function'?pixStatic():pixStatic;return {pixStatic:Boolean(config?.key&&config?.merchantName&&config?.merchantCity),pixApi:Boolean(pixProvider),tef:Boolean(tefProvider)};}
+  return{create,start,reconcile,confirmManual,cancel,get,listBySale,validateCheckout,consumeCheckout,assertCancellationAllowed,fiscalReferences,capabilities};
 }
 module.exports={migratePaymentIntents,createPaymentIntentService};
