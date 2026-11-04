@@ -52,7 +52,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
   try{
    sessionFor(req);
    let matched;
-   if(req.method==='GET'&&p===prefix+'/status'){send(res,200,{...service.getStatus(),iniPreparationEnabled:Boolean(issuance),emissionEnabled:Boolean(issuance&&nativeConfigured&&nativeOptions.allowHomologation===true)});return true;}
+   if(req.method==='GET'&&p===prefix+'/status'){const nativeState=adapter?await adapter.status():null;send(res,200,{...service.getStatus(),iniPreparationEnabled:Boolean(issuance),emissionEnabled:Boolean(issuance&&nativeConfigured&&nativeState?.data?.ready&&nativeOptions.allowHomologation===true)});return true;}
    if(req.method==='GET'&&p===prefix+'/company'){send(res,200,service.getCompany());return true;}
    if(req.method==='PUT'&&p===prefix+'/company'){
     const body=await readBody(req,bodyLimitBytes);
