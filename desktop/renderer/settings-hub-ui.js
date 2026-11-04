@@ -12,6 +12,7 @@
     ['team','Equipe e permissões','Pessoas, papéis e acessos'],
     ['units','Unidades e dispositivos','Dados, servidor e terminais conectados'],
     ['printing','Impressão e periféricos','Impressoras, balança, leitor e gaveta'],
+    ['payments','Pagamentos · Pix e TEF','Configuração guiada de Pix e cartão integrado'],
     ['modules','Áreas','Alimentação e Atacado quando mudam o fluxo principal'],
     ['privacy','Privacidade e telemetria','Consentimento e diagnóstico anônimo'],
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
@@ -26,6 +27,7 @@
     if(card.id==='ops-establishment-modules-card')return'modules';
     if(card.id==='telemetry-settings-card')return'privacy';
     if(card.id==='settings-devices')return'printing';
+    if(card.id==='settings-payment-setup')return'payments';
     const title=card.querySelector('h2,h3')?.textContent?.trim()||'';
     if(/privacidade|telemetria/i.test(title))return'privacy';
     if(/módulo/i.test(title))return'modules';
@@ -143,6 +145,7 @@
   function apply(root,hub){
     addTeamCard(root);
     addDataServerCard(root);
+    window.PdvPaymentSetupUi?.mount?.(root);
     addRecoveryCard(root);
     addNewStoreCard(root);
     root.querySelectorAll('.ops-card').forEach(card=>{if(card.closest('#settings-hub'))return;card.dataset.settingsSection=categoryFor(card);card.hidden=card.dataset.settingsSection!==active;});
