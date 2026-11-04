@@ -52,7 +52,8 @@ test('old installation and new machine share the original appId, productName, ex
  assert.equal(config.extraResources[0].from,'build/fiscal');
  assert.equal(config.extraResources[0].to,'fiscal');
  assert.equal(config.nsis.deleteAppDataOnUninstall,false);
- assert.deepEqual(config.publish,[]);
+ assert.deepEqual(config.publish,pkg.build.publish);
+ assert.equal(config.publish[0].provider,'github');
  assert.deepEqual(pkg.build.extraResources,[]);
 });
 test('no signed native bundle means the fiscal service stays disabled instead of exposing a broken fiscal feature',t=>{
