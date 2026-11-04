@@ -344,6 +344,10 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   if(typeof adapter.inutilize!=='function')throw Error('ACBr local não suporta inutilização');
   const company=drafts.getCompany();
   if(!company||company.environment!=='homologation')throw Error('Emitente fiscal não configurado');
+  // SEFAZ/SP: inutilização deixa de ser aplicável desde 01/11/2026.
+  // A numeração segue adiante e a quebra de sequência fica documentada.
+  if(company.uf==='SP' && Date.parse(now())>=Date.parse('2026-11-01T00:00:00-03:00'))
+   throw Error('SEFAZ/SP: pedido de inutilização não é mais aplicável desde 01/11/2026; registrar lacuna e continuar numeração');
   if(![55,65].includes(model)||series!==company.series||!Number.isSafeInteger(series)||
      !Number.isSafeInteger(year)||year!==Number(String(now()).slice(0,4))||
      !Number.isSafeInteger(startNumber)||startNumber<1||startNumber>999999999||
