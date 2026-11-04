@@ -41,6 +41,19 @@ class AcbrWorkerSecurityTests(unittest.TestCase):
         self.assertIsNone(worker.nfse_details('<CompNfse><Nfse><InfNfse><Numero>1</Numero>'
                                               '<CodigoVerificacao>ABC</CodigoVerificacao></InfNfse></Nfse></CompNfse>'))
 
+
+    def test_signed_identity_must_match_exact_nfe_number_serie_and_cnf(self):
+        req = {"issuerCnpj":"11222333000181","model":55,"number":1,"series":1,"cNF":"00000001"}
+        worker.ensure_signed_number(req, KEY, "1", "1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"number":2}, KEY, "1", "1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"series":2}, KEY, "1", "1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"issuerCnpj":"99999999000199"}, KEY, "1", "1")
+        with self.assertRaises(worker.ACBrError):
+            worker.ensure_signed_number({**req,"cNF":"87654321"}, KEY, "1", "1")
+
     def test_wrong_environment_and_missing_binary_fail_before_ctypes(self):
         with self.assertRaises(worker.ACBrError):
             worker.execute({"operation": "transmit", "kind": "NFE", "environment": "DEV"})
