@@ -69,8 +69,7 @@ foreach ($pkg in $extraPackages) {
   Run $lazbuild @("--pcp=$pcp",'--add-package-link',$pkg)
 }
 $projects = @(
-  @('NFe','ACBrLibNFe.lpi','ACBrNFe64.dll'),
-  @('NFSe','ACBrLibNFSe.lpi','ACBrNFSe64.dll')
+  @('NFe','ACBrLibNFe.lpi','ACBrNFe64.dll')
 )
 foreach ($item in $projects) {
   $projectDir = Join-Path $source ('Projetos/ACBrLib/Fontes/'+$item[0])
