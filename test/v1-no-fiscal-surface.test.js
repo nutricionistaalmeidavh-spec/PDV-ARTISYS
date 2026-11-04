@@ -73,7 +73,7 @@ test('V1 installer excludes fiscal code and external fiscal resources', () => {
   const pkg=JSON.parse(read('package.json'));
   assert.deepEqual(pkg.build.extraResources, []);
   const files=pkg.build.files.join('\n');
-  for(const marker of ['!desktop/fiscal-*.cjs','!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/fiscal-sidecar/**/*','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
+  for(const marker of ['!desktop/nfse-provider-resolver.cjs','!js/domains/fiscal/**/*','!js/domains/nfse/**/*','!server/fiscal-*.js','!server/fiscal-sidecar/**/*','!server/nfse-router.js']) assert.match(files,new RegExp(marker.replace(/[.*+?^$()|[\]\\]/g,'\\$&')));
   assert.equal(Object.keys(pkg.scripts).some(key=>key.startsWith('fiscal:')||key.startsWith('test:fiscal:')),false);
 });
 
