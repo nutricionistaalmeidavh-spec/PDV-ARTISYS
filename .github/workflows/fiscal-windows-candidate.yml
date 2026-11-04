@@ -1,0 +1,83 @@
+name: fiscal-windows-candidate
+
+on:
+  push:
+    branches:
+      - feat/fiscal-acbrlib-oss-oficina
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'desktop/fiscal-desktop-runtime.cjs'
+      - 'desktop/main.cjs'
+      - 'server/acbrlib/**'
+      - 'scripts/fiscal/**'
+      - 'package.json'
+      - 'test/fiscal-*'
+      - '.github/workflows/fiscal-windows-candidate.yml'
+      - '.github/workflows/release-windows.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiscal-windows-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-smoke:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install JS dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Test fresh and existing installations before native build
+        run: node --test test/fiscal-windows-installation.test.js test/fiscal-acbrlib-build-config.test.js test/installation-lifecycle-integration.test.js
+      - name: Install OSS Windows toolchain
+        shell: pwsh
+        run: |
+          choco install lazarus --version=4.0.0 --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'Lazarus/FPC toolchain installation failed' }
+          choco install subversion --no-progress -y
+          if ($LASTEXITCODE -ne 0) { throw 'SVN installation failed' }
+      - name: Build ACBrLib and probe real DLL exports (no certificate, no SEFAZ)
+        shell: pwsh
+        run: |
+          $env:PATH = [Environment]::GetEnvironmentVariable('PATH','Machine') + ';' + [Environment]::GetEnvironmentVariable('PATH','User')
+          & ./scripts/fiscal/build-windows-native.ps1
+      - name: Package ArtiSys fiscal candidate (never publish)
+        run: npm run dist:win:fiscal
+      - name: Verify bundled resources and new-PC application launch
+        shell: pwsh
+        run: |
+          node -e "const {verifyAcbrBundle}=require('./server/acbrlib/bundle-verifier');const path=require('path');const result=verifyAcbrBundle({resourcesPath:path.resolve('dist/win-unpacked/resources'),platform:'win32',arch:'x64'});if(!result.valid)throw Error(result.reason);console.log('Verified ACBr native revision:',result.revision)"
+          $exe = Join-Path (Resolve-Path 'dist/win-unpacked').Path 'ArtiSys PDV.exe'
+          if (!(Test-Path $exe)) { throw 'ArtiSys PDV.exe missing: changing executable name would break existing installs' }
+          $env:PDV_ENABLE_LAN='false'
+          $env:APPDATA=Join-Path $env:RUNNER_TEMP 'artisys-new-pc-appdata'
+          New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
+          $process=Start-Process -FilePath $exe -PassThru
+          try {
+            Start-Sleep -Seconds 15
+            if ($process.HasExited) { throw "Fresh Windows installation exited with $($process.ExitCode)" }
+          } finally {
+            if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+          }
+      - name: Upload installer for review (never release to customers)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArtiSys-Fiscal-Windows-Candidate
+          path: |
+            dist/*Setup.exe
+            dist/latest.yml
+            dist/*.blockmap
+          retention-days: 7
+          if-no-files-found: error
