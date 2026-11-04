@@ -142,7 +142,7 @@ test('native ACBr uses an ephemeral credential configuration and removes it on s
     fs.writeFileSync(f.options.nfeConfig,original);
     try{return await operation();}finally{fs.rmSync(f.options.nfeConfig,{force:true});}
   };
-  const adapter=createAcbrLibAdapter({...f.options,withConfig,runner:async()=>{
+  const adapter=createAcbrLibAdapter({...f.options,issuerUF:'SP',withConfig,runner:async()=>{
     assert.equal(fs.existsSync(f.options.nfeConfig),true);
     return authorized;
   }});
