@@ -217,11 +217,11 @@ test('CC-e is NF-e-only, checks SEFAZ event type/sequence/protocol and never tru
 test('offline NFC-e passes same signed issuance mode to worker and rejects INI/mode mismatch',async t=>{
  const f=fixture(t);let sent;
  const stamp='2026-11-04T15:30:00-03:00';
- const ini=fs.readFileSync(f.ini,'utf8')+'tpEmis=9\n';
+ const ini='[infNFe]\nversao=4.00\n[Identificacao]\nmod=65\ntpEmis=9\ndhCont=04/11/2026 15:30:00\nxJust=Falha de comunicacao durante a venda de teste\n';
  fs.writeFileSync(f.ini,ini);
  let manifest=JSON.parse(fs.readFileSync(path.join(f.dir,'sale-123.json'),'utf8'));
  manifest={...manifest,issuanceMode:'nfce-offline',contingencyStartedAt:stamp,
-  contingencyReasonSha256:'c'.repeat(64),iniSha256:createHash('sha256').update(ini).digest('hex')};
+  contingencyReasonSha256:createHash('sha256').update('Falha de comunicacao durante a venda de teste').digest('hex'),iniSha256:createHash('sha256').update(ini).digest('hex')};
  fs.writeFileSync(path.join(f.dir,'sale-123.json'),JSON.stringify(manifest));
  const adapter=createAcbrLibAdapter({...f.options,runner:async args=>{sent=args;return {status:'INDETERMINADO'};}});
  const result=await adapter.issue(request(f));
