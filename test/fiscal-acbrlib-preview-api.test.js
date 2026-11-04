@@ -13,7 +13,9 @@ async function setup({enabled=false,native=false}={}){
  runtime.catalog.createUser({id:'cashier1',username:'cashier',name:'Caixa',profileId:'profile-cashier',password:'senha-caixa-123'});
  const nativeDir=path.join(dir,'fiscal');fs.mkdirSync(nativeDir,{recursive:true});
  const nfeLib=path.join(dir,'ACBrNFe64.dll'),nfeConfig=path.join(dir,'ACBrNFe.ini'),workerExe=path.join(dir,'acbrlib-worker.exe');
- for(const file of [nfeLib,nfeConfig,workerExe])fs.writeFileSync(file,'fixture for API contract');
+ for(const file of [nfeLib,workerExe])fs.writeFileSync(file,'fixture for API contract');
+ const pfx=path.join(dir,'issuer-test.pfx');fs.writeFileSync(pfx,Buffer.alloc(1024,5));
+ fs.writeFileSync(nfeConfig,'[NFe]\nAmbiente=1\nFormaEmissao=0\nCSC=TEST_CSC\nIdCSC=1\n[DFe]\nUF=SP\nArquivoPFX='+pfx+'\nSenha=test-local-only\nVerificarValidade=1\n');
  let nativeCalls=0;
  const localNative=native?{
   inputDir:nativeDir,nfeLib,nfeConfig,workerExe,allowHomologation:true,
@@ -82,10 +84,11 @@ test('admin can compile and attempt one NFC-e homologation from a completed sale
   const admin=await login(ctx,'admin','senha-admin-123');
   const cashier=await login(ctx,'cashier','senha-caixa-123');
   const status=await (await request(ctx,'/status',admin)).json();
-  assert.equal(status.emissionEnabled,true);
+  assert.equal(status.emissionEnabled,false); // requires issuer profile and matching local cert
   const company={name:'EMPRESA TESTE',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,
     street:'RUA DAS FLORES',streetNumber:'10',district:'CENTRO',municipalityCode:'3543402',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'};
   assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:company})).status,200);
+  assert.equal((await (await request(ctx,'/status',admin)).json()).emissionEnabled,true);
   const profile={ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
    reviewedBy:'contador',reviewedAt:'2026-11-04',zeroLegacyTaxesConfirmed:true,
    ibsCbsCst:'000',cClassTrib:'000001',reformTax:{ibsUfRate:'0.1000',ibsMunRate:'0.0000',cbsRate:'0.9000'}};
