@@ -193,12 +193,10 @@ function createAcbrLibAdapter(options={}){
       localFile(options.workerExe,'Executor ACBrLib');
       // Status is only ready when the private config is explicitly tied to a
       // known issuer UF and safe homologation certificate. Never infer UF.
-      if(options.issuerUF){
-       try{inspectLocalAcbrConfig({file:cfg,model:65,issuerUF:options.issuerUF});ready=true;}
-       catch{inspectLocalAcbrConfig({file:cfg,model:55,issuerUF:options.issuerUF});ready=true;}
-      }else{
-       // Per-document preflight will validate issuerUF when issuing.
-       ready=true;
+      const uf=typeof options.issuerUF==='function'?options.issuerUF():options.issuerUF;
+      if(uf){
+       try{inspectLocalAcbrConfig({file:cfg,model:65,issuerUF:uf});ready=true;}
+       catch{inspectLocalAcbrConfig({file:cfg,model:55,issuerUF:uf});ready=true;}
       }
      }catch{/* Fail closed: no library or private config. */}
     }
