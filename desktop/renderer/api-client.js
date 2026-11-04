@@ -35,6 +35,12 @@
     }
 
     mutationId() { return root.crypto?.randomUUID ? root.crypto.randomUUID() : `${Date.now()}-${Math.random()}`; }
+    createPaymentIntent(body) { return this.request('/api/v1/payment-intents', {method:'POST',body}); }
+    listPaymentIntents(saleId) { return this.request('/api/v1/payment-intents'+this.params({saleId})); }
+    startPaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/start',{method:'POST'}); }
+    reconcilePaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/reconcile',{method:'POST'}); }
+    confirmManualPaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/confirm-manual',{method:'POST',body:{checkedAccountCredit:true}}); }
+    cancelPaymentIntent(id) { return this.request('/api/v1/payment-intents/'+encodeURIComponent(id)+'/cancel',{method:'POST'}); }
     health() { return this.request('/api/v1/health'); }
     setupStatus() { return this.request('/api/v1/setup/status'); }
     setupAdmin(body) { return this.request('/api/v1/setup/admin', { method: 'POST', body }); }
