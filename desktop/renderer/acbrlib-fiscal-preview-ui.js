@@ -16,7 +16,7 @@
   const card=document.createElement('section');
   card.id='settings-acbrlib-preview';card.className='ops-card';card.dataset.settingsCategory='company';
   card.innerHTML=`
-   <div class="ops-card-head"><div><h2>Fiscal — laboratório ACBrLib</h2>
+   <div class="ops-card-head"><div><h2>Fiscal — preparação e homologação ACBrLib</h2>
     <p class="ops-muted">Somente preparação de rascunhos. NFC-e/NF-e sem emissão, envio à SEFAZ ou DANFE fiscal. Requer revisão contábil.</p>
    </div></div>
    <div class="ops-card-body">
@@ -50,8 +50,8 @@
       <label class="field"><span>CST PIS</span><input name="pisCst" maxlength="2" required></label>
       <label class="field"><span>CST COFINS</span><input name="cofinsCst" maxlength="2" required></label>
       <label class="field"><span>Unidade</span><input name="unit" maxlength="8" required value="UN"></label>
-      <label class="field"><span>CST IBS/CBS (se aplicável)</span><input name="ibsCbsCst" maxlength="3"></label>
-      <label class="field"><span>cClassTrib (se aplicável)</span><input name="cClassTrib" maxlength="6"></label>
+      <label class="field"><span>CST IBS/CBS revisado</span><input name="ibsCbsCst" required maxlength="3"></label>
+      <label class="field"><span>cClassTrib revisado</span><input name="cClassTrib" required maxlength="6"></label>
       <label class="field"><span>Alíquota IBS UF (%)</span><input name="ibsUfRate" required placeholder="0.1000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
       <label class="field"><span>Alíquota IBS município (%)</span><input name="ibsMunRate" required placeholder="0.0000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
       <label class="field"><span>Alíquota CBS (%)</span><input name="cbsRate" required placeholder="0.9000" pattern="[0-9]{1,3}\\.[0-9]{4}" inputmode="decimal"></label>
