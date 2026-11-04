@@ -101,7 +101,7 @@ function compileLegacyTaxGroups({profile,crt,netCents}={}){
  if(!['1','2','3','4'].includes(mode))throw Error('CRT do emitente não suportado');
  const sections={},totals={icmsCents:0,icmsBaseCents:0,stCents:0,stBaseCents:0,pisCents:0,cofinsCents:0};
  let icms;
- if(mode==='3'){
+ if(mode==='3'||mode==='2'){
   const cst=String(profile.cst||'');
   if(!/^\d{2}$/.test(cst))throw Error('CRT 3 exige CST ICMS revisado; CSOSN não é válido neste regime');
   icms={CST:cst,orig};
@@ -123,6 +123,8 @@ function compileLegacyTaxGroups({profile,crt,netCents}={}){
  }else{
   const csosn=String(profile.csosn||'');
   if(!/^\d{3}$/.test(csosn))throw Error('CRT Simples/MEI exige CSOSN revisado; CST não é válido neste regime');
+  if(mode==='4'&&!['102','300','400'].includes(csosn))
+    throw Error('MEI CRT 4 exige CSOSN compatível; outros códigos rejeitados');
   icms={CSOSN:csosn,orig};
   if(['102','103','300','400'].includes(csosn)){
    requiredReviewedZero(profile,'ICMS CSOSN '+csosn);
