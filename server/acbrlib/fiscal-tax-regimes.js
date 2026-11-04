@@ -38,6 +38,7 @@ function stRetained(profile){
  const r=profile.icmsRetained;
  if(!r)throw Error('ICMS ST retido exige base e imposto retidos revisados');
  const base=cents(r.baseCents,'base ST retida'),paid=cents(r.amountCents,'ICMS ST retido');
+ if(base<1||paid>base)throw Error('ICMS ST retido exige base positiva e valor menor ou igual à base');
  return {vBCSTRet:brl(base),vICMSSTRet:brl(paid)};
 }
 function stDue(profile){
