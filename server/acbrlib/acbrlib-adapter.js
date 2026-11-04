@@ -180,7 +180,19 @@ function createAcbrLibAdapter(options={}){
   async function issue(request){return call(request,'transmit');}
   async function query(request){return call(request,'consult');}
   async function cancel(){return{ok:false,status:501,data:null,error:'Cancelamento fiscal ainda não homologado na ACBrLib nativa.'};}
-  async function status(){return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};}
+  async function status(){
+    let ready=false;
+    if(configured){
+     try{
+      localDirectory(options.inputDir);
+      localFile(options.nfeLib,'ACBrNFe');
+      localFile(options.nfeConfig,'Configuração ACBrLib');
+      localFile(options.workerExe,'Executor ACBrLib');
+      ready=true;
+     }catch{/* Fail closed: no library or private config. */}
+    }
+    return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
+  }
   return Object.freeze({status,issue,query,cancel});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
