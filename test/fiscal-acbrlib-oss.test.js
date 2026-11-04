@@ -185,3 +185,30 @@ test('preflight validates the exact NF-e/NFC-e model without invoking the native
  assert.equal((await a.preflight(request(f))).ok,false);
  assert.equal(sent,0);
 });
+
+
+test('CC-e is NF-e-only, checks SEFAZ event type/sequence/protocol and never trusts unlinked events',async t=>{
+ const f=fixture(t,{documentType:'nfe',model:55});
+ const manifest={...f.manifest,documentType:'nfe',model:55};
+ const base='3526111234567800019555001000000123100000123';
+ let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(base[i])*weight;weight=weight===9?2:weight+1;}
+ const dv=11-(sum%11),key=base+(dv>=10?0:dv);
+ let calls=0;let seen;
+ const adapter=createAcbrLibAdapter({...f.options,runner:async cmd=>{calls++;seen=cmd;
+  return {status:'CCE_REGISTERED',cStat:135,environment:'HOMOLOGACAO',
+    accessKey:key,eventProtocol:'135260000000567',sequence:1};}});
+ const request={type:'nfe',reference:'sale-123',environment:'homologation',
+  accessKey:key,sequence:1,eventAt:'2026-11-04T15:40:00-03:00',
+  correction:'Correcao da descricao adicional sem alterar valores ou dados cadastrais.'};
+ const result=await adapter.cce(request);
+ assert.equal(result.ok,true);
+ assert.equal(result.data.eventProtocol,'135260000000567');
+ assert.equal(seen.operation,'cce');assert.equal(seen.model,55);assert.equal(seen.sequence,1);
+ assert.equal((await adapter.cce({...request,type:'nfce'})).ok,false);
+ assert.equal((await adapter.cce({...request,environment:'production'})).ok,false);
+ assert.equal((await adapter.cce({...request,correction:'Preco do produto alterado para 90 reais'})).ok,false);
+ assert.equal(calls,1);
+ const mismatched=createAcbrLibAdapter({...f.options,runner:async()=>({status:'CCE_REGISTERED',
+  cStat:135,environment:'HOMOLOGACAO',accessKey:key,eventProtocol:'135260000000567',sequence:2})});
+ assert.equal((await mismatched.cce(request)).indeterminate,true);
+});
