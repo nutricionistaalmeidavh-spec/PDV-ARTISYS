@@ -217,7 +217,57 @@ function createAcbrLibAdapter(options={}){
     return {ok:true,status:200,data:{pdfBase64:base64}};
     });
   }
-  async function cancel(){return{ok:false,status:501,data:null,error:'Cancelamento fiscal ainda não homologado na ACBrLib nativa.'};}
+  async function cancel({type,reference,environment,accessKey,reason}={}){
+    try{
+      return await withConfig(async()=>{
+        const context=prepare({type,reference,environment});
+        const key=String(accessKey||''),justification=String(reason||'').trim();
+        if(!accessKeyMatches(key,context.manifest)||justification.length<15||
+           justification.length>255||/[\\r\\n\\0]/.test(justification))
+          return blocked('Cancelamento exige chave autorizada e justificativa revisada');
+        const response=await runner({...context.command,operation:'cancel',
+          accessKey:key,reason:justification});
+        const protocol=String(response?.eventProtocol||''),code=Number(response?.cStat);
+        if(response?.status!=='CANCELADA'||response.environment!=='HOMOLOGACAO'||
+           response.accessKey!==key||![135,155].includes(code)||
+           !/^\\d{10,20}$/.test(protocol))
+          return unknown();
+        return{ok:true,status:200,data:{accessKey:key,cStat:code,eventProtocol:protocol}};
+      });
+    }catch{return unknown();}
+  }
+  async function inutilize({environment,issuerCnpj,issuerUF,model,series,year,startNumber,endNumber,reason}={}){
+    try{
+      return await withConfig(async()=>{
+        const cnpj=String(issuerCnpj||'').toUpperCase(),uf=String(issuerUF||'').toUpperCase();
+        const justification=String(reason||'').trim();
+        if(!configured||environment!=='homologation'||!CNPJ.test(cnpj)||!/^[A-Z]{2}$/.test(uf)||
+           ![55,65].includes(model)||!Number.isSafeInteger(series)||series<1||series>999||
+           !Number.isSafeInteger(year)||year<2000||year>2099||
+           !Number.isSafeInteger(startNumber)||startNumber<1||startNumber>999999999||
+           !Number.isSafeInteger(endNumber)||endNumber<startNumber||endNumber>999999999||
+           endNumber-startNumber>99||justification.length<15||justification.length>255||
+           /[\\r\\n\\0]/.test(justification))
+          return blocked('Faixa fiscal ou justificativa inválida');
+        localDirectory(options.inputDir);
+        const libraryPath=localFile(options.nfeLib,'ACBrNFe');
+        const configPath=localFile(options.nfeConfig,'Configuração ACBrLib');
+        localFile(options.workerExe,'Executor ACBrLib');
+        inspectLocalAcbrConfig({file:configPath,model,issuerUF:uf});
+        const result=await runner({kind:'NFE',operation:'inutilize',libraryPath,configPath,
+          iniPath:configPath,issuerCnpj:cnpj,environment:'HOMOLOGACAO',model,
+          series,year,startNumber,endNumber,reason:justification});
+        const protocol=String(result?.eventProtocol||'');
+        if(result?.status!=='INUTILIZADA'||result.environment!=='HOMOLOGACAO'||
+           result.issuerCnpj!==cnpj||result.model!==model||result.series!==series||
+           result.startNumber!==startNumber||result.endNumber!==endNumber||
+           result.cStat!==102||!/^\\d{10,20}$/.test(protocol))
+          return unknown();
+        return {ok:true,status:200,data:{cStat:102,eventProtocol:protocol,
+          model,series,year,startNumber,endNumber}};
+      });
+    }catch{return unknown();}
+  }
   async function status(){
     return withConfig(async()=>{
     let ready=false;
@@ -239,6 +289,6 @@ function createAcbrLibAdapter(options={}){
     return{ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready,productionEnabled:options.allowProduction===true,mode:'local-offline-optional'}};
     }).catch(()=>({ok:true,status:200,data:{provider:PROVIDER_ID,configured,ready:false,productionEnabled:false,mode:'local-offline-optional'}}));
   }
-  return Object.freeze({status,issue,query,cancel,pdf});
+  return Object.freeze({status,issue,query,cancel,inutilize,pdf});
 }
 module.exports={createAcbrLibAdapter,executeWorker,readManifest};
