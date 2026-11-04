@@ -140,7 +140,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
     }
     if(operation==='compile'){
      const body=await readBody(req,bodyLimitBytes);
-     send(res,200,issuance.prepare(id,{recipient:body.recipient||null}));return true;
+     send(res,200,issuance.prepare(id,{recipient:body.recipient||null,contingency:body.contingency||null}));return true;
     }
     if(operation==='transmit'&&nativeOptions.allowHomologation!==true)
       throw new FiscalHttpError(409,'Emissão fiscal desabilitada até liberação explícita para homologação');
