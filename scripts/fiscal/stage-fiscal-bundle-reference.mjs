@@ -3,7 +3,6 @@
 import {createHash} from 'node:crypto';
 import {copyFileSync,existsSync,mkdirSync,readdirSync,readFileSync,rmSync,statSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {verifyBundledFiscal} from '../src/platform/fiscal-bundle.js';
 
 if(process.platform!=='win32')throw new Error('Staging do instalador fiscal exige build Windows x64');
 const dir=resolve('build/fiscal');
@@ -48,6 +47,9 @@ writeFileSync(join(dir,'acbr-bundle.json'),JSON.stringify({
   schemaVersion:1,architecture:'x64',source:'https://svn.code.sf.net/p/acbr/code/trunk2',
   revision:rev,files:entries
 },null,2));
-const check=verifyBundledFiscal({resourcesPath:resolve('build'),platform:'win32',arch:'x64'});
-if(!check.valid)throw new Error('Bundle fiscal falhou integridade: '+check.reason);
+for(const [name,expected] of Object.entries(entries)){
+  const actual=createHash('sha256').update(readFileSync(join(dir,name))).digest('hex');
+  if(actual!==expected)throw new Error('Bundle fiscal falhou integridade: '+name);
+}
+
 console.log('Pacote ACBr OSS validado, arquivos:',Object.keys(entries).length,'revisão:',rev);
