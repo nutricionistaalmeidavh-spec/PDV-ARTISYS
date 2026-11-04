@@ -8,7 +8,7 @@ const {createHash}=require('node:crypto');
 const {createAcbrLibAdapter}=require('../server/acbrlib/acbrlib-adapter');
 
 const KEY='35261112345678000195650010000001231000001236';
-const XML=`<nfeProc><NFe><infNFe Id="NFe${KEY}"><ide><mod>65</mod><tpAmb>2</tpAmb></ide><Signature/></NFe><protNFe><infProt><cStat>100</cStat><nProt>135260000000001</nProt><chNFe>${KEY}</chNFe></infProt></protNFe></nfeProc>`;
+const XML=`<nfeProc><NFe><infNFe Id="NFe${KEY}"><ide><mod>65</mod><tpAmb>2</tpAmb></ide><emit><CNPJ>12345678000195</CNPJ></emit><total><ICMSTot><vNF>12.50</vNF></ICMSTot></total><Signature/></NFe><protNFe><infProt><cStat>100</cStat><nProt>135260000000001</nProt><chNFe>${KEY}</chNFe></infProt></protNFe></nfeProc>`;
 function fixture(t, overrides={}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-acbrlib-'));
   t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
