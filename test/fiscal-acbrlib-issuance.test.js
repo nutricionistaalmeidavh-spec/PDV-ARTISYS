@@ -196,3 +196,14 @@ test('inutilization only covers unreferenced historical gaps and never sends a d
  await assert.rejects(()=>svc.inutilize(req),/duplicad|faixa|consulta|anterior/i);
  assert.equal(calls,1);
 });
+
+test('native per-document preflight blocks a missing NFC-e CSC before consuming the fiscal attempt',async t=>{
+ let sent=false;
+ const f=fixture(t,{status:async()=>({data:{ready:true}}),
+  preflight:async()=>({ok:false,error:'NFC-e sem CSC'}),
+  issue:async()=>{sent=true;return {ok:true};}});
+ const svc=f.build(true);svc.prepare(f.draft.id);
+ await assert.rejects(()=>svc.issue(f.draft.id),/preflight|configura|valid[açã]|prepara|CSC/i);
+ assert.equal(f.drafts.getDocument(f.draft.id).status,'READY');
+ assert.equal(sent,false);
+});
