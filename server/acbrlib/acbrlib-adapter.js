@@ -205,7 +205,7 @@ function createAcbrLibAdapter(options={}){
      throw Error('Arquivo XML fiscal fora do documento autorizado');
     const xml=fs.readFileSync(exact,'utf8');
     const protocol=String(request.protocol||'');
-    if(!/^\\d{10,20}$/.test(protocol)||xmlField(xml,'nProt')!==protocol||
+    if(!/^\d{10,20}$/.test(protocol)||xmlField(xml,'nProt')!==protocol||
        xmlField(xml,'cStat')!=='100'||xmlValueCents(xmlField(xml,'vNF'))!==context.manifest.amountCents)
      throw Error('XML autorizado ou protocolo divergente do documento fiscal');
     const result=await runner({...context.command,operation:'pdf',xmlPath:exact,protocol});
@@ -223,14 +223,14 @@ function createAcbrLibAdapter(options={}){
         const context=prepare({type,reference,environment});
         const key=String(accessKey||''),justification=String(reason||'').trim();
         if(!accessKeyMatches(key,context.manifest)||justification.length<15||
-           justification.length>255||/[\\r\\n\\0]/.test(justification))
+           justification.length>255||/[\r\n\0]/.test(justification))
           return blocked('Cancelamento exige chave autorizada e justificativa revisada');
         const response=await runner({...context.command,operation:'cancel',
           accessKey:key,reason:justification});
         const protocol=String(response?.eventProtocol||''),code=Number(response?.cStat);
         if(response?.status!=='CANCELADA'||response.environment!=='HOMOLOGACAO'||
            response.accessKey!==key||![135,155].includes(code)||
-           !/^\\d{10,20}$/.test(protocol))
+           !/^\d{10,20}$/.test(protocol))
           return unknown();
         return{ok:true,status:200,data:{accessKey:key,cStat:code,eventProtocol:protocol}};
       });
@@ -247,7 +247,7 @@ function createAcbrLibAdapter(options={}){
            !Number.isSafeInteger(startNumber)||startNumber<1||startNumber>999999999||
            !Number.isSafeInteger(endNumber)||endNumber<startNumber||endNumber>999999999||
            endNumber-startNumber>99||justification.length<15||justification.length>255||
-           /[\\r\\n\\0]/.test(justification))
+           /[\r\n\0]/.test(justification))
           return blocked('Faixa fiscal ou justificativa inválida');
         localDirectory(options.inputDir);
         const libraryPath=localFile(options.nfeLib,'ACBrNFe');
@@ -261,7 +261,7 @@ function createAcbrLibAdapter(options={}){
         if(result?.status!=='INUTILIZADA'||result.environment!=='HOMOLOGACAO'||
            result.issuerCnpj!==cnpj||result.model!==model||result.series!==series||
            result.startNumber!==startNumber||result.endNumber!==endNumber||
-           result.cStat!==102||!/^\\d{10,20}$/.test(protocol))
+           result.cStat!==102||!/^\d{10,20}$/.test(protocol))
           return unknown();
         return {ok:true,status:200,data:{cStat:102,eventProtocol:protocol,
           model,series,year,startNumber,endNumber}};
