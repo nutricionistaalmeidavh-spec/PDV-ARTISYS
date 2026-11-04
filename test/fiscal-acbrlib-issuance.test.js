@@ -329,7 +329,7 @@ test('offline queue submits the original signed XML once; unknown outcome stays 
  let count=0;
  const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
  const f=fixture(t,{offlineIssue:async()=>({ok:true,data:{...offlineSignedFixture(),pdfBase64:pdf.toString('base64')}}),
-  transmitSigned:async()=>{count++;throw Error('timeout');}});
+  issue:async()=>{throw Error('Normal send forbidden');},transmitSigned:async()=>{count++;throw Error('timeout');}});
  const svc=f.build(true);
  svc.prepare(f.draft.id,{contingency:{reason:'Falha comprovada de conexão com a SEFAZ durante o atendimento'}});
  await svc.offlineIssue(f.draft.id);
@@ -344,7 +344,7 @@ test('offline queue submits the original signed XML once; unknown outcome stays 
 });
 
 test('normal invoice and unsigned contingency can never enter offline transmission queue',async t=>{
- const f=fixture(t,{offlineIssue:async()=>({ok:true})});
+ const f=fixture(t,{issue:async()=>({ok:false}),offlineIssue:async()=>({ok:true})});
  const svc=f.build(true);
  svc.prepare(f.draft.id);
  await assert.rejects(()=>svc.offlineIssue(f.draft.id),/conting|offline|modo/i);
