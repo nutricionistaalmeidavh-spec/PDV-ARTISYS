@@ -495,14 +495,18 @@ function registerIpc() {
     // Materialize only for a native operation. The user's A1 remains sealed at rest.
     return {...outcome,restartRequired:true};
   });
-  ipcMain.handle('artisys:fiscal:save-danfe', async(event,input={})=>{
+  for(const [channel,kind,label,filename] of [
+    ['save-danfe','danfe.pdf','Salvar DANFE autorizada','ArtiSys-DANFE-'],
+    ['save-offline-danfe','offline-danfe.pdf','Salvar DANFE NFC-e em contingência - imprimir 2 vias','ArtiSys-DANFE-CONTINGENCIA-']
+  ]){
+   ipcMain.handle('artisys:fiscal:'+channel, async(event,input={})=>{
     if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
     if(!runtime||isExternalMode(dataServerConfig))throw Error('DANFE deve ser salvo no computador principal');
     await authorizeDeploymentChange(input.sessionToken);
     const id=String(input.documentId||'');
     if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Identificador de documento fiscal inválido');
     const response=await fetchWithTimeout(
-      apiBase+'/api/v1/fiscal-preview/documents/'+id+'/danfe.pdf',
+      apiBase+'/api/v1/fiscal-preview/documents/'+id+'/'+kind,
       {headers:{authorization:'Bearer '+input.sessionToken,accept:'application/pdf'}},15000);
     if(!response.ok)throw Error('PDF fiscal não disponível ou não autorizado');
     const buffer=Buffer.from(await response.arrayBuffer());
@@ -510,14 +514,15 @@ function registerIpc() {
        !buffer.toString('ascii',Math.max(0,buffer.length-128)).includes('%%EOF'))
       throw Error('PDF DANFE devolvido com formato inválido');
     const selected=await dialog.showSaveDialog(mainWindow,{
-      title:'Salvar DANFE autorizada',
-      defaultPath:'ArtiSys-DANFE-'+id.slice(0,8)+'.pdf',
+      title:label,
+      defaultPath:filename+id.slice(0,8)+'.pdf',
       filters:[{name:'Documento PDF',extensions:['pdf']}]
     });
     if(selected.canceled||!selected.filePath)return {cancelled:true};
     await writeFile(selected.filePath,buffer,{flag:'wx',mode:0o600});
-    return {saved:true};
-  });
+    return {saved:true,contingency:channel==='save-offline-danfe'};
+   });
+  }
   ipcMain.handle('artisys:fiscal:enable-homologation', async(event,input={})=>{
     if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
     if(!fiscalCredentialStore||!runtime||isExternalMode(dataServerConfig))throw Error('Operação fiscal disponível somente no PC principal');
