@@ -24,7 +24,7 @@ function ensureInputDirectory(dir){
  if(!st.isDirectory()||st.isSymbolicLink())throw Error('Pasta fiscal inválida');
  return fs.realpathSync(dir);
 }
-function createFiscalIssuanceService({db,drafts,adapter,inputDir,allowHomologation=false,
+function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomologation=false,
  randomCNF=()=>String(randomInt(0,100000000)).padStart(8,'0'),
  now=()=>{
   const d=new Date(),two=n=>String(n).padStart(2,'0'),mins=-d.getTimezoneOffset();
@@ -32,7 +32,7 @@ function createFiscalIssuanceService({db,drafts,adapter,inputDir,allowHomologati
   return [d.getFullYear(),two(d.getMonth()+1),two(d.getDate())].join('-')+'T'+
    [two(d.getHours()),two(d.getMinutes()),two(d.getSeconds())].join(':')+offset;
  }}={}){
- if(!db||!drafts||!adapter||typeof adapter.issue!=='function')
+ if(!db||!drafts||!sales||typeof sales.getSaleDetails!=='function'||!adapter||typeof adapter.issue!=='function')
   throw TypeError('SQLite, serviço fiscal canônico e adaptador ACBr são obrigatórios');
  const dir=ensureInputDirectory(inputDir);
  db.exec('CREATE TABLE IF NOT EXISTS acbr_fiscal_issuance_meta ('+
@@ -47,6 +47,25 @@ function createFiscalIssuanceService({db,drafts,adapter,inputDir,allowHomologati
    throw Error('Produção fiscal bloqueada');
   return draft;
  };
+ function assertSaleCurrent(draft){
+  const current=sales.getSaleDetails(draft.saleId),original=draft.snapshot;
+  if(!current||current.status!=='COMPLETED')throw Error('Venda não está concluída: envio fiscal bloqueado após cancelamento');
+  if(current.completedAt!==original.sale.completedAt||
+     current.totalCents!==original.totalCents||current.subtotalCents!==original.subtotalCents||
+     current.discountCents!==original.discountCents||
+     (current.changeCents||0)!==original.changeCents)
+    throw Error('Valores da venda mudaram após preparação fiscal');
+  const actual=current.items||[],expected=original.items||[];
+  if(actual.length!==expected.length||actual.some((item,i)=>
+   item.id!==expected[i].itemId||item.productId!==expected[i].productId||
+   Math.round(item.quantity*1000)!==expected[i].quantityMilli||
+   item.totalCents!==expected[i].grossCents||
+   (item.netTotalCents??item.totalCents-(item.allocatedDiscountCents||0))!==expected[i].netTotalCents))
+   throw Error('Itens da venda mudaram após preparação fiscal');
+  const payments=current.payments||[],old=original.payments||[];
+  if(payments.length!==old.length||payments.some((p,i)=>p.method!==old[i].method||p.amountCents!==old[i].amountCents))
+   throw Error('Pagamentos da venda mudaram após preparação fiscal');
+ }
  function verifyReady(document){
   const meta=metaFor(document.id);
   if(!meta)throw Error('Manifesto fiscal não preparado');
@@ -114,6 +133,7 @@ function createFiscalIssuanceService({db,drafts,adapter,inputDir,allowHomologati
   if(allowHomologation!==true)throw Error('Envio fiscal desabilitado; somente homologação habilitada manualmente');
   const draft=draftFor(id);
   if(draft.status!=='READY')throw Error('Documento já enviado; consulta obrigatória antes de qualquer reenvio');
+  assertSaleCurrent(draft);
   const {manifest,meta}=verifyReady(draft);
   if(fs.existsSync(path.join(dir,meta.reference+'.signed.xml')))
    throw Error('XML fiscal já assinado; somente consulta, não reenvio');
