@@ -22,7 +22,7 @@ function fixture(t,adapter,documentType='nfce',uf='SP',series=1){
  const drafts=createFiscalDraftService({db,sales,now:()=> '2026-11-04T15:00:00-03:00'});
  drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf,
  crt:'1',ibsCbsRegime:'regular',environment:'homologation',series,street:'RUA DAS FLORES',streetNumber:'20',
- district:'CENTRO',municipalityCode:({SP:'3543402',MG:'3106200',PR:'4106902',RN:'2408102',RJ:'3304557'})[uf]||'3543402',municipalityName:({SP:'RIBEIRAO PRETO',MG:'BELO HORIZONTE',PR:'CURITIBA',RN:'NATAL',RJ:'RIO DE JANEIRO'})[uf]||'RIBEIRAO PRETO',postalCode:'14000000'});
+ district:'CENTRO',municipalityCode:({SP:'3543402',MG:'3106200',PR:'4106902',RN:'2408102',RJ:'3304557',SC:'4205407'})[uf]||'3543402',municipalityName:({SP:'RIBEIRAO PRETO',MG:'BELO HORIZONTE',PR:'CURITIBA',RN:'NATAL',RJ:'RIO DE JANEIRO',SC:'FLORIANOPOLIS'})[uf]||'RIBEIRAO PRETO',postalCode:'14000000'});
  drafts.saveProductProfile({productId:'prod1',ncm:'09012100',cfop:'5102',origin:'0',
  csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
  ibsCbsCst:'000',cClassTrib:'000001',zeroLegacyTaxesConfirmed:true,
