@@ -150,7 +150,7 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
    }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/sales\/([^/]+)\/prepare$/))&&req.method==='POST'){
     const body=await readBody(req,bodyLimitBytes);
-    send(res,201,service.prepareSale(decodeURIComponent(matched[1]),{documentType:body.documentType||'nfce'}));return true;
+    send(res,201,service.prepareSale(decodeURIComponent(matched[1]),{documentType:body.documentType||'nfce',offline:body.offline===true}));return true;
    }
    if((matched=p.match(/^\/api\/v1\/fiscal-preview\/documents\/([^/]+)\/danfe\\.pdf$/))&&req.method==='GET'){
     if(!issuance)throw new FiscalHttpError(409,'ACBr local não configurada');
