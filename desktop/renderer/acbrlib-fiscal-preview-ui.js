@@ -31,7 +31,7 @@
       <label class="field"><span>Código IBGE município</span><input name="municipalityCode" required pattern="[0-9]{7}" maxlength="7"></label>
       <label class="field"><span>Município</span><input name="municipalityName" required maxlength="60"></label>
       <label class="field"><span>CEP (somente números)</span><input name="postalCode" required pattern="[0-9]{8}" maxlength="8"></label>
-      <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" value="SP"></label>
+      <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" placeholder="UF do estabelecimento"></label>
       <label class="field"><span>CRT</span><select name="crt"><option value="1">1 — Simples Nacional</option><option value="2">2 — Simples excesso sublimite</option><option value="3">3 — Regime normal</option><option value="4">4 — MEI</option></select></label>
       <label class="field"><span>Regime de apuração IBS/CBS (NT 2026.005)</span>
         <select name="ibsCbsRegime" required>
@@ -51,7 +51,7 @@
     <div data-acbr-local-cert hidden>
       <p data-acbr-cert-status class="ops-muted" role="status" aria-live="polite"></p>
       <form data-acbr-cert-form class="field-grid" autocomplete="off">
-        <label class="field"><span>UF do certificado</span><input name="uf" required maxlength="2" value="SP"></label>
+        <label class="field"><span>UF do certificado</span><input name="uf" required maxlength="2" placeholder="UF do certificado"></label>
         <label class="field"><span>Senha do A1</span><input name="password" type="password" required autocomplete="new-password"></label>
         <label class="field"><span>CSC NFC-e de homologação</span><input name="csc" type="password" autocomplete="off"></label>
         <label class="field"><span>Identificador CSC</span><input name="idCsc" autocomplete="off" maxlength="8"></label>
@@ -541,7 +541,8 @@
   });
   void api.request(prefix+'/company').then(cfg=>{
    if(!cfg||!card.isConnected)return;
-   for(const [key,value] of Object.entries(cfg)){if(company.elements.namedItem(key))company.elements.namedItem(key).value=String(value);}
+   for(const [key,value] of Object.entries(cfg)){if(company.elements.namedItem(key))company.elements.namedItem(key).value=value==null?'':String(value);}
+   if(importForm.elements.uf&&cfg.uf)importForm.elements.uf.value=cfg.uf;
   }).catch(()=>{});
   void fillSelect(product.elements.productId,()=>api.products(), 'id',p=>p.name||p.sku||p.id);
   void fillSelect(draft.elements.saleId,()=>api.salesHistory({status:'COMPLETED',limit:50}),'id',s=>`${s.saleNumber} · R$ ${(s.totalCents/100).toFixed(2)}`);
