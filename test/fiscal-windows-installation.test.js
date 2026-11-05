@@ -202,3 +202,10 @@ test('fiscal UI exposes independent contingency series and UF-specific policy to
  assert.match(script,/offline-uf-policy/);
  assert.match(script,/pr[oó]ximo dia [uú]til|24 horas/i);
 });
+
+
+test('multi-UF certificate import never silently defaults to SP',()=>{
+ const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
+ assert.doesNotMatch(ui,/name="uf" required[^>]*value="SP"/);
+ assert.match(ui,/importForm\.elements\.uf\.value=cfg\.uf/);
+});
