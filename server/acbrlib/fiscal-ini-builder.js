@@ -4,6 +4,7 @@
 // No tax percentages, fiscal operation, issuer address or recipient are inferred.
 const {createHash}=require('node:crypto');
 const {compileLegacyTaxGroups}=require('./fiscal-tax-regimes');
+const {assertOfflineAllowed,assertOrdinarySeriesAllowed}=require('./nfce-offline-uf-policy');
 const UF_CODES=Object.freeze({RO:'11',AC:'12',AM:'13',RR:'14',PA:'15',AP:'16',
  TO:'17',MA:'21',PI:'22',CE:'23',RN:'24',PB:'25',PE:'26',AL:'27',SE:'28',
  BA:'29',MG:'31',ES:'32',RJ:'33',SP:'35',PR:'41',SC:'42',RS:'43',
@@ -159,6 +160,7 @@ function compileAcbrIni({document,issuedAt,cNF,recipient,contingency=null}={}){
  let startedAt=null,justification=null;
  if(offline){
   if(s.model!==65||s.documentType!=='nfce')throw Error('Contingência offline exclusiva NFC-e 65');
+  assertOfflineAllowed({uf:emit.uf,model:s.model,series:document.series});
   startedAt=String(contingency?.startedAt||'');
   dateForAcbr(startedAt);
   if(Date.parse(startedAt)<Date.parse(issuedAt)||Date.parse(startedAt)-Date.parse(issuedAt)>24*3600*1000)
@@ -166,6 +168,8 @@ function compileAcbrIni({document,issuedAt,cNF,recipient,contingency=null}={}){
   justification=required(contingency?.reason,'justificativa da contingência',{max:256});
   if(justification.length<15)throw Error('Justificativa de contingência exige ao menos 15 caracteres');
  }
+ if(!offline&&s.model===65)
+  assertOrdinarySeriesAllowed({uf:emit.uf,model:s.model,series:document.series});
  if(s.model===55&&!recipient)throw Error('NF-e exige destinatário explícito');
  const dest=s.model===55?recipientGroup(recipient):null;
  if(dest&&dest.UF!==emit.uf)throw Error('Venda interestadual não suportada neste piloto');
