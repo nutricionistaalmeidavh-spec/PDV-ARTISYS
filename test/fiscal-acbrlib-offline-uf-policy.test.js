@@ -16,7 +16,7 @@ test('13 verified UFs use documented NFC-e offline tpEmis=9 with individual lega
   const policy=assertOfflineAllowed({uf,model:65,series});
   assert.equal(policy.uf,uf);
   assert.ok(['24h','next-business-day'].includes(policy.deadlineRule));
-  assert.match(policy.sourceUrl,/^https:\/\/(www\.|portal\.|sped\.|atendimento\.|sefaz\.|legislacao\.|nfamazonense\.|www5\.|www\.sefaz\.|www\.receita\.)/);
+  assert.equal(new URL(policy.sourceUrl).hostname.endsWith('.gov.br'),true);
   assert.ok(Object.isFrozen(policy));
  }
  assert.equal(OFFLINE_UF_POLICIES.PR.deadlineRule,'24h');
