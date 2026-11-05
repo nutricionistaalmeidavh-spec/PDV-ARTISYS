@@ -151,3 +151,31 @@ test('offline queue endpoints are administrator-only and never accept unprepared
   assert.deepEqual(await (await request(ctx,'/offline-queue/flush',admin,{method:'POST',body:{limit:10}})).json(),[]);
  }finally{await ctx.close();}
 });
+
+
+test('administrator can inspect supported NFC-e offline UFs and issuer-specific series requirements',async()=>{
+ const ctx=await setup({enabled:true,native:true});
+ try{
+  const admin=await login(ctx,'admin','senha-admin-123');
+  const cashier=await login(ctx,'cashier','senha-caixa-123');
+  assert.equal((await request(ctx,'/offline-uf-policy',cashier)).status,403);
+  const first=await request(ctx,'/offline-uf-policy',admin);
+  assert.equal(first.status,200);
+  const body=await first.json();
+  assert.deepEqual(body.supportedUfs.includes('RN'),true);
+  assert.deepEqual(body.supportedUfs.includes('MG'),true);
+  assert.deepEqual(body.supportedUfs.includes('PR'),true);
+  assert.deepEqual(body.supportedUfs.includes('SC'),false);
+  assert.equal(body.issuerUf,null);
+  const company={name:'EMPRESA RN',cnpj:'12345678000195',uf:'RN',stateRegistration:'123456789',
+    crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,offlineSeries:900,
+    street:'RUA DO COMERCIO',streetNumber:'1',district:'CENTRO',municipalityCode:'2408102',
+    municipalityName:'NATAL',postalCode:'59000000'};
+  assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:company})).status,200);
+  const selected=await (await request(ctx,'/offline-uf-policy',admin)).json();
+  assert.equal(selected.issuerUf,'RN');
+  assert.equal(selected.eligible,true);
+  assert.equal(selected.policy.offlineSeriesMin,890);
+  assert.equal(selected.policy.offlineSeriesMax,989);
+ }finally{await ctx.close();}
+});

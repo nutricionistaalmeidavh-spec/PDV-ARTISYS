@@ -31,7 +31,7 @@
       <label class="field"><span>Código IBGE município</span><input name="municipalityCode" required pattern="[0-9]{7}" maxlength="7"></label>
       <label class="field"><span>Município</span><input name="municipalityName" required maxlength="60"></label>
       <label class="field"><span>CEP (somente números)</span><input name="postalCode" required pattern="[0-9]{8}" maxlength="8"></label>
-      <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" value="SP"></label>
+      <label class="field"><span>UF</span><input name="uf" required maxlength="2" minlength="2" placeholder="UF do estabelecimento"></label>
       <label class="field"><span>CRT</span><select name="crt"><option value="1">1 — Simples Nacional</option><option value="2">2 — Simples excesso sublimite</option><option value="3">3 — Regime normal</option><option value="4">4 — MEI</option></select></label>
       <label class="field"><span>Regime de apuração IBS/CBS (NT 2026.005)</span>
         <select name="ibsCbsRegime" required>
@@ -41,7 +41,9 @@
           <option value="mei">MEI — sem grupo IBS/CBS</option>
         </select>
       </label>
-      <label class="field"><span>Série</span><input name="series" type="number" required min="1" max="999" value="1"></label>
+      <label class="field"><span>Série normal</span><input name="series" type="number" required min="1" max="999" value="1"></label>
+      <label class="field"><span>Série exclusiva de contingência (opcional; RN exige 890–989)</span><input name="offlineSeries" type="number" min="1" max="999" placeholder="900 para RN"></label>
+      <p class="ops-muted wide" data-acbr-uf-info role="status">Consulte a política de contingência de sua UF. Prazos variam: 24 horas ou próximo dia útil, conforme a SEFAZ.</p>
       <p class="ops-muted wide">Ambiente: homologação. Emissão automática e produção permanecem bloqueadas.</p>
       <div class="modal-actions"><button class="primary-button" type="submit">Salvar dados para revisão</button></div>
     </form>
@@ -49,7 +51,7 @@
     <div data-acbr-local-cert hidden>
       <p data-acbr-cert-status class="ops-muted" role="status" aria-live="polite"></p>
       <form data-acbr-cert-form class="field-grid" autocomplete="off">
-        <label class="field"><span>UF do certificado</span><input name="uf" required maxlength="2" value="SP"></label>
+        <label class="field"><span>UF do certificado</span><input name="uf" required maxlength="2" placeholder="UF do certificado"></label>
         <label class="field"><span>Senha do A1</span><input name="password" type="password" required autocomplete="new-password"></label>
         <label class="field"><span>CSC NFC-e de homologação</span><input name="csc" type="password" autocomplete="off"></label>
         <label class="field"><span>Identificador CSC</span><input name="idCsc" autocomplete="off" maxlength="8"></label>
@@ -103,6 +105,7 @@
     <form data-acbr-draft class="field-grid">
       <label class="field wide"><span>Venda concluída</span><select name="saleId" required><option value="">Carregando vendas...</option></select></label>
       <label class="field"><span>Documento</span><select name="documentType"><option value="nfce">NFC-e — modelo 65</option><option value="nfe">NF-e — modelo 55</option></select></label>
+      <label class="field wide" data-acbr-draft-offline><input name="offline" type="checkbox"> Reservar número/série para emissão NFC-e em contingência (somente se a SEFAZ estiver indisponível; não emite automaticamente)</label>
       <div class="modal-actions"><button class="primary-button" type="submit">Preparar rascunho (não emitir)</button></div>
     </form>
     <form data-acbr-recipient class="field-grid" hidden>
@@ -450,7 +453,12 @@
   }
   product.elements.reviewedAt.value=new Date().toISOString().slice(0,10);
   const recipient=$(card,'[data-acbr-recipient]');
-  const toggleRecipient=()=>{recipient.hidden=draft.elements.documentType.value!=='nfe';};
+  const offlineOption=$(card,'[data-acbr-draft-offline]');
+  const toggleRecipient=()=>{
+    recipient.hidden=draft.elements.documentType.value!=='nfe';
+    offlineOption.hidden=!recipient.hidden;
+    if(!recipient.hidden)draft.elements.offline.checked=false;
+  };
   draft.elements.documentType.addEventListener('change',toggleRecipient);toggleRecipient();
   const locked=async(form,fn)=>{
    const button=form.querySelector('button[type="submit"]');button.disabled=true;
@@ -458,8 +466,25 @@
    catch(e){message(card,e.message||'Não foi possível salvar',true);}
    finally{button.disabled=false;}
   };
+  const stateInfo=$(card,'[data-acbr-uf-info]');
+  const refreshOfflinePolicy=async()=>{
+    const state=await api.request(prefix+'/offline-uf-policy');
+    if(!state.issuerUf){stateInfo.textContent='Cadastre a UF para verificar contingência; a produção fiscal permanece bloqueada.';return;}
+    if(!state.eligible){
+      stateInfo.textContent='UF '+state.issuerUf+': contingência offline ainda não mapeada para homologação; emissão offline bloqueada.';
+      return;
+    }
+    const policy=state.policy;
+    const deadline=policy.deadlineRule==='24h'?'até 24 horas':'até o próximo dia útil, considerando feriados locais';
+    const dedicated=policy.offlineSeriesMin?
+      ' Séries exclusivas '+policy.offlineSeriesMin+'–'+policy.offlineSeriesMax+'; mantenha a série normal separada.':'';
+    stateInfo.textContent='UF '+state.issuerUf+': NFC-e contingência disponível para testes, prazo de envio '+deadline+'.'+dedicated+
+      ' Consulte a SEFAZ e o contador antes da homologação.';
+  };
+  void refreshOfflinePolicy().catch(()=>{stateInfo.textContent='Política fiscal da UF não disponível';});
   company.addEventListener('submit',event=>{event.preventDefault();void locked(company,async()=>{
     await api.request(prefix+'/company',{method:'PUT',body:{...values(company),environment:'homologation',series:Number(company.elements.series.value)}});
+    await refreshOfflinePolicy();
   });});
   product.addEventListener('submit',event=>{event.preventDefault();void locked(product,async()=>{
     const data=values(product);
@@ -483,7 +508,7 @@
   });});
   draft.addEventListener('submit',event=>{event.preventDefault();void locked(draft,async()=>{
     const data=values(draft);
-    await api.request(prefix+'/sales/'+encodeURIComponent(data.saleId)+'/prepare',{method:'POST',body:{documentType:data.documentType}});
+    await api.request(prefix+'/sales/'+encodeURIComponent(data.saleId)+'/prepare',{method:'POST',body:{documentType:data.documentType,offline:draft.elements.offline.checked}});
     await refreshDocuments(card);
   });});
   const inutPanel=$(card,'[data-acbr-inutilization]');
@@ -516,7 +541,8 @@
   });
   void api.request(prefix+'/company').then(cfg=>{
    if(!cfg||!card.isConnected)return;
-   for(const [key,value] of Object.entries(cfg)){if(company.elements.namedItem(key))company.elements.namedItem(key).value=String(value);}
+   for(const [key,value] of Object.entries(cfg)){if(company.elements.namedItem(key))company.elements.namedItem(key).value=value==null?'':String(value);}
+   if(importForm.elements.uf&&cfg.uf)importForm.elements.uf.value=cfg.uf;
   }).catch(()=>{});
   void fillSelect(product.elements.productId,()=>api.products(), 'id',p=>p.name||p.sku||p.id);
   void fillSelect(draft.elements.saleId,()=>api.salesHistory({status:'COMPLETED',limit:50}),'id',s=>`${s.saleNumber} · R$ ${(s.totalCents/100).toFixed(2)}`);

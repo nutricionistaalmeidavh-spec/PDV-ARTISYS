@@ -276,3 +276,16 @@ test('offline issue signs and produces DANFE through worker but never sends; sea
   accessKey:key,signedXmlSha256:'0'.repeat(64)})).ok,false);
  assert.equal(sent.length,2);
 });
+
+
+test('native ACBr config validates actual UF instead of pinning SP for non-SP issuers',async t=>{
+ const f=fixture(t,{issuerUF:'MG'});
+ const adapter=createAcbrLibAdapter({...f.options,runner:async()=>({status:'INDETERMINADO'})});
+ const wrong=await adapter.preflight({type:'nfce',reference:'sale-123',environment:'homologation'});
+ assert.equal(wrong.ok,false);
+ fs.writeFileSync(f.options.nfeConfig,fs.readFileSync(f.options.nfeConfig,'utf8').replace('UF=SP','UF=MG'));
+ const state=await adapter.preflight({type:'nfce',reference:'sale-123',environment:'homologation'});
+ assert.equal(state.ok,true);
+ assert.equal(state.model,65);
+ assert.equal(state.environment,'homologation');
+});
