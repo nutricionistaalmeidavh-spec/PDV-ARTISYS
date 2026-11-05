@@ -9,7 +9,7 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {createFiscalDraftService}=require('../server/acbrlib/fiscal-draft-service');
 const {createFiscalIssuanceService}=require('../server/acbrlib/fiscal-issuance-service');
-function fixture(t,adapter,documentType='nfce',uf='SP',series=1){
+function fixture(t,adapter,documentType='nfce',uf='SP',series=1,offlineSeries=null,offlineDraft=false){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-issue-tdd-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const db=openDatabase(':memory:');t.after(()=>db.close());runMigrations(db);
@@ -20,7 +20,7 @@ function fixture(t,adapter,documentType='nfce',uf='SP',series=1){
  totalCents:2000,allocatedDiscountCents:200,netTotalCents:1800}],
  payments:[{method:'CASH',amountCents:2000}]})};
  const drafts=createFiscalDraftService({db,sales,now:()=> '2026-11-04T15:00:00-03:00'});
- drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf,
+ drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf,offlineSeries,
  crt:'1',ibsCbsRegime:'regular',environment:'homologation',series,street:'RUA DAS FLORES',streetNumber:'20',
  district:'CENTRO',municipalityCode:({SP:'3543402',MG:'3106200',PR:'4106902',RN:'2408102',RJ:'3304557',SC:'4205407'})[uf]||'3543402',municipalityName:({SP:'RIBEIRAO PRETO',MG:'BELO HORIZONTE',PR:'CURITIBA',RN:'NATAL',RJ:'RIO DE JANEIRO',SC:'FLORIANOPOLIS'})[uf]||'RIBEIRAO PRETO',postalCode:'14000000'});
  drafts.saveProductProfile({productId:'prod1',ncm:'09012100',cfop:'5102',origin:'0',
@@ -29,7 +29,7 @@ function fixture(t,adapter,documentType='nfce',uf='SP',series=1){
  reformTax:{baseCents:1800,ibsUfRate:'0.1000',ibsUfCents:2,
  ibsMunRate:'0.0000',ibsMunCents:0,cbsRate:'0.9000',cbsCents:16},
  reviewedBy:'contador',reviewedAt:'2026-11-04'});
- const draft=drafts.prepareSale('sale-1',{documentType});
+ const draft=drafts.prepareSale('sale-1',{documentType,offline:offlineDraft});
  const inputDir=path.join(dir,'inputs');
  function build(allowHomologation=false){
   return createFiscalIssuanceService({db,drafts,inputDir,
@@ -400,7 +400,7 @@ test('MG, PR and RN produce distinct offline NFC-e, preserving UF, serie and acc
   const f=fixture(t,{
    issue:async()=>{throw Error('Normal send must not be called');},
    offlineIssue:async()=>({ok:true,data:{...signed,pdfBase64:pdf.toString('base64')}})
-  },'nfce',uf,series);
+  },'nfce',uf,uf==='RN'?1:series,uf==='RN'?900:null,uf==='RN');
   const service=f.build(true);
   const ready=service.prepare(f.draft.id,{
    contingency:{reason:'Falha comprovada na comunicação com a SEFAZ durante a venda'}
@@ -420,6 +420,17 @@ test('unsupported UFs and wrong RN contingency series block before fiscal signin
  assert.throws(()=>unsupported.build(true).prepare(unsupported.draft.id,{contingency:reason}),/UF|homologa|mapead/i);
  const rn=fixture(t,null,'nfce','RN',1);
  assert.throws(()=>rn.build(true).prepare(rn.draft.id,{contingency:reason}),/RN|890|989/i);
- const rnReserved=fixture(t,null,'nfce','RN',900);
- assert.throws(()=>rnReserved.build(true).prepare(rnReserved.draft.id),/RN|reservad|conting/i);
+ assert.throws(()=>fixture(t,null,'nfce','RN',900),/RN|reservad|conting/i);
+});
+
+
+test('RN selects contingency 900 for a sale while retaining ordinary series 1',t=>{
+ const f=fixture(t,null,'nfce','RN',1,900,true);
+ assert.equal(f.draft.series,900);
+ assert.equal(f.draft.snapshot.issuer.series,900);
+ assert.equal(f.drafts.getCompany().series,1);
+ assert.equal(f.drafts.getCompany().offlineSeries,900);
+ const ready=f.build(true).prepare(f.draft.id,{contingency:{reason:'Falha técnica de autorização NFC-e'}});
+ assert.equal(ready.issuanceMode,'nfce-offline');
+ assert.equal(f.drafts.prepareSale('sale-1',{offline:true}).id,f.draft.id);
 });
