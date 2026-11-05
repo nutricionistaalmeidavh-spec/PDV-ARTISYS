@@ -9,7 +9,7 @@ const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {createFiscalDraftService}=require('../server/acbrlib/fiscal-draft-service');
 const {createFiscalIssuanceService}=require('../server/acbrlib/fiscal-issuance-service');
-function fixture(t,adapter,documentType='nfce',uf='SP'){
+function fixture(t,adapter,documentType='nfce',uf='SP',series=1){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-issue-tdd-'));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const db=openDatabase(':memory:');t.after(()=>db.close());runMigrations(db);
@@ -21,8 +21,8 @@ function fixture(t,adapter,documentType='nfce',uf='SP'){
  payments:[{method:'CASH',amountCents:2000}]})};
  const drafts=createFiscalDraftService({db,sales,now:()=> '2026-11-04T15:00:00-03:00'});
  drafts.saveCompany({cnpj:'12345678000195',name:'EMPRESA TESTE',stateRegistration:'123456789',uf,
- crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,street:'RUA DAS FLORES',streetNumber:'20',
- district:'CENTRO',municipalityCode:uf==='RJ'?'3304557':'3543402',municipalityName:uf==='RJ'?'RIO DE JANEIRO':'RIBEIRAO PRETO',postalCode:'14000000'});
+ crt:'1',ibsCbsRegime:'regular',environment:'homologation',series,street:'RUA DAS FLORES',streetNumber:'20',
+ district:'CENTRO',municipalityCode:({SP:'3543402',MG:'3106200',PR:'4106902',RN:'2408102',RJ:'3304557'})[uf]||'3543402',municipalityName:({SP:'RIBEIRAO PRETO',MG:'BELO HORIZONTE',PR:'CURITIBA',RN:'NATAL',RJ:'RIO DE JANEIRO'})[uf]||'RIBEIRAO PRETO',postalCode:'14000000'});
  drafts.saveProductProfile({productId:'prod1',ncm:'09012100',cfop:'5102',origin:'0',
  csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
  ibsCbsCst:'000',cClassTrib:'000001',zeroLegacyTaxesConfirmed:true,
@@ -299,8 +299,9 @@ test('offline NFC-e preparation is forbidden for NF-e model 55 and for disabled 
 
 
 
-function offlineSignedFixture(){
- const raw='3526111234567800019565001000000001912345678';
+function offlineSignedFixture(uf='SP',series=1){
+ const ufCode={SP:'35',MG:'31',PR:'41',RN:'24'}[uf];
+ const raw=ufCode+'2611'+'12345678000195'+'65'+String(series).padStart(3,'0')+'000000001'+'9'+'12345678';
  let sum=0,weight=2;for(let i=42;i>=0;i--){sum+=Number(raw[i])*weight;weight=weight===9?2:weight+1;}
  const dv=11-sum%11,key=raw+(dv>=10?0:dv);
  return {accessKey:key,xml:'<NFe><infNFe Id="NFe'+key+'"><ide><mod>65</mod><tpEmis>9</tpEmis></ide></infNFe><Signature/><infNFeSupl><qrCode>https://sefaz.test/?p='+key+'</qrCode></infNFeSupl></NFe>'};
@@ -389,4 +390,36 @@ test('offline SEFAZ authorization and delivery queue settle atomically if SQLite
  assert.equal(f.drafts.getDocument(f.draft.id).status,'UNKNOWN');
  assert.equal(svc.listOfflineQueue()[0].status,'UNKNOWN');
  assert.equal((await svc.flushOfflineQueue()).length,0);
+});
+
+
+test('MG, PR and RN produce distinct offline NFC-e, preserving UF, serie and access key',async t=>{
+ const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+ for(const [uf,series] of [['MG',1],['PR',1],['RN',900]]){
+  const signed=offlineSignedFixture(uf,series);
+  const f=fixture(t,{
+   issue:async()=>{throw Error('Normal send must not be called');},
+   offlineIssue:async()=>({ok:true,data:{...signed,pdfBase64:pdf.toString('base64')}})
+  },'nfce',uf,series);
+  const service=f.build(true);
+  const ready=service.prepare(f.draft.id,{
+   contingency:{reason:'Falha comprovada na comunicação com a SEFAZ durante a venda'}
+  });
+  assert.equal(ready.issuanceMode,'nfce-offline');
+  const issued=await service.offlineIssue(f.draft.id);
+  assert.equal(issued.status,'ISSUED_OFFLINE');
+  assert.equal(issued.accessKey.slice(0,2),{MG:'31',PR:'41',RN:'24'}[uf]);
+  assert.equal(service.listOfflineQueue()[0].issuerUF,uf);
+  assert.equal(service.listOfflineQueue()[0].deadlineRule,uf==='PR'?'24h':'next-business-day');
+ }
+});
+
+test('unsupported UFs and wrong RN contingency series block before fiscal signing',t=>{
+ const reason={reason:'Falha comprovada da comunicação local com o autorizador estadual'};
+ const unsupported=fixture(t,null,'nfce','SC');
+ assert.throws(()=>unsupported.build(true).prepare(unsupported.draft.id,{contingency:reason}),/UF|homologa|mapead/i);
+ const rn=fixture(t,null,'nfce','RN',1);
+ assert.throws(()=>rn.build(true).prepare(rn.draft.id,{contingency:reason}),/RN|890|989/i);
+ const rnReserved=fixture(t,null,'nfce','RN',900);
+ assert.throws(()=>rnReserved.build(true).prepare(rnReserved.draft.id),/RN|reservad|conting/i);
 });
