@@ -3,6 +3,7 @@
 const {createFiscalDraftService}=require('./fiscal-draft-service');
 const {createAcbrLibAdapter}=require('./acbrlib-adapter');
 const {createFiscalIssuanceService}=require('./fiscal-issuance-service');
+const {OFFLINE_UF_POLICIES}=require('./nfce-offline-uf-policy');
 class FiscalHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
 function send(res,status,data){
  res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -53,6 +54,15 @@ function createFiscalPreviewRouter({runtime,sessionStore,enabled=false,requireTe
    sessionFor(req);
    let matched;
    if(req.method==='GET'&&p===prefix+'/status'){const nativeState=adapter?await adapter.status():null;send(res,200,{...service.getStatus(),iniPreparationEnabled:Boolean(issuance),emissionEnabled:Boolean(issuance&&nativeConfigured&&nativeState?.data?.ready&&nativeOptions.allowHomologation===true)});return true;}
+   if(req.method==='GET'&&p===prefix+'/offline-uf-policy'){
+    const company=service.getCompany(),issuerUf=company?.uf||null;
+    const policy=issuerUf?OFFLINE_UF_POLICIES[issuerUf]||null:null;
+    send(res,200,{issuerUf,eligible:Boolean(policy),supportedUfs:Object.keys(OFFLINE_UF_POLICIES),
+      policy:policy||null,
+      configuredSeries:company?.series??null,configuredOfflineSeries:company?.offlineSeries??null,
+      productionEnabled:false,requiresCustomerHomologation:true});
+    return true;
+   }
    if(req.method==='GET'&&p===prefix+'/company'){send(res,200,service.getCompany());return true;}
    if(req.method==='PUT'&&p===prefix+'/company'){
     const body=await readBody(req,bodyLimitBytes);
