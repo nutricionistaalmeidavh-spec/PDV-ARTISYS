@@ -2,6 +2,7 @@
 // Additive, opt-in fiscal preparation only. Not a SEFAZ issuer.
 const {randomUUID,createHash}=require('node:crypto');
 const {withTransaction}=require('../../js/core/database/sqlite-database');
+const {assertOfflineAllowed,assertOrdinarySeriesAllowed}=require('./nfce-offline-uf-policy');
 
 const FISCAL_MODEL={nfce:65,nfe:55};
 function mandatory(value,label,max=128){
@@ -36,7 +37,10 @@ function companyInput(value={}){
  if(!['1','2','3','4'].includes(crt))throw Error('CRT inválido');
  const series=Number(value.series);
  if(!Number.isSafeInteger(series)||series<1||series>999)throw Error('Série fiscal inválida');
- return {ibsCbsRegime:['regular','simples','mei','unconfigured'].includes(String(value.ibsCbsRegime||'unconfigured'))?String(value.ibsCbsRegime||'unconfigured'):'unconfigured',name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false,tradeName:String(value.tradeName||'').trim().slice(0,60),street:String(value.street||'').trim().slice(0,60),streetNumber:String(value.streetNumber||'').trim().slice(0,60),district:String(value.district||'').trim().slice(0,60),municipalityCode:String(value.municipalityCode||'').trim().slice(0,7),municipalityName:String(value.municipalityName||'').trim().slice(0,60),postalCode:String(value.postalCode||'').trim().slice(0,8)};
+ const offlineSeries=value.offlineSeries==null||value.offlineSeries===''?null:Number(value.offlineSeries);
+ if(offlineSeries!==null&&(!Number.isSafeInteger(offlineSeries)||offlineSeries<1||offlineSeries>999))throw Error('Série de contingência inválida');
+ if(offlineSeries!==null&&uf==='RN')assertOfflineAllowed({uf,model:65,series:offlineSeries});
+ return {offlineSeries,ibsCbsRegime:['regular','simples','mei','unconfigured'].includes(String(value.ibsCbsRegime||'unconfigured'))?String(value.ibsCbsRegime||'unconfigured'):'unconfigured',name:mandatory(value.name,'Razão social',160),cnpj,uf,stateRegistration:mandatory(value.stateRegistration,'Inscrição estadual',32),crt,environment,series,autoIssue:false,enabled:false,tradeName:String(value.tradeName||'').trim().slice(0,60),street:String(value.street||'').trim().slice(0,60),streetNumber:String(value.streetNumber||'').trim().slice(0,60),district:String(value.district||'').trim().slice(0,60),municipalityCode:String(value.municipalityCode||'').trim().slice(0,7),municipalityName:String(value.municipalityName||'').trim().slice(0,60),postalCode:String(value.postalCode||'').trim().slice(0,8)};
 }
 function profileInput(value={}){
  const productId=mandatory(value.productId,'Produto',128);
@@ -186,32 +190,41 @@ function createFiscalDraftService({db,sales,now=()=>new Date().toISOString()}={}
    subtotalCents,discountCents,totalCents,changeCents,items,payments,
    reviewStatus:'NEEDS_ACCOUNTANT_AND_SEFAZ_VALIDATION'};
  }
- function prepareSale(saleId,{documentType='nfce'}={}){
+ function prepareSale(saleId,{documentType='nfce',offline=false}={}){
   if(!Object.hasOwn(FISCAL_MODEL,documentType))throw Error('Tipo fiscal inválido');
   const company=getCompany();
   if(!company)throw Error('Empresa fiscal não configurada');
+  if(offline!==true&&offline!==false)throw Error('Modo de contingência inválido');
+  if(offline&&documentType!=='nfce')throw Error('Contingência offline exclusiva NFC-e 65');
+  const chosenSeries=offline?(company.offlineSeries??company.series):company.series;
+  if(offline)assertOfflineAllowed({uf:company.uf,model:65,series:chosenSeries});
+  else if(documentType==='nfce')assertOrdinarySeriesAllowed({uf:company.uf,model:65,series:chosenSeries});
   return withTransaction(db,()=>{
    const existing=db.prepare(`SELECT * FROM acbr_fiscal_documents
     WHERE sale_id=? AND document_type=? AND environment=?`).get(String(saleId),documentType,company.environment);
-   if(existing)return mapDocument(existing);
+   if(existing){
+    const previous=mapDocument(existing);
+    if(offline&&previous.series!==chosenSeries)throw Error('Venda já reservou outra série fiscal; não converter nem duplicar chave NFC-e');
+    return previous;
+   }
    const sibling=db.prepare('SELECT id,document_type FROM acbr_fiscal_documents WHERE sale_id=? AND environment=? LIMIT 1')
     .get(String(saleId),company.environment);
    if(sibling)throw Error('Esta venda já possui documento fiscal de outro modelo: emissão duplicada bloqueada');
    const sale=sales.getSaleDetails(saleId);
    if(!sale)throw Error('Venda não encontrada');
-   const snapshot=buildSnapshot(sale,company,documentType);
+   const snapshot=buildSnapshot(sale,{...company,series:chosenSeries},documentType);
    const data=JSON.stringify(snapshot);
    const hash=createHash('sha256').update(data).digest('hex');
    const current=db.prepare('SELECT next_number FROM acbr_fiscal_sequences WHERE document_type=? AND environment=? AND series=?')
-    .get(documentType,company.environment,company.series);
+    .get(documentType,company.environment,chosenSeries);
    const number=current?.next_number||1;
    db.prepare(`INSERT INTO acbr_fiscal_sequences(document_type,environment,series,next_number)
     VALUES(?,?,?,?) ON CONFLICT(document_type,environment,series)
-    DO UPDATE SET next_number=excluded.next_number`).run(documentType,company.environment,company.series,number+1);
+    DO UPDATE SET next_number=excluded.next_number`).run(documentType,company.environment,chosenSeries,number+1);
    const id=randomUUID(),ts=now();
    db.prepare(`INSERT INTO acbr_fiscal_documents
     (id,sale_id,document_type,environment,series,number,model,total_cents,status,snapshot_hash,snapshot_json,created_at,updated_at)
-    VALUES(?,?,?,?,?,?,?,?,'REVIEW_REQUIRED',?,?,?,?)`).run(id,String(saleId),documentType,company.environment,company.series,number,snapshot.model,snapshot.totalCents,hash,data,ts,ts);
+    VALUES(?,?,?,?,?,?,?,?,'REVIEW_REQUIRED',?,?,?,?)`).run(id,String(saleId),documentType,company.environment,chosenSeries,number,snapshot.model,snapshot.totalCents,hash,data,ts,ts);
    return getDocument(id);
   });
  }
