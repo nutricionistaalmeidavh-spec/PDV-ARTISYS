@@ -7,6 +7,7 @@ const {createHash,randomInt}=require('node:crypto');
 const {withTransaction}=require('../../js/core/database/sqlite-database');
 const {compileAcbrIni}=require('./fiscal-ini-builder');
 const {readManifest}=require('./acbrlib-adapter');
+const {assertOfflineAllowed,offlineMonitoringInfo}=require('./nfce-offline-uf-policy');
 const KEY=/^([0-9]{44})$/;
 function sha(data){return createHash('sha256').update(data).digest('hex');}
 function writeOnce(filepath,buffer){
@@ -220,11 +221,17 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   return db.prepare('SELECT document_id,reference,access_key,status,created_at,submitted_at,finalized_at FROM acbr_fiscal_offline_queue ORDER BY created_at,document_id LIMIT ?')
    .all(n).map(row=>{
     const {manifest}=readManifest(dir,row.reference);
-    const dueMs=Date.parse(manifest.contingencyStartedAt)+24*3600*1000;
+    const monitoring=offlineMonitoringInfo({uf:manifest.issuerUF,issuedAt:manifest.contingencyStartedAt,now:now()});
     return {documentId:row.document_id,reference:row.reference,accessKey:row.access_key,
       status:row.status,createdAt:row.created_at,submittedAt:row.submitted_at,
-      finalizedAt:row.finalized_at,deadlineAt:new Date(dueMs).toISOString(),
-      overdue:['PENDING','UNKNOWN'].includes(row.status)&&Date.parse(now())>dueMs};
+      finalizedAt:row.finalized_at,
+      // Backward-compatible 24h indicators are NOT necessarily the legal
+      // deadline in states using the first next business day.
+      deadlineAt:monitoring.monitoringDueAt,
+      overdue:['PENDING','UNKNOWN'].includes(row.status)&&monitoring.monitoringOverdue,
+      issuerUF:manifest.issuerUF,deadlineRule:monitoring.deadlineRule,
+      deadlineLabel:monitoring.deadlineLabel,legalDeadlineAt:monitoring.legalDeadlineAt,
+      sourceUrl:monitoring.sourceUrl,monitoringDueAt:monitoring.monitoringDueAt};
    });
  }
  function offlineProof(id){
@@ -261,9 +268,8 @@ function createFiscalIssuanceService({db,drafts,sales,adapter,inputDir,allowHomo
   const {meta,manifest}=verifyReady(document);
   if(manifest.issuanceMode!=='nfce-offline')
    throw Error('Documento não preparado em modo contingência offline');
-  // The reviewed pilot is scoped to SP. Other UFs require their own
-  // SEFAZ/QR rules and accountant authorization before offline issuance.
-  if(manifest.issuerUF!=='SP')throw Error('Emissão offline habilitada somente para SP neste piloto homologado');
+  // State-specific offline permission and reserved-number-series rules.
+  assertOfflineAllowed({uf:manifest.issuerUF,model:manifest.model,series:manifest.series});
   const elapsed=Date.parse(now())-Date.parse(manifest.contingencyStartedAt);
   if(!Number.isFinite(elapsed)||elapsed<0||elapsed>24*3600*1000)
    throw Error('Prazo da NFC-e de contingência expirado: conciliação fiscal manual necessária');
