@@ -8,6 +8,7 @@ const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
+function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA'].includes(product)?product:null;}
 function normalizeInstallationId(value){const id=String(value||'').trim();return /^[A-Za-z0-9._:-]{8,128}$/.test(id)?id:null;}
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
@@ -80,6 +81,8 @@ class D1AccountStore{
       expires_at TEXT NOT NULL,
       revoked_at TEXT
     );`);
+    const licenseColumns=new Set(((await this.db.prepare('PRAGMA table_info(licenses)').all()).results||[]).map(row=>row.name));
+    if(!licenseColumns.has('product'))await this.db.prepare("ALTER TABLE licenses ADD COLUMN product TEXT NOT NULL DEFAULT 'PDV'").run();
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
@@ -99,42 +102,42 @@ class D1AccountStore{
     const row=await this.db.prepare('SELECT id,email_normalized AS email FROM accounts WHERE email_normalized=? LIMIT 1').bind(email).first();
     return row?{id:row.id,email:row.email}:null;
   }
-  async findActiveLicense(email){
+  async findActiveLicense(email,product='PDV'){
     const row=await this.db.prepare(`SELECT l.id,a.id AS account_id,a.email_normalized AS email,l.status,l.expires_at
       FROM licenses l JOIN accounts a ON a.id=l.account_id
-      WHERE a.email_normalized=? AND l.status='ACTIVE' AND (l.expires_at IS NULL OR l.expires_at>?)
-      ORDER BY l.created_at DESC LIMIT 1`).bind(email,new Date().toISOString()).first();
-    return row?{id:row.id,accountId:row.account_id,email:row.email,status:row.status,expiresAt:row.expires_at||null}:null;
+      WHERE a.email_normalized=? AND l.product=? AND l.status='ACTIVE' AND (l.expires_at IS NULL OR l.expires_at>?)
+      ORDER BY l.created_at DESC LIMIT 1`).bind(email,product,new Date().toISOString()).first();
+    return row?{id:row.id,accountId:row.account_id,email:row.email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null}:null;
   }
   async saveActivationToken(token){await this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
     VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.licenseId,token.installationId,token.tokenDigest,token.expiresAt,token.createdAt).run();}
-  async findActivationToken({email,digest,now}){
+  async findActivationToken({email,digest,now,product='PDV'}){
     const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
-      FROM activation_tokens t JOIN accounts a ON a.id=t.account_id
-      WHERE a.email_normalized=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
-      ORDER BY t.created_at DESC LIMIT 1`).bind(email,digest,now,ACTIVATION_MAX_ATTEMPTS).first();
+      FROM activation_tokens t JOIN accounts a ON a.id=t.account_id JOIN licenses l ON l.id=t.license_id
+      WHERE a.email_normalized=? AND l.product=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
+      ORDER BY t.created_at DESC LIMIT 1`).bind(email,product,digest,now,ACTIVATION_MAX_ATTEMPTS).first();
     return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
   }
-  async findActivationCandidate({email,now}){
+  async findActivationCandidate({email,now,product='PDV'}){
     const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
-      FROM activation_tokens t JOIN accounts a ON a.id=t.account_id
-      WHERE a.email_normalized=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
-      ORDER BY t.created_at DESC LIMIT 1`).bind(email,now,ACTIVATION_MAX_ATTEMPTS).first();
+      FROM activation_tokens t JOIN accounts a ON a.id=t.account_id JOIN licenses l ON l.id=t.license_id
+      WHERE a.email_normalized=? AND l.product=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
+      ORDER BY t.created_at DESC LIMIT 1`).bind(email,product,now,ACTIVATION_MAX_ATTEMPTS).first();
     return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
   }
   async incrementActivationAttempts(id){await this.db.prepare('UPDATE activation_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
-  async provisionLicense({email,expiresAt=null,codeDigest,codeExpiresAt,createdAt}){
+  async provisionLicense({email,product='PDV',expiresAt=null,codeDigest,codeExpiresAt,createdAt}){
     let account=await this.findAccount(email);
     if(!account){account={id:newId('account'),email};await this.db.prepare('INSERT INTO accounts(id,email_normalized,created_at) VALUES(?,?,?)').bind(account.id,email,createdAt).run();}
-    await this.db.prepare("UPDATE licenses SET status='CANCELLED' WHERE account_id=? AND status='ACTIVE'").bind(account.id).run();
+    await this.db.prepare("UPDATE licenses SET status='CANCELLED' WHERE account_id=? AND product=? AND status='ACTIVE'").bind(account.id,product).run();
     const licenseId=newId('license');
-    await this.db.prepare(`INSERT INTO licenses(id,account_id,status,created_at,expires_at,metadata_json) VALUES(?,?,'ACTIVE',?,?,?)`).bind(licenseId,account.id,createdAt,expiresAt,JSON.stringify({source:'admin-panel'})).run();
+    await this.db.prepare(`INSERT INTO licenses(id,account_id,product,status,created_at,expires_at,metadata_json) VALUES(?,?,?,'ACTIVE',?,?,?)`).bind(licenseId,account.id,product,createdAt,expiresAt,JSON.stringify({source:'admin-panel'})).run();
     await this.saveActivationToken({id:newId('token'),accountId:account.id,licenseId,installationId:'PENDING',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId};
   }
 
   async findLicenseById(id){
-    const row=await this.db.prepare(`SELECT l.id,l.account_id,a.email_normalized AS email,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT l.id,l.account_id,a.email_normalized AS email,l.product,l.status,l.expires_at
       FROM licenses l JOIN accounts a ON a.id=l.account_id WHERE l.id=? LIMIT 1`).bind(id).first();
     return row?{id:row.id,accountId:row.account_id,email:row.email,status:row.status,expiresAt:row.expires_at||null}:null;
   }
@@ -146,9 +149,9 @@ class D1AccountStore{
       this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
         VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(newId('token'),license.accountId,licenseId,'PENDING',codeDigest,codeExpiresAt,createdAt)
     ]);
-    return {accountId:license.accountId,licenseId,email:license.email};
+    return {accountId:license.accountId,licenseId,email:license.email,product:license.product};
   }
-  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
+  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.product,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
   async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
   async findAdminSession({digest,now}){const row=await this.db.prepare('SELECT token_digest,expires_at FROM admin_sessions WHERE token_digest=? AND revoked_at IS NULL AND expires_at>? LIMIT 1').bind(digest,now).first();return row?{tokenDigest:row.token_digest,expiresAt:row.expires_at}:null;}
@@ -186,9 +189,9 @@ class D1AccountStore{
   async saveInstallation(record){await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
     VALUES(?,?,?,?,?) ON CONFLICT(installation_id) DO UPDATE SET account_id=excluded.account_id,license_id=excluded.license_id,last_seen_at=excluded.last_seen_at`).bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt).run();}
   async findInstallation(id){
-    const row=await this.db.prepare(`SELECT i.installation_id,i.license_id,i.activated_at,a.email_normalized AS account_email,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT i.installation_id,i.license_id,i.activated_at,a.email_normalized AS account_email,l.product,l.status,l.expires_at
       FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(id).first();
-    return row?{installationId:row.installation_id,licenseId:row.license_id,activatedAt:row.activated_at,accountEmail:row.account_email,status:row.status,expiresAt:row.expires_at||null}:null;
+    return row?{installationId:row.installation_id,licenseId:row.license_id,activatedAt:row.activated_at,accountEmail:row.account_email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null}:null;
   }
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
@@ -205,13 +208,13 @@ async function requestActivation(request,env){
 }
 
 async function verifyActivation(request,env){
-  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
-  if(!email||!installationId||!/^\d{6}$/.test(code))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
+  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const product=normalizeProduct(body.product);const code=String(body.code||'').trim();
+  if(!email||!installationId||!product||!/^\d{6}$/.test(code))return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'Servico de ativacao indisponivel.'},503);
   const store=await readyStore(env);const now=new Date().toISOString();const digest=await digestToken({pepper,email,code});
   const token=typeof store.findActivationCandidate==='function'
-    ? await store.findActivationCandidate({email,now})
-    : await store.findActivationToken({email,digest,now});
+    ? await store.findActivationCandidate({email,now,product})
+    : await store.findActivationToken({email,digest,now,product});
   if(!token)return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   if(token.tokenDigest&&token.tokenDigest!==digest){
     if(typeof store.incrementActivationAttempts==='function')await store.incrementActivationAttempts(token.id);
@@ -221,10 +224,12 @@ async function verifyActivation(request,env){
     if(typeof store.incrementActivationAttempts==='function')await store.incrementActivationAttempts(token.id);
     return json({error:'Codigo de ativacao invalido ou expirado.'},400);
   }
-  const license=await store.findActiveLicense(email);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
+  const license=await store.findActiveLicense(email,product);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
+  const prior=await store.findInstallation(installationId);
+  if(prior&&String(prior.product||'PDV')!==product)return json({error:'Instalacao ja vinculada a outro produto.'},409);
   await store.consumeActivationToken(token.id,now);
-  await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,status:'ACTIVE',activatedAt:now});
-  return json({licenseId:license.id,accountEmail:email,activatedAt:now});
+  await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,product,status:'ACTIVE',activatedAt:now});
+  return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now});
 }
 
 async function requestPasswordRecovery(request,env){
@@ -343,7 +348,7 @@ function adminHtml(){return `<!doctype html>
 h1{margin:0 0 6px;font-size:30px}h2{margin:0 0 14px;font-size:18px}.sub{margin:0 0 22px;color:#64646f}
 .card{background:#fff;border:1px solid #dddfe4;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
-label{font-weight:650;font-size:14px}input,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:11px 12px}
+label{font-weight:650;font-size:14px}input,select,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:11px 12px}
 button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color:#18181b}.secondary{background:#fff;color:#18181b}
 .hint{font-size:13px;color:#70707b}.result{margin-top:16px;padding:16px;background:#f7f7f8;border-radius:12px;display:none}
 .code{font-size:34px;letter-spacing:7px;font-weight:850;margin:8px 0}.manual{font-weight:700;margin:4px 0}
@@ -359,6 +364,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
       <div class="field"><label for="expires">Validade da licença <span class="hint">(opcional)</span></label><input id="expires" type="date"></div>
       <button type="button" onclick="release()">Gerar código</button>
@@ -386,7 +392,7 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
     const license=j.licenses[i-1];if(!license||license.status!=='ACTIVE')return;
     const actions=row.querySelector('.actions');if(!actions)return;
@@ -394,7 +400,7 @@ async function load(){try{const j=await api('/v1/admin/licenses');document.query
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
   });
 }catch(e){alert(e.message)}}
-async function release(){try{const email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
+async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
 async function reactivate(id){
   try{
     const j=await api('/v1/admin/licenses/'+encodeURIComponent(id)+'/activation-code',{method:'POST'});
@@ -426,12 +432,12 @@ async function adminRoute(request,env,url){
   const store=await readyStore(env);
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
-    const body=await readBody(request),email=normalizeEmail(body.email);if(!email)return json({error:'E-mail invalido.'},400);
-    if(await store.findActiveLicense(email))return json({error:'Este e-mail ja possui licenca ativa. Use Reativar instalacao na lista para emitir outro codigo sem cancelar a licenca.'},409);
+    const body=await readBody(request),email=normalizeEmail(body.email),product=normalizeProduct(body.product);if(!email||!product)return json({error:'E-mail ou produto invalido.'},400);
+    if(await store.findActiveLicense(email,product))return json({error:'Este e-mail ja possui licenca ativa. Use Reativar instalacao na lista para emitir outro codigo sem cancelar a licenca.'},409);
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
-    const provisioned=await store.provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,code,codeExpiresAt,expiresAt},201);
+    const provisioned=await store.provisionLicense({email,product,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,product,code,codeExpiresAt,expiresAt},201);
   }
 
   if(request.method==='POST'&&url.pathname.startsWith('/v1/admin/licenses/')&&url.pathname.endsWith('/activation-code')){
@@ -457,9 +463,9 @@ async function adminRoute(request,env,url){
 }
 
 async function licenseStatus(url,env){
-  const installationId=normalizeInstallationId(url.searchParams.get('installationId'));if(!installationId)return json({error:'Instalacao invalida.'},400);
+  const installationId=normalizeInstallationId(url.searchParams.get('installationId')),product=normalizeProduct(url.searchParams.get('product'));if(!installationId||!product)return json({error:'Instalacao invalida.'},400);
   const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
-  return json({active:activeInstallation(record,now)});
+  return json({active:String(record?.product||'PDV')===product&&activeInstallation(record,now),product,expiresAt:record&&String(record.product||'PDV')===product?record.expiresAt||null:null});
 }
 
 export async function handleRequest(request,env={}){
