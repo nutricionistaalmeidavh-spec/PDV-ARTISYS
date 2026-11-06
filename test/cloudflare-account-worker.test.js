@@ -11,7 +11,7 @@ class MemoryStore {
   async findActivationToken({email,digest,now,product='PDV'}){return [...this.tokens].reverse().find(x=>x.email===email&&(x.product||'PDV')===product&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
-  async findInstallation(id){return this.installations.get(id)||null;}
+  async findInstallation(id){const row=this.installations.get(id);if(!row)return null;const license=this.licenses.find(x=>x.id===row.licenseId);return {...row,status:license?.status||'CANCELLED',expiresAt:license?.expiresAt||null,product:license?.product||'PDV'};}
   async provisionLicense({email,product='PDV',expiresAt,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
     this.licenses.filter(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE').forEach(x=>x.status='CANCELLED');
