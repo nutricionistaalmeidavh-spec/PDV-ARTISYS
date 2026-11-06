@@ -6,17 +6,17 @@ const assert=require('node:assert/strict');
 class MemoryStore {
   constructor(){this.accounts=new Map();this.licenses=[];this.tokens=[];this.recoveryTokens=[];this.installations=new Map();this.adminSessions=[];}
   async findAccount(email){return this.accounts.get(email)||null;}
-  async findActiveLicense(email){return [...this.licenses].reverse().find(x=>x.email===email&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>new Date().toISOString()))||null;}
+  async findActiveLicense(email,product='PDV'){return [...this.licenses].reverse().find(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>new Date().toISOString()))||null;}
   async saveActivationToken(token){this.tokens.push({...token});}
-  async findActivationToken({email,digest,now}){return [...this.tokens].reverse().find(x=>x.email===email&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
+  async findActivationToken({email,digest,now,product='PDV'}){return [...this.tokens].reverse().find(x=>x.email===email&&(x.product||'PDV')===product&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
-  async findInstallation(id){return this.installations.get(id)||null;}
-  async provisionLicense({email,expiresAt,codeDigest,codeExpiresAt,createdAt}){
+  async findInstallation(id){const row=this.installations.get(id);if(!row)return null;const license=this.licenses.find(x=>x.id===row.licenseId);return {...row,status:license?.status||'CANCELLED',expiresAt:license?.expiresAt||null,product:license?.product||'PDV'};}
+  async provisionLicense({email,product='PDV',expiresAt,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
-    this.licenses.filter(x=>x.email===email&&x.status==='ACTIVE').forEach(x=>x.status='CANCELLED');
-    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,status:'ACTIVE',expiresAt};this.licenses.push(license);
-    this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
+    this.licenses.filter(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE').forEach(x=>x.status='CANCELLED');
+    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,product,status:'ACTIVE',expiresAt};this.licenses.push(license);
+    this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,product,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
 
@@ -25,10 +25,10 @@ class MemoryStore {
     const license=this.licenses.find(x=>x.id===licenseId&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>createdAt));
     if(!license)return null;
     for(const token of this.tokens.filter(x=>x.licenseId===licenseId&&!x.usedAt))token.usedAt=createdAt;
-    this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:license.accountId,licenseId,installationId:'PENDING',email:license.email,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
+    this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:license.accountId,licenseId,installationId:'PENDING',email:license.email,product:license.product||'PDV',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:license.accountId,licenseId,email:license.email};
   }
-  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
+  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,product:x.product||'PDV',status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
@@ -175,6 +175,7 @@ test('D1 schema bootstrap executes each DDL statement individually',async()=>{
         async run(){return {success:true};},
         async all(){
           if(sql.includes('activation_tokens'))return {results:[{name:'attempts'}]};
+           if(sql.includes('table_info(licenses)'))return {results:[{name:'product'}]};
           if(sql.includes('password_recovery_tokens'))return {results:[{name:'installation_id'}]};
           return {results:[]};
         },
@@ -236,4 +237,33 @@ test('reissuing a pending code invalidates the previous code without revoking th
   await e.ACCOUNT_STORE.setLicenseStatus(initial.licenseId,'SUSPENDED');
   const suspended=await handleRequest(request('/v1/admin/licenses/'+initial.licenseId+'/activation-code',{method:'POST',headers}),e);
   assert.equal(suspended.status,409);
+});
+
+test('PDV e Oficina coexistem por e-mail sem compartilhar ativação ou cancelamento',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+ const headers=cookieHeaders(cookie),email='cliente@example.com';
+ const create=async product=>{
+  const r=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,body:JSON.stringify({email,product})}),e);
+  assert.equal(r.status,201);return r.json();
+ };
+ const pdv=await create('PDV'),oficina=await create('OFICINA');
+ assert.equal(e.ACCOUNT_STORE.licenses.length,2);
+ assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
+ const cross=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+  email,installationId:'oficina-pc-123',code:pdv.code,product:'OFICINA'
+ })}),e);
+ assert.equal(cross.status,400);
+ const activated=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+  email,installationId:'oficina-pc-123',code:oficina.code,product:'OFICINA'
+ })}),e);
+ assert.equal(activated.status,200);
+ assert.equal((await activated.json()).product,'OFICINA');
+ const status=await handleRequest(request('/v1/license/status?installationId=oficina-pc-123&product=OFICINA'),e);
+ assert.equal((await status.json()).active,true);
+ const pdvCross=await handleRequest(request('/v1/license/status?installationId=oficina-pc-123&product=PDV'),e);
+ assert.equal((await pdvCross.json()).active,false);
+ const revoked=await handleRequest(request('/v1/admin/licenses/'+oficina.licenseId,{method:'PATCH',headers,body:JSON.stringify({status:'SUSPENDED'})}),e);
+ assert.equal(revoked.status,200);
+ assert.equal((await (await handleRequest(request('/v1/license/status?installationId=oficina-pc-123&product=OFICINA'),e)).json()).active,false);
+ assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
 });

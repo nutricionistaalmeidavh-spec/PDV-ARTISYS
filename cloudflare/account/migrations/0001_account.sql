@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS licenses (
   id TEXT PRIMARY KEY,
   account_id TEXT NOT NULL,
+  product TEXT NOT NULL DEFAULT 'PDV',
   status TEXT NOT NULL CHECK(status IN ('ACTIVE','SUSPENDED','CANCELLED','EXPIRED')),
   created_at TEXT NOT NULL,
   expires_at TEXT,
