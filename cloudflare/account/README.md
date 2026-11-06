@@ -4,6 +4,19 @@ Worker comercial do **PDV ArtiSys** na conta Cloudflare `sistema-artisys`.
 
 Este serviço é separado do core local do PDV. O PDV continua local/self-hosted; a nuvem participa somente da liberação inicial, consulta de status da licença e recuperação administrativa.
 
+## Produtos na mesma Central
+
+A Central agora permite selecionar **PDV ArtiSys** (`PDV`) ou **ArtiSys Oficina**
+(`OFICINA`) no mesmo painel. Licenças antigas são migradas com produto padrão
+`PDV`. O mesmo e-mail pode ter uma licença ativa por produto; códigos, suspensão,
+reativação e expiração são independentes. Para compatibilidade, APIs legadas sem
+campo `product` continuam usando `PDV`. O Oficina envia `product: 'OFICINA'` na
+ativação e `product=OFICINA` na consulta; nunca compartilhar ativação entre os produtos.
+
+**Operação:** aplicar a migração aditiva e validar com dados anonimizados do D1
+antes do deploy da Central. O Worker `pdv-artisys` pertence à conta
+`sistema-artisys`; não publicar alterações por outra conta Cloudflare.
+
 ## Fluxo de liberação
 
 1. Acesse `/admin` no Worker `pdv-artisys`.
