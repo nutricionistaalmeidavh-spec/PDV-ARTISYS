@@ -35,6 +35,7 @@ class D1AccountStore{
     CREATE TABLE IF NOT EXISTS licenses (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
+      product TEXT NOT NULL DEFAULT 'PDV',
       status TEXT NOT NULL CHECK(status IN ('ACTIVE','SUSPENDED','CANCELLED','EXPIRED')),
       created_at TEXT NOT NULL,
       expires_at TEXT,
@@ -103,7 +104,7 @@ class D1AccountStore{
     return row?{id:row.id,email:row.email}:null;
   }
   async findActiveLicense(email,product='PDV'){
-    const row=await this.db.prepare(`SELECT l.id,a.id AS account_id,a.email_normalized AS email,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT l.id,a.id AS account_id,a.email_normalized AS email,l.product,l.status,l.expires_at
       FROM licenses l JOIN accounts a ON a.id=l.account_id
       WHERE a.email_normalized=? AND l.product=? AND l.status='ACTIVE' AND (l.expires_at IS NULL OR l.expires_at>?)
       ORDER BY l.created_at DESC LIMIT 1`).bind(email,product,new Date().toISOString()).first();
