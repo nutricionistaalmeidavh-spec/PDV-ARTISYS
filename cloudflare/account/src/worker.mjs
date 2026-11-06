@@ -466,7 +466,10 @@ async function adminRoute(request,env,url){
 async function licenseStatus(url,env){
   const installationId=normalizeInstallationId(url.searchParams.get('installationId')),product=normalizeProduct(url.searchParams.get('product'));if(!installationId||!product)return json({error:'Instalacao invalida.'},400);
   const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
-  return json({active:String(record?.product||'PDV')===product&&activeInstallation(record,now),product,expiresAt:record&&String(record.product||'PDV')===product?record.expiresAt||null:null});
+  const active=String(record?.product||'PDV')===product&&activeInstallation(record,now);
+  // Contrato público antigo do PDV: somente {active}. Sem regressão dos clientes instalados.
+  if(product==='PDV')return json({active});
+  return json({active,product,expiresAt:active?record.expiresAt||null:null});
 }
 
 export async function handleRequest(request,env={}){
