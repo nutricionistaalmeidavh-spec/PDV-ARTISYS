@@ -198,7 +198,18 @@ function createFinanceWorkspace({db,finance,financeManagement=null,reports=null,
       series.push({month:cursor,revenueCents:part.revenueCents,costCents:part.costCents,expenseCents:part.expenseCents,resultCents:part.resultCents});
       cursor=next.slice(0,7);
     }
-    return{from:fromDate,to:toDate,basis,dashboard,dre,cashflow,series,truncated:cursor<=last};
+    const startMs=Date.parse(fromDate+'T00:00:00.000Z'),endMs=Date.parse(toDate+'T00:00:00.000Z');
+    const days=Math.round((endMs-startMs)/86400000)+1;
+    const previousTo=new Date(startMs-86400000).toISOString().slice(0,10);
+    const previousFrom=new Date(startMs-days*86400000).toISOString().slice(0,10);
+    const comparison=financeManagement.compare({from:fromDate,to:toDate,previousFrom,previousTo,basis});
+    const fromIso=fromDate+'T00:00:00.000Z',toIso=toDate+'T23:59:59.999Z';
+    const sold=reports?.buildSalesSummary?.({from:fromIso,to:toIso})||{};
+    const sales={salesCount:Number(sold.salesCount||0),averageTicketCents:Number(sold.averageTicketCents||0),
+      netSalesCents:Number(sold.netSalesCents||0),estimatedMarginCents:Number(sold.estimatedMarginCents||0),
+      paymentMethods:(sold.paymentMethods||[]).map(method=>({method:method.method,salesCount:method.salesCount,netCents:method.netCents})),
+      topProducts:(sold.topProducts||[]).slice(0,6).map(product=>({name:product.productName,netCents:product.netCents,quantity:product.netQuantity}))};
+    return{from:fromDate,to:toDate,basis,dashboard,dre,cashflow,sales,comparison,series,truncated:cursor<=last};
   }
   return{getCard,listCards,createTask,updateTask,moveCard,updateEntry,importEntries,bi};
 }
