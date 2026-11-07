@@ -67,3 +67,18 @@ test('Importacao CSV em lote e atomica e idempotente',()=>{
     assert.throws(()=>f.workspace.importEntries([rows[0]],'csv-okay',f.allowed),/reutilizada/i);
   }finally{f.db.close();}
 });
+
+test('Comprovantes permanecem locais, acessíveis pelo card e registram auditoria',()=>{
+  const f=fixture();try{
+    const entry=f.finance.createEntry({kind:'PAYABLE',description:'Conta com comprovante',amountCents:450,dueAt:'2026-11-14'});
+    const cardId='entry:'+entry.id;
+    const pdf=Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF');
+    const stored=f.workspace.addAttachment(cardId,{filename:'recibo.pdf',mimeType:'application/pdf',base64:pdf.toString('base64')},f.allowed);
+    assert.equal(stored.filename,'recibo.pdf');
+    assert.equal(f.workspace.listAttachments(cardId).length,1);
+    assert.deepEqual(Buffer.from(f.workspace.getAttachment(stored.id).base64,'base64'),pdf);
+    assert.throws(()=>f.workspace.addAttachment(cardId,{filename:'script.html',mimeType:'text/html',base64:pdf.toString('base64')},f.allowed),/permitido/i);
+    assert.throws(()=>f.workspace.addAttachment(cardId,{filename:'fake.pdf',mimeType:'application/pdf',base64:Buffer.from('Nao PDF').toString('base64')},f.allowed),/formato/i);
+    assert.ok(f.db.prepare("SELECT 1 FROM audit_log WHERE action='finance.kanban.attachment.add' AND entity_id=?").get(cardId));
+  }finally{f.db.close();}
+});
