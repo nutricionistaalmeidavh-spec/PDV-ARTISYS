@@ -1,3 +1,9 @@
+> **MÓDULO FISCAL DESATIVADO NO PDV — documento histórico de implementação.**
+> A interface, as rotas de API, os comandos IPC e a distribuição ACBr estão desligados.
+> Não use os procedimentos abaixo como instruções operacionais da versão comercial.
+> Registros fiscais antigos e certificados locais não são apagados automaticamente.
+> Consulte a contabilidade para cumprir as obrigações fiscais fora deste módulo.
+
 # ESTADO ATUAL — 04/11/2026 (leia antes das seções históricas)
 
 > **NÃO HOMOLOGADO / NÃO LIBERADO A CLIENTES EM PRODUÇÃO.**
