@@ -40,7 +40,7 @@ test('native ACBr target is a named record, never a flattened PowerShell array',
 
 test('commercial release never compiles ACBr or requires Lazarus and installs normal PDV',()=>{
  const workflow=fs.readFileSync(path.join(root,'.github','workflows','release-windows.yml'),'utf8');
- assert.match(workflow,/npm run dist:win(?:\\s|$)/m);
+ assert.match(workflow,/npm run dist:win(?:\s|$)/m);
  assert.doesNotMatch(workflow,/lazarus|Get-Command lazbuild|SlikSVN|ACBr OSS bundle|dist:win:fiscal/i);
  assert.match(workflow,/Verify no fiscal native assets are bundled/);
 });
