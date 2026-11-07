@@ -179,6 +179,45 @@ function createFinanceWorkspace({db,finance,financeManagement=null,reports=null,
       return{count:safeRows.length,duplicate:false};
     });
   }
+  const ATTACHMENT_MIMES=new Set(['application/pdf','image/jpeg','image/png','text/plain','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']);
+  function listAttachments(cardId){
+    if(!getCard(cardId))throw new Error('Card financeiro nao encontrado.');
+    return db.prepare('SELECT id,card_id AS cardId,filename,mime_type AS mimeType,file_size AS size,created_by AS createdBy,created_at AS createdAt FROM finance_kanban_attachments WHERE card_id=? ORDER BY created_at,id')
+      .all(String(cardId));
+  }
+  function getAttachment(id){
+    const row=db.prepare('SELECT * FROM finance_kanban_attachments WHERE id=?').get(String(id));
+    if(!row||!getCard(row.card_id))throw new Error('Anexo nao encontrado.');
+    return{id:row.id,cardId:row.card_id,filename:row.filename,mimeType:row.mime_type,size:row.file_size,
+      base64:Buffer.from(row.data).toString('base64'),createdAt:row.created_at};
+  }
+  function addAttachment(cardId,input={},actor=null){
+    const by=userId(actor);
+    const card=getCard(cardId);if(!card)throw new Error('Card financeiro nao encontrado.');
+    const filename=requireText(String(input.filename||'').replace(/[\/\\\u0000-\u001f]/g,'_'),'Nome do arquivo',140);
+    const mimeType=String(input.mimeType||'').trim().toLowerCase();
+    if(!ATTACHMENT_MIMES.has(mimeType))throw new Error('Formato de anexo nao permitido. Use PDF, JPEG, PNG, TXT ou XLSX.');
+    const base64=String(input.base64||'');
+    if(!base64||base64.length>700000||base64.length%4!==0||!/^[A-Za-z0-9+/]*={0,2}$/.test(base64))
+      throw new Error('Arquivo anexo invalido.');
+    const bytes=Buffer.from(base64,'base64');
+    if(bytes.length<1||bytes.length>524288)throw new Error('Anexo deve possuir ate 512 KB.');
+    if((mimeType==='application/pdf'&&bytes.subarray(0,4).toString()!=='%PDF')||
+      (mimeType==='image/png'&&bytes.subarray(0,4).toString('hex')!=='89504e47')||
+      (mimeType==='image/jpeg'&&bytes.subarray(0,2).toString('hex')!=='ffd8')||
+      (mimeType.endsWith('spreadsheetml.sheet')&&bytes.subarray(0,2).toString()!=='PK'))
+      throw new Error('Conteudo do anexo nao corresponde ao formato informado.');
+    return withTransaction(db,()=>{
+      const count=db.prepare('SELECT COUNT(*) AS total FROM finance_kanban_attachments WHERE card_id=?').get(cardId).total;
+      if(count>=12)throw new Error('Limite de 12 anexos por card.');
+      const id=idFactory('fin-attachment');
+      db.prepare('INSERT INTO finance_kanban_attachments(id,card_id,filename,mime_type,file_size,data,created_by,created_at) VALUES (?,?,?,?,?,?,?,?)')
+        .run(id,String(cardId),filename,mimeType,bytes.length,bytes,by,now());
+      writeAudit(db,{action:'finance.kanban.attachment.add',entity:'finance-kanban-card',entityId:String(cardId),actor,
+        context:{attachmentId:id,filename,mimeType,bytes:bytes.length}},now);
+      return listAttachments(cardId).find(item=>item.id===id);
+    });
+  }
   function bi({from,to,basis='cash'}={}){
     if(!financeManagement)throw new Error('Gestao financeira indisponivel.');
     const current=dateOnly(now().slice(0,10),true);
@@ -211,6 +250,6 @@ function createFinanceWorkspace({db,finance,financeManagement=null,reports=null,
       topProducts:(sold.topProducts||[]).slice(0,6).map(product=>({name:product.productName,netCents:product.netCents,quantity:product.netQuantity}))};
     return{from:fromDate,to:toDate,basis,dashboard,dre,cashflow,sales,comparison,series,truncated:cursor<=last};
   }
-  return{getCard,listCards,createTask,updateTask,moveCard,updateEntry,importEntries,bi};
+  return{getCard,listCards,createTask,updateTask,moveCard,updateEntry,importEntries,listAttachments,getAttachment,addAttachment,bi};
 }
 module.exports={createFinanceWorkspace};
