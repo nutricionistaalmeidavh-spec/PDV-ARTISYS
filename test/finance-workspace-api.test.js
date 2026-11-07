@@ -69,3 +69,25 @@ test('Planilha HTTP atualiza somente manual e importacao ruim nao grava nenhuma 
     assert.equal(ctx.runtime.finance.listEntries().length,count);
   }finally{await ctx.close();}
 });
+
+test('Excel XLSX pode ser exportado e importado com pre-visualizacao e permissionamento',async()=>{
+  const ctx=await fixture();try{
+    const manager=await ctx.login('gestor-fin','gestor-fin-123'),cashier=await ctx.login('caixa-fin','caixa-fin-123');
+    ctx.runtime.finance.createEntry({kind:'PAYABLE',description:'Luz',amountCents:15900,dueAt:'2026-11-25'});
+    const output=await ctx.api(manager,'/api/v1/erp-finance/workspace/xlsx/export?from=2026-11-01&to=2026-11-30');
+    assert.equal(output.status,200);
+    const {base64,count}=await output.json();
+    assert.equal(count,1);
+    const preview=await ctx.api(manager,'/api/v1/erp-finance/workspace/xlsx/preview',{method:'POST',body:{base64}});
+    assert.equal(preview.status,200);
+    const rows=(await preview.json()).rows;
+    assert.equal(rows.length,1);
+    assert.equal(rows[0].amountCents,15900);
+    assert.equal((await ctx.api(cashier,'/api/v1/erp-finance/workspace/xlsx/preview',{method:'POST',body:{base64}})).status,403);
+    const imported=await ctx.api(manager,'/api/v1/erp-finance/workspace/import',{method:'POST',body:{rows,idempotencyKey:'xlsx-confirmed-1'}});
+    assert.equal(imported.status,200);
+    assert.equal(ctx.runtime.finance.listEntries().length,2);
+    assert.equal((await ctx.api(manager,'/api/v1/erp-finance/workspace/import',{method:'POST',body:{rows,idempotencyKey:'xlsx-confirmed-1'}})).status,200);
+    assert.equal(ctx.runtime.finance.listEntries().length,2);
+  }finally{await ctx.close();}
+});
