@@ -50,7 +50,7 @@ function createTerminalRegistry({
   codeFactory = () => String(randomInt(0, 1000000)).padStart(6, '0'),
   serverVersion = '1.0.0',
   minimumTerminalVersion = '1.0.0',
-  capabilities = ['sales','inventory','cash','returns','printing','fiscal']
+  capabilities = ['sales','inventory','cash','returns','printing']
 } = {}) {
   if (!db) throw new TypeError('Database is required.');
 
@@ -130,7 +130,8 @@ function createTerminalRegistry({
       schemaVersion: db.prepare('SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations').get().version,
       compatible,
       terminalStatus: terminal?.status || null,
-      capabilities: [...capabilities]
+      // Legacy callers may still pass fiscal; never advertise a disabled module.
+      capabilities: [...capabilities].filter(capability => capability !== 'fiscal')
     };
   }
 
