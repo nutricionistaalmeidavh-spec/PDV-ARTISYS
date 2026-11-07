@@ -17,5 +17,7 @@
   p.financeSheetUpdateEntry=function(id,body){return this.request('/api/v1/erp-finance/workspace/entries/'+encodeURIComponent(id),{method:'PATCH',body});};
   p.financeSheetImport=function(body){return this.request('/api/v1/erp-finance/workspace/import',{method:'POST',body});};
   p.financeWorkspaceBi=function(filters={}){return this.request('/api/v1/erp-finance/workspace/bi'+this.params(filters));};
+  p.financeXlsxPreview=function(body){return this.request('/api/v1/erp-finance/workspace/xlsx/preview',{method:'POST',body});};
+  p.financeXlsxExport=function(filters={}){return this.request('/api/v1/erp-finance/workspace/xlsx/export'+this.params(filters));};
   const model=root.PdvUiModel;if(model&&!model.HOME_TILES.some(tile=>tile.route==='management'))root.PdvUiModel={...model,HOME_TILES:Object.freeze([...model.HOME_TILES,{key:'management',label:'Gestão',description:'Resultado, DRE e fluxo de caixa',shortcut:'',route:'management',tone:'rose',icon:'management'}])};
 })();
