@@ -63,6 +63,19 @@ test('even forced legacy preview options cannot open API, issue, or create fisca
  assert.deepEqual(runtime.db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'acbr_fiscal_%'").all(),[]);
 });
 
+test('LAN capability handshake cannot announce fiscal even if provided by legacy caller',()=>{
+ const {openDatabase}=require('../js/core/database/sqlite-database');
+ const {runMigrations}=require('../js/core/database/migrations');
+ const {createTerminalRegistry}=require('../server/lan/terminal-registry');
+ const db=openDatabase(':memory:');
+ try{
+  runMigrations(db);
+  const registry=createTerminalRegistry({db,capabilities:['sales','printing','fiscal']});
+  const handshake=registry.handshake({appVersion:'1.0.0'});
+  assert.deepEqual(handshake.capabilities,['sales','printing']);
+ }finally{db.close();}
+});
+
 test('commercial Windows release uses standard non-fiscal installer, not native ACBr toolchain',()=>{
  const release=read('.github/workflows/release-windows.yml');
  assert.match(release,/npm run dist:win(?:\s|$)/m);
