@@ -18,7 +18,7 @@ function priorityOf(value){const priority=String(value||'NORMAL').toUpperCase();
 function requireText(value,label,max=240){const s=String(value||'').trim();if(!s||s.length>max)throw new Error(label+' obrigatorio (ate '+max+' caracteres).');return s;}
 function userId(actor){const id=String(actor?.userId||'').trim();if(!id)throw new Error('Usuario autenticado obrigatorio.');return id;}
 
-function createFinanceWorkspace({db,finance,financeManagement=null,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>p+'-'+randomUUID()}={}){
+function createFinanceWorkspace({db,finance,financeManagement=null,reports=null,authorization=null,now=()=>new Date().toISOString(),idFactory=p=>p+'-'+randomUUID()}={}){
   if(!db||!finance)throw new TypeError('db and finance are required.');
   function rawCard(id){return db.prepare('SELECT * FROM finance_kanban_cards WHERE id=?').get(String(id));}
   function linkedEntry(id){
