@@ -72,7 +72,7 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
     'inventory.view','inventory.procurement','finance.view'
   ])),
   FINANCE:Object.freeze(unique([
-    'finance.view','finance.manage','reports.view','management.view',
+    'finance.view','finance.manage','finance.settle','finance.reverse','reports.view','management.view',
     'cash.view','sales.view'
   ])),
   DELIVERY:Object.freeze(unique([
