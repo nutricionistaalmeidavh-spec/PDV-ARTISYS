@@ -26,7 +26,7 @@ function ensurePdvFinance(runtime,{now=()=>new Date().toISOString(),idFactory}={
   const financeRecurrences=createRecurrenceService({...common,finance});
   const financeAlerts=createFinanceAlertService({db:runtime.db,finance,financeManagement,settings:runtime.settings,now});
   const financeWorkspace=createFinanceWorkspace({...common,finance,financeManagement});
-  Object.assign(runtime,{financeDimensions,finance,procurement,financeManagement,bankStatements,financeReconciliation,financeRecurrences,financeAlerts});
+  Object.assign(runtime,{financeDimensions,finance,procurement,financeManagement,bankStatements,financeReconciliation,financeRecurrences,financeAlerts,financeWorkspace});
   Object.defineProperty(runtime,'__pdvFinanceP0P3Attached',{value:true,enumerable:false,configurable:false});
   return runtime;
 }
