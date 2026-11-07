@@ -12,6 +12,9 @@
   p.financeAlerts=function(includeHidden=false){return this.request(`/api/v1/erp-finance/alerts${includeHidden?'?includeHidden=true':''}`);};p.markFinanceAlertRead=function(key){return this.request(`/api/v1/erp-finance/alerts/${encodeURIComponent(key)}/read`,{method:'POST',body:{}});};p.hideFinanceAlert=function(key){return this.request(`/api/v1/erp-finance/alerts/${encodeURIComponent(key)}/hide`,{method:'POST',body:{}});};p.unhideFinanceAlert=function(key){return this.request(`/api/v1/erp-finance/alerts/${encodeURIComponent(key)}/unhide`,{method:'POST',body:{}});};
   p.financeKanbanCards=function(filters={}){return this.request('/api/v1/erp-finance/workspace/cards'+this.params(filters));};
   p.financeKanbanCreateTask=function(body){return this.request('/api/v1/erp-finance/workspace/cards',{method:'POST',body});};
+  p.financeKanbanAttachments=function(id){return this.request('/api/v1/erp-finance/workspace/cards/'+encodeURIComponent(id)+'/attachments');};
+  p.financeKanbanAddAttachment=function(id,body){return this.request('/api/v1/erp-finance/workspace/cards/'+encodeURIComponent(id)+'/attachments',{method:'POST',body});};
+  p.financeKanbanGetAttachment=function(id){return this.request('/api/v1/erp-finance/workspace/attachments/'+encodeURIComponent(id));};
   p.financeKanbanUpdateTask=function(id,body){return this.request('/api/v1/erp-finance/workspace/cards/'+encodeURIComponent(id),{method:'PATCH',body});};
   p.financeKanbanMove=function(id,body){return this.request('/api/v1/erp-finance/workspace/cards/'+encodeURIComponent(id)+'/move',{method:'POST',body});};
   p.financeSheetUpdateEntry=function(id,body){return this.request('/api/v1/erp-finance/workspace/entries/'+encodeURIComponent(id),{method:'PATCH',body});};
