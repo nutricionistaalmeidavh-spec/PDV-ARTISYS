@@ -59,7 +59,7 @@
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
-  function downloadXlsx(base64,name){
+  function downloadBinary(base64,name,mimeType){
     const decoded=atob(base64);
     const bytes=new Uint8Array(decoded.length);
     for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
