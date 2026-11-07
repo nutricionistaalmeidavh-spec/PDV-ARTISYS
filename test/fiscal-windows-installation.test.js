@@ -107,17 +107,17 @@ test('same data path permits fiscal opt-in after restart without resetting SQLit
  assert.equal(first.nativeOptions.workerExe,second.nativeOptions.workerExe);
 });
 
-test('packaged Electron main can resolve required fiscal JS runtime and safeStorage modules',()=>{
+test('packaged Electron main deliberately cannot load dormant fiscal runtime',()=>{
  const pkg=require('../package.json');
  const main=fs.readFileSync(path.join(__dirname,'..','desktop','main.cjs'),'utf8');
  for(const entry of ['acbrlib-desktop-runtime.cjs','acbrlib-credential-store.cjs']){
-  assert.match(main,new RegExp(entry.replaceAll('.','\\.')));
-  assert.ok(fs.existsSync(path.join(__dirname,'..','desktop',entry)));
-  assert.equal(pkg.build.files.some(pattern=>pattern.startsWith('!')&&
-    pattern.endsWith('/'+entry)),false);
-  assert.equal(entry.startsWith('fiscal-'),false,'Legacy desktop/fiscal-*.cjs is excluded from the production package');
+  assert.doesNotMatch(main,new RegExp(entry.replaceAll('.','\\.')));
+  assert.ok(fs.existsSync(path.join(__dirname,'..','desktop',entry)),
+    'Keep archived fiscal source for future review; do not package it');
  }
- assert.ok(pkg.build.files.includes('desktop/**/*'));
+ assert.ok(pkg.build.files.includes('!desktop/acbrlib-*.cjs'));
+ assert.ok(pkg.build.files.includes('!server/acbrlib/**/*'));
+ assert.deepEqual(pkg.build.extraResources,[]);
 });
 
 test('approval survives restart without a plaintext ACBr INI at rest',t=>{
@@ -140,18 +140,18 @@ test('desktop fiscal homologation provides cancel and unused-number forms for th
  assert.match(html,/homologa/i);
 });
 
-test('CI new-PC smoke uses isolated Electron userData instead of trusting APPDATA on Windows',()=>{
+test('QA profile isolation remains available while commercial release omits fiscal build',()=>{
  const {resolveQaUserDataPath}=require('../desktop/qa-user-data-path.cjs');
  const qaDir=path.resolve(os.tmpdir(),'artisys-qa-profile');
  assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:qaDir}),qaDir);
  assert.equal(resolveQaUserDataPath({CI:'false',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:qaDir}),null);
  assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'0',ARTISYS_QA_USERDATA_DIR:qaDir}),null);
  assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:'relative-path'}),null);
- const workflow=fs.readFileSync(path.join(__dirname,'..','.github','workflows','fiscal-windows-candidate.yml'),'utf8');
- assert.match(workflow,/ARTISYS_QA_USERDATA_DIR/);
- assert.match(workflow,/pdv-artisys\.sqlite/);
+ const workflow=fs.readFileSync(path.join(__dirname,'..','.github','workflows','release-windows.yml'),'utf8');
+ assert.match(workflow,/npm run dist:win(?:\s|$)/m);
+ assert.doesNotMatch(workflow,/dist:win:fiscal|build-windows-native/);
+ assert.equal(fs.existsSync(path.join(__dirname,'..','.github','workflows','fiscal-windows-candidate.yml')),false);
 });
-
 
 test('fiscal settings expose accountant-reviewed CC-e only on authorized NF-e',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');
@@ -172,19 +172,17 @@ test('operator can explicitly stage NFC-e offline without misleading printing/au
 });
 
 
-test('desktop operator can issue NFC-e offline, save contingency DANFE and flush signed queue',()=>{
+test('archived fiscal UI cannot be loaded or invoked through commercial desktop',()=>{
  const root=path.join(__dirname,'..');
  const ui=fs.readFileSync(path.join(root,'desktop/renderer/acbrlib-fiscal-preview-ui.js'),'utf8');
  const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
  const preload=fs.readFileSync(path.join(root,'desktop/preload.cjs'),'utf8');
- assert.match(ui,/endpoint\+'\/offline-issue'/);
+ const html=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
  assert.match(ui,/offline-queue\/flush/);
- assert.match(ui,/saveOfflineDanfe/);
- assert.match(main,/['"]save-offline-danfe['"]/);
- assert.match(main,/offline-danfe\.pdf/);
- assert.match(preload,/saveOfflineDanfe/);
+ assert.doesNotMatch(html,/acbrlib-fiscal-preview-ui\.js/);
+ assert.doesNotMatch(main,/artisys:fiscal:|offline-danfe\.pdf|acbrlib-desktop-runtime/);
+ assert.doesNotMatch(preload,/saveOfflineDanfe|artisys:fiscal:/);
 });
-
 
 test('offline issuance UI never labels a rejected or unknown issued NFC-e as an unissued draft',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'..','desktop','renderer','acbrlib-fiscal-preview-ui.js'),'utf8');

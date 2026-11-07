@@ -42,8 +42,7 @@
     "qa:artifact-semantic": "node qa/semantic/artifact-roundtrip.mjs",
     "qa:fault-recovery": "node --test test/qa-fault-recovery.test.js test/release/concurrency.test.js test/release/recovery.test.js test/e19-printing.test.js test/session-restore-after-reload.test.js",
     "qa:multi-device:smoke": "node qa/multi-device/run.mjs --profile smoke --output qa-artifacts/multi-device-smoke",
-    "dist:mac": "bash scripts/build-macos.sh",
-    "dist:win:fiscal": "node scripts/fiscal/create-release-builder-config.js && electron-builder --config build/release-fiscal-electron-builder.json --win nsis --x64 --publish never"
+    "dist:mac": "bash scripts/build-macos.sh"
   },
   "dependencies": {
     "@artisys/printing": "file:vendor/artisys-printing",
@@ -84,7 +83,10 @@
       "!js/core/database/fiscal-migrations.js",
       "!server/fiscal-*.js",
       "!server/fiscal-sidecar/**/*",
-      "!server/nfse-router.js"
+      "!server/nfse-router.js",
+      "!desktop/acbrlib-*.cjs",
+      "!desktop/renderer/acbrlib-fiscal-preview-ui.js",
+      "!server/acbrlib/**/*"
     ],
     "asarUnpack": [
       "node_modules/serialport/**/*",

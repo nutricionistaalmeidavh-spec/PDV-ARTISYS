@@ -13,7 +13,7 @@ test('official commercial installer remains nonfiscal and experimental build is 
  assert.equal(pkg.build.directories.output,'dist');
  assert.throws(()=>createLabConfig({packageBuild:pkg.build,resourcesPath:'/definitely/missing'}),/ausente|inválido/);
  const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
- assert.match(main,/!app\.isPackaged && process\.env\.ARTISYS_FISCAL_PREVIEW/);
+ assert.doesNotMatch(main,/ARTISYS_FISCAL_PREVIEW|resolveFiscalDesktopRuntime|artisys:fiscal:/);
 });
 test('manual Windows lab config includes only verified OSS DLLs as extra resources',t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'acbr-lab-config-'));
@@ -38,9 +38,9 @@ test('native ACBr target is a named record, never a flattened PowerShell array',
  assert.doesNotMatch(script,/\$item\[[012]\]/);
 });
 
-test('release Windows resolves actual Lazarus installation without depending on Chocolatey shims',()=>{
+test('commercial release never compiles ACBr or requires Lazarus and installs normal PDV',()=>{
  const workflow=fs.readFileSync(path.join(root,'.github','workflows','release-windows.yml'),'utf8');
- assert.match(workflow,/lazarus\\lazbuild\.exe/);
- assert.match(workflow,/Get-Command lazbuild/);
- assert.match(workflow,/SlikSVN OSS installation failed/);
+ assert.match(workflow,/npm run dist:win(?:\s|$)/m);
+ assert.doesNotMatch(workflow,/lazarus|Get-Command lazbuild|SlikSVN|ACBr OSS bundle|dist:win:fiscal/i);
+ assert.match(workflow,/Verify no fiscal native assets are bundled/);
 });

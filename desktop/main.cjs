@@ -15,10 +15,7 @@ const { DEFAULT_PROFILE_IDS } = require('../js/core/auth/default-profiles');
 const { applyPendingRestore } = require('../js/core/backup/pending-restore');
 const { resolvePrintingPreferences } = require('../js/domains/printing/printing-preferences');
 const { createLocalServer } = require('../server/local-server');
-const { resolveFiscalDesktopRuntime } = require('./acbrlib-desktop-runtime.cjs');
-const { createFiscalCredentialStore } = require('./acbrlib-credential-store.cjs');
 const { resolveQaUserDataPath } = require('./qa-user-data-path.cjs');
-const { inspectLocalAcbrConfig } = require('../server/acbrlib/acbr-config-check');
 const { createLanReachability } = require('../server/lan-reachability.cjs');
 const { resolveBootstrapConfig, validateBootstrapConfig, shouldStartEmbeddedServer } = require('./bootstrap-config.cjs');
 const { createTerminalCredentialStore } = require('./terminal-credentials.cjs');
@@ -49,20 +46,6 @@ let printWorkerBusy = false;
 let installationWasExisting = true;
 let dataServerConfig = null;
 let dataServerConfigPath = '';
-let fiscalCredentialStore = null;
-let fiscalConfigQueue = Promise.resolve();
-function withFiscalConfig(operation) {
-  // Serialize short-lived decrypted ACBr INI leases across HTTP requests/workers.
-  const pending = fiscalConfigQueue.catch(()=>{}).then(async()=>{
-    if(!fiscalCredentialStore?.status().configured)throw Error('Certificado fiscal local indisponível');
-    try {
-      fiscalCredentialStore.materialize();
-      return await operation();
-    } finally {fiscalCredentialStore.removeRuntimeConfig();}
-  });
-  fiscalConfigQueue = pending.catch(()=>{});
-  return pending;
-}
 let installationTransition = false;
 let paymentProviderStore = null;
 let paymentProviderConfigError = null;
@@ -90,30 +73,6 @@ function currentPrintingPreferences() {
     isExistingInstall:installationWasExisting
   });
 }
-function fiscalServerOptions() {
-  const resourcesPath=app.isPackaged?process.resourcesPath:path.join(__dirname,'..','build');
-  const fiscal=resolveFiscalDesktopRuntime({
-    resourcesPath,userData:app.getPath('userData'),
-    platform:process.platform,arch:process.arch,embeddedServer:true
-  });
-  if(fiscal.enabled)return {fiscalPreviewEnabled:true,fiscalNativeOptions:{
-    ...fiscal.nativeOptions,withConfig:withFiscalConfig
-  }};
-  // Development-only overrides, never enabled by a packaged install.
-  if(!app.isPackaged && process.env.ARTISYS_FISCAL_PREVIEW==='1'){
-    const env=process.env;
-    return {
-      fiscalPreviewEnabled:true,
-      fiscalNativeOptions:env.ARTISYS_ACBR_INPUT_DIR?{
-        inputDir:env.ARTISYS_ACBR_INPUT_DIR,nfeLib:env.ARTISYS_ACBR_NFE_DLL,
-        nfeConfig:env.ARTISYS_ACBR_CONFIG_INI,workerExe:env.ARTISYS_ACBR_WORKER_EXE,
-        allowHomologation:env.ARTISYS_ACBR_HOMOLOGATION==='1'
-      }:null
-    };
-  }
-  return {fiscalPreviewEnabled:false,fiscalNativeOptions:null};
-}
-
 function terminalCredentialConfigured() {
   try { return Boolean(terminalCredentialStore?.status?.().configured); }
   catch { return false; }
@@ -194,7 +153,7 @@ async function startEmbeddedServer() {
     },{kind:'system',id:'system'});
   }
 
-  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting, ...fiscalServerOptions() });
+  localServer = createLocalServer({ runtime, host: '127.0.0.1', port: 0, token: installToken, requireTerminalAuth:false, isExistingInstall:installationWasExisting });
   const localAddress = await localServer.start();
   apiBase = `http://127.0.0.1:${localAddress.port}`;
 
@@ -415,7 +374,7 @@ function registerIpc() {
       if(stopped){
         if(!runtime){await startEmbeddedServer();}
         else {
-          if(!localServer){localServer=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false,isExistingInstall:true,...fiscalServerOptions()});const address=await localServer.start();apiBase=`http://127.0.0.1:${address.port}`;}
+          if(!localServer){localServer=createLocalServer({runtime,host:'127.0.0.1',port:0,token:installToken,requireTerminalAuth:false,isExistingInstall:true,});const address=await localServer.start();apiBase=`http://127.0.0.1:${address.port}`;}
           if(isHostMode(dataServerConfig)&&!lanServer){lanServer=createLocalServer({runtime,host:dataServerConfig.host,port:dataServerConfig.port,token:installToken,requireTerminalAuth:true,isExistingInstall:true});await lanServer.start();}
         }
         startPrintWorker();
@@ -522,73 +481,6 @@ function registerIpc() {
 
   hardwareController = buildHardwareController();
   const trustedSender = event => Boolean(mainWindow && event.sender === mainWindow.webContents);
-  // Fiscal certificate never traverses the local HTTP API. Only the current
-  // desktop window with a validated administrator session may import an A1.
-  ipcMain.handle('artisys:fiscal:status', async(event)=>{
-    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
-    const available=Boolean(fiscalCredentialStore);
-    const state=fiscalCredentialStore?.status()||{configured:false,homologationEnabled:false,encryptionAvailable:false};
-    return {available,...state};
-  });
-  ipcMain.handle('artisys:fiscal:import', async(event,input={})=>{
-    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
-    if(!fiscalCredentialStore||!runtime||isExternalMode(dataServerConfig))throw Error('Configure o certificado no PC principal Windows');
-    await authorizeDeploymentChange(input.sessionToken);
-    const selection=await dialog.showOpenDialog(mainWindow,{
-      title:'Selecionar certificado A1 (.pfx / .p12)',
-      properties:['openFile'],
-      filters:[{name:'Certificado digital A1',extensions:['pfx','p12']}]
-    });
-    if(selection.canceled||!selection.filePaths?.length)return {cancelled:true};
-    const outcome=fiscalCredentialStore.importCertificate({
-      certificatePath:selection.filePaths[0],password:input.password,
-      uf:input.uf,csc:input.csc,idCsc:input.idCsc
-    });
-    // Materialize only for a native operation. The user's A1 remains sealed at rest.
-    return {...outcome,restartRequired:true};
-  });
-  for(const [channel,kind,label,filename] of [
-    ['save-danfe','danfe.pdf','Salvar DANFE autorizada','ArtiSys-DANFE-'],
-    ['save-offline-danfe','offline-danfe.pdf','Salvar DANFE NFC-e em contingência - imprimir 2 vias','ArtiSys-DANFE-CONTINGENCIA-']
-  ]){
-   ipcMain.handle('artisys:fiscal:'+channel, async(event,input={})=>{
-    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
-    if(!runtime||isExternalMode(dataServerConfig))throw Error('DANFE deve ser salvo no computador principal');
-    await authorizeDeploymentChange(input.sessionToken);
-    const id=String(input.documentId||'');
-    if(!/^[0-9a-f-]{36}$/i.test(id))throw Error('Identificador de documento fiscal inválido');
-    const response=await fetchWithTimeout(
-      apiBase+'/api/v1/fiscal-preview/documents/'+id+'/'+kind,
-      {headers:{authorization:'Bearer '+input.sessionToken,accept:'application/pdf'}},15000);
-    if(!response.ok)throw Error('PDF fiscal não disponível ou não autorizado');
-    const buffer=Buffer.from(await response.arrayBuffer());
-    if(buffer.length<16||buffer.length>3*1024*1024||buffer.subarray(0,5).toString('ascii')!=='%PDF-'||
-       !buffer.toString('ascii',Math.max(0,buffer.length-128)).includes('%%EOF'))
-      throw Error('PDF DANFE devolvido com formato inválido');
-    const selected=await dialog.showSaveDialog(mainWindow,{
-      title:label,
-      defaultPath:filename+id.slice(0,8)+'.pdf',
-      filters:[{name:'Documento PDF',extensions:['pdf']}]
-    });
-    if(selected.canceled||!selected.filePath)return {cancelled:true};
-    await writeFile(selected.filePath,buffer,{flag:'wx',mode:0o600});
-    return {saved:true,contingency:channel==='save-offline-danfe'};
-   });
-  }
-  ipcMain.handle('artisys:fiscal:enable-homologation', async(event,input={})=>{
-    if(!trustedSender(event))throw Error('Janela fiscal não autorizada');
-    if(!fiscalCredentialStore||!runtime||isExternalMode(dataServerConfig))throw Error('Operação fiscal disponível somente no PC principal');
-    await authorizeDeploymentChange(input.sessionToken);
-    const saved=runtime.db.prepare('SELECT public_json FROM acbr_fiscal_company WHERE id=1').get();
-    if(!saved)throw Error('Configure primeiro os dados do emitente fiscal');
-    const issuer=JSON.parse(saved.public_json);
-    try {
-      fiscalCredentialStore.materialize();
-      inspectLocalAcbrConfig({file:fiscalCredentialStore.paths.iniPath,model:55,issuerUF:issuer.uf});
-      return fiscalCredentialStore.enableHomologation();
-    } finally {fiscalCredentialStore.removeRuntimeConfig();}
-  });
-
   registerHardwareIpc({ ipcMain, controller: hardwareController, isTrustedSender: trustedSender });
   const receiptActions=createReceiptActions({
     BrowserWindow,
@@ -657,20 +549,6 @@ app.whenReady().then(async () => {
   const deploymentPath = path.join(app.getPath('userData'), 'deployment.json');
   const publicBootstrap = resolveBootstrapConfig({ env:process.env, configPath:deploymentPath });
   terminalCredentialStore = createTerminalCredentialStore({ app, safeStorage });
-  // Own-source ACBr DLLs remain in resources/fiscal; business data and
-  // operator-owned credentials remain in Electron userData across updates.
-  if(process.platform==='win32'&&process.arch==='x64'&&!isExternalMode(dataServerConfig)){
-    const fiscalBundle=resolveFiscalDesktopRuntime({
-      resourcesPath:app.isPackaged?process.resourcesPath:path.join(__dirname,'..','build'),
-      userData:app.getPath('userData'),platform:process.platform,arch:process.arch,embeddedServer:true
-    });
-    if(fiscalBundle.enabled){
-      fiscalCredentialStore=createFiscalCredentialStore({userData:app.getPath('userData'),safeStorage});
-      // Recover after a crash: remove the previous ephemeral plaintext configuration.
-      // The A1 PFX, sealed password, approval state and SQLite stay untouched.
-      fiscalCredentialStore.removeRuntimeConfig();
-    }
-  }
   paymentProviderStore = createPaymentProviderStore({ app, safeStorage });
   terminalIdentityStore = createTerminalIdentityStore({ userDataPath:app.getPath('userData') });
   dataServerConfig = migrateLegacyDataServerCredential({ config:dataServerConfig, filePath:dataServerConfigPath, credentialStore:terminalCredentialStore });
@@ -716,4 +594,4 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-app.on('before-quit', () => { fiscalCredentialStore?.removeRuntimeConfig(); void shutdown(); });
+app.on('before-quit', () => { void shutdown(); });
