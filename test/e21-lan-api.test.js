@@ -53,6 +53,9 @@ test('handshake reports incompatible client and admin can create next pairing co
     assert.equal(handshake.status, 200);
     const hs = await handshake.json();
     assert.equal(hs.compatible, false);
+    assert.ok(hs.capabilities.includes('sales'));
+    assert.ok(hs.capabilities.includes('printing'));
+    assert.equal(hs.capabilities.includes('fiscal'),false);
     const paired = await pair(ctx);
     const token = await login(ctx, paired);
     const create = await fetch(`${ctx.base}/api/v1/lan/pairing-codes`, { method:'POST', headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}, body:'{}' });
