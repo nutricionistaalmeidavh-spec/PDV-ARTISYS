@@ -30,7 +30,7 @@ test('Kanban exige confirmacao e permissao especifica para baixa integral e idem
     assert.equal(retry.id,first.id);
     assert.equal(f.finance.getEntry(entry.id).settlements.length,1);
     assert.throws(()=>f.workspace.moveCard('entry:'+entry.id,{stage:'PENDING'},f.allowed),/estorn/i);
-    assert.ok(f.db.prepare("SELECT 1 FROM audit_logs WHERE action='finance.kanban.settle'").get());
+    assert.ok(f.db.prepare("SELECT 1 FROM audit_log WHERE action='finance.kanban.settle'").get());
   }finally{f.db.close();}
 });
 test('Kanban contempla tarefas sem efeito financeiro e etapas persistentes',()=>{
