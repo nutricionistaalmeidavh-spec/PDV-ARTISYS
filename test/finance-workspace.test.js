@@ -4,12 +4,13 @@ const assert=require('node:assert/strict');
 const {openDatabase}=require('../js/core/database/sqlite-database');
 const {runMigrations}=require('../js/core/database/migrations');
 const {runErpFinanceMigrations}=require('../js/core/database/erp-finance-migrations');
+const {runAccessProfileMigrations}=require('../js/core/database/access-profile-migrations');
 const {runFinanceWorkspaceMigrations}=require('../js/core/database/finance-workspace-migrations');
 const {createFinanceService}=require('../js/domains/finance/finance-service');
 const {createFinanceWorkspace}=require('../js/domains/finance/finance-workspace');
 
 function fixture(){
-  const db=openDatabase(':memory:');runMigrations(db);runErpFinanceMigrations(db);runFinanceWorkspaceMigrations(db);
+  const db=openDatabase(':memory:');runMigrations(db);runAccessProfileMigrations(db);runErpFinanceMigrations(db);runFinanceWorkspaceMigrations(db);
   let seq=0;const now=()=> '2026-11-07T12:00:00.000Z';
   const idFactory=prefix=>prefix+'-'+(++seq);
   const finance=createFinanceService({db,now,idFactory});
