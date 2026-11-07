@@ -259,6 +259,7 @@
       "<label>Critério<select name='basis' class='ops-input'><option value='cash' "+(bi.basis==='cash'?'selected':'')+">Caixa</option><option value='accrual' "+(bi.basis==='accrual'?'selected':'')+">Competência</option></select></label>"+
       "<button type='submit' class='ops-primary'>Atualizar BI</button></form></section>"+
       "<div class='finance-bi-metrics'>"+metric('Receitas',bi.dre.revenueCents)+metric('Custos',bi.dre.costCents)+metric('Despesas',bi.dre.expenseCents)+metric('Resultado',bi.dre.resultCents)+"</div>"+
+      "<div class='finance-bi-metrics'>"+metric('Ticket médio PDV',bi.sales?.averageTicketCents)+metric('Vendas PDV',bi.sales?.netSalesCents)+metric('Recebíveis vencidos',bi.dashboard.overdueReceivableCents)+metric('Pagáveis vencidos',bi.dashboard.overduePayableCents)+"</div>"+
       "<div class='ops-grid two'><section class='ops-card'><h2>Evolução financeira</h2>"+
       "<div class='finance-bi-legend'><span>Receitas</span><span>Custos e despesas</span></div>"+
       "<div class='finance-bi-chart' role='img' aria-label='Gráfico de evolução mensal de receitas, custos e despesas'>"+
