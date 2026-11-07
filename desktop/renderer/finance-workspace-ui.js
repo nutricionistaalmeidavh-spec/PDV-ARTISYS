@@ -63,7 +63,7 @@
     const decoded=atob(base64);
     const bytes=new Uint8Array(decoded.length);
     for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
-    const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const blob=new Blob([bytes],{type:mimeType||'application/octet-stream'});
     const url=URL.createObjectURL(blob),link=document.createElement('a');
     link.href=url;link.download=name;link.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
