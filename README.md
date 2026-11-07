@@ -167,6 +167,8 @@ A E54.1 mantém simulação automatizada de impressora, balança, gaveta, leitor
 
 A distribuição comercial opera com documentos e impressão claramente identificados como **NÃO FISCAL**. NFC-e, NF-e, SAT, MFE, SEFAZ, certificado digital e provedores fiscais não fazem parte dos fluxos comerciais desta release.
 
+**Fiscal integralmente desativado:** não há cartão/menu fiscal no layout, endpoint fiscal ativo no servidor, IPC de certificado ou DLL ACBr no instalador oficial. Nem as opções antigas de ambiente reativam a função. O código ACBr permanece somente no repositório para consulta técnica; arquivos e registros fiscais preexistentes do usuário não são excluídos. O sistema continua fornecendo cupom **não fiscal**, impressão de cozinha, vendas e caixa normalmente.
+
 Pagamentos são registrados manualmente no PDV. Não há dependência obrigatória de TEF, PinPad, adquirente, API bancária ou confirmação automática de PIX.
 
 ## Verificação e release
