@@ -157,7 +157,7 @@
   }
   async function renderSheets(){
     const route='finance-sheets';if(!await authorized(route))return;
-    const [entries,accounts]=await Promise.all([api.financeEntries(sheetFilter),api.financeAccounts()]);
+    const [entries,accounts]=await Promise.all([api.financeEntries({...sheetFilter,to:sheetFilter.to+'T23:59:59.999Z'}),api.financeAccounts()]);
     if(document.body.dataset.activeRoute!==route)return;
     const filtered=entries.filter(e=>!sheetFilter.query||String(e.description||'').toLowerCase().includes(sheetFilter.query.toLowerCase()));
     const accountMap=new Map(accounts.map(a=>[a.id,a.name]));
