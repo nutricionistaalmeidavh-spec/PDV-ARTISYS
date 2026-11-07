@@ -12,7 +12,10 @@
     {id:'finance',label:'Lançamentos'},
     {id:'finance-banks',label:'Bancos e conciliação'},
     {id:'finance-recurrences',label:'Recorrências'},
-    {id:'finance-alerts',label:'Alertas'}
+    {id:'finance-alerts',label:'Alertas'},
+    {id:'finance-sheets',label:'Planilhas'},
+    {id:'finance-bi',label:'BI'},
+    {id:'finance-kanban',label:'Kanban'}
   ]);
   const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
   const money=value=>(Number(value||0)/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});

@@ -55,7 +55,9 @@ const DEFINITIONS=[
   ['wholesale.orders.manage','restaurant','Gerenciar pedidos de atacado','Criar e administrar pedidos com regras de atacado.'],
 
   ['finance.view','finance','Consultar financeiro','Consultar contas, lançamentos e projeções financeiras.'],
-  ['finance.manage','finance','Gerenciar financeiro','Criar, liquidar, cancelar e ajustar registros financeiros.'],
+  ['finance.manage','finance','Gerenciar financeiro','Criar, cancelar e ajustar registros financeiros.'],
+  ['finance.settle','finance','Confirmar baixas financeiras','Autorizar liquidacoes financeiras, inclusive ao concluir cards no Kanban.'],
+  ['finance.reverse','finance','Estornar baixas financeiras','Estornar pagamentos e recebimentos mediante justificativa.'],
   ['reports.view','finance','Consultar relatórios','Acessar relatórios operacionais e gerenciais.'],
   ['management.view','finance','Consultar gestão','Acessar indicadores e visões consolidadas do negócio.'],
 

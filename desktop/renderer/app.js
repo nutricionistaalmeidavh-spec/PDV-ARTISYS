@@ -20,6 +20,9 @@
     'finance-banks': { label: 'Bancos e conciliação', icon: 'chart', phase: 'E16' },
     'finance-recurrences': { label: 'Recorrências', icon: 'history', phase: 'E16' },
     'finance-alerts': { label: 'Alertas financeiros', icon: 'management', phase: 'E16' },
+    'finance-sheets': { label: 'Planilhas financeiras', icon: 'document', phase: 'E16' },
+    'finance-bi': { label: 'BI financeiro', icon: 'management', phase: 'E16' },
+    'finance-kanban': { label: 'Kanban financeiro', icon: 'chart', phase: 'E16' },
     reports: { label: 'Relatórios', icon: 'document', phase: 'E17' },
     sellers: { label: 'Equipe comercial', icon: 'users' },
     management: { label: 'Gestão', icon: 'management' },
@@ -204,6 +207,9 @@
       'finance-banks':'financial-management',
       'finance-recurrences':'financial-management',
       'finance-alerts':'financial-management',
+      'finance-sheets':'financial-management',
+      'finance-bi':'financial-management',
+      'finance-kanban':'financial-management',
       management:'financial-management',
       reports:'financial-management',
       sales:'post-sale',
@@ -1468,6 +1474,9 @@ function openCategoryForm() {
       'financial-management': () => renderFlowHub('Gestão financeira','Resultados, análises e compromissos financeiros em um único fluxo.',[
         {route:'management',label:'Gestão e DRE',description:'Acompanhar resultado, margem e fluxo de caixa.',icon:'management',tone:'rose'},
         {route:'finance',label:'Financeiro',description:'Lançamentos, bancos, conciliação, recorrências e alertas.',icon:'chart',tone:'green'},
+        {route:'finance-sheets',label:'Planilhas',description:'Edite, filtre, importe e exporte lançamentos em CSV.',icon:'document',tone:'teal'},
+        {route:'finance-bi',label:'BI financeiro',description:'Explore receitas, custos, despesas e resultado por período.',icon:'management',tone:'rose'},
+        {route:'finance-kanban',label:'Kanban financeiro',description:'Organize contas e tarefas com baixas protegidas por perfil.',icon:'chart',tone:'purple'},
         {route:'reports',label:'Relatórios',description:'Consultar vendas, estoque e desempenho do negócio.',icon:'document',tone:'indigo'}
       ])
     };
