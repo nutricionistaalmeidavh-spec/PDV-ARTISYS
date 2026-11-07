@@ -273,7 +273,18 @@
       "<div><dt>Saldo projetado (variação)</dt><dd>"+money(bi.cashflow.projectedClosingDeltaCents)+"</dd></div></dl></section></div>"+
       "<section class='ops-card'><h2>Composição do resultado</h2><div class='finance-bi-groups'>"+
       (bi.dre.groups||[]).map(g=>"<div><span>"+esc(g.name)+"</span><strong>"+money(g.amountCents)+"</strong></div>").join('')+"</div>"+
-      (!(bi.dre.groups||[]).length?"<p class='ops-muted'>Sem movimentações no período.</p>":'')+"</section>");
+      (!(bi.dre.groups||[]).length?"<p class='ops-muted'>Sem movimentações no período.</p>":'')+"</section>"+
+      "<div class='ops-grid two'><section class='ops-card'><h2>Formas de pagamento nas vendas PDV</h2>"+
+      "<p class='ops-muted'>"+Number(bi.sales?.salesCount||0)+" venda(s) concluída(s) · margem estimada "+money(bi.sales?.estimatedMarginCents)+"</p>"+
+      "<div class='finance-bi-groups'>"+(bi.sales?.paymentMethods||[]).map(row=>
+        "<div><span>"+esc(row.method)+" ("+Number(row.salesCount||0)+" vendas)</span><strong>"+money(row.netCents)+"</strong></div>").join('')+"</div>"+
+      (!(bi.sales?.paymentMethods||[]).length?"<p class='ops-muted'>Nenhum pagamento no período.</p>":'')+"</section>"+
+      "<section class='ops-card'><h2>Comparação com período anterior</h2><p class='ops-muted'>"+
+      esc(bi.comparison?.previous?.from||'')+" a "+esc(bi.comparison?.previous?.to||'')+"</p>"+
+      "<div class='finance-bi-groups'><div><span>Diferença receitas</span><strong>"+money(bi.comparison?.delta?.revenueCents)+"</strong></div>"+
+      "<div><span>Diferença despesas</span><strong>"+money(bi.comparison?.delta?.expenseCents)+"</strong></div>"+
+      "<div><span>Diferença resultado</span><strong>"+money(bi.comparison?.delta?.resultCents)+"</strong></div>"+
+      "<div><span>Margem bruta estimada</span><strong>"+Number(bi.dashboard.marginPercent||0).toLocaleString('pt-BR')+"%</strong></div></div></section></div>");
     complete(route);
     document.getElementById('finance-bi-filter')?.addEventListener('submit',event=>{
       event.preventDefault();const f=new FormData(event.currentTarget);
