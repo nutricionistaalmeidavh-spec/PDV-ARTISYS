@@ -59,6 +59,28 @@
     const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;link.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
+  function downloadXlsx(base64,name){
+    const decoded=atob(base64);
+    const bytes=new Uint8Array(decoded.length);
+    for(let i=0;i<decoded.length;i++)bytes[i]=decoded.charCodeAt(i);
+    const blob=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download=name;link.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+  }
+  function readAsBase64(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onerror=()=>reject(new Error('Não foi possível ler o arquivo Excel.'));
+      reader.onload=()=>{
+        const result=String(reader.result||'');
+        const comma=result.indexOf(',');
+        if(comma<0)return reject(new Error('Arquivo Excel inválido.'));
+        resolve(result.slice(comma+1));
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   function parseCsv(text){
     const input=String(text||'').replace(/^\uFEFF/,'');
     const delimiter=(input.split(/\r?\n/,1)[0]||'').includes(';')?';':',';
