@@ -148,7 +148,7 @@ test('QA profile isolation remains available while commercial release omits fisc
  assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'0',ARTISYS_QA_USERDATA_DIR:qaDir}),null);
  assert.equal(resolveQaUserDataPath({CI:'true',ARTISYS_QA:'1',ARTISYS_QA_USERDATA_DIR:'relative-path'}),null);
  const workflow=fs.readFileSync(path.join(__dirname,'..','.github','workflows','release-windows.yml'),'utf8');
- assert.match(workflow,/npm run dist:win(?:\\s|$)/m);
+ assert.match(workflow,/npm run dist:win(?:\s|$)/m);
  assert.doesNotMatch(workflow,/dist:win:fiscal|build-windows-native/);
  assert.equal(fs.existsSync(path.join(__dirname,'..','.github','workflows','fiscal-windows-candidate.yml')),false);
 });
@@ -178,9 +178,9 @@ test('archived fiscal UI cannot be loaded or invoked through commercial desktop'
  const main=fs.readFileSync(path.join(root,'desktop/main.cjs'),'utf8');
  const preload=fs.readFileSync(path.join(root,'desktop/preload.cjs'),'utf8');
  const html=fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
- assert.match(ui,/offline-queue\\/flush/);
- assert.doesNotMatch(html,/acbrlib-fiscal-preview-ui\\.js/);
- assert.doesNotMatch(main,/artisys:fiscal:|offline-danfe\\.pdf|acbrlib-desktop-runtime/);
+ assert.match(ui,/offline-queue\/flush/);
+ assert.doesNotMatch(html,/acbrlib-fiscal-preview-ui\.js/);
+ assert.doesNotMatch(main,/artisys:fiscal:|offline-danfe\.pdf|acbrlib-desktop-runtime/);
  assert.doesNotMatch(preload,/saveOfflineDanfe|artisys:fiscal:/);
 });
 
