@@ -68,6 +68,9 @@
     link.href=url;link.download=name;link.click();
     setTimeout(()=>URL.revokeObjectURL(url),1500);
   }
+  function downloadXlsx(base64,name){
+    return downloadBinary(base64,name,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
   function readAsBase64(file){
     return new Promise((resolve,reject)=>{
       const reader=new FileReader();
