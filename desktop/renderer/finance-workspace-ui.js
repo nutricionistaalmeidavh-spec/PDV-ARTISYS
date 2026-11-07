@@ -195,6 +195,31 @@
       const rows=filtered.map(e=>[e.kind,e.description,e.amountCents,localDate(e.dueAt),e.category||'',e.accountId||'',e.notes||'']);
       downloadCsv([csvColumnKeys,...rows],'artisys-financeiro-'+businessDate()+'.csv');
     });
+    document.getElementById('finance-sheet-export-xlsx')?.addEventListener('click',async()=>{
+      try{
+        const workbook=await api.financeXlsxExport(sheetFilter);
+        downloadXlsx(workbook.base64,'artisys-financeiro-'+businessDate()+'.xlsx');
+      }catch(error){toast(error.message||String(error),'error');}
+    });
+    document.getElementById('finance-sheet-import-xlsx')?.addEventListener('change',async event=>{
+      const file=event.target.files?.[0];if(!file)return;
+      try{
+        if(file.size>700*1024)throw new Error('Arquivo Excel excede 700 KB. Divida-o em lotes menores.');
+        const preview=await api.financeXlsxPreview({base64:await readAsBase64(file)});
+        const rows=preview.rows;
+        const total=rows.reduce((sum,row)=>sum+row.amountCents,0);
+        const result=await dialog({
+          title:'Confirmar importação Excel',
+          description:'Os dados foram verificados localmente pelo servidor. Nenhum lançamento foi gravado ainda.',
+          confirmLabel:'Importar '+rows.length+' lançamentos',
+          body:"<div class='ux-dialog__summary'><strong>"+rows.length+" lançamentos novos</strong><span>Total: "+money(total)+"</span></div>"+
+            "<p>Confira os valores e a conta vinculada antes de confirmar.</p>",
+          onConfirm:()=>api.financeSheetImport({rows,idempotencyKey:api.mutationId()})
+        });
+        if(result.confirmed){toast('Planilha Excel importada.','success');await renderSheets();}
+      }catch(error){toast(error.message||String(error),'error');}
+      event.target.value='';
+    });
     document.getElementById('finance-sheet-import')?.addEventListener('change',async event=>{
       const file=event.target.files?.[0];if(!file)return;
       try{
