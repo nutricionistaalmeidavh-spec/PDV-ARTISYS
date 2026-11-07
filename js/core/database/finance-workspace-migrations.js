@@ -18,6 +18,13 @@ function runFinanceWorkspaceMigrations(db,now=()=>new Date().toISOString()){
     'CREATE TABLE IF NOT EXISTS finance_workspace_imports (',
     'idempotency_key TEXT PRIMARY KEY, payload_hash TEXT NOT NULL, row_count INTEGER NOT NULL,',
     'created_by TEXT NOT NULL, created_at TEXT NOT NULL)',
+    ';',
+    'CREATE TABLE IF NOT EXISTS finance_kanban_attachments (',
+    'id TEXT PRIMARY KEY, card_id TEXT NOT NULL, filename TEXT NOT NULL, mime_type TEXT NOT NULL,',
+    'file_size INTEGER NOT NULL CHECK(file_size BETWEEN 1 AND 524288), data BLOB NOT NULL,',
+    'created_by TEXT NOT NULL, created_at TEXT NOT NULL)',
+    ';',
+    'CREATE INDEX IF NOT EXISTS idx_finance_kanban_attachments_card ON finance_kanban_attachments(card_id,created_at)',
     ';'
   ].join('\n'));
   // Only system-defined protected profiles inherit newly introduced permissions.
