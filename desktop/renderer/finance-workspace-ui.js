@@ -170,8 +170,10 @@
       "<label>Tipo<select name='kind' class='ops-input'><option value=''>Todos</option><option value='PAYABLE' "+(sheetFilter.kind==='PAYABLE'?'selected':'')+">A pagar</option><option value='RECEIVABLE' "+(sheetFilter.kind==='RECEIVABLE'?'selected':'')+">A receber</option></select></label>"+
       "<label>Buscar<input name='query' class='ops-input' value='"+esc(sheetFilter.query||'')+"' placeholder='Descrição'></label>"+
       "<button type='submit' class='ops-primary'>Filtrar</button></form>"+
-      "<div class='ops-head-actions finance-sheet-actions'><button type='button' id='finance-sheet-export' class='ops-secondary'>Exportar CSV / Excel</button>"+
-      (can('finance.manage')?"<label class='ops-secondary finance-file-button'>Importar CSV<input id='finance-sheet-import' type='file' accept='.csv,text/csv' hidden></label>":'')+"</div>"+
+      "<div class='ops-head-actions finance-sheet-actions'><button type='button' id='finance-sheet-export' class='ops-secondary'>Exportar CSV</button>"+
+      "<button type='button' id='finance-sheet-export-xlsx' class='ops-secondary'>Exportar Excel (.xlsx)</button>"+
+      (can('finance.manage')?"<label class='ops-secondary finance-file-button'>Importar CSV<input id='finance-sheet-import' type='file' accept='.csv,text/csv' hidden></label>"+
+      "<label class='ops-secondary finance-file-button'>Importar Excel<input id='finance-sheet-import-xlsx' type='file' accept='.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' hidden></label>":'')+"</div>"+
       "<div class='ops-table-wrap finance-sheet-scroll'><table class='ops-table'><thead><tr><th>Tipo</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Aberto</th><th>Conta</th><th>Situação</th><th>Ação</th></tr></thead><tbody>"+
       (tableRows||"<tr><td colspan='8'>Nenhum lançamento para o filtro.</td></tr>")+"</tbody></table></div>"+
       "<p class='ops-muted'>"+filtered.length+" lançamento(s). "+(filtered.length>700?'Exibidos os primeiros 700; refine os filtros.':'')+
