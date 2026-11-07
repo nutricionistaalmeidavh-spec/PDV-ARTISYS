@@ -310,7 +310,9 @@
       (card.stage!=='PENDING'?moveButton(card.stage==='DONE'?'IN_PROGRESS':'PENDING','Voltar'):'')+
       (card.stage!=='DONE'?moveButton(card.stage==='PENDING'?'IN_PROGRESS':'DONE',card.stage==='IN_PROGRESS'?'Concluir':'Avançar'):'')+
       (card.kind==='TASK'&&can('finance.manage')?"<button type='button' class='ops-link' data-task-edit='"+esc(card.id)+"'>Editar</button>":'')+
-      "</div></article>";
+      "<button type='button' class='ops-link' data-card-attachments='"+esc(card.id)+"'>Anexos</button>"+
+      (can('finance.manage')?"<label class='ops-secondary finance-file-button'>Anexar<input type='file' hidden data-attach-file='"+esc(card.id)+"' accept='.pdf,.png,.jpg,.jpeg,.txt,.xlsx'></label>":'')+
+      "</div><div class='finance-attachments-list' hidden></div></article>";
   }
   async function createTask(){
     const result=await dialog({title:'Nova tarefa financeira',description:'Tarefas não geram baixa, receita nem despesa.',
