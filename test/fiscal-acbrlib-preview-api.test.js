@@ -44,138 +44,55 @@ async function login(ctx,username,password){
 function request(ctx,endpoint,token,{method='GET',body}={}){
  return fetch(ctx.base+'/api/v1/fiscal-preview'+endpoint,{method,headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
 }
-test('commercial core has no fiscal API or fiscal schema when optional preview is disabled',async()=>{
- const ctx=await setup();try{
-  const token=await login(ctx,'admin','senha-admin-123');
-  assert.equal((await request(ctx,'/status',token)).status,404);
+test('fiscal routes are absent from the commercial server by default',async()=>{
+ const ctx=await setup();
+ try{
+  const admin=await login(ctx,'admin','senha-admin-123');
+  for(const endpoint of ['/status','/company','/products/SKU-123','/documents','/offline-queue','/offline-uf-policy','/inutilizations']){
+   assert.equal((await request(ctx,endpoint,admin)).status,404,endpoint);
+  }
   assert.deepEqual(ctx.runtime.db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'acbr_fiscal_%'").all(),[]);
  }finally{await ctx.close();}
 });
-test('explicit fiscal preview is authenticated, role-checked and does not enable transmission',async()=>{
- const ctx=await setup({enabled:true});
- try{
-  const admin=await login(ctx,'admin','senha-admin-123');
-  const cashier=await login(ctx,'cashier','senha-caixa-123');
-  assert.equal((await fetch(ctx.base+'/api/v1/fiscal-preview/status')).status,401);
-  assert.equal((await request(ctx,'/status',cashier)).status,403);
-  const status=await request(ctx,'/status',admin);assert.equal(status.status,200);
-  assert.equal((await status.json()).emissionEnabled,false);
-  const company={name:'Loja',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1};
-  const created=await request(ctx,'/company',admin,{method:'PUT',body:company});
-  assert.equal(created.status,200);
-  assert.equal((await created.json()).autoIssue,false);
-  const profile=await request(ctx,'/products/SKU-123',admin,{method:'PUT',body:{ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',reviewedBy:'contabilidade',reviewedAt:'2026-11-04'}});
-  assert.equal(profile.status,200);
-  assert.equal((await profile.json()).productId,'SKU-123');
-  assert.equal((await request(ctx,'/company',cashier,{method:'PUT',body:company})).status,403);
-  const issue=await request(ctx,'/documents/missing/transmit',admin,{method:'POST',body:{}});
-  assert.equal(issue.status,409);
-  assert.equal((await request(ctx,'/documents',admin)).status,200);
-  assert.equal(ctx.runtime.db.prepare('SELECT COUNT(*) n FROM acbr_fiscal_documents').get().n,0);
- }finally{await ctx.close();}
-});
 
-test('admin can compile and attempt one NFC-e homologation from a completed sale with an explicit local ACBr worker',async()=>{
+test('even explicit preview and native ACBr options cannot expose fiscal API or reach native worker',async()=>{
  const ctx=await setup({enabled:true,native:true});
  try{
-  ctx.runtime.sales.getSaleDetails=()=>({
-   id:'sale-test',saleNumber:'CX-1',status:'COMPLETED',customerId:null,completedAt:'2026-11-04T12:00:00-03:00',
-   subtotalCents:2000,discountCents:200,totalCents:1800,changeCents:200,
-   items:[{id:'item-1',productId:'SKU-123',productName:'CAFE',sku:'CAFE',quantity:2,unitPriceCents:1000,totalCents:2000,allocatedDiscountCents:200,netTotalCents:1800}],
-   payments:[{method:'CASH',amountCents:2000}]
-  });
   const admin=await login(ctx,'admin','senha-admin-123');
   const cashier=await login(ctx,'cashier','senha-caixa-123');
-  const status=await (await request(ctx,'/status',admin)).json();
-  assert.equal(status.emissionEnabled,false); // requires issuer profile and matching local cert
-  const company={name:'EMPRESA TESTE',cnpj:'12345678000195',uf:'SP',stateRegistration:'123456789',crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,
-    street:'RUA DAS FLORES',streetNumber:'10',district:'CENTRO',municipalityCode:'3543402',municipalityName:'RIBEIRAO PRETO',postalCode:'14000000'};
-  assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:company})).status,200);
-  assert.equal((await (await request(ctx,'/status',admin)).json()).emissionEnabled,true);
-  const profile={ncm:'09012100',cfop:'5102',origin:'0',csosn:'102',cAtivSN:'01',pisCst:'49',cofinsCst:'49',unit:'UN',
-   reviewedBy:'contador',reviewedAt:'2026-11-04',zeroLegacyTaxesConfirmed:true,
-   ibsCbsCst:'000',cClassTrib:'000001',reformTax:{ibsUfRate:'0.1000',ibsMunRate:'0.0000',cbsRate:'0.9000'}};
-  assert.equal((await request(ctx,'/products/SKU-123',admin,{method:'PUT',body:profile})).status,200);
-  const draftRequest=await request(ctx,'/sales/sale-test/prepare',admin,{method:'POST',body:{documentType:'nfce'}});
-  assert.equal(draftRequest.status,201);
-  const doc=await draftRequest.json();
-  assert.equal(doc.status,'REVIEW_REQUIRED');
-  assert.equal(doc.snapshot.items[0].taxProfile.reformTax.baseCents,1800);
-  const compiled=await request(ctx,'/documents/'+doc.id+'/compile',admin,{method:'POST',body:{}});
-  assert.equal(compiled.status,200);
-  assert.equal((await compiled.json()).status,'READY');
-  assert.equal((await request(ctx,'/documents/'+doc.id+'/transmit',cashier,{method:'POST',body:{}})).status,403);
+  for(const token of [admin,cashier]){
+   for(const [endpoint,method,body] of [
+    ['/status','GET'],['/company','PUT',{name:'test',cnpj:'12345678000195',uf:'SP'}],
+    ['/products/SKU-123','PUT',{ncm:'09012100'}],
+    ['/sales/sale-test/prepare','POST',{documentType:'nfce'}],
+    ['/documents/no-document/compile','POST',{}],
+    ['/documents/no-document/transmit','POST',{}],
+    ['/documents/no-document/consult','POST',{}],
+    ['/documents/no-document/offline-issue','POST',{}],
+    ['/documents/no-document/offline-danfe.pdf','GET'],
+    ['/documents/no-document/cce','POST',{}],
+    ['/documents/no-document/cancel','POST',{}],
+    ['/offline-queue/flush','POST',{}],
+    ['/inutilizations','POST',{}]
+   ]){
+    assert.equal((await request(ctx,endpoint,token,{method,body})).status,404,method+' '+endpoint);
+   }
+  }
   assert.equal(ctx.nativeCalls,0);
-  const issued=await request(ctx,'/documents/'+doc.id+'/transmit',admin,{method:'POST',body:{}});
-  const issuedBody=await issued.json();
-  assert.equal(issued.status,200,JSON.stringify({issuedBody,nativeCalls:ctx.nativeCalls}));
-  assert.equal(issuedBody.status,'AUTHORIZED');
-  assert.equal(ctx.nativeCalls,1);
-  const retry=await request(ctx,'/documents/'+doc.id+'/transmit',admin,{method:'POST',body:{}});
-  assert.equal(retry.status,400);
-  assert.equal(ctx.nativeCalls,1);
-  assert.equal((await request(ctx,'/documents/'+doc.id+'/cancel',cashier,{method:'POST',
-   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}})).status,403);
-  const cancellation=await request(ctx,'/documents/'+doc.id+'/cancel',admin,{method:'POST',
-   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}});
-  assert.equal(cancellation.status,200);
-  assert.equal((await cancellation.json()).status,'CANCELLED');
-  assert.equal((await (await request(ctx,'/documents/'+doc.id+'/cancellation',admin)).json()).status,'CANCELLED');
-  assert.equal(ctx.nativeCalls,2);
-  assert.equal((await request(ctx,'/documents/'+doc.id+'/cancel',admin,{method:'POST',
-   body:{reason:'CANCELAMENTO SOLICITADO PELO CLIENTE'}})).status,400);
-  assert.equal(ctx.nativeCalls,2);
-  ctx.runtime.db.prepare("UPDATE acbr_fiscal_sequences SET next_number=4 WHERE document_type='nfce' AND environment='homologation' AND series=1").run();
-  const inutilization=await request(ctx,'/inutilizations',admin,{method:'POST',
-   body:{model:65,series:1,year:2026,startNumber:2,endNumber:3,reason:'FAIXA NUMERICA NAO UTILIZADA'}});
-  assert.equal(inutilization.status,400);
-  assert.match((await inutilization.json()).error,/SP|S[aã]o Paulo|inutiliza/i);
-  assert.equal(ctx.nativeCalls,2);
-  assert.equal((await (await request(ctx,'/inutilizations',admin)).json()).length,0);
+  assert.deepEqual(ctx.runtime.db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'acbr_fiscal_%'").all(),[]);
  }finally{await ctx.close();}
 });
 
-
-test('offline queue endpoints are administrator-only and never accept unprepared fiscal sends',async()=>{
+test('commercial startup preserves pre-existing fiscal rows but cannot issue or alter them',async()=>{
  const ctx=await setup({enabled:true,native:true});
  try{
+  ctx.runtime.db.exec('CREATE TABLE acbr_fiscal_company (id INTEGER PRIMARY KEY, public_json TEXT NOT NULL)');
+  const original='{"archived":true,"issuer":"old-company"}';
+  ctx.runtime.db.prepare('INSERT INTO acbr_fiscal_company(id,public_json) VALUES(1,?)').run(original);
   const admin=await login(ctx,'admin','senha-admin-123');
-  const cashier=await login(ctx,'cashier','senha-caixa-123');
-  assert.equal((await request(ctx,'/offline-queue',cashier)).status,403);
-  assert.equal((await request(ctx,'/offline-queue/flush',cashier,{method:'POST',body:{}})).status,403);
-  const list=await request(ctx,'/offline-queue',admin);
-  assert.equal(list.status,200);
-  assert.deepEqual(await list.json(),[]);
-  assert.equal((await request(ctx,'/documents/missing/offline-issue',admin,{method:'POST',body:{}})).status,404);
-  assert.equal((await request(ctx,'/documents/missing/offline-danfe.pdf',admin)).status,404);
-  assert.deepEqual(await (await request(ctx,'/offline-queue/flush',admin,{method:'POST',body:{limit:10}})).json(),[]);
- }finally{await ctx.close();}
-});
-
-
-test('administrator can inspect supported NFC-e offline UFs and issuer-specific series requirements',async()=>{
- const ctx=await setup({enabled:true,native:true});
- try{
-  const admin=await login(ctx,'admin','senha-admin-123');
-  const cashier=await login(ctx,'cashier','senha-caixa-123');
-  assert.equal((await request(ctx,'/offline-uf-policy',cashier)).status,403);
-  const first=await request(ctx,'/offline-uf-policy',admin);
-  assert.equal(first.status,200);
-  const body=await first.json();
-  assert.deepEqual(body.supportedUfs.includes('RN'),true);
-  assert.deepEqual(body.supportedUfs.includes('MG'),true);
-  assert.deepEqual(body.supportedUfs.includes('PR'),true);
-  assert.deepEqual(body.supportedUfs.includes('SC'),false);
-  assert.equal(body.issuerUf,null);
-  const company={name:'EMPRESA RN',cnpj:'12345678000195',uf:'RN',stateRegistration:'123456789',
-    crt:'1',ibsCbsRegime:'regular',environment:'homologation',series:1,offlineSeries:900,
-    street:'RUA DO COMERCIO',streetNumber:'1',district:'CENTRO',municipalityCode:'2408102',
-    municipalityName:'NATAL',postalCode:'59000000'};
-  assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:company})).status,200);
-  const selected=await (await request(ctx,'/offline-uf-policy',admin)).json();
-  assert.equal(selected.issuerUf,'RN');
-  assert.equal(selected.eligible,true);
-  assert.equal(selected.policy.offlineSeriesMin,890);
-  assert.equal(selected.policy.offlineSeriesMax,989);
+  assert.equal((await request(ctx,'/company',admin,{method:'PUT',body:{name:'mutated'}})).status,404);
+  assert.equal((await request(ctx,'/documents/one/transmit',admin,{method:'POST',body:{}})).status,404);
+  assert.equal(ctx.runtime.db.prepare('SELECT public_json FROM acbr_fiscal_company WHERE id=1').get().public_json,original);
+  assert.equal(ctx.nativeCalls,0);
  }finally{await ctx.close();}
 });
