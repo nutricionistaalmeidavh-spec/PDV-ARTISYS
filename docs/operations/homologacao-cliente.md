@@ -1,3 +1,9 @@
+> **MÓDULO FISCAL DESATIVADO NO PDV — documento histórico de implementação.**
+> A interface, as rotas de API, os comandos IPC e a distribuição ACBr estão desligados.
+> Não use os procedimentos abaixo como instruções operacionais da versão comercial.
+> Registros fiscais antigos e certificados locais não são apagados automaticamente.
+> Consulte a contabilidade para cumprir as obrigações fiscais fora deste módulo.
+
 # ArtiSys PDV — roteiro de homologação fiscal do estabelecimento
 
 **Escopo:** Windows x64, ACBrLib OSS local, NF-e (55) e NFC-e (65). Nenhum provedor fiscal pago é necessário. O responsável pelo estabelecimento e seu contador executam as validações legais na SEFAZ; a ArtiSys não precisa receber o certificado, a senha, o CSC nem dados de clientes.
