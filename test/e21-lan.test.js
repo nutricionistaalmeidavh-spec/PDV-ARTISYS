@@ -58,6 +58,19 @@ test('blocked terminal cannot authenticate and handshake exposes compatibility w
   } finally { db.close(); }
 });
 
+
+test('LAN handshake never advertises disabled fiscal capability, even with legacy client overrides',()=>{
+  const {db,now}=fixture();
+  try{
+    const standard=createTerminalRegistry({db,now});
+    const defaultCapabilities=standard.handshake({appVersion:'1.0.0'}).capabilities;
+    assert.deepEqual(defaultCapabilities,['sales','inventory','cash','returns','printing']);
+    assert.equal(defaultCapabilities.includes('fiscal'),false);
+    const legacy=createTerminalRegistry({db,now,capabilities:['sales','fiscal','printing']});
+    assert.deepEqual(legacy.handshake({appVersion:'1.0.0'}).capabilities,['sales','printing']);
+  }finally{db.close();}
+});
+
 test('mutation coordinator returns one canonical result for duplicate concurrent and restarted calls', async () => {
   const { db, now } = fixture();
   try {
