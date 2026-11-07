@@ -37,6 +37,8 @@ test('local and headless server never mount fiscal router or enable environment 
 test('even forced legacy preview options cannot open API, issue, or create fiscal tables',async t=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-fiscal-off-'));
  const runtime=createPdvRuntime({dbPath:path.join(directory,'database.sqlite')});
+ runtime.catalog.createUser({id:'admin-fiscal-off',username:'admin-fiscal-off',name:'Admin',
+  profileId:'profile-administrator',password:'senha-123456789'});
  const server=createLocalServer({
   runtime,host:'127.0.0.1',port:0,token:'fiscal-disabled-test',
   fiscalPreviewEnabled:true,
@@ -45,10 +47,15 @@ test('even forced legacy preview options cannot open API, issue, or create fisca
  });
  t.after(async()=>{await server.stop();runtime.close();fs.rmSync(directory,{recursive:true,force:true});});
  const bind=await server.start(),base='http://'+bind.host+':'+bind.port;
+ const login=await fetch(base+'/api/v1/auth/login',{method:'POST',headers:{
+  'content-type':'application/json','x-pdv-token':'fiscal-disabled-test'
+ },body:JSON.stringify({username:'admin-fiscal-off',password:'senha-123456789',terminalId:'PDV-01'})});
+ assert.equal(login.status,200);
+ const sessionToken=(await login.json()).sessionToken;
  for(const endpoint of ['/status','/company','/documents','/offline-queue','/offline-queue/flush','/sales/one/prepare','/documents/one/transmit','/documents/one/offline-issue','/documents/one/cce']){
   const response=await fetch(base+'/api/v1/fiscal-preview'+endpoint,{
    method:/flush|prepare|transmit|offline-issue|\/cce/.test(endpoint)?'POST':'GET',
-   headers:{authorization:'Bearer bogus','content-type':'application/json'},
+   headers:{authorization:'Bearer '+sessionToken,'content-type':'application/json'},
    body:/flush|prepare|transmit|offline-issue|\/cce/.test(endpoint)?'{}':undefined
   });
   assert.equal(response.status,404,endpoint);
