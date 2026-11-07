@@ -369,6 +369,24 @@
     }
     await renderKanban();
   }
+  const MIME_BY_EXTENSION={pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',txt:'text/plain',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+  async function showAttachments(card,element,forceOpen=false){
+    const panel=element.querySelector('.finance-attachments-list');
+    if(!panel)return;
+    if(!forceOpen&&!panel.hidden){panel.hidden=true;return;}
+    const rows=await api.financeKanbanAttachments(card.id);
+    panel.hidden=false;
+    panel.innerHTML="<strong>Comprovantes ("+rows.length+"/12)</strong>"+
+      (rows.map(file=>"<div class='finance-attachment-item'><span>"+esc(file.filename)+" ("+Math.ceil(file.size/1024)+" KB)</span>"+
+        "<button class='ops-link' type='button' data-download-attachment='"+esc(file.id)+"'>Baixar</button></div>").join('')||
+        "<p class='ops-muted'>Nenhum comprovante anexado.</p>");
+    panel.querySelectorAll('[data-download-attachment]').forEach(button=>button.addEventListener('click',async()=>{
+      try{
+        const attachment=await api.financeKanbanGetAttachment(button.dataset.downloadAttachment);
+        downloadBinary(attachment.base64,attachment.filename,attachment.mimeType);
+      }catch(error){toast(error.message||String(error),'error');}
+    }));
+  }
   async function renderKanban(){
     const route='finance-kanban';if(!await authorized(route))return;
     const [cards,accounts]=await Promise.all([api.financeKanbanCards(),api.financeAccounts()]);
@@ -392,6 +410,26 @@
     }));
     content.querySelectorAll('[data-task-edit]').forEach(button=>button.addEventListener('click',()=>{
       const card=cards.find(c=>c.id===button.dataset.taskEdit);if(card)void editTask(card).catch(e=>toast(e.message,'error'));
+    }));
+    content.querySelectorAll('[data-card-attachments]').forEach(button=>button.addEventListener('click',()=>{
+      const card=cards.find(c=>c.id===button.dataset.cardAttachments);
+      if(card)void showAttachments(card,button.closest('.finance-kanban-card')).catch(e=>toast(e.message,'error'));
+    }));
+    content.querySelectorAll('[data-attach-file]').forEach(input=>input.addEventListener('change',async()=>{
+      const file=input.files?.[0];if(!file)return;
+      try{
+        if(file.size<=0||file.size>524288)throw new Error('Cada anexo deve possuir no máximo 512 KB.');
+        const extension=file.name.split('.').pop().toLowerCase();
+        const mimeType=MIME_BY_EXTENSION[extension];
+        if(!mimeType)throw new Error('Formato não permitido. Escolha PDF, imagem, texto ou XLSX.');
+        const card=cards.find(c=>c.id===input.dataset.attachFile);
+        if(!card)throw new Error('Card não encontrado.');
+        const base64=await readAsBase64(file);
+        await api.financeKanbanAddAttachment(card.id,{filename:file.name,mimeType,base64});
+        toast('Comprovante anexado.','success');
+        await showAttachments(card,input.closest('.finance-kanban-card'),true);
+      }catch(error){toast(error.message||String(error),'error');}
+      input.value='';
     }));
     let draggedId=null;
     content.querySelectorAll('.finance-kanban-card').forEach(element=>element.addEventListener('dragstart',event=>{
