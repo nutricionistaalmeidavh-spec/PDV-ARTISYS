@@ -42,7 +42,7 @@ test('V1 desktop exposes no fiscal IPC, sidecar or provider bootstrap', () => {
   const preload = read('desktop/preload.cjs');
   // No legacy or ACBrLib fiscal IPC/credential paths may be bootstrapped.
   assert.doesNotMatch(main, /fiscal-bridge|fiscal-sidecar-runtime|fiscal-runtime-paths|nfse-provider-resolver|registerFiscalIpc|artisys:fiscal:|fiscalCredentialStore|resolveFiscalDesktopRuntime/);
-  assert.doesNotMatch(preload, /fiscal-sidecar-runtime|nfse-provider-resolver|artisys:fiscal:|fiscal:\\s*\\{/);
+  assert.doesNotMatch(preload, /fiscal-sidecar-runtime|nfse-provider-resolver|artisys:fiscal:|fiscal:\s*\{/);
   assert.match(main, /authorizeDeploymentChange/);
 });
 
