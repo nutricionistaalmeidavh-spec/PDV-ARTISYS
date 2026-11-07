@@ -1,6 +1,8 @@
 'use strict';
 const { runErpFinanceMigrations }=require('../../core/database/erp-finance-migrations');
 const { runErpFinanceP3Migrations }=require('../../core/database/erp-finance-p3-migrations');
+const { runFinanceWorkspaceMigrations }=require('../../core/database/finance-workspace-migrations');
+const { createFinanceWorkspace }=require('./finance-workspace');
 const { createFinanceDimensionsService }=require('./finance-dimensions');
 const { createFinanceService }=require('./finance-service');
 const { createProcurementService }=require('../procurement/procurement-service');
