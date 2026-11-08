@@ -59,6 +59,9 @@ test('guia esta ligado a Home atual, ajuda e a lifecycle sem observers', () => {
   assert.match(ui,/Ajuda/);
   assert.match(ui,/data-settings-category/);
   assert.doesNotMatch(ui,/settings:select/);
+  const auto=ui.slice(ui.indexOf('function maybeOffer()'),ui.indexOf('async function updateHome()'));
+  assert.match(auto,/mountHome\(/);
+  assert.doesNotMatch(auto,/openGuide\(/);
   assert.doesNotMatch(ui,/MutationObserver/);
 });
 
