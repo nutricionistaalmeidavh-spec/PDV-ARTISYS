@@ -188,7 +188,11 @@
       toast('Seu perfil não possui acesso a essa área.');return;
     }
     await navigation()?.navigate?.(item.route);
-    if(item.category)lifecycle.emit('settings:select',{category:item.category});
+    if(item.category){
+      const openCategory=()=>document.querySelector('#settings-hub [data-settings-category="'+item.category+'"]')?.click();
+      if(!document.querySelector('#settings-hub [data-settings-category="'+item.category+'"]'))queueMicrotask(openCategory);
+      else openCategory();
+    }
     if(document.body.dataset.activeRoute==='home')mountHome();
   }
 
@@ -322,7 +326,6 @@
     insertHelp();
   });
   lifecycle.on('auth:hidden',()=>{void updateHome();});
-  lifecycle.on('settings:select',()=>{/* handled by the settings hub */});
   window.addEventListener('artisys:first-use-saved',()=>{
     if(document.body.dataset.activeRoute==='home')void updateHome();
   });
