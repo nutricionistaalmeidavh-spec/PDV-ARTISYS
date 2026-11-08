@@ -32,6 +32,8 @@
     return 'artisys:first-use-dismissed:v1:'+String(user()?.id||'')+':'+terminal;
   };
   const isDismissed=()=>{try{return localStorage.getItem(prefKey())==='yes';}catch{return false;}};
+  const isStarted=()=>{try{return localStorage.getItem(prefKey()+':started')==='yes';}catch{return false;}};
+  const markStarted=()=>{try{localStorage.setItem(prefKey()+':started','yes');}catch{/* preference only */}};
   const dismiss=()=>{try{localStorage.setItem(prefKey(),'yes');}catch{/* preference only */}mountHome();};
   const toast=(msg,type='error')=>window.PdvToast?.show?.(String(msg),type);
 
@@ -112,7 +114,9 @@
   function mountHome(){
     insertHelp();
     const existing=document.getElementById('first-use-home-card');
-    const visible=Boolean(isAdmin()&&home()&&!isDismissed());
+    const progress=model.firstUseSteps(snapshot);
+    const eligible=isStarted()||model.shouldOfferAutomatically(snapshot);
+    const visible=Boolean(isAdmin()&&home()&&!isDismissed()&&eligible&&progress.completed<progress.total);
     if(!visible){existing?.remove();return;}
     const container=home();
     const card=existing||document.createElement('section');
@@ -141,6 +145,7 @@
        !document.getElementById('modal-root')?.classList.contains('hidden'))return;
     if(!model.shouldOfferAutomatically(snapshot))return;
     autoOpened=id;
+    markStarted();
     openGuide();
   }
 
@@ -156,6 +161,7 @@
 
   function openGuide(){
     if(!user())return;
+    if(isAdmin()){markStarted();mountHome();}
     if(!window.PdvModal?.open)return;
     const state=model.firstUseSteps(snapshot);
     const modal='<div class="first-use-modal">'+summaryMarkup()+
