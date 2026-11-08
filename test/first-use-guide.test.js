@@ -57,6 +57,8 @@ test('guia esta ligado a Home atual, ajuda e a lifecycle sem observers', () => {
   assert.match(ui,/auth:hidden/);
   assert.match(ui,/PdvAppNavigation/);
   assert.match(ui,/Ajuda/);
+  assert.match(ui,/data-settings-category/);
+  assert.doesNotMatch(ui,/settings:select/);
   assert.doesNotMatch(ui,/MutationObserver/);
 });
 
