@@ -146,7 +146,7 @@
     if(!model.shouldOfferAutomatically(snapshot))return;
     autoOpened=id;
     markStarted();
-    openGuide();
+    mountHome(); // Orientação automática sem modal que bloqueie o Balcão ou o QA.
   }
 
   async function updateHome(){
