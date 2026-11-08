@@ -38,6 +38,30 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
     try{
       const p=principal(request);const actor=p.actor;
       if(request.method==='GET'&&pathname==='/api/v1/vertical/modules'){json(response,200,runtime.modules.list());return true;}
+      // Primeiro uso: leitura e recomendações não alteram módulos ou cadastro.
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/onboarding'){
+        requireCapability(actor,'modules.manage');
+        json(response,200,runtime.onboarding.getState());return true;
+      }
+      if(request.method==='GET'&&pathname==='/api/v1/vertical/onboarding/recommend'){
+        requireCapability(actor,'modules.manage');
+        const segment=String(url.searchParams.get('segment')||'GENERIC').trim().toUpperCase();
+        if(!runtime.onboarding.SEGMENTS[segment])throw new VerticalHttpError(400,'Tipo de operação inválido.');
+        json(response,200,runtime.onboarding.recommend(segment));return true;
+      }
+      if(request.method==='POST'&&pathname==='/api/v1/vertical/onboarding/complete'){
+        requireCapability(actor,'modules.manage');
+        const input=await body(request);
+        if(typeof input.businessName!=='string'||input.businessName.trim().length<2||input.businessName.trim().length>100)
+          throw new VerticalHttpError(400,'Informe o nome do estabelecimento (2 a 100 caracteres).');
+        if(!runtime.onboarding.SEGMENTS[String(input.segment||'').trim().toUpperCase()])
+          throw new VerticalHttpError(400,'Tipo de operação inválido.');
+        if(!Array.isArray(input.moduleIds)||input.moduleIds.some(id=>typeof id!=='string'||!runtime.modules.list().some(item=>item.id===id)))
+          throw new VerticalHttpError(400,'Seleção de áreas inválida.');
+        const result=await mutate(request,pathname,200,()=>runtime.onboarding.complete(input,actor));
+        json(response,result.statusCode,result.payload);return true;
+      }
+
 
       if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/option-groups'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertOptionGroup(await body(request),actor));return true;}
       if(request.method==='POST'&&pathname==='/api/v1/vertical/catalog/options'){requireCapability(actor,'products.manage');json(response,201,runtime.catalogCustomization.upsertOption(await body(request),actor));return true;}
