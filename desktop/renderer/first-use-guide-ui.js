@@ -210,7 +210,7 @@
         const form=root.querySelector('#first-use-profile-form');
         const segment=form.elements.segment;
         segment.value=snapshot.onboarding?.segment||'GENERIC';
-        const previous=new Set([...form.querySelectorAll('[name="moduleIds"]:checked')].map(el=>el.value));
+
         segment.addEventListener('change',async()=>{
           try{
             const recommendation=await api.request('/api/v1/vertical/onboarding/recommend?segment='+encodeURIComponent(segment.value));
@@ -228,9 +228,6 @@
           const data=new FormData(form);
           try{
             const selected=data.getAll('moduleIds');
-            if(previous.size&&!selected.length&&!window.confirm){
-              // Kept here only to document that the saved selection is explicit.
-            }
             await api.request('/api/v1/vertical/onboarding/complete',{
               method:'POST',
               body:{businessName:String(data.get('businessName')||'').trim(),
