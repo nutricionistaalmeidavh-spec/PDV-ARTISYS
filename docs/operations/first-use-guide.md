@@ -16,7 +16,7 @@ Na falha de consulta, a etapa fica como **Não verificado**, nunca como concluí
 
 ## Abertura e retomada
 
-A exibição automática é limitada a perfis capazes de gerenciar módulos e a uma instalação com onboarding não concluído, sem produtos e sem vendas na consulta. Instalações com dados operacionais não recebem o modal automaticamente. A pessoa pode selecionar **Continuar depois**; esta preferência de interface é gravada no navegador por usuário e terminal e não é usada como dado operacional.
+A exibição automática é apenas um cartão de orientação não bloqueante na Home, limitada a perfis capazes de gerenciar módulos e a uma instalação com onboarding não concluído, sem produtos e sem vendas na consulta. Instalações com dados operacionais não recebem o cartão automaticamente. O modal detalhado e o tour só abrem por clique explícito. A pessoa pode selecionar **Continuar depois**; esta preferência de interface é gravada no navegador por usuário e terminal e não é usada como dado operacional.
 
 O botão **Ajuda** na barra lateral permite abrir novamente o checklist e iniciar um tour pelas telas autorizadas. O tour usa `PdvAppNavigation` e `PdvUiLifecycle`, nunca URLs externas ou uma nova navegação paralela; respeita as permissões e módulos ativos. O usuário pode sair do tour com **Encerrar** ou Escape.
 
