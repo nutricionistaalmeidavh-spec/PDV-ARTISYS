@@ -84,7 +84,9 @@ test('API de onboarding autoriza leitura e salva apenas apos POST explicito', as
         const error=new Error('Permissao insuficiente.');error.statusCode=403;throw error;
       }
     }},
+    modules:{list:()=>[{id:'FOOD',enabled:true}]},
     onboarding:{
+      SEGMENTS:{GENERIC:[],FOOD:['FOOD'],WHOLESALE:['WHOLESALE']},
       getState:()=>({completed:written>0,businessName:written?'Loja Teste':null}),
       recommend:segment=>({segment,moduleIds:segment==='FOOD'?['FOOD']:[]}),
       complete:input=>{written++;return {completed:true,businessName:input.businessName};}
