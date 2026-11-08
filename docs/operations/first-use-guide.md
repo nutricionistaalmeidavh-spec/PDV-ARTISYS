@@ -20,7 +20,7 @@ A exibição automática é limitada a perfis capazes de gerenciar módulos e a 
 
 O botão **Ajuda** na barra lateral permite abrir novamente o checklist e iniciar um tour pelas telas autorizadas. O tour usa `PdvAppNavigation` e `PdvUiLifecycle`, nunca URLs externas ou uma nova navegação paralela; respeita as permissões e módulos ativos. O usuário pode sair do tour com **Encerrar** ou Escape.
 
-Os atalhos de configuração usam `settings:select` no Settings Hub canônico para abrir a categoria correspondente. Nenhum atalho executa uma operação financeira ou de estoque automaticamente.
+Os atalhos de configuração acionam os botões de categoria do Settings Hub canônico para abrir a seção correspondente, sem criar um canal de seleção paralelo. Nenhum atalho executa uma operação financeira ou de estoque automaticamente.
 
 ## Arquitetura e custo
 
