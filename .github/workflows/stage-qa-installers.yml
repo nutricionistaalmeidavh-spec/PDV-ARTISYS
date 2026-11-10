@@ -1,0 +1,93 @@
+name: stage-qa-installers
+
+# Candidate only: prerelease, no latest.yml, no production updater publication.
+on:
+  push:
+    branches:
+      - release/2.0.13-rc-20261110
+    paths:
+      - .github/workflows/stage-qa-installers.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  candidate-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SOURCE_SHA: af8e319f457b6d37847e105c39bd3ab6f9bde56b
+      WIN_RUN: '42847572445'
+      MAC_RUN: '42847572609'
+      VERIFY_RUN: '42847572368'
+      RC_TAG: v2.0.13-rc.1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gate on matching successful build and verification runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = '2.0.13'
+          for id in "$WIN_RUN" "$MAC_RUN" "$VERIFY_RUN"; do
+            status="$(gh api "repos/$REPO/actions/runs/$id" --jq '.conclusion')"
+            sha="$(gh api "repos/$REPO/actions/runs/$id" --jq '.head_sha')"
+            test "$status" = 'success' || { echo "Run $id is $status"; exit 1; }
+            test "$sha" = "$SOURCE_SHA" || { echo "Source mismatch for run $id"; exit 1; }
+          done
+          test -z "$(git diff --name-only "$SOURCE_SHA" "$GITHUB_SHA" -- . ':!.github/workflows/stage-qa-installers.yml')" || {
+            echo 'Application changed since candidate artifacts were tested'; exit 1;
+          }
+      - name: Download tested installer artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run download "$WIN_RUN" -n 'ArtiSys-Windows-Installer-TEF-Wizard' --repo "$REPO" --dir qa/windows
+          gh run download "$MAC_RUN" --pattern 'artisys-macos-*' --repo "$REPO" --dir qa/macos
+          test "$(find qa/windows -name 'ArtiSys-PDV-2.0.13-x64-Setup.exe' -type f | wc -l)" -eq 1
+          test "$(find qa/macos -name 'ArtiSys-PDV-2.0.13-x64.dmg' -type f | wc -l)" -eq 1
+          test "$(find qa/macos -name 'ArtiSys-PDV-2.0.13-arm64.dmg' -type f | wc -l)" -eq 1
+      - name: Verify SHA-256 against build evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          win="$(find qa/windows -name 'ArtiSys-PDV-2.0.13-x64-Setup.exe' -type f -print -quit)"
+          intel="$(find qa/macos -name 'ArtiSys-PDV-2.0.13-x64.dmg' -type f -print -quit)"
+          arm="$(find qa/macos -name 'ArtiSys-PDV-2.0.13-arm64.dmg' -type f -print -quit)"
+          printf '%s  %s\n' 'fe55116187e572221fc2401493bb055eb6f7f57b994c960763dee5253f2617e1' "$win" | sha256sum -c -
+          printf '%s  %s\n' '96bcf8c6bce3c993c6beaa9f58972efa9bd9694e3ebac92a49833e675685f9d2' "$intel" | sha256sum -c -
+          printf '%s  %s\n' '1d053aa70569227ebef9994881fa317fe5af9d137189f362dfacafdc3fe2e6f8' "$arm" | sha256sum -c -
+      - name: Publish QA prerelease only - never stable or updater metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$REPO/releases/tags/$RC_TAG" --jq '.prerelease' 2>/dev/null || true)" != 'false' || {
+            echo 'Refusing to overwrite stable release'; exit 1;
+          }
+          if gh release view "$RC_TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo 'QA prerelease exists; refusing to overwrite assets automatically.'
+            exit 1
+          fi
+          win="$(find qa/windows -name 'ArtiSys-PDV-2.0.13-x64-Setup.exe' -type f -print -quit)"
+          intel="$(find qa/macos -name 'ArtiSys-PDV-2.0.13-x64.dmg' -type f -print -quit)"
+          arm="$(find qa/macos -name 'ArtiSys-PDV-2.0.13-arm64.dmg' -type f -print -quit)"
+          cat > release-notes-qa.md <<'NOTES'
+          # NÃO DISTRIBUIR PARA CLIENTES — CANDIDATA DE HOMOLOGAÇÃO
+
+          Builds Windows 10/11 x64 e macOS Intel/Apple Silicon em 2.0.13, provenientes do commit `af8e319f457b6d37847e105c39bd3ab6f9bde56b` da PR #194.
+
+          A verificação automatizada, o build Windows e os dois builds macOS concluíram com sucesso. **Ainda não houve homologação física.** O OSV completo da `main` registrou 27 vulnerabilidades conhecidas (12 altas), pendentes de triagem/correção na issue #195. Não publicar como release estável nem enviar a clientes.
+
+          Esta prerelease NÃO contém `latest.yml` e NÃO altera o canal de atualizações automático.
+          NOTES
+          gh release create "$RC_TAG" "$win" "$intel" "$arm" \
+            --repo "$REPO" \
+            --prerelease \
+            --target "$SOURCE_SHA" \
+            --title 'ArtiSys PDV 2.0.13 — HOMOLOGAÇÃO (não distribuir)' \
+            --notes-file release-notes-qa.md
+          test "$(gh api "repos/$REPO/releases/tags/$RC_TAG" --jq '.prerelease')" = 'true'
