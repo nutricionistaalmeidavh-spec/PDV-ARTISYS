@@ -1,61 +1,6 @@
 'use strict';
 
-(function(root, factory) {
-  const model = factory();
-  if (typeof module !== 'undefined' && module.exports) module.exports = model;
-  if (root) root.PdvQuickStockModel = model;
-})(typeof window !== 'undefined' ? window : null, function() {
-  const units = new Set(['UN','KG','G','LT','CX']);
-
-  function cents(value,label,required=false) {
-    const raw=String(value ?? '').trim();
-    if(!raw&&!required)return 0;
-    if(!/^\d{1,9}(?:[,.]\d{1,2})?$/.test(raw)) {
-      throw new Error(label+' inválido. Use 12,50, por exemplo.');
-    }
-    const parts=raw.replace(',','.').split('.');
-    const amount=Number(parts[0])*100+Number((parts[1]||'').padEnd(2,'0'));
-    if(!Number.isSafeInteger(amount)||(required&&amount<=0)) {
-      throw new Error(label+' deve ser maior que zero.');
-    }
-    return amount;
-  }
-
-  function quantity(value) {
-    const raw=String(value ?? '').trim().replace(',','.');
-    if(!raw)return 0;
-    if(!/^\d+(?:\.\d{1,3})?$/.test(raw)) {
-      throw new Error('Quantidade inicial inválida. Use zero ou um número positivo com até três casas decimais.');
-    }
-    const amount=Number(raw);
-    if(!Number.isFinite(amount)||amount<0)throw new Error('Quantidade inicial inválida.');
-    return amount;
-  }
-
-  function normalizeQuickStockInput(input={}) {
-    const name=String(input.name||'').trim();
-    if(!name)throw new Error('Informe o nome do produto.');
-    const unit=String(input.unit||'UN').trim().toUpperCase();
-    if(!units.has(unit))throw new Error('Unidade inválida.');
-    return {
-      product:{
-        name,
-        sku:String(input.sku||'').trim()||null,
-        barcode:String(input.barcode||'').trim()||null,
-        categoryId:String(input.categoryId||'').trim()||null,
-        unit,
-        usageType:'DIRECT',
-        salePriceCents:cents(input.salePrice,'Preço de venda',true),
-        costCents:cents(input.cost,'Custo'),
-        minimumStock:0,
-        trackStock:true,
-        menuEnabled:false,
-        active:true
-      },
-      openingQuantity:quantity(input.openingQuantity),
-      publish:Boolean(input.publish)
-    };
-  }
-
-  return Object.freeze({normalizeQuickStockInput});
-});
+(function(root){
+  if(typeof module!=='undefined'&&module.exports)module.exports=require('../../shared/quick-stock-rules');
+  if(root)root.PdvQuickStockModel=root.PdvQuickStockRules;
+})(typeof window!=='undefined'?window:null);
