@@ -669,3 +669,21 @@ textarea:focus-visible,
 /* Payment QR stays inside compact checkout modals and remains readable offline. */
 .pix-qr {max-width:260px; margin:12px auto; overflow:hidden;}
 .pix-qr svg {display:block;max-width:100%;height:auto;margin:0 auto;}
+
+.product-quick-types { border:0; padding:0; margin:0 0 16px; display:grid; gap:10px; }
+.product-quick-types legend { font-weight:700; margin-bottom:9px; }
+.product-quick-types label { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border:1px solid var(--line); border-radius:12px; cursor:pointer; }
+.product-quick-types input { width:18px; height:18px; flex:0 0 18px; margin-top:2px; }
+.product-quick-types strong, .product-quick-types small { display:block; }
+.product-quick-types small { color:var(--muted); margin-top:3px; }
+#quick-stock-product-form > .field { margin-bottom:16px; }
+#quick-stock-product-form [data-quick-stock-ready] .field-grid { margin-top:8px; }
+[data-quick-stock-prepared] { border:1px solid var(--line); padding:16px; border-radius:12px; margin-top:8px; }
+[data-quick-stock-prepared] p { margin:0 0 12px; }
+.product-quick-error { padding:11px 14px; border-radius:10px; background:#fff3f1; color:#9b1d1d; margin:12px 0; }
+.product-quick-feedback { padding:11px 14px; border-radius:10px; background:#eff7fb; margin:12px 0; }
+.product-quick-success p { line-height:1.7; }
+.product-quick-success small { color:var(--muted); }
+[data-quick-stock-ready][hidden], [data-quick-stock-prepared][hidden], [data-quick-stock-actions][hidden],
+[data-quick-stock-success][hidden], [data-quick-stock-error][hidden], [data-quick-stock-feedback][hidden],
+#quick-stock-product-form[hidden] { display:none !important; }
