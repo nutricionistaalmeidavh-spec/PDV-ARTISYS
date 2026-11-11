@@ -1309,11 +1309,12 @@ function openCategoryForm() {
             success.focus({preventScroll:true});
           }
         }catch(saveError){
-          errorBox.textContent=saveError.status
+          const definitiveFailure=Number(saveError.status)>=400&&Number(saveError.status)<500&&![408,409,429].includes(Number(saveError.status));
+          errorBox.textContent=definitiveFailure
             ?'Não foi possível salvar: '+saveError.message+'. Confira os dados e tente novamente.'
-            :'A resposta do servidor não foi confirmada. Clique em Salvar novamente para verificar o mesmo cadastro, sem repetir a entrada de estoque.';
+            :'Não foi possível confirmar a resposta do servidor. Clique em Salvar novamente para consultar a mesma operação, sem duplicar o estoque.';
           errorBox.hidden=false;feedback.hidden=true;
-          if(saveError.status) {
+          if(definitiveFailure) {
             mutationId=null;pendingPayload=null;
           }else{
             unresolved=true;
