@@ -193,6 +193,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install pinned QA runtime dependencies
         run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Install Electron binary for semantic desktop QA
+        run: npx install-electron --no
       - name: Install open-source semantic QA tools
         shell: bash
         run: |
