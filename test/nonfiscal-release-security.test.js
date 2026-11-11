@@ -33,3 +33,8 @@ test('Electron empacotado usa linha estável atualizada para incluir as correç�
   assert.equal(pkg.devDependencies.electron,'44.11.1');
   assert.equal(lock.packages['node_modules/electron'].version,'44.11.1');
 });
+
+test('Playwright desktop E2E preinstala binário Electron 44 no CI antes da primeira janela',()=>{
+  const ci=fs.readFileSync(path.join(root,'.github/workflows/verify.yml'),'utf8');
+  assert.match(ci,/Install Electron binary for Playwright desktop QA[\s\S]*?npx install-electron --no[\s\S]*?Run current UI E2E at 1366x768/);
+});
