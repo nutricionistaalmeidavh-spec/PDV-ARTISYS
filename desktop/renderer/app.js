@@ -1145,87 +1145,192 @@ function openCategoryForm() {
 
   function openQuickStockProductForm() {
     const model=window.PdvQuickStockModel;
-    if(!model){showToast('O cadastro rápido não foi carregado. Use Cadastro completo.','error');return;}
-    openModal('Cadastro rápido de produto', `
-      <form id="quick-stock-product-form">
-        <p class="product-quick-intro">Para bebidas, cigarros, petiscos prontos e produtos de revenda. Preencha o nome, o preço e, se tiver mercadoria disponível, a quantidade.</p>
-        <div class="field-grid">
-          <div class="field wide"><label for="quick-stock-name">Nome do produto *</label><input id="quick-stock-name" name="name" maxlength="180" required placeholder="Ex.: Refrigerante lata 350ml"></div>
-          <div class="field"><label for="quick-stock-price">Preço de venda (R$) *</label><input id="quick-stock-price" name="salePrice" inputmode="decimal" required placeholder="Ex.: 6,50"></div>
-          <div class="field"><label for="quick-stock-quantity">Quantidade inicial</label><input id="quick-stock-quantity" name="openingQuantity" inputmode="decimal" value="0" placeholder="Ex.: 24"><small>Se ainda não tem o produto, deixe zero. O saldo será registrado no Estoque.</small></div>
-          <div class="field"><label for="quick-stock-category">Categoria</label><select id="quick-stock-category" name="categoryId"><option value="">Sem categoria</option>${state.categories.map(category=>`<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join('')}</select></div>
-          <div class="field"><label for="quick-stock-barcode">Código de barras (opcional)</label><input id="quick-stock-barcode" name="barcode" autocomplete="off" placeholder="Digite ou use o leitor"></div>
-        </div>
-        <label class="product-quick-check"><input name="publish" type="checkbox" checked><span><strong>Mostrar no Cardápio e nas vendas</strong><small>Para itens prontos, sem preparo no KDS. O destino será configurado automaticamente.</small></span></label>
-        <details class="product-quick-more"><summary>Mais opções (se precisar)</summary>
+    if(!model){showToast('Cadastro rápido indisponível. Abra o Cadastro completo.','error');return;}
+    openModal('Cadastrar produto', `
+      <form id="quick-stock-product-form" novalidate>
+        <fieldset class="product-quick-types">
+          <legend>Que tipo de produto você vende?</legend>
+          <label><input type="radio" name="kind" value="READY" checked><span><strong>Produto pronto</strong><small>Bebidas, cigarros e mercadorias prontas para entregar.</small></span></label>
+          <label><input type="radio" name="kind" value="PREPARED"><span><strong>Preparado na hora</strong><small>Porções, lanches e itens que precisam de preparo.</small></span></label>
+        </fieldset>
+        <div class="field"><label for="quick-stock-name">Nome do produto *</label><input id="quick-stock-name" name="name" maxlength="180" required placeholder="Ex.: Refrigerante lata 350 ml"></div>
+        <section data-quick-stock-ready>
           <div class="field-grid">
-            <div class="field"><label for="quick-stock-sku">Código interno (SKU)</label><input id="quick-stock-sku" name="sku" autocomplete="off"></div>
-            <div class="field"><label for="quick-stock-unit">Unidade de medida</label><select id="quick-stock-unit" name="unit"><option value="UN">Unidade (UN)</option><option value="KG">Quilo (KG)</option><option value="G">Grama (G)</option><option value="LT">Litro (LT)</option><option value="CX">Caixa (CX)</option></select></div>
-            <div class="field"><label for="quick-stock-cost">Custo unitário (R$)</label><input id="quick-stock-cost" name="cost" inputmode="decimal" placeholder="Ex.: 3,00"></div>
+            <div class="field"><label for="quick-stock-price">Preço de venda (R$) *</label><input id="quick-stock-price" name="salePrice" inputmode="decimal" required placeholder="Ex.: 6,50"></div>
+            <div class="field"><label for="quick-stock-quantity">Quantidade disponível *</label><input id="quick-stock-quantity" name="openingQuantity" inputmode="decimal" value="" placeholder="Ex.: 24"><small>Sem mercadoria? Deixe zero e cadastre sem colocar à venda.</small></div>
+            <div class="field"><label for="quick-stock-category">Categoria</label><select id="quick-stock-category" name="categoryId"><option value="">Sem categoria</option>${state.categories.map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>`).join('')}</select></div>
+            <div class="field"><label for="quick-stock-barcode">Código de barras (opcional)</label><input id="quick-stock-barcode" name="barcode" autocomplete="off" placeholder="Digite ou use o leitor"></div>
           </div>
-          <small>Insumos de receitas, variações, preços por quantidade ou envio para cozinha usam o Cadastro completo.</small>
-        </details>
-        <div class="modal-actions product-quick-actions">
+          <label class="product-quick-check"><input name="publish" type="checkbox" disabled><span><strong>Mostrar no Cardápio e no Balcão</strong><small data-quick-stock-publish-note>Informe quantidade maior que zero para disponibilizar para venda.</small></span></label>
+          <details class="product-quick-more"><summary>Mais opções, se precisar</summary>
+            <div class="field-grid">
+              <div class="field"><label for="quick-stock-sku">Código interno (SKU)</label><input id="quick-stock-sku" name="sku" autocomplete="off"></div>
+              <div class="field"><label for="quick-stock-unit">Unidade de medida</label><select id="quick-stock-unit" name="unit"><option value="UN">Unidade</option><option value="KG">Quilo (KG)</option><option value="G">Grama (G)</option><option value="LT">Litro (LT)</option><option value="CX">Caixa (CX)</option></select></div>
+              <div class="field"><label for="quick-stock-cost">Custo unitário (R$)</label><input id="quick-stock-cost" name="cost" inputmode="decimal" placeholder="Ex.: 3,00"></div>
+            </div>
+          </details>
+        </section>
+        <section data-quick-stock-prepared hidden>
+          <p>Itens preparados precisam informar ingredientes e, quando utilizado, o setor de preparo. O cadastro guiado de ficha técnica mantém a baixa de estoque e o destino corretos.</p>
+          <button type="button" class="primary-button" data-quick-stock-open-recipe>Continuar para item preparado</button>
+        </section>
+        <p data-quick-stock-error class="product-quick-error" role="alert" hidden></p>
+        <p data-quick-stock-feedback class="product-quick-feedback" role="status" aria-live="polite" hidden></p>
+        <div class="modal-actions product-quick-actions" data-quick-stock-actions>
           <button type="button" class="secondary-button" data-open-advanced-product>Cadastro completo</button>
           <button type="button" class="secondary-button" data-close-modal>Cancelar</button>
-          <button type="submit" class="secondary-button" name="action" value="another">Salvar e cadastrar outro</button>
-          <button type="submit" class="primary-button" name="action" value="done">Salvar produto</button>
+          <button type="submit" class="secondary-button" value="another">Salvar e cadastrar outro</button>
+          <button type="submit" class="primary-button" value="done">Salvar produto</button>
         </div>
-      </form>`, {wide:true,onMount(root){
-      root.querySelector('[data-open-advanced-product]')?.addEventListener('click',()=>openProductForm());
+      </form>
+      <section class="product-quick-success" data-quick-stock-success hidden tabindex="-1">
+        <h3>Produto cadastrado</h3>
+        <div data-quick-stock-result></div>
+        <div class="modal-actions product-quick-actions">
+          <button type="button" class="secondary-button" data-quick-stock-another>Cadastrar outro</button>
+          <button type="button" class="secondary-button" data-quick-stock-view>Ver no Estoque</button>
+          <button type="button" class="primary-button" data-quick-stock-checkout>Ir para o Balcão</button>
+        </div>
+      </section>`, {wide:true,onMount(root){
       const form=root.querySelector('#quick-stock-product-form');
-      form.addEventListener('submit',async event=>{
-        event.preventDefault();
-        const continueRegistering=event.submitter?.value==='another';
-        const field=name=>form.elements.namedItem(name)?.value ?? '';
-        let input;
-        try {
-          input=model.normalizeQuickStockInput({
-            name:field('name'),salePrice:field('salePrice'),openingQuantity:field('openingQuantity'),
-            categoryId:field('categoryId'),barcode:field('barcode'),unit:field('unit'),
-            sku:field('sku'),cost:field('cost'),publish:form.elements.namedItem('publish').checked
-          });
-        } catch(error) { showToast(error.message,'error');return; }
-        const buttons=[...form.querySelectorAll('button[type="submit"]')];
-        buttons.forEach(button=>button.disabled=true);
-        let saved=null,stockRegistered=false,listed=false;
-        try {
-          saved=await api.saveProduct(input.product);
-          if(input.openingQuantity>0) {
-            await api.saveInventoryMovement({productId:saved.id,type:'opening',quantityDelta:input.openingQuantity,reason:'Estoque inicial pelo cadastro rápido'});
-            stockRegistered=true;
+      const name=form.elements.namedItem('name');
+      const quantity=form.elements.namedItem('openingQuantity');
+      const publish=form.elements.namedItem('publish');
+      const note=root.querySelector('[data-quick-stock-publish-note]');
+      const ready=root.querySelector('[data-quick-stock-ready]');
+      const prepared=root.querySelector('[data-quick-stock-prepared]');
+      const actions=root.querySelector('[data-quick-stock-actions]');
+      const errorBox=root.querySelector('[data-quick-stock-error]');
+      const feedback=root.querySelector('[data-quick-stock-feedback]');
+      const success=root.querySelector('[data-quick-stock-success]');
+      const resultBox=root.querySelector('[data-quick-stock-result]');
+      let publishPreference=true;
+      let pending=false;
+      let mutationId=null;
+      let pendingPayload=null;
+      let unresolved=false;
+      const field=key=>form.elements.namedItem(key)?.value??'';
+      const clearError=()=>{errorBox.hidden=true;errorBox.textContent='';};
+      const syncQuantity=()=>{
+        const amount=Number(String(quantity.value||'').trim().replace(',','.'));
+        const canPublish=Number.isFinite(amount)&&amount>0;
+        publish.disabled=!canPublish;
+        publish.checked=canPublish&&publishPreference;
+        note.textContent=canPublish?'Desmarque se quiser deixar o item fora do Cardápio.':'Com saldo zero o produto fica cadastrado, mas não aparece como disponível para venda.';
+      };
+      const syncKind=()=>{
+        const isPrepared=field('kind')==='PREPARED';
+        ready.hidden=isPrepared;
+        prepared.hidden=!isPrepared;
+        actions.hidden=isPrepared;
+        clearError();
+      };
+      quantity.addEventListener('input',syncQuantity);
+      publish.addEventListener('change',()=>{publishPreference=publish.checked;});
+      form.querySelectorAll('[name="kind"]').forEach(radio=>radio.addEventListener('change',syncKind));
+      root.querySelector('[data-open-advanced-product]').addEventListener('click',()=>openProductForm());
+      root.querySelector('[data-quick-stock-open-recipe]').addEventListener('click',async()=>{
+        if(pending)return;
+        clearError();
+        try{
+          const modules=await api.modules();
+          if(!modules.some(item=>item.id==='FOOD'&&item.enabled)){
+            throw new Error('Para cadastrar itens preparados, ative Alimentação em Configurações → Áreas.');
           }
-          if(input.publish) {
-            const modules=await api.modules().catch(()=>null);
-            const foodEnabled=Array.isArray(modules)?Boolean(modules.find(item=>item.id==='FOOD')?.enabled):true;
-            if(foodEnabled) {
-              await api.request('/api/v1/restaurant/kitchen/routing',{
-                method:'POST',body:{productId:saved.id,mode:'DIRECT',stationId:null}
-              });
-            }
-            saved=await api.saveProduct({...saved,menuEnabled:true});
-            listed=true;
-          }
-          closeModal();
-          state.products=await api.products(true).catch(()=>state.products);
-          await window.PdvAppNavigation?.navigate?.('inventory');
-          showToast(listed?'Produto salvo no Estoque e disponível para venda.':'Produto salvo no Estoque.','success');
-          if(continueRegistering)openQuickStockProductForm();
-        } catch(error) {
-          if(saved) {
-            closeModal();
-            state.products=await api.products(true).catch(()=>state.products);
-            await window.PdvAppNavigation?.navigate?.('inventory').catch(()=>{});
-            const detail=input.openingQuantity>0&&!stockRegistered?' Verifique e registre a quantidade inicial.':'';
-            const publication=input.publish&&!listed?' Não foi incluído no Cardápio; configure o destino no Cadastro completo.':'';
-            showToast('Produto criado no Estoque, mas uma etapa falhou: '+error.message+'.'+detail+publication,'error');
-          } else {
-            showToast(error.message,'error');
-          }
-        } finally {
-          if(form.isConnected)buttons.forEach(button=>button.disabled=false);
+          void openRecipeForm(null,{draftName:String(name.value||'').trim()});
+        }catch(error){
+          errorBox.textContent=error.message;errorBox.hidden=false;
         }
       });
+      const resetNext=()=>{
+        for(const key of ['name','salePrice','openingQuantity','barcode','sku','cost'])form.elements.namedItem(key).value='';
+        mutationId=null;pendingPayload=null;unresolved=false;
+        Array.from(form.elements).forEach(element=>{if(element.dataset?.uncertainLocked==='true'){element.disabled=false;delete element.dataset.uncertainLocked;}});
+        form.hidden=false;success.hidden=true;clearError();
+        syncQuantity();
+        name.focus({preventScroll:true});
+      };
+      root.querySelector('[data-quick-stock-another]').addEventListener('click',resetNext);
+      root.querySelector('[data-quick-stock-view]').addEventListener('click',()=>{
+        closeModal();void navigate('inventory');
+      });
+      root.querySelector('[data-quick-stock-checkout]').addEventListener('click',()=>{
+        closeModal();void navigate('checkout');
+      });
+      const registerQuickProduct=(payload,id)=>api.saveQuickProduct(payload,id);
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        if(pending||field('kind')!=='READY')return;
+        const continueRegistering=event.submitter?.value==='another';
+        clearError();
+        try{
+          if(!pendingPayload){
+            const normalized=model.normalizeQuickStockInput({
+              kind:field('kind'),name:field('name'),salePrice:field('salePrice'),
+              openingQuantity:field('openingQuantity'),categoryId:field('categoryId'),
+              barcode:field('barcode'),unit:field('unit'),sku:field('sku'),
+              cost:field('cost'),publish:publish.checked
+            });
+            pendingPayload={
+              kind:'READY',name:normalized.product.name,salePrice:field('salePrice'),
+              openingQuantity:field('openingQuantity'),categoryId:field('categoryId'),
+              barcode:field('barcode'),unit:field('unit'),sku:field('sku'),
+              cost:field('cost'),publish:normalized.publish
+            };
+            mutationId=api.mutationId();
+          }
+        }catch(validationError){
+          errorBox.textContent=validationError.message;errorBox.hidden=false;return;
+        }
+        pending=true;
+        const buttons=[...form.querySelectorAll('button')];
+        buttons.forEach(button=>button.disabled=true);
+        feedback.hidden=false;feedback.textContent='Salvando produto e estoque no servidor local…';
+        try{
+          const saved=await registerQuickProduct(pendingPayload,mutationId);
+          if(!saved?.product?.id)throw new Error('Não foi possível confirmar o cadastro no servidor.');
+          const product=saved.product;
+          const existing=state.products.findIndex(item=>item.id===product.id);
+          if(existing>=0)state.products[existing]=product;else state.products.push(product);
+          state.products.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+          const title=escapeHtml(product.name);
+          const price=ui.formatCents(product.salePriceCents);
+          const balance=quantityLabel(saved.stockQuantity);
+          const publication=saved.availableForSale?'No Cardápio e no Balcão':'Não publicado para venda';
+          const summary=`<strong>${title}</strong> · ${price} · Estoque: ${balance} ${escapeHtml(product.unit||'UN')} · ${publication}`;
+          feedback.textContent=`${product.name} cadastrado. Estoque: ${balance} ${product.unit||'UN'}. ${publication}.`;
+          resultBox.innerHTML=`<p>${summary}</p><small>O saldo foi registrado no local de estoque do terminal. Se estiver com saldo zero, registre uma entrada antes de disponibilizar para venda.</small>`;
+          success.querySelector('[data-quick-stock-checkout]').hidden=!saved.availableForSale;
+          mutationId=null;pendingPayload=null;unresolved=false;
+          if(continueRegistering)resetNext();
+          else{
+            form.hidden=true;
+            success.hidden=false;
+            success.focus({preventScroll:true});
+          }
+        }catch(saveError){
+          errorBox.textContent=saveError.status
+            ?'Não foi possível salvar: '+saveError.message+'. Confira os dados e tente novamente.'
+            :'A resposta do servidor não foi confirmada. Clique em Salvar novamente para verificar o mesmo cadastro, sem repetir a entrada de estoque.';
+          errorBox.hidden=false;feedback.hidden=true;
+          if(saveError.status) {
+            mutationId=null;pendingPayload=null;
+          }else{
+            unresolved=true;
+            Array.from(form.elements).forEach(element=>{
+              if(element.matches('input,select,textarea')&&!element.disabled){element.disabled=true;element.dataset.uncertainLocked='true';}
+            });
+          }
+        }finally{
+          pending=false;
+          if(form.isConnected){
+            buttons.forEach(button=>button.disabled=false);
+            if(unresolved)root.querySelectorAll('[data-open-advanced-product],[data-quick-stock-open-recipe]').forEach(button=>button.disabled=true);
+          }
+        }
+      });
+      syncQuantity();
+      syncKind();
     }});
   }
 
@@ -1246,13 +1351,13 @@ function openCategoryForm() {
     window.dispatchEvent(new CustomEvent('artisys:product-form-opened',{detail:{productId:product?.id||null}}));
   }
 
-  async function openRecipeForm(product = null) {
+  async function openRecipeForm(product = null,{draftName=''}={}) {
     try {
       const [allProducts,existingRecipe]=await Promise.all([api.products(true),product?api.recipe(product.id).catch(()=>null):Promise.resolve(null)]);
       const stockItems=allProducts.filter(item=>item.active&&item.trackStock&&item.id!==product?.id);
       const rows=(existingRecipe?.components||[]).map(item=>({productId:item.productId,quantity:Number(item.quantity||1),unit:item.unit||'UN',conversionFactor:Number(item.conversionFactor||1),lossPercent:Number(item.lossPercent||0)}));
       const optionHtml=stockItems.map(item=>`<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(productUsageLabel(item.usageType))} · ${escapeHtml(item.sku||'sem SKU')}</option>`).join('');
-      openModal(product?'Editar Ficha Técnica':'Nova Ficha Técnica', `<form id="recipe-product-form"><section class="recipe-section"><h3>Item preparado</h3><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name||'')}"></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku||'')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map(category=>`<option value="${category.id}" ${product?.categoryId===category.id?'selected':''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Preço de venda</label><input id="recipe-sale-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents||0)/100).toFixed(2).replace('.',',')}"></div>${productionDestinationMarkup()}</div></section><section class="recipe-section"><h3>Produção e rendimento</h3><div class="field-grid recipe-production-grid"><div class="field"><label>Rendimento da receita</label><input name="yieldQuantity" type="number" min="0.001" step="0.001" value="${existingRecipe?.yieldQuantity||1}" required></div><div class="field"><label>Unidade do rendimento</label><select name="yieldUnit"><option value="UN" ${(existingRecipe?.yieldUnit||'UN')==='UN'?'selected':''}>UN</option><option value="KG" ${existingRecipe?.yieldUnit==='KG'?'selected':''}>KG</option><option value="LT" ${existingRecipe?.yieldUnit==='LT'?'selected':''}>LT</option></select></div><div class="field"><label>Quantidade por porção</label><input name="portionQuantity" type="number" min="0.001" step="0.001" value="${existingRecipe?.portionQuantity||1}" required></div><div class="field"><label>Tempo de preparo (min)</label><input name="prepTimeMinutes" type="number" min="0" step="1" value="${existingRecipe?.prepTimeMinutes||0}"></div></div></section><section class="recipe-section recipe-components-card"><div class="recipe-section-head"><div><h3>Insumos da ficha técnica</h3><p>As quantidades abaixo representam a receita completa; rendimento e porção definem o consumo por venda.</p></div><button type="button" class="secondary-button" id="recipe-create-add">+ Adicionar insumo</button></div><div id="recipe-create-rows"></div></section><section class="recipe-section"><h3>Custos calculados</h3><div class="recipe-summary-grid"><article><small>Custo da receita</small><strong id="recipe-batch-cost">R$ 0,00</strong></article><article><small>Porções</small><strong id="recipe-portions">1</strong></article><article><small>Custo / porção</small><strong id="recipe-portion-cost">R$ 0,00</strong></article><article><small>CMV</small><strong id="recipe-cmv">0,0%</strong></article><article><small>Margem bruta</small><strong id="recipe-margin">0,0%</strong></article></div></section>${quantityPricingMarkup()}<section class="recipe-section"><h3>Preparo</h3><div class="field-grid"><div class="field wide"><label>Modo de preparo</label><textarea name="preparationNotes" rows="4" placeholder="Descreva sequência, montagem e pontos de controle.">${escapeHtml(existingRecipe?.preparationNotes||'')}</textarea></div><div class="field wide"><label>Observações internas</label><textarea name="notes" rows="2" placeholder="Conservação, validade, equipamento ou outra observação interna.">${escapeHtml(existingRecipe?.notes||'')}</textarea></div></div></section><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="submit" class="primary-button">Salvar Ficha Técnica</button></div></form>`, {wide:true,onMount(root){
+      openModal(product?'Editar Ficha Técnica':'Nova Ficha Técnica', `<form id="recipe-product-form"><section class="recipe-section"><h3>Item preparado</h3><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name||draftName||'')}"></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku||'')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map(category=>`<option value="${category.id}" ${product?.categoryId===category.id?'selected':''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Preço de venda</label><input id="recipe-sale-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents||0)/100).toFixed(2).replace('.',',')}"></div>${productionDestinationMarkup()}</div></section><section class="recipe-section"><h3>Produção e rendimento</h3><div class="field-grid recipe-production-grid"><div class="field"><label>Rendimento da receita</label><input name="yieldQuantity" type="number" min="0.001" step="0.001" value="${existingRecipe?.yieldQuantity||1}" required></div><div class="field"><label>Unidade do rendimento</label><select name="yieldUnit"><option value="UN" ${(existingRecipe?.yieldUnit||'UN')==='UN'?'selected':''}>UN</option><option value="KG" ${existingRecipe?.yieldUnit==='KG'?'selected':''}>KG</option><option value="LT" ${existingRecipe?.yieldUnit==='LT'?'selected':''}>LT</option></select></div><div class="field"><label>Quantidade por porção</label><input name="portionQuantity" type="number" min="0.001" step="0.001" value="${existingRecipe?.portionQuantity||1}" required></div><div class="field"><label>Tempo de preparo (min)</label><input name="prepTimeMinutes" type="number" min="0" step="1" value="${existingRecipe?.prepTimeMinutes||0}"></div></div></section><section class="recipe-section recipe-components-card"><div class="recipe-section-head"><div><h3>Insumos da ficha técnica</h3><p>As quantidades abaixo representam a receita completa; rendimento e porção definem o consumo por venda.</p></div><button type="button" class="secondary-button" id="recipe-create-add">+ Adicionar insumo</button></div><div id="recipe-create-rows"></div></section><section class="recipe-section"><h3>Custos calculados</h3><div class="recipe-summary-grid"><article><small>Custo da receita</small><strong id="recipe-batch-cost">R$ 0,00</strong></article><article><small>Porções</small><strong id="recipe-portions">1</strong></article><article><small>Custo / porção</small><strong id="recipe-portion-cost">R$ 0,00</strong></article><article><small>CMV</small><strong id="recipe-cmv">0,0%</strong></article><article><small>Margem bruta</small><strong id="recipe-margin">0,0%</strong></article></div></section>${quantityPricingMarkup()}<section class="recipe-section"><h3>Preparo</h3><div class="field-grid"><div class="field wide"><label>Modo de preparo</label><textarea name="preparationNotes" rows="4" placeholder="Descreva sequência, montagem e pontos de controle.">${escapeHtml(existingRecipe?.preparationNotes||'')}</textarea></div><div class="field wide"><label>Observações internas</label><textarea name="notes" rows="2" placeholder="Conservação, validade, equipamento ou outra observação interna.">${escapeHtml(existingRecipe?.notes||'')}</textarea></div></div></section><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="submit" class="primary-button">Salvar Ficha Técnica</button></div></form>`, {wide:true,onMount(root){
         const form=root.querySelector('#recipe-product-form');
         void mountQuantityPricingEditor(root,product);
         root._productionDestinationReady=mountProductionDestination(root,product);
