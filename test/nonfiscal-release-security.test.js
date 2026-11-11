@@ -28,3 +28,8 @@ test('pacote de planilhas não exige nenhum serviço pago nem usa build fiscal',
   assert.match(release,/npm run dist:win(?:\s|$)/m);
   assert.doesNotMatch(release,/dist:win:fiscal|build-windows-native\.ps1/);
 });
+
+test('Electron empacotado usa linha estável atualizada para incluir as correções CVE',()=>{
+  assert.equal(pkg.devDependencies.electron,'44.11.1');
+  assert.equal(lock.packages['node_modules/electron'].version,'44.11.1');
+});
