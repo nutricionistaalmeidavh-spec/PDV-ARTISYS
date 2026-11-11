@@ -73,3 +73,32 @@ test('recovery request keeps unknown local e-mail indistinguishable',async()=>{
     assert.deepEqual(await response.json(),{accepted:true,message:'Se os dados estiverem vinculados a esta instalacao, solicite o codigo de recuperacao ao administrador ArtiSys.'});
   }finally{await ctx.close();}
 });
+test('solicitação por username usa email local sem revelar endereço ou identidade ao solicitante',async()=>{
+  const ctx=await start();
+  try{
+    const response=await fetch(ctx.base+'/api/v1/auth/password-recovery/request',{
+      method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'ADMIN'})
+    });
+    assert.equal(response.status,202);
+    const responseText=await response.text();
+    assert.doesNotMatch(responseText,/owner@example\.com|userId|username/);
+    assert.equal(ctx.calls.at(-1).body.email,'owner@example.com');
+  }finally{await ctx.close();}
+});
+
+test('confirmação por username troca senha local e revoga sessão antiga',async()=>{
+  const ctx=await start();
+  try{
+    const oldSession=await login(ctx,'senha-antiga-123');
+    assert.equal(oldSession.status,200);
+    const token=(await oldSession.json()).sessionToken;
+    const response=await fetch(ctx.base+'/api/v1/auth/password-recovery/confirm',{
+      method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin',code:'654321',password:'senha-nova-456'})
+    });
+    assert.equal(response.status,200);
+    assert.equal(ctx.calls.at(-1).body.email,'owner@example.com');
+    assert.equal((await login(ctx,'senha-nova-456')).status,200);
+    const revoked=await fetch(ctx.base+'/api/v1/auth/session',{headers:{authorization:'Bearer '+token}});
+    assert.equal(revoked.status,401);
+  }finally{await ctx.close();}
+});
