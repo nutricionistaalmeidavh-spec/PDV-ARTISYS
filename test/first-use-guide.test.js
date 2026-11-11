@@ -15,12 +15,24 @@ test('progresso vem dos dados reais e nao de preferencias locais', () => {
   assert.equal(initial.steps.find(step=>step.id==='sale').status,'optional');
 
   const ready = firstUseSteps({
-    onboarding:{completed:true},products:[{id:'p1',active:true}],
+    onboarding:{completed:true},products:[{id:'p1',active:true,menuEnabled:true,trackStock:true,stockQuantity:8}],
     cashSession:{id:'cash-1',status:'OPEN'},
     sales:[{id:'sale-1',status:'COMPLETED'}]
   });
   assert.equal(ready.completed,3);
   assert.equal(ready.steps.find(step=>step.id==='sale').status,'done');
+});
+
+test('primeiros produtos somente conclui quando item pode ser vendido',()=>{
+  const base={onboarding:{completed:true},cashSession:{status:'OPEN'},sales:[]};
+  const absent=firstUseSteps({...base,products:[{id:'a',active:true,menuEnabled:false,stockQuantity:9,trackStock:true}]});
+  assert.equal(absent.steps.find(s=>s.id==='products').status,'pending');
+  const withoutBalance=firstUseSteps({...base,products:[{id:'b',active:true,menuEnabled:true,stockQuantity:0,trackStock:true}]});
+  assert.equal(withoutBalance.steps.find(s=>s.id==='products').status,'pending');
+  const ready=firstUseSteps({...base,products:[{id:'c',active:true,menuEnabled:true,stockQuantity:3,trackStock:true}]});
+  assert.equal(ready.steps.find(s=>s.id==='products').status,'done');
+  const route=ready.steps.find(s=>s.id==='products').route;
+  assert.equal(route,'inventory');
 });
 
 test('falha ao consultar dados nao gera falso pendente ou concluido', () => {
