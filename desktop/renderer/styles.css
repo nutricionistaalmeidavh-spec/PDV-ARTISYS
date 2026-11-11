@@ -248,6 +248,18 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
 .modal-head h2 { margin: 0; }
 .modal-close { border: 0; background: #eef2f7; width: 44px; height: 44px; border-radius: 11px; font-size: 22px; line-height: 1; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+.product-quick-intro { margin: 0 0 16px; color: var(--muted); line-height: 1.5; }
+.product-quick-check { display: flex; align-items: flex-start; gap: 12px; margin-top: 16px; padding: 14px; border: 1px solid var(--line); background: #f5f9ff; border-radius: 12px; cursor: pointer; }
+.product-quick-check input { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 2px; }
+.product-quick-check strong, .product-quick-check small { display: block; }
+.product-quick-check small { color: var(--muted); margin-top: 4px; }
+.product-quick-more { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.product-quick-more summary { cursor: pointer; font-weight: 700; }
+.product-quick-more .field-grid { margin: 14px 0 10px; }
+.product-quick-more > small { color: var(--muted); }
+.product-quick-actions { flex-wrap: wrap; }
+@media (max-width: 700px) { .product-quick-actions button { flex: 1 1 150px; } }
+
 .auth-logo { width: 58px; height: 58px; border-radius: 16px; background: linear-gradient(145deg, #0a6cff, #12335f); color: white; display: grid; place-items: center; font-size: 29px; font-weight: 900; margin-bottom: 18px; }
 .auth-card h1 { margin: 0 0 8px; }
 .auth-card > p { color: var(--muted); margin: 0 0 18px; }
