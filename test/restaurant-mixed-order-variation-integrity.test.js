@@ -93,7 +93,8 @@ test('inventory warns when no KDS exists and does not silently claim save after 
   const source=fs.readFileSync(path.join(__dirname,'..','desktop/renderer/app.js'),'utf8');
   assert.match(source,/Nenhum setor KDS ativo/);
   assert.match(source,/savedProduct=saved/);
-  assert.match(source,/api\.removeProduct\(savedProduct\.id\)/);
+  assert.doesNotMatch(source,/api\.removeProduct\(savedProduct\.id\)/);
+  assert.match(source,/Produto salvo no Estoque, mas o destino/);
 });
 
 test('opening several configured products reuses one submit handler and adds ONLY the latest product',()=>{
