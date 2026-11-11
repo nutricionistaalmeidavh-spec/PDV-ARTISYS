@@ -60,7 +60,7 @@ test('formulario de lote e guia de primeiro uso apontam para a mesma operacao se
   const app=fs.readFileSync(require('node:path').join(__dirname,'../desktop/renderer/app.js'),'utf8');
   const guide=fs.readFileSync(require('node:path').join(__dirname,'../desktop/renderer/first-use-guide-ui.js'),'utf8');
   assert.match(app,/registerQuickProduct/);
-  assert.match(app,/quick-stock-kind/);
+  assert.match(app,/name="kind" value="PREPARED"/);
   assert.match(app,/openRecipeForm/);
   assert.match(app,/data-quick-stock-feedback/);
   assert.match(app,/saveQuickProduct/);
