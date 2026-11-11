@@ -112,7 +112,7 @@ function createReceiptActions({BrowserWindow,dialog,writeFile,getReceipt,createP
       const scrollHeight=await hidden.webContents.executeJavaScript('Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)');
       const pdf=await hidden.webContents.printToPDF({
         printBackground:true,
-        pageSize:{width:paperMm*1000,height:pageHeightMicrons(scrollHeight)}
+        pageSize:{width:paperMm/25.4,height:pageHeightMicrons(scrollHeight)/25400}
       });
       const fileName=safePdfFileName(receipt.saleNumber,now());
       let filePath='';
