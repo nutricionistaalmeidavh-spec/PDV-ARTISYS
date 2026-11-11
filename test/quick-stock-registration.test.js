@@ -57,14 +57,14 @@ test('caminho rapido convive com cadastro completo e com a rota canonica de esto
   const app = fs.readFileSync(path.join(root,'desktop/renderer/app.js'),'utf8');
   const operational = fs.readFileSync(path.join(root,'desktop/renderer/operational-pages.js'),'utf8');
   const index = fs.readFileSync(path.join(root,'desktop/renderer/index.html'),'utf8');
-  assert.match(index,/quick-stock-model\\.js/);
+  assert.match(index,/quick-stock-model\.js/);
   assert.match(operational,/id="inventory-quick-product"/);
   assert.match(operational,/id="inventory-new-product"/);
   assert.match(operational,/openQuickStockProductForm/);
-  assert.match(app,/function openQuickStockProductForm\\(/);
+  assert.match(app,/function openQuickStockProductForm\(/);
   assert.match(app,/id="quick-stock-product-form"/);
-  assert.match(app,/api\\.saveInventoryMovement\\(/);
+  assert.match(app,/api\.saveInventoryMovement\(/);
   assert.match(app,/type:'opening'/);
   assert.match(app,/menuEnabled:true/);
-  assert.match(app,/function openProductForm\\(product = null\\)/);
+  assert.match(app,/function openProductForm\(product = null\)/);
 });
