@@ -1,4 +1,4 @@
-# ArtiSys PDV 2.0.1
+# ArtiSys PDV 2.0.13
 
 PDV desktop da ArtiSys para operação **local-first**, self-hosted e em rede LAN. O funcionamento diário não depende de SaaS, nuvem ou internet: venda, estoque, caixa, impressão, módulos operacionais e persistência permanecem no ambiente do estabelecimento.
 
@@ -14,7 +14,7 @@ Contrato canônico: `docs/architecture/commercial-licensing.md`.
 
 ## Estado do produto
 
-As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas na versão 2.0.1. A versão atual inclui operação de balcão, retaguarda, estoque por local, compras, pedidos, áreas opcionais, hardware local, LAN, backup, importação, observabilidade e gates automatizados de release.
+As entregas **E01–E54**, **E54.1** e a **Fase 9 — profundidade operacional** estão integradas na versão 2.0.13. A versão atual inclui operação de balcão, retaguarda, estoque por local, compras, pedidos, áreas opcionais, hardware local, LAN, backup, importação, observabilidade e gates automatizados de release.
 
 ### Operação comercial
 
@@ -116,7 +116,7 @@ Hardware físico fica atrás de `desktop/hardware-runtime.cjs`. Módulos reutili
 ## Requisitos e desenvolvimento
 
 - Node.js 22+;
-- Windows x64 é o alvo de empacotamento comercial 2.0.1.
+- Windows x64 é o alvo de empacotamento comercial 2.0.13.
 
 ```bash
 npm install
