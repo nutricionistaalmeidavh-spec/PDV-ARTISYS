@@ -82,8 +82,9 @@ test('QA PDF directory writes a real printToPDF buffer without opening Save As',
   assert.equal(result.fileName,'Venda-QA-123-2026-09-24.pdf');
   assert.deepEqual(writes,[[path.join(path.resolve(qaPdfDir),'Venda-QA-123-2026-09-24.pdf'),'%PDF-QA']]);
   assert.equal(state.destroyed,true);
-  assert.equal(state.options.pageSize.width,80000);
-  assert.ok(state.options.pageSize.height>0);
+  assert.ok(Math.abs(state.options.pageSize.width-80/25.4)<1e-8);
+  assert.ok(state.options.pageSize.height>1&&state.options.pageSize.height<50,
+    'Electron 44 printToPDF expects inches, not microns');
 });
 
 test('printToPDF failure propagates but hidden window is destroyed',async()=>{
