@@ -1195,9 +1195,13 @@ function openCategoryForm() {
             stockRegistered=true;
           }
           if(input.publish) {
-            await api.request('/api/v1/restaurant/kitchen/routing',{
-              method:'POST',body:{productId:saved.id,mode:'DIRECT',stationId:null}
-            });
+            const modules=await api.modules().catch(()=>null);
+            const foodEnabled=Array.isArray(modules)?Boolean(modules.find(item=>item.id==='FOOD')?.enabled):true;
+            if(foodEnabled) {
+              await api.request('/api/v1/restaurant/kitchen/routing',{
+                method:'POST',body:{productId:saved.id,mode:'DIRECT',stationId:null}
+              });
+            }
             saved=await api.saveProduct({...saved,menuEnabled:true});
             listed=true;
           }
