@@ -94,6 +94,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Install pinned QA runtime dependencies
         run: npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Install Electron binary for Playwright desktop QA
+        run: npx install-electron --no
       - name: Install Chromium for web-surface QA
         run: npx playwright install --with-deps chromium
       - name: Ensure Electron capture tools are available
