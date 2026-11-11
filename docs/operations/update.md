@@ -16,7 +16,7 @@ Quando houver atualização:
 
 O download não é automático: a decisão continua com o operador. O banco de dados e os arquivos persistentes do cliente não são apagados pela atualização.
 
-Cada merge relevante na `main` dispara o pipeline Windows. O pipeline resolve uma versão de patch superior à última release publicada, executa `verify:release`, gera e testa o instalador, valida `latest.yml` e o blockmap e só então publica a GitHub Release consumida pelo updater. Alterações apenas em documentação/testes que não afetam o pacote não geram uma release nova.
+O merge comum na `main` **não publica** nem distribui uma versão. A publicação comercial ocorre somente por acionamento explícito do workflow `release-windows` (`workflow_dispatch` ou commit do arquivo `.github/release-trigger` na `main`). O workflow resolve uma versão de patch superior à última release estável, executa `verify:release`, gera e testa o instalador, valida `latest.yml` e o blockmap e só então publica a GitHub Release usada pelo updater. Não substituir o arquivo comercial do Drive antes de validar que a release produzida corresponde ao HEAD aprovado. Publicações macOS exigem verificação própria e não substituem os metadados do updater Windows.
 
 ## Procedimento manual / recuperação
 
