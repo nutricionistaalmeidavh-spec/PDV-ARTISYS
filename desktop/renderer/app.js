@@ -1375,8 +1375,15 @@ function openCategoryForm() {
       }});
     } catch(error) { showToast(error.message,'error'); }
   }
+  async function openProductImport(){
+    if(!canAccessRoute('settings')){showToast('Seu perfil não tem permissão para importar planilhas.','error');return;}
+    await navigate('settings');
+    document.querySelector('#settings-hub [data-settings-category="diagnostics"]')?.click();
+    document.getElementById('ops-import-form')?.scrollIntoView({block:'center',behavior:'smooth'});
+  }
   window.PdvCatalogAdmin = Object.freeze({
     openQuickStockProductForm:()=>openQuickStockProductForm(),
+    openProductImport:()=>void openProductImport(),
     openStockProductForm:(product=null)=>openProductForm(product),
     openRecipeForm:(product=null)=>void openRecipeForm(product),
     openInventoryItem
