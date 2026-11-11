@@ -98,7 +98,7 @@
       '<small>'+esc(step.description)+'</small></div>'+
       '<span class="first-use-status">'+CAPTION[step.status]+'</span>'+
       '<button type="button" class="secondary-button" data-first-use-step="'+esc(step.id)+'">'+
-      (step.id==='profile'&&step.status!=='done'?'Configurar':'Abrir')+'</button></li>';
+      (step.id==='profile'&&step.status!=='done'?'Configurar':step.id==='products'?(step.status==='done'?'Ver itens':'Cadastrar'):'Abrir')+'</button></li>';
   }
 
   function summaryMarkup(compact=false){
@@ -124,14 +124,17 @@
     card.className='first-use-home-card';
     card.setAttribute('aria-label','Preparação da loja');
     card.innerHTML=summaryMarkup()+
-      '<div class="first-use-actions"><button type="button" class="primary-button" data-first-use-open>Continuar configuração</button>'+
+      '<div class="first-use-actions">'+
+      (progress.steps.some(step=>step.id==='products'&&step.status!=='done')?'<button type="button" class="primary-button" data-first-use-add-product>+ Cadastrar produto</button>':'')+
+      '<button type="button" class="secondary-button" data-first-use-open>Continuar configuração</button>'+
       '<button type="button" class="secondary-button" data-first-use-tour>Conhecer o PDV</button>'+
       '<button type="button" class="first-use-later" data-first-use-later>Continuar depois</button></div>';
     if(!existing)container.insertBefore(card,container.firstChild.nextSibling);
     card.onclick=event=>{
       const control=event.target.closest('button');
       if(!control)return;
-      if(control.hasAttribute('data-first-use-open'))void openGuide();
+      if(control.hasAttribute('data-first-use-add-product'))void openStep('products');
+      else if(control.hasAttribute('data-first-use-open'))void openGuide();
       else if(control.hasAttribute('data-first-use-tour'))void startTour();
       else if(control.hasAttribute('data-first-use-later'))dismiss();
       else if(control.dataset.firstUseStep)void openStep(control.dataset.firstUseStep);
@@ -190,6 +193,13 @@
     const item=model.firstUseSteps(snapshot).steps.find(step=>step.id===id);
     if(!item)return;
     if(id==='profile'){await openProfile();return;}
+    if(id==='products'){
+      const destination=item.status==='done'&&permitted('products')?'products':permitted('inventory')?'inventory':null;
+      if(!destination){toast('Seu perfil não possui acesso ao cadastro de produtos.');return;}
+      await navigation()?.navigate?.(destination);
+      if(destination==='inventory'&&item.status!=='done')window.PdvCatalogAdmin?.openQuickStockProductForm?.();
+      return;
+    }
     if(!permitted(item.route)){
       toast('Seu perfil não possui acesso a essa área.');return;
     }

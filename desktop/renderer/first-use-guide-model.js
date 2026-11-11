@@ -21,7 +21,7 @@
     const completedSale=Boolean(sales&&sales.some(s=>['COMPLETED','PAID'].includes(String(s.status||'').toUpperCase())));
     const steps=[
       {id:'profile',title:'Dados da loja e área de atuação',description:'Escolha a operação e confira Alimentação ou Atacado.',route:'home',status:!knownOnboarding?'unknown':snapshot.onboarding.completed?'done':'pending',required:true},
-      {id:'products',title:'Primeiros produtos',description:'Cadastre ou importe os itens que serão vendidos.',route:'products',status:!products?'unknown':products.some(p=>p.active!==false)?'done':'pending',required:true},
+      {id:'products',title:'Primeiros produtos',description:'Cadastre um produto e deixe-o disponível para venda com saldo, quando controlado.',route:'inventory',status:!products?'unknown':products.some(p=>p.active!==false&&p.menuEnabled===true&&(p.trackStock!==true||Number(p.stockQuantity||0)>0)&&p.recipeStockStatus!=='OUT')?'done':'pending',required:true},
       {id:'cash',title:'Caixa da loja',description:'Abra uma sessão de caixa quando for iniciar as vendas.',route:'cash',status:cash===undefined?'unknown':cash&&String(cash.status||'OPEN').toUpperCase()==='OPEN'?'done':'pending',required:true},
       {id:'printer',title:'Impressora e periféricos',description:'Confira conexão e impressão de teste no equipamento real.',route:'settings',category:'printing',status:'optional',required:false},
       {id:'payments',title:'Pix e cartão',description:'Revise os meios de pagamento; integrações externas são opcionais.',route:'settings',category:'payments',status:'optional',required:false},

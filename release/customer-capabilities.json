@@ -26,6 +26,10 @@
           "path": "js/domains/catalog/catalog-service.js"
         },
         {
+          "path": "js/domains/catalog/quick-stock-service.js",
+          "marker": "registerQuickStockProduct"
+        },
+        {
           "path": "js/domains/catalog/catalog-customization-service.js"
         },
         {

@@ -54,6 +54,7 @@
     saveCategory(body) { return this.request('/api/v1/categories', { method: 'POST', body }); }
     products(includeInactive = false) { return this.request(`/api/v1/products${includeInactive ? '?includeInactive=true' : ''}`); }
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
+    saveQuickProduct(body,mutationId) { return this.request('/api/v1/products/quick', { method:'POST', body, mutationId }); }
     removeProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
     recipe(productId) { return this.request(`/api/v1/vertical/recipes/${encodeURIComponent(productId)}`); }
     saveRecipe(productId, body) { return this.request(`/api/v1/vertical/recipes/${encodeURIComponent(productId)}`, { method: 'PUT', body }); }
