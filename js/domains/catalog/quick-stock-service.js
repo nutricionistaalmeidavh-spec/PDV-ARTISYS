@@ -20,7 +20,9 @@ function registerQuickStockProduct(runtime,input={},actor=null) {
         reason:'Estoque inicial pelo cadastro rápido'
       },actor);
     }
-    if(normalized.publish&&foodEnabled){
+    // O destino direto também é salvo para itens aguardando a primeira entrada.
+    // Assim, ao adicionar saldo, o item pode ser publicado sem reconfiguração técnica.
+    if(foodEnabled){
       runtime.kitchen.configureProductRoute(initial.id,{mode:'DIRECT',stationId:null},actor);
     }
     const product=normalized.publish?runtime.catalog.upsertProduct({...initial,menuEnabled:true},actor):initial;
