@@ -1142,6 +1142,88 @@ function openCategoryForm() {
     for(const row of rows)await api.saveWholesaleTier({id:row.id||undefined,productId,minQuantity:Number(row.minQuantity),unitPriceCents:Number(row.unitPriceCents)});
   }
 
+  function openQuickStockProductForm() {
+    const model=window.PdvQuickStockModel;
+    if(!model){showToast('O cadastro rápido não foi carregado. Use Cadastro completo.','error');return;}
+    openModal('Cadastro rápido de produto', `
+      <form id="quick-stock-product-form">
+        <p class="product-quick-intro">Para bebidas, cigarros, petiscos prontos e produtos de revenda. Preencha o nome, o preço e, se tiver mercadoria disponível, a quantidade.</p>
+        <div class="field-grid">
+          <div class="field wide"><label for="quick-stock-name">Nome do produto *</label><input id="quick-stock-name" name="name" maxlength="180" required placeholder="Ex.: Refrigerante lata 350ml"></div>
+          <div class="field"><label for="quick-stock-price">Preço de venda (R$) *</label><input id="quick-stock-price" name="salePrice" inputmode="decimal" required placeholder="Ex.: 6,50"></div>
+          <div class="field"><label for="quick-stock-quantity">Quantidade inicial</label><input id="quick-stock-quantity" name="openingQuantity" inputmode="decimal" value="0" placeholder="Ex.: 24"><small>Se ainda não tem o produto, deixe zero. O saldo será registrado no Estoque.</small></div>
+          <div class="field"><label for="quick-stock-category">Categoria</label><select id="quick-stock-category" name="categoryId"><option value="">Sem categoria</option>${state.categories.map(category=>`<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`).join('')}</select></div>
+          <div class="field"><label for="quick-stock-barcode">Código de barras (opcional)</label><input id="quick-stock-barcode" name="barcode" autocomplete="off" placeholder="Digite ou use o leitor"></div>
+        </div>
+        <label class="product-quick-check"><input name="publish" type="checkbox" checked><span><strong>Mostrar no Cardápio e nas vendas</strong><small>Para itens prontos, sem preparo no KDS. O destino será configurado automaticamente.</small></span></label>
+        <details class="product-quick-more"><summary>Mais opções (se precisar)</summary>
+          <div class="field-grid">
+            <div class="field"><label for="quick-stock-sku">Código interno (SKU)</label><input id="quick-stock-sku" name="sku" autocomplete="off"></div>
+            <div class="field"><label for="quick-stock-unit">Unidade de medida</label><select id="quick-stock-unit" name="unit"><option value="UN">Unidade (UN)</option><option value="KG">Quilo (KG)</option><option value="G">Grama (G)</option><option value="LT">Litro (LT)</option><option value="CX">Caixa (CX)</option></select></div>
+            <div class="field"><label for="quick-stock-cost">Custo unitário (R$)</label><input id="quick-stock-cost" name="cost" inputmode="decimal" placeholder="Ex.: 3,00"></div>
+          </div>
+          <small>Insumos de receitas, variações, preços por quantidade ou envio para cozinha usam o Cadastro completo.</small>
+        </details>
+        <div class="modal-actions product-quick-actions">
+          <button type="button" class="secondary-button" data-open-advanced-product>Cadastro completo</button>
+          <button type="button" class="secondary-button" data-close-modal>Cancelar</button>
+          <button type="submit" class="secondary-button" name="action" value="another">Salvar e cadastrar outro</button>
+          <button type="submit" class="primary-button" name="action" value="done">Salvar produto</button>
+        </div>
+      </form>`, {wide:true,onMount(root){
+      root.querySelector('[data-open-advanced-product]')?.addEventListener('click',()=>openProductForm());
+      const form=root.querySelector('#quick-stock-product-form');
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        const continueRegistering=event.submitter?.value==='another';
+        const field=name=>form.elements.namedItem(name)?.value ?? '';
+        let input;
+        try {
+          input=model.normalizeQuickStockInput({
+            name:field('name'),salePrice:field('salePrice'),openingQuantity:field('openingQuantity'),
+            categoryId:field('categoryId'),barcode:field('barcode'),unit:field('unit'),
+            sku:field('sku'),cost:field('cost'),publish:form.elements.namedItem('publish').checked
+          });
+        } catch(error) { showToast(error.message,'error');return; }
+        const buttons=[...form.querySelectorAll('button[type="submit"]')];
+        buttons.forEach(button=>button.disabled=true);
+        let saved=null,stockRegistered=false,listed=false;
+        try {
+          saved=await api.saveProduct(input.product);
+          if(input.openingQuantity>0) {
+            await api.saveInventoryMovement({productId:saved.id,type:'opening',quantityDelta:input.openingQuantity,reason:'Estoque inicial pelo cadastro rápido'});
+            stockRegistered=true;
+          }
+          if(input.publish) {
+            await api.request('/api/v1/restaurant/kitchen/routing',{
+              method:'POST',body:{productId:saved.id,mode:'DIRECT',stationId:null}
+            });
+            saved=await api.saveProduct({...saved,menuEnabled:true});
+            listed=true;
+          }
+          closeModal();
+          state.products=await api.products(true).catch(()=>state.products);
+          await window.PdvAppNavigation?.navigate?.('inventory');
+          showToast(listed?'Produto salvo no Estoque e disponível para venda.':'Produto salvo no Estoque.','success');
+          if(continueRegistering)openQuickStockProductForm();
+        } catch(error) {
+          if(saved) {
+            closeModal();
+            state.products=await api.products(true).catch(()=>state.products);
+            await window.PdvAppNavigation?.navigate?.('inventory').catch(()=>{});
+            const detail=input.openingQuantity>0&&!stockRegistered?' Verifique e registre a quantidade inicial.':'';
+            const publication=input.publish&&!listed?' Não foi incluído no Cardápio; configure o destino no Cadastro completo.':'';
+            showToast('Produto criado no Estoque, mas uma etapa falhou: '+error.message+'.'+detail+publication,'error');
+          } else {
+            showToast(error.message,'error');
+          }
+        } finally {
+          if(form.isConnected)buttons.forEach(button=>button.disabled=false);
+        }
+      });
+    }});
+  }
+
   function openProductForm(product = null) {
     openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label>${productionDestinationMarkup()}</div>${quantityPricingMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
       const usage=root.querySelector('#product-usage-type');
@@ -1183,6 +1265,7 @@ function openCategoryForm() {
     } catch(error) { showToast(error.message,'error'); }
   }
   window.PdvCatalogAdmin = Object.freeze({
+    openQuickStockProductForm:()=>openQuickStockProductForm(),
     openStockProductForm:(product=null)=>openProductForm(product),
     openRecipeForm:(product=null)=>void openRecipeForm(product),
     openInventoryItem
