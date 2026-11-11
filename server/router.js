@@ -1,5 +1,6 @@
 'use strict';
 const { randomBytes } = require('node:crypto');
+const {registerQuickStockProduct}=require('../js/domains/catalog/quick-stock-service');
 
 class HttpError extends Error { constructor(statusCode, message) { super(message); this.statusCode = statusCode; } }
 function sendJson(response, statusCode, payload, request, allowedOrigins = []) { const headers = { 'content-type':'application/json; charset=utf-8','cache-control':'no-store' }; const origin=request?.headers?.origin; if(origin&&allowedOrigins.includes(origin)){headers['access-control-allow-origin']=origin;headers.vary='Origin';} response.writeHead(statusCode,headers); response.end(JSON.stringify(payload)); }
@@ -74,6 +75,7 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='GET'&&pathname==='/api/v1/categories'){requireCapability(session,'products.view');sendJson(response,200,runtime.catalog.listCategories({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/categories'){requireCapability(session,'products.manage');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.catalog.upsertCategory(body,currentActor),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/products'){requireCapability(session,'products.view');sendJson(response,200,runtime.catalog.listProducts({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
+      if(request.method==='POST'&&pathname==='/api/v1/products/quick'){requireCapability(session,'products.manage');requireCapability(session,'inventory.adjust');const mid=String(request.headers['x-mutation-id']||'').trim();if(!mid)throw new HttpError(400,'Identificador de cadastro obrigatório para evitar duplicidade.');const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,201,async()=>registerQuickStockProduct(runtime,body,currentActor));sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/products'){requireCapability(session,'products.manage');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.catalog.upsertProduct(body,currentActor),request,allowedOrigins);return;}
       const productMatch=pathname.match(/^\/api\/v1\/products\/([^/]+)$/);if(request.method==='DELETE'&&productMatch){requireCapability(session,'products.manage');sendJson(response,200,runtime.catalog.removeProduct(decodeURIComponent(productMatch[1]),currentActor),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/product-photos/manifest'){requireCapability(session,'products.view');sendJson(response,200,runtime.productPhotos.manifest(),request,allowedOrigins);return;}
