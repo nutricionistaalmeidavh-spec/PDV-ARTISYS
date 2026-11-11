@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createPdvRuntime } = require('../js/core/pdv-runtime');
+const { createLocalRecoveryService } = require('../js/core/auth/local-recovery-service');
 
 test('legacy local user remains valid without email', () => {
   const runtime = createPdvRuntime({ now: () => '2026-09-25T20:00:00.000Z', idFactory: prefix => `${prefix}-legacy` });
@@ -57,8 +58,9 @@ test('recuperação por chave local também aceita e-mail cadastrado sem depende
   const runtime=createPdvRuntime({dbPath:':memory:'});
   try{
     const owner=runtime.catalog.createUser({username:'owner',name:'Proprietário',profileId:'profile-administrator',email:'owner@example.com',password:'senha-forte-123'});
-    const {key}=runtime.localRecovery.issue({userId:owner.id,password:'senha-forte-123'});
-    assert.equal(runtime.localRecovery.recover({username:'OWNER@EXAMPLE.COM',key,password:'senha-nova-456'}).userId,owner.id);
+    const recovery=createLocalRecoveryService({db:runtime.db,catalog:runtime.catalog});
+    const {key}=recovery.issue({userId:owner.id,password:'senha-forte-123'});
+    assert.equal(recovery.recover({username:'OWNER@EXAMPLE.COM',key,password:'senha-nova-456'}).userId,owner.id);
     assert.equal(runtime.catalog.verifyUserPassword('owner@example.com','senha-nova-456').ok,true);
     assert.equal(runtime.catalog.verifyUserPassword('owner','senha-forte-123').ok,false);
   }finally{runtime.close();}
