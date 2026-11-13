@@ -12,14 +12,17 @@ class MemoryStore {
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
   async findInstallation(id){const row=this.installations.get(id);if(!row)return null;const license=this.licenses.find(x=>x.id===row.licenseId);return {...row,status:license?.status||'CANCELLED',expiresAt:license?.expiresAt||null,product:license?.product||'PDV'};}
-  async provisionLicense({email,product='PDV',expiresAt,codeDigest,codeExpiresAt,createdAt}){
+  async provisionLicense({email,product='PDV',expiresAt,maxDevices=null,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
     this.licenses.filter(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE').forEach(x=>x.status='CANCELLED');
-    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,product,status:'ACTIVE',expiresAt};this.licenses.push(license);
+    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,product,status:'ACTIVE',expiresAt,maxDevices};this.licenses.push(license);
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,product,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
 
+  async registerCRMInstallation(record,maxDevices){const devices=[...this.installations.values()].filter(i=>i.licenseId===record.licenseId);if(devices.length>=maxDevices&&!devices.some(i=>i.installationId===record.installationId))return false;const prior=this.installations.get(record.installationId);if(prior&&prior.licenseId!==record.licenseId)return false;this.installations.set(record.installationId,{...record});return true;}
+  async setCRMDeviceLimit(licenseId,maxDevices){const license=this.licenses.find(x=>x.id===licenseId&&x.product==='WPPPROSPECTOR');if(!license)return false;if([...this.installations.values()].filter(i=>i.licenseId===licenseId).length>maxDevices)return false;license.maxDevices=maxDevices;return true;}
+  async removeInstallation(licenseId,installationId){const prior=this.installations.get(installationId);if(!prior||prior.licenseId!==licenseId)return false;this.installations.delete(installationId);return true;}
   async findLicenseById(id){const x=this.licenses.find(l=>l.id===id);return x?{...x}:null;}
   async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
     const license=this.licenses.find(x=>x.id===licenseId&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>createdAt));
@@ -28,7 +31,7 @@ class MemoryStore {
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:license.accountId,licenseId,installationId:'PENDING',email:license.email,product:license.product||'PDV',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:license.accountId,licenseId,email:license.email};
   }
-  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,product:x.product||'PDV',status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
+  async listLicenses(){return this.licenses.map(x=>{const deviceIds=[...this.installations.values()].filter(i=>i.licenseId===x.id).map(i=>i.installationId);return {id:x.id,email:x.email,product:x.product||'PDV',status:x.status,expires_at:x.expiresAt,max_devices:x.maxDevices??null,installation_id:deviceIds[0]||null,device_count:deviceIds.length,device_ids:deviceIds};});}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
@@ -266,4 +269,65 @@ test('PDV e Oficina coexistem por e-mail sem compartilhar ativação ou cancelam
  assert.equal(revoked.status,200);
  assert.equal((await (await handleRequest(request('/v1/license/status?installationId=oficina-pc-123&product=OFICINA'),e)).json()).active,false);
  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
+});
+
+
+test('CRM is a separate perpetual product in the shared panel with a configurable installation cap',async()=>{
+  const {handleRequest}=await loadWorker(),e=env();
+  const {cookie}=await login(handleRequest,e);
+  const panel=await (await handleRequest(request('/admin',{headers:cookieHeaders(cookie)}),e)).text();
+  assert.match(panel,/value="WPPPROSPECTOR"/);
+  assert.match(panel,/maxDevices/);
+  const release=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',maxDevices:2})}),e);
+  assert.equal(release.status,201);
+  const license=await release.json();
+  assert.equal(license.expiresAt,null);
+  assert.equal(license.maxDevices,2);
+  for(const id of ['crm-dev-001','crm-dev-002']){
+    const issued=id==='crm-dev-001'?license:await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+    const activated=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:id,code:issued.code})}),e);
+    assert.equal(activated.status,200,id);
+    assert.equal((await activated.json()).product,'WPPPROSPECTOR');
+  }
+  const code3=await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+  const third=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:'crm-dev-003',code:code3.code})}),e);
+  assert.equal(third.status,409);
+  const removed=await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/installations/crm-dev-001',{method:'DELETE',headers:cookieHeaders(cookie)}),e);
+  assert.equal(removed.status,200);
+  const retry=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:'crm-dev-003',code:code3.code})}),e);
+  assert.equal(retry.status,200);
+  const old=await handleRequest(request('/v1/license/status?product=WPPPROSPECTOR&installationId=crm-dev-001'),e);
+  assert.equal((await old.json()).active,false);
+  const live=await handleRequest(request('/v1/license/status?product=WPPPROSPECTOR&installationId=crm-dev-003'),e);
+  assert.equal((await live.json()).active,true);
+});
+
+test('CRM requires a safe device cap while PDV and Oficina keep their current behavior',async()=>{
+  const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+  for(const bad of [0,21,-1,1.5,'x']){
+    const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'invalid@example.com',product:'WPPPROSPECTOR',maxDevices:bad})}),e);
+    assert.equal(response.status,400,String(bad));
+  }
+  const legacy=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'pdv@example.com',product:'PDV'})}),e);
+  assert.equal(legacy.status,201);
+  assert.equal((await legacy.json()).maxDevices,null);
+});
+
+
+test('CRM device limit can change in the shared admin panel but not below active installation count',async()=>{
+  const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+  let r=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'limit@example.com',product:'WPPPROSPECTOR',maxDevices:1})}),e);
+  assert.equal(r.status,201);const license=await r.json();
+  r=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:license.email,product:'WPPPROSPECTOR',installationId:'crm-limit-001',code:license.code})}),e);
+  assert.equal(r.status,200);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:0})}),e);
+  assert.equal(r.status,400);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:2})}),e);
+  assert.equal(r.status,200);
+  assert.equal((await r.json()).maxDevices,2);
+  const code=await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+  r=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:license.email,product:'WPPPROSPECTOR',installationId:'crm-limit-002',code:code.code})}),e);
+  assert.equal(r.status,200);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:1})}),e);
+  assert.equal(r.status,409);
 });

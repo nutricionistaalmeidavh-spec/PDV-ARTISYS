@@ -7,7 +7,7 @@ Este serviço é separado do core local do PDV. O PDV continua local/self-hosted
 ## Produtos na mesma Central
 
 A Central agora permite selecionar **PDV ArtiSys** (`PDV`) ou **ArtiSys Oficina**
-(`OFICINA`) no mesmo painel. Licenças antigas são migradas com produto padrão
+(`OFICINA`) e **ArtiSys CRM WhatsApp Prospector** (`WPPPROSPECTOR`) no mesmo painel. Licenças antigas são migradas com produto padrão
 `PDV`. O mesmo e-mail pode ter uma licença ativa por produto; códigos, suspensão,
 reativação e expiração são independentes. Para compatibilidade, APIs legadas sem
 campo `product` continuam usando `PDV`. O Oficina envia `product: 'OFICINA'` na
@@ -30,6 +30,16 @@ antes do deploy da Central. O Worker `pdv-artisys` pertence à conta
 9. O primeiro Administrador é criado localmente no PDV; senha e hash nunca são enviados ao Cloudflare.
 
 Não existe envio automático de e-mail neste fluxo.
+
+## Licenças vitalícias e computadores do CRM
+
+A Central usa a mesma autenticação administrativa, banco D1 e emissão de códigos para os três produtos. Selecione **ArtiSys CRM WhatsApp Prospector**, indique o e-mail e mantenha a validade em branco para licença vitalícia (sem data de expiração). Escolha o limite de **1 a 20 computadores**, com padrão **3**. O código de ativação de **6 dígitos** permanece válido por **48 horas** e é de uso único; isso não limita a licença vitalícia.
+
+Uma licença CRM tem slots por instalação, e o limite é aplicado no servidor por instrução SQL atômica. O administrador pode **Alterar limite** (não abaixo do número já ativado), **Desativar PC** para liberar uma vaga ou **Reativar instalação** para emitir outro código. Desativar um PC faz a próxima consulta online dele negar acesso; uma instalação que está offline pode continuar usando a última ativação local válida até reconectar, portanto a revogação offline não é instantânea.
+
+O PDV e a Oficina **não recebem limite de computadores novo** nesta mudança; continuam com a política anterior. Uma licença de produto não ativa outro produto. A Central armazena apenas licença, e-mail normalizado e identidade de instalação: **nunca** armazena leads, conversas ou o banco de dados operacional do CRM. O compartilhamento de dados entre vários PCs é um problema distinto da licença e requer implantação de CRM em servidor de rede; ativar o mesmo software em vários PCs não sincroniza SQLite automaticamente.
+
+**Segurança:** a ativação inicial requer HTTPS; somente uma instalação previamente ativada pode continuar offline. O cliente Windows armazena o comprovante de ativação usando a proteção do sistema operacional (Electron safeStorage/DPAPI). Não publicar nenhuma chave privada nem tokens administrativos no instalador. A adição de campo max_devices à tabela licenses no D1 é aditiva e preserva os registros existentes.
 
 ## Reinstalação após formatação
 

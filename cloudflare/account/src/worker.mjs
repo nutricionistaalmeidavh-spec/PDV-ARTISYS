@@ -8,7 +8,7 @@ const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
-function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA'].includes(product)?product:null;}
+function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR'].includes(product)?product:null;}
 function normalizeInstallationId(value){const id=String(value||'').trim();return /^[A-Za-z0-9._:-]{8,128}$/.test(id)?id:null;}
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
@@ -39,6 +39,7 @@ class D1AccountStore{
       status TEXT NOT NULL CHECK(status IN ('ACTIVE','SUSPENDED','CANCELLED','EXPIRED')),
       created_at TEXT NOT NULL,
       expires_at TEXT,
+      max_devices INTEGER,
       metadata_json TEXT,
       FOREIGN KEY(account_id) REFERENCES accounts(id)
     );
@@ -84,6 +85,7 @@ class D1AccountStore{
     );`);
     const licenseColumns=new Set(((await this.db.prepare('PRAGMA table_info(licenses)').all()).results||[]).map(row=>row.name));
     if(!licenseColumns.has('product'))await this.db.prepare("ALTER TABLE licenses ADD COLUMN product TEXT NOT NULL DEFAULT 'PDV'").run();
+    if(!licenseColumns.has('max_devices'))await this.db.prepare('ALTER TABLE licenses ADD COLUMN max_devices INTEGER').run();
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
@@ -104,11 +106,11 @@ class D1AccountStore{
     return row?{id:row.id,email:row.email}:null;
   }
   async findActiveLicense(email,product='PDV'){
-    const row=await this.db.prepare(`SELECT l.id,a.id AS account_id,a.email_normalized AS email,l.product,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT l.id,a.id AS account_id,a.email_normalized AS email,l.product,l.status,l.expires_at,l.max_devices
       FROM licenses l JOIN accounts a ON a.id=l.account_id
       WHERE a.email_normalized=? AND l.product=? AND l.status='ACTIVE' AND (l.expires_at IS NULL OR l.expires_at>?)
       ORDER BY l.created_at DESC LIMIT 1`).bind(email,product,new Date().toISOString()).first();
-    return row?{id:row.id,accountId:row.account_id,email:row.email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null}:null;
+    return row?{id:row.id,accountId:row.account_id,email:row.email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null,maxDevices:row.max_devices??null}:null;
   }
   async saveActivationToken(token){await this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
     VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.licenseId,token.installationId,token.tokenDigest,token.expiresAt,token.createdAt).run();}
@@ -127,20 +129,20 @@ class D1AccountStore{
     return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
   }
   async incrementActivationAttempts(id){await this.db.prepare('UPDATE activation_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
-  async provisionLicense({email,product='PDV',expiresAt=null,codeDigest,codeExpiresAt,createdAt}){
+  async provisionLicense({email,product='PDV',expiresAt=null,maxDevices=null,codeDigest,codeExpiresAt,createdAt}){
     let account=await this.findAccount(email);
     if(!account){account={id:newId('account'),email};await this.db.prepare('INSERT INTO accounts(id,email_normalized,created_at) VALUES(?,?,?)').bind(account.id,email,createdAt).run();}
     await this.db.prepare("UPDATE licenses SET status='CANCELLED' WHERE account_id=? AND product=? AND status='ACTIVE'").bind(account.id,product).run();
     const licenseId=newId('license');
-    await this.db.prepare(`INSERT INTO licenses(id,account_id,product,status,created_at,expires_at,metadata_json) VALUES(?,?,?,'ACTIVE',?,?,?)`).bind(licenseId,account.id,product,createdAt,expiresAt,JSON.stringify({source:'admin-panel'})).run();
+    await this.db.prepare(`INSERT INTO licenses(id,account_id,product,status,created_at,expires_at,max_devices,metadata_json) VALUES(?,?,?,'ACTIVE',?,?,?,?)`).bind(licenseId,account.id,product,createdAt,expiresAt,maxDevices,JSON.stringify({source:'admin-panel'})).run();
     await this.saveActivationToken({id:newId('token'),accountId:account.id,licenseId,installationId:'PENDING',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId};
   }
 
   async findLicenseById(id){
-    const row=await this.db.prepare(`SELECT l.id,l.account_id,a.email_normalized AS email,l.product,l.status,l.expires_at
+    const row=await this.db.prepare(`SELECT l.id,l.account_id,a.email_normalized AS email,l.product,l.status,l.expires_at,l.max_devices
       FROM licenses l JOIN accounts a ON a.id=l.account_id WHERE l.id=? LIMIT 1`).bind(id).first();
-    return row?{id:row.id,accountId:row.account_id,email:row.email,status:row.status,expiresAt:row.expires_at||null}:null;
+    return row?{id:row.id,accountId:row.account_id,email:row.email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null,maxDevices:row.max_devices??null}:null;
   }
   async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
     const license=await this.findLicenseById(licenseId);
@@ -152,7 +154,12 @@ class D1AccountStore{
     ]);
     return {accountId:license.accountId,licenseId,email:license.email,product:license.product};
   }
-  async listLicenses(){return (await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.product,l.status,l.created_at,l.expires_at,i.installation_id,i.activated_at FROM licenses l JOIN accounts a ON a.id=l.account_id LEFT JOIN installations i ON i.license_id=l.id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];}
+  async listLicenses(){const rows=(await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.product,l.status,l.created_at,l.expires_at,l.max_devices,
+    (SELECT COUNT(*) FROM installations i WHERE i.license_id=l.id) AS device_count,
+    (SELECT GROUP_CONCAT(installation_id,'|') FROM installations i WHERE i.license_id=l.id) AS device_ids,
+    (SELECT installation_id FROM installations i WHERE i.license_id=l.id ORDER BY activated_at ASC LIMIT 1) AS installation_id
+    FROM licenses l JOIN accounts a ON a.id=l.account_id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];
+    return rows.map(row=>({...row,device_ids:row.device_ids?row.device_ids.split('|'):[]}));}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
   async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
   async findAdminSession({digest,now}){const row=await this.db.prepare('SELECT token_digest,expires_at FROM admin_sessions WHERE token_digest=? AND revoked_at IS NULL AND expires_at>? LIMIT 1').bind(digest,now).first();return row?{tokenDigest:row.token_digest,expiresAt:row.expires_at}:null;}
@@ -189,6 +196,30 @@ class D1AccountStore{
   async incrementRecoveryAttempts(id){await this.db.prepare('UPDATE password_recovery_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
   async saveInstallation(record){await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
     VALUES(?,?,?,?,?) ON CONFLICT(installation_id) DO UPDATE SET account_id=excluded.account_id,license_id=excluded.license_id,last_seen_at=excluded.last_seen_at`).bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt).run();}
+  async registerCRMInstallation(record,maxDevices){
+    // Uma única instrução atômica garante o teto mesmo com ativações concorrentes.
+    // Não altera a política de dispositivos dos produtos legados.
+    const result=await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
+      SELECT ?,?,?,?,? WHERE (
+        (SELECT COUNT(*) FROM installations WHERE license_id=? AND installation_id<>?) < ?
+        OR EXISTS (SELECT 1 FROM installations WHERE installation_id=? AND license_id=?)
+      )
+      ON CONFLICT(installation_id) DO UPDATE SET last_seen_at=excluded.last_seen_at
+      WHERE installations.license_id=excluded.license_id`)
+      .bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt,
+        record.licenseId,record.installationId,maxDevices,record.installationId,record.licenseId).run();
+    return Number(result.meta?.changes||0)>0;
+  }
+  async setCRMDeviceLimit(id,maxDevices){
+    const result=await this.db.prepare("UPDATE licenses SET max_devices=? WHERE id=? AND product='WPPPROSPECTOR' AND (SELECT COUNT(*) FROM installations WHERE license_id=?)<=?")
+      .bind(maxDevices,id,id,maxDevices).run();
+    return Number(result.meta?.changes||0)>0;
+  }
+  async removeInstallation(licenseId,installationId){
+    const result=await this.db.prepare('DELETE FROM installations WHERE license_id=? AND installation_id=?')
+      .bind(licenseId,installationId).run();
+    return Number(result.meta?.changes||0)>0;
+  }
   async findInstallation(id){
     const row=await this.db.prepare(`SELECT i.installation_id,i.license_id,i.activated_at,a.email_normalized AS account_email,l.product,l.status,l.expires_at
       FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(id).first();
@@ -228,8 +259,11 @@ async function verifyActivation(request,env){
   const license=await store.findActiveLicense(email,product);if(!license||license.id!==token.licenseId)return json({error:'Licenca indisponivel para ativacao.'},409);
   const prior=await store.findInstallation(installationId);
   if(prior&&String(prior.product||'PDV')!==product)return json({error:'Instalacao ja vinculada a outro produto.'},409);
+  const installation={installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,product,status:'ACTIVE',activatedAt:now};
+  if(product==='WPPPROSPECTOR'){
+    if(!await store.registerCRMInstallation(installation,Number(license.maxDevices||3)))return json({error:'Limite de computadores desta licenca atingido. Desative um dispositivo na Central antes de ativar outro.'},409);
+  }else await store.saveInstallation(installation);
   await store.consumeActivationToken(token.id,now);
-  await store.saveInstallation({installationId,accountId:token.accountId||license.accountId||null,licenseId:license.id,accountEmail:email,product,status:'ACTIVE',activatedAt:now});
   return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now});
 }
 
@@ -348,7 +382,7 @@ function adminHtml(){return `<!doctype html>
 *{box-sizing:border-box}body{margin:0}.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 48px}.top{display:flex;gap:14px;justify-content:space-between;align-items:flex-start}
 h1{margin:0 0 6px;font-size:30px}h2{margin:0 0 14px;font-size:18px}.sub{margin:0 0 22px;color:#64646f}
 .card{background:#fff;border:1px solid #dddfe4;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}#crm-device-field[hidden]{display:none}
 label{font-weight:650;font-size:14px}input,select,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:11px 12px}
 button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color:#18181b}.secondary{background:#fff;color:#18181b}
 .hint{font-size:13px;color:#70707b}.result{margin-top:16px;padding:16px;background:#f7f7f8;border-radius:12px;display:none}
@@ -365,9 +399,10 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
-      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option></select></div>
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
-      <div class="field"><label for="expires">Validade da licença <span class="hint">(opcional)</span></label><input id="expires" type="date"></div>
+      <div class="field"><label for="expires">Validade da licença <span class="hint">(vazio = vitalícia)</span></label><input id="expires" type="date"></div>
+       <div class="field" id="crm-device-field" hidden><label for="maxDevices">Computadores por loja (CRM)</label><input id="maxDevices" type="number" min="1" max="20" value="3"></div>
       <button type="button" onclick="release()">Gerar código</button>
     </div>
     <div id="released" class="result">
@@ -393,15 +428,17 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
     const license=j.licenses[i-1];if(!license||license.status!=='ACTIVE')return;
     const actions=row.querySelector('.actions');if(!actions)return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
+    if(license.product==='WPPPROSPECTOR'){const limit=document.createElement('button');limit.type='button';limit.className='secondary';limit.textContent='Alterar limite';limit.addEventListener('click',()=>changeDeviceLimit(license.id,license.max_devices||3));actions.append(limit);}
+    if(license.product==='WPPPROSPECTOR')for(const id of license.device_ids||[]){const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Desativar PC: '+id.slice(0,12);remove.title=id;remove.addEventListener('click',()=>removeDevice(license.id,id));actions.append(remove);}
   });
 }catch(e){alert(e.message)}}
-async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
+async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt,...(product==='WPPPROSPECTOR'?{maxDevices:Number(document.querySelector('#maxDevices').value)}:{})})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
 async function reactivate(id){
   try{
     const j=await api('/v1/admin/licenses/'+encodeURIComponent(id)+'/activation-code',{method:'POST'});
@@ -412,6 +449,10 @@ async function reactivate(id){
     await load();
   }catch(e){alert(e.message)}
 }
+async function changeDeviceLimit(licenseId,current){const raw=prompt('Quantos computadores esta licença CRM permite? (1 a 20)',String(current));if(raw===null)return;const maxDevices=Number(raw);if(!Number.isInteger(maxDevices)||maxDevices<1||maxDevices>20){alert('Informe um número inteiro entre 1 e 20.');return;}try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId),{method:'PATCH',body:JSON.stringify({maxDevices})});await load()}catch(e){alert(e.message)}}
+async function removeDevice(licenseId,installationId){if(!confirm('Desativar este computador da licença CRM? Ele perderá o acesso quando consultar novamente a Central.'))return;try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId)+'/installations/'+encodeURIComponent(installationId),{method:'DELETE'});await load()}catch(e){alert(e.message)}}
+function toggleCRMDevices(){document.querySelector('#crm-device-field').hidden=document.querySelector('#product').value!=='WPPPROSPECTOR'}
+document.querySelector('#product').addEventListener('change',toggleCRMDevices);toggleCRMDevices();
 async function copyCode(){const code=document.querySelector('#released-code').textContent.trim();if(!code)return;try{await navigator.clipboard.writeText(code)}catch{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}}
 async function recovery(installationId,email){try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Código de recuperação: '+j.code+' (15 min). Você envia esse código ao cliente.')}catch(e){alert(e.message)}}
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
@@ -434,11 +475,13 @@ async function adminRoute(request,env,url){
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
     const body=await readBody(request),email=normalizeEmail(body.email),product=normalizeProduct(body.product);if(!email||!product)return json({error:'E-mail ou produto invalido.'},400);
+    const maxDevices=product==='WPPPROSPECTOR'?(body.maxDevices===undefined?3:body.maxDevices):null;
+    if(product==='WPPPROSPECTOR'&&(!Number.isInteger(maxDevices)||maxDevices<1||maxDevices>20))return json({error:'Limite de dispositivos invalido (1 a 20).'},400);
     if(await store.findActiveLicense(email,product))return json({error:'Este e-mail ja possui licenca ativa. Use Reativar instalacao na lista para emitir outro codigo sem cancelar a licenca.'},409);
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
-    const provisioned=await store.provisionLicense({email,product,expiresAt,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,product,code,codeExpiresAt,expiresAt},201);
+    const provisioned=await store.provisionLicense({email,product,expiresAt,maxDevices,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,product,code,codeExpiresAt,expiresAt,maxDevices},201);
   }
 
   if(request.method==='POST'&&url.pathname.startsWith('/v1/admin/licenses/')&&url.pathname.endsWith('/activation-code')){
@@ -453,7 +496,27 @@ async function adminRoute(request,env,url){
     if(!rotated)return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
     return json({...rotated,code,codeExpiresAt},201);
   }
-  if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
+  if(request.method==='DELETE'&&/^\/v1\/admin\/licenses\/[^/]+\/installations\/[^/]+$/.test(url.pathname)){
+    const parts=url.pathname.split('/'),id=decodeURIComponent(parts[4]),installationId=normalizeInstallationId(decodeURIComponent(parts[6]));
+    if(!id||id.length>128||!installationId)return json({error:'Licenca ou instalacao invalida.'},400);
+    const license=await store.findLicenseById(id);
+    if(!license||license.product!=='WPPPROSPECTOR')return json({error:'Licenca CRM nao encontrada.'},404);
+    const removed=await store.removeInstallation(id,installationId);
+    return removed?json({removed:true,id,installationId}):json({error:'Dispositivo nao encontrado na licenca.'},404);
+  }
+  if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){
+    const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));
+    if(!id||id.includes('/')||id.length>128)return json({error:'Licenca invalida.'},400);
+    const body=await readBody(request);
+    if(Object.hasOwn(body,'maxDevices')){
+      if(!Number.isInteger(body.maxDevices)||body.maxDevices<1||body.maxDevices>20)return json({error:'Limite de dispositivos invalido (1 a 20).'},400);
+      if(!await store.setCRMDeviceLimit(id,body.maxDevices))return json({error:'Nao e possivel diminuir o limite abaixo dos dispositivos ativos, ou esta licenca nao e do CRM.'},409);
+      return json({updated:true,id,maxDevices:body.maxDevices});
+    }
+    const status=String(body.status||'').toUpperCase();
+    if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);
+    await store.setLicenseStatus(id,status);return json({updated:true,id,status});
+  }
   if(request.method==='POST'&&url.pathname==='/v1/admin/recovery'){
     const body=await readBody(request),email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);if(!email||!installationId)return json({error:'E-mail ou instalacao invalidos.'},400);
     const pepper=recoveryPepper(env);if(!pepper)return json({error:'RECOVERY_PEPPER ausente.'},503);
