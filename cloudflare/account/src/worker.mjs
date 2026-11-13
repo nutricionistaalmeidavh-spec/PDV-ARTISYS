@@ -199,13 +199,13 @@ class D1AccountStore{
   async registerCRMInstallation(record,maxDevices){
     // Uma única instrução atômica garante o teto mesmo com ativações concorrentes.
     // Não altera a política de dispositivos dos produtos legados.
-    const result=await this.db.prepare(\`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
+    const result=await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
       SELECT ?,?,?,?,? WHERE (
         (SELECT COUNT(*) FROM installations WHERE license_id=? AND installation_id<>?) < ?
         OR EXISTS (SELECT 1 FROM installations WHERE installation_id=? AND license_id=?)
       )
       ON CONFLICT(installation_id) DO UPDATE SET last_seen_at=excluded.last_seen_at
-      WHERE installations.license_id=excluded.license_id\`)
+      WHERE installations.license_id=excluded.license_id`)
       .bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt,
         record.licenseId,record.installationId,maxDevices,record.installationId,record.licenseId).run();
     return Number(result.meta?.changes||0)>0;
@@ -394,9 +394,10 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
-      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option></select></div>
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
-      <div class="field"><label for="expires">Validade da licença <span class="hint">(opcional)</span></label><input id="expires" type="date"></div>
+      <div class="field"><label for="expires">Validade da licença <span class="hint">(vazio = vitalícia)</span></label><input id="expires" type="date"></div>
+       <div class="field" id="crm-device-field" hidden><label for="maxDevices">Computadores por loja (CRM)</label><input id="maxDevices" type="number" min="1" max="20" value="3"></div>
       <button type="button" onclick="release()">Gerar código</button>
     </div>
     <div id="released" class="result">
@@ -422,15 +423,16 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
     const license=j.licenses[i-1];if(!license||license.status!=='ACTIVE')return;
     const actions=row.querySelector('.actions');if(!actions)return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
+    if(license.product==='WPPPROSPECTOR')for(const id of license.device_ids||[]){const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Desativar PC: '+id.slice(0,12);remove.title=id;remove.addEventListener('click',()=>removeDevice(license.id,id));actions.append(remove);}
   });
 }catch(e){alert(e.message)}}
-async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
+async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt,...(product==='WPPPROSPECTOR'?{maxDevices:Number(document.querySelector('#maxDevices').value)}:{})})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
 async function reactivate(id){
   try{
     const j=await api('/v1/admin/licenses/'+encodeURIComponent(id)+'/activation-code',{method:'POST'});
@@ -441,6 +443,9 @@ async function reactivate(id){
     await load();
   }catch(e){alert(e.message)}
 }
+async function removeDevice(licenseId,installationId){if(!confirm('Desativar este computador da licença CRM? Ele perderá o acesso quando consultar novamente a Central.'))return;try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId)+'/installations/'+encodeURIComponent(installationId),{method:'DELETE'});await load()}catch(e){alert(e.message)}}
+function toggleCRMDevices(){document.querySelector('#crm-device-field').hidden=document.querySelector('#product').value!=='WPPPROSPECTOR'}
+document.querySelector('#product').addEventListener('change',toggleCRMDevices);toggleCRMDevices();
 async function copyCode(){const code=document.querySelector('#released-code').textContent.trim();if(!code)return;try{await navigator.clipboard.writeText(code)}catch{const el=document.createElement('textarea');el.value=code;document.body.appendChild(el);el.select();document.execCommand('copy');el.remove()}}
 async function recovery(installationId,email){try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Código de recuperação: '+j.code+' (15 min). Você envia esse código ao cliente.')}catch(e){alert(e.message)}}
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
