@@ -210,6 +210,11 @@ class D1AccountStore{
         record.licenseId,record.installationId,maxDevices,record.installationId,record.licenseId).run();
     return Number(result.meta?.changes||0)>0;
   }
+  async setCRMDeviceLimit(id,maxDevices){
+    const result=await this.db.prepare("UPDATE licenses SET max_devices=? WHERE id=? AND product='WPPPROSPECTOR' AND (SELECT COUNT(*) FROM installations WHERE license_id=?)<=?")
+      .bind(maxDevices,id,id,maxDevices).run();
+    return Number(result.meta?.changes||0)>0;
+  }
   async removeInstallation(licenseId,installationId){
     const result=await this.db.prepare('DELETE FROM installations WHERE license_id=? AND installation_id=?')
       .bind(licenseId,installationId).run();
@@ -429,6 +434,7 @@ async function load(){try{const j=await api('/v1/admin/licenses');document.query
     const actions=row.querySelector('.actions');if(!actions)return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
+    if(license.product==='WPPPROSPECTOR'){const limit=document.createElement('button');limit.type='button';limit.className='secondary';limit.textContent='Alterar limite';limit.addEventListener('click',()=>changeDeviceLimit(license.id,license.max_devices||3));actions.append(limit);}
     if(license.product==='WPPPROSPECTOR')for(const id of license.device_ids||[]){const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Desativar PC: '+id.slice(0,12);remove.title=id;remove.addEventListener('click',()=>removeDevice(license.id,id));actions.append(remove);}
   });
 }catch(e){alert(e.message)}}
@@ -443,6 +449,7 @@ async function reactivate(id){
     await load();
   }catch(e){alert(e.message)}
 }
+async function changeDeviceLimit(licenseId,current){const raw=prompt('Quantos computadores esta licença CRM permite? (1 a 20)',String(current));if(raw===null)return;const maxDevices=Number(raw);if(!Number.isInteger(maxDevices)||maxDevices<1||maxDevices>20){alert('Informe um número inteiro entre 1 e 20.');return;}try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId),{method:'PATCH',body:JSON.stringify({maxDevices})});await load()}catch(e){alert(e.message)}}
 async function removeDevice(licenseId,installationId){if(!confirm('Desativar este computador da licença CRM? Ele perderá o acesso quando consultar novamente a Central.'))return;try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId)+'/installations/'+encodeURIComponent(installationId),{method:'DELETE'});await load()}catch(e){alert(e.message)}}
 function toggleCRMDevices(){document.querySelector('#crm-device-field').hidden=document.querySelector('#product').value!=='WPPPROSPECTOR'}
 document.querySelector('#product').addEventListener('change',toggleCRMDevices);toggleCRMDevices();
@@ -497,7 +504,19 @@ async function adminRoute(request,env,url){
     const removed=await store.removeInstallation(id,installationId);
     return removed?json({removed:true,id,installationId}):json({error:'Dispositivo nao encontrado na licenca.'},404);
   }
-  if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));const body=await readBody(request),status=String(body.status||'').toUpperCase();if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);await store.setLicenseStatus(id,status);return json({updated:true,id,status});}
+  if(request.method==='PATCH'&&url.pathname.startsWith('/v1/admin/licenses/')){
+    const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));
+    if(!id||id.includes('/')||id.length>128)return json({error:'Licenca invalida.'},400);
+    const body=await readBody(request);
+    if(Object.hasOwn(body,'maxDevices')){
+      if(!Number.isInteger(body.maxDevices)||body.maxDevices<1||body.maxDevices>20)return json({error:'Limite de dispositivos invalido (1 a 20).'},400);
+      if(!await store.setCRMDeviceLimit(id,body.maxDevices))return json({error:'Nao e possivel diminuir o limite abaixo dos dispositivos ativos, ou esta licenca nao e do CRM.'},409);
+      return json({updated:true,id,maxDevices:body.maxDevices});
+    }
+    const status=String(body.status||'').toUpperCase();
+    if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);
+    await store.setLicenseStatus(id,status);return json({updated:true,id,status});
+  }
   if(request.method==='POST'&&url.pathname==='/v1/admin/recovery'){
     const body=await readBody(request),email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);if(!email||!installationId)return json({error:'E-mail ou instalacao invalidos.'},400);
     const pepper=recoveryPepper(env);if(!pepper)return json({error:'RECOVERY_PEPPER ausente.'},503);
