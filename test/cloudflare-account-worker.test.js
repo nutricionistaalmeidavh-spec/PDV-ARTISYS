@@ -12,14 +12,16 @@ class MemoryStore {
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
   async findInstallation(id){const row=this.installations.get(id);if(!row)return null;const license=this.licenses.find(x=>x.id===row.licenseId);return {...row,status:license?.status||'CANCELLED',expiresAt:license?.expiresAt||null,product:license?.product||'PDV'};}
-  async provisionLicense({email,product='PDV',expiresAt,codeDigest,codeExpiresAt,createdAt}){
+  async provisionLicense({email,product='PDV',expiresAt,maxDevices=null,codeDigest,codeExpiresAt,createdAt}){
     let account=this.accounts.get(email);if(!account){account={id:'acc-'+(this.accounts.size+1),email};this.accounts.set(email,account);}
     this.licenses.filter(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE').forEach(x=>x.status='CANCELLED');
-    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,product,status:'ACTIVE',expiresAt};this.licenses.push(license);
+    const license={id:'lic-'+(this.licenses.length+1),accountId:account.id,email,product,status:'ACTIVE',expiresAt,maxDevices};this.licenses.push(license);
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:account.id,licenseId:license.id,installationId:'PENDING',email,product,tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:account.id,licenseId:license.id};
   }
 
+  async registerCRMInstallation(record,maxDevices){const devices=[...this.installations.values()].filter(i=>i.licenseId===record.licenseId);if(devices.length>=maxDevices&&!devices.some(i=>i.installationId===record.installationId))return false;const prior=this.installations.get(record.installationId);if(prior&&prior.licenseId!==record.licenseId)return false;this.installations.set(record.installationId,{...record});return true;}
+  async removeInstallation(licenseId,installationId){const prior=this.installations.get(installationId);if(!prior||prior.licenseId!==licenseId)return false;this.installations.delete(installationId);return true;}
   async findLicenseById(id){const x=this.licenses.find(l=>l.id===id);return x?{...x}:null;}
   async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
     const license=this.licenses.find(x=>x.id===licenseId&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>createdAt));
@@ -28,7 +30,7 @@ class MemoryStore {
     this.tokens.push({id:'tok-'+(this.tokens.length+1),accountId:license.accountId,licenseId,installationId:'PENDING',email:license.email,product:license.product||'PDV',tokenDigest:codeDigest,expiresAt:codeExpiresAt,createdAt});
     return {accountId:license.accountId,licenseId,email:license.email};
   }
-  async listLicenses(){return this.licenses.map(x=>({id:x.id,email:x.email,product:x.product||'PDV',status:x.status,expires_at:x.expiresAt,installation_id:[...this.installations.values()].find(i=>i.licenseId===x.id)?.installationId||null}));}
+  async listLicenses(){return this.licenses.map(x=>{const deviceIds=[...this.installations.values()].filter(i=>i.licenseId===x.id).map(i=>i.installationId);return {id:x.id,email:x.email,product:x.product||'PDV',status:x.status,expires_at:x.expiresAt,max_devices:x.maxDevices??null,installation_id:deviceIds[0]||null,device_count:deviceIds.length,device_ids:deviceIds};});}
   async setLicenseStatus(id,status){const x=this.licenses.find(l=>l.id===id);if(x)x.status=status;}
   async createAdminSession(record){this.adminSessions.push({...record});}
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
