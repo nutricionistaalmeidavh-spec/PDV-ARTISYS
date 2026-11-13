@@ -267,3 +267,45 @@ test('PDV e Oficina coexistem por e-mail sem compartilhar ativação ou cancelam
  assert.equal((await (await handleRequest(request('/v1/license/status?installationId=oficina-pc-123&product=OFICINA'),e)).json()).active,false);
  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
 });
+
+
+test('CRM is a separate perpetual product in the shared panel with a configurable installation cap',async()=>{
+  const {handleRequest}=await loadWorker(),e=env();
+  const {cookie}=await login(handleRequest,e);
+  const panel=await (await handleRequest(request('/admin',{headers:cookieHeaders(cookie)}),e)).text();
+  assert.match(panel,/value="WPPPROSPECTOR"/);
+  assert.match(panel,/maxDevices/);
+  const release=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',maxDevices:2})}),e);
+  assert.equal(release.status,201);
+  const license=await release.json();
+  assert.equal(license.expiresAt,null);
+  assert.equal(license.maxDevices,2);
+  for(const id of ['crm-dev-001','crm-dev-002']){
+    const issued=id==='crm-dev-001'?license:await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+    const activated=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:id,code:issued.code})}),e);
+    assert.equal(activated.status,200,id);
+    assert.equal((await activated.json()).product,'WPPPROSPECTOR');
+  }
+  const code3=await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+  const third=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:'crm-dev-003',code:code3.code})}),e);
+  assert.equal(third.status,409);
+  const removed=await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/installations/crm-dev-001',{method:'DELETE',headers:cookieHeaders(cookie)}),e);
+  assert.equal(removed.status,200);
+  const retry=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:'crm@example.com',product:'WPPPROSPECTOR',installationId:'crm-dev-003',code:code3.code})}),e);
+  assert.equal(retry.status,200);
+  const old=await handleRequest(request('/v1/license/status?product=WPPPROSPECTOR&installationId=crm-dev-001'),e);
+  assert.equal((await old.json()).active,false);
+  const live=await handleRequest(request('/v1/license/status?product=WPPPROSPECTOR&installationId=crm-dev-003'),e);
+  assert.equal((await live.json()).active,true);
+});
+
+test('CRM requires a safe device cap while PDV and Oficina keep their current behavior',async()=>{
+  const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+  for(const bad of [0,21,-1,1.5,'x']){
+    const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'invalid@example.com',product:'WPPPROSPECTOR',maxDevices:bad})}),e);
+    assert.equal(response.status,400,String(bad));
+  }
+  const legacy=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'pdv@example.com',product:'PDV'})}),e);
+  assert.equal(legacy.status,201);
+  assert.equal((await legacy.json()).maxDevices,null);
+});
