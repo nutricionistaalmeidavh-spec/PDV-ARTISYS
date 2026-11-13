@@ -21,6 +21,7 @@ class MemoryStore {
   }
 
   async registerCRMInstallation(record,maxDevices){const devices=[...this.installations.values()].filter(i=>i.licenseId===record.licenseId);if(devices.length>=maxDevices&&!devices.some(i=>i.installationId===record.installationId))return false;const prior=this.installations.get(record.installationId);if(prior&&prior.licenseId!==record.licenseId)return false;this.installations.set(record.installationId,{...record});return true;}
+  async setCRMDeviceLimit(licenseId,maxDevices){const license=this.licenses.find(x=>x.id===licenseId&&x.product==='WPPPROSPECTOR');if(!license)return false;if([...this.installations.values()].filter(i=>i.licenseId===licenseId).length>maxDevices)return false;license.maxDevices=maxDevices;return true;}
   async removeInstallation(licenseId,installationId){const prior=this.installations.get(installationId);if(!prior||prior.licenseId!==licenseId)return false;this.installations.delete(installationId);return true;}
   async findLicenseById(id){const x=this.licenses.find(l=>l.id===id);return x?{...x}:null;}
   async rotateActivationTokenForLicense({licenseId,codeDigest,codeExpiresAt,createdAt}){
@@ -310,4 +311,23 @@ test('CRM requires a safe device cap while PDV and Oficina keep their current be
   const legacy=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'pdv@example.com',product:'PDV'})}),e);
   assert.equal(legacy.status,201);
   assert.equal((await legacy.json()).maxDevices,null);
+});
+
+
+test('CRM device limit can change in the shared admin panel but not below active installation count',async()=>{
+  const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+  let r=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'limit@example.com',product:'WPPPROSPECTOR',maxDevices:1})}),e);
+  assert.equal(r.status,201);const license=await r.json();
+  r=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:license.email,product:'WPPPROSPECTOR',installationId:'crm-limit-001',code:license.code})}),e);
+  assert.equal(r.status,200);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:0})}),e);
+  assert.equal(r.status,400);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:2})}),e);
+  assert.equal(r.status,200);
+  assert.equal((await r.json()).maxDevices,2);
+  const code=await (await handleRequest(request('/v1/admin/licenses/'+license.licenseId+'/activation-code',{method:'POST',headers:cookieHeaders(cookie)}),e)).json();
+  r=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({email:license.email,product:'WPPPROSPECTOR',installationId:'crm-limit-002',code:code.code})}),e);
+  assert.equal(r.status,200);
+  r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:1})}),e);
+  assert.equal(r.status,409);
 });
