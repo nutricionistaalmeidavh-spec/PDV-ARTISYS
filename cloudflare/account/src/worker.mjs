@@ -382,7 +382,7 @@ function adminHtml(){return `<!doctype html>
 *{box-sizing:border-box}body{margin:0}.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 48px}.top{display:flex;gap:14px;justify-content:space-between;align-items:flex-start}
 h1{margin:0 0 6px;font-size:30px}h2{margin:0 0 14px;font-size:18px}.sub{margin:0 0 22px;color:#64646f}
 .card{background:#fff;border:1px solid #dddfe4;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.03)}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.field{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1}#crm-device-field[hidden]{display:none}
 label{font-weight:650;font-size:14px}input,select,button{font:inherit;border-radius:10px;border:1px solid #c9cbd1;padding:11px 12px}
 button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color:#18181b}.secondary{background:#fff;color:#18181b}
 .hint{font-size:13px;color:#70707b}.result{margin-top:16px;padding:16px;background:#f7f7f8;border-radius:12px;display:none}
