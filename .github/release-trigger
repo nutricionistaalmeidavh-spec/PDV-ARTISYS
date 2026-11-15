@@ -1,6 +1,11 @@
 ArtiSys PDV Windows release trigger
-requested_for=customer-reinstallation-license-reactivation
-source_pr=184
-source_merge_commit=2fa3cd7eaba797b80d21be6dc425873f06098e14
-reason=reissue-48h-activation-code-for-active-license-without-cancellation-and-guide-backup-after-format
-requires=verify-release-packaged-windows-smoke-updater-metadata-and-preserve-store-data
+requested_for=publish-stable-current-main-after-quick-stock-and-stock-reliability-fixes
+requested_at=2026-11-15
+target_platform=windows-x64
+target_stable_version=2.0.13
+source_main_sha=4485614fcee130105adc12f3f1cabcf5f13dd8b8
+changes=guided-quick-stock-registration-stock-preservation-login-improvements
+reason=customer-cannot-find-stock-product-in-checkout-and-improvements-not-shipped
+constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data
+requires=verify-release-packaged-windows-smoke-updater-metadata-release-manifest
+publish=stable-github-release-if-and-only-if-all-workflow-gates-pass
