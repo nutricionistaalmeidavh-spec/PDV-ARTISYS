@@ -124,3 +124,14 @@ test('migração preserva sessões antigas e recupera responsável do fechamento
     assert.equal(legacy.status,'CLOSED');
   }finally{db.close();}
 });
+
+test('atribui a sangria ao usuario que realizou a retirada',()=>{
+  const f=fixture();
+  try{
+    f.cash.openSession({id:'cs-sangria',terminalId:'pdv-01',operatorId:'cashier',initialCashCents:2000,actor:cashier});
+    f.cash.withdraw('cs-sangria',{amountCents:500,note:'Retirada para troco',actor:admin});
+    const movement=f.cash.getSession('cs-sangria').movements.find(m=>m.type==='WITHDRAWAL');
+    assert.equal(movement.actorId,'admin');
+    assert.equal(movement.actorName,'Administrador');
+  }finally{f.db.close();}
+});
