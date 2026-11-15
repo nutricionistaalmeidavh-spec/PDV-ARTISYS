@@ -93,3 +93,32 @@ test('impede anular sessoes com suprimentos, vendas ou vendas sem efeitos de cai
     assert.equal(f.cash.getSession('cs2').status,'CLOSED');
   }finally{f.db.close();}
 });
+
+
+test('identifica o responsavel por suprimentos na sessao e preserva auditoria',()=>{
+  const f=fixture();
+  try{
+    f.cash.openSession({id:'cs-audit',terminalId:'pdv-01',operatorId:'cashier',actor:cashier});
+    f.cash.addSupply('cs-audit',{amountCents:1000,note:'Troco adicional',actor:admin});
+    const movement=f.cash.getSession('cs-audit').movements.find(m=>m.type==='SUPPLY');
+    assert.equal(movement.actorId,'admin');
+    assert.equal(movement.actorName,'Administrador');
+  }finally{f.db.close();}
+});
+
+test('migração preserva sessões antigas e recupera responsável do fechamento pela auditoria',()=>{
+  const db=openDatabase(':memory:');
+  try{
+    runMigrations(db);runAccessProfileMigrations(db);runCanonicalAccessMigrations(db);
+    const catalog=createCatalogService({db,now:()=>NOW});
+    catalog.createUser({id:'admin',username:'adminlegado',name:'Administrador',profileId:'profile-administrator',password:'senha-forte-123'});
+    catalog.createUser({id:'cashier',username:'caixalegado',name:'Operadora',profileId:'profile-cashier',password:'senha-forte-123'});
+    db.prepare("INSERT INTO cash_sessions(id,terminal_id,operator_id,status,initial_cash_cents,expected_cash_cents,counted_cash_cents,divergence_cents,opened_at,closed_at) VALUES ('antigo','pdv-01','cashier','CLOSED',100,100,100,0,?,?)").run(NOW,NOW);
+    db.prepare("INSERT INTO audit_log(action,entity,entity_id,actor_id,context_json,created_at) VALUES ('cash.close','cash-session','antigo','admin','{}',?)").run(NOW);
+    runCashManagementMigrations(db);
+    const legacy=db.prepare("SELECT * FROM cash_sessions WHERE id='antigo'").get();
+    assert.equal(legacy.closed_by_id,'admin');
+    assert.equal(legacy.counted_cash_cents,100);
+    assert.equal(legacy.status,'CLOSED');
+  }finally{db.close();}
+});
