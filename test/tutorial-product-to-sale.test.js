@@ -51,7 +51,7 @@ test('cenário de cadastro não pré-cria o produto, mas prepara caixa aberto pa
   const adapter=read('qa/runtime/adapters/tutorials-p1-p3.mjs');
   assert.match(adapter,/scenario==='product-create'\)await ensureCash\(\)/);
   const steps=tutorial().steps;
-  assert.ok(steps.some(step=>step.name==='escolher-dinheiro'&&step.selector==='[data-pay="cash"]'));
+  assert.ok(steps.some(step=>step.name==='pagamento-dinheiro'&&step.selector==='.payment-list'&&step.expected==='Dinheiro'));
 });
 
 test('vídeo de cadastro explica publicação, Balcão e venda completa dentro do limite contratado',()=>{
