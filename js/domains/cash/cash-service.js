@@ -185,6 +185,20 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     if(text.length<10||text.length>500)throw new Error('Informe justificativa entre 10 e 500 caracteres.');
     return text;
   }
+  function annulmentBlockReason(row){
+    if(!row)return 'Caixa nao encontrado.';
+    if(row.annulled_at)return 'Caixa ja anulado.';
+    if(row.status!=='CLOSED')return 'Somente caixa fechado pode ser anulado.';
+    const nonOpening=db.prepare("SELECT 1 FROM cash_movements WHERE cash_session_id=? AND type<>'OPENING' LIMIT 1").get(row.id);
+    if(nonOpening)return 'Nao e possivel anular caixa com movimentacoes; utilize os fluxos de estorno ou devolucao.';
+    const sale=db.prepare(`SELECT 1 FROM sales
+      WHERE terminal_id=? AND ((opened_at>=? AND opened_at<=?)
+        OR (completed_at>=? AND completed_at<=?)
+        OR (cancelled_at>=? AND cancelled_at<=?))
+      LIMIT 1`).get(row.terminal_id,row.opened_at,row.closed_at,row.opened_at,row.closed_at,row.opened_at,row.closed_at);
+    if(sale)return 'Nao e possivel anular caixa com vendas relacionadas ao periodo.';
+    return null;
+  }
   function getSessionDetails(id){
     const session=getSession(id);
     if(!session)return null;
@@ -202,7 +216,8 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
       ORDER BY a.created_at,a.id`).all(String(id)).map(row=>({
         ...row,context:(()=>{try{return JSON.parse(row.contextJson||'{}');}catch{return {};}})()
       }));
-    return {...session,corrections,timeline};
+    const reason=managementReady?annulmentBlockReason(db.prepare('SELECT * FROM cash_sessions WHERE id=?').get(String(id))):'Migracao indisponivel.';
+    return {...session,corrections,timeline,canAnnul:reason===null,annulmentBlockReason:reason};
   }
   function correctClosing(id,{countedCashCents,reason,actor}={}){
     if(!managementReady)throw new Error('Migracao de gestao de caixas nao foi aplicada.');
@@ -230,16 +245,8 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     return withTransaction(db,()=>{
       const row=db.prepare('SELECT * FROM cash_sessions WHERE id=?').get(String(id));
       if(!row)throw new Error('Caixa nao encontrado.');
-      if(row.annulled_at)throw new Error('Caixa ja anulado.');
-      if(row.status!=='CLOSED')throw new Error('Somente caixa fechado pode ser anulado.');
-      const nonOpening=db.prepare("SELECT 1 FROM cash_movements WHERE cash_session_id=? AND type<>'OPENING' LIMIT 1").get(row.id);
-      if(nonOpening)throw new Error('Nao e possivel anular caixa com movimentacoes; utilize os fluxos de estorno ou devolucao.');
-      const sale=db.prepare(`SELECT 1 FROM sales
-        WHERE terminal_id=? AND ((opened_at>=? AND opened_at<=?)
-          OR (completed_at>=? AND completed_at<=?)
-          OR (cancelled_at>=? AND cancelled_at<=?))
-        LIMIT 1`).get(row.terminal_id,row.opened_at,row.closed_at,row.opened_at,row.closed_at,row.opened_at,row.closed_at);
-      if(sale)throw new Error('Nao e possivel anular caixa com vendas relacionadas ao periodo.');
+      const blocked=annulmentBlockReason(row);
+      if(blocked)throw new Error(blocked);
       const timestamp=now();
       const result=db.prepare(`UPDATE cash_sessions SET annulled_at=?,annulled_by_id=?,annul_reason=?
         WHERE id=? AND status='CLOSED' AND annulled_at IS NULL`).run(timestamp,actorId,justification,row.id);
