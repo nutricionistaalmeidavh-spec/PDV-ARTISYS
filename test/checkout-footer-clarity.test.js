@@ -8,7 +8,7 @@ const root=path.join(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
 const fixture=`<body data-active-route="checkout"><main id="route-content">
-<section class="checkout-layout" data-checkout-space="true">
+<section class="checkout-layout checkout-responsive-ready" data-checkout-space="true">
 <aside class="sale-panel">
 <div class="sale-context-grid"></div>
 <section class="sale-cart-region"><div class="cart-head">Itens</div><div class="cart-list">Produto</div></section>
@@ -25,7 +25,7 @@ const fixture=`<body data-active-route="checkout"><main id="route-content">
 <div class="payment-strip"><button data-pay="cash" class="pay-button">Dinheiro</button><button data-pay="card" class="pay-button card">Cartão</button><button data-pay="pix" class="pay-button pix">PIX</button></div>
 <button id="finalize-sale" class="finalize-button">Finalizar venda (F12)</button>
 </section>
-<div class="checkout-detail-dialog" hidden><input id="discount-percent" value="0"></div>
+<div class="checkout-detail-dialog"><input id="discount-percent" value="0"></div>
 <textarea id="sale-observation"></textarea><input type="checkbox" id="sale-observation-print">
 </aside></section></main><div id="toast-root" class="toast-root"><div class="toast">Pedido carregado no caixa.</div></div></body>`;
 
