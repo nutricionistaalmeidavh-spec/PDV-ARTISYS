@@ -370,31 +370,37 @@
     },
     {
       "id": "13-cadastrar-produto",
-      "title": "Cadastrar produto",
+      "title": "Cadastrar produto e concluir a primeira venda",
       "phase": "P1",
       "audience": "admin",
-      "durationTargetSec": 28,
-      "goal": "Criar um produto com os dados essenciais para venda.",
-      "success": "Produto fica disponível no catálogo.",
+      "durationTargetSec": 30,
+      "goal": "Cadastrar um produto pronto com estoque, publicá-lo e finalizar uma venda no Balcão.",
+      "success": "Produto publicado, adicionado ao carrinho e venda concluída com pagamento em dinheiro.",
       "outputFile": "13-cadastrar-produto.mp4",
       "overlays": [
         {
           "purpose": "orient",
           "fromSec": 0,
           "toSec": 2.2,
-          "text": "Cadastrar produto"
+          "text": "Cadastre um produto e faça a primeira venda"
         },
         {
           "purpose": "act",
-          "fromSec": 8,
-          "toSec": 11,
-          "text": "Preencha identificação, preço e estoque"
+          "fromSec": 5,
+          "toSec": 8.5,
+          "text": "Informe nome, preço, estoque e publique"
+        },
+        {
+          "purpose": "act",
+          "fromSec": 16,
+          "toSec": 20,
+          "text": "No Balcão, selecione o item e finalize a venda"
         },
         {
           "purpose": "confirm",
-          "fromSec": 25,
-          "toSec": 28,
-          "text": "Produto cadastrado"
+          "fromSec": 27,
+          "toSec": 30,
+          "text": "Venda finalizada: cadastro e caixa funcionando"
         }
       ]
     },
