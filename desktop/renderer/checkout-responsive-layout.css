@@ -63,8 +63,13 @@
   min-height:0;
   overflow:visible;
   padding:0;
+  display:grid;
+  grid-template-columns:minmax(0,.96fr) minmax(0,1.04fr);
+  grid-template-areas:"secondary totals" "payments payments" "finish finish";
+  align-items:center;
 }
 .checkout-layout.checkout-responsive-ready .checkout-quick-actions {
+  grid-area:secondary;
   gap:6px;
   padding:5px 9px 2px;
 }
@@ -73,6 +78,7 @@
   padding:4px 9px;
 }
 .checkout-layout.checkout-responsive-ready .totals {
+  grid-area:totals;
   padding:6px 10px 4px;
   gap:4px;
 }
@@ -83,11 +89,13 @@
 }
 .checkout-layout.checkout-responsive-ready .grand-total strong { font-size:23px; }
 .checkout-layout.checkout-responsive-ready .payment-strip {
+  grid-area:payments;
   padding:0 9px 5px;
   gap:5px;
 }
 .checkout-layout.checkout-responsive-ready .pay-button { min-height:44px; }
 .checkout-layout.checkout-responsive-ready .finalize-button {
+  grid-area:finish;
   min-height:46px;
   margin:0 9px 8px;
   width:calc(100% - 18px);
