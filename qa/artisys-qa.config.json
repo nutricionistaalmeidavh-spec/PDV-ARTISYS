@@ -83,7 +83,7 @@
     "13-cadastrar-produto": {
       "file": "demo/tutorials/13-cadastrar-produto.json",
       "preset": "landscape-16x9",
-      "durationTargetSec": 28,
+      "durationTargetSec": 30,
       "profile": "tutorials-p1-p3"
     },
     "14-alterar-preco-estoque": {
