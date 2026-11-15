@@ -1,0 +1,260 @@
+{
+  "name": "tour-login-ate-venda",
+  "title": "PDV ArtiSys — do login ao tour e à primeira venda no Balcão",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "selector": "#login-form",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 20000,
+      "holdMs": 1300
+    },
+    {
+      "action": "screenshot",
+      "name": "tela-de-login",
+      "holdMs": 650
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='username']",
+      "value": "qaadmin",
+      "name": "digitar-usuario",
+      "holdMs": 750
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='password']",
+      "value": "QaLocalOnly-12345!",
+      "name": "digitar-senha",
+      "holdMs": 850
+    },
+    {
+      "action": "click",
+      "selector": "#login-form button[type='submit']",
+      "name": "clicar-entrar",
+      "holdMs": 650
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "state": "hidden",
+      "name": "autenticado",
+      "timeoutMs": 15000,
+      "holdMs": 1650
+    },
+    {
+      "action": "waitFor",
+      "selector": "#first-use-help",
+      "state": "visible",
+      "name": "ajuda-disponivel",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#first-use-help",
+      "name": "abrir-ajuda-primeiros-passos",
+      "holdMs": 1250
+    },
+    {
+      "action": "waitFor",
+      "selector": "#modal-root [data-first-use-tour]",
+      "state": "visible",
+      "name": "tutorial-do-tour",
+      "timeoutMs": 10000,
+      "holdMs": 900
+    },
+    {
+      "action": "click",
+      "selector": "#modal-root [data-first-use-tour]",
+      "name": "iniciar-tour-pelas-telas",
+      "holdMs": 950
+    },
+    {
+      "action": "waitFor",
+      "selector": ".first-use-tour-panel",
+      "name": "tour-iniciado",
+      "state": "visible",
+      "timeoutMs": 12000,
+      "holdMs": 600
+    },
+    {
+      "action": "capability",
+      "name": "tour.record",
+      "holdMs": 900
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.cashFixture",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='catalog']",
+      "name": "abrir-cadastros",
+      "holdMs": 1100
+    },
+    {
+      "action": "click",
+      "selector": "button[data-flow-route='inventory']",
+      "name": "abrir-estoque",
+      "holdMs": 1100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#inventory-quick-product",
+      "name": "estoque-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#inventory-quick-product",
+      "name": "abrir-cadastro-rapido",
+      "holdMs": 1100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#quick-stock-product-form",
+      "name": "cadastro-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#quick-stock-name",
+      "name": "nome-produto",
+      "value": "Produto Novo Tutorial",
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#quick-stock-price",
+      "name": "preco-produto",
+      "value": "12,50",
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#quick-stock-quantity",
+      "name": "quantidade-inicial",
+      "value": "12",
+      "holdMs": 700
+    },
+    {
+      "action": "check",
+      "selector": "#quick-stock-product-form input[name=\"publish\"]",
+      "name": "publicar-para-venda",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#quick-stock-product-form button[type=\"submit\"][value=\"done\"]",
+      "name": "salvar-produto",
+      "holdMs": 1100
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-quick-stock-success]",
+      "name": "cadastro-confirmado",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-quick-stock-result]",
+      "name": "produto-publicado",
+      "expected": "No Cardápio e no Balcão",
+      "timeoutMs": 10000,
+      "holdMs": 1600
+    },
+    {
+      "action": "click",
+      "selector": "[data-quick-stock-checkout]",
+      "name": "ir-para-balcao",
+      "holdMs": 1100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#product-search",
+      "name": "balcao-pronto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": "#product-search",
+      "name": "buscar-produto-balcao",
+      "value": "Produto Novo Tutorial",
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": ".product-grid [data-add-product]:has-text(\"Produto Novo Tutorial\")",
+      "name": "adicionar-produto-na-venda",
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "produto-no-carrinho",
+      "expected": "Produto Novo Tutorial",
+      "timeoutMs": 10000,
+      "holdMs": 1600
+    },
+    {
+      "action": "click",
+      "selector": "#finalize-sale",
+      "name": "finalizar-venda",
+      "holdMs": 1100
+    },
+    {
+      "action": "waitFor",
+      "selector": "#confirm-payment",
+      "name": "pagamento-pronto",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 700
+    },
+    {
+      "action": "expectText",
+      "selector": ".payment-list",
+      "name": "pagamento-dinheiro",
+      "expected": "Dinheiro",
+      "timeoutMs": 5000,
+      "holdMs": 700
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "confirmar-pagamento",
+      "holdMs": 1100
+    },
+    {
+      "action": "expectText",
+      "selector": "#toast-root",
+      "name": "venda-finalizada",
+      "expected": "finalizada.",
+      "timeoutMs": 15000,
+      "holdMs": 1600
+    },
+    {
+      "action": "capability",
+      "name": "tutorial.assertSaleCompleted",
+      "holdMs": 1600
+    },
+    {
+      "action": "screenshot",
+      "name": "venda-concluida",
+      "holdMs": 1200
+    }
+  ]
+}
