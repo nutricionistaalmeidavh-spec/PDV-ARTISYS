@@ -148,6 +148,24 @@
     },
     {
       "action": "expectVisible",
+      "selector": ".checkout-clarity-footer .checkout-adjustments",
+      "name": "balcao-ajustes-separados",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".checkout-clarity-footer .checkout-summary .grand-total",
+      "name": "balcao-resumo-com-total",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".checkout-clarity-footer .checkout-payment [data-pay='pix']",
+      "name": "balcao-pagamento-separado",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
       "selector": "#finalize-sale",
       "name": "balcao-finalizar-visivel",
       "timeoutMs": 10000
