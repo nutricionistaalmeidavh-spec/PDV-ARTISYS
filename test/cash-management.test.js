@@ -135,3 +135,17 @@ test('atribui a sangria ao usuario que realizou a retirada',()=>{
     assert.equal(movement.actorName,'Administrador');
   }finally{f.db.close();}
 });
+
+
+test('bloqueia anulacao por vinculo direto de venda mesmo com datas fora do periodo',()=>{
+  const f=fixture();
+  try{
+    f.cash.openSession({id:'cs-linked',terminalId:'pdv-01',operatorId:'cashier',actor:cashier});
+    f.cash.closeSession('cs-linked',{countedByMethod:{CASH:0},actor:admin});
+    f.db.exec('ALTER TABLE sales ADD COLUMN cash_session_id TEXT REFERENCES cash_sessions(id)');
+    f.db.prepare(`INSERT INTO sales(id,sale_number,terminal_id,operator_id,status,opened_at,updated_at,cash_session_id)
+      VALUES ('linked-sale','010019','pdv-01','cashier','SUSPENDED','2026-01-01T00:00:00.000Z','2026-01-01T00:00:00.000Z','cs-linked')`).run();
+    assert.equal(f.cash.getSessionDetails('cs-linked').canAnnul,false);
+    assert.throws(()=>f.cash.annulSession('cs-linked',{reason:'Nulo nao deve anular venda ligada',actor:admin}),/venda|moviment|operac/i);
+  }finally{f.db.close();}
+});
