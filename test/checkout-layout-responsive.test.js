@@ -20,7 +20,7 @@ test('P2: footer lives in a non-scrolling row; only items scroll within the chec
   assert.match(css,/\.sale-panel\s*\{[^}]*overflow:\s*hidden/s);
   assert.match(css,/\.sale-cart-region \.cart-list\s*\{[^}]*overflow-y:\s*auto/s);
   assert.match(css,/\.sale-checkout-footer\s*\{[^}]*position:\s*relative/s);
-  assert.match(css,/\.checkout-layout\.checkout-short/);
+  assert.match(css,/\.checkout-layout(?:\.[\w-]+)*\.checkout-short/);
 });
 
 test('P3: window and container resize recompute dimensions and narrow mode preserves cart and catalog',()=>{
