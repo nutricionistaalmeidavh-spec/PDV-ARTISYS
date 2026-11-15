@@ -10,7 +10,18 @@ const { DEFAULT_PROFILE_IDS }=require('../../core/auth/default-profiles');
 function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory=p=>`${p}-${randomUUID()}`}={}){
   if(!db||!outbox)throw new TypeError('Database and outbox are required.');
   const managementReady=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cash_session_corrections'").get());
-  function mapMovement(row){if(!row)return null;const mapped={id:row.id,cashSessionId:row.cash_session_id,type:row.type,amountCents:row.amount_cents,paymentMethod:row.payment_method,saleId:row.sale_id,note:row.note,createdAt:row.created_at};const match=/^RETURN:([^:]+):/.exec(String(row.note||''));if(match)mapped.returnId=match[1];return mapped;}
+  function mapMovement(row){
+    if(!row)return null;
+    const match=/^RETURN:([^:]+):/.exec(String(row.note||''));
+    const returnId=match?.[1]||null;
+    const saleActor=row.sale_id?db.prepare('SELECT operator_id FROM sales WHERE id=?').get(row.sale_id)?.operator_id:null;
+    const returnActor=returnId?db.prepare('SELECT operator_id FROM return_transactions WHERE id=?').get(returnId)?.operator_id:null;
+    const openingActor=row.type==='OPENING'?db.prepare('SELECT operator_id FROM cash_sessions WHERE id=?').get(row.cash_session_id)?.operator_id:null;
+    const actorId=row.actor_id||saleActor||returnActor||openingActor||null;
+    return {id:row.id,cashSessionId:row.cash_session_id,type:row.type,amountCents:row.amount_cents,
+      paymentMethod:row.payment_method,saleId:row.sale_id,note:row.note,createdAt:row.created_at,
+      ...(returnId?{returnId}:{}),actorId,actorName:userName(actorId)};
+  }
   function listSessionMovements(sessionId){return db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? ORDER BY created_at,id').all(String(sessionId)).map(mapMovement);}
   function latestCorrection(sessionId){
     if(!managementReady)return null;
@@ -59,15 +70,31 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     return db.prepare(sql).all(...params).map(mapSession);
   }
   function requireOpen(id){const row=db.prepare("SELECT * FROM cash_sessions WHERE id=? AND status='OPEN'").get(String(id));if(!row)throw new Error('Caixa nao esta aberto.');return row;}
-  function insertMovement({sessionId,type,amountCents,paymentMethod='CASH',saleId=null,note=null,createdAt}){
-    assertCents(amountCents,'amountCents');if(amountCents<0)throw new Error('Valor do movimento nao pode ser negativo.');
+  function insertMovement({sessionId,type,amountCents,paymentMethod='CASH',saleId=null,note=null,createdAt,actorId=null}){
+    assertCents(amountCents,'amountCents');
+    if(amountCents<0)throw new Error('Valor do movimento nao pode ser negativo.');
     const method=normalizeMethod(paymentMethod)||'CASH';
     const id=idFactory('cashmov');
-    try{db.prepare(`INSERT INTO cash_movements (id,cash_session_id,type,amount_cents,payment_method,sale_id,note,created_at) VALUES (?,?,?,?,?,?,?,?)`).run(id,sessionId,type,amountCents,method,saleId,note,createdAt||now());return mapMovement(db.prepare('SELECT * FROM cash_movements WHERE id=?').get(id));}
-    catch(error){if(saleId&&/UNIQUE constraint failed/.test(error.message)){return mapMovement(db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? AND sale_id=? AND payment_method=? AND type=?').get(sessionId,saleId,method,type));}throw error;}
+    try{
+      if(managementReady){
+        db.prepare(`INSERT INTO cash_movements
+          (id,cash_session_id,type,amount_cents,payment_method,sale_id,note,created_at,actor_id)
+          VALUES (?,?,?,?,?,?,?,?,?)`).run(id,sessionId,type,amountCents,method,saleId,note,createdAt||now(),actorId);
+      }else{
+        db.prepare(`INSERT INTO cash_movements
+          (id,cash_session_id,type,amount_cents,payment_method,sale_id,note,created_at)
+          VALUES (?,?,?,?,?,?,?,?)`).run(id,sessionId,type,amountCents,method,saleId,note,createdAt||now());
+      }
+      return mapMovement(db.prepare('SELECT * FROM cash_movements WHERE id=?').get(id));
+    }catch(error){
+      if(saleId&&/UNIQUE constraint failed/.test(error.message)){
+        return mapMovement(db.prepare('SELECT * FROM cash_movements WHERE cash_session_id=? AND sale_id=? AND payment_method=? AND type=?').get(sessionId,saleId,method,type));
+      }
+      throw error;
+    }
   }
-  function openSession(input={}){const initial=assertCents(input.initialCashCents??0,'initialCashCents');if(initial<0)throw new Error('Saldo inicial nao pode ser negativo.');const terminalId=String(input.terminalId||'').trim();const operatorId=String(input.operatorId||'').trim();if(!terminalId||!operatorId)throw new Error('Terminal e operador sao obrigatorios.');if(getOpenSession(terminalId))throw new Error('Ja existe caixa aberto neste terminal.');const id=String(input.id||idFactory('cash'));const timestamp=now();return withTransaction(db,()=>{db.prepare("INSERT INTO cash_sessions (id,terminal_id,operator_id,status,initial_cash_cents,opened_at) VALUES (?,?,?,'OPEN',?,?)").run(id,terminalId,operatorId,initial,timestamp);insertMovement({sessionId:id,type:'OPENING',amountCents:initial,paymentMethod:'CASH',note:'Abertura',createdAt:timestamp});const event={eventId:idFactory('evt'),type:'cash-session.opened',aggregate:'cash-session',aggregateId:id,occurredAt:timestamp,actor:input.actor||{userId:operatorId,role:'cashier',terminalId},source:'server',mutationId:input.mutationId||null,payload:{terminalId,initialCashCents:initial}};outbox.insert(event);writeAudit(db,{action:'cash.open',entity:'cash-session',entityId:id,actor:event.actor,context:{terminalId,initialCashCents:initial,eventId:event.eventId}},now);return getSession(id);});}
-  function addSupply(id,{amountCents,note='',actor=null}={}){requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Suprimento deve ser maior que zero.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'SUPPLY',amountCents,paymentMethod:'CASH',note,createdAt:now()}));writeAudit(db,{action:'cash.supply',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
+  function openSession(input={}){const initial=assertCents(input.initialCashCents??0,'initialCashCents');if(initial<0)throw new Error('Saldo inicial nao pode ser negativo.');const terminalId=String(input.terminalId||'').trim();const operatorId=String(input.operatorId||'').trim();if(!terminalId||!operatorId)throw new Error('Terminal e operador sao obrigatorios.');if(getOpenSession(terminalId))throw new Error('Ja existe caixa aberto neste terminal.');const id=String(input.id||idFactory('cash'));const timestamp=now();return withTransaction(db,()=>{db.prepare("INSERT INTO cash_sessions (id,terminal_id,operator_id,status,initial_cash_cents,opened_at) VALUES (?,?,?,'OPEN',?,?)").run(id,terminalId,operatorId,initial,timestamp);insertMovement({sessionId:id,type:'OPENING',amountCents:initial,paymentMethod:'CASH',note:'Abertura',createdAt:timestamp,actorId:operatorId});const event={eventId:idFactory('evt'),type:'cash-session.opened',aggregate:'cash-session',aggregateId:id,occurredAt:timestamp,actor:input.actor||{userId:operatorId,role:'cashier',terminalId},source:'server',mutationId:input.mutationId||null,payload:{terminalId,initialCashCents:initial}};outbox.insert(event);writeAudit(db,{action:'cash.open',entity:'cash-session',entityId:id,actor:event.actor,context:{terminalId,initialCashCents:initial,eventId:event.eventId}},now);return getSession(id);});}
+  function addSupply(id,{amountCents,note='',actor=null}={}){requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Suprimento deve ser maior que zero.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'SUPPLY',amountCents,paymentMethod:'CASH',note,createdAt:now(),actorId:actor?.userId||null}));writeAudit(db,{action:'cash.supply',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
   function withdraw(id,{amountCents,note='',actor=null}={}){const session=requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Sangria deve ser maior que zero.');const movements=db.prepare('SELECT type,amount_cents AS amountCents,payment_method AS paymentMethod FROM cash_movements WHERE cash_session_id=?').all(id);const current=calculateCashClosing({initialCashCents:session.initial_cash_cents,movements:movements.filter(m=>m.type!=='OPENING'),countedByMethod:{CASH:0}}).expectedCashCents;if(amountCents>current)throw new Error('Saldo em dinheiro insuficiente para sangria.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'WITHDRAWAL',amountCents,paymentMethod:'CASH',note,createdAt:now()}));writeAudit(db,{action:'cash.withdraw',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
 
   function findSessionAt(terminalId,occurredAt){
