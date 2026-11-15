@@ -121,10 +121,10 @@
     const timeline=(detail.timeline||[]).map(entry=>`<tr><td>${when(entry.createdAt)}</td><td>${escapeHtml(entry.action)}</td><td>${escapeHtml(entry.actorName||entry.actorId||'Sistema')}</td></tr>`).join('');
     const corrections=(detail.corrections||[]).map(c=>`<tr><td>${when(c.createdAt)}</td><td>${escapeHtml(c.actorName||c.actorId)}</td><td>${money(c.previousCountedCashCents)} → ${money(c.countedCashCents)}</td><td>${escapeHtml(c.reason)}</td></tr>`).join('');
     const canManage=isAdmin&&detail.status==='CLOSED';
-    const isEmpty=(detail.movements||[]).every(m=>m.type==='OPENING');
+    const isEmpty=detail.canAnnul===true;
     host.innerHTML=`<section class="ops-card">
       <div class="ops-card-head"><div><h2>Detalhes do caixa ${escapeHtml(detail.id)}</h2>
-        <p>${badge(detail.status==='ANNULLED'?'Anulado':detail.status)} · Abertura: ${escapeHtml(detail.openedByName||detail.operatorId||'—')} · Fechamento: ${escapeHtml(detail.closedByName||detail.closedById||'—')}</p></div>
+        <p>${badge(detail.status==='ANNULLED'?'Anulado':detail.status)} · Abertura: ${escapeHtml(detail.openedByName||detail.operatorId||'—')} · Fechamento: ${escapeHtml(detail.closedByName||detail.closedById||'—')}</p>${canManage&&!isEmpty?`<p class="ops-empty">Anulação indisponível: ${escapeHtml(detail.annulmentBlockReason||'Movimentos financeiros vinculados.')}</p>`:''}</div>
         ${canManage?`<div class="ops-actions"><button type="button" class="ops-secondary" data-manage-cash="correct">Corrigir contagem</button>${isEmpty?'<button type="button" class="ops-danger" data-manage-cash="annul">Anular caixa</button>':''}</div>`:''}
       </div>
       <dl class="ops-details"><div><dt>Esperado</dt><dd>${money(detail.expectedCashCents||0)}</dd></div>
