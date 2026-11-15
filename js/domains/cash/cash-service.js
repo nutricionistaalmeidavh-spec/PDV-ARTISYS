@@ -212,6 +212,18 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     if(row.status!=='CLOSED')return 'Somente caixa fechado pode ser anulado.';
     const nonOpening=db.prepare("SELECT 1 FROM cash_movements WHERE cash_session_id=? AND type<>'OPENING' LIMIT 1").get(row.id);
     if(nonOpening)return 'Nao e possivel anular caixa com movimentacoes; utilize os fluxos de estorno ou devolucao.';
+    const saleHasSession=db.prepare('PRAGMA table_info(sales)').all().some(column=>column.name==='cash_session_id');
+    if(saleHasSession&&db.prepare('SELECT 1 FROM sales WHERE cash_session_id=? LIMIT 1').get(row.id)){
+      return 'Nao e possivel anular caixa vinculado a uma venda, mesmo fora do periodo.';
+    }
+    const returnHasSession=db.prepare('PRAGMA table_info(return_transactions)').all().some(column=>column.name==='cash_session_id');
+    if(returnHasSession&&db.prepare('SELECT 1 FROM return_transactions WHERE cash_session_id=? LIMIT 1').get(row.id)){
+      return 'Nao e possivel anular caixa com devolucao vinculada.';
+    }
+    const returnsInPeriod=db.prepare('SELECT 1 FROM return_transactions WHERE terminal_id=? AND created_at>=? AND created_at<=? LIMIT 1')
+      .get(row.terminal_id,row.opened_at,row.closed_at);
+    if(returnsInPeriod)return 'Nao e possivel anular caixa com devolucao no periodo.';
+
     const sale=db.prepare(`SELECT 1 FROM sales
       WHERE terminal_id=? AND ((opened_at>=? AND opened_at<=?)
         OR (completed_at>=? AND completed_at<=?)
