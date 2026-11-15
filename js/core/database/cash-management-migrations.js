@@ -23,6 +23,18 @@ function runCashManagementMigrations(db,now=()=>new Date().toISOString()){
     ]){
       if(!existing.has(name))db.exec(`ALTER TABLE cash_sessions ADD COLUMN ${name} ${definition}`);
     }
+    if(!columns(db,'cash_movements').has('actor_id')){
+      db.exec('ALTER TABLE cash_movements ADD COLUMN actor_id TEXT REFERENCES users(id)');
+    }
+    // Sessões antigas já possuem autoria do fechamento no log; preservá-la.
+    db.exec(`UPDATE cash_sessions SET closed_by_id=(
+      SELECT a.actor_id FROM audit_log a JOIN users u ON u.id=a.actor_id
+      WHERE a.entity='cash-session' AND a.entity_id=cash_sessions.id AND a.action='cash.close'
+      ORDER BY a.created_at DESC,a.id DESC LIMIT 1
+    ) WHERE status='CLOSED' AND closed_by_id IS NULL AND EXISTS(
+      SELECT 1 FROM audit_log a JOIN users u ON u.id=a.actor_id
+      WHERE a.entity='cash-session' AND a.entity_id=cash_sessions.id AND a.action='cash.close'
+    )`);
     db.exec(`
       CREATE TABLE IF NOT EXISTS cash_session_corrections(
         id TEXT PRIMARY KEY,
