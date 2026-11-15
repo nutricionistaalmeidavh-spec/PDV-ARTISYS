@@ -1,0 +1,82 @@
+name: Tutorial Cadastro ate Venda
+
+on:
+  push:
+    branches:
+      - fix/tutorial-cadastro-ate-venda-20261115
+      - main
+    paths:
+      - 'qa/demo/tutorials/13-cadastrar-produto.json'
+      - 'qa/runtime/adapters/tutorials-p1-p3.mjs'
+      - 'qa/artisys-qa.config.json'
+      - 'qa/tutorials/catalog.json'
+      - '.github/workflows/tutorial-cadastro-venda.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tutorial-cadastro-venda-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Ensure open source video and Xvfb tools
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v ffprobe >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
+      - name: Validate tutorial script and duration contract
+        run: |
+          node --test test/tutorial-product-to-sale.test.js test/tutorial-p1-p3-capture.test.js
+          npm run qa:tutorials:validate
+      - name: Capture cadastro through finished sale
+        shell: bash
+        run: |
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo 13-cadastrar-produto \
+            --profile tutorials-p1-p3 \
+            --preset landscape-16x9 \
+            --environment ci \
+            --output qa-artifacts-cadastro-venda
+          RAW="$(find qa-artifacts-cadastro-venda -name demo-video.mp4 -print -quit)"
+          test -n "$RAW"
+          mkdir -p tutorial-output
+          npm run qa:tutorials:edit -- \
+            --tutorial 13-cadastrar-produto \
+            --input "$RAW" \
+            --output tutorial-output/13-cadastrar-produto.mp4
+      - name: Upload updated training video
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-13-cadastro-ate-venda
+          path: tutorial-output/13-cadastrar-produto.mp4
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-13-cadastro-ate-venda-debug
+          path: qa-artifacts-cadastro-venda
+          if-no-files-found: warn
+          retention-days: 7
