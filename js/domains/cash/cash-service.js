@@ -94,8 +94,29 @@ function createCashService({db,outbox,now=()=>new Date().toISOString(),idFactory
     }
   }
   function openSession(input={}){const initial=assertCents(input.initialCashCents??0,'initialCashCents');if(initial<0)throw new Error('Saldo inicial nao pode ser negativo.');const terminalId=String(input.terminalId||'').trim();const operatorId=String(input.operatorId||'').trim();if(!terminalId||!operatorId)throw new Error('Terminal e operador sao obrigatorios.');if(getOpenSession(terminalId))throw new Error('Ja existe caixa aberto neste terminal.');const id=String(input.id||idFactory('cash'));const timestamp=now();return withTransaction(db,()=>{db.prepare("INSERT INTO cash_sessions (id,terminal_id,operator_id,status,initial_cash_cents,opened_at) VALUES (?,?,?,'OPEN',?,?)").run(id,terminalId,operatorId,initial,timestamp);insertMovement({sessionId:id,type:'OPENING',amountCents:initial,paymentMethod:'CASH',note:'Abertura',createdAt:timestamp,actorId:operatorId});const event={eventId:idFactory('evt'),type:'cash-session.opened',aggregate:'cash-session',aggregateId:id,occurredAt:timestamp,actor:input.actor||{userId:operatorId,role:'cashier',terminalId},source:'server',mutationId:input.mutationId||null,payload:{terminalId,initialCashCents:initial}};outbox.insert(event);writeAudit(db,{action:'cash.open',entity:'cash-session',entityId:id,actor:event.actor,context:{terminalId,initialCashCents:initial,eventId:event.eventId}},now);return getSession(id);});}
-  function addSupply(id,{amountCents,note='',actor=null}={}){requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Suprimento deve ser maior que zero.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'SUPPLY',amountCents,paymentMethod:'CASH',note,createdAt:now(),actorId:actor?.userId||null}));writeAudit(db,{action:'cash.supply',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
-  function withdraw(id,{amountCents,note='',actor=null}={}){const session=requireOpen(id);assertCents(amountCents,'amountCents');if(amountCents<=0)throw new Error('Sangria deve ser maior que zero.');const movements=db.prepare('SELECT type,amount_cents AS amountCents,payment_method AS paymentMethod FROM cash_movements WHERE cash_session_id=?').all(id);const current=calculateCashClosing({initialCashCents:session.initial_cash_cents,movements:movements.filter(m=>m.type!=='OPENING'),countedByMethod:{CASH:0}}).expectedCashCents;if(amountCents>current)throw new Error('Saldo em dinheiro insuficiente para sangria.');const movement=withTransaction(db,()=>insertMovement({sessionId:id,type:'WITHDRAWAL',amountCents,paymentMethod:'CASH',note,createdAt:now()}));writeAudit(db,{action:'cash.withdraw',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);return movement;}
+  function addSupply(id,{amountCents,note='',actor=null}={}){
+    requireOpen(id);
+    assertCents(amountCents,'amountCents');
+    if(amountCents<=0)throw new Error('Suprimento deve ser maior que zero.');
+    return withTransaction(db,()=>{
+      const movement=insertMovement({sessionId:id,type:'SUPPLY',amountCents,paymentMethod:'CASH',note,createdAt:now(),actorId:actor?.userId||null});
+      writeAudit(db,{action:'cash.supply',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);
+      return movement;
+    });
+  }
+  function withdraw(id,{amountCents,note='',actor=null}={}){
+    const session=requireOpen(id);
+    assertCents(amountCents,'amountCents');
+    if(amountCents<=0)throw new Error('Sangria deve ser maior que zero.');
+    return withTransaction(db,()=>{
+      const movements=db.prepare('SELECT type,amount_cents AS amountCents,payment_method AS paymentMethod FROM cash_movements WHERE cash_session_id=?').all(id);
+      const current=calculateCashClosing({initialCashCents:session.initial_cash_cents,movements:movements.filter(m=>m.type!=='OPENING'),countedByMethod:{CASH:0}}).expectedCashCents;
+      if(amountCents>current)throw new Error('Saldo em dinheiro insuficiente para sangria.');
+      const movement=insertMovement({sessionId:id,type:'WITHDRAWAL',amountCents,paymentMethod:'CASH',note,createdAt:now(),actorId:actor?.userId||null});
+      writeAudit(db,{action:'cash.withdraw',entity:'cash-session',entityId:id,actor,context:{amountCents,note}},now);
+      return movement;
+    });
+  }
 
   function findSessionAt(terminalId,occurredAt){
     if(!terminalId||!occurredAt)return null;
