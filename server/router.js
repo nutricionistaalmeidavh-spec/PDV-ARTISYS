@@ -96,6 +96,25 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='GET'&&pathname==='/api/v1/cash/sessions'){requireCapability(session,'cash.view');sendJson(response,200,runtime.cash.listSessions(queryFilters(url,['terminalId','operatorId','status','from','to'])),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/cash/sessions'){requireCapability(session,'cash.open');const body=await readJson(request,bodyLimitBytes);const result=await mutation(request,pathname,201,async mid=>{const opened=runtime.cash.openSession({...body,operatorId:session.userId,terminalId:session.terminalId||body.terminalId,actor:currentActor,mutationId:mid});const dispatchResult=await dispatch();return{session:opened,dispatch:dispatchResult};});sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/cash/open'){requireCapability(session,'cash.view');const terminalId=url.searchParams.get('terminalId')||session.terminalId;if(!terminalId)throw new HttpError(400,'terminalId obrigatorio.');sendJson(response,200,runtime.cash.getOpenSession(terminalId),request,allowedOrigins);return;}
+      const cashDetailsMatch=pathname.match(/^\/api\/v1\/cash\/sessions\/([^/]+)$/);
+      if(request.method==='GET'&&cashDetailsMatch){
+        requireCapability(session,'cash.view');
+        const detail=runtime.cash.getSessionDetails(decodeURIComponent(cashDetailsMatch[1]));
+        if(!detail)throw new HttpError(404,'Caixa nao encontrado.');
+        sendJson(response,200,detail,request,allowedOrigins);return;
+      }
+      const cashManagementMatch=pathname.match(/^\/api\/v1\/cash\/sessions\/([^/]+)\/(correct|annul)$/);
+      if(request.method==='POST'&&cashManagementMatch){
+        requireCapability(session,'cash.manage');
+        const id=decodeURIComponent(cashManagementMatch[1]),action=cashManagementMatch[2];
+        const body=await readJson(request,bodyLimitBytes);
+        const result=await mutation(request,pathname,200,async()=>{
+          return action==='correct'
+            ?runtime.cash.correctClosing(id,{countedCashCents:body.countedCashCents,reason:body.reason,actor:currentActor})
+            :runtime.cash.annulSession(id,{reason:body.reason,actor:currentActor});
+        });
+        sendJson(response,result.statusCode,result.payload,request,allowedOrigins);return;
+      }
       const cashMovementsMatch=pathname.match(/^\/api\/v1\/cash\/sessions\/([^/]+)\/movements$/);if(request.method==='GET'&&cashMovementsMatch){requireCapability(session,'cash.view');sendJson(response,200,runtime.cash.listSessionMovements(decodeURIComponent(cashMovementsMatch[1])),request,allowedOrigins);return;}
       const cashMatch=pathname.match(/^\/api\/v1\/cash\/sessions\/([^/]+)\/(supply|withdraw|close)$/);if(request.method==='POST'&&cashMatch){const required={supply:'cash.supply',withdraw:'cash.withdraw',close:'cash.close'}[cashMatch[2]];requireCapability(session,required);const id=decodeURIComponent(cashMatch[1]);const action=cashMatch[2];const body=await readJson(request,bodyLimitBytes);let result;if(action==='supply')result=runtime.cash.addSupply(id,{...body,actor:currentActor});else if(action==='withdraw')result=runtime.cash.withdraw(id,{...body,actor:currentActor});else result=runtime.cash.closeSession(id,{...body,actor:currentActor,mutationId});const dispatchResult=action==='close'?await dispatch():null;sendJson(response,200,dispatchResult?{session:result,dispatch:dispatchResult}:result,request,allowedOrigins);return;}
 
