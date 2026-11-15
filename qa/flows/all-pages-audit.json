@@ -82,14 +82,68 @@
     },
     {
       "action": "expectVisible",
-      "selector": "[data-sale-observation='true']",
-      "name": "balcao-observacao-lifecycle",
+      "selector": ".checkout-quick-actions > button:first-child",
+      "name": "balcao-observacao-botao-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".checkout-quick-actions > button:first-child",
+      "name": "balcao-abrir-dialog-observacao",
       "timeoutMs": 10000
     },
     {
       "action": "expectVisible",
-      "selector": "#seller-select",
-      "name": "balcao-vendedor-visivel",
+      "selector": ".checkout-detail-dialog[open] [data-sale-observation='true']",
+      "name": "balcao-observacao-dialog-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".checkout-detail-dialog[open] .checkout-dialog-done",
+      "name": "balcao-fechar-dialog-observacao",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".sale-context-grid > button.checkout-context-action:first-of-type",
+      "name": "balcao-vendedor-botao-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".sale-context-grid > button.checkout-context-action:first-of-type",
+      "name": "balcao-abrir-dialog-vendedor",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".checkout-detail-dialog[open] #seller-select",
+      "name": "balcao-vendedor-dialog-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".checkout-detail-dialog[open] .checkout-dialog-done",
+      "name": "balcao-fechar-dialog-vendedor",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".checkout-quick-actions > button:nth-child(2)",
+      "name": "balcao-abrir-dialog-desconto",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectVisible",
+      "selector": ".checkout-detail-dialog[open] #discount-percent",
+      "name": "balcao-desconto-dialog-visivel",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "click",
+      "selector": ".checkout-detail-dialog[open] .checkout-dialog-done",
+      "name": "balcao-fechar-dialog-desconto",
       "timeoutMs": 10000
     },
     {
