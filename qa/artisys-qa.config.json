@@ -44,6 +44,9 @@
     },
     "tutorials-p1-p3": {
       "adapter": "runtime/adapters/tutorials-p1-p3.mjs"
+    },
+    "tour-login-sale": {
+      "adapter": "runtime/adapters/tour-login-sale.mjs"
     }
   },
   "defaultFlow": "all-pages-audit",
@@ -223,6 +226,15 @@
       "preset": "landscape-16x9",
       "durationTargetSec": 24,
       "profile": "tutorials-p1-p3"
+    },
+    "tour-login-ate-venda": {
+      "file": "demo/tutorials/tour-login-ate-venda.json",
+      "preset": "landscape-16x9",
+      "profile": "tour-login-sale",
+      "captureViewport": {
+        "width": 1600,
+        "height": 900
+      }
     }
   }
 }
