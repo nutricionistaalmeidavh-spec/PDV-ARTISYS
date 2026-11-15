@@ -1,6 +1,6 @@
 {
   "name": "13-cadastrar-produto",
-  "title": "Cadastrar produto",
+  "title": "Cadastrar produto e finalizar a primeira venda",
   "metadata": {
     "qaAutoAdmin": true
   },
@@ -20,91 +20,156 @@
       "selector": "#app-topbar",
       "name": "app-ready",
       "state": "visible",
-      "timeoutMs": 15000,
-      "holdMs": 250
+      "timeoutMs": 15000
     },
     {
       "action": "click",
       "selector": "button[data-route='catalog']",
       "name": "abrir-cadastros",
-      "holdMs": 450
+      "holdMs": 100
     },
     {
       "action": "click",
       "selector": "button[data-flow-route='inventory']",
       "name": "abrir-estoque",
-      "holdMs": 650
+      "holdMs": 150
     },
     {
       "action": "waitFor",
-      "selector": "#inventory-master-actions",
+      "selector": "#inventory-quick-product",
       "name": "estoque-pronto",
       "state": "visible",
-      "timeoutMs": 10000,
-      "holdMs": 250
+      "timeoutMs": 10000
     },
     {
       "action": "click",
-      "selector": "#inventory-new-product",
-      "name": "novo-produto",
-      "holdMs": 500
+      "selector": "#inventory-quick-product",
+      "name": "abrir-cadastro-rapido",
+      "holdMs": 150
     },
     {
       "action": "waitFor",
-      "selector": "#product-form",
-      "name": "form-produto",
+      "selector": "#quick-stock-product-form",
+      "name": "cadastro-pronto",
       "state": "visible",
-      "timeoutMs": 10000,
-      "holdMs": 250
+      "timeoutMs": 10000
     },
     {
       "action": "fill",
-      "selector": "#product-form input[name='name']",
+      "selector": "#quick-stock-name",
       "name": "nome-produto",
       "value": "Produto Novo Tutorial",
-      "holdMs": 220
+      "holdMs": 100
     },
     {
       "action": "fill",
-      "selector": "#product-form input[name='sku']",
-      "name": "sku-produto",
-      "value": "NOVO-TUT",
+      "selector": "#quick-stock-price",
+      "name": "preco-produto",
+      "value": "12,50",
+      "holdMs": 100
+    },
+    {
+      "action": "fill",
+      "selector": "#quick-stock-quantity",
+      "name": "quantidade-inicial",
+      "value": "12",
+      "holdMs": 100
+    },
+    {
+      "action": "check",
+      "selector": "#quick-stock-product-form input[name=\"publish\"]",
+      "name": "publicar-para-venda",
+      "holdMs": 100
+    },
+    {
+      "action": "click",
+      "selector": "#quick-stock-product-form button[type=\"submit\"][value=\"done\"]",
+      "name": "salvar-produto",
+      "holdMs": 200
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-quick-stock-success]",
+      "name": "cadastro-confirmado",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "expectText",
+      "selector": "[data-quick-stock-result]",
+      "name": "produto-publicado",
+      "expected": "No Cardápio e no Balcão",
+      "timeoutMs": 10000,
+      "holdMs": 350
+    },
+    {
+      "action": "click",
+      "selector": "[data-quick-stock-checkout]",
+      "name": "ir-para-balcao",
+      "holdMs": 200
+    },
+    {
+      "action": "waitFor",
+      "selector": "#product-search",
+      "name": "balcao-pronto",
+      "state": "visible",
+      "timeoutMs": 10000
+    },
+    {
+      "action": "fill",
+      "selector": "#product-search",
+      "name": "buscar-produto-balcao",
+      "value": "Produto Novo Tutorial",
+      "holdMs": 200
+    },
+    {
+      "action": "click",
+      "selector": ".product-grid [data-add-product]:has-text(\"Produto Novo Tutorial\")",
+      "name": "adicionar-produto-na-venda",
       "holdMs": 180
     },
     {
-      "action": "fill",
-      "selector": "#product-price",
-      "name": "preco-produto",
-      "value": "12,50",
-      "holdMs": 220
-    },
-    {
-      "action": "fill",
-      "selector": "#product-cost",
-      "name": "custo-produto",
-      "value": "5,00",
-      "holdMs": 220
-    },
-    {
-      "action": "selectOption",
-      "selector": "#product-form select[name='productionDestination']",
-      "name": "destino-direto",
-      "value": "DIRECT",
-      "holdMs": 250
+      "action": "expectText",
+      "selector": ".cart-list",
+      "name": "produto-no-carrinho",
+      "expected": "Produto Novo Tutorial",
+      "timeoutMs": 10000,
+      "holdMs": 300
     },
     {
       "action": "click",
-      "selector": "#product-form button[type='submit']",
-      "name": "salvar-produto",
-      "holdMs": 800
+      "selector": "#finalize-sale",
+      "name": "finalizar-venda",
+      "holdMs": 200
+    },
+    {
+      "action": "waitFor",
+      "selector": "#confirm-payment",
+      "name": "pagamento-pronto",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "selector": ".payment-list",
+      "name": "pagamento-dinheiro",
+      "expected": "Dinheiro",
+      "timeoutMs": 5000,
+      "holdMs": 300
+    },
+    {
+      "action": "click",
+      "selector": "#confirm-payment",
+      "name": "confirmar-pagamento",
+      "holdMs": 150
     },
     {
       "action": "expectText",
       "selector": "#toast-root",
-      "name": "produto-salvo",
-      "expected": "Produto salvo no Estoque",
-      "timeoutMs": 10000,
-      "holdMs": 900
+      "name": "venda-finalizada",
+      "expected": "finalizada.",
+      "timeoutMs": 15000,
+      "holdMs": 650
     }
   ]
 }
