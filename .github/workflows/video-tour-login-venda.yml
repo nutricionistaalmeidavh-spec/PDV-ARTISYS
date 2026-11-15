@@ -1,0 +1,96 @@
+name: Tutorial em vídeo - Login, Tour e Venda
+
+on:
+  push:
+    branches:
+      - qa/video-tour-login-ate-venda-20261115
+    paths:
+      - .github/workflows/video-tour-login-venda.yml
+      - qa/demo/tutorials/tour-login-ate-venda.json
+      - qa/runtime/adapters/tour-login-sale.mjs
+      - qa/artisys-qa.config.json
+      - scripts/edit-login-tour-sale-video.cjs
+      - test/video-tour-login-sale.test.js
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: video-tour-login-venda-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  video-playwright:
+    name: Gravar Electron real pelo Playwright e editar MP4
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependências locais e Playwright
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Garantir executável Electron
+        shell: bash
+        run: |
+          if [ ! -x node_modules/electron/dist/electron ]; then
+            ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js
+          fi
+          test -x node_modules/electron/dist/electron
+      - name: Garantir FFmpeg e servidor virtual Xvfb
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v ffprobe >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
+      - name: Validar o roteiro de login, tour e venda
+        run: |
+          node --test test/video-tour-login-sale.test.js
+          node --check scripts/edit-login-tour-sale-video.cjs
+          npm run qa:validate
+      - name: Gravar o PDV real pela automação Playwright e salvar vídeo MP4
+        shell: bash
+        run: |
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo tour-login-ate-venda \
+            --profile tour-login-sale \
+            --preset landscape-16x9 \
+            --environment ci \
+            --output qa-artifacts-login-tour-venda
+          RAW="$(find qa-artifacts-login-tour-venda -name demo-video.mp4 -print -quit)"
+          SUMMARY="$(find qa-artifacts-login-tour-venda -name run-summary.json -print -quit)"
+          test -n "$RAW" && test -n "$SUMMARY"
+          mkdir -p tutorial-output
+          node scripts/edit-login-tour-sale-video.cjs \
+            --input "$RAW" --summary "$SUMMARY" \
+            --output tutorial-output/PDV-ArtiSys-Login-Tour-Primeira-Venda.mp4
+          cp "$SUMMARY" tutorial-output/qa-run-summary.json
+          ffprobe -v error -show_entries format=duration,size -of json tutorial-output/PDV-ArtiSys-Login-Tour-Primeira-Venda.mp4
+          test -s tutorial-output/PDV-ArtiSys-Login-Tour-Primeira-Venda.mp4
+      - name: Disponibilizar tutorial completo como artefato MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDV-ArtiSys-Video-Login-Tour-Venda
+          path: |
+            tutorial-output/PDV-ArtiSys-Login-Tour-Primeira-Venda.mp4
+            tutorial-output/qa-run-summary.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Preservar evidências de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDV-ArtiSys-Video-Debug
+          path: qa-artifacts-login-tour-venda
+          retention-days: 7
+          if-no-files-found: warn
