@@ -27,7 +27,7 @@ const fixture=`<body data-active-route="checkout"><main id="route-content">
 </section>
 <div class="checkout-detail-dialog"><input id="discount-percent" value="0"></div>
 <textarea id="sale-observation"></textarea><input type="checkbox" id="sale-observation-print">
-</aside></section></main><div id="toast-root" class="toast-root"><div class="toast">Pedido carregado no caixa.</div></div></body>`;
+</aside></section></main><footer class="app-footer" aria-label="Estado da aplicação">ArtiSys</footer><div id="toast-root" class="toast-root"><div class="toast">Pedido carregado no caixa.</div></div></body>`;
 
 test('P1–P3: checkout footer groups move original live controls, keep payment callbacks, and show discount state without duplicate amounts',async t=>{
  const browser=await chromium.launch({headless:true});t.after(()=>browser.close());
@@ -70,6 +70,7 @@ test('P1–P3: payment options are neutral until clicked and a checkout notifica
   .checkout-layout{display:grid;grid-template-columns:1fr 400px;justify-content:end;height:620px;max-width:1100px;margin:auto}
   .sale-panel{grid-column:2;display:grid;grid-template-rows:auto minmax(0,1fr) auto;height:100%;max-height:100%;overflow:hidden}
   .sale-cart-region{min-height:0}.cart-list{overflow-y:auto}
+  .app-footer{position:fixed;left:80px;right:0;bottom:0;height:58px;background:#071b3c;color:white}
   .toast-root{position:fixed;right:22px;bottom:74px;z-index:80}
   .pay-button{background:#079454;color:white;border:0}
   .pay-button.card{background:#1681dc}.pay-button.pix{background:#10aebc}
@@ -82,9 +83,12 @@ test('P1–P3: payment options are neutral until clicked and a checkout notifica
   const toast=document.querySelector('#toast-root').getBoundingClientRect();
   const finalize=document.querySelector('#finalize-sale').getBoundingClientRect();
   const intersects=toast.top<finalize.bottom && toast.bottom>finalize.top && toast.left<finalize.right && toast.right>finalize.left;
-  return {pay:pay.map(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})),intersects,footer:document.querySelector('.checkout-clarity-footer').getBoundingClientRect().toJSON(),viewport:innerHeight};
+  const appFooter=document.querySelector('.app-footer').getBoundingClientRect();
+  const toastInsideStatus=toast.top>=appFooter.top-1 && toast.bottom<=appFooter.bottom+1;
+  return {pay:pay.map(el=>({background:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color})),intersects,toastInsideStatus,footer:document.querySelector('.checkout-clarity-footer').getBoundingClientRect().toJSON(),viewport:innerHeight};
  });
  assert.equal(res.intersects,false);
+ assert.equal(res.toastInsideStatus,true,'checkout toast must stay in the status band without covering the hero or sale actions');
  assert.ok(res.pay.every(p=>p.background==='rgb(255, 255, 255)'));
  assert.ok(res.footer.bottom<=res.viewport,'footer must stay in viewport with cart scrolling');
 });
