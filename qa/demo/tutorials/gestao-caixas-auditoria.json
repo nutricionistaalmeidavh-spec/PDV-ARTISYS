@@ -68,7 +68,7 @@
     {
       "action": "expectText",
       "selector": "#ops-cash-details",
-      "expected": "Abriu",
+      "expected": "Abertura:",
       "name": "ver-detalhes-caixa-com-venda",
       "timeoutMs": 12000,
       "holdMs": 850
