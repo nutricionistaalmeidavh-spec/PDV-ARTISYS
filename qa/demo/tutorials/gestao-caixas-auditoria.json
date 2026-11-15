@@ -1,0 +1,278 @@
+{
+  "name": "gestao-caixas-auditoria",
+  "title": "PDV ArtiSys: responsáveis, correção auditada e anulação de caixa de teste",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "selector": "#login-form",
+      "name": "app-ready",
+      "state": "visible",
+      "timeoutMs": 20000,
+      "holdMs": 850
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='username']",
+      "value": "qaadmin",
+      "name": "usuario-administrador",
+      "holdMs": 450
+    },
+    {
+      "action": "fill",
+      "selector": "#login-form input[name='password']",
+      "value": "QaLocalOnly-12345!",
+      "name": "senha-qa",
+      "holdMs": 500
+    },
+    {
+      "action": "click",
+      "selector": "#login-form button[type='submit']",
+      "name": "entrar",
+      "holdMs": 650
+    },
+    {
+      "action": "waitFor",
+      "selector": "#auth-overlay",
+      "name": "autenticado",
+      "state": "hidden",
+      "timeoutMs": 15000,
+      "holdMs": 1000
+    },
+    {
+      "action": "capability",
+      "name": "cash.videoFixture",
+      "holdMs": 1000
+    },
+    {
+      "action": "click",
+      "selector": "button[data-route='cash']",
+      "name": "abrir-historico-caixa",
+      "holdMs": 1300
+    },
+    {
+      "action": "waitFor",
+      "selector": "#ops-cash-history-search",
+      "name": "historico-carregado",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 950
+    },
+    {
+      "action": "capability",
+      "name": "cash.openLinkedDetails",
+      "holdMs": 1000
+    },
+    {
+      "action": "expectText",
+      "selector": "#ops-cash-details",
+      "expected": "Abriu",
+      "name": "ver-detalhes-caixa-com-venda",
+      "timeoutMs": 12000,
+      "holdMs": 850
+    },
+    {
+      "action": "capability",
+      "name": "cash.blockedAnnul",
+      "holdMs": 800
+    },
+    {
+      "action": "expectText",
+      "selector": "#ops-cash-details",
+      "expected": "Anulação indisponível",
+      "name": "anulacao-bloqueada",
+      "holdMs": 1350
+    },
+    {
+      "action": "screenshot",
+      "name": "caixa-com-venda-protegida",
+      "holdMs": 450
+    },
+    {
+      "action": "click",
+      "selector": "#ops-cash-details [data-manage-cash='correct']",
+      "name": "corrigir-contagem",
+      "holdMs": 900
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog[open] input[name='amount']",
+      "name": "dialog-corrigir-contagem",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 700
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog[open] input[name='amount']",
+      "value": "2,00",
+      "name": "novo-valor-contado",
+      "holdMs": 800
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog[open] textarea[name='reason']",
+      "value": "Conferência de teste após fechamento do caixa",
+      "name": "justificativa-correcao",
+      "holdMs": 900
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog[open] .ux-dialog__confirm",
+      "name": "salvar-correcao",
+      "holdMs": 1350
+    },
+    {
+      "action": "expectText",
+      "selector": "#ops-cash-details",
+      "expected": "Conferência de teste após fechamento do caixa",
+      "name": "correcao-auditada",
+      "timeoutMs": 15000,
+      "holdMs": 900
+    },
+    {
+      "action": "capability",
+      "name": "cash.verifiedCorrection",
+      "holdMs": 900
+    },
+    {
+      "action": "screenshot",
+      "name": "correcao-e-responsaveis",
+      "holdMs": 900
+    },
+    {
+      "action": "waitFor",
+      "selector": "#ops-open-cash",
+      "name": "form-novo-caixa",
+      "state": "visible",
+      "timeoutMs": 15000,
+      "holdMs": 650
+    },
+    {
+      "action": "fill",
+      "selector": "#ops-open-cash input[name='amount']",
+      "value": "0,00",
+      "name": "fundo-inicial-zero",
+      "holdMs": 650
+    },
+    {
+      "action": "click",
+      "selector": "#ops-open-cash button[type='submit']",
+      "name": "abrir-caixa-vazio",
+      "holdMs": 1200
+    },
+    {
+      "action": "waitFor",
+      "selector": "[data-cash-action='close']",
+      "name": "caixa-aberto",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 600
+    },
+    {
+      "action": "capability",
+      "name": "cash.trackEmptyOpen",
+      "holdMs": 450
+    },
+    {
+      "action": "click",
+      "selector": "[data-cash-action='close']",
+      "name": "fechar-caixa-vazio",
+      "holdMs": 900
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog[open] input[name='amount']",
+      "name": "dialog-fechamento",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 550
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog[open] input[name='amount']",
+      "value": "0,00",
+      "name": "contagem-zero",
+      "holdMs": 650
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog[open] .ux-dialog__confirm",
+      "name": "confirmar-fechamento",
+      "holdMs": 1300
+    },
+    {
+      "action": "waitFor",
+      "selector": "#ops-open-cash",
+      "name": "caixa-encerrado",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 850
+    },
+    {
+      "action": "capability",
+      "name": "cash.openEmptyDetails",
+      "holdMs": 850
+    },
+    {
+      "action": "expectVisible",
+      "selector": "#ops-cash-details [data-manage-cash='annul']",
+      "name": "ver-detalhes-caixa-vazio",
+      "holdMs": 850
+    },
+    {
+      "action": "click",
+      "selector": "#ops-cash-details [data-manage-cash='annul']",
+      "name": "anular-caixa-vazio",
+      "holdMs": 900
+    },
+    {
+      "action": "waitFor",
+      "selector": ".ux-dialog[open] input[name='confirmation']",
+      "name": "dialog-anulacao",
+      "state": "visible",
+      "timeoutMs": 10000,
+      "holdMs": 500
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog[open] input[name='confirmation']",
+      "value": "ANULAR",
+      "name": "confirmacao-ANULAR",
+      "holdMs": 850
+    },
+    {
+      "action": "fill",
+      "selector": ".ux-dialog[open] textarea[name='reason']",
+      "value": "Caixa vazio criado para demonstrar anulação de teste",
+      "name": "motivo-anulacao",
+      "holdMs": 1050
+    },
+    {
+      "action": "click",
+      "selector": ".ux-dialog[open] .ux-dialog__confirm",
+      "name": "confirmar-anulacao",
+      "holdMs": 1400
+    },
+    {
+      "action": "expectText",
+      "selector": "#ops-cash-details",
+      "expected": "Caixa vazio criado para demonstrar anulação de teste",
+      "name": "anulacao-auditada",
+      "timeoutMs": 15000,
+      "holdMs": 1200
+    },
+    {
+      "action": "capability",
+      "name": "cash.verifiedAnnul",
+      "holdMs": 1600
+    },
+    {
+      "action": "screenshot",
+      "name": "caixa-anulado-preservado-historico",
+      "holdMs": 800
+    }
+  ]
+}
