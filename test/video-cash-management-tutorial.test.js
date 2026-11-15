@@ -11,7 +11,7 @@ const idx=(steps,name)=>steps.findIndex(s=>s.name===name);
 test('tutorial de caixa filma login real e histórico, sem tratar anulação como exclusão de vendas',()=>{
  const steps=flow().steps;
  assert.equal(steps[0].selector,'#login-form');
- for(const key of ['entrar','preparar-caixa-com-venda','abrir-historico-caixa','ver-detalhes-caixa-com-venda','anulacao-bloqueada','corrigir-contagem','correcao-auditada','abrir-caixa-vazio','fechar-caixa-vazio','ver-detalhes-caixa-vazio','anular-caixa-vazio','anulacao-auditada'])
+ for(const key of ['entrar','cash.videoFixture','abrir-historico-caixa','ver-detalhes-caixa-com-venda','anulacao-bloqueada','corrigir-contagem','correcao-auditada','abrir-caixa-vazio','fechar-caixa-vazio','ver-detalhes-caixa-vazio','anular-caixa-vazio','anulacao-auditada'])
   assert.ok(idx(steps,key)>=0,key);
  assert.ok(idx(steps,'anulacao-bloqueada')<idx(steps,'corrigir-contagem'));
  assert.ok(idx(steps,'corrigir-contagem')<idx(steps,'correcao-auditada'));
