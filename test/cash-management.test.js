@@ -66,6 +66,7 @@ test('anula somente caixa fechado sem atividade financeira e o conserva na audit
     f.cash.closeSession('cs1',{countedByMethod:{CASH:500},actor:cashier});
     assert.throws(()=>f.cash.annulSession('cs1',{reason:'Caixa aberto apenas para teste',actor:cashier}),/administrador|permiss/i);
     assert.throws(()=>f.cash.annulSession('cs1',{reason:'teste',actor:admin}),/motivo|justific/i);
+    assert.equal(f.cash.getSessionDetails('cs1').canAnnul,true);
     const annulled=f.cash.annulSession('cs1',{reason:'Caixa aberto apenas para teste',actor:admin});
     assert.equal(annulled.status,'ANNULLED');
     assert.equal(annulled.annulledById,'admin');
@@ -89,6 +90,7 @@ test('impede anular sessoes com suprimentos, vendas ou vendas sem efeitos de cai
     f.cash.openSession({id:'cs2',terminalId:'pdv-01',operatorId:'cashier',actor:cashier});
     f.cash.closeSession('cs2',{countedByMethod:{CASH:0},actor:cashier});
     f.db.prepare("INSERT INTO sales(id,sale_number,terminal_id,operator_id,status,opened_at,completed_at,updated_at) VALUES ('s2','000002','pdv-01','cashier','COMPLETED',?,?,?)").run(NOW,NOW,NOW);
+    assert.equal(f.cash.getSessionDetails('cs2').canAnnul,false);
     assert.throws(()=>f.cash.annulSession('cs2',{reason:'Registro de venda nao pode ser apagado',actor:admin}),/venda|moviment|operac/i);
     assert.equal(f.cash.getSession('cs2').status,'CLOSED');
   }finally{f.db.close();}
