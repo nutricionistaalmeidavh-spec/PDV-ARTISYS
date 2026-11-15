@@ -420,13 +420,22 @@ function createReportingService({ db, now = () => new Date().toISOString() } = {
 
   function buildCashSummary(filters = {}) {
     const p = period(filters,'cm.created_at');
+    const managed=Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cash_session_corrections'").get());
     const rows = db.prepare(`SELECT id,terminal_id AS terminalId,operator_id AS operatorId,expected_cash_cents AS expectedCashCents,
       counted_cash_cents AS countedCashCents,divergence_cents AS divergenceCents,opened_at AS openedAt,closed_at AS closedAt
-      FROM cash_sessions WHERE status='CLOSED' AND closed_at>=? AND closed_at<=? ORDER BY closed_at,id`).all(p.from,p.to);
+      ${managed?',closed_by_id AS closedById':''}
+      FROM cash_sessions WHERE status='CLOSED' ${managed?'AND annulled_at IS NULL':''}
+      AND closed_at>=? AND closed_at<=? ORDER BY closed_at,id`).all(p.from,p.to).map(row=>{
+        const correction=managed?db.prepare('SELECT counted_cash_cents AS countedCashCents FROM cash_session_corrections WHERE cash_session_id=? ORDER BY created_at DESC,id DESC LIMIT 1').get(row.id):null;
+        const counted=correction?.countedCashCents??row.countedCashCents;
+        return {...row,countedCashCents:counted,divergenceCents:counted-row.expectedCashCents,
+          openedByName:db.prepare('SELECT name FROM users WHERE id=?').get(row.operatorId)?.name||null,
+          closedByName:managed?db.prepare('SELECT name FROM users WHERE id=?').get(row.closedById)?.name||null:null};
+      });
     const movements = db.prepare(`SELECT cm.id,cm.cash_session_id AS cashSessionId,cs.terminal_id AS terminalId,cs.operator_id AS operatorId,u.name AS operatorName,
       cm.type,cm.amount_cents AS amountCents,COALESCE(cm.payment_method,'CASH') AS paymentMethod,cm.sale_id AS saleId,cm.note,cm.created_at AS createdAt
       FROM cash_movements cm JOIN cash_sessions cs ON cs.id=cm.cash_session_id LEFT JOIN users u ON u.id=cs.operator_id
-      WHERE ${p.clause} ORDER BY cm.created_at,cm.id`).all(p.from,p.to).map(row => {
+      WHERE ${p.clause} ${managed?'AND cs.annulled_at IS NULL':''} ORDER BY cm.created_at,cm.id`).all(p.from,p.to).map(row => {
         const isPhysicalCash = ['OPENING','SUPPLY','WITHDRAWAL'].includes(row.type) || row.paymentMethod === 'CASH';
         const direction = ['WITHDRAWAL','REVERSAL'].includes(row.type) ? -1 : 1;
         return { ...row,isPhysicalCash,signedCents:isPhysicalCash ? direction*Number(row.amountCents || 0) : 0 };

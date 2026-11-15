@@ -36,7 +36,8 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
       'profiles.assign','devices.view',
       'modules.view','settings.view'
     ]
-  )),
+  ).filter(id=>id!=='cash.manage')),
+
   SUPERVISOR:Object.freeze(unique(
     idsByPrefix('sales','returns','cash','customers','restaurant','wholesale'),
     [
@@ -44,7 +45,8 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
       'inventory.view','inventory.adjust',
       'reports.view','management.view','users.view'
     ]
-  )),
+  ).filter(id=>id!=='cash.manage')),
+
   CASHIER:Object.freeze(unique([
     'sales.view','sales.create',
     'returns.view','returns.manage',

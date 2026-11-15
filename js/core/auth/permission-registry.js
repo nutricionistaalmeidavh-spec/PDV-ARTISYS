@@ -26,6 +26,7 @@ const DEFINITIONS=[
   ['cash.close','cash','Fechar caixa','Fechar e conferir uma sessão de caixa.'],
   ['cash.supply','cash','Realizar suprimento','Registrar entrada manual de numerário no caixa.'],
   ['cash.withdraw','cash','Realizar sangria','Registrar retirada manual de numerário do caixa.'],
+  ['cash.manage','cash','Administrar caixas fechados','Corrigir contagens e anular caixas de teste com auditoria (administradores).'],
 
   ['customers.view','catalog','Consultar clientes','Consultar cadastro e histórico disponível de clientes.'],
   ['customers.manage','catalog','Gerenciar clientes','Criar e alterar cadastros de clientes.'],

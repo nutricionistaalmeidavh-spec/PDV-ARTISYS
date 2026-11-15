@@ -74,12 +74,15 @@
 
   async function renderCash(){
     const cfg=await ready();let open=null;try{open=await api.openCash(cfg.terminalId);}catch{}
-    const sessions=await api.cashSessions({terminalId:cfg.terminalId});
+    const user=root.PdvCurrentAccess;
+    const isAdmin=(user?.profileId||user?.profile?.id)==='profile-administrator'
+      && Array.isArray(user?.permissions)&&user.permissions.includes('cash.manage');
+    const sessions=await api.cashSessions(isAdmin?{}:{terminalId:cfg.terminalId});
     const movements=open?await api.cashMovements(open.id):[];
     const body=`<div class="ops-metrics">${metric('Situação',open?'Caixa aberto':'Caixa fechado')}${metric('Saldo esperado',open?money(open.expectedCashCents??open.initialCashCents):'—')}${metric('Sessões anteriores',String(sessions.filter(s=>s.status==='CLOSED').length))}</div>
       <div class="ops-grid two"><section class="ops-card"><h2>Operação atual</h2>${open?`<dl class="ops-details"><div><dt>Sessão</dt><dd>${escapeHtml(open.id)}</dd></div><div><dt>Operador</dt><dd>${escapeHtml(open.operatorId)}</dd></div><div><dt>Abertura</dt><dd>${when(open.openedAt)}</dd></div></dl><div class="ops-actions"><button class="ops-secondary" data-cash-action="supply">Suprimento</button><button class="ops-secondary" data-cash-action="withdraw">Sangria</button><button class="ops-danger" data-cash-action="close">Fechar caixa</button></div>`:`<form id="ops-open-cash" class="ops-form"><label>Fundo inicial (R$)<input class="ops-input" name="amount" value="0,00" required></label><button class="ops-primary" type="submit">Abrir caixa</button></form>`}</section>
-      <section class="ops-card"><h2>Movimentos da sessão</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Hora</th><th>Tipo</th><th>Valor</th><th>Forma</th></tr></thead><tbody>${movements.map(row=>`<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(cashMovementLabel(row.type))}</td><td>${money(row.amountCents)}</td><td>${escapeHtml(cashPaymentLabel(row.paymentMethod))}</td></tr>`).join('')||`<tr><td colspan="4">${empty('Nenhum movimento na sessão atual.')}</td></tr>`}</tbody></table></div></section></div>
-      <section class="ops-card"><h2>Histórico de fechamentos</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Abertura</th><th>Fechamento</th><th>Esperado</th><th>Contado</th><th>Divergência</th><th>Status</th></tr></thead><tbody>${sessions.map(row=>`<tr><td>${when(row.openedAt)}</td><td>${when(row.closedAt)}</td><td>${row.expectedCashCents==null?'—':money(row.expectedCashCents)}</td><td>${row.countedCashCents==null?'—':money(row.countedCashCents)}</td><td>${row.divergenceCents==null?'—':money(row.divergenceCents)}</td><td>${badge(row.status)}</td></tr>`).join('')||`<tr><td colspan="6">${empty('Sem sessões registradas.')}</td></tr>`}</tbody></table></div></section>`;
+      <section class="ops-card"><h2>Movimentos da sessão</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Hora</th><th>Tipo</th><th>Valor</th><th>Forma</th><th>Responsável</th></tr></thead><tbody>${movements.map(row=>`<tr><td>${when(row.createdAt)}</td><td>${escapeHtml(cashMovementLabel(row.type))}</td><td>${money(row.amountCents)}</td><td>${escapeHtml(cashPaymentLabel(row.paymentMethod))}</td><td>${escapeHtml(row.actorName||row.actorId||'—')}</td></tr>`).join('')||`<tr><td colspan="5">${empty('Nenhum movimento na sessão atual.')}</td></tr>`}</tbody></table></div></section></div>
+      <section class="ops-card"><div class="ops-card-head"><h2>Histórico de caixas</h2><input id="ops-cash-history-search" class="ops-input compact" type="search" placeholder="Buscar caixa, terminal ou responsável" aria-label="Buscar no histórico de caixas"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Terminal</th><th>Abertura</th><th>Fechamento</th><th>Abriu</th><th>Fechou</th><th>Esperado</th><th>Contado</th><th>Divergência</th><th>Status</th><th>Consultar</th></tr></thead><tbody>${sessions.map(row=>`<tr data-cash-history-search="${escapeHtml([row.id,row.terminalId,row.openedByName,row.closedByName].join(' ').toLowerCase())}"><td>${escapeHtml(row.terminalId)}</td><td>${when(row.openedAt)}</td><td>${when(row.closedAt)}</td><td>${escapeHtml(row.openedByName||row.operatorId||'—')}</td><td>${escapeHtml(row.closedByName||row.closedById||'—')}</td><td>${row.expectedCashCents==null?'—':money(row.expectedCashCents)}</td><td>${row.countedCashCents==null?'—':money(row.countedCashCents)}</td><td>${row.divergenceCents==null?'—':money(row.divergenceCents)}</td><td>${badge(row.status==='ANNULLED'?'Anulado':row.status)}</td><td><button type="button" class="ops-link" data-cash-details="${escapeHtml(row.id)}">Detalhes</button></td></tr>`).join('')||`<tr><td colspan="10">${empty('Sem sessões registradas.')}</td></tr>`}</tbody></table></div></section><section id="ops-cash-details" aria-live="polite"></section>`;
     if(!routeActive('cash'))return;
     content.innerHTML=page('Caixa','Abertura, suprimentos, sangrias e fechamento por terminal.',body);
     document.getElementById('ops-open-cash')?.addEventListener('submit',async event=>{event.preventDefault();const amount=centsInput(new FormData(event.currentTarget).get('amount'));try{await api.createCash({terminalId:cfg.terminalId,initialCashCents:amount});showToast('Caixa aberto.','success');await renderCash();}catch(error){showToast(error.message,'error');}});
@@ -103,6 +106,70 @@
           :api.cashAction(open.id,action,{amountCents:centsInput(data.amount),note:String(data.note||'').trim()})
       });
       if(result.confirmed){showToast('Operação de caixa registrada.','success');await renderCash();}
+    }));
+    document.getElementById('ops-cash-history-search')?.addEventListener('input',event=>{
+      const term=String(event.target.value||'').toLowerCase().trim();
+      content.querySelectorAll('tr[data-cash-history-search]').forEach(row=>{
+        row.hidden=!row.dataset.cashHistorySearch.includes(term);
+      });
+    });
+    content.querySelectorAll('[data-cash-details]').forEach(button=>button.addEventListener('click',async()=>{
+      try{await showCashDetails(button.dataset.cashDetails,isAdmin);}
+      catch(error){showToast(error.message,'error');}
+    }));
+  }
+
+  async function showCashDetails(sessionId,isAdmin){
+    const detail=await api.cashDetails(sessionId);
+    if(!routeActive('cash'))return;
+    const host=document.getElementById('ops-cash-details');if(!host)return;
+    const movements=(detail.movements||[]).map(m=>`<tr><td>${when(m.createdAt)}</td><td>${escapeHtml(cashMovementLabel(m.type))}</td><td>${money(m.amountCents)}</td><td>${escapeHtml(cashPaymentLabel(m.paymentMethod))}</td><td>${escapeHtml(m.actorName||m.actorId||'—')}</td></tr>`).join('');
+    const timeline=(detail.timeline||[]).map(entry=>`<tr><td>${when(entry.createdAt)}</td><td>${escapeHtml(entry.action)}</td><td>${escapeHtml(entry.actorName||entry.actorId||'Sistema')}</td></tr>`).join('');
+    const corrections=(detail.corrections||[]).map(c=>`<tr><td>${when(c.createdAt)}</td><td>${escapeHtml(c.actorName||c.actorId)}</td><td>${money(c.previousCountedCashCents)} → ${money(c.countedCashCents)}</td><td>${escapeHtml(c.reason)}</td></tr>`).join('');
+    const canManage=isAdmin&&detail.status==='CLOSED';
+    const isEmpty=detail.canAnnul===true;
+    host.innerHTML=`<section class="ops-card">
+      <div class="ops-card-head"><div><h2>Detalhes do caixa ${escapeHtml(detail.id)}</h2>
+        <p>${badge(detail.status==='ANNULLED'?'Anulado':detail.status)} · Abertura: ${escapeHtml(detail.openedByName||detail.operatorId||'—')} · Fechamento: ${escapeHtml(detail.closedByName||detail.closedById||'—')}</p>${canManage&&!isEmpty?`<p class="ops-empty">Anulação indisponível: ${escapeHtml(detail.annulmentBlockReason||'Movimentos financeiros vinculados.')}</p>`:''}</div>
+        ${canManage?`<div class="ops-actions"><button type="button" class="ops-secondary" data-manage-cash="correct">Corrigir contagem</button>${isEmpty?'<button type="button" class="ops-danger" data-manage-cash="annul">Anular caixa</button>':''}</div>`:''}
+      </div>
+      <dl class="ops-details"><div><dt>Esperado</dt><dd>${money(detail.expectedCashCents||0)}</dd></div>
+        <div><dt>Contado</dt><dd>${detail.countedCashCents==null?'—':money(detail.countedCashCents)}</dd></div>
+        <div><dt>Divergência</dt><dd>${detail.divergenceCents==null?'—':money(detail.divergenceCents)}</dd></div>
+        ${detail.annulledAt?`<div><dt>Anulação</dt><dd>${when(detail.annulledAt)} por ${escapeHtml(detail.annulledByName||'—')} · ${escapeHtml(detail.annulReason||'')}</dd></div>`:''}</dl>
+      <h3>Movimentos registrados</h3><div class="ops-table-wrap"><table class="ops-table">
+        <thead><tr><th>Quando</th><th>Tipo</th><th>Valor</th><th>Meio</th><th>Responsável</th></tr></thead>
+        <tbody>${movements||'<tr><td colspan="5">Nenhum movimento</td></tr>'}</tbody></table></div>
+      <h3>Correções auditadas</h3><div class="ops-table-wrap"><table class="ops-table">
+        <thead><tr><th>Quando</th><th>Administrador</th><th>Contagem</th><th>Justificativa</th></tr></thead>
+        <tbody>${corrections||'<tr><td colspan="4">Sem correções</td></tr>'}</tbody></table></div>
+      <h3>Auditoria</h3><div class="ops-table-wrap"><table class="ops-table">
+        <thead><tr><th>Quando</th><th>Ação</th><th>Responsável</th></tr></thead>
+        <tbody>${timeline||'<tr><td colspan="3">Sem eventos registrados</td></tr>'}</tbody></table></div>
+      </section>`;
+    host.querySelectorAll('[data-manage-cash]').forEach(button=>button.addEventListener('click',async()=>{
+      if(!ux?.openFormDialog){showToast('Diálogo indisponível.','error');return;}
+      const annul=button.dataset.manageCash==='annul';
+      try{
+        const result=await ux.openFormDialog({
+          title:annul?'Anular caixa de teste':'Corrigir contagem do caixa',
+          description:annul?'Somente caixas sem movimentações podem ser anulados. O histórico será preservado.':'A contagem original ficará preservada no histórico.',
+          confirmLabel:annul?'Confirmar anulação':'Salvar correção',
+          tone:annul?'danger':'default',initialFocus:'first',
+          body:(annul?'<label>Digite ANULAR para confirmar<input class="ops-input" name="confirmation" autocomplete="off" required></label>':`<label>Nova contagem (R$)<input class="ops-input" name="amount" inputmode="decimal" value="${(Number(detail.countedCashCents||0)/100).toFixed(2).replace('.',',')}" required></label>`)
+            +'<label>Justificativa obrigatória<textarea class="ops-input" name="reason" minlength="10" maxlength="500" required></textarea></label>',
+          validate:data=>{
+            if(annul&&String(data.confirmation||'').trim()!=='ANULAR')return{message:'Digite ANULAR para confirmar.',field:'confirmation'};
+            if(!annul&&(!String(data.amount||'').trim()||centsInput(data.amount)<0))return{message:'Contagem inválida.',field:'amount'};
+            const reason=String(data.reason||'').trim();
+            if(reason.length<10)return{message:'Informe uma justificativa com pelo menos 10 caracteres.',field:'reason'};
+            return null;
+          },
+          onConfirm:data=>annul?api.cashAnnul(sessionId,{reason:String(data.reason).trim()})
+            :api.cashCorrect(sessionId,{countedCashCents:centsInput(data.amount),reason:String(data.reason).trim()})
+        });
+        if(result.confirmed){showToast(annul?'Caixa anulado e preservado no histórico.':'Contagem corrigida com auditoria.','success');await renderCash();await showCashDetails(sessionId,isAdmin);}
+      }catch(error){showToast(error.message,'error');}
     }));
   }
 

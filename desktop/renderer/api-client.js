@@ -101,6 +101,9 @@
     cashAction(sessionId, action, body) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/${action}`, { method: 'POST', body, mutationId:action === 'close' ? this.mutationId() : undefined }); }
     cashSessions(filters = {}) { return this.request(`/api/v1/cash/sessions${this.params(filters)}`); }
     cashMovements(sessionId) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/movements`); }
+    cashDetails(sessionId) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}`); }
+    cashCorrect(sessionId, body) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/correct`, { method:'POST', body, mutationId:this.mutationId() }); }
+    cashAnnul(sessionId, body) { return this.request(`/api/v1/cash/sessions/${encodeURIComponent(sessionId)}/annul`, { method:'POST', body, mutationId:this.mutationId() }); }
 
     checkoutDocuments(query = '') { return this.request(`/api/v1/checkout/documents${this.params({query:query||undefined})}`); }
     openCheckoutDocument(type, id) { return this.request(`/api/v1/checkout/documents/${String(type||'').toLowerCase()}/${encodeURIComponent(id)}/open`, { method:'POST', body:{} }); }
