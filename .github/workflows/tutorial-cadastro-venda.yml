@@ -33,6 +33,15 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Restore Electron executable for Linux UI capture
+        shell: bash
+        run: |
+          if [ ! -x node_modules/electron/dist/electron ]; then
+            echo 'Electron binary missing after npm ci: restoring pinned runtime.'
+            ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js
+          fi
+          test -x node_modules/electron/dist/electron
+          echo 'Electron binary ready.'
       - name: Ensure open source video and Xvfb tools
         shell: bash
         run: |
