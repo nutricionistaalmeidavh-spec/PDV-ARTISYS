@@ -1,0 +1,97 @@
+name: Video tutorial - Gestao e Auditoria de Caixas
+
+on:
+  push:
+    branches:
+      - qa/video-gestao-caixas-auditoria-20261115
+    paths:
+      - '.github/workflows/video-gestao-caixas-auditoria.yml'
+      - 'qa/demo/tutorials/gestao-caixas-auditoria.json'
+      - 'qa/runtime/adapters/cash-video-qa.mjs'
+      - 'qa/artisys-qa.config.json'
+      - 'scripts/edit-cash-video.cjs'
+      - 'test/video-cash-management-tutorial.test.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: video-caixas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Playwright Electron - corrigir e anular caixa com auditoria
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Instalar dependencias
+        run: |
+          npm ci --no-audit --no-fund
+          npm ci --prefix qa/runtime --no-audit --no-fund
+      - name: Restaurar Electron
+        shell: bash
+        run: |
+          if [ ! -x node_modules/electron/dist/electron ]; then
+            ELECTRON_SKIP_BINARY_DOWNLOAD= node node_modules/electron/install.js
+          fi
+          test -x node_modules/electron/dist/electron
+      - name: Preparar FFmpeg e Xvfb de codigo aberto
+        shell: bash
+        run: |
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v ffprobe >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ ${#missing[@]} -gt 0 ]; then
+            sudo apt-get update -y
+            sudo apt-get install -y "${missing[@]}"
+          fi
+      - name: Validar contrato da demonstracao
+        run: |
+          node --test test/video-cash-management-tutorial.test.js test/cash-management.test.js test/cash-management-api.test.js
+          node --check scripts/edit-cash-video.cjs
+          node --check qa/runtime/adapters/cash-video-qa.mjs
+          npm run qa:validate
+      - name: Gravar operacoes reais no Electron com Playwright
+        shell: bash
+        run: |
+          xvfb-run -a node qa/runtime/artisys-qa.mjs demo \
+            --config qa/artisys-qa.config.json \
+            --demo gestao-caixas-auditoria \
+            --profile cash-video-qa \
+            --preset landscape-16x9 \
+            --environment ci \
+            --output qa-video-caixa
+          RAW="$(find qa-video-caixa -name demo-video.mp4 -print -quit)"
+          SUMMARY="$(find qa-video-caixa -name run-summary.json -print -quit)"
+          test -n "$RAW" && test -n "$SUMMARY"
+          mkdir -p video-output
+          node scripts/edit-cash-video.cjs \
+            --input "$RAW" --summary "$SUMMARY" \
+            --output video-output/PDV-ArtiSys-Gerenciamento-de-Caixas.mp4
+          cp "$SUMMARY" video-output/qa-run-summary.json
+          ffprobe -v error -show_entries format=duration,size -of json video-output/PDV-ArtiSys-Gerenciamento-de-Caixas.mp4
+          test -s video-output/PDV-ArtiSys-Gerenciamento-de-Caixas.mp4
+      - name: Disponibilizar video final em MP4
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDV-ArtiSys-Tutorial-Gerenciamento-de-Caixas
+          path: |
+            video-output/PDV-ArtiSys-Gerenciamento-de-Caixas.mp4
+            video-output/qa-run-summary.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Guardar traces e telas no caso de erro
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PDV-ArtiSys-Caixa-Video-Debug
+          path: qa-video-caixa
+          retention-days: 7
+          if-no-files-found: warn
