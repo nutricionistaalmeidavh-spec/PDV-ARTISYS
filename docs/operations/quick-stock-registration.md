@@ -11,6 +11,17 @@ Acesse **Início → Prepare sua loja → Cadastrar produto** ou **Cadastros →
 5. **Salvar e cadastrar outro** mantém a mesma tela, preserva categoria/unidade e limpa apenas campos específicos do próximo produto.
 6. **Salvar produto** exibe confirmação com nome, preço, saldo do local de estoque e status de publicação, com atalhos para Estoque, Balcão e cadastro de outro item.
 
+## Da primeira mercadoria até a primeira venda
+
+O vídeo **13 — Cadastrar produto e concluir a primeira venda** não termina após salvar no Estoque. Ele segue o fluxo canônico:
+1. Em **Cadastros → Estoque → Cadastro rápido**, escolha **Produto pronto**, informe nome, preço e quantidade positiva, e mantenha marcada **Mostrar no Cardápio e no Balcão**.
+2. Salve e confirme o texto **No Cardápio e no Balcão**. Caso o status informe **Não publicado**, não prossiga supondo que o produto esteja disponível: revise a quantidade e a publicação.
+3. Use **Ir para o Balcão**, procure o produto por nome e clique no cartão para adicioná-lo à venda. Confira o item no carrinho.
+4. Clique em **Finalizar venda (F12)**. Para a demonstração, o caixa já estará aberto no ambiente isolado de testes; em uma loja real, o sistema solicitará a abertura do caixa caso necessário.
+5. Confira o pagamento em **Dinheiro** e clique em **Concluir venda**. O tutorial só pode terminar depois de o PDV exibir **Venda … finalizada**. A venda do vídeo é criada apenas no ambiente descartável de QA e nunca no banco de um cliente.
+
+Esse percurso é automatizado em `qa/demo/tutorials/13-cadastrar-produto.json` e validado pelo teste `test/tutorial-product-to-sale.test.js`. O CI gera `tutorial-13-cadastro-ate-venda` como artefato de vídeo a partir do próprio sistema. O roteiro pode ser reproduzido localmente sem SaaS ou serviço pago obrigatório.
+
 Para lotes maiores, **Estoque → Importar planilha** aponta para o importador CSV/XLSX existente em Configurações, com prévia obrigatória.
 
 ## Segurança e continuidade
