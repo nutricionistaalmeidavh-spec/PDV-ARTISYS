@@ -35,7 +35,7 @@ async function setupTutorial(page,scenario,runtimeContext){
       return completed;
     }
 
-    if(scenario!=='product-create')await ensureProduct();
+    if(scenario==='product-create')await ensureCash(); // Tutoriais de cadastro vendem pelo Balcão com caixa já aberto no ambiente isolado de QA.\n    if(scenario!=='product-create')await ensureProduct();
     if(!['product-create','user-create','permissions','pair-terminal','printer-config','printer-diagnostics','backup','restore','modules'].includes(scenario))await ensureCustomer();
 
     if(['sale-history','return','commissions'].includes(scenario))await completeTutorialSale();
