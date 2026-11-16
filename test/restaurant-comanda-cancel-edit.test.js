@@ -85,9 +85,15 @@ test('P0 cancelamento proíbe produção em andamento sem autorização extra e 
     const result=f.rt.restaurant.cancelSession(session.id,{reason:'Gerente autorizou',allowProduction:true,actor:{kind:'human',userId:f.manager.id}});
     assert.equal(result.status,'CANCELLED');
     const next=f.rt.restaurant.openTable(f.table.id,{operatorId:f.cashier.id});
-    f.rt.restaurant.addOrder(next.id,{items:[{productId:f.direct.id}]});
-    f.rt.db.prepare("INSERT INTO restaurant_settlements(id,table_session_id,sale_id,amount_cents,service_charge_cents,status,created_at) VALUES(?,?,?,?,?,'COMPLETED',?)")
-      .run('settled-qa',next.id,null,650,0,'2026-11-16T12:30:00Z');
+    f.rt.restaurant.addOrder(next.id,{items:[{productId:f.direct.id,quantity:2}]});
+    const billItem=f.rt.restaurantSettlement.getRemainingBalance(next.id).items[0];
+    f.rt.cash.openSession({terminalId:'PDV-01',operatorId:f.cashier.id,initialCashCents:0,actor:{userId:f.cashier.id}});
+    const split=f.rt.restaurantSettlement.createItemSettlement(next.id,{
+      terminalId:'PDV-01',operatorId:f.cashier.id,items:[{orderItemId:billItem.orderItemId,quantity:1}]
+    },{kind:'human',userId:f.cashier.id});
+    f.rt.restaurantSettlement.completeSettlement(split.settlement.id,{
+      payments:[{method:'CASH',amountCents:650}]
+    },{kind:'human',userId:f.cashier.id});
     assert.throws(()=>f.rt.restaurant.cancelSession(next.id,{reason:'Pagamento registrado'}),/pagamento|cobrança|divisão/i);
     assert.equal(f.rt.restaurant.getSession(next.id).status,'OPEN');
   }finally{f.close();}
