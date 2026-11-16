@@ -110,3 +110,45 @@ test('E33 canonical schema and sources no longer expose TABLET',()=>{
     assert.equal(order.source,'TABLE');
   }finally{ctx.close();}
 });
+
+
+test('Caixa autenticado adiciona itens a comanda aberta sem obter privilegio de administrar mesas',async()=>{
+  const ctx=fixture({persistent:true});let server;
+  try{
+    const {runtime,table,user}=ctx;
+    const operator=runtime.catalog.createUser({
+      id:'restricted-user',username:'restricted-user',name:'Operador restrito',
+      profileId:'profile-operator',password:'senha-restrita-123'
+    });
+    const session=runtime.restaurant.openTable(table.id,{operatorId:user.id,actor:{userId:user.id}});
+    server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'local-secret'});
+    const address=await server.start();const base=`http://${address.host}:${address.port}`;
+    const login=async(username,password)=>{
+      const response=await fetch(base+'/api/v1/auth/login',{
+        method:'POST',headers:{'content-type':'application/json','x-pdv-token':'local-secret'},
+        body:JSON.stringify({username,password,terminalId:'PDV-01'})
+      });
+      assert.equal(response.status,200);
+      return(await response.json()).sessionToken;
+    };
+    const cashierToken=await login('operador','senha-forte-123');
+    const operatorToken=await login(operator.username,'senha-restrita-123');
+    const headers=token=>({'x-pdv-token':'local-secret','content-type':'application/json',authorization:`Bearer ${token}`});
+    const details=await fetch(base+`/api/v1/restaurant/sessions/${session.id}`,{headers:headers(cashierToken)});
+    assert.equal(details.status,200);
+    const deniedRead=await fetch(base+`/api/v1/restaurant/sessions/${session.id}`,{headers:headers(operatorToken)});
+    assert.equal(deniedRead.status,403);
+    const add=token=>fetch(base+`/api/v1/restaurant/sessions/${session.id}/orders`,{
+      method:'POST',headers:headers(token),
+      body:JSON.stringify({operatorId:user.id,items:[{productId:'p1',quantity:2}]})
+    });
+    const denied=await add(operatorToken);assert.equal(denied.status,403);
+    const allowed=await add(cashierToken);assert.equal(allowed.status,201);
+    assert.equal(runtime.restaurant.getSession(session.id).orders.length,1);
+    assert.equal(runtime.restaurant.getSession(session.id).orders[0].totalCents,5180);
+    const forbidden=await fetch(base+`/api/v1/restaurant/tables/${table.id}/open`,{
+      method:'POST',headers:headers(cashierToken),body:'{}'
+    });
+    assert.equal(forbidden.status,403);
+  }finally{if(server)await server.stop();ctx.close();}
+});
