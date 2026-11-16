@@ -136,3 +136,27 @@ test('P4 blocking and credential rotation remain device-authentication concerns'
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,rotated.credential).ok,true);
   }finally{runtime.close();}
 });
+
+
+test('Caixa padrão pode consultar, acrescentar e corrigir itens de comandas, sem administrar mesas ou perfis',()=>{
+  const runtime=fixture();
+  try{
+    const cashierProfile=runtime.profiles.getProfile('profile-cashier');
+    for(const permission of ['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.cancel']){
+      assert.equal(cashierProfile.permissions.includes(permission),true,permission);
+    }
+    for(const forbidden of ['restaurant.orders.transfer','restaurant.tables.manage','profiles.edit','settings.manage']){
+      assert.equal(cashierProfile.permissions.includes(forbidden),false,forbidden);
+    }
+    const cashier=runtime.catalog.createUser({
+      id:'cashier-with-commands',
+      username:'cashier-with-commands',
+      name:'Operadora de caixa',
+      profileId:'profile-cashier',
+      password:'senha-caixa-123'
+    });
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.create'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.cancel'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.transfer'}),false);
+  }finally{runtime.close();}
+});
