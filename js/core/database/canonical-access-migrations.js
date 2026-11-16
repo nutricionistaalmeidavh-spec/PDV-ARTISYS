@@ -94,8 +94,40 @@ function runCanonicalAccessMigrations(db,now=()=>new Date().toISOString()){
   return CANONICAL_ACCESS_SCHEMA_VERSION;
 }
 
+const CASHIER_COMMANDS_SCHEMA_VERSION=35;
+const CASHIER_COMMANDS_MIGRATION_NAME='pdv_cashier_default_comanda_permissions_v35';
+const CASHIER_COMMAND_PERMISSIONS=Object.freeze([
+  'restaurant.access',
+  'restaurant.orders.view',
+  'restaurant.orders.create',
+  'restaurant.orders.cancel'
+]);
+
+// Existing installations already have protected default profiles in SQLite.
+// Add only the new cashier grants; never replace assignments or custom profiles.
+function runCashierDefaultCommandsMigration(db,now=()=>new Date().toISOString()){
+  if(!db)throw new TypeError('Database is required.');
+  if(db.prepare('SELECT 1 FROM schema_migrations WHERE version=?').get(CASHIER_COMMANDS_SCHEMA_VERSION)){
+    return CASHIER_COMMANDS_SCHEMA_VERSION;
+  }
+  withTransaction(db,()=>{
+    const existing=db.prepare('SELECT 1 FROM profiles WHERE id=? AND system_key=? AND protected=1')
+      .get(DEFAULT_PROFILE_IDS.CASHIER,'cashier');
+    if(!existing)throw new Error('Perfil Caixa padrao nao encontrado.');
+    const insert=db.prepare('INSERT OR IGNORE INTO profile_permissions(profile_id,permission_id,created_at) VALUES(?,?,?)');
+    const timestamp=now();
+    for(const permission of CASHIER_COMMAND_PERMISSIONS)insert.run(DEFAULT_PROFILE_IDS.CASHIER,permission,timestamp);
+    db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+      .run(CASHIER_COMMANDS_SCHEMA_VERSION,CASHIER_COMMANDS_MIGRATION_NAME,timestamp);
+  });
+  return CASHIER_COMMANDS_SCHEMA_VERSION;
+}
+
 module.exports={
   CANONICAL_ACCESS_SCHEMA_VERSION,
   CANONICAL_ACCESS_MIGRATION_NAME,
-  runCanonicalAccessMigrations
+  runCanonicalAccessMigrations,
+  runCashierDefaultCommandsMigration,
+  CASHIER_COMMANDS_SCHEMA_VERSION,
+  CASHIER_COMMAND_PERMISSIONS
 };
