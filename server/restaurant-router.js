@@ -173,6 +173,36 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='POST'&&tableService){const data=await body(request);json(response,201,runtime.restaurant.requestService(decodeURIComponent(tableService[1]),data.requestType,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
     if(request.method==='GET'&&sessionGet){requireHumanCapability('restaurant.orders.view');const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
+    // Only authenticated humans can mutate an existing command.
+    const requireLoggedCapability=capability=>{
+      if(principal.kind!=='human')throw new RestaurantHttpError(401,'Faça login para alterar comandas.');
+      requireHumanCapability(capability);
+    };
+    const editItem=pathname.match(/^\/api\/v1\/restaurant\/order-items\/([^/]+)$/);
+    if(request.method==='PATCH'&&editItem){
+      requireLoggedCapability('restaurant.orders.edit');
+      const data=await body(request);
+      const result=await mutate(request,pathname,200,async()=>{
+        const item=runtime.restaurant.updateOrderItem(decodeURIComponent(editItem[1]),data,actor);
+        await runtime.dispatchPending();
+        return item;
+      });
+      json(response,result.statusCode,result.payload);return true;
+    }
+    const cancelSession=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/cancel$/);
+    if(request.method==='POST'&&cancelSession){
+      requireLoggedCapability('restaurant.sessions.cancel');
+      const data=await body(request);
+      if(data.allowProduction)requireLoggedCapability('restaurant.sessions.cancel.production');
+      const result=await mutate(request,pathname,200,async mutationId=>{
+        const session=runtime.restaurant.cancelSession(decodeURIComponent(cancelSession[1]),{
+          reason:data.reason,allowProduction:data.allowProduction===true,actor,mutationId
+        });
+        await runtime.dispatchPending();
+        return session;
+      });
+      json(response,result.statusCode,result.payload);return true;
+    }
     const waiterAssign=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/waiter$/);
     if(request.method==='PATCH'&&waiterAssign){requireHumanCapability('restaurant.tables.manage');const data=await body(request);json(response,200,runtime.restaurant.assignWaiter(decodeURIComponent(waiterAssign[1]),data.waiterId||null,actor));return true;}
     const sessionDetails=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/details$/);
