@@ -480,7 +480,22 @@
       const filterButtons=[...root.querySelectorAll('[data-checkout-document-filter]')];
       let activeFilter='';let timer=null;
       const render=rows=>{
-        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong><button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}" data-checkout-document-sale="${escapeHtml(row.saleId||'')}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
+        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong>${row.type==='COMMAND'&&canAccessRoute('FOOD')&&window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.orders.create')?`<button type="button" class="secondary-button" data-edit-checkout-command="${escapeHtml(row.id)}">Editar comanda</button>`:''}<button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}" data-checkout-document-sale="${escapeHtml(row.saleId||'')}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
+        host.querySelectorAll('[data-edit-checkout-command]').forEach(button=>button.addEventListener('click',async()=>{
+          const sessionId=String(button.dataset.editCheckoutCommand||'');
+          if(!sessionId||!rows.some(row=>row.type==='COMMAND'&&String(row.id)===sessionId))return;
+          if(!canAccessRoute('FOOD')||!window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.orders.create')){
+            showToast('Seu perfil não permite editar comandas.','error');
+            return;
+          }
+          button.disabled=true;
+          try{
+            closeModal();
+            await navigate('FOOD');
+            if(!window.PdvRestaurantUi?.show)throw new Error('Tela de comandas indisponível.');
+            await window.PdvRestaurantUi.show(sessionId);
+          }catch(error){showToast(error.message,'error');}
+        }));
         host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
           const split=button.dataset.openCheckoutDocument.indexOf(':');
           const type=button.dataset.openCheckoutDocument.slice(0,split);
