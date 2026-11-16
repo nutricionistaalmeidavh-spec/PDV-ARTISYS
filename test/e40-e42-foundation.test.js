@@ -6,7 +6,7 @@ const { createPdvRuntime }=require('../js/core/pdv-runtime');
 
 function ids(){let n=0;return prefix=>`${prefix}-${++n}`;}
 function actor(){return{userId:'admin-1',profileId:'profile-administrator',terminalId:'pdv-1'};}
-function runtime(){return createPdvRuntime({dbPath:':memory:',idFactory:ids(),now:(()=>{let i=0;return()=>`2026-09-11T00:00:${String(i++).padStart(2,'0')}.000Z`;})()});}
+function runtime(){return createPdvRuntime({dbPath:':memory:',idFactory:ids(),now:(()=>{let i=0;return()=>new Date(Date.UTC(2026,8,11)+1000*i++).toISOString();})()});}
 
 function seed(rt){
   rt.catalog.createUser({id:'admin-1',username:'admin',name:'Admin',profileId:'profile-administrator',password:'1234567890'},actor());
