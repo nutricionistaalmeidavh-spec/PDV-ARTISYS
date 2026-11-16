@@ -10,7 +10,10 @@
   border-radius:7px;
   background:var(--surface-subtle,#f5f8fc);
   color:var(--text-label,#53627f);
-  font:600 11px/1.25 inherit;
+  font-family:inherit;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.25;
   cursor:pointer;
 }
 .checkout-clarity-footer .checkout-density-toggle::before {
