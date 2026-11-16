@@ -52,7 +52,8 @@ const DEFAULT_PROFILE_PERMISSIONS=Object.freeze({
     'returns.view','returns.manage',
     'cash.view','cash.open','cash.close','cash.supply','cash.withdraw',
     'customers.view','customers.manage','products.view',
-    'restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.cancel'
+    'restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.cancel',
+    'restaurant.orders.edit','restaurant.sessions.cancel'
   ])),
   OPERATOR:Object.freeze(unique([
     'sales.view','sales.create','returns.view',
