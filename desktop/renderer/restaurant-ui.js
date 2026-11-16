@@ -130,6 +130,52 @@
   }
   async function reload(sessionId=selectedSessionId){await load();selectedSessionId=sessionId;render();}
 
+  function openComandaDialog(title,bodyHtml,onSubmit){
+    if(!modalRoot)return toast('Janela de confirmação indisponível.','error');
+    modalRoot.classList.remove('hidden');
+    modalRoot.innerHTML=`<section class="modal-card" role="dialog" aria-modal="true" aria-label="${esc(title)}"><header class="modal-head"><h2>${esc(title)}</h2><button type="button" class="modal-close" data-comanda-dismiss aria-label="Fechar">×</button></header><div class="modal-body"><form id="comanda-operation-form" class="restaurant-form">${bodyHtml}<div class="restaurant-actions"><button type="button" class="restaurant-btn secondary" data-comanda-dismiss>Voltar</button><button class="restaurant-btn" type="submit">Confirmar</button></div></form></div></section>`;
+    const close=()=>{modalRoot.classList.add('hidden');modalRoot.innerHTML='';};
+    modalRoot.querySelectorAll('[data-comanda-dismiss]').forEach(button=>button.addEventListener('click',close));
+    modalRoot.querySelector('#comanda-operation-form')?.addEventListener('submit',async event=>{
+      event.preventDefault();const submit=event.currentTarget.querySelector('[type="submit"]');
+      if(submit.disabled)return;submit.disabled=true;
+      try{await onSubmit(new FormData(event.currentTarget));close();}catch(error){toast(error.message,'error');submit.disabled=false;}
+    });
+  }
+
+  function openEditComandaItemModal(session,item){
+    if(!canEditItems()||session.status!=='OPEN')return;
+    openComandaDialog('Editar item já lançado',
+      `<p>Corrija a quantidade ou observação de <strong>${esc(item.productName)}</strong>. Itens em preparo ou cobrados devem ser cancelados e lançados novamente.</p>
+       <label>Quantidade<input name="quantity" type="number" min="0.001" step="0.001" max="10000" value="${esc(item.quantity)}" required></label>
+       <label>Observação<input name="note" maxlength="500" value="${esc(item.note||'')}" placeholder="Observações para o atendimento e a cozinha"></label>`,
+      async form=>{
+        await request(`/api/v1/restaurant/order-items/${encodeURIComponent(item.id)}`,{
+          method:'PATCH',body:{quantity:Number(form.get('quantity')),note:String(form.get('note')||'')},mutationId:api.mutationId()
+        });
+        toast('Item da comanda atualizado.','success');
+        await reload(session.id);
+      });
+  }
+
+  function openCancelComandaModal(session){
+    if(!canCancelSession()||session.status!=='OPEN')return;
+    const manager=hasPermission('restaurant.sessions.cancel.production');
+    openComandaDialog('Cancelar comanda inteira',
+      `<p>Esta ação libera a mesa e cancela os pedidos e tickets do KDS. O histórico será preservado; pagamentos registrados impedem o cancelamento.</p>
+       <p><strong>${esc(session.tableLabel)} · ${money(session.totalCents)}</strong></p>
+       <label>Motivo do cancelamento<textarea name="reason" rows="3" minlength="3" maxlength="500" required placeholder="Explique por que a comanda será cancelada"></textarea></label>
+       ${manager?'<label><input type="checkbox" name="allowProduction" value="yes"> Autorizar cancelamento mesmo com preparo iniciado</label>':''}`,
+      async form=>{
+        await request(`/api/v1/restaurant/sessions/${encodeURIComponent(session.id)}/cancel`,{
+          method:'POST',body:{reason:String(form.get('reason')||'').trim(),allowProduction:manager&&form.get('allowProduction')==='yes'},mutationId:api.mutationId()
+        });
+        toast('Comanda cancelada; mesa liberada.','success');
+        draftCart.clear();draftSessionId=null;selectedSessionId=null;
+        await reload(null);
+      });
+  }
+
   function openTableModal(table){
     if(!modalRoot)return;
     modalRoot.classList.remove('hidden');
