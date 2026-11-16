@@ -13,7 +13,23 @@ function createNonFiscalPrintService({printService,storeName='ArtiSys',width=42,
   function tablePreBill(session,{printerName=null}={}){if(!session?.id)throw new Error('Comanda invalida.');return queue({type:'TABLE_PREBILL',entityType:'table-session',entityId:session.id,text:renderTablePreBill({storeName,session,width}),printerName});}
   function kitchenTicket(ticket,{printerName=null,id=null}={}){if(!ticket?.id)throw new Error('Pedido de cozinha invalido.');return queue({id,type:'KITCHEN_TICKET',entityType:'kitchen-ticket',entityId:ticket.id,text:renderKitchenTicket({storeName,ticket,width}),printerName:printerName??ticket.printerName});}
   function cashClose(session,{printerName=null,id=null}={}){if(!session?.id)throw new Error('Caixa invalido.');return queue({id,type:'CASH_CLOSE',entityType:'cash-session',entityId:session.id,text:renderCashClose({storeName,session,width}),printerName,terminalId:session.terminalId});}
-  return{saleReceipt,tablePreBill,kitchenTicket,cashClose};
+  function kitchenChangeNotice(ticket,{action='ALTERACAO DE ITEM',reason='',id=null}={}){
+    if(!ticket?.id)throw new Error('Ticket de cozinha invalido.');
+    const clean=value=>String(value||'').replace(/[\r\n]+/g,' ').slice(0,150);
+    const lines=[
+      storeName,
+      '*** '+clean(action)+' ***',
+      'Mesa: '+clean(ticket.tableLabel),
+      'Setor: '+clean(ticket.stationName),
+      'Ticket: '+clean(ticket.id),
+      ...((ticket.items||[]).map(item=>String(item.quantity)+'x '+clean(item.productName)+(item.note?' - '+clean(item.note):''))),
+      ...(reason?['Motivo: '+clean(reason)]:[]),
+      'Comprovante operacional nao fiscal'
+    ];
+    return queue({id,type:'KITCHEN_TICKET',entityType:'kitchen-ticket',entityId:ticket.id,
+      text:lines.join('\n'),printerName:ticket.printerName||null});
+  }
+  return{saleReceipt,tablePreBill,kitchenTicket,kitchenChangeNotice,cashClose};
 }
 
 module.exports={createNonFiscalPrintService};
