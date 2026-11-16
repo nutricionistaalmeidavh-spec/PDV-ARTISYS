@@ -10,17 +10,40 @@ function text(response,statusCode,payload,type='text/plain; charset=utf-8'){resp
 async function body(request,limit=1024*1024){let size=0;const chunks=[];for await(const chunk of request){size+=chunk.length;if(size>limit)throw new RestaurantHttpError(413,'Corpo da requisicao excede o limite permitido.');chunks.push(chunk);}if(!chunks.length)return{};try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new RestaurantHttpError(400,'JSON invalido.');}}
 function filters(url,names){const result={};for(const name of names){const value=url.searchParams.get(name);if(value!==null&&value!=='')result[name]=value;}return result;}
 
-function createRestaurantRouter({runtime,installationToken='',requireTerminalAuth=false,mobileDir=path.join(__dirname,'mobile')}={}){
+function createRestaurantRouter({runtime,installationToken='',requireTerminalAuth=false,sessionStore=null,mobileDir=path.join(__dirname,'mobile')}={}){
   if(!runtime)throw new TypeError('runtime is required.');
 
   function desktopPrincipal(request){
+    let terminalId=null;
     if(requireTerminalAuth){
-      const id=String(request.headers['x-terminal-id']||'').trim();const key=String(request.headers['x-terminal-key']||'');
-      const auth=runtime.terminals.authenticateTerminal(id,key);if(!auth.ok)throw new RestaurantHttpError(401,'Terminal nao autorizado.');
-      return{kind:'terminal',terminalId:id,actor:{kind:'device',id,surface:'terminal',userId:null,terminalId:id}};
+      const id=String(request.headers['x-terminal-id']||'').trim();
+      const key=String(request.headers['x-terminal-key']||'');
+      const auth=runtime.terminals.authenticateTerminal(id,key);
+      if(!auth.ok)throw new RestaurantHttpError(401,'Terminal nao autorizado.');
+      terminalId=id;
+    }else if(installationToken&&request.headers['x-pdv-token']!==installationToken){
+      throw new RestaurantHttpError(401,'Token local invalido.');
     }
-    if(installationToken&&request.headers['x-pdv-token']!==installationToken)throw new RestaurantHttpError(401,'Token local invalido.');
-    return{kind:'local',terminalId:null,actor:{kind:'system',id:'system',terminalId:null}};
+    const authorization=String(request.headers.authorization||'');
+    const token=authorization.startsWith('Bearer ')?authorization.slice(7).trim():'';
+    if(token&&sessionStore){
+      const session=sessionStore.get(token);
+      if(!session||session.expiresAt<=Date.now()){
+        if(session)sessionStore.delete(token);
+        throw new RestaurantHttpError(401,'Sessao invalida ou expirada.');
+      }
+      if(requireTerminalAuth&&session.terminalId&&session.terminalId!==terminalId){
+        throw new RestaurantHttpError(403,'Sessao de outro terminal.');
+      }
+      const user=runtime.catalog?.getUser?.(session.userId);
+      if(!user||user.active===false)throw new RestaurantHttpError(401,'Usuario sem acesso ativo.');
+      return{kind:'human',principal:{kind:'human',id:session.userId},
+        terminalId:terminalId||session.terminalId||null,
+        actor:{kind:'human',userId:session.userId,terminalId:terminalId||session.terminalId||null}};
+    }
+    return requireTerminalAuth
+      ?{kind:'terminal',terminalId,actor:{kind:'device',id:terminalId,surface:'terminal',userId:null,terminalId}}
+      :{kind:'local',terminalId:null,actor:{kind:'system',id:'system',terminalId:null}};
   }
 
   function mobilePrincipal(request,types=null){
@@ -128,6 +151,11 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(!pathname.startsWith('/api/v1/restaurant/'))return false;
     const principal=desktopPrincipal(request);const actor=principal.actor;
     requireRestaurantEnabled();
+    const requireHumanCapability=capability=>{
+      if(principal.kind==='human'){
+        runtime.authorization.require({principal:principal.principal,capability});
+      }
+    };
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.getConfig());return true;}
     if(request.method==='PUT'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/menu'){json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
@@ -137,26 +165,26 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='GET'&&publicTableQr){json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQr[1]),actor));return true;}
     const publicTableQrRotate=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
     if(request.method==='POST'&&publicTableQrRotate){json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQrRotate[1]),actor,{rotate:true,input:await body(request)}));return true;}
-    if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
-    if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
+    if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){requireHumanCapability('restaurant.orders.view');json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){requireHumanCapability('restaurant.tables.manage');json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
     const tableOpen=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/open$/);
-    if(request.method==='POST'&&tableOpen){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,waiterId:data.waiterId||null,partySize:data.partySize??null,customerId:data.customerId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&tableOpen){requireHumanCapability('restaurant.tables.manage');const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>runtime.restaurant.openTable(decodeURIComponent(tableOpen[1]),{operatorId:data.operatorId||null,waiterId:data.waiterId||null,partySize:data.partySize??null,customerId:data.customerId||null,actor:{...actor,userId:data.operatorId||actor.userId},mutationId}));json(response,result.statusCode,result.payload);return true;}
     const tableService=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/service$/);
     if(request.method==='POST'&&tableService){const data=await body(request);json(response,201,runtime.restaurant.requestService(decodeURIComponent(tableService[1]),data.requestType,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
-    if(request.method==='GET'&&sessionGet){const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
+    if(request.method==='GET'&&sessionGet){requireHumanCapability('restaurant.orders.view');const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
     const waiterAssign=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/waiter$/);
-    if(request.method==='PATCH'&&waiterAssign){const data=await body(request);json(response,200,runtime.restaurant.assignWaiter(decodeURIComponent(waiterAssign[1]),data.waiterId||null,actor));return true;}
+    if(request.method==='PATCH'&&waiterAssign){requireHumanCapability('restaurant.tables.manage');const data=await body(request);json(response,200,runtime.restaurant.assignWaiter(decodeURIComponent(waiterAssign[1]),data.waiterId||null,actor));return true;}
     const sessionDetails=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/details$/);
-    if(request.method==='PATCH'&&sessionDetails){const data=await body(request);json(response,200,runtime.restaurant.updateSessionDetails(decodeURIComponent(sessionDetails[1]),{partySize:data.partySize,customerId:data.customerId},actor));return true;}
+    if(request.method==='PATCH'&&sessionDetails){requireHumanCapability('restaurant.tables.manage');const data=await body(request);json(response,200,runtime.restaurant.updateSessionDetails(decodeURIComponent(sessionDetails[1]),{partySize:data.partySize,customerId:data.customerId},actor));return true;}
     const orderAdd=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/orders$/);
-    if(request.method==='POST'&&orderAdd){const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:prepareMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:data.operatorId||actor.userId},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&orderAdd){requireHumanCapability('restaurant.orders.create');const data=await body(request);const result=await mutate(request,pathname,201,async mutationId=>{const order=runtime.restaurant.addOrder(decodeURIComponent(orderAdd[1]),{items:prepareMenuItems(data.items||[]),note:data.note||'',source:'DESKTOP',actor:{...actor,userId:principal.kind==='human'?actor.userId:(data.operatorId||actor.userId)},mutationId});const dispatch=await runtime.dispatchPending();return{order,dispatch};});json(response,result.statusCode,result.payload);return true;}
     const transfer=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/transfer$/);
-    if(request.method==='POST'&&transfer){const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(transfer[1]),data.targetTableId,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
+    if(request.method==='POST'&&transfer){requireHumanCapability('restaurant.orders.transfer');const data=await body(request);json(response,200,runtime.restaurant.transferTable(decodeURIComponent(transfer[1]),data.targetTableId,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const checkout=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/checkout$/);
-    if(request.method==='POST'&&checkout){const data=await body(request);if(!data.operatorId)throw new RestaurantHttpError(400,'Operador obrigatorio.');const terminalId=data.terminalId||principal.terminalId;if(!terminalId)throw new RestaurantHttpError(400,'Terminal obrigatorio.');const result=await mutate(request,pathname,200,async mutationId=>runtime.restaurant.checkoutToSale(decodeURIComponent(checkout[1]),{terminalId,operatorId:data.operatorId,actor:{...actor,userId:data.operatorId},mutationId},runtime.sales));json(response,result.statusCode,result.payload);return true;}
+    if(request.method==='POST'&&checkout){requireHumanCapability('sales.create');const data=await body(request);if(!data.operatorId)throw new RestaurantHttpError(400,'Operador obrigatorio.');const terminalId=data.terminalId||principal.terminalId;if(!terminalId)throw new RestaurantHttpError(400,'Terminal obrigatorio.');const result=await mutate(request,pathname,200,async mutationId=>runtime.restaurant.checkoutToSale(decodeURIComponent(checkout[1]),{terminalId,operatorId:data.operatorId,actor:{...actor,userId:data.operatorId},mutationId},runtime.sales));json(response,result.statusCode,result.payload);return true;}
     const prebill=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)\/prebill$/);
-    if(request.method==='POST'&&prebill){const session=runtime.restaurant.getSession(decodeURIComponent(prebill[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,201,runtime.nonFiscalPrinting.tablePreBill(session,await body(request)));return true;}
+    if(request.method==='POST'&&prebill){requireHumanCapability('restaurant.orders.view');const session=runtime.restaurant.getSession(decodeURIComponent(prebill[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,201,runtime.nonFiscalPrinting.tablePreBill(session,await body(request)));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/requests'){json(response,200,runtime.restaurant.listServiceRequests(filters(url,['status','requestType'])));return true;}
     const reqUpdate=pathname.match(/^\/api\/v1\/restaurant\/requests\/([^/]+)$/);
     if(request.method==='PATCH'&&reqUpdate){const data=await body(request);json(response,200,runtime.restaurant.updateServiceRequest(decodeURIComponent(reqUpdate[1]),data.status,actor));return true;}
