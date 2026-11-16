@@ -71,6 +71,9 @@ test('P0 cancelar comanda com tickets NEW suspende KDS e mantém histórico de p
     assert.equal(cancelled.orders[0].status,'CANCELLED');
     assert.equal(f.rt.restaurant.listTables().find(t=>t.id===f.table.id).status,'FREE');
     assert.equal(f.rt.kitchen.listTickets().filter(t=>t.orderId===order.id)[0].status,'CANCELLED');
+    await f.rt.dispatchPending();
+    const printJobs=f.rt.printing.listJobs({type:'KITCHEN_TICKET'});
+    assert.ok(printJobs.some(job=>String(job.payload?.text||'').includes('COMANDA CANCELADA')));
   }finally{f.close();}
 });
 
