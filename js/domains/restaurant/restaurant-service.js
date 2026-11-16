@@ -4,13 +4,14 @@ const { randomUUID } = require('node:crypto');
 const { withTransaction } = require('../../core/database/sqlite-database');
 const { writeAudit } = require('../../core/audit-log');
 const { roundQuantity } = require('../inventory/inventory-rules');
+const { principalFromActor } = require('../../core/auth/principal-resolver');
 
 const ACTIVE_SESSION_STATUSES = ['OPEN', 'CHECKOUT'];
 const ORDER_SOURCES = new Set(['DESKTOP', 'WAITER', 'TABLE']);
 const SERVICE_TYPES = new Set(['WAITER', 'BILL']);
 const SERVICE_STATUSES = new Set(['OPEN', 'ACKNOWLEDGED', 'CLOSED']);
 
-function createRestaurantService({ db, outbox, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
+function createRestaurantService({ db, outbox, authorization = null, now = () => new Date().toISOString(), idFactory = prefix => `${prefix}-${randomUUID()}` } = {}) {
   if (!db || !outbox) throw new TypeError('Database and outbox are required.');
 
   function mapTable(row) {
@@ -130,11 +131,15 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     if (!row) return null;
     const orders = listOrders(row.id);
     const totalCents = orders.filter(order => order.status !== 'CANCELLED').reduce((sum, order) => sum + Number(order.totalCents || 0), 0);
+    const cancelled = db.prepare('SELECT reason,actor_id AS actorId,cancelled_at AS cancelledAt FROM restaurant_session_cancellations WHERE session_id=?').get(row.id)||null;
     return {
       id: row.id,
       tableId: row.table_id,
       tableLabel: row.table_label || getTable(row.table_id)?.label || row.table_id,
-      status: row.status,
+      status: cancelled ? 'CANCELLED' : row.status,
+      cancelReason: cancelled?.reason||null,
+      cancelledAt: cancelled?.cancelledAt||null,
+      cancelledBy: cancelled?.actorId||null,
       openedBy: row.opened_by,
       waiterId: row.waiter_id || null,
       partySize: row.party_size == null ? null : Number(row.party_size),
@@ -395,6 +400,107 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     });
   }
 
+
+  function requireActorPermission(actor,capability){
+    const principal=principalFromActor(actor);
+    if(authorization&&principal?.kind==='human')authorization.require({principal,capability});
+  }
+
+  // Editing affects only unsettled items on open commands. Printed production
+  // orders get an explicit correction event; items already being prepared cannot
+  // be silently changed.
+  function updateOrderItem(orderItemId,input={},actor={}){
+    requireActorPermission(actor,'restaurant.orders.edit');
+    return withTransaction(db,()=>{
+      const item=db.prepare(`SELECT i.*,o.table_session_id,o.status AS order_status,s.status AS session_status
+        FROM restaurant_order_items i
+        JOIN restaurant_orders o ON o.id=i.order_id
+        JOIN table_sessions s ON s.id=o.table_session_id
+        WHERE i.id=?`).get(String(orderItemId));
+      if(!item)throw new Error('Item da comanda nao encontrado.');
+      if(item.session_status!=='OPEN'||item.order_status==='CANCELLED')throw new Error('Comanda nao esta aberta para editar itens.');
+      if(db.prepare('SELECT 1 FROM restaurant_item_cancellations WHERE order_item_id=?').get(item.id))throw new Error('Item cancelado nao pode ser editado.');
+      const settled=db.prepare(`SELECT 1 FROM restaurant_settlement_items si
+        JOIN restaurant_settlements s ON s.id=si.settlement_id
+        WHERE si.order_item_id=? AND s.status IN('OPEN','COMPLETED') LIMIT 1`).get(item.id);
+      if(settled)throw new Error('Item com cobrança ou pagamento nao pode ser editado.');
+      const tickets=db.prepare(`SELECT kt.id,kt.status FROM kitchen_tickets kt
+        JOIN kitchen_ticket_items kti ON kti.ticket_id=kt.id
+        WHERE kti.order_item_id=?`).all(item.id);
+      if(tickets.some(ticket=>ticket.status!=='NEW'))
+        throw new Error('Item ja enviado ao preparo ou concluido na cozinha. Cancele o item e lance o pedido correto.');
+      const quantity=Object.prototype.hasOwnProperty.call(input,'quantity')
+        ? roundQuantity(Number(input.quantity)) : Number(item.quantity);
+      if(!Number.isFinite(quantity)||quantity<=0)throw new Error('Quantidade deve ser maior que zero.');
+      if(quantity>10000)throw new Error('Quantidade excede o limite permitido.');
+      const note=Object.prototype.hasOwnProperty.call(input,'note')
+        ? String(input.note??'').trim().slice(0,500)||null:item.note;
+      if(quantity===Number(item.quantity)&&note===item.note){
+        return getOrder(item.order_id).items.find(row=>row.id===item.id);
+      }
+      const newTotal=Math.round(Number(item.unit_price_cents)*quantity);
+      const ts=now();
+      db.prepare('UPDATE restaurant_order_items SET quantity=?,note=?,total_cents=? WHERE id=?')
+        .run(quantity,note,newTotal,item.id);
+      db.prepare('UPDATE restaurant_orders SET total_cents=MAX(total_cents+?,0),updated_at=? WHERE id=?')
+        .run(newTotal-Number(item.total_cents),ts,item.order_id);
+      db.prepare('UPDATE kitchen_ticket_items SET quantity=?,note=? WHERE order_item_id=?')
+        .run(quantity,note,item.id);
+      const event=insertEvent({type:'restaurant.order-item-updated',aggregate:'restaurant-order',aggregateId:item.order_id,
+        actor,payload:{orderItemId:item.id,tableSessionId:item.table_session_id,ticketIds:tickets.map(ticket=>ticket.id),
+          previousQuantity:Number(item.quantity),quantity}});
+      writeAudit(db,{action:'restaurant.order.item.update',entity:'restaurant_order_item',entityId:item.id,actor,
+        context:{sessionId:item.table_session_id,oldQuantity:Number(item.quantity),quantity,
+          oldNote:item.note||null,note,eventId:event.eventId}},now);
+      return getOrder(item.order_id).items.find(row=>row.id===item.id);
+    });
+  }
+
+  // Keep SQLite's canonical CLOSED state to avoid rebuilding referenced tables.
+  // Cancellation is distinguished durably by its own tombstone and projected as
+  // CANCELLED in getSession; orders/tickets remain for audit but are non-operable.
+  function cancelSession(sessionId,{reason='',allowProduction=false,actor={},mutationId=null}={}){
+    requireActorPermission(actor,'restaurant.sessions.cancel');
+    return withTransaction(db,()=>{
+      const id=String(sessionId||'');
+      const row=db.prepare('SELECT * FROM table_sessions WHERE id=?').get(id);
+      if(!row)throw new Error('Comanda nao encontrada.');
+      const previous=db.prepare('SELECT 1 FROM restaurant_session_cancellations WHERE session_id=?').get(id);
+      if(previous)return getSession(id);
+      if(row.status!=='OPEN'||row.checkout_sale_id)
+        throw new Error('Comanda em cobrança ou encerrada nao pode ser cancelada. Resolva a venda primeiro.');
+      const normalizedReason=String(reason||'').trim();
+      if(normalizedReason.length<3||normalizedReason.length>500)
+        throw new Error('Informe o motivo do cancelamento (3 a 500 caracteres).');
+      if(db.prepare(`SELECT 1 FROM restaurant_settlements WHERE table_session_id=? AND status IN('OPEN','COMPLETED') LIMIT 1`).get(id))
+        throw new Error('Comanda com divisão de conta ou pagamento registrado nao pode ser cancelada.');
+      const tickets=db.prepare(`SELECT kt.id,kt.status FROM kitchen_tickets kt
+        JOIN restaurant_orders o ON o.id=kt.order_id WHERE o.table_session_id=?`).all(id);
+      const started=tickets.some(ticket=>ticket.status==='PREPARING'||ticket.status==='READY');
+      if(started){
+        if(!allowProduction)throw new Error('Produção iniciada ou pronta: solicite autorização gerencial para cancelar.');
+        requireActorPermission(actor,'restaurant.sessions.cancel.production');
+      }
+      const ts=now();
+      db.prepare(`INSERT INTO restaurant_session_cancellations(session_id,reason,actor_id,cancelled_at)
+        VALUES(?,?,?,?)`).run(id,normalizedReason,actor.userId||null,ts);
+      db.prepare("UPDATE restaurant_orders SET status='CANCELLED',updated_at=? WHERE table_session_id=? AND status<>'CANCELLED'")
+        .run(ts,id);
+      db.prepare("UPDATE kitchen_tickets SET status='CANCELLED',updated_at=? WHERE order_id IN (SELECT id FROM restaurant_orders WHERE table_session_id=?) AND status<>'CANCELLED'")
+        .run(ts,id);
+      db.prepare("UPDATE service_requests SET status='CLOSED',updated_at=? WHERE table_session_id=? AND status<>'CLOSED'")
+        .run(ts,id);
+      const updated=db.prepare("UPDATE table_sessions SET status='CLOSED',closed_at=?,updated_at=? WHERE id=? AND status='OPEN' AND checkout_sale_id IS NULL")
+        .run(ts,ts,id);
+      if(updated.changes!==1)throw new Error('Comanda nao esta mais aberta. Atualize a tela.');
+      const event=insertEvent({type:'restaurant.session-cancelled',aggregate:'table-session',aggregateId:id,
+        actor,mutationId,payload:{tableId:row.table_id,reason:normalizedReason,ticketIds:tickets.filter(t=>t.status!=='CANCELLED').map(t=>t.id)}});
+      writeAudit(db,{action:'restaurant.session.cancel',entity:'table_session',entityId:id,actor,
+        context:{reason:normalizedReason,ticketCount:tickets.length,productionOverride:Boolean(started),eventId:event.eventId}},now);
+      return getSession(id);
+    });
+  }
+
   return {
     upsertTable,
     getTable,
@@ -405,6 +511,8 @@ function createRestaurantService({ db, outbox, now = () => new Date().toISOStrin
     getSession,
     currentSession,
     addOrder,
+    updateOrderItem,
+    cancelSession,
     getOrder,
     requestService,
     listServiceRequests,

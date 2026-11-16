@@ -136,3 +136,56 @@ test('P4 blocking and credential rotation remain device-authentication concerns'
     assert.equal(runtime.deviceAccess.authenticate(kitchen.id,rotated.credential).ok,true);
   }finally{runtime.close();}
 });
+
+
+test('Caixa padrão pode consultar, acrescentar e corrigir itens de comandas, sem administrar mesas ou perfis',()=>{
+  const runtime=fixture();
+  try{
+    const cashierProfile=runtime.profiles.getProfile('profile-cashier');
+    for(const permission of ['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.cancel']){
+      assert.equal(cashierProfile.permissions.includes(permission),true,permission);
+    }
+    for(const forbidden of ['restaurant.orders.transfer','restaurant.tables.manage','profiles.edit','settings.manage']){
+      assert.equal(cashierProfile.permissions.includes(forbidden),false,forbidden);
+    }
+    const cashier=runtime.catalog.createUser({
+      id:'cashier-with-commands',
+      username:'cashier-with-commands',
+      name:'Operadora de caixa',
+      profileId:'profile-cashier',
+      password:'senha-caixa-123'
+    });
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.create'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.cancel'}),true);
+    assert.equal(runtime.authorization.can({principal:{kind:'human',id:cashier.id},capability:'restaurant.orders.transfer'}),false);
+  }finally{runtime.close();}
+});
+
+
+test('Atualização v35 concede comandas ao perfil Caixa existente sem substituir perfis personalizados',()=>{
+  const {runCashierDefaultCommandsMigration,CASHIER_COMMANDS_SCHEMA_VERSION}=require('../js/core/database/canonical-access-migrations');
+  const runtime=fixture();
+  try{
+    const cashier='profile-cashier';
+    const admin='profile-administrator';
+    const custom=runtime.profiles.createProfile({
+      name:'Somente vendas',
+      permissions:['sales.view','sales.create']
+    },{kind:'human',userId:runtime.catalog.createUser({
+      id:'a-upgrade',username:'admin-upgrade',name:'Admin Upgrade',
+      profileId:admin,password:'senha-forte-123'
+    }).id});
+    const beforeCustom=runtime.profiles.getProfile(custom.id).permissions;
+    runtime.db.prepare('DELETE FROM profile_permissions WHERE profile_id=? AND permission_id LIKE ?').run(cashier,'restaurant.%');
+    runtime.db.prepare('DELETE FROM schema_migrations WHERE version=?').run(CASHIER_COMMANDS_SCHEMA_VERSION);
+    const now=()=>new Date('2026-11-16T13:00:00.000Z').toISOString();
+    runCashierDefaultCommandsMigration(runtime.db,now);
+    runCashierDefaultCommandsMigration(runtime.db,now);
+    assert.ok(runtime.db.prepare('SELECT 1 FROM schema_migrations WHERE version=?').get(CASHIER_COMMANDS_SCHEMA_VERSION));
+    for(const permission of ['restaurant.access','restaurant.orders.view','restaurant.orders.create','restaurant.orders.cancel']){
+      assert.equal(runtime.db.prepare('SELECT COUNT(*) AS n FROM profile_permissions WHERE profile_id=? AND permission_id=?').get(cashier,permission).n,1);
+    }
+    assert.deepEqual(runtime.profiles.getProfile(custom.id).permissions,beforeCustom);
+    assert.equal(runtime.profiles.getProfile(cashier).protected,true);
+  }finally{runtime.close();}
+});

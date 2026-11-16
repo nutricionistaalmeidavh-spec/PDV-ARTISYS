@@ -37,7 +37,45 @@ function registerRestaurantEffects({bus,effectStore,restaurantService,kitchenSer
     handler:async event=>restaurantService.reopenCancelledCheckout(event.aggregateId,{actor:event.actor||{}})
   });
 
+  const changedItem=createIdempotentDomainEffect({
+    effectKey:'restaurant.print-item-correction',
+    effectStore,
+    handler:async event=>{
+      const ids=event.payload?.ticketIds||[];
+      const jobs=[];
+      for(const ticketId of ids){
+        const ticket=kitchenService.getTicket(ticketId);
+        if(!ticket?.printEnabled||ticket.status==='CANCELLED')continue;
+        jobs.push(nonFiscalPrintService.kitchenChangeNotice(ticket,{
+          action:'ALTERACAO DE ITEM',
+          id:'restaurant-change-'+event.eventId+'-'+ticket.id
+        }));
+      }
+      return{jobs:jobs.map(job=>job.id)};
+    }
+  });
+
+  const cancelledSession=createIdempotentDomainEffect({
+    effectKey:'restaurant.print-session-cancellation',
+    effectStore,
+    handler:async event=>{
+      const ids=event.payload?.ticketIds||[];
+      const jobs=[];
+      for(const ticketId of ids){
+        const ticket=kitchenService.getTicket(ticketId);
+        if(!ticket?.printEnabled)continue;
+        jobs.push(nonFiscalPrintService.kitchenChangeNotice(ticket,{
+          action:'COMANDA CANCELADA',reason:event.payload.reason||'',
+          id:'restaurant-cancel-'+event.eventId+'-'+ticket.id
+        }));
+      }
+      return{jobs:jobs.map(job=>job.id)};
+    }
+  });
+
   return [
+    bus.subscribe('restaurant.order-item-updated',changedItem),
+    bus.subscribe('restaurant.session-cancelled',cancelledSession),
     bus.subscribe('restaurant.order-created',orderCreated),
     bus.subscribe('sale.completed',saleCompleted),
     bus.subscribe('sale.cancelled',saleCancelled),
