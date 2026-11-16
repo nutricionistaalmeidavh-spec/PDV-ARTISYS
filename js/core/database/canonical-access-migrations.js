@@ -123,11 +123,47 @@ function runCashierDefaultCommandsMigration(db,now=()=>new Date().toISOString())
   return CASHIER_COMMANDS_SCHEMA_VERSION;
 }
 
+const COMANDA_WORKFLOW_SCHEMA_VERSION=36;
+const COMANDA_WORKFLOW_MIGRATION_NAME='restaurant_command_edit_cancel_v36';
+const WORKFLOW_PERMISSIONS=Object.freeze([
+  ['CASHIER',['restaurant.orders.edit','restaurant.sessions.cancel']],
+  ['SUPERVISOR',['restaurant.orders.edit','restaurant.sessions.cancel','restaurant.sessions.cancel.production']],
+  ['MANAGER',['restaurant.orders.edit','restaurant.sessions.cancel','restaurant.sessions.cancel.production']],
+  ['ADMINISTRATOR',['restaurant.orders.edit','restaurant.sessions.cancel','restaurant.sessions.cancel.production']]
+]);
+function runComandaWorkflowMigrations(db,now=()=>new Date().toISOString()){
+  if(!db)throw new TypeError('Database is required.');
+  return withTransaction(db,()=>{
+    db.exec(`CREATE TABLE IF NOT EXISTS restaurant_session_cancellations (
+      session_id TEXT PRIMARY KEY REFERENCES table_sessions(id),
+      reason TEXT NOT NULL CHECK(length(trim(reason))>=3),
+      actor_id TEXT REFERENCES users(id),
+      cancelled_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_restaurant_session_cancellations_at
+      ON restaurant_session_cancellations(cancelled_at);`);
+    if(!db.prepare('SELECT 1 FROM schema_migrations WHERE version=?').get(COMANDA_WORKFLOW_SCHEMA_VERSION)){
+      const insert=db.prepare('INSERT OR IGNORE INTO profile_permissions(profile_id,permission_id,created_at) VALUES(?,?,?)');
+      const ts=now();
+      for(const [profileKey,grants] of WORKFLOW_PERMISSIONS){
+        const id=DEFAULT_PROFILE_IDS[profileKey];
+        if(!db.prepare('SELECT 1 FROM profiles WHERE id=? AND protected=1').get(id))continue;
+        for(const grant of grants)insert.run(id,grant,ts);
+      }
+      db.prepare('INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,?,?)')
+        .run(COMANDA_WORKFLOW_SCHEMA_VERSION,COMANDA_WORKFLOW_MIGRATION_NAME,ts);
+    }
+    return COMANDA_WORKFLOW_SCHEMA_VERSION;
+  });
+}
+
 module.exports={
   CANONICAL_ACCESS_SCHEMA_VERSION,
   CANONICAL_ACCESS_MIGRATION_NAME,
   runCanonicalAccessMigrations,
   runCashierDefaultCommandsMigration,
   CASHIER_COMMANDS_SCHEMA_VERSION,
-  CASHIER_COMMAND_PERMISSIONS
+  CASHIER_COMMAND_PERMISSIONS,
+  runComandaWorkflowMigrations,
+  COMANDA_WORKFLOW_SCHEMA_VERSION
 };
