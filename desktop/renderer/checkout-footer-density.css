@@ -1,0 +1,66 @@
+/* Independent, one-click reversible refinement of the #208 Balcão footer.
+   Leave all 44px payment actions and 46px F12 unchanged. */
+.checkout-clarity-footer .checkout-density-toggle {
+  position:relative;
+  isolation:isolate;
+  flex:0 0 auto;
+  min-height:24px;
+  padding:3px 7px;
+  border:1px solid var(--line,#dfe6f1);
+  border-radius:7px;
+  background:var(--surface-subtle,#f5f8fc);
+  color:var(--text-label,#53627f);
+  font-family:inherit;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.25;
+  cursor:pointer;
+}
+.checkout-clarity-footer .checkout-density-toggle::before {
+  content:"";
+  position:absolute;
+  inset:-10px -8px;
+}
+.checkout-clarity-footer .checkout-density-toggle:focus-visible {
+  outline:2px solid var(--artisys-blue,#0b6cff);
+  outline-offset:3px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] {
+  padding-bottom:6px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-adjustments {
+  padding:5px 0;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-summary {
+  padding:5px 0 4px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-summary .checkout-section-header {
+  display:none;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-section-header {
+  margin-bottom:4px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-summary .totals {
+  gap:2px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-summary .grand-total {
+  margin-top:2px;
+  padding-top:3px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-payment {
+  padding-top:5px;
+}
+.checkout-layout.checkout-responsive-ready
+.checkout-clarity-footer[data-footer-density="compact"] .checkout-payment .payment-strip {
+  padding-bottom:5px;
+}
+/* The action buttons deliberately retain their min-height rules from
+   checkout-footer-clarity.css. Only empty spacing and redundant heading shrink. */
