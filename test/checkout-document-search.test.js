@@ -211,7 +211,7 @@ test('Balcão oferece editar comanda sem abrir venda e leva diretamente ao edito
   const app=fs.readFileSync(path.join(root,'desktop','renderer','app.js'),'utf8');
   const restaurant=fs.readFileSync(path.join(root,'desktop','renderer','restaurant-ui.js'),'utf8');
   assert.match(app,/data-edit-checkout-command/);
-  assert.match(app,/row\.type==='COMMAND'&&canAccessRoute\('FOOD'\)/);
+  assert.match(app,/row\.type==='COMMAND'&&row\.status==='OPEN'&&canAccessRoute\('FOOD'\)/);
   assert.match(app,/await navigate\('FOOD'\)/);
   assert.match(app,/PdvRestaurantUi\.show\(sessionId\)/);
   assert.match(restaurant,/async function show\(sessionId=null\)/);
