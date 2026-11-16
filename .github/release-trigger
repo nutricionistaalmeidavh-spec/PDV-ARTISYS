@@ -1,11 +1,11 @@
 ArtiSys PDV Windows release trigger
-requested_for=publish-stable-current-main-after-checkout-cash-and-first-use-ux
-requested_at=2026-11-15
+requested_for=publish-verified-p0-p1-comandas-caixa-customer-update
+requested_at=2026-11-16
 target_platform=windows-x64
-expected_next_stable_version=2.0.14
-source_main_sha=7dcb00d33b7309a4b53009b052910cc245bec69e
-changes=PR-203-onboarding-login-to-sale;PR-204-secondary-dialogs-and-cart;PR-205-audited-cash-history-corrections-annulment;PR-206-responsive-checkout-fixed-payment
-reason=publish-latest-merged-main-for-customer-update
-constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data-and-licence
+expected_next_stable_version=2.0.15
+source_main_sha=ee51505561e8093b82a6892e3fd5fbd008de4db1
+changes=PR-211-cashier-default-edit-quantity-note-command-cancel-audit-kds-print
+reason=publish-combined-P0-P1-client-feature-delivery
+constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data-licenses-custom-profiles-and-stock
 requires=verify-release-packaged-windows-smoke-updater-metadata-release-manifest
 publish=stable-github-release-if-and-only-if-all-workflow-gates-pass
