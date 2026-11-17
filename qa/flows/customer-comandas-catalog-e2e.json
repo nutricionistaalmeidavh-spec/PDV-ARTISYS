@@ -853,6 +853,33 @@
       "timeoutMs": 15000
     },
     {
+      "action": "desktopApiRequest",
+      "name": "confirmar-configuracao-publica-api",
+      "path": "/api/v1/restaurant/public-ordering/config",
+      "method": "GET",
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "confirmar-produtos-publicos-api",
+      "path": "/api/v1/restaurant/public-ordering/menu",
+      "method": "GET",
+      "expectedStatus": 200
+    },
+    {
+      "action": "inspectDom",
+      "name": "diagnostico-cardapio-configuracoes",
+      "selectors": [
+        ".ops-page",
+        "#settings-hub [data-settings-category='food-menu']",
+        "[data-public-ordering-panel]",
+        "[data-settings-section='food-menu']",
+        ".ops-error",
+        ".toast",
+        ".toast-message"
+      ]
+    },
+    {
       "action": "waitFor",
       "name": "painel-qr-configuracoes",
       "selector": "[data-public-ordering-panel]",
