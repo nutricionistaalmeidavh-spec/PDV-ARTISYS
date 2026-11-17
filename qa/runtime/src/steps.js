@@ -292,6 +292,34 @@ export async function executeStep({ page, step, index, screenshotsDir, baseURL, 
     }
     case 'waitFor': await locator(page, step).waitFor({ state: waitState(step), timeout: step.timeoutMs }); break;
     case 'waitForTimeout': await page.waitForTimeout(step.timeoutMs ?? 250); break;
+    case 'inspectDom': {
+      const selectors=Array.isArray(step.selectors)?step.selectors:[];
+      if(!selectors.length||selectors.length>20||selectors.some(selector=>typeof selector!=='string'||selector.length>200)){
+        throw new TypeError(`${label}: inspectDom requires 1-20 CSS selectors`);
+      }
+      const inspected=await page.evaluate(paths=>{
+        const current=window.PdvCurrentAccess;
+        const cap=name=>Boolean(window.PdvAccessPolicy?.hasCapability?.(current,name));
+        return{
+          route:document.body.dataset.activeRoute,
+          settingsView:cap('settings.view'),
+          restaurantAccess:cap('restaurant.access'),
+          qrUiLoaded:Boolean(window.PdvRestaurantPublicOrderingUi?.mount),
+          settingsHubLoaded:Boolean(window.PdvSettingsHub?.mount),
+          nodes:paths.map(selector=>{
+            const nodes=[...document.querySelectorAll(selector)];
+            return{selector,count:nodes.length,details:nodes.slice(0,3).map(node=>({
+              hidden:node.hidden,display:getComputedStyle(node).display,
+              visibility:getComputedStyle(node).visibility,
+              parentHidden:Boolean(node.closest('[hidden]')),
+              settingsSection:node.dataset.settingsSection||null
+            }))};
+          })
+        };
+      },selectors);
+      console.log('ARTISYS_QA_DOM_INSPECT='+JSON.stringify({step:label,...inspected}));
+      break;
+    }
     case 'expectVisible': {
       if (!(await locator(page, step).isVisible())) throw new Error(`${label}: expected locator to be visible`);
       break;

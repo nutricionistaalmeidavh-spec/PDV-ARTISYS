@@ -270,7 +270,11 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
   const quotedIdentifier=value=>'"'+String(value).replace(/"/g,'""')+'"';
   function previewPermanentDeletion(id){
     const product=getProduct(id);
-    if(!product)throw new Error('Produto não encontrado.');
+    if(!product){
+      const error=new Error('Produto não encontrado.');
+      error.statusCode=404;
+      throw error;
+    }
     const stock=db.prepare('SELECT quantity FROM inventory_balances WHERE product_id=?').get(product.id);
     const stockQuantity=Number(stock?.quantity||0);
     const dependencies=[];

@@ -12,6 +12,7 @@ test('Cardápio público/QR fica somente na aba administrativa, sem cobrir coman
   assert.match(publicUi,/title!=='Configurações'/);
   assert.match(publicUi,/node\.dataset\.settingsCategory='food-menu'/);
   assert.match(read('desktop/renderer/settings-hub-ui.js'),/\['food-menu','Cardápio público e QR'/);
+  assert.match(read('desktop/renderer/settings-hub-ui.js'),/if\(active==='food-menu'\)void window\.PdvRestaurantPublicOrderingUi\?\.mount\?\.\(\)/);
   assert.match(publicUi,/PdvSettingsHub\?\.mount/);
   assert.match(settings,/PdvRestaurantPublicOrderingUi\?\.mount/);
   assert.doesNotMatch(restaurant,/PdvRestaurantPublicOrderingUi\?\.mount/);

@@ -125,6 +125,11 @@ jobs:
         run: |
           rm -rf qa-artifacts-delivery-pickup
           xvfb-run -a npm run qa:e2e:delivery-pickup
+      - name: Run Customer five-journal E2E (comandas, KDS, catalog, QR, cash audit)
+        shell: bash
+        run: |
+          rm -rf qa-artifacts-customer-journeys
+          xvfb-run -a node qa/runtime/artisys-qa.mjs run --config qa/artisys-qa.config.json --flow customer-comandas-catalog-e2e --environment ci --viewport compactDesktop --output qa-artifacts-customer-journeys
       - name: Run Access Center partial-permissions E2E
         shell: bash
         run: |
@@ -146,6 +151,7 @@ jobs:
           path: |
             qa-artifacts
             qa-artifacts-delivery-pickup
+            qa-artifacts-customer-journeys
             qa-artifacts-access
             qa-artifacts-access-ergonomic
             qa-artifacts-public-menu-compact
