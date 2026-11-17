@@ -505,6 +505,19 @@
     },
     {
       "action": "click",
+      "name": "fechar-localizador-apos-cancelamento",
+      "selector": "#modal-root [data-close-modal]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "localizador-fechado-e-operacao-no-caixa",
+      "selector": "#modal-root",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
       "name": "abrir-cadastros",
       "selector": "[data-route=\"catalog\"]",
       "timeoutMs": 15000
