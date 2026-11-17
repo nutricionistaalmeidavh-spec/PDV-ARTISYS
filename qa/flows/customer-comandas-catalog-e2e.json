@@ -1,0 +1,878 @@
+{
+  "name": "customer-comandas-catalog-e2e",
+  "title": "PDV ArtiSys — E2E Jamily: comandas KDS, cadastros e cancelamento",
+  "metadata": {
+    "qaAutoAdmin": true
+  },
+  "steps": [
+    {
+      "action": "waitFor",
+      "name": "qa-bootstrap",
+      "selector": "#auth-overlay",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "qa-login",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "qa-administrador-autenticado",
+      "selector": "#app-sidebar",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "ativar-alimentacao",
+      "path": "/api/v1/settings/modules.FOOD.enabled",
+      "method": "PUT",
+      "body": {
+        "scope": "global",
+        "value": true
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-setor-cozinha",
+      "path": "/api/v1/restaurant/kitchen/stations",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-kitchen",
+        "name": "Cozinha E2E Jamily",
+        "printEnabled": false
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-qa-jamily-direct",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-direct",
+        "name": "Suco Direto E2E",
+        "sku": "QA-JAM-DIR",
+        "salePriceCents": 980,
+        "trackStock": false,
+        "menuEnabled": true,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-qa-jamily-kds",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-kds",
+        "name": "Sanduíche KDS E2E",
+        "sku": "QA-JAM-KDS",
+        "salePriceCents": 1780,
+        "trackStock": false,
+        "menuEnabled": true,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-qa-jamily-route",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-route",
+        "name": "Torta com destino E2E",
+        "sku": "QA-JAM-ROUTE",
+        "salePriceCents": 1890,
+        "trackStock": false,
+        "menuEnabled": false,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-qa-jamily-duplicate",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-duplicate",
+        "name": "Refrigerante duplicável E2E",
+        "sku": "QA-JAM-DUP",
+        "salePriceCents": 690,
+        "trackStock": false,
+        "menuEnabled": false,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-qa-jamily-purge",
+      "path": "/api/v1/products",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-purge",
+        "name": "Produto excluível E2E",
+        "sku": "QA-JAM-PURGE",
+        "salePriceCents": 130,
+        "trackStock": false,
+        "menuEnabled": false,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-rota-direta",
+      "path": "/api/v1/restaurant/kitchen/routing",
+      "method": "POST",
+      "body": {
+        "productId": "qa-jamily-direct",
+        "mode": "DIRECT"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-rota-kds",
+      "path": "/api/v1/restaurant/kitchen/routing",
+      "method": "POST",
+      "body": {
+        "productId": "qa-jamily-kds",
+        "mode": "PRODUCTION",
+        "stationId": "qa-jamily-kitchen"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-rota-editavel",
+      "path": "/api/v1/restaurant/kitchen/routing",
+      "method": "POST",
+      "body": {
+        "productId": "qa-jamily-route",
+        "mode": "DIRECT"
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-mesa-edicao",
+      "path": "/api/v1/restaurant/tables",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-table-edit",
+        "label": "Mesa QA Edição",
+        "capacity": 4,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "seed-mesa-cancelamento",
+      "path": "/api/v1/restaurant/tables",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-table-cancel",
+        "label": "Mesa QA Cancelamento",
+        "capacity": 4,
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "abrir-comanda-edicao",
+      "path": "/api/v1/restaurant/tables/qa-jamily-table-edit/open",
+      "method": "POST",
+      "body": {},
+      "expectedStatus": 201,
+      "saveAs": {
+        "qaEditSession": "id"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "abrir-comanda-cancelamento",
+      "path": "/api/v1/restaurant/tables/qa-jamily-table-cancel/open",
+      "method": "POST",
+      "body": {},
+      "expectedStatus": 201,
+      "saveAs": {
+        "qaCancelSession": "id"
+      }
+    },
+    {
+      "action": "reload",
+      "name": "recarregar-produtos-e-areas"
+    },
+    {
+      "action": "waitFor",
+      "name": "sessao-restaurada",
+      "selector": "#auth-overlay",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-alimentacao",
+      "selector": "[data-route=\"FOOD\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "acesso-mesas-comandas",
+      "selector": "[data-food-capability=\"RESTAURANT\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-mesas",
+      "selector": "[data-food-capability=\"RESTAURANT\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "mapa-mesas-operacional",
+      "selector": ".restaurant-page [data-restaurant-view=\"operation\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectCount",
+      "name": "sem-configuracoes-cardapio-na-operacao",
+      "selector": ".restaurant-page [data-public-ordering-panel]",
+      "expected": 0
+    },
+    {
+      "action": "screenshot",
+      "name": "01-mesas-sem-configuracoes",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "selecionar-comanda-edicao",
+      "selector": "[data-table-id=\"qa-jamily-table-edit\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-pedido",
+      "selector": "#restaurant-add-draft-form",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "selectOption",
+      "name": "selecionar-produto",
+      "selector": "#restaurant-add-draft-form select[name=\"productId\"]",
+      "value": "qa-jamily-direct"
+    },
+    {
+      "action": "fill",
+      "name": "quantidade-inicial",
+      "selector": "#restaurant-add-draft-form input[name=\"quantity\"]",
+      "value": "1"
+    },
+    {
+      "action": "fill",
+      "name": "observacao-inicial",
+      "selector": "#restaurant-add-draft-form input[name=\"note\"]",
+      "value": "Com gelo"
+    },
+    {
+      "action": "click",
+      "name": "adicionar-ao-rascunho",
+      "selector": "#restaurant-add-draft-form button[type=\"submit\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "botao-envio-pedido",
+      "selector": "[data-send-order]:not([disabled])",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "enviar-pedido-para-cozinha",
+      "selector": "[data-send-order]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "botao-edicao-item",
+      "selector": "[data-edit-comanda-item]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-edicao-item",
+      "selector": "[data-edit-comanda-item]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "modal-editar-item",
+      "selector": "#comanda-operation-form input[name=\"quantity\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "name": "corrigir-quantidade",
+      "selector": "#comanda-operation-form input[name=\"quantity\"]",
+      "value": "3"
+    },
+    {
+      "action": "fill",
+      "name": "corrigir-observacao",
+      "selector": "#comanda-operation-form input[name=\"note\"]",
+      "value": "Sem gelo"
+    },
+    {
+      "action": "click",
+      "name": "salvar-edicao-item",
+      "selector": "#comanda-operation-form button[type=\"submit\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "name": "item-corrigido-na-comanda",
+      "selector": "#restaurant-detail .restaurant-order-items",
+      "expected": "Sem gelo",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "comanda-item-persiste",
+      "path": "/api/v1/restaurant/sessions/{{qaEditSession}}",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "\"quantity\":3",
+        "Sem gelo",
+        "Suco Direto E2E"
+      ]
+    },
+    {
+      "action": "screenshot",
+      "name": "02-comanda-editada",
+      "fullPage": true
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "pedido-kds-para-comanda-cancelar",
+      "path": "/api/v1/restaurant/sessions/{{qaCancelSession}}/orders",
+      "method": "POST",
+      "body": {
+        "items": [
+          {
+            "productId": "qa-jamily-kds",
+            "quantity": 1,
+            "note": "Pedido de teste para cancelar"
+          }
+        ]
+      },
+      "expectedStatus": 201,
+      "saveAs": {
+        "qaCancelOrderId": "order.id"
+      }
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "kds-recebeu-ticket",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=NEW&stationId=qa-jamily-kitchen",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "Sanduíche KDS E2E"
+      ]
+    },
+    {
+      "action": "click",
+      "name": "abrir-balcao",
+      "selector": "[data-route=\"checkout\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "abrir-comandas-balcao",
+      "selector": "#checkout-documents",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "localizar-comandas-no-caixa",
+      "selector": "#checkout-documents",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "cancelamento-sem-sair-do-caixa",
+      "selector": ".data-row:has-text(\"Mesa QA Cancelamento\") [data-cancel-checkout-command]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "solicitar-cancelamento-inline",
+      "selector": ".data-row:has-text(\"Mesa QA Cancelamento\") [data-cancel-checkout-command]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "confirmacao-no-proprio-caixa",
+      "selector": "[data-checkout-cancel-inline]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectCount",
+      "name": "nao-navegou-para-mesas",
+      "selector": "body[data-active-route=\"checkout\"]",
+      "expected": 1
+    },
+    {
+      "action": "fill",
+      "name": "motivo-cancelamento",
+      "selector": "[data-checkout-cancel-inline] textarea[name=\"reason\"]",
+      "value": "Cliente desistiu do pedido E2E"
+    },
+    {
+      "action": "screenshot",
+      "name": "03-caixa-cancelamento-inline",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "confirmar-cancelamento",
+      "selector": "[data-checkout-cancel-inline] button[type=\"submit\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-cancelamento-encerrado",
+      "selector": "[data-checkout-cancel-inline]",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "comanda-cancelada-com-motivo",
+      "path": "/api/v1/restaurant/sessions/{{qaCancelSession}}",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "\"status\":\"CANCELLED\"",
+        "Cliente desistiu do pedido E2E"
+      ]
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "ticket-kds-cancelado",
+      "path": "/api/v1/restaurant/kitchen/tickets?status=CANCELLED&stationId=qa-jamily-kitchen",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "Sanduíche KDS E2E"
+      ]
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "mesa-liberada",
+      "path": "/api/v1/restaurant/tables",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "qa-jamily-table-cancel",
+        "FREE"
+      ]
+    },
+    {
+      "action": "screenshot",
+      "name": "04-cancelamento-concluido",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "abrir-cadastros",
+      "selector": "[data-route=\"catalog\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "abrir-estoque",
+      "selector": "[data-flow-route=\"inventory\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "navegar-estoque",
+      "selector": "[data-flow-route=\"inventory\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "produtos-cadastrados",
+      "selector": "#inventory-catalog-card",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "editar-produto-destino",
+      "selector": "[data-inventory-edit-product=\"qa-jamily-route\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-destino",
+      "selector": "#product-form [name=\"productionDestination\"]:not([disabled])",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "selectOption",
+      "name": "alterar-para-kds",
+      "selector": "#product-form [name=\"productionDestination\"]",
+      "value": "PRODUCTION:qa-jamily-kitchen"
+    },
+    {
+      "action": "click",
+      "name": "salvar-alteracao-cadastro",
+      "selector": "#product-form button[type=\"submit\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-edicao-fechado",
+      "selector": "#product-form",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "rota-persistiu-servidor",
+      "path": "/api/v1/restaurant/kitchen/routing/qa-jamily-route",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "\"mode\":\"PRODUCTION\"",
+        "qa-jamily-kitchen"
+      ]
+    },
+    {
+      "action": "waitFor",
+      "name": "estoque-atualizado",
+      "selector": "#inventory-catalog-card [data-inventory-edit-product=\"qa-jamily-route\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "reabrir-cadastro",
+      "selector": "#inventory-catalog-card [data-inventory-edit-product=\"qa-jamily-route\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "destino-carregado-novamente",
+      "selector": "#product-form [name=\"productionDestination\"]:not([disabled])",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectValue",
+      "name": "destino-persiste-na-reabertura",
+      "selector": "#product-form [name=\"productionDestination\"]",
+      "expected": "PRODUCTION:qa-jamily-kitchen"
+    },
+    {
+      "action": "screenshot",
+      "name": "05-destino-persistente",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "fechar-editor",
+      "selector": "#product-form [data-close-modal]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-cadastro-completo",
+      "selector": "#inventory-new-product",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-novo-produto",
+      "selector": "#product-form",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "name": "nome-possivelmente-duplicado",
+      "selector": "#product-form input[name=\"name\"]",
+      "value": "Refrigerante duplicável E2E"
+    },
+    {
+      "action": "waitFor",
+      "name": "alerta-duplicidade",
+      "selector": "#product-form [data-product-duplicate-warning]:not([hidden])",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "name": "produto-existente-sugerido",
+      "selector": "#product-form [data-product-duplicate-warning]",
+      "expected": "Refrigerante duplicável E2E",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "06-alerta-duplicidade",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "escolher-editar-existente",
+      "selector": "#product-form [data-edit-existing-duplicate]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectValue",
+      "name": "abriu-produto-existente-sem-duplicar",
+      "selector": "#product-form input[name=\"sku\"]",
+      "expected": "QA-JAM-DUP"
+    },
+    {
+      "action": "click",
+      "name": "fechar-edicao-existente",
+      "selector": "#product-form [data-close-modal]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "inativar-produto-duplicado",
+      "selector": "[data-inventory-archive-product=\"qa-jamily-duplicate\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "confirmar-inativacao",
+      "selector": "#confirm-remove-product",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "confirmar-inativacao-produto",
+      "selector": "#confirm-remove-product",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "aba-inativos",
+      "selector": "[data-inventory-catalog-tab=\"inactive\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-inativos",
+      "selector": "[data-inventory-catalog-tab=\"inactive\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "produto-na-lista-inativos",
+      "selector": "[data-inventory-reactivate-product=\"qa-jamily-duplicate\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "07-produto-inativo-recuperavel",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "solicitar-reativacao",
+      "selector": "[data-inventory-reactivate-product=\"qa-jamily-duplicate\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "confirmar-reativacao",
+      "selector": "#confirm-reactivate-product",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "confirmar-recuperacao",
+      "selector": "#confirm-reactivate-product",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "voltar-produtos-ativos",
+      "selector": "[data-inventory-catalog-tab=\"active\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "produto-reativado",
+      "selector": "[data-inventory-archive-product=\"qa-jamily-duplicate\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "reativacao-sem-publicar",
+      "path": "/api/v1/products?includeInactive=true",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "qa-jamily-duplicate"
+      ]
+    },
+    {
+      "action": "click",
+      "name": "solicitar-exclusao-definitiva",
+      "selector": "[data-inventory-delete-product=\"qa-jamily-purge\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "campo-confirmacao-exclusao",
+      "selector": "#confirm-permanent-delete-name",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "name": "confirmar-nome-exato",
+      "selector": "#confirm-permanent-delete-name",
+      "value": "Produto excluível E2E"
+    },
+    {
+      "action": "click",
+      "name": "excluir-permanentemente",
+      "selector": "#confirm-permanent-delete",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "exclusao-confirmada-ui",
+      "selector": "[data-inventory-delete-product=\"qa-jamily-purge\"]",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "excluido-do-banco",
+      "path": "/api/v1/products/qa-jamily-purge/purge-preview",
+      "method": "GET",
+      "expectedStatus": 404,
+      "expectOk": false
+    },
+    {
+      "action": "screenshot",
+      "name": "08-exclusao-real",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "tentar-excluir-produto-historico",
+      "selector": "[data-inventory-delete-product=\"qa-jamily-kds\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "name": "exclusao-bloqueada-historico",
+      "selector": "#modal-root",
+      "expected": "Exclusão definitiva indisponível",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "09-bloqueio-historico",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "fechar-bloqueio-historico",
+      "selector": "#modal-root [data-close-modal]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-configuracoes",
+      "selector": "[data-route=\"settings\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "aba-cardapio-publico",
+      "selector": "#settings-hub [data-settings-category=\"food-menu\"]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "abrir-configuracoes-qr",
+      "selector": "#settings-hub [data-settings-category=\"food-menu\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "painel-qr-configuracoes",
+      "selector": "[data-public-ordering-panel]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "10-configuracoes-cardapio-qr",
+      "fullPage": true
+    },
+    {
+      "action": "click",
+      "name": "voltar-alimentacao",
+      "selector": "[data-route=\"FOOD\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "reabrir-mesas",
+      "selector": "[data-food-capability=\"RESTAURANT\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectCount",
+      "name": "painel-qr-nao-volta-para-mesas",
+      "selector": ".restaurant-page [data-public-ordering-panel]",
+      "expected": 0
+    },
+    {
+      "action": "screenshot",
+      "name": "11-mesas-limpas-pos-configuracao",
+      "fullPage": true
+    }
+  ]
+}
