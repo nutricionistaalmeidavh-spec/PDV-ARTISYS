@@ -241,7 +241,7 @@
     {
       "action": "waitFor",
       "name": "mapa-mesas-operacional",
-      "selector": ".restaurant-page [data-restaurant-view=\"operation\"]",
+      "selector": ".restaurant-page[data-restaurant-view=\"operation\"]",
       "state": "visible",
       "timeoutMs": 15000
     },
