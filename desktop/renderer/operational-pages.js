@@ -42,13 +42,33 @@
   function canAccess(route){return root.PdvAccessPolicy?.canAccessRoute(root.PdvCurrentAccess,route)===true;}
   function markActive(route){document.body.dataset.activeRoute=route;document.body.classList.remove('theme-home');document.querySelectorAll('[data-route]').forEach(node=>node.classList.toggle('active',node.dataset.route===route));}
 
+  function inventoryCatalogRows(products,canManageProducts){
+    return products.filter(product=>product.active!==false)
+      .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
+      .map(product=>{
+        const search=escapeHtml([product.name,product.sku||'',product.barcode||'',product.categoryName||''].join(' ').toLowerCase());
+        const actions=canManageProducts
+          ? `<button type="button" class="ops-secondary" data-inventory-edit-product="${escapeHtml(product.id)}">Editar</button> <button type="button" class="ops-danger" data-inventory-archive-product="${escapeHtml(product.id)}">Inativar</button>`
+          : '<small>Somente consulta</small>';
+        return `<tr data-inventory-catalog-row data-search="${search}"><td><strong>${escapeHtml(product.name)}</strong></td><td>${escapeHtml(product.categoryName||'Sem categoria')}</td><td>${escapeHtml(product.sku||'—')}</td><td>${money(product.salePriceCents||0)}</td><td>${actions}</td></tr>`;
+      }).join('')||'<tr><td colspan="5">Nenhum produto cadastrado.</td></tr>';
+  }
+  root.addEventListener('artisys:product-archived',()=>{if(routeActive('inventory'))void renderInventory();});
+
   async function renderInventory(){
     await ready();
     const [balances,low,movements,products]=await Promise.all([api.inventoryBalances(),api.inventoryLowStock(),api.inventoryMovements(),api.products(true)]);
     const totalCost=balances.reduce((sum,item)=>sum+Math.round(Number(item.costCents||0)*Number(item.quantity||0)),0);
     const stockSkuCount=products.filter(product=>product.active!==false&&product.trackStock).length;
+    const canManageProducts=Boolean(root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'products.manage'));
     const body=`<div class="ops-metrics">${metric('SKUs de estoque',String(stockSkuCount),'Itens com saldo próprio')}${metric('Estoque baixo',String(low.length),low.length?'Requer atenção':'Dentro do mínimo')}${metric('Valor em custo',money(totalCost))}</div>
       <section class="ops-card" id="inventory-master-actions"><div class="ops-card-head"><div><h2>Cadastro mestre</h2><p>Produtos, insumos e fichas técnicas.</p></div><div class="ops-actions"><button class="ops-primary" type="button" id="inventory-quick-product">+ Cadastro rápido</button><button class="ops-secondary" type="button" id="inventory-new-product">Cadastro completo</button><button class="ops-secondary" type="button" id="inventory-import-products">Importar planilha</button><button class="ops-secondary" type="button" id="inventory-new-recipe">+ Ficha Técnica</button></div></div></section>
+      <section class="ops-card" id="inventory-catalog-card">
+        <div class="ops-card-head"><div><h2>Produtos cadastrados</h2><p>Edite um cadastro existente ou inative um item duplicado sem apagar vendas e histórico.</p></div>
+          <input id="inventory-catalog-search" class="ops-input compact" type="search" placeholder="Buscar produto, código ou categoria" aria-label="Buscar produtos cadastrados"></div>
+        <div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>Categoria</th><th>SKU</th><th>Preço</th><th>Ações</th></tr></thead>
+          <tbody id="inventory-catalog-body">${inventoryCatalogRows(products,canManageProducts)}</tbody></table></div>
+      </section>
       <section class="ops-card" id="inventory-recipes-card"><div class="ops-card-head"><div><h2>Fichas técnicas</h2><p>Composição interna de produtos preparados.</p></div><button class="ops-secondary" type="button" data-route="products">Abrir Cardápio</button></div><div class="ops-empty">Carregando fichas técnicas…</div></section>
       <div class="ops-grid two"><section class="ops-card"><div class="ops-card-head"><h2>Posição de estoque</h2><input id="ops-inventory-search" class="ops-input compact" placeholder="Filtrar produto"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Produto</th><th>SKU</th><th>Saldo</th><th>Mínimo</th><th>Situação</th></tr></thead><tbody id="ops-inventory-body">${balances.map(item=>`<tr data-search="${escapeHtml(`${item.name} ${item.sku||''} ${item.barcode||''}`.toLowerCase())}"><td><strong>${escapeHtml(item.name)}</strong></td><td>${escapeHtml(item.sku||'—')}</td><td>${qty(item.quantity)} ${escapeHtml(item.unit||'')}</td><td>${qty(item.minimumStock)}</td><td>${item.lowStock?badge('BAIXO'):badge('OK')}</td></tr>`).join('')||`<tr><td colspan="5">${empty('Nenhum produto controlado.')}</td></tr>`}</tbody></table></div></section>
       <section class="ops-card"><h2>Nova movimentação</h2><form id="ops-inventory-form" class="ops-form"><label>Produto<select name="productId" class="ops-input" required>${balances.map(item=>`<option value="${escapeHtml(item.productId)}">${escapeHtml(item.name)}</option>`).join('')}</select></label><label>Tipo<select name="type" class="ops-input"><option value="purchase">Entrada/compra</option><option value="adjustment-in">Ajuste de entrada</option><option value="adjustment-out">Ajuste de saída</option><option value="inventory-count">Inventário</option></select></label><label>Quantidade<input name="quantity" class="ops-input" type="number" min="0.001" step="0.001" required></label><label>Motivo<input name="reason" class="ops-input" required placeholder="Motivo da movimentação"></label><button class="ops-primary" type="submit">Registrar movimentação</button></form></section></div>
@@ -60,6 +80,16 @@
     document.getElementById('inventory-new-product')?.addEventListener('click',()=>root.PdvCatalogAdmin?.openStockProductForm?.());
     document.getElementById('inventory-import-products')?.addEventListener('click',()=>root.PdvCatalogAdmin?.openProductImport?.());
     document.getElementById('inventory-new-recipe')?.addEventListener('click',()=>root.PdvCatalogAdmin?.openRecipeForm?.());
+    document.getElementById('inventory-catalog-search')?.addEventListener('input',event=>{
+      const term=String(event.currentTarget.value||'').trim().toLowerCase();
+      content.querySelectorAll('[data-inventory-catalog-row]').forEach(row=>row.hidden=Boolean(term)&&!row.dataset.search.includes(term));
+    });
+    content.querySelectorAll('[data-inventory-edit-product]').forEach(button=>button.addEventListener('click',()=>{
+      void root.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.inventoryEditProduct);
+    }));
+    content.querySelectorAll('[data-inventory-archive-product]').forEach(button=>button.addEventListener('click',()=>{
+      void root.PdvCatalogAdmin?.archiveProduct?.(button.dataset.inventoryArchiveProduct);
+    }));
     void (async()=>{try{
       const rows=await Promise.all(products.map(async product=>({product,recipe:await api.recipe(product.id).catch(()=>null)})));
       const card=document.getElementById('inventory-recipes-card');
