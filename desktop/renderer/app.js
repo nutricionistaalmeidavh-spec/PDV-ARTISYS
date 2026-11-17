@@ -496,19 +496,53 @@
             await window.PdvRestaurantUi.show(sessionId);
           }catch(error){showToast(error.message,'error');}
         }));
-        host.querySelectorAll('[data-cancel-checkout-command]').forEach(button=>button.addEventListener('click',async()=>{
+        host.querySelectorAll('[data-cancel-checkout-command]').forEach(button=>button.addEventListener('click',()=>{
           const sessionId=String(button.dataset.cancelCheckoutCommand||'');
-          if(!sessionId||!rows.some(row=>row.type==='COMMAND'&&row.status==='OPEN'&&String(row.id)===sessionId))return;
+          const documentRow=rows.find(row=>row.type==='COMMAND'&&row.status==='OPEN'&&String(row.id)===sessionId);
+          if(!documentRow)return;
           if(!canAccessRoute('FOOD')||!window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel')){
             showToast('Seu perfil não permite cancelar comandas.','error');return;
           }
+          host.querySelector('[data-checkout-cancel-inline]')?.remove();
+          const container=button.closest('.data-row');
+          if(!container)return;
+          const form=document.createElement('form');
+          form.dataset.checkoutCancelInline='1';
+          form.setAttribute('role','group');
+          form.setAttribute('aria-label','Confirmar cancelamento de comanda');
+          const manager=window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel.production');
+          form.innerHTML=`<div class="field"><strong>Cancelar ${escapeHtml(documentRow.label||documentRow.number||'comanda')}</strong><p>A mesa será liberada, os pedidos e o KDS serão notificados. O histórico será preservado; pagamentos já registrados impedem este cancelamento.</p><label>Motivo do cancelamento<textarea name="reason" rows="3" minlength="3" maxlength="500" required placeholder="Informe o motivo"></textarea></label>${manager?'<label><input type="checkbox" name="allowProduction"> Autorizar cancelamento com produção já iniciada</label>':''}<p data-checkout-cancel-feedback role="status" aria-live="polite"></p><div class="modal-actions"><button class="secondary-button" type="button" data-checkout-cancel-back>Voltar</button><button class="danger-button" type="submit">Confirmar cancelamento</button></div></div>`;
+          container.appendChild(form);
           button.disabled=true;
-          try{
-            closeModal();
-            await navigate('FOOD');
-            if(!window.PdvRestaurantUi?.showCancel)throw new Error('Cancelamento de comandas indisponível.');
-            await window.PdvRestaurantUi.showCancel(sessionId);
-          }catch(error){showToast(error.message,'error');}
+          const back=()=>{button.disabled=false;form.remove();};
+          form.querySelector('[data-checkout-cancel-back]').addEventListener('click',back);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const submit=form.querySelector('[type="submit"]');
+            const feedback=form.querySelector('[data-checkout-cancel-feedback]');
+            const reason=form.elements.namedItem('reason')?.value?.trim()||'';
+            if(reason.length<3){feedback.textContent='Informe um motivo com ao menos 3 caracteres.';return;}
+            submit.disabled=true;feedback.textContent='Cancelando comanda no servidor local…';
+            let submitted=false;
+            try{
+              await api.request(`/api/v1/restaurant/sessions/${encodeURIComponent(sessionId)}/cancel`,{
+                method:'POST',
+                body:{reason,allowProduction:Boolean(manager&&form.elements.namedItem('allowProduction')?.checked)},
+                mutationId:api.mutationId()
+              });
+              submitted=true;
+              const verified=await api.request(`/api/v1/restaurant/sessions/${encodeURIComponent(sessionId)}`);
+              if(verified.status!=='CANCELLED')throw new Error('O servidor não confirmou o estado final. Atualize a lista antes de repetir.');
+              await load();
+              showToast('Comanda cancelada e mesa liberada. Histórico preservado.','success');
+            }catch(error){
+              feedback.textContent=submitted
+                ?'Operação enviada, mas a confirmação não foi concluída. Atualize a lista e confira o estado antes de tentar novamente.'
+                :error.message;
+              submit.disabled=false;
+            }
+          });
+          form.elements.namedItem('reason')?.focus();
         }));
         host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
           const split=button.dataset.openCheckoutDocument.indexOf(':');
