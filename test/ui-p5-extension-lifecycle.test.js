@@ -84,5 +84,6 @@ test('complex migrated extensions are owner-invoked rather than DOM-observed',()
   assert.match(enterprise,/PdvOperationalRouteExtensions\?\.mountLogistics\?\.\(page\)/);
   assert.match(enterprise,/PdvOperationalDetailExtensions\?\.mountOrders\?\.\(page\)/);
   assert.match(publicOrdering,/PdvRestaurantPublicOrderingUi=Object\.freeze\(\{mount\}\)/);
-  assert.match(restaurant,/PdvRestaurantPublicOrderingUi\?\.mount\?\.\(\)/);
+  assert.doesNotMatch(restaurant,/PdvRestaurantPublicOrderingUi\?\.mount\?\.\(\)/);
+  assert.match(operational,/PdvRestaurantPublicOrderingUi\?\.mount\?\.\(\)/);
 });
