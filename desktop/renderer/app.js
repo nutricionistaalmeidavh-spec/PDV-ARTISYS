@@ -496,19 +496,53 @@
             await window.PdvRestaurantUi.show(sessionId);
           }catch(error){showToast(error.message,'error');}
         }));
-        host.querySelectorAll('[data-cancel-checkout-command]').forEach(button=>button.addEventListener('click',async()=>{
+        host.querySelectorAll('[data-cancel-checkout-command]').forEach(button=>button.addEventListener('click',()=>{
           const sessionId=String(button.dataset.cancelCheckoutCommand||'');
-          if(!sessionId||!rows.some(row=>row.type==='COMMAND'&&row.status==='OPEN'&&String(row.id)===sessionId))return;
+          const documentRow=rows.find(row=>row.type==='COMMAND'&&row.status==='OPEN'&&String(row.id)===sessionId);
+          if(!documentRow)return;
           if(!canAccessRoute('FOOD')||!window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel')){
             showToast('Seu perfil não permite cancelar comandas.','error');return;
           }
+          host.querySelector('[data-checkout-cancel-inline]')?.remove();
+          const container=button.closest('.data-row');
+          if(!container)return;
+          const form=document.createElement('form');
+          form.dataset.checkoutCancelInline='1';
+          form.setAttribute('role','group');
+          form.setAttribute('aria-label','Confirmar cancelamento de comanda');
+          const manager=window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel.production');
+          form.innerHTML=`<div class="field"><strong>Cancelar ${escapeHtml(documentRow.label||documentRow.number||'comanda')}</strong><p>A mesa será liberada, os pedidos e o KDS serão notificados. O histórico será preservado; pagamentos já registrados impedem este cancelamento.</p><label>Motivo do cancelamento<textarea name="reason" rows="3" minlength="3" maxlength="500" required placeholder="Informe o motivo"></textarea></label>${manager?'<label><input type="checkbox" name="allowProduction"> Autorizar cancelamento com produção já iniciada</label>':''}<p data-checkout-cancel-feedback role="status" aria-live="polite"></p><div class="modal-actions"><button class="secondary-button" type="button" data-checkout-cancel-back>Voltar</button><button class="danger-button" type="submit">Confirmar cancelamento</button></div></div>`;
+          container.appendChild(form);
           button.disabled=true;
-          try{
-            closeModal();
-            await navigate('FOOD');
-            if(!window.PdvRestaurantUi?.showCancel)throw new Error('Cancelamento de comandas indisponível.');
-            await window.PdvRestaurantUi.showCancel(sessionId);
-          }catch(error){showToast(error.message,'error');}
+          const back=()=>{button.disabled=false;form.remove();};
+          form.querySelector('[data-checkout-cancel-back]').addEventListener('click',back);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const submit=form.querySelector('[type="submit"]');
+            const feedback=form.querySelector('[data-checkout-cancel-feedback]');
+            const reason=form.elements.namedItem('reason')?.value?.trim()||'';
+            if(reason.length<3){feedback.textContent='Informe um motivo com ao menos 3 caracteres.';return;}
+            submit.disabled=true;feedback.textContent='Cancelando comanda no servidor local…';
+            let submitted=false;
+            try{
+              await api.request(`/api/v1/restaurant/sessions/${encodeURIComponent(sessionId)}/cancel`,{
+                method:'POST',
+                body:{reason,allowProduction:Boolean(manager&&form.elements.namedItem('allowProduction')?.checked)},
+                mutationId:api.mutationId()
+              });
+              submitted=true;
+              const verified=await api.request(`/api/v1/restaurant/sessions/${encodeURIComponent(sessionId)}`);
+              if(verified.status!=='CANCELLED')throw new Error('O servidor não confirmou o estado final. Atualize a lista antes de repetir.');
+              await load();
+              showToast('Comanda cancelada e mesa liberada. Histórico preservado.','success');
+            }catch(error){
+              feedback.textContent=submitted
+                ?'Operação enviada, mas a confirmação não foi concluída. Atualize a lista e confira o estado antes de tentar novamente.'
+                :error.message;
+              submit.disabled=false;
+            }
+          });
+          form.elements.namedItem('reason')?.focus();
         }));
         host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
           const split=button.dataset.openCheckoutDocument.indexOf(':');
@@ -976,7 +1010,13 @@
       }catch{}
     }
     if(!product)return false;
-    if(product.prepared){await openRecipeForm(product);return true;}
+    if(product.prepared){
+      openModal('Editar item preparado',`<p><strong>${escapeHtml(product.name)}</strong></p><p>O que você precisa corrigir?</p><div class="modal-actions"><button type="button" class="secondary-button" data-edit-prepared-recipe>Ficha técnica e ingredientes</button><button type="button" class="primary-button" data-edit-prepared-catalog>Cadastro, preço e destino de produção</button></div>`,{onMount(root){
+        root.querySelector('[data-edit-prepared-recipe]')?.addEventListener('click',()=>void openRecipeForm(product));
+        root.querySelector('[data-edit-prepared-catalog]')?.addEventListener('click',()=>openProductForm(product));
+      }});
+      return true;
+    }
     openProductForm(product);
     return true;
   }
@@ -1015,7 +1055,7 @@
 
   function productsListHtml() {
     const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
-    return products.map((product) => { const status=recipeStatusMeta(product); const destination=productionDestinationLabel(product.id); const missingDestination=destination==='Destino: não configurado'; return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(destination)}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}${missingDestination?`<button class="secondary-button" data-product-inventory-route="${product.id}">Configurar no Estoque</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?'Editar':'Ver cadastro'}</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button>${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?`<button class="danger-button" type="button" data-archive-product="${product.id}">Inativar</button>`:''}</div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
+    return products.map((product) => { const status=recipeStatusMeta(product); const destination=productionDestinationLabel(product.id); const missingDestination=destination==='Destino: não configurado'; return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(destination)}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}${missingDestination?`<button class="secondary-button" data-product-inventory-route="${product.id}">Configurar no Estoque</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?'Editar':'Ver cadastro'}</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button>${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?`<button class="danger-button" type="button" data-archive-product="${product.id}">Inativar</button><button class="danger-button" type="button" data-permanent-delete-product="${product.id}">Excluir</button>`:''}</div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
   }
 
   function bindProductRows(root = content) {
@@ -1033,6 +1073,7 @@
     }));
     root.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
     root.querySelectorAll('[data-archive-product]').forEach(button=>button.addEventListener('click',()=>removeCatalogProduct(button.dataset.archiveProduct)));
+    root.querySelectorAll('[data-permanent-delete-product]').forEach(button=>button.addEventListener('click',()=>void deleteProductPermanently(button.dataset.permanentDeleteProduct)));
   }
 
   function renderProductsList() {
@@ -1106,21 +1147,80 @@
   }
 
   async function removeCatalogProduct(productId){
-  const product=state.products.find(item=>item.id===productId);
-  if(!product)return;
-  openModal('Inativar produto do Estoque', `<p>Inativar <strong>${escapeHtml(product.name)}</strong>?</p><p>O cadastro será preservado no histórico e também sairá do Cardápio.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product">Excluir produto</button></div>`, { onMount(root) {
-    root.querySelector('#confirm-remove-product')?.addEventListener('click',async()=>{
-      try{
-        await api.removeProduct(productId);
-        state.products=state.products.filter(item=>item.id!==productId);
-        closeModal();
-        renderProducts();
-        showToast('Produto inativado. O histórico de vendas e estoque foi preservado.','success');
-        window.dispatchEvent(new CustomEvent('artisys:product-archived',{detail:{productId}}));
-      }catch(error){showToast(error.message,'error');}
-    });
-  } });
-}
+    const product=state.products.find(item=>item.id===productId)||(await api.products(true)).find(item=>item.id===productId);
+    if(!product)return showToast('Produto não encontrado. Atualize a lista.','error');
+    openModal('Inativar produto', `<p>Inativar <strong>${escapeHtml(product.name)}</strong>?</p><p>Ele deixará de aparecer no Cardápio e no Estoque ativo. Histórico, saldo e movimentações serão preservados. É possível reativá-lo depois.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Voltar</button><button type="button" class="danger-button" id="confirm-remove-product">Inativar produto</button></div>`, {onMount(root){
+      const button=root.querySelector('#confirm-remove-product');
+      button?.addEventListener('click',async()=>{
+        button.disabled=true;button.textContent='Inativando…';
+        try{
+          await api.removeProduct(productId);
+          state.products=await api.products(true);
+          closeModal();
+          if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'archived');
+          window.dispatchEvent(new CustomEvent('artisys:product-archived',{detail:{productId}}));
+          showToast('Produto inativado. Você pode reativá-lo na aba Inativos do Estoque.','success');
+        }catch(error){button.disabled=false;button.textContent='Inativar produto';showToast(error.message,'error');}
+      });
+    }});
+  }
+
+  async function reactivateCatalogProduct(productId){
+    const product=(await api.products(true)).find(item=>item.id===productId);
+    if(!product)return showToast('Produto não encontrado.','error');
+    if(product.active)return showToast('Este produto já está ativo.','error');
+    openModal('Reativar produto',`<p>Reativar <strong>${escapeHtml(product.name)}</strong>?</p><p>O cadastro será recuperado, mas permanecerá fora do Cardápio até você publicá-lo novamente.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Voltar</button><button type="button" class="primary-button" id="confirm-reactivate-product">Reativar produto</button></div>`,{onMount(root){
+      const button=root.querySelector('#confirm-reactivate-product');
+      button.addEventListener('click',async()=>{
+        button.disabled=true;button.textContent='Reativando…';
+        try{
+          await api.reactivateProduct(productId);
+          state.products=await api.products(true);
+          closeModal();if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'reactivated');
+          showToast('Produto reativado. Revise o cadastro antes de publicar no Cardápio.','success');
+        }catch(error){button.disabled=false;button.textContent='Reativar produto';showToast(error.message,'error');}
+      });
+    }});
+  }
+
+  async function deleteProductPermanently(productId){
+    let preview;
+    try{preview=await api.previewPermanentDeletion(productId);}
+    catch(error){showToast(error.message,'error');return;}
+    const related=preview.dependencies||[];
+    if(!preview.allowed){
+      const reasons=Number(preview.stockQuantity||0)!==0
+        ?`Saldo de estoque: ${quantityLabel(preview.stockQuantity)}. Faça a correção de estoque antes de tentar excluir.`
+        :`Existem ${related.reduce((sum,entry)=>sum+Number(entry.count||0),0)} vínculos com outros registros. Excluir alteraria o histórico.`;
+      openModal('Exclusão definitiva indisponível',`<p><strong>${escapeHtml(preview.name)}</strong> não pode ser excluído definitivamente.</p><p>${escapeHtml(reasons)}</p><p>Você pode <strong>Inativar</strong> para retirá-lo da operação preservando os dados. Nenhum registro foi excluído.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Entendi</button><button type="button" class="primary-button" id="instead-archive-product">Inativar produto</button></div>`,{onMount(root){
+        root.querySelector('#instead-archive-product')?.addEventListener('click',()=>void removeCatalogProduct(productId));
+      }});
+      return;
+    }
+    openModal('Excluir produto definitivamente',`<p>Excluir <strong>${escapeHtml(preview.name)}</strong> de forma permanente?</p><p>O cadastro será removido do banco, inclusive da lista de inativos. Esta ação não pode ser desfeita. O registro da exclusão permanece na auditoria.</p><label>Digite o nome exato do produto para confirmar<input id="confirm-permanent-delete-name" autocomplete="off" aria-label="Nome do produto a excluir" placeholder="${escapeHtml(preview.name)}"></label><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-permanent-delete" disabled>Excluir definitivamente</button></div>`,{onMount(root){
+      const input=root.querySelector('#confirm-permanent-delete-name');
+      const button=root.querySelector('#confirm-permanent-delete');
+      const update=()=>{button.disabled=input.value.trim()!==preview.name;};
+      input.addEventListener('input',update);input.focus();
+      button.addEventListener('click',async()=>{
+        if(input.value.trim()!==preview.name)return;
+        button.disabled=true;input.disabled=true;button.textContent='Excluindo…';
+        try{
+          const result=await api.deleteProductPermanently(productId,input.value.trim());
+          if(!result?.deleted)throw new Error('Exclusão não confirmada no servidor.');
+          state.products=await api.products(true);
+          closeModal();if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'deleted');
+          showToast('Produto excluído definitivamente do cadastro.','success');
+        }catch(error){
+          input.disabled=false;update();button.textContent='Excluir definitivamente';
+          showToast(error.message||'Falha na exclusão. Verifique os vínculos e tente novamente.','error');
+        }
+      });
+    }});
+  }
 
 function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))updateProductPhotoSyncStatus();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);updateProductPhotoSyncStatus();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
@@ -1188,14 +1288,22 @@ function openCategoryForm() {
     const edit=root.querySelector('[data-edit-existing-duplicate]');
     if(!notice||!edit||!form)return()=>null;
     let possible=null;
+    const confirmation=form.elements.namedItem('confirmDifferentProduct');
     const check=()=>{
       const value=name=>form.elements.namedItem(name)?.value||'';
+      const previous=possible?.product?.id||null;
       possible=window.PdvProductDuplicateModel?.findLikelyDuplicate?.(state.products,{
         name:value('name'),sku:value('sku'),barcode:value('barcode'),categoryId:value('categoryId')
       },excludeId)||null;
+      if(confirmation){
+        if(previous!==possible?.product?.id)confirmation.checked=false;
+        confirmation.disabled=Boolean(possible&&possible.reason!=='name');
+      }
       notice.hidden=!possible;
       if(possible)notice.querySelector('[data-product-duplicate-text]').textContent=
-        `Possível cadastro duplicado: "${possible.product.name}". Confira antes de criar outro; você pode corrigir o produto existente.`;
+        possible.reason==='name'
+          ?`Possível duplicata: "${possible.product.name}". Confira o cadastro antes de confirmar um produto diferente.`
+          :`O SKU ou código de barras já pertence ao produto "${possible.product.name}". Corrija o existente ou use um código distinto.`;
       return possible;
     };
     for(const key of ['name','sku','barcode','categoryId']){
@@ -1205,6 +1313,19 @@ function openCategoryForm() {
     edit.addEventListener('click',()=>{if(possible)void openInventoryItem(possible.product.id);});
     check();
     return check;
+  }
+
+  function validatePossibleProductDuplicate(checkDuplicate,form){
+    const match=checkDuplicate();
+    if(!match)return;
+    if(match.reason!=='name')throw new Error('SKU ou código de barras já cadastrado. Edite o produto existente ou informe outro código.');
+    if(!form.elements.namedItem('confirmDifferentProduct')?.checked){
+      throw new Error('Possível produto duplicado: edite o cadastro existente ou confirme explicitamente que é outro produto.');
+    }
+  }
+
+  function notifyProductChanged(productId,type='updated'){
+    window.dispatchEvent(new CustomEvent('artisys:product:changed',{detail:{productId,type}}));
   }
 
   function openQuickStockProductForm() {
@@ -1218,7 +1339,7 @@ function openCategoryForm() {
           <label><input type="radio" name="kind" value="PREPARED"><span><strong>Preparado na hora</strong><small>Porções, lanches e itens que precisam de preparo.</small></span></label>
         </fieldset>
         <div class="field"><label for="quick-stock-name">Nome do produto *</label><input id="quick-stock-name" name="name" maxlength="180" required placeholder="Ex.: Refrigerante lata 350 ml"></div>
-        <div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><small>Se for outro produto, você ainda pode criar um novo cadastro.</small></div>
+        <div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><label class="product-duplicate-confirm"><input type="checkbox" name="confirmDifferentProduct"> Criar outro cadastro mesmo assim, pois é um produto diferente</label><small>A confirmação só é permitida para nomes semelhantes; SKU e código de barras repetidos precisam ser corrigidos.</small></div>
         <section data-quick-stock-ready>
           <div class="field-grid">
             <div class="field"><label for="quick-stock-price">Preço de venda (R$) *</label><input id="quick-stock-price" name="salePrice" inputmode="decimal" required placeholder="Ex.: 6,50"></div>
@@ -1332,6 +1453,7 @@ function openCategoryForm() {
         clearError();
         try{
           if(!pendingPayload){
+            validatePossibleProductDuplicate(checkDuplicate,form);
             const normalized=model.normalizeQuickStockInput({
               kind:field('kind'),name:field('name'),salePrice:field('salePrice'),
               openingQuantity:field('openingQuantity'),categoryId:field('categoryId'),
@@ -1364,6 +1486,7 @@ function openCategoryForm() {
           const price=ui.formatCents(product.salePriceCents);
           const balance=quantityLabel(saved.stockQuantity);
           const publication=saved.availableForSale?'No Cardápio e no Balcão':'Não publicado para venda';
+          notifyProductChanged(product.id,'saved');
           const summary=`<strong>${title}</strong> · ${price} · Estoque: ${balance} ${escapeHtml(product.unit||'UN')} · ${publication}`;
           feedback.textContent=`${product.name} cadastrado. Estoque: ${balance} ${product.unit||'UN'}. ${publication}.`;
           resultBox.innerHTML=`<p>${summary}</p><small>O saldo foi registrado no local de estoque do terminal. Se estiver com saldo zero, registre uma entrada antes de disponibilizar para venda.</small>`;
@@ -1403,8 +1526,8 @@ function openCategoryForm() {
   }
 
   function openProductForm(product = null) {
-    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><small>Se for outro produto, você ainda pode criar um novo cadastro.</small></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label>${productionDestinationMarkup()}</div>${quantityPricingMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
-      bindPossibleProductDuplicate(root,root.querySelector('#product-form'),product?.id||null);
+    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><label class="product-duplicate-confirm"><input type="checkbox" name="confirmDifferentProduct"> Criar outro cadastro mesmo assim, pois é um produto diferente</label><small>A confirmação só é permitida para nomes semelhantes; SKU e código de barras repetidos precisam ser corrigidos.</small></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label>${productionDestinationMarkup()}</div>${quantityPricingMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
+      const checkDuplicate=bindPossibleProductDuplicate(root,root.querySelector('#product-form'),product?.id||null);
       const usage=root.querySelector('#product-usage-type');
       const price=root.querySelector('#product-price');
       const cost=root.querySelector('#product-cost');
@@ -1415,7 +1538,7 @@ function openCategoryForm() {
       const updateMargin=()=>{if(margin)margin.value=`${ui.calculateMarginPercent(centsFromInput(price?.value||'0'),centsFromInput(cost?.value||'0')).toFixed(2)}%`;};
       const syncUsage=()=>{const ingredient=usage?.value==='INGREDIENT';const usedAsIngredient=['INGREDIENT','BOTH'].includes(usage?.value);root.querySelectorAll('[data-product-sale-only]').forEach(node=>node.hidden=ingredient);const pricing=root.querySelector('[data-quantity-pricing]');if(pricing)pricing.hidden=ingredient;const destination=root.querySelector('[data-production-destination]');if(destination)destination.hidden=ingredient||destination.dataset.available==='false';if(ingredient&&price)price.value='0,00';if(usedAsIngredient&&track){track.checked=true;track.disabled=true;}else if(track)track.disabled=false;updateMargin();};
       usage?.addEventListener('change',syncUsage);price?.addEventListener('input',updateMargin);cost?.addEventListener('input',updateMargin);syncUsage();
-      root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const usageType=formValue(form,'usageType'); let savedProduct=null;try { await requireProductionDestination(root); const saved=await api.saveProduct({ id:product?.id,name:formValue(form,'name'),sku:formValue(form,'sku'),barcode:formValue(form,'barcode'),categoryId:formValue(form,'categoryId'),unit:formValue(form,'unit'),usageType,salePriceCents:usageType==='INGREDIENT'?0:centsFromInput(formValue(form,'salePrice')),costCents:centsFromInput(formValue(form,'cost')),minimumStock:Number(formValue(form,'minimumStock')||0),trackStock:form.elements.namedItem('trackStock').checked,menuEnabled:usageType==='INGREDIENT'?false:(product?.menuEnabled??false),active:form.elements.namedItem('active').checked });savedProduct=saved; await persistQuantityPricingEditor(root,saved.id); const confirmedRoute=await persistProductionDestination(root,saved.id); const index=state.products.findIndex(item=>item.id===saved.id);if(index>=0)state.products[index]=saved;else state.products.push(saved);state.products.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));closeModal();if(isRouteActive('products'))renderProducts();showToast(usageType==='INGREDIENT'?'Insumo salvo no Estoque.':'Produto salvo no Estoque. Adicione-o ao Cardápio quando quiser vendê-lo.','success');if(usageType!=='INGREDIENT'&&!confirmedRoute)showToast('Produto salvo no Estoque, mas o destino de entrega/KDS está pendente. Configure-o antes de colocar à venda.','error'); } catch(error){if(savedProduct){closeModal();showToast('Produto salvo no Estoque, mas uma configuração adicional falhou: '+error.message+'. Abra o produto existente para concluir; não cadastre outro.','error');void navigate('inventory');return;}showToast(error.message,'error');} });
+      root.querySelector('#product-form').addEventListener('submit', async (event) => { event.preventDefault(); const form=event.currentTarget; const usageType=formValue(form,'usageType'); let savedProduct=null;try { validatePossibleProductDuplicate(checkDuplicate,form); await requireProductionDestination(root); const saved=await api.saveProduct({ id:product?.id,name:formValue(form,'name'),sku:formValue(form,'sku'),barcode:formValue(form,'barcode'),categoryId:formValue(form,'categoryId'),unit:formValue(form,'unit'),usageType,salePriceCents:usageType==='INGREDIENT'?0:centsFromInput(formValue(form,'salePrice')),costCents:centsFromInput(formValue(form,'cost')),minimumStock:Number(formValue(form,'minimumStock')||0),trackStock:form.elements.namedItem('trackStock').checked,menuEnabled:usageType==='INGREDIENT'?false:(product?.menuEnabled??false),active:form.elements.namedItem('active').checked });savedProduct=saved; await persistQuantityPricingEditor(root,saved.id); const confirmedRoute=await persistProductionDestination(root,saved.id); const index=state.products.findIndex(item=>item.id===saved.id);if(index>=0)state.products[index]=saved;else state.products.push(saved);state.products.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));closeModal();if(isRouteActive('products'))renderProducts();notifyProductChanged(saved.id,'saved');showToast(usageType==='INGREDIENT'?'Insumo salvo no Estoque.':'Produto salvo no Estoque. Adicione-o ao Cardápio quando quiser vendê-lo.','success');if(usageType!=='INGREDIENT'&&!confirmedRoute)showToast('Produto salvo no Estoque, mas o destino de entrega/KDS está pendente. Configure-o antes de colocar à venda.','error'); } catch(error){if(savedProduct){closeModal();showToast('Produto salvo no Estoque, mas uma configuração adicional falhou: '+error.message+'. Abra o produto existente para concluir; não cadastre outro.','error');void navigate('inventory');return;}showToast(error.message,'error');} });
     } });
     window.dispatchEvent(new CustomEvent('artisys:product-form-opened',{detail:{productId:product?.id||null}}));
   }
@@ -1455,7 +1578,9 @@ function openCategoryForm() {
     openStockProductForm:(product=null)=>openProductForm(product),
     openRecipeForm:(product=null)=>void openRecipeForm(product),
     openInventoryItem,
-    archiveProduct: removeCatalogProduct
+    archiveProduct: removeCatalogProduct,
+    reactivateProduct: reactivateCatalogProduct,
+    deleteProductPermanently
   });
 
   async function mountRecipeEditor(root, product) {

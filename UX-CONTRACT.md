@@ -142,7 +142,7 @@ An area whose navigation mode is `group` has exactly one sidebar destination; it
 
 - A navegação lateral de alto nível combina ícone e rótulo textual curto. O ícone continua servindo ao operador frequente, mas o rótulo elimina a necessidade de decorar destinos como Balcão, Caixa, Vendas, Cadastros e Gestão.
 - Os rótulos curtos não alteram route IDs, permissões, atalhos de teclado ou a navegação canônica; `title` e `aria-label` continuam usando o nome completo do destino.
-- **Mesas e comandas** abre sempre em **Operação**. Mapa de mesas, comanda ativa, chamados e KDS permanecem na rotina principal. O painel **Cardápio público e QR** fica somente em **Configurações → Áreas**, sem ocupar a tela de comandas.
+- **Mesas e comandas** abre sempre em **Operação**. Mapa de mesas, comanda ativa, chamados e KDS permanecem na rotina principal. O painel **Cardápio público e QR** fica somente em **Configurações → Cardápio público e QR**, sem ocupar a tela de comandas.
 - **Configuração** de Alimentação é uma visão separada, acessível somente a gerente/administrador. Setores de produção, dispositivos LAN e indicadores/CSV não ficam misturados à rotina de salão.
 - Trocar entre Operação e Configuração preserva a comanda selecionada; ao retornar para Operação, o contexto operacional é restaurado.
 - O P2 não cria um segundo domínio ou segunda fonte de dados: ambas as visões usam os mesmos serviços de restaurante, pedidos, KDS e relatórios locais.

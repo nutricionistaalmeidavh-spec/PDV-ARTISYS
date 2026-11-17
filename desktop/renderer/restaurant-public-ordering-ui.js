@@ -83,7 +83,7 @@
       wrapper.innerHTML=panelHtml();
       const node=wrapper.firstElementChild;
       node.classList.add('ops-card');
-      node.dataset.settingsCategory='modules';
+      node.dataset.settingsCategory='food-menu';
       page.appendChild(node);
       bind(node);
       root.PdvSettingsHub?.mount?.(page);

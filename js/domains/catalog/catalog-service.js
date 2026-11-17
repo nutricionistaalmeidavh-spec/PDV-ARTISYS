@@ -3,6 +3,7 @@
 const { randomBytes, randomUUID, scryptSync, timingSafeEqual } = require('node:crypto');
 const { assertCents } = require('../shared/money');
 const { writeAudit } = require('../../core/audit-log');
+const { withTransaction } = require('../../core/database/sqlite-database');
 const { runCustomerAddressMigrations } = require('../../core/database/customer-address-migrations');
 
 function normalizeDocument(value) {
@@ -253,6 +254,76 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
     return getProduct(product.id);
   }
 
+  function reactivateProduct(id,actor=null){
+    return withTransaction(db,()=>{
+      const product=getProduct(id);
+      if(!product)throw new Error('Produto não encontrado.');
+      if(product.active)return product;
+      db.prepare('UPDATE products SET active=1,menu_enabled=0,updated_at=? WHERE id=?').run(now(),product.id);
+      writeAudit(db,{action:'product.reactivate',entity:'product',entityId:product.id,actor,context:{name:product.name,menuEnabled:false}},now);
+      return getProduct(product.id);
+    });
+  }
+
+  // Exclusão física, restrita a cadastros sem uso. Nunca cascatea vendas, estoque ou receitas.
+  // A verificação percorre também referências de módulos opcionais e tabelas sem FK explícita.
+  const quotedIdentifier=value=>'"'+String(value).replace(/"/g,'""')+'"';
+  function previewPermanentDeletion(id){
+    const product=getProduct(id);
+    if(!product)throw new Error('Produto não encontrado.');
+    const stock=db.prepare('SELECT quantity FROM inventory_balances WHERE product_id=?').get(product.id);
+    const stockQuantity=Number(stock?.quantity||0);
+    const dependencies=[];
+    const tables=db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+    for(const {name:table} of tables){
+      if(table==='products'||table==='inventory_balances')continue;
+      const name=quotedIdentifier(table);
+      const columns=db.prepare('PRAGMA table_info('+name+')').all().map(c=>c.name);
+      const foreignKeys=db.prepare('PRAGMA foreign_key_list('+name+')').all()
+        .filter(fk=>fk.table==='products').map(fk=>fk.from);
+      const candidates=new Set([
+        ...foreignKeys,
+        ...columns.filter(column=>column==='product_id'||column.endsWith('_product_id'))
+      ]);
+      for(const column of candidates){
+        if(!columns.includes(column))continue;
+        const count=Number(db.prepare('SELECT COUNT(*) AS n FROM '+name+' WHERE '+quotedIdentifier(column)+'=?')
+          .get(product.id)?.n||0);
+        if(count)dependencies.push({table,column,count});
+      }
+    }
+    return {id:product.id,name:product.name,stockQuantity,
+      dependencies,allowed:stockQuantity===0&&dependencies.length===0};
+  }
+
+  function deleteProductPermanently(id,{confirmationName}={},actor=null){
+    return withTransaction(db,()=>{
+      const preview=previewPermanentDeletion(id);
+      if(String(confirmationName||'').trim()!==preview.name){
+        const error=new Error('Digite o nome exato do produto para confirmar a exclusão definitiva.');
+        error.statusCode=400;throw error;
+      }
+      if(!preview.allowed){
+        const error=new Error(preview.stockQuantity!==0
+          ? 'Exclusão definitiva bloqueada: produto com saldo de estoque. Ajuste-o pelo procedimento de estoque ou inative o produto.'
+          : 'Exclusão definitiva bloqueada: produto vinculado a vendas, movimentações, receitas ou outros registros. Use Inativar para preservar o histórico.');
+        error.statusCode=409;error.dependencies=preview.dependencies;throw error;
+      }
+      db.prepare('DELETE FROM inventory_balances WHERE product_id=?').run(id);
+      try{db.prepare('DELETE FROM products WHERE id=?').run(id);}
+      catch(error){
+        if(/FOREIGN KEY constraint failed/i.test(error.message||'')){
+          const blocked=new Error('Exclusão definitiva bloqueada: existem registros relacionados a este produto. Use Inativar.');
+          blocked.statusCode=409;throw blocked;
+        }
+        throw error;
+      }
+      writeAudit(db,{action:'product.delete',entity:'product',entityId:id,actor,
+        context:{name:preview.name,mode:'permanent',stockQuantity:0}},now);
+      return {id,deleted:true};
+    });
+  }
+
   function customerSelect(where = '') {
     return `SELECT c.*,
       ls.id AS last_sale_id,ls.sale_number AS last_sale_number,ls.total_cents AS last_sale_total_cents,
@@ -413,7 +484,7 @@ function createCatalogService({ db, now = () => new Date().toISOString(), idFact
 
   return {
     upsertCategory, listCategories,
-    upsertProduct, getProduct, listProducts, removeProduct,
+    upsertProduct, getProduct, listProducts, removeProduct, reactivateProduct, previewPermanentDeletion, deleteProductPermanently,
     upsertCustomer, getCustomer, listCustomers,
     upsertSupplier, listSuppliers,
     createUser, upsertUser, getUser, listUsers, countUsers, verifyUserPassword

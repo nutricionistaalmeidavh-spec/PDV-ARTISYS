@@ -77,6 +77,27 @@ function createRouter({runtime,installationToken='',bodyLimitBytes=1024*1024,all
       if(request.method==='GET'&&pathname==='/api/v1/products'){requireCapability(session,'products.view');sendJson(response,200,runtime.catalog.listProducts({includeInactive:url.searchParams.get('includeInactive')==='true'}),request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/products/quick'){requireCapability(session,'products.manage');requireCapability(session,'inventory.adjust');const mid=String(request.headers['x-mutation-id']||'').trim();if(!mid)throw new HttpError(400,'Identificador de cadastro obrigatório para evitar duplicidade.');const body=await readJson(request,bodyLimitBytes);const product=registerQuickStockProduct(runtime,body,currentActor,{mutationId:mid});sendJson(response,201,product,request,allowedOrigins);return;}
       if(request.method==='POST'&&pathname==='/api/v1/products'){requireCapability(session,'products.manage');const body=await readJson(request,bodyLimitBytes);sendJson(response,201,runtime.catalog.upsertProduct(body,currentActor),request,allowedOrigins);return;}
+      const productDeletePreview=pathname.match(/^\/api\/v1\/products\/([^/]+)\/purge-preview$/);
+      if(request.method==='GET'&&productDeletePreview){
+        requireCapability(session,'products.manage');
+        sendJson(response,200,runtime.catalog.previewPermanentDeletion(decodeURIComponent(productDeletePreview[1])),request,allowedOrigins);
+        return;
+      }
+      const productPurge=pathname.match(/^\/api\/v1\/products\/([^/]+)\/purge$/);
+      if(request.method==='POST'&&productPurge){
+        requireCapability(session,'products.manage');
+        const body=await readJson(request,bodyLimitBytes);
+        sendJson(response,200,runtime.catalog.deleteProductPermanently(decodeURIComponent(productPurge[1]),{
+          confirmationName:String(body.confirmationName||'')
+        },currentActor),request,allowedOrigins);
+        return;
+      }
+      const productReactivate=pathname.match(/^\/api\/v1\/products\/([^/]+)\/reactivate$/);
+      if(request.method==='POST'&&productReactivate){
+        requireCapability(session,'products.manage');
+        sendJson(response,200,runtime.catalog.reactivateProduct(decodeURIComponent(productReactivate[1]),currentActor),request,allowedOrigins);
+        return;
+      }
       const productMatch=pathname.match(/^\/api\/v1\/products\/([^/]+)$/);if(request.method==='DELETE'&&productMatch){requireCapability(session,'products.manage');sendJson(response,200,runtime.catalog.removeProduct(decodeURIComponent(productMatch[1]),currentActor),request,allowedOrigins);return;}
       if(request.method==='GET'&&pathname==='/api/v1/product-photos/manifest'){requireCapability(session,'products.view');sendJson(response,200,runtime.productPhotos.manifest(),request,allowedOrigins);return;}
       const photoFileMatch=pathname.match(/^\/api\/v1\/product-photos\/([^/]+)\/(original|thumbnail)$/);if(request.method==='GET'&&photoFileMatch){requireCapability(session,'products.view');sendBinary(response,runtime.productPhotos.read(decodeURIComponent(photoFileMatch[1]),photoFileMatch[2]),request);return;}

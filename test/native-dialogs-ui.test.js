@@ -25,7 +25,9 @@ test('commission payment uses the shared in-app modal with value and note fields
 });
 
 test('product destructive actions use in-app confirmation modals',()=>{
-  assert.match(app,/openModal\('Inativar produto do Estoque'/);
+  assert.match(app,/openModal\('Inativar produto'/);
+  assert.match(app,/openModal\('Excluir produto definitivamente'/);
+  assert.match(app,/id="confirm-permanent-delete"/);
   assert.match(app,/id="confirm-remove-product"/);
   assert.match(app,/openModal\('Remover foto do produto'/);
   assert.match(app,/id="confirm-remove-product-photo"/);
