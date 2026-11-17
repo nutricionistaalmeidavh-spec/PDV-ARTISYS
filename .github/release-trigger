@@ -1,11 +1,11 @@
 ArtiSys PDV Windows release trigger
-requested_for=publish-jamily-final-cardapio-qr-settings-outside-comandas
+requested_for=publish-customer-product-permanent-delete-reactivation-p1-p2
 requested_at=2026-11-17
 target_platform=windows-x64
-expected_next_stable_version=2.0.17
-source_main_sha=45ecea040ac79b609d8d73aa73dc20280e402d77
-changes=PR-213-cardapio-publico-qr-moved-to-configuracoes-areas-preserves-PR-212-cancel-caixa-product-edit-soft-delete-duplicate-guidance
-reason=client-requested-fully-clean-comandas-screen-main-verified
-constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data-stocks-users-sales-and-historical-orders
-requires=verify-release-packaged-windows-smoke-updater-metadata-release-manifest
+expected_next_stable_version=2.0.18
+source_main_sha=af620a0d7e96f8c09e8375f5abf19376cfd061f0
+changes=PR-214-permanent-physical-delete-with-safeguards-product-inactive-reactivation-panel-duplication-dialog-stock-live-refresh-checkout-inline-command-cancellation-cardapio-qr-access
+reason=client-requested-P1-P2-complete-main-verify-and-windows-smoke-green
+constraints=non-fiscal-local-first-open-source-no-mandatory-paid-services-preserve-sales-stocks-history-offline-first
+requires=full-verify-windows-build-signature-manifest-updater-metadata-qa-before-release
 publish=stable-github-release-if-and-only-if-all-workflow-gates-pass
