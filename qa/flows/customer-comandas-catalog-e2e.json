@@ -830,7 +830,7 @@
     {
       "action": "click",
       "name": "fechar-bloqueio-historico",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close[data-close-modal]",
       "timeoutMs": 15000
     },
     {
