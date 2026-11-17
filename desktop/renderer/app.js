@@ -480,7 +480,7 @@
       const filterButtons=[...root.querySelectorAll('[data-checkout-document-filter]')];
       let activeFilter='';let timer=null;
       const render=rows=>{
-        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong>${row.type==='COMMAND'&&row.status==='OPEN'&&canAccessRoute('FOOD')&&window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.orders.create')?`<button type="button" class="secondary-button" data-edit-checkout-command="${escapeHtml(row.id)}">Editar comanda</button>`:''}<button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}" data-checkout-document-sale="${escapeHtml(row.saleId||'')}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
+        host.innerHTML=rows.length?rows.map(row=>`<div class="data-row"><span><strong>${escapeHtml(row.label||row.number)}</strong><small>${escapeHtml(checkoutDocumentTypeLabel(row))} · ${escapeHtml(checkoutDocumentStatusLabel(row.status))}${row.customerName?` · ${escapeHtml(row.customerName)}`:''}</small></span><span><strong>${ui.formatCents(row.totalCents||0)}</strong>${row.type==='COMMAND'&&row.status==='OPEN'&&canAccessRoute('FOOD')&&window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.orders.create')?`<button type="button" class="secondary-button" data-edit-checkout-command="${escapeHtml(row.id)}">Editar comanda</button>`:''}${row.type==='COMMAND'&&row.status==='OPEN'&&canAccessRoute('FOOD')&&window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel')?`<button type="button" class="danger-button" data-cancel-checkout-command="${escapeHtml(row.id)}">Cancelar comanda</button>`:''}<button type="button" class="primary-button" data-open-checkout-document="${escapeHtml(row.type)}:${escapeHtml(row.id)}" data-checkout-document-sale="${escapeHtml(row.saleId||'')}">Abrir no caixa</button></span></div>`).join(''):'<div class="empty-state">Nenhuma comanda ou pedido encontrado.</div>';
         host.querySelectorAll('[data-edit-checkout-command]').forEach(button=>button.addEventListener('click',async()=>{
           const sessionId=String(button.dataset.editCheckoutCommand||'');
           if(!sessionId||!rows.some(row=>row.type==='COMMAND'&&String(row.id)===sessionId))return;
@@ -494,6 +494,20 @@
             await navigate('FOOD');
             if(!window.PdvRestaurantUi?.show)throw new Error('Tela de comandas indisponível.');
             await window.PdvRestaurantUi.show(sessionId);
+          }catch(error){showToast(error.message,'error');}
+        }));
+        host.querySelectorAll('[data-cancel-checkout-command]').forEach(button=>button.addEventListener('click',async()=>{
+          const sessionId=String(button.dataset.cancelCheckoutCommand||'');
+          if(!sessionId||!rows.some(row=>row.type==='COMMAND'&&row.status==='OPEN'&&String(row.id)===sessionId))return;
+          if(!canAccessRoute('FOOD')||!window.PdvAccessPolicy?.hasCapability(state.user,'restaurant.sessions.cancel')){
+            showToast('Seu perfil não permite cancelar comandas.','error');return;
+          }
+          button.disabled=true;
+          try{
+            closeModal();
+            await navigate('FOOD');
+            if(!window.PdvRestaurantUi?.showCancel)throw new Error('Cancelamento de comandas indisponível.');
+            await window.PdvRestaurantUi.showCancel(sessionId);
           }catch(error){showToast(error.message,'error');}
         }));
         host.querySelectorAll('[data-open-checkout-document]').forEach(button=>button.addEventListener('click',async()=>{
@@ -1001,15 +1015,24 @@
 
   function productsListHtml() {
     const products = ui.filterProducts(state.products.filter((product) => product.menuEnabled), state.productQuery, state.categoryId);
-    return products.map((product) => { const status=recipeStatusMeta(product); const destination=productionDestinationLabel(product.id); const missingDestination=destination==='Destino: não configurado'; return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(destination)}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}${missingDestination?`<button class="secondary-button" data-product-inventory-route="${product.id}">Configurar no Estoque</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">${product.prepared?'Ver ficha técnica':'Ver cadastro'}</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button></div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
+    return products.map((product) => { const status=recipeStatusMeta(product); const destination=productionDestinationLabel(product.id); const missingDestination=destination==='Destino: não configurado'; return `<div class="data-row"><div><strong>${escapeHtml(product.name)}</strong><small>${product.prepared?'Ficha técnica':productUsageLabel(product.usageType)} · ${escapeHtml(product.categoryName || 'Sem categoria')}</small><small data-production-destination="${product.id}">${escapeHtml(destination)}</small></div><div><small>Preço</small><strong>${ui.formatCents(product.salePriceCents)}</strong></div><div><small>${product.prepared?'Capacidade':'Estoque'}</small><strong>${product.prepared?escapeHtml(`Até ${countLabel(product.recipeCapacity||0,'porção','porções')}`):`${quantityLabel(product.stockQuantity)} ${escapeHtml(product.unit)}`}</strong>${product.prepared?'<small>Consumo pela ficha técnica</small>':''}</div><div class="menu-row-actions"><button class="secondary-button" data-product-photo-edit="${product.id}">${product.photo?'Trocar foto':'Adicionar foto'}</button>${product.photo?`<button class="secondary-button" data-product-photo-remove="${product.id}">Remover foto</button>`:''}${missingDestination?`<button class="secondary-button" data-product-inventory-route="${product.id}">Configurar no Estoque</button>`:''}<button class="secondary-button" data-edit-product="${product.id}">${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?'Editar':'Ver cadastro'}</button><button class="danger-button" data-remove-product="${product.id}">Retirar</button>${window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')?`<button class="danger-button" type="button" data-archive-product="${product.id}">Inativar</button>`:''}</div></div>`; }).join('') || '<div class="empty-state">Nenhum produto disponível para venda. Clique em “Novo item” para escolher um produto de venda direta ou uma Ficha Técnica.</div>';
   }
 
   function bindProductRows(root = content) {
     root.querySelectorAll('[data-product-photo-edit]').forEach(button=>button.addEventListener('click',()=>uploadProductPhoto(button.dataset.productPhotoEdit)));
     root.querySelectorAll('[data-product-photo-remove]').forEach(button=>button.addEventListener('click',()=>removeProductPhoto(button.dataset.productPhotoRemove)));
     root.querySelectorAll('[data-product-inventory-route]').forEach(button=>button.addEventListener('click',async()=>{await window.PdvAppNavigation?.navigate?.('inventory');await window.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.productInventoryRoute);}));
-    root.querySelectorAll('[data-edit-product]').forEach((button) => button.addEventListener('click', () => openMenuSourceDetails(state.products.find((product) => product.id === button.dataset.editProduct))));
+    root.querySelectorAll('[data-edit-product]').forEach(button=>button.addEventListener('click',async()=>{
+      const product=state.products.find(item=>item.id===button.dataset.editProduct);
+      if(!window.PdvAccessPolicy?.hasCapability(state.user,'products.manage')){
+        await openMenuSourceDetails(product);
+        return;
+      }
+      await navigate('inventory');
+      await window.PdvCatalogAdmin?.openInventoryItem?.(button.dataset.editProduct);
+    }));
     root.querySelectorAll('[data-remove-product]').forEach((button) => button.addEventListener('click', () => removeMenuItem(button.dataset.removeProduct)));
+    root.querySelectorAll('[data-archive-product]').forEach(button=>button.addEventListener('click',()=>removeCatalogProduct(button.dataset.archiveProduct)));
   }
 
   function renderProductsList() {
@@ -1092,7 +1115,8 @@
         state.products=state.products.filter(item=>item.id!==productId);
         closeModal();
         renderProducts();
-        showToast('Produto excluído do catálogo. Histórico preservado.','success');
+        showToast('Produto inativado. O histórico de vendas e estoque foi preservado.','success');
+        window.dispatchEvent(new CustomEvent('artisys:product-archived',{detail:{productId}}));
       }catch(error){showToast(error.message,'error');}
     });
   } });
@@ -1159,6 +1183,30 @@ function openCategoryForm() {
     for(const row of rows)await api.saveWholesaleTier({id:row.id||undefined,productId,minQuantity:Number(row.minQuantity),unitPriceCents:Number(row.unitPriceCents)});
   }
 
+  function bindPossibleProductDuplicate(root,form,excludeId=null){
+    const notice=root.querySelector('[data-product-duplicate-warning]');
+    const edit=root.querySelector('[data-edit-existing-duplicate]');
+    if(!notice||!edit||!form)return()=>null;
+    let possible=null;
+    const check=()=>{
+      const value=name=>form.elements.namedItem(name)?.value||'';
+      possible=window.PdvProductDuplicateModel?.findLikelyDuplicate?.(state.products,{
+        name:value('name'),sku:value('sku'),barcode:value('barcode'),categoryId:value('categoryId')
+      },excludeId)||null;
+      notice.hidden=!possible;
+      if(possible)notice.querySelector('[data-product-duplicate-text]').textContent=
+        `Possível cadastro duplicado: "${possible.product.name}". Confira antes de criar outro; você pode corrigir o produto existente.`;
+      return possible;
+    };
+    for(const key of ['name','sku','barcode','categoryId']){
+      form.elements.namedItem(key)?.addEventListener('input',check);
+      form.elements.namedItem(key)?.addEventListener('change',check);
+    }
+    edit.addEventListener('click',()=>{if(possible)void openInventoryItem(possible.product.id);});
+    check();
+    return check;
+  }
+
   function openQuickStockProductForm() {
     const model=window.PdvQuickStockModel;
     if(!model){showToast('Cadastro rápido indisponível. Abra o Cadastro completo.','error');return;}
@@ -1170,6 +1218,7 @@ function openCategoryForm() {
           <label><input type="radio" name="kind" value="PREPARED"><span><strong>Preparado na hora</strong><small>Porções, lanches e itens que precisam de preparo.</small></span></label>
         </fieldset>
         <div class="field"><label for="quick-stock-name">Nome do produto *</label><input id="quick-stock-name" name="name" maxlength="180" required placeholder="Ex.: Refrigerante lata 350 ml"></div>
+        <div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><small>Se for outro produto, você ainda pode criar um novo cadastro.</small></div>
         <section data-quick-stock-ready>
           <div class="field-grid">
             <div class="field"><label for="quick-stock-price">Preço de venda (R$) *</label><input id="quick-stock-price" name="salePrice" inputmode="decimal" required placeholder="Ex.: 6,50"></div>
@@ -1209,6 +1258,7 @@ function openCategoryForm() {
         </div>
       </section>`, {wide:true,onMount(root){
       const form=root.querySelector('#quick-stock-product-form');
+      const checkDuplicate=bindPossibleProductDuplicate(root,form);
       const name=form.elements.namedItem('name');
       const quantity=form.elements.namedItem('openingQuantity');
       const publish=form.elements.namedItem('publish');
@@ -1264,6 +1314,7 @@ function openCategoryForm() {
         Array.from(form.elements).forEach(element=>{if(element.dataset?.uncertainLocked==='true'){element.disabled=false;delete element.dataset.uncertainLocked;}});
         form.hidden=false;success.hidden=true;clearError();
         syncQuantity();
+        checkDuplicate();
         name.focus({preventScroll:true});
       };
       root.querySelector('[data-quick-stock-another]').addEventListener('click',resetNext);
@@ -1352,7 +1403,8 @@ function openCategoryForm() {
   }
 
   function openProductForm(product = null) {
-    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label>${productionDestinationMarkup()}</div>${quantityPricingMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
+    openModal(product ? 'Editar produto/insumo do Estoque' : 'Novo produto/insumo do Estoque', `<form id="product-form"><div class="field-grid"><div class="field wide"><label>Nome *</label><input name="name" required value="${escapeHtml(product?.name || '')}"></div><div class="field product-duplicate-warning" data-product-duplicate-warning role="status" hidden><p data-product-duplicate-text></p><button type="button" class="secondary-button" data-edit-existing-duplicate>Editar produto existente</button><small>Se for outro produto, você ainda pode criar um novo cadastro.</small></div><div class="field"><label>Tipo de cadastro *</label><select name="usageType" id="product-usage-type" required><option value="INGREDIENT" ${product?.usageType==='INGREDIENT'?'selected':''}>Insumo</option><option value="DIRECT" ${(!product?.usageType||product?.usageType==='DIRECT')?'selected':''}>Venda direta</option><option value="BOTH" ${product?.usageType==='BOTH'?'selected':''}>Produto e insumo</option></select><small>Insumo não aparece como opção no Cardápio. “Produto e insumo” pode ser vendido e usado em fichas.</small></div><div class="field"><label>SKU / código interno</label><input name="sku" value="${escapeHtml(product?.sku || '')}"></div><div class="field"><label>Código de barras</label><input name="barcode" value="${escapeHtml(product?.barcode || '')}"></div><div class="field"><label>Categoria</label><select name="categoryId"><option value="">Sem categoria</option>${state.categories.map((category) => `<option value="${category.id}" ${product?.categoryId === category.id ? 'selected' : ''}>${escapeHtml(category.name)}</option>`).join('')}</select></div><div class="field"><label>Unidade</label><select name="unit"><option value="UN" ${product?.unit === 'UN' ? 'selected' : ''}>UN</option><option value="KG" ${product?.unit === 'KG' ? 'selected' : ''}>KG · vendido por peso</option><option value="G" ${product?.unit === 'G' ? 'selected' : ''}>G · vendido por peso</option><option value="LT" ${product?.unit === 'LT' ? 'selected' : ''}>LT</option><option value="CX" ${product?.unit === 'CX' ? 'selected' : ''}>CX</option></select><small>KG e G usam o fluxo padrão de peso no Balcão; balança é opcional.</small></div><div class="field" data-product-sale-only><label>Preço de venda</label><input id="product-price" name="salePrice" inputmode="decimal" value="${((product?.salePriceCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field"><label>Custo de referência</label><input id="product-cost" name="cost" inputmode="decimal" value="${((product?.costCents || 0)/100).toFixed(2).replace('.', ',')}"></div><div class="field" data-product-sale-only><label>Margem</label><input id="product-margin" readonly value="${ui.calculateMarginPercent(product?.salePriceCents || 0, product?.costCents || 0).toFixed(2)}%"></div><div class="field"><label>Estoque mínimo</label><input name="minimumStock" type="number" min="0" step="0.001" value="${product?.minimumStock || 0}"></div><label class="field"><span><input name="trackStock" type="checkbox" ${product?.trackStock === false ? '' : 'checked'}> Controlar saldo em estoque</span><small>Obrigatório para itens usados como insumo.</small></label><label class="field"><span><input name="active" type="checkbox" ${product?.active === false ? '' : 'checked'}> Cadastro ativo</span><small>Estar ativo não adiciona automaticamente ao Cardápio.</small></label>${productionDestinationMarkup()}</div>${quantityPricingMarkup()}<div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button class="primary-button" type="submit">Salvar no Estoque</button></div></form>`, { wide: true, onMount(root) {
+      bindPossibleProductDuplicate(root,root.querySelector('#product-form'),product?.id||null);
       const usage=root.querySelector('#product-usage-type');
       const price=root.querySelector('#product-price');
       const cost=root.querySelector('#product-cost');
@@ -1402,7 +1454,8 @@ function openCategoryForm() {
     openProductImport:()=>void openProductImport(),
     openStockProductForm:(product=null)=>openProductForm(product),
     openRecipeForm:(product=null)=>void openRecipeForm(product),
-    openInventoryItem
+    openInventoryItem,
+    archiveProduct: removeCatalogProduct
   });
 
   async function mountRecipeEditor(root, product) {
