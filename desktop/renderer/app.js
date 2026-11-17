@@ -976,7 +976,13 @@
       }catch{}
     }
     if(!product)return false;
-    if(product.prepared){await openRecipeForm(product);return true;}
+    if(product.prepared){
+      openModal('Editar item preparado',`<p><strong>${escapeHtml(product.name)}</strong></p><p>O que você precisa corrigir?</p><div class="modal-actions"><button type="button" class="secondary-button" data-edit-prepared-recipe>Ficha técnica e ingredientes</button><button type="button" class="primary-button" data-edit-prepared-catalog>Cadastro, preço e destino de produção</button></div>`,{onMount(root){
+        root.querySelector('[data-edit-prepared-recipe]')?.addEventListener('click',()=>void openRecipeForm(product));
+        root.querySelector('[data-edit-prepared-catalog]')?.addEventListener('click',()=>openProductForm(product));
+      }});
+      return true;
+    }
     openProductForm(product);
     return true;
   }
@@ -1106,21 +1112,80 @@
   }
 
   async function removeCatalogProduct(productId){
-  const product=state.products.find(item=>item.id===productId);
-  if(!product)return;
-  openModal('Inativar produto do Estoque', `<p>Inativar <strong>${escapeHtml(product.name)}</strong>?</p><p>O cadastro será preservado no histórico e também sairá do Cardápio.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-remove-product">Excluir produto</button></div>`, { onMount(root) {
-    root.querySelector('#confirm-remove-product')?.addEventListener('click',async()=>{
-      try{
-        await api.removeProduct(productId);
-        state.products=state.products.filter(item=>item.id!==productId);
-        closeModal();
-        renderProducts();
-        showToast('Produto inativado. O histórico de vendas e estoque foi preservado.','success');
-        window.dispatchEvent(new CustomEvent('artisys:product-archived',{detail:{productId}}));
-      }catch(error){showToast(error.message,'error');}
-    });
-  } });
-}
+    const product=state.products.find(item=>item.id===productId)||(await api.products(true)).find(item=>item.id===productId);
+    if(!product)return showToast('Produto não encontrado. Atualize a lista.','error');
+    openModal('Inativar produto', `<p>Inativar <strong>${escapeHtml(product.name)}</strong>?</p><p>Ele deixará de aparecer no Cardápio e no Estoque ativo. Histórico, saldo e movimentações serão preservados. É possível reativá-lo depois.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Voltar</button><button type="button" class="danger-button" id="confirm-remove-product">Inativar produto</button></div>`, {onMount(root){
+      const button=root.querySelector('#confirm-remove-product');
+      button?.addEventListener('click',async()=>{
+        button.disabled=true;button.textContent='Inativando…';
+        try{
+          await api.removeProduct(productId);
+          state.products=await api.products(true);
+          closeModal();
+          if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'archived');
+          window.dispatchEvent(new CustomEvent('artisys:product-archived',{detail:{productId}}));
+          showToast('Produto inativado. Você pode reativá-lo na aba Inativos do Estoque.','success');
+        }catch(error){button.disabled=false;button.textContent='Inativar produto';showToast(error.message,'error');}
+      });
+    }});
+  }
+
+  async function reactivateCatalogProduct(productId){
+    const product=(await api.products(true)).find(item=>item.id===productId);
+    if(!product)return showToast('Produto não encontrado.','error');
+    if(product.active)return showToast('Este produto já está ativo.','error');
+    openModal('Reativar produto',`<p>Reativar <strong>${escapeHtml(product.name)}</strong>?</p><p>O cadastro será recuperado, mas permanecerá fora do Cardápio até você publicá-lo novamente.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Voltar</button><button type="button" class="primary-button" id="confirm-reactivate-product">Reativar produto</button></div>`,{onMount(root){
+      const button=root.querySelector('#confirm-reactivate-product');
+      button.addEventListener('click',async()=>{
+        button.disabled=true;button.textContent='Reativando…';
+        try{
+          await api.reactivateProduct(productId);
+          state.products=await api.products(true);
+          closeModal();if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'reactivated');
+          showToast('Produto reativado. Revise o cadastro antes de publicar no Cardápio.','success');
+        }catch(error){button.disabled=false;button.textContent='Reativar produto';showToast(error.message,'error');}
+      });
+    }});
+  }
+
+  async function deleteProductPermanently(productId){
+    let preview;
+    try{preview=await api.previewPermanentDeletion(productId);}
+    catch(error){showToast(error.message,'error');return;}
+    const related=preview.dependencies||[];
+    if(!preview.allowed){
+      const reasons=Number(preview.stockQuantity||0)!==0
+        ?`Saldo de estoque: ${quantityLabel(preview.stockQuantity)}. Faça a correção de estoque antes de tentar excluir.`
+        :`Existem ${related.reduce((sum,entry)=>sum+Number(entry.count||0),0)} vínculos com outros registros. Excluir alteraria o histórico.`;
+      openModal('Exclusão definitiva indisponível',`<p><strong>${escapeHtml(preview.name)}</strong> não pode ser excluído definitivamente.</p><p>${escapeHtml(reasons)}</p><p>Você pode <strong>Inativar</strong> para retirá-lo da operação preservando os dados. Nenhum registro foi excluído.</p><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Entendi</button><button type="button" class="primary-button" id="instead-archive-product">Inativar produto</button></div>`,{onMount(root){
+        root.querySelector('#instead-archive-product')?.addEventListener('click',()=>void removeCatalogProduct(productId));
+      }});
+      return;
+    }
+    openModal('Excluir produto definitivamente',`<p>Excluir <strong>${escapeHtml(preview.name)}</strong> de forma permanente?</p><p>O cadastro será removido do banco, inclusive da lista de inativos. Esta ação não pode ser desfeita. O registro da exclusão permanece na auditoria.</p><label>Digite o nome exato do produto para confirmar<input id="confirm-permanent-delete-name" autocomplete="off" aria-label="Nome do produto a excluir" placeholder="${escapeHtml(preview.name)}"></label><div class="modal-actions"><button type="button" class="secondary-button" data-close-modal>Cancelar</button><button type="button" class="danger-button" id="confirm-permanent-delete" disabled>Excluir definitivamente</button></div>`,{onMount(root){
+      const input=root.querySelector('#confirm-permanent-delete-name');
+      const button=root.querySelector('#confirm-permanent-delete');
+      const update=()=>{button.disabled=input.value.trim()!==preview.name;};
+      input.addEventListener('input',update);input.focus();
+      button.addEventListener('click',async()=>{
+        if(input.value.trim()!==preview.name)return;
+        button.disabled=true;input.disabled=true;button.textContent='Excluindo…';
+        try{
+          const result=await api.deleteProductPermanently(productId,input.value.trim());
+          if(!result?.deleted)throw new Error('Exclusão não confirmada no servidor.');
+          state.products=await api.products(true);
+          closeModal();if(isRouteActive('products'))renderProducts();
+          notifyProductChanged(productId,'deleted');
+          showToast('Produto excluído definitivamente do cadastro.','success');
+        }catch(error){
+          input.disabled=false;update();button.textContent='Excluir definitivamente';
+          showToast(error.message||'Falha na exclusão. Verifique os vínculos e tente novamente.','error');
+        }
+      });
+    }});
+  }
 
 function monitorProductPhotoSync(){setTimeout(async()=>{try{state.photoSyncStatus=await api.productPhotoSyncStatus();if(isRouteActive('products'))updateProductPhotoSyncStatus();if(isRouteActive('checkout'))hydrateProductPhotos();if(state.photoSyncStatus.running)monitorProductPhotoSync();}catch{}},1000);}
   async function syncProductPhotos(force=false){try{state.photoSyncStatus=await api.syncProductPhotos(force);updateProductPhotoSyncStatus();showToast('Sincronização de fotos iniciada em segundo plano.','success');monitorProductPhotoSync();}catch(error){showToast(error.message,'error');}}
@@ -1478,7 +1543,9 @@ function openCategoryForm() {
     openStockProductForm:(product=null)=>openProductForm(product),
     openRecipeForm:(product=null)=>void openRecipeForm(product),
     openInventoryItem,
-    archiveProduct: removeCatalogProduct
+    archiveProduct: removeCatalogProduct,
+    reactivateProduct: reactivateCatalogProduct,
+    deleteProductPermanently
   });
 
   async function mountRecipeEditor(root, product) {
