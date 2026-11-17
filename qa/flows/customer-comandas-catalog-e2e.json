@@ -506,7 +506,7 @@
     {
       "action": "click",
       "name": "fechar-localizador-apos-cancelamento",
-      "selector": "#modal-root [data-close-modal]",
+      "selector": "#modal-root .modal-close[data-close-modal]",
       "timeoutMs": 15000
     },
     {
