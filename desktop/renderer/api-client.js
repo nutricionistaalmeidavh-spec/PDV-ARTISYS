@@ -56,6 +56,9 @@
     saveProduct(body) { return this.request('/api/v1/products', { method: 'POST', body }); }
     saveQuickProduct(body,mutationId) { return this.request('/api/v1/products/quick', { method:'POST', body, mutationId }); }
     removeProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }); }
+    reactivateProduct(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}/reactivate`, { method:'POST',body:{} }); }
+    previewPermanentDeletion(productId) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}/purge-preview`); }
+    deleteProductPermanently(productId,confirmationName) { return this.request(`/api/v1/products/${encodeURIComponent(productId)}/purge`, { method:'POST',body:{confirmationName} }); }
     recipe(productId) { return this.request(`/api/v1/vertical/recipes/${encodeURIComponent(productId)}`); }
     saveRecipe(productId, body) { return this.request(`/api/v1/vertical/recipes/${encodeURIComponent(productId)}`, { method: 'PUT', body }); }
     syncProductPhotos(force = false) { return root.artisysDesktop.photos.sync({ force, sessionToken:this.sessionToken }); }
