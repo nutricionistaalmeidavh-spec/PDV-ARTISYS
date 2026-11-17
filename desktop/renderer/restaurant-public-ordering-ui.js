@@ -69,20 +69,24 @@
   async function openQr(tableId){const table=model.tables.find(item=>item.id===tableId);showError('');try{const address=await verifyAddress();const qr=await request(`/api/v1/restaurant/public-ordering/tables/${encodeURIComponent(table.id)}/qr?host=${encodeURIComponent(address.host)}&port=${address.port}&protocol=${encodeURIComponent(address.protocol)}`);renderQrModal(table,qr);}catch(error){showError(error.message);toast(error.message,'error');}}
   function bind(panel){panel.querySelectorAll('input[name="menuLayout"]').forEach(input=>input.addEventListener('change',()=>{selectedMenuLayout=input.value;syncLayoutSelection(panel);}));syncLayoutSelection(panel);panel.querySelector('#apply-menu-layout')?.addEventListener('click',applyMenuLayout);panel.querySelector('#public-manual-address')?.addEventListener('change',event=>{panel.querySelector('#public-lan-host').disabled=!event.target.checked;panel.querySelector('#public-lan-port').disabled=!event.target.checked;});panel.querySelector('#configure-public-network')?.addEventListener('click',()=>{root.PdvAppNavigation?.navigate?.('settings');root.PdvUiLifecycle?.emit('settings:select',{category:'units'});});panel.querySelector('#test-public-network')?.addEventListener('click',async event=>{event.target.disabled=true;try{const address=await verifyAddress();toast(`Servidor respondeu no PC em ${address.host}:${address.port}. Confirme pelo celular antes de imprimir.`, 'success');showError('');}catch(error){showError(error.message);}finally{event.target.disabled=false;}});panel.querySelector('#open-public-firewall')?.addEventListener('click',async()=>{try{await root.artisysDesktop.publicNetwork.firewallSettings();toast('Confira as permissões do ArtiSys para redes privadas no Firewall do Windows.','success');}catch(error){showError(String(error?.message||'Não foi possível abrir as configurações do Windows.'));}});panel.querySelector('#save-public-config')?.addEventListener('click',saveConfig);panel.querySelector('#public-menu-search')?.addEventListener('input',event=>filterMenu(event.target.value));panel.querySelectorAll('[data-menu-row]').forEach(form=>form.addEventListener('submit',event=>{event.preventDefault();void saveMenuRow(event.currentTarget);}));panel.querySelectorAll('[data-table-qr]').forEach(button=>button.addEventListener('click',()=>openQr(button.dataset.tableQr)));}
   async function mount(){
-    const page=content?.querySelector('.restaurant-page');
-    if(!page||page.dataset.restaurantView!=='management'||!page.querySelector('[data-restaurant-management]')||page.querySelector('[data-public-ordering-panel]')||mounting)return;
+    const page=content?.querySelector('.ops-page');
+    const title=page?.querySelector('.ops-head h1')?.textContent?.trim();
+    const authorized=root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'settings.view') &&
+      root.PdvAccessPolicy?.hasCapability(root.PdvCurrentAccess,'restaurant.access');
+    if(!page||title!=='Configurações'||!authorized||page.querySelector('[data-public-ordering-panel]')||mounting)return;
     mounting=true;
     try{
       model=await load();
+      if(!page.isConnected||document.body.dataset.activeRoute!=='settings')return;
       selectedMenuLayout=model.config.menuLayout||'COMPACT';
-      if(content.querySelector('.restaurant-page')!==page||page.dataset.restaurantView!=='management')return;
-      const admin=page.querySelector('[data-restaurant-management]');
-      if(!admin)return;
-      const panel=document.createElement('div');
-      panel.innerHTML=panelHtml();
-      const node=panel.firstElementChild;
-      admin.appendChild(node);
+      const wrapper=document.createElement('div');
+      wrapper.innerHTML=panelHtml();
+      const node=wrapper.firstElementChild;
+      node.classList.add('ops-card');
+      node.dataset.settingsCategory='modules';
+      page.appendChild(node);
       bind(node);
+      root.PdvSettingsHub?.mount?.(page);
     }catch(error){if(error?.code!=='MODULE_DISABLED')toast(`Cardápio público: ${error.message}`,'error');}
     finally{mounting=false;}
   }

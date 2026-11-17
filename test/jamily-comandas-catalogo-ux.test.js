@@ -8,9 +8,12 @@ const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
 test('Cardápio público/QR fica somente na aba administrativa, sem cobrir comandas na operação',()=>{
   const publicUi=read('desktop/renderer/restaurant-public-ordering-ui.js');
   const restaurant=read('desktop/renderer/restaurant-ui.js');
-  assert.match(publicUi,/page\.dataset\.restaurantView\s*!==\s*'management'/);
-  assert.match(publicUi,/\[data-restaurant-management\]/);
-  assert.match(restaurant,/canManageRestaurant\(\)\?\x60<button/);
+  const settings=read('desktop/renderer/operational-pages.js');
+  assert.match(publicUi,/title!=='Configurações'/);
+  assert.match(publicUi,/node\.dataset\.settingsCategory='modules'/);
+  assert.match(publicUi,/PdvSettingsHub\?\.mount/);
+  assert.match(settings,/PdvRestaurantPublicOrderingUi\?\.mount/);
+  assert.doesNotMatch(restaurant,/PdvRestaurantPublicOrderingUi\?\.mount/);
   assert.match(publicUi,/Aparência do cardápio/);
   assert.match(publicUi,/QR por mesa/);
 });

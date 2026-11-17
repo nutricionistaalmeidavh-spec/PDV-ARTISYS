@@ -469,6 +469,7 @@
         await root.PdvOperationalDetailExtensions?.mountSettings?.(pageRoot);
         root.PdvVerticalModules?.mountSettingsModules?.(pageRoot);
         root.PdvSettingsHub?.mount?.(pageRoot);
+        await root.PdvRestaurantPublicOrderingUi?.mount?.();
       }
       content.focus({preventScroll:true});
     }catch(error){

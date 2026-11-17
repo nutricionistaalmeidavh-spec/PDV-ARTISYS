@@ -30,7 +30,7 @@ Esses componentes **não registram observers nem listeners globais de rota**. Se
 - `returns-ui.js` compõe os complementos de Devoluções;
 - `enterprise-depth-ui.js` compõe os complementos de Compras, Logística e Pedidos.
 
-O cardápio público do restaurante segue a mesma regra: `restaurant-ui.js` chama explicitamente `PdvRestaurantPublicOrderingUi.mount()` após renderizar a superfície.
+O cardápio público do restaurante segue a mesma regra: `operational-pages.js` chama explicitamente `PdvRestaurantPublicOrderingUi.mount()` em **Configurações → Áreas**. O mapa de **Mesas e comandas** não monta o painel de QR/aparência, preservando a visualização das comandas.
 
 ## Bridges aposentadas
 
