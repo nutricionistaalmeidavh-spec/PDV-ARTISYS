@@ -25,6 +25,14 @@ test('produto novo sem dependencias pode ser excluido realmente, sem restar regi
     assert.ok(f.db.prepare("SELECT 1 FROM audit_log WHERE action='product.delete' AND entity_id=?").get(p.id));
   }finally{f.close();}
 });
+test('previsualizacao de produto ja excluido retorna 404 e nunca confunde com bloqueio de negocio',()=>{
+  const f=fixture();try{
+    const p=f.catalog.upsertProduct({id:'deleted-with-e2e',name:'Registro apagado',salePriceCents:150});
+    f.catalog.deleteProductPermanently(p.id,{confirmationName:p.name});
+    assert.throws(()=>f.catalog.previewPermanentDeletion(p.id),error=>error.statusCode===404);
+  }finally{f.close();}
+});
+
 test('bloqueia exclusao permanente quando houver saldo de estoque',()=>{
   const f=fixture();try{
     const p=f.catalog.upsertProduct({id:'with-stock',name:'Com saldo',salePriceCents:300,trackStock:true});
