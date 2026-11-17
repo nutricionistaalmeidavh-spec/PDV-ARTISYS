@@ -24,7 +24,9 @@ test('Caixa cancela a comanda a partir da busca, reutilizando motivo e autoriza√
   const restaurant=read('desktop/renderer/restaurant-ui.js');
   assert.match(app,/data-cancel-checkout-command=/);
   assert.match(app,/restaurant\.sessions\.cancel/);
-  assert.match(app,/PdvRestaurantUi\.showCancel\(sessionId\)/);
+  assert.match(app,/data-checkout-cancel-inline/);
+  assert.match(app,/api\.request\(\`\/api\/v1\/restaurant\/sessions\/\$\{encodeURIComponent\(sessionId\)\}\/cancel\`/);
+  assert.match(app,/verified\.status!=='CANCELLED'/);
   assert.match(restaurant,/async function showCancel\(sessionId\)/);
   assert.match(restaurant,/openCancelComandaModal\(session\)/);
   assert.match(restaurant,/reason:String\(form\.get\('reason'\)/);
