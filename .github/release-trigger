@@ -1,11 +1,11 @@
 ArtiSys PDV Windows release trigger
-requested_for=publish-jamily-comandas-cancelamento-cardapio-cadastros
+requested_for=publish-jamily-final-cardapio-qr-settings-outside-comandas
 requested_at=2026-11-17
 target_platform=windows-x64
-expected_next_stable_version=2.0.16
-source_main_sha=e2a5383213cad44ea6156f6d2e93a803585327cb
-changes=PR-212-menu-qr-settings-management-only-cashier-command-cancel-direct-product-edit-soft-delete-duplicate-guidance
-reason=customer-requested-ux-corrections-validated-main
-constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data-licenses-custom-profiles-stock-orders-and-history
+expected_next_stable_version=2.0.17
+source_main_sha=45ecea040ac79b609d8d73aa73dc20280e402d77
+changes=PR-213-cardapio-publico-qr-moved-to-configuracoes-areas-preserves-PR-212-cancel-caixa-product-edit-soft-delete-duplicate-guidance
+reason=client-requested-fully-clean-comandas-screen-main-verified
+constraints=non-fiscal-local-first-zero-mandatory-cost-preserve-customer-data-stocks-users-sales-and-historical-orders
 requires=verify-release-packaged-windows-smoke-updater-metadata-release-manifest
 publish=stable-github-release-if-and-only-if-all-workflow-gates-pass
