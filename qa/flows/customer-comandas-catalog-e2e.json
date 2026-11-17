@@ -1,6 +1,6 @@
 {
   "name": "customer-comandas-catalog-e2e",
-  "title": "PDV ArtiSys — E2E Jamily: comandas KDS, cadastros e cancelamento",
+  "title": "ArtiSys PDV — E2E 5 jornadas Jamily: comandas, KDS, estoque, QR e caixa",
   "metadata": {
     "qaAutoAdmin": true
   },
@@ -872,6 +872,181 @@
     {
       "action": "screenshot",
       "name": "11-mesas-limpas-pos-configuracao",
+      "fullPage": true
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "cadastrar-operadora-qa",
+      "path": "/api/v1/users",
+      "method": "POST",
+      "body": {
+        "id": "qa-jamily-caixa-user",
+        "username": "qa-jamily-caixa",
+        "name": "Operadora Jamily E2E",
+        "profileId": "profile-cashier",
+        "password": "senha-e2e-caixa-123",
+        "active": true
+      },
+      "expectedStatus": 201
+    },
+    {
+      "action": "click",
+      "name": "abrir-usuario-atual",
+      "selector": "#operator-button",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "botao-sair-da-sessao",
+      "selector": "#logout-button",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "sair-admin",
+      "selector": "#logout-button",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-login-operadora",
+      "selector": "#login-form",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "entrar-com-perfil-caixa",
+      "username": "qa-jamily-caixa",
+      "password": "senha-e2e-caixa-123",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "operadora-ativa",
+      "selector": "#auth-overlay",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "abrir-caixa-com-operadora",
+      "path": "/api/v1/cash/sessions",
+      "method": "POST",
+      "body": {
+        "initialCashCents": 0
+      },
+      "expectedStatus": 201,
+      "saveAs": {
+        "qaCashSessionId": "session.id"
+      }
+    },
+    {
+      "action": "click",
+      "name": "abrir-perfil-operadora",
+      "selector": "#operator-button",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "sair-perfil-operadora",
+      "selector": "#logout-button",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "formulario-login-administrador",
+      "selector": "#login-form",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "authenticateLocalQa",
+      "name": "retornar-administrador",
+      "username": "qaadmin",
+      "password": "QaLocalOnly-12345!",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "admin-ativo",
+      "selector": "#auth-overlay",
+      "state": "hidden",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "fechar-caixa-com-outro-usuario",
+      "path": "/api/v1/cash/sessions/{{qaCashSessionId}}/close",
+      "method": "POST",
+      "body": {
+        "countedByMethod": {
+          "CASH": 0
+        }
+      },
+      "expectedStatus": 200
+    },
+    {
+      "action": "desktopApiRequest",
+      "name": "auditoria-operadores-diferentes",
+      "path": "/api/v1/cash/sessions/{{qaCashSessionId}}",
+      "method": "GET",
+      "expectedStatus": 200,
+      "expectedPayloadIncludes": [
+        "\"openedByName\":\"Operadora Jamily E2E\"",
+        "\"closedByName\":\"QA Administrador\""
+      ]
+    },
+    {
+      "action": "click",
+      "name": "abrir-historico-caixa",
+      "selector": "[data-route=\"cash\"]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "waitFor",
+      "name": "tabela-historico-de-caixas",
+      "selector": "#ops-cash-history-search",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "fill",
+      "name": "filtrar-caixa-por-responsavel",
+      "selector": "#ops-cash-history-search",
+      "value": "Operadora Jamily E2E"
+    },
+    {
+      "action": "waitFor",
+      "name": "caixa-com-responsaveis",
+      "selector": "tr[data-cash-history-search]:has-text(\"Operadora Jamily E2E\") [data-cash-details]",
+      "state": "visible",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "click",
+      "name": "ver-auditoria-do-caixa",
+      "selector": "tr[data-cash-history-search]:has-text(\"Operadora Jamily E2E\") [data-cash-details]",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "name": "abertura-com-operadora",
+      "selector": "#ops-cash-details",
+      "expected": "Operadora Jamily E2E",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "expectText",
+      "name": "fechamento-com-administrador",
+      "selector": "#ops-cash-details",
+      "expected": "QA Administrador",
+      "timeoutMs": 15000
+    },
+    {
+      "action": "screenshot",
+      "name": "12-auditoria-caixa-dois-usuarios",
       "fullPage": true
     }
   ]
