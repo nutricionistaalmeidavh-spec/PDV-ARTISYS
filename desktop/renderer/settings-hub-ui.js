@@ -13,7 +13,7 @@
     ['units','Unidades e dispositivos','Dados, servidor e terminais conectados'],
     ['printing','Impressão e periféricos','Impressoras, balança, leitor e gaveta'],
     ['payments','Pagamentos · Pix e TEF','Configuração guiada de Pix e cartão integrado'],
-    ['modules','Áreas','Ativação e módulos de negócio'],
+    ['modules','Áreas','Alimentação e Atacado quando mudam o fluxo principal'],
     ['food-menu','Cardápio público e QR','Aparência, publicação e QR por mesa'],
     ['privacy','Privacidade e telemetria','Consentimento e diagnóstico anônimo'],
     ['diagnostics','Diagnóstico e backup','Saúde, suporte, importação e recuperação']
