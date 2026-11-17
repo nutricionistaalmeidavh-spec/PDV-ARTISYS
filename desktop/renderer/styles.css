@@ -687,3 +687,19 @@ textarea:focus-visible,
 [data-quick-stock-ready][hidden], [data-quick-stock-prepared][hidden], [data-quick-stock-actions][hidden],
 [data-quick-stock-success][hidden], [data-quick-stock-error][hidden], [data-quick-stock-feedback][hidden],
 #quick-stock-product-form[hidden] { display:none !important; }
+
+/* Cadastro sem duplicações: aviso contextual, sem impedir itens legítimos. */
+.product-duplicate-warning {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+  margin: 8px 0;
+  border: 1px solid var(--border-panel, #d8e4f2);
+  border-radius: 10px;
+  background: var(--surface-note, #f5f8fc);
+}
+.product-duplicate-warning[hidden] { display: none !important; }
+.product-duplicate-warning p { margin: 0 0 8px; line-height: 1.5; }
+.product-duplicate-warning small { display:block; margin-top: 6px; color: var(--text-subtle, #596575); }
+#inventory-catalog-card .ops-table-wrap { max-height: 440px; overflow: auto; }
+#inventory-catalog-card [data-inventory-catalog-row][hidden] { display: none !important; }
+#inventory-catalog-card .ops-card-head { gap: 12px; flex-wrap: wrap; }
