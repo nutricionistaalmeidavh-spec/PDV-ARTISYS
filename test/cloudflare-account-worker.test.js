@@ -334,10 +334,34 @@ test('CRM device limit can change in the shared admin panel but not below active
 });
 
 
-test('Oficina sends single-use recovery code to licensed email, with cooldown',async()=>{
- const {handleRequest}=await loadWorker(),e=env(),inbox=[];
- e.HOSTINGER_MAIL_API_TOKEN='test-token';e.HOSTINGER_MAILBOX_ID='test-mailbox';
- e.MAIL_FETCH=async (url,init)=>{assert.match(url,/api.mail.hostinger.com/);assert.equal(init.headers.authorization,'Bearer test-token');inbox.push(JSON.parse(init.body));return {ok:true,status:204}};
+function mockHostingerSmtp(outbox){
+  const decoder=new TextDecoder(),encoder=new TextEncoder();
+  return (host,options)=>{
+    assert.deepEqual(host,{hostname:'smtp.hostinger.com',port:465});
+    assert.equal(options.secureTransport,'on');
+    let readableController;
+    const readable=new ReadableStream({start(c){
+      readableController=c;c.enqueue(encoder.encode('220 smtp.hostinger.com ready\r\n'));
+    }});
+    const answer=text=>readableController.enqueue(encoder.encode(text+'\r\n'));
+    const writable=new WritableStream({write(chunk){
+      const value=decoder.decode(chunk);
+      if(value.startsWith('EHLO '))answer('250-smtp.hostinger.com\r\n250 AUTH PLAIN LOGIN');
+      else if(value.startsWith('AUTH PLAIN ')){outbox.auth=value;answer('235 Authentication successful');}
+      else if(value.startsWith('MAIL FROM:')){outbox.from=value;answer('250 Sender ok');}
+      else if(value.startsWith('RCPT TO:')){outbox.to=value;answer('250 Recipient ok');}
+      else if(value==='DATA\r\n')answer('354 Start mail input');
+      else if(value==='QUIT\r\n')answer('221 Bye');
+      else if(value.endsWith('\r\n.\r\n')){outbox.body=value;answer('250 Queued');}
+      else answer('500 Unexpected command');
+    }});
+    return {readable,writable,close(){readableController.close();}};
+  };
+}
+
+test('Oficina sends single-use recovery code by SMTP TLS to licensed email',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),inbox={};
+ e.SMTP_PASSWORD='only-in-test';e.SMTP_CONNECT=mockHostingerSmtp(inbox);
  const {cookie}=await login(handleRequest,e);
  const created=await handleRequest(request('/v1/admin/licenses',{
   method:'POST',headers:cookieHeaders(cookie),
@@ -345,8 +369,7 @@ test('Oficina sends single-use recovery code to licensed email, with cooldown',a
  }),e);
  const license=await created.json(),installationId='oficina-pc-recovery';
  assert.equal((await handleRequest(request('/v1/activation/verify',{
-  method:'POST',body:JSON.stringify({email:license.email,product:'OFICINA',
-    installationId,code:license.code})
+  method:'POST',body:JSON.stringify({email:license.email,product:'OFICINA',installationId,code:license.code})
  }),e)).status,200);
  const req=()=>handleRequest(request('/v1/password-recovery/request',{
   method:'POST',body:JSON.stringify({email:license.email,installationId})
@@ -354,25 +377,25 @@ test('Oficina sends single-use recovery code to licensed email, with cooldown',a
  const answer=await req();
  assert.equal(answer.status,202);
  assert.equal((await answer.json()).code,undefined);
- assert.equal(inbox.length,1);
- assert.deepEqual(inbox[0].to,[license.email]);
+ assert.match(inbox.from,/contato@artisys.dev/);
+ assert.match(inbox.to,/owner@example.com/);
+ assert.doesNotMatch(inbox.body,/only-in-test/);
+ const code=inbox.body.match(/Codigo: ([0-9]{6})/);
+ assert.ok(code,'mail contains random six digit code');
  assert.equal((await req()).status,202);
- assert.equal(inbox.length,1);
- const match=inbox[0].text.match(/Codigo de verificacao: ([0-9]{6})/);
- assert.ok(match);
- const code=match[1],verify=()=>handleRequest(request('/v1/password-recovery/verify',{
-  method:'POST',body:JSON.stringify({email:license.email,installationId,code})
- }),e);
- assert.equal((await verify()).status,200);
- assert.equal((await verify()).status,400);
- const wrong=await handleRequest(request('/v1/password-recovery/request',{
+ assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:code[1]})
+ }),e)).status,200);
+ assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:code[1]})
+ }),e)).status,400);
+ const unrelated=await handleRequest(request('/v1/password-recovery/request',{
   method:'POST',body:JSON.stringify({email:'other@example.com',installationId})
  }),e);
- assert.equal(wrong.status,202);
- assert.equal(inbox.length,1);
+ assert.equal(unrelated.status,202);
 });
 
-test('Cloudflare worker refuses recovery when Hostinger Mail API token is not configured',async()=>{
+test('Cloudflare worker refuses recovery without configured Hostinger SMTP credential',async()=>{
  const {handleRequest}=await loadWorker(),e=env();
  const response=await handleRequest(request('/v1/password-recovery/request',{
   method:'POST',body:JSON.stringify({email:'owner@example.com',installationId:'test-pc-0001'})
