@@ -24,7 +24,7 @@ export default {async fetch(request,env){
     return json({error:'Invalid request'},400);
   if(!env.EMAIL?.send)return json({error:'Email delivery unavailable'},503);
   try{
-    const check=await fetch(AUTH_URL,{method:'POST',redirect:'error',headers:{'content-type':'application/json'},
+    const check=await fetch(AUTH_URL,{method:'POST',redirect:'manual',headers:{'content-type':'application/json'},
       body:JSON.stringify({email,installationId,code,issuedAt,signature}),signal:AbortSignal.timeout(6500)});
     if(!check.ok)return json({error:'Authorization rejected'},403);
     const verdict=await check.json();
