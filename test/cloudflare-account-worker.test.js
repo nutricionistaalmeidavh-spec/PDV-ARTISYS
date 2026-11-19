@@ -336,7 +336,8 @@ test('CRM device limit can change in the shared admin panel but not below active
 
 test('Oficina sends single-use recovery code to licensed email, with cooldown',async()=>{
  const {handleRequest}=await loadWorker(),e=env(),inbox=[];
- e.EMAIL={send:async message=>{inbox.push(message);return {messageId:'test-message'}}};
+ e.HOSTINGER_MAIL_API_TOKEN='test-token';e.HOSTINGER_MAILBOX_ID='test-mailbox';
+ e.MAIL_FETCH=async (url,init)=>{assert.match(url,/api.mail.hostinger.com/);assert.equal(init.headers.authorization,'Bearer test-token');inbox.push(JSON.parse(init.body));return {ok:true,status:204}};
  const {cookie}=await login(handleRequest,e);
  const created=await handleRequest(request('/v1/admin/licenses',{
   method:'POST',headers:cookieHeaders(cookie),
@@ -354,7 +355,7 @@ test('Oficina sends single-use recovery code to licensed email, with cooldown',a
  assert.equal(answer.status,202);
  assert.equal((await answer.json()).code,undefined);
  assert.equal(inbox.length,1);
- assert.equal(inbox[0].to,license.email);
+ assert.deepEqual(inbox[0].to,[license.email]);
  assert.equal((await req()).status,202);
  assert.equal(inbox.length,1);
  const match=inbox[0].text.match(/Codigo de verificacao: ([0-9]{6})/);
@@ -371,7 +372,7 @@ test('Oficina sends single-use recovery code to licensed email, with cooldown',a
  assert.equal(inbox.length,1);
 });
 
-test('Cloudflare worker refuses recovery when Email Sending is not bound',async()=>{
+test('Cloudflare worker refuses recovery when Hostinger Mail API token is not configured',async()=>{
  const {handleRequest}=await loadWorker(),e=env();
  const response=await handleRequest(request('/v1/password-recovery/request',{
   method:'POST',body:JSON.stringify({email:'owner@example.com',installationId:'test-pc-0001'})
