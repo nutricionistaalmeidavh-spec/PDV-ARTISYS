@@ -268,11 +268,43 @@ async function verifyActivation(request,env){
 }
 
 async function requestPasswordRecovery(request,env){
-  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
+  // Only commercial Oficina uses automatic email recovery. Other products
+  // keep their existing admin-assisted recovery contracts.
+  if(!env.EMAIL||typeof env.EMAIL.send!=='function')
+    return json({error:'Envio de e-mail indisponivel na Central. Contate o suporte ArtiSys.'},503);
+  const body=await readBody(request);
+  const email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);
   if(!email||!installationId)return json({accepted:true},202);
-  const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
-  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
-  return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
+  const store=await readyStore(env);
+  const record=await store.findInstallation(installationId),now=new Date().toISOString();
+  if(!activeInstallation(record,now)||record.product!=='OFICINA'||
+     normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
+  const previous=typeof store.findLatestRecoveryToken==='function'
+    ?await store.findLatestRecoveryToken({email,now}):null;
+  if(previous&&Date.now()-Date.parse(previous.createdAt)<RECOVERY_RESEND_MS)
+    return json({accepted:true},202);
+  const pepper=recoveryPepper(env);
+  if(!pepper)return json({error:'Recuperacao temporariamente indisponivel.'},503);
+  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.now()+RECOVERY_TTL_MS).toISOString();
+  const codeDigest=await digestToken({pepper,email,code});
+  const saved=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});
+  if(!saved)return json({accepted:true},202);
+  try{
+    await env.EMAIL.send({
+      from:String(env.RECOVERY_EMAIL_FROM||'welcome@artisys.dev'),
+      to:email,subject:'ArtiSys Oficina - seu codigo de recuperacao',
+      text:'Voce solicitou a redefinicao de senha do ArtiSys Oficina.\n\n'+
+        'Codigo de verificacao: '+code+'\nValido por 15 minutos e apenas uma vez.\n\n'+
+        'Se nao solicitou, ignore esta mensagem. Nunca compartilhe este codigo.',
+      html:'<p>Voce solicitou a redefinicao de senha do ArtiSys Oficina.</p>'+
+        '<p><strong>Codigo: '+code+'</strong> (valido por 15 minutos, uso unico).</p>'+
+        '<p>Se nao foi voce, ignore esta mensagem. Nao compartilhe o codigo.</p>'
+    });
+  }catch{
+    if(saved.tokenId)await store.consumeRecoveryToken(saved.tokenId,new Date().toISOString());
+    return json({error:'Falha ao enviar e-mail. Verifique a configuracao de envio da Central.'},503);
+  }
+  return json({accepted:true},202);
 }
 
 async function verifyPasswordRecovery(request,env){
@@ -288,7 +320,8 @@ async function verifyPasswordRecovery(request,env){
     if(typeof store.incrementRecoveryAttempts==='function')await store.incrementRecoveryAttempts(token.id);
     return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   }
-  await store.consumeRecoveryToken(token.id,now);
+  const consumed=await store.consumeRecoveryToken(token.id,now);
+  if(consumed===false)return json({error:'Codigo ja utilizado ou expirado.'},400);
   return json({verified:true,accountEmail:email,installationId});
 }
 
