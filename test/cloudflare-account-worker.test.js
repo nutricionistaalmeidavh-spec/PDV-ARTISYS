@@ -332,3 +332,50 @@ test('CRM device limit can change in the shared admin panel but not below active
   r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:1})}),e);
   assert.equal(r.status,409);
 });
+
+
+test('Oficina sends single-use recovery code to licensed email, with cooldown',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),inbox=[];
+ e.EMAIL={send:async message=>{inbox.push(message);return {messageId:'test-message'}}};
+ const {cookie}=await login(handleRequest,e);
+ const created=await handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'owner@example.com',product:'OFICINA'})
+ }),e);
+ const license=await created.json(),installationId='oficina-pc-recovery';
+ assert.equal((await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,product:'OFICINA',
+    installationId,code:license.code})
+ }),e)).status,200);
+ const req=()=>handleRequest(request('/v1/password-recovery/request',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId})
+ }),e);
+ const answer=await req();
+ assert.equal(answer.status,202);
+ assert.equal((await answer.json()).code,undefined);
+ assert.equal(inbox.length,1);
+ assert.equal(inbox[0].to,license.email);
+ assert.equal((await req()).status,202);
+ assert.equal(inbox.length,1);
+ const match=inbox[0].text.match(/Codigo de verificacao: ([0-9]{6})/);
+ assert.ok(match);
+ const code=match[1],verify=()=>handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code})
+ }),e);
+ assert.equal((await verify()).status,200);
+ assert.equal((await verify()).status,400);
+ const wrong=await handleRequest(request('/v1/password-recovery/request',{
+  method:'POST',body:JSON.stringify({email:'other@example.com',installationId})
+ }),e);
+ assert.equal(wrong.status,202);
+ assert.equal(inbox.length,1);
+});
+
+test('Cloudflare worker refuses recovery when Email Sending is not bound',async()=>{
+ const {handleRequest}=await loadWorker(),e=env();
+ const response=await handleRequest(request('/v1/password-recovery/request',{
+  method:'POST',body:JSON.stringify({email:'owner@example.com',installationId:'test-pc-0001'})
+ }),e);
+ assert.equal(response.status,503);
+ assert.equal(e.ACCOUNT_STORE.recoveryTokens.length,0);
+});
