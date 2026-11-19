@@ -27,5 +27,8 @@ jobs:
           code,probe=get('https://oficina-relay-probe.sistema-artisys.workers.dev/')
           assert code==200 and probe.get('ok') is True and probe.get('status')==200,(code,probe)
           assert json.loads(probe.get('body','{}')).get('emailReady') is True,probe
-          print('Cloudflare Email healthy; central Worker can reach relay through custom domain.')
+          code,reverse=get('https://oficina-relay-reverse-probe.nutricionistaalmeidavh.workers.dev/')
+          assert code==200 and reverse.get('ok') is True and reverse.get('status')==200,(code,reverse)
+          assert json.loads(reverse.get('body','{}')).get('service')=='artisys-account',reverse
+          print('Cloudflare Email healthy; both cross-account Worker directions reachable.')
           PY
