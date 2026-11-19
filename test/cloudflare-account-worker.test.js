@@ -37,7 +37,7 @@ class MemoryStore {
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
   async deleteAdminSession(digest){const x=this.adminSessions.find(x=>x.tokenDigest===digest);if(x)x.revokedAt=new Date().toISOString();}
   async saveRecoveryToken(token){this.recoveryTokens.push({...token});}
-  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;const tokenId='rec-'+(this.recoveryTokens.length+1);this.recoveryTokens.push({id:tokenId,accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId,tokenId};}
+  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;const tokenId='rec-'+(this.recoveryTokens.length+1);for(const prior of this.recoveryTokens.filter(x=>x.email===email&&x.installationId===installationId&&!x.usedAt))prior.usedAt=createdAt;this.recoveryTokens.push({id:tokenId,accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId,tokenId};}
   async findRecoveryToken({email,installationId,digest,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(!x||x.usedAt||x.expiresAt<=usedAt)return false;x.usedAt=usedAt;return true;}
   async authorizeRecoveryRelay({tokenId,at}){const x=this.recoveryTokens.find(t=>t.id===tokenId);if(!x||x.usedAt||x.relayedAt||x.expiresAt<=at)return false;x.relayedAt=at;return true;}
@@ -403,4 +403,39 @@ test('PDV still supports administrator-assisted recovery without mail relay',asy
  }),e);
  assert.equal(requestResult.status,202);
  assert.equal(e.ACCOUNT_STORE.recoveryTokens.length,0);
+});
+
+test('new password recovery code revokes older unused 48h code for same installation',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),sent=[];
+ e.MAIL_RELAY_FETCH=async(_url,options)=>{
+  const payload=JSON.parse(options.body);sent.push(payload);
+  const check=await handleRequest(request('/v1/password-recovery/relay-authorize',{method:'POST',body:options.body}),e);
+  assert.equal(check.status,200);
+  return {ok:true,json:async()=>({accepted:true})};
+ };
+ const {cookie}=await login(handleRequest,e);
+ const response=await handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'owner@example.com',product:'OFICINA'})
+ }),e);
+ const grant=await response.json(),installationId='oficina-pc-reissue';
+ assert.equal((await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:grant.email,installationId,code:grant.code,product:'OFICINA'})
+ }),e)).status,200);
+ const ask=()=>handleRequest(request('/v1/password-recovery/request',{
+  method:'POST',body:JSON.stringify({email:grant.email,installationId})
+ }),e);
+ assert.equal((await ask()).status,202);
+ const prior=e.ACCOUNT_STORE.recoveryTokens.at(-1),firstCode=sent.at(-1).code;
+ assert.equal(Date.parse(prior.expiresAt)-Date.parse(prior.createdAt),48*60*60*1000);
+ // Advance only the cooldown timestamp so a second code can be issued, not its validity.
+ prior.createdAt=new Date(Date.now()-61000).toISOString();
+ assert.equal((await ask()).status,202);
+ assert.equal(sent.length,2);
+ assert.ok(prior.usedAt,'first code must be revoked after second issuance');
+ const verify=code=>handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:grant.email,installationId,code})
+ }),e);
+ assert.equal((await verify(firstCode)).status,400);
+ assert.equal((await verify(sent[1].code)).status,200);
 });
