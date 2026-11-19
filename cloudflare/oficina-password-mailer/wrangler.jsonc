@@ -1,0 +1,14 @@
+{
+  "name": "oficina-password-mailer",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-17",
+  "workers_dev": true,
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": [
+        "contato@artisys.dev"
+      ]
+    }
+  ]
+}
