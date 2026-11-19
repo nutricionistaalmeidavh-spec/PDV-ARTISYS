@@ -13,7 +13,7 @@ function normalizeInstallationId(value){const id=String(value||'').trim();return
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
-const MAIL_RELAY_URL='https://oficina-password-mailer.nutricionistaalmeidavh.workers.dev/send';
+const MAIL_RELAY_URL='https://oficina-mail.artisys.dev/send';
 async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
   const enc=new TextEncoder();
   const key=await crypto.subtle.importKey('raw',enc.encode('oficina-mail-relay-v1:'+pepper),
