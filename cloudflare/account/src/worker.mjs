@@ -310,7 +310,7 @@ async function requestPasswordRecovery(request,env){
     const payload={email,installationId,code,issuedAt:createdAt};
     payload.signature=await signMailRelay(pepper,payload);
     const deliver=await (env.MAIL_RELAY_FETCH||fetch)(MAIL_RELAY_URL,{
-      method:'POST',redirect:'error',headers:{'content-type':'application/json'},
+      method:'POST',redirect:'manual',headers:{'content-type':'application/json'},
       body:JSON.stringify(payload),signal:AbortSignal.timeout(8000)
     });
     if(!deliver.ok||(await deliver.json())?.accepted!==true)throw Error('Relay failed');
