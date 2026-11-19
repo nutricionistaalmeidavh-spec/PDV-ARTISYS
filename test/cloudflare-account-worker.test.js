@@ -338,7 +338,7 @@ test('CRM device limit can change in the shared admin panel but not below active
 test('Oficina sends signed OTP through cross-account Cloudflare Email relay',async()=>{
  const {handleRequest}=await loadWorker(),e=env(),outbox=[];
  e.MAIL_RELAY_FETCH=async(url,options)=>{
-   assert.equal(url,'https://oficina-password-mailer.nutricionistaalmeidavh.workers.dev/send');
+   assert.equal(url,'https://oficina-mail.artisys.dev/send');
    const payload=JSON.parse(options.body);outbox.push(payload);
    const validation=await handleRequest(request('/v1/password-recovery/relay-authorize',{
      method:'POST',body:options.body
