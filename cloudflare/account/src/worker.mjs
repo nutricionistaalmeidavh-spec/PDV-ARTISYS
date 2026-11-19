@@ -13,6 +13,14 @@ function normalizeInstallationId(value){const id=String(value||'').trim();return
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
+const MAIL_RELAY_URL='https://oficina-password-mailer.nutricionistaalmeidavh.workers.dev/send';
+async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
+  const enc=new TextEncoder();
+  const key=await crypto.subtle.importKey('raw',enc.encode('oficina-mail-relay-v1:'+pepper),
+    {name:'HMAC',hash:'SHA-256'},false,['sign']);
+  const sig=await crypto.subtle.sign('HMAC',key,enc.encode(JSON.stringify([email,installationId,code,issuedAt])));
+  return Array.from(new Uint8Array(sig),x=>x.toString(16).padStart(2,'0')).join('');
+}
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
 async function runDdl(db,sqlText){for(const sql of String(sqlText||'').split(';').map(x=>x.trim()).filter(Boolean))await db.prepare(sql).run();}
 function randomSessionToken(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');}
@@ -90,6 +98,7 @@ class D1AccountStore{
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
+    if(!recoveryColumns.has('relayed_at'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN relayed_at TEXT').run();
     await runDdl(this.db,`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_lookup ON activation_tokens(account_id,token_digest,expires_at,used_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_installation ON activation_tokens(installation_id,created_at);
@@ -167,7 +176,9 @@ class D1AccountStore{
   async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){
     const row=await this.db.prepare(`SELECT i.account_id,a.email_normalized AS email,l.status,l.expires_at FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(installationId).first();
     if(!row||row.email!==email||row.status!=='ACTIVE'||(row.expires_at&&row.expires_at<=createdAt))return null;
-    await this.saveRecoveryToken({id:newId('recovery'),accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:row.account_id};
+    const tokenId=newId('recovery');
+    await this.saveRecoveryToken({id:tokenId,accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});
+    return {accountId:row.account_id,tokenId};
   }
   async consumeActivationToken(id,usedAt){await this.db.prepare('UPDATE activation_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(usedAt,id).run();}
   async saveRecoveryToken(token){
@@ -192,7 +203,15 @@ class D1AccountStore{
       ORDER BY created_at DESC LIMIT 1`).bind(email,now,RECOVERY_MAX_ATTEMPTS).first();
     return row?{id:row.id,accountId:row.account_id,email:row.email,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
   }
-  async consumeRecoveryToken(id,usedAt){await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE id=? AND used_at IS NULL').bind(usedAt,id).run();}
+  async consumeRecoveryToken(id,usedAt){
+    const answer=await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE id=? AND used_at IS NULL AND expires_at>? AND attempts<?').bind(usedAt,id,usedAt,RECOVERY_MAX_ATTEMPTS).run();
+    return Number(answer.meta?.changes||0)===1;
+  }
+  async authorizeRecoveryRelay({tokenId,at}){
+    const answer=await this.db.prepare('UPDATE password_recovery_tokens SET relayed_at=? WHERE id=? AND relayed_at IS NULL AND used_at IS NULL AND expires_at>? AND attempts<?')
+      .bind(at,tokenId,at,RECOVERY_MAX_ATTEMPTS).run();
+    return Number(answer.meta?.changes||0)===1;
+  }
   async incrementRecoveryAttempts(id){await this.db.prepare('UPDATE password_recovery_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
   async saveInstallation(record){await this.db.prepare(`INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at)
     VALUES(?,?,?,?,?) ON CONFLICT(installation_id) DO UPDATE SET account_id=excluded.account_id,license_id=excluded.license_id,last_seen_at=excluded.last_seen_at`).bind(record.installationId,record.accountId,record.licenseId,record.activatedAt,record.activatedAt).run();}
@@ -268,11 +287,61 @@ async function verifyActivation(request,env){
 }
 
 async function requestPasswordRecovery(request,env){
-  const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
+  const body=await readBody(request);
+  const email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);
   if(!email||!installationId)return json({accepted:true},202);
-  const store=await readyStore(env);const record=await store.findInstallation(installationId);const now=new Date().toISOString();
-  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
-  return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
+  const store=await readyStore(env);
+  const record=await store.findInstallation(installationId),now=new Date().toISOString();
+  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)
+    return json({accepted:true},202);
+  if(record.product!=='OFICINA')
+    return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
+  const previous=typeof store.findLatestRecoveryToken==='function'
+    ?await store.findLatestRecoveryToken({email,now}):null;
+  if(previous&&Date.now()-Date.parse(previous.createdAt)<RECOVERY_RESEND_MS)
+    return json({accepted:true},202);
+  const pepper=recoveryPepper(env);
+  if(!pepper)return json({error:'Recuperacao temporariamente indisponivel.'},503);
+  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.now()+RECOVERY_TTL_MS).toISOString();
+  const codeDigest=await digestToken({pepper,email,code});
+  const saved=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});
+  if(!saved)return json({accepted:true},202);
+  try{
+    const payload={email,installationId,code,issuedAt:createdAt};
+    payload.signature=await signMailRelay(pepper,payload);
+    const deliver=await (env.MAIL_RELAY_FETCH||fetch)(MAIL_RELAY_URL,{
+      method:'POST',redirect:'error',headers:{'content-type':'application/json'},
+      body:JSON.stringify(payload),signal:AbortSignal.timeout(8000)
+    });
+    if(!deliver.ok||(await deliver.json())?.accepted!==true)throw Error('Relay failed');
+  }catch{
+    if(saved.tokenId)await store.consumeRecoveryToken(saved.tokenId,new Date().toISOString());
+    return json({error:'Envio de recuperacao temporariamente indisponivel. Contate o suporte ArtiSys.'},503);
+  }
+  return json({accepted:true},202);
+}
+async function authorizeMailRelay(request,env){
+  const body=await readBody(request);
+  const email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);
+  const code=String(body.code||''),issuedAt=String(body.issuedAt||''),signature=String(body.signature||'');
+  const issuedMs=Date.parse(issuedAt);
+  if(!email||!installationId||!/^[0-9]{6}$/.test(code)||!/^[a-f0-9]{64}$/i.test(signature)||
+      !Number.isFinite(issuedMs)||Math.abs(Date.now()-issuedMs)>65000)
+    return json({authorized:false},403);
+  const pepper=recoveryPepper(env);
+  if(!pepper)return json({authorized:false},503);
+  const expected=await signMailRelay(pepper,{email,installationId,code,issuedAt});
+  if(!(await secureEqual(expected,signature)))return json({authorized:false},403);
+  const store=await readyStore(env),now=new Date().toISOString();
+  const installation=await store.findInstallation(installationId);
+  if(!activeInstallation(installation,now)||installation.product!=='OFICINA'||
+     normalizeEmail(installation.accountEmail)!==email)return json({authorized:false},403);
+  const digest=await digestToken({pepper,email,code});
+  const token=await store.findRecoveryToken({email,installationId,digest,now});
+  if(!token||token.createdAt!==issuedAt)return json({authorized:false},403);
+  if(!await store.authorizeRecoveryRelay({tokenId:token.id,at:now}))
+    return json({authorized:false},403);
+  return json({authorized:true});
 }
 
 async function verifyPasswordRecovery(request,env){
@@ -288,7 +357,8 @@ async function verifyPasswordRecovery(request,env){
     if(typeof store.incrementRecoveryAttempts==='function')await store.incrementRecoveryAttempts(token.id);
     return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
   }
-  await store.consumeRecoveryToken(token.id,now);
+  const consumed=await store.consumeRecoveryToken(token.id,now);
+  if(consumed===false)return json({error:'Codigo ja utilizado ou expirado.'},400);
   return json({verified:true,accountEmail:email,installationId});
 }
 
@@ -541,6 +611,7 @@ export async function handleRequest(request,env={}){
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
+    if(request.method==='POST'&&url.pathname==='/v1/password-recovery/relay-authorize')return await authorizeMailRelay(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/request')return await requestPasswordRecovery(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/verify')return await verifyPasswordRecovery(request,env);
     if(request.method==='GET'&&url.pathname==='/v1/license/status')return await licenseStatus(url,env);

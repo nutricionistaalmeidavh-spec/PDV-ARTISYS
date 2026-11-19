@@ -132,3 +132,22 @@ O `npm run build` valida a configuração e executa os testes da Central antes d
 ## Core local
 
 O Cloudflare não é dependência do funcionamento diário do PDV já ativado. Nenhum dado operacional de venda, caixa, clientes, produtos ou senha do Administrador é armazenado nesta Central.
+
+
+## Recuperação automática do Oficina pela Hostinger (opcional)
+
+O **core open source/local** permanece independente de nuvem e e-mail. Apenas a edição comercial do Oficina, após ativação da licença, pode solicitar a recuperação de senha pela Central.
+
+O Worker Cloudflare `pdv-artisys` fica na conta **Sistema.artisys@gmail.com's Account**; o domínio e a caixa de e-mail podem estar associados a outra conta Cloudflare. **Não é necessária uma ponte entre as contas Cloudflare**: o Worker se conecta diretamente ao servidor SMTP da Hostinger (`smtp.hostinger.com`, porta 465, TLS).
+
+A caixa existente é `contato@artisys.dev`. Não configurar `send_email` ou Cloudflare Email Sending para este fluxo; não usar o token de sessão do conector Hostinger Mail do ChatGPT em produção.
+
+Na conta Cloudflare do Worker, configure explicitamente **somente na edição comercial**:
+- Secret `SMTP_PASSWORD`: senha SMTP válida da caixa `contato@artisys.dev`. Necessária para envio automático; não incluir no código, no GitHub, no instalador, em comentários ou testes.
+- Variável opcional `SMTP_USERNAME`: padrão `contato@artisys.dev`.
+
+O pedido `POST /v1/password-recovery/request` valida e-mail, instalação e licença `OFICINA` ativa. O código é enviado exclusivamente ao e-mail vinculado, tem seis dígitos, expira em 15 minutos, possui limitação de reenvio e é de uso único. O `POST /v1/password-recovery/verify` consome o código; a senha nova não vai ao Cloudflare, pois é definida no PostgreSQL local e as sessões anteriores são invalidadas. Não há acesso ao banco operacional do cliente.
+
+**Antes da release:** o envio SMTP real precisa de um segredo configurado; o conector Hostinger Mail disponível dentro do ChatGPT não revela a senha da caixa ao Worker. Sem `SMTP_PASSWORD`, o Worker retorna 503 em vez de fingir que enviou um código. A recuperação assistida pelo administrador da Central continua separada.
+
+As verificações de GitHub Actions não dependem de Cloudflare Workers previews. Os previews não substituem teste de recebimento real de e-mail com a credencial do Worker.

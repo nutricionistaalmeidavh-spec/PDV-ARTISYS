@@ -37,9 +37,11 @@ class MemoryStore {
   async findAdminSession({digest,now}){return this.adminSessions.find(x=>x.tokenDigest===digest&&!x.revokedAt&&x.expiresAt>now)||null;}
   async deleteAdminSession(digest){const x=this.adminSessions.find(x=>x.tokenDigest===digest);if(x)x.revokedAt=new Date().toISOString();}
   async saveRecoveryToken(token){this.recoveryTokens.push({...token});}
-  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;this.recoveryTokens.push({id:'rec-'+(this.recoveryTokens.length+1),accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId};}
+  async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;const tokenId='rec-'+(this.recoveryTokens.length+1);this.recoveryTokens.push({id:tokenId,accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId,tokenId};}
   async findRecoveryToken({email,installationId,digest,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
-  async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
+  async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(!x||x.usedAt||x.expiresAt<=usedAt)return false;x.usedAt=usedAt;return true;}
+  async authorizeRecoveryRelay({tokenId,at}){const x=this.recoveryTokens.find(t=>t.id===tokenId);if(!x||x.usedAt||x.relayedAt||x.expiresAt<=at)return false;x.relayedAt=at;return true;}
+  async findLatestRecoveryToken({email,now}){return [...this.recoveryTokens].reverse().find(t=>t.email===email&&!t.usedAt&&t.expiresAt>now)||null;}
 }
 
 async function loadWorker(){return import('../cloudflare/account/src/worker.mjs');}
@@ -330,4 +332,71 @@ test('CRM device limit can change in the shared admin panel but not below active
   assert.equal(r.status,200);
   r=await handleRequest(request('/v1/admin/licenses/'+license.licenseId,{method:'PATCH',headers:cookieHeaders(cookie),body:JSON.stringify({maxDevices:1})}),e);
   assert.equal(r.status,409);
+});
+
+
+test('Oficina sends signed OTP through cross-account Cloudflare Email relay',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),outbox=[];
+ e.MAIL_RELAY_FETCH=async(url,options)=>{
+   assert.equal(url,'https://oficina-password-mailer.nutricionistaalmeidavh.workers.dev/send');
+   const payload=JSON.parse(options.body);outbox.push(payload);
+   const validation=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+     method:'POST',body:options.body
+   }),e);
+   assert.equal(validation.status,200);
+   assert.equal((await validation.json()).authorized,true);
+   return {ok:true,json:async()=>({accepted:true})};
+ };
+ const {cookie}=await login(handleRequest,e);
+ const provision=await handleRequest(request('/v1/admin/licenses',{
+   method:'POST',headers:cookieHeaders(cookie),
+   body:JSON.stringify({email:'owner@example.com',product:'OFICINA'})
+ }),e);
+ const license=await provision.json(),installationId='oficina-pc-relay';
+ const activated=await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:license.code,product:'OFICINA'})
+ }),e);
+ assert.equal(activated.status,200);
+ const req=()=>handleRequest(request('/v1/password-recovery/request',{
+   method:'POST',body:JSON.stringify({email:license.email,installationId})
+ }),e);
+ const first=await req();
+ assert.equal(first.status,202);
+ assert.equal((await first.json()).code,undefined);
+ assert.equal(outbox.length,1);
+ assert.equal(outbox[0].email,license.email);
+ assert.match(outbox[0].signature,/^[a-f0-9]{64}$/);
+ const forged=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+   method:'POST',body:JSON.stringify({...outbox[0],email:'attacker@example.com'})
+ }),e);
+ assert.equal(forged.status,403);
+ const replay=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+   method:'POST',body:JSON.stringify(outbox[0])
+ }),e);
+ assert.equal(replay.status,403,'delivery ticket can only authorize once');
+ assert.equal((await req()).status,202);
+ assert.equal(outbox.length,1,'resend cooldown is enforced');
+ const verified=await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:outbox[0].code})
+ }),e);
+ assert.equal(verified.status,200);
+ assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:outbox[0].code})
+ }),e)).status,400);
+});
+test('PDV still supports administrator-assisted recovery without mail relay',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+ const grant=await (await handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'owner@example.com',product:'PDV'})
+ }),e)).json();
+ const installationId='pdv-no-relay-001';
+ assert.equal((await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:grant.email,product:'PDV',installationId,code:grant.code})
+ }),e)).status,200);
+ const requestResult=await handleRequest(request('/v1/password-recovery/request',{
+   method:'POST',body:JSON.stringify({email:grant.email,installationId})
+ }),e);
+ assert.equal(requestResult.status,202);
+ assert.equal(e.ACCOUNT_STORE.recoveryTokens.length,0);
 });
