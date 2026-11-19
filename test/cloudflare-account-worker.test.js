@@ -159,6 +159,7 @@ test('recovery code can only be generated for the activated installation and is 
   response=await handleRequest(request('/v1/admin/recovery',{method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({installationId:'install-001',email:'owner@example.com'})}),e);
   assert.equal(response.status,201);const recovery=await response.json();assert.match(recovery.code,/^\d{6}$/);
   assert.equal(e.ACCOUNT_STORE.recoveryTokens[0].installationId,'install-001');
+  assert.equal(Date.parse(recovery.expiresAt)-Date.parse(e.ACCOUNT_STORE.recoveryTokens[0].createdAt),15*60*1000,'PDV manual recovery keeps short lifetime');
 
   const wrongInstall=await handleRequest(request('/v1/password-recovery/verify',{method:'POST',body:JSON.stringify({installationId:'install-002',email:'owner@example.com',code:recovery.code})}),e);
   assert.equal(wrongInstall.status,400);
@@ -367,6 +368,8 @@ test('Oficina sends signed OTP through cross-account Cloudflare Email relay',asy
  assert.equal(outbox.length,1);
  assert.equal(outbox[0].email,license.email);
  assert.match(outbox[0].signature,/^[a-f0-9]{64}$/);
+ const otp=e.ACCOUNT_STORE.recoveryTokens.at(-1);
+ assert.equal(Date.parse(otp.expiresAt)-Date.parse(otp.createdAt),48*60*60*1000,'Oficina code must remain valid for exactly 48h');
  const forged=await handleRequest(request('/v1/password-recovery/relay-authorize',{
    method:'POST',body:JSON.stringify({...outbox[0],email:'attacker@example.com'})
  }),e);
