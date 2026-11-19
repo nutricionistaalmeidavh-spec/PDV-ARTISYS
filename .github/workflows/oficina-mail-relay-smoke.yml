@@ -1,0 +1,31 @@
+name: Oficina · Cloudflare relay connectivity
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cloudflare/account/src/worker.mjs'
+      - 'cloudflare/oficina-password-mailer/**'
+      - '.github/workflows/oficina-mail-relay-smoke.yml'
+jobs:
+  relay-connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify production relay and Worker-to-Worker reachability
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json,urllib.request,urllib.error
+          def get(url):
+              with urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'ArtiSys-Oficina-QA/1.0'}),timeout=12) as r:
+                  return r.status,json.load(r)
+          code,health=get('https://oficina-mail.artisys.dev/health')
+          assert code==200 and health.get('ok') is True and health.get('emailReady') is True,(code,health)
+          code,central=get('https://pdv-artisys.sistema-artisys.workers.dev/health')
+          assert code==200 and central.get('service')=='artisys-account',(code,central)
+          code,probe=get('https://oficina-relay-probe.sistema-artisys.workers.dev/')
+          assert code==200 and probe.get('ok') is True and probe.get('status')==200,(code,probe)
+          assert json.loads(probe.get('body','{}')).get('emailReady') is True,probe
+          print('Cloudflare Email healthy; central Worker can reach relay through custom domain.')
+          PY
