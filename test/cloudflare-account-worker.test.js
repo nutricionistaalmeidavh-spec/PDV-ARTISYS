@@ -40,6 +40,7 @@ class MemoryStore {
   async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){const i=this.installations.get(installationId);if(!i||i.accountEmail!==email||i.status!=='ACTIVE')return null;const tokenId='rec-'+(this.recoveryTokens.length+1);this.recoveryTokens.push({id:tokenId,accountId:i.accountId,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});return {accountId:i.accountId,tokenId};}
   async findRecoveryToken({email,installationId,digest,now}){return [...this.recoveryTokens].reverse().find(x=>x.email===email&&x.installationId===installationId&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeRecoveryToken(id,usedAt){const x=this.recoveryTokens.find(t=>t.id===id);if(!x||x.usedAt||x.expiresAt<=usedAt)return false;x.usedAt=usedAt;return true;}
+  async authorizeRecoveryRelay({tokenId,at}){const x=this.recoveryTokens.find(t=>t.id===tokenId);if(!x||x.usedAt||x.relayedAt||x.expiresAt<=at)return false;x.relayedAt=at;return true;}
   async findLatestRecoveryToken({email,now}){return [...this.recoveryTokens].reverse().find(t=>t.email===email&&!t.usedAt&&t.expiresAt>now)||null;}
 }
 
@@ -334,84 +335,68 @@ test('CRM device limit can change in the shared admin panel but not below active
 });
 
 
-function mockHostingerSmtp(outbox){
-  const decoder=new TextDecoder(),encoder=new TextEncoder();
-  return (host,options)=>{
-    assert.deepEqual(host,{hostname:'smtp.hostinger.com',port:465});
-    assert.equal(options.secureTransport,'on');
-    let readableController;
-    const readable=new ReadableStream({start(c){
-      readableController=c;c.enqueue(encoder.encode('220 smtp.hostinger.com ready\r\n'));
-    }});
-    const answer=text=>readableController.enqueue(encoder.encode(text+'\r\n'));
-    const writable=new WritableStream({write(chunk){
-      const value=decoder.decode(chunk);
-      if(value.startsWith('EHLO '))answer('250-smtp.hostinger.com\r\n250 AUTH PLAIN LOGIN');
-      else if(value.startsWith('AUTH PLAIN ')){outbox.auth=value;answer('235 Authentication successful');}
-      else if(value.startsWith('MAIL FROM:')){outbox.from=value;answer('250 Sender ok');}
-      else if(value.startsWith('RCPT TO:')){outbox.to=value;answer('250 Recipient ok');}
-      else if(value==='DATA\r\n')answer('354 Start mail input');
-      else if(value==='QUIT\r\n')answer('221 Bye');
-      else if(value.endsWith('\r\n.\r\n')){outbox.body=value;answer('250 Queued');}
-      else answer('500 Unexpected command');
-    }});
-    return {readable,writable,close(){readableController.close();}};
-  };
-}
-
-test('Oficina sends single-use recovery code by SMTP TLS to licensed email',async()=>{
- const {handleRequest}=await loadWorker(),e=env(),inbox={};
- e.SMTP_PASSWORD='only-in-test';e.SMTP_CONNECT=mockHostingerSmtp(inbox);
+test('Oficina sends signed OTP through cross-account Cloudflare Email relay',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),outbox=[];
+ e.MAIL_RELAY_FETCH=async(url,options)=>{
+   assert.equal(url,'https://oficina-password-mailer.nutricionistaalmeidavh.workers.dev/send');
+   const payload=JSON.parse(options.body);outbox.push(payload);
+   const validation=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+     method:'POST',body:options.body
+   }),e);
+   assert.equal(validation.status,200);
+   assert.equal((await validation.json()).authorized,true);
+   return {ok:true,json:async()=>({accepted:true})};
+ };
  const {cookie}=await login(handleRequest,e);
- const created=await handleRequest(request('/v1/admin/licenses',{
-  method:'POST',headers:cookieHeaders(cookie),
-  body:JSON.stringify({email:'owner@example.com',product:'OFICINA'})
- }),e);
- const license=await created.json(),installationId='oficina-pc-recovery';
- assert.equal((await handleRequest(request('/v1/activation/verify',{
-  method:'POST',body:JSON.stringify({email:license.email,product:'OFICINA',installationId,code:license.code})
- }),e)).status,200);
- const req=()=>handleRequest(request('/v1/password-recovery/request',{
-  method:'POST',body:JSON.stringify({email:license.email,installationId})
- }),e);
- const answer=await req();
- assert.equal(answer.status,202);
- assert.equal((await answer.json()).code,undefined);
- assert.match(inbox.from,/contato@artisys.dev/);
- assert.match(inbox.to,/owner@example.com/);
- assert.doesNotMatch(inbox.body,/only-in-test/);
- const code=inbox.body.match(/Codigo: ([0-9]{6})/);
- assert.ok(code,'mail contains random six digit code');
- assert.equal((await req()).status,202);
- assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
-  method:'POST',body:JSON.stringify({email:license.email,installationId,code:code[1]})
- }),e)).status,200);
- assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
-  method:'POST',body:JSON.stringify({email:license.email,installationId,code:code[1]})
- }),e)).status,400);
- const unrelated=await handleRequest(request('/v1/password-recovery/request',{
-  method:'POST',body:JSON.stringify({email:'other@example.com',installationId})
- }),e);
- assert.equal(unrelated.status,202);
-});
-
-test('Oficina requires configured SMTP but PDV keeps existing assisted recovery',async()=>{
- const {handleRequest}=await loadWorker(),e=env();
- const {cookie}=await login(handleRequest,e);
- for(const product of ['OFICINA','PDV']){
-  const grant=await (await handleRequest(request('/v1/admin/licenses',{
+ const provision=await handleRequest(request('/v1/admin/licenses',{
    method:'POST',headers:cookieHeaders(cookie),
-   body:JSON.stringify({email:'owner@example.com',product})
-  }),e)).json();
-  const installationId='recovery-'+product.toLowerCase()+'-001';
-  const activation=await handleRequest(request('/v1/activation/verify',{
-   method:'POST',body:JSON.stringify({product,email:grant.email,installationId,code:grant.code})
-  }),e);
-  assert.equal(activation.status,200);
-  const response=await handleRequest(request('/v1/password-recovery/request',{
+   body:JSON.stringify({email:'owner@example.com',product:'OFICINA'})
+ }),e);
+ const license=await provision.json(),installationId='oficina-pc-relay';
+ const activated=await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:license.code,product:'OFICINA'})
+ }),e);
+ assert.equal(activated.status,200);
+ const req=()=>handleRequest(request('/v1/password-recovery/request',{
+   method:'POST',body:JSON.stringify({email:license.email,installationId})
+ }),e);
+ const first=await req();
+ assert.equal(first.status,202);
+ assert.equal((await first.json()).code,undefined);
+ assert.equal(outbox.length,1);
+ assert.equal(outbox[0].email,license.email);
+ assert.match(outbox[0].signature,/^[a-f0-9]{64}$/);
+ const forged=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+   method:'POST',body:JSON.stringify({...outbox[0],email:'attacker@example.com'})
+ }),e);
+ assert.equal(forged.status,403);
+ const replay=await handleRequest(request('/v1/password-recovery/relay-authorize',{
+   method:'POST',body:JSON.stringify(outbox[0])
+ }),e);
+ assert.equal(replay.status,403,'delivery ticket can only authorize once');
+ assert.equal((await req()).status,202);
+ assert.equal(outbox.length,1,'resend cooldown is enforced');
+ const verified=await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:outbox[0].code})
+ }),e);
+ assert.equal(verified.status,200);
+ assert.equal((await handleRequest(request('/v1/password-recovery/verify',{
+  method:'POST',body:JSON.stringify({email:license.email,installationId,code:outbox[0].code})
+ }),e)).status,400);
+});
+test('PDV still supports administrator-assisted recovery without mail relay',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),{cookie}=await login(handleRequest,e);
+ const grant=await (await handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'owner@example.com',product:'PDV'})
+ }),e)).json();
+ const installationId='pdv-no-relay-001';
+ assert.equal((await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:grant.email,product:'PDV',installationId,code:grant.code})
+ }),e)).status,200);
+ const requestResult=await handleRequest(request('/v1/password-recovery/request',{
    method:'POST',body:JSON.stringify({email:grant.email,installationId})
-  }),e);
-  assert.equal(response.status,product==='OFICINA'?503:202);
- }
+ }),e);
+ assert.equal(requestResult.status,202);
  assert.equal(e.ACCOUNT_STORE.recoveryTokens.length,0);
 });
