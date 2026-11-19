@@ -275,7 +275,7 @@ async function verifyActivation(request,env){
 async function requestPasswordRecovery(request,env){
   // Only commercial Oficina uses automatic email recovery. Other products
   // keep their existing admin-assisted recovery contracts.
-  if(!env.EMAIL||typeof env.EMAIL.send!=='function')
+  if(!env.HOSTINGER_MAIL_API_TOKEN||!env.HOSTINGER_MAILBOX_ID)
     return json({error:'Envio de e-mail indisponivel na Central. Contate o suporte ArtiSys.'},503);
   const body=await readBody(request);
   const email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);
@@ -295,16 +295,23 @@ async function requestPasswordRecovery(request,env){
   const saved=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});
   if(!saved)return json({accepted:true},202);
   try{
-    await env.EMAIL.send({
-      from:String(env.RECOVERY_EMAIL_FROM||'welcome@artisys.dev'),
-      to:email,subject:'ArtiSys Oficina - seu codigo de recuperacao',
+    const message={
+      to:[email],displayName:'ArtiSys Oficina',
+      subject:'ArtiSys Oficina - seu codigo de recuperacao',
       text:'Voce solicitou a redefinicao de senha do ArtiSys Oficina.\n\n'+
         'Codigo de verificacao: '+code+'\nValido por 15 minutos e apenas uma vez.\n\n'+
         'Se nao solicitou, ignore esta mensagem. Nunca compartilhe este codigo.',
       html:'<p>Voce solicitou a redefinicao de senha do ArtiSys Oficina.</p>'+
         '<p><strong>Codigo: '+code+'</strong> (valido por 15 minutos, uso unico).</p>'+
         '<p>Se nao foi voce, ignore esta mensagem. Nao compartilhe o codigo.</p>'
+    };
+    const sender=env.MAIL_FETCH||fetch;
+    const response=await sender('https://api.mail.hostinger.com/api/v1/mailboxes/'+
+       encodeURIComponent(env.HOSTINGER_MAILBOX_ID)+'/send',{
+      method:'POST',headers:{authorization:'Bearer '+env.HOSTINGER_MAIL_API_TOKEN,
+        'content-type':'application/json'},body:JSON.stringify(message)
     });
+    if(!response.ok)throw Error('Hostinger delivery failed');
   }catch{
     if(saved.tokenId)await store.consumeRecoveryToken(saved.tokenId,new Date().toISOString());
     return json({error:'Falha ao enviar e-mail. Verifique a configuracao de envio da Central.'},503);
