@@ -276,15 +276,17 @@ async function verifyActivation(request,env){
 async function requestPasswordRecovery(request,env){
   // Only commercial Oficina uses automatic email recovery. Other products
   // keep their existing admin-assisted recovery contracts.
-  if(!env.SMTP_PASSWORD||typeof env.SMTP_PASSWORD!=='string')
-    return json({error:'SMTP Hostinger nao configurado. Contate o suporte ArtiSys.'},503);
   const body=await readBody(request);
   const email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);
   if(!email||!installationId)return json({accepted:true},202);
   const store=await readyStore(env);
   const record=await store.findInstallation(installationId),now=new Date().toISOString();
-  if(!activeInstallation(record,now)||record.product!=='OFICINA'||
-     normalizeEmail(record.accountEmail)!==email)return json({accepted:true},202);
+  if(!activeInstallation(record,now)||normalizeEmail(record.accountEmail)!==email)
+    return json({accepted:true},202);
+  if(record.product!=='OFICINA')
+    return json({accepted:true,message:'Solicite o codigo de recuperacao ao administrador ArtiSys.'},202);
+  if(!env.SMTP_PASSWORD||typeof env.SMTP_PASSWORD!=='string')
+    return json({error:'SMTP Hostinger nao configurado. Contate o suporte ArtiSys.'},503);
   const previous=typeof store.findLatestRecoveryToken==='function'
     ?await store.findLatestRecoveryToken({email,now}):null;
   if(previous&&Date.now()-Date.parse(previous.createdAt)<RECOVERY_RESEND_MS)
