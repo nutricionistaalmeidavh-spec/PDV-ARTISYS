@@ -339,6 +339,7 @@ test('Oficina sends signed OTP through cross-account Cloudflare Email relay',asy
  const {handleRequest}=await loadWorker(),e=env(),outbox=[];
  e.MAIL_RELAY_FETCH=async(url,options)=>{
    assert.equal(url,'https://oficina-mail.artisys.dev/send');
+   assert.equal(options.redirect,'manual','Cloudflare Workers runtime rejects redirect:error');
    const payload=JSON.parse(options.body);outbox.push(payload);
    const validation=await handleRequest(request('/v1/password-recovery/relay-authorize',{
      method:'POST',body:options.body
