@@ -395,11 +395,23 @@ test('Oficina sends single-use recovery code by SMTP TLS to licensed email',asyn
  assert.equal(unrelated.status,202);
 });
 
-test('Cloudflare worker refuses recovery without configured Hostinger SMTP credential',async()=>{
+test('Oficina requires configured SMTP but PDV keeps existing assisted recovery',async()=>{
  const {handleRequest}=await loadWorker(),e=env();
- const response=await handleRequest(request('/v1/password-recovery/request',{
-  method:'POST',body:JSON.stringify({email:'owner@example.com',installationId:'test-pc-0001'})
- }),e);
- assert.equal(response.status,503);
+ const {cookie}=await login(handleRequest,e);
+ for(const product of ['OFICINA','PDV']){
+  const grant=await (await handleRequest(request('/v1/admin/licenses',{
+   method:'POST',headers:cookieHeaders(cookie),
+   body:JSON.stringify({email:'owner@example.com',product})
+  }),e)).json();
+  const installationId='recovery-'+product.toLowerCase()+'-001';
+  const activation=await handleRequest(request('/v1/activation/verify',{
+   method:'POST',body:JSON.stringify({product,email:grant.email,installationId,code:grant.code})
+  }),e);
+  assert.equal(activation.status,200);
+  const response=await handleRequest(request('/v1/password-recovery/request',{
+   method:'POST',body:JSON.stringify({email:grant.email,installationId})
+  }),e);
+  assert.equal(response.status,product==='OFICINA'?503:202);
+ }
  assert.equal(e.ACCOUNT_STORE.recoveryTokens.length,0);
 });
