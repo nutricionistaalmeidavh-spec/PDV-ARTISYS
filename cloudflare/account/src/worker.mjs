@@ -91,6 +91,7 @@ class D1AccountStore{
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
+    if(!recoveryColumns.has('relayed_at'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN relayed_at TEXT').run();
     await runDdl(this.db,`CREATE INDEX IF NOT EXISTS idx_licenses_account_status ON licenses(account_id,status,created_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_lookup ON activation_tokens(account_id,token_digest,expires_at,used_at);
     CREATE INDEX IF NOT EXISTS idx_activation_tokens_installation ON activation_tokens(installation_id,created_at);
@@ -197,6 +198,11 @@ class D1AccountStore{
   }
   async consumeRecoveryToken(id,usedAt){
     const answer=await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE id=? AND used_at IS NULL AND expires_at>? AND attempts<?').bind(usedAt,id,usedAt,RECOVERY_MAX_ATTEMPTS).run();
+    return Number(answer.meta?.changes||0)===1;
+  }
+  async authorizeRecoveryRelay({tokenId,at}){
+    const answer=await this.db.prepare('UPDATE password_recovery_tokens SET relayed_at=? WHERE id=? AND relayed_at IS NULL AND used_at IS NULL AND expires_at>? AND attempts<?')
+      .bind(at,tokenId,at,RECOVERY_MAX_ATTEMPTS).run();
     return Number(answer.meta?.changes||0)===1;
   }
   async incrementRecoveryAttempts(id){await this.db.prepare('UPDATE password_recovery_tokens SET attempts=attempts+1 WHERE id=? AND used_at IS NULL').bind(id).run();}
