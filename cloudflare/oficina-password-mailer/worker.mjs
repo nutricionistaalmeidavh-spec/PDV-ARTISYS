@@ -30,7 +30,7 @@ export default {async fetch(request,env){
     const verdict=await check.json();
     if(verdict.authorized!==true)return json({error:'Authorization rejected'},403);
     const body='ArtiSys Oficina - recuperacao de senha.\n\nSeu codigo: '+code+
-      '\nValido por 15 minutos e para uso unico.\n\nSe nao solicitou, ignore este e-mail. Nao compartilhe o codigo.';
+      '\nValido por 48 horas e para uso unico.\n\nSe nao solicitou, ignore este e-mail. Nao compartilhe o codigo.';
     await env.EMAIL.send({from:FROM,to:email,subject:'ArtiSys Oficina | Codigo de recuperacao',text:body});
     return json({accepted:true},202);
   }catch{return json({error:'Email delivery failed'},503)}

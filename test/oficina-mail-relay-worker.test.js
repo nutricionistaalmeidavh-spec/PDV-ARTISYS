@@ -25,6 +25,7 @@ test('OTP relay must use Cloudflare-supported manual redirects and send only aft
   assert.equal(calls,1);
   assert.equal(messages.length,1);
   assert.equal(messages[0].to,payload.email);
+  assert.match(messages[0].text,/Valido por 48 horas/);
  }finally{globalThis.fetch=originalFetch;}
 });
 

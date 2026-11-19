@@ -1,5 +1,6 @@
 const ACTIVATION_TOKEN_TTL_MS=48*60*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
+const OFICINA_RECOVERY_TTL_MS=48*60*60*1000;
 const RECOVERY_RESEND_MS=60*1000;
 const ACTIVATION_MAX_ATTEMPTS=5;
 const RECOVERY_MAX_ATTEMPTS=5;
@@ -176,6 +177,8 @@ class D1AccountStore{
   async createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt}){
     const row=await this.db.prepare(`SELECT i.account_id,a.email_normalized AS email,l.status,l.expires_at FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(installationId).first();
     if(!row||row.email!==email||row.status!=='ACTIVE'||(row.expires_at&&row.expires_at<=createdAt))return null;
+    // Reissue invalidates any older active OTP for the same email and installation.
+    await this.db.prepare('UPDATE password_recovery_tokens SET used_at=? WHERE email_normalized=? AND installation_id=? AND used_at IS NULL').bind(createdAt,email,installationId).run();
     const tokenId=newId('recovery');
     await this.saveRecoveryToken({id:tokenId,accountId:row.account_id,email,installationId,tokenDigest:codeDigest,attempts:0,createdAt,expiresAt});
     return {accountId:row.account_id,tokenId};
@@ -302,7 +305,7 @@ async function requestPasswordRecovery(request,env){
     return json({accepted:true},202);
   const pepper=recoveryPepper(env);
   if(!pepper)return json({error:'Recuperacao temporariamente indisponivel.'},503);
-  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.now()+RECOVERY_TTL_MS).toISOString();
+  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.now()+OFICINA_RECOVERY_TTL_MS).toISOString();
   const codeDigest=await digestToken({pepper,email,code});
   const saved=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});
   if(!saved)return json({accepted:true},202);
