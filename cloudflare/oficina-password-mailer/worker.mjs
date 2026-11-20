@@ -17,7 +17,7 @@ export default {async fetch(request,env){
     catch{return json({error:'Invalid request'},400);}
     const {email,licenseId,code,codeExpiresAt,issuedAt,signature}=payload||{};
     if(typeof email!=='string'||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
-       typeof licenseId!=='string'||!/^[A-Za-z0-9_-]{8,128}$/.test(licenseId)||
+       typeof licenseId!=='string'||!/^[A-Za-z0-9_-]{3,128}$/.test(licenseId)||
        !/^[0-9]{6}$/.test(String(code||''))||!/^[a-f0-9]{64}$/i.test(String(signature||''))||
        typeof codeExpiresAt!=='string'||!Number.isFinite(Date.parse(codeExpiresAt))||
        typeof issuedAt!=='string'||Math.abs(Date.now()-Date.parse(issuedAt))>65000)

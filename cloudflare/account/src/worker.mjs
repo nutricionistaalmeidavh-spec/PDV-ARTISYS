@@ -296,7 +296,7 @@ async function authorizeWelcomeRelay(request,env){
     code=String(body.code||''),codeExpiresAt=String(body.codeExpiresAt||''),
     issuedAt=String(body.issuedAt||''),signature=String(body.signature||'');
   const age=Date.now()-Date.parse(issuedAt);
-  if(!email||!/^[A-Za-z0-9_-]{8,128}$/.test(licenseId)||!/^[0-9]{6}$/.test(code)||
+  if(!email||!/^[A-Za-z0-9_-]{3,128}$/.test(licenseId)||!/^[0-9]{6}$/.test(code)||
     !/^[a-f0-9]{64}$/i.test(signature)||!Number.isFinite(age)||Math.abs(age)>65000||
     !Number.isFinite(Date.parse(codeExpiresAt)))return json({authorized:false},403);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();
