@@ -439,3 +439,78 @@ test('new password recovery code revokes older unused 48h code for same installa
  assert.equal((await verify(firstCode)).status,400);
  assert.equal((await verify(sent[1].code)).status,200);
 });
+
+test('Loja Roupas usa a mesma Central: código isolado e email somente após liberação manual',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),outbox=[];
+ e.LICENSE_MAIL_FETCH=async(url,options)=>{
+  assert.match(url,/oficina-mail\.artisys\.dev\/welcome/);
+  const body=JSON.parse(options.body);outbox.push(body);
+  const auth=await handleRequest(request('/v1/license-welcome/relay-authorize',{
+   method:'POST',body:options.body
+  }),e);
+  assert.equal(auth.status,200);
+  return {ok:true,json:async()=>({accepted:true})};
+ };
+ const {cookie}=await login(handleRequest,e);
+ assert.equal(outbox.length,0,'login não envia código');
+ const release=await handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'cliente@exemplo.com',product:'LOJA_ROUPAS'})
+ }),e);
+ assert.equal(release.status,201);
+ const data=await release.json();
+ assert.equal(data.product,'LOJA_ROUPAS');
+ assert.match(data.code,/^\d{6}$/);
+ assert.equal(data.delivery.status,'accepted');
+ assert.equal(outbox.length,1);
+ assert.equal(outbox[0].code,data.code);
+ assert.equal(outbox[0].product,'LOJA_ROUPAS');
+ const replay=await handleRequest(request('/v1/license-welcome/relay-authorize',{
+  method:'POST',body:JSON.stringify(outbox[0])
+ }),e);
+ assert.equal(replay.status,403,'ticket de e-mail não pode ser reutilizado');
+ const wrong=await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:data.email,code:data.code,product:'OFICINA',installationId:'loja-00000001'})
+ }),e);
+ assert.equal(wrong.status,400);
+ const activated=await handleRequest(request('/v1/activation/verify',{
+  method:'POST',body:JSON.stringify({email:data.email,code:data.code,product:'LOJA_ROUPAS',installationId:'loja-00000001'})
+ }),e);
+ assert.equal(activated.status,200);
+ const result=await activated.json();
+ assert.equal(result.product,'LOJA_ROUPAS');
+ assert.match(result.enrollmentProof,/^[A-Za-z0-9_-]{40,}$/);
+ const consumed=await handleRequest(request('/v1/loja-roupas/enrollment/consume',{
+  method:'POST',body:JSON.stringify({proof:result.enrollmentProof})
+ }),e);
+ assert.equal(consumed.status,200);
+ const info=await consumed.json();
+ assert.equal(info.product,'LOJA_ROUPAS');
+ assert.equal(info.licenseId,data.licenseId);
+ assert.equal(info.installationId,'loja-00000001');
+ assert.equal((await handleRequest(request('/v1/loja-roupas/enrollment/consume',{
+  method:'POST',body:JSON.stringify({proof:result.enrollmentProof})
+ }),e)).status,403);
+ assert.equal((await handleRequest(request('/v1/license/status?installationId=loja-00000001&product=LOJA_ROUPAS'),e)).status,200);
+ assert.equal((await (await handleRequest(request('/v1/license/status?installationId=loja-00000001&product=LOJA_ROUPAS'),e)).json()).active,true);
+ assert.equal(e.ACCOUNT_STORE.licenses.length,1);
+});
+
+test('falha de email da Loja Roupas é explícita sem anular licença ou enviar por outros produtos',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),sent=[];
+ e.LICENSE_MAIL_FETCH=async(_url,options)=>{sent.push(JSON.parse(options.body));return {ok:false,json:async()=>({accepted:false})};};
+ const {cookie}=await login(handleRequest,e);
+ const grant=async product=>handleRequest(request('/v1/admin/licenses',{
+  method:'POST',headers:cookieHeaders(cookie),body:JSON.stringify({email:'owner@example.com',product})
+ }),e);
+ const pdv=await grant('PDV');assert.equal(pdv.status,201);
+ assert.equal(sent.length,0);
+ const clothes=await grant('LOJA_ROUPAS');assert.equal(clothes.status,201);
+ const data=await clothes.json();
+ assert.equal(data.delivery.status,'failed');
+ assert.match(data.code,/^\d{6}$/);
+ assert.equal(sent.length,1);
+ assert.equal(e.ACCOUNT_STORE.licenses.length,2);
+ assert.equal(e.ACCOUNT_STORE.licenses[0].product,'PDV');
+ assert.equal(e.ACCOUNT_STORE.licenses[1].product,'LOJA_ROUPAS');
+});

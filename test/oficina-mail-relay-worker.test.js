@@ -41,3 +41,36 @@ test('OTP relay rejects invalid signature before making any outbound request',as
   assert.equal(response.status,400);assert.equal(called,false);
  }finally{globalThis.fetch=originalFetch;}
 });
+
+test('relay envia boas-vindas Loja Roupas apenas após autorização da Central',async()=>{
+ const original=globalThis.fetch,messages=[];
+ globalThis.fetch=async(url,options)=>{
+  assert.match(url,/pdv-artisys\.sistema-artisys\.workers\.dev\/v1\/license-welcome\/relay-authorize/);
+  assert.equal(options.redirect,'manual');
+  return Response.json({authorized:true});
+ };
+ try{
+  const payload={email:'cliente@example.com',code:'654321',licenseId:'license-abc123',
+   product:'LOJA_ROUPAS',issuedAt:new Date().toISOString(),signature:'a'.repeat(64)};
+  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome',{
+   method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
+  }),{EMAIL:{send:async msg=>{messages.push(msg);return {messageId:'test-accepted'}}}});
+  assert.equal(response.status,202);
+  assert.equal((await response.json()).accepted,true);
+  assert.equal(messages.length,1);
+  assert.match(messages[0].subject,/Loja Roupas/);
+  assert.match(messages[0].text,/654321/);
+  assert.match(messages[0].text,/48 horas/);
+  assert.equal(messages[0].to,'cliente@example.com');
+ }finally{globalThis.fetch=original;}
+});
+test('relay Loja Roupas recusa pedidos não assinados sem enviar email',async()=>{
+ let sent=0;
+ const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome',{
+  method:'POST',headers:{'content-type':'application/json'},
+  body:JSON.stringify({email:'cliente@example.com',code:'654321',licenseId:'license-1',product:'LOJA_ROUPAS',
+    issuedAt:new Date().toISOString(),signature:'invalid'})
+ }),{EMAIL:{send:async()=>{sent++}}});
+ assert.equal(response.status,400);
+ assert.equal(sent,0);
+});
