@@ -8,6 +8,7 @@ class MemoryStore {
   async findAccount(email){return this.accounts.get(email)||null;}
   async findActiveLicense(email,product='PDV'){return [...this.licenses].reverse().find(x=>x.email===email&&(x.product||'PDV')===product&&x.status==='ACTIVE'&&(!x.expiresAt||x.expiresAt>new Date().toISOString()))||null;}
   async saveActivationToken(token){this.tokens.push({...token});}
+  async authorizeWelcomeRelay({tokenId,at}){const x=this.tokens.find(t=>t.id===tokenId);if(!x||x.welcomedAt||x.usedAt||x.expiresAt<=at)return false;x.welcomedAt=at;return true;}
   async findActivationToken({email,digest,now,product='PDV'}){return [...this.tokens].reverse().find(x=>x.email===email&&(x.product||'PDV')===product&&x.tokenDigest===digest&&!x.usedAt&&x.expiresAt>now)||null;}
   async consumeActivationToken(id,usedAt){const x=this.tokens.find(t=>t.id===id);if(x)x.usedAt=usedAt;}
   async saveInstallation(record){this.installations.set(record.installationId,{...record});}
@@ -438,4 +439,54 @@ test('new password recovery code revokes older unused 48h code for same installa
  }),e);
  assert.equal((await verify(firstCode)).status,400);
  assert.equal((await verify(sent[1].code)).status,200);
+});
+
+test('Loja Roupas uses the same licensing center without altering PDV or Oficina',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),deliveries=[];
+ e.MAIL_RELAY_FETCH=async(url,options)=>{
+  assert.equal(url,'https://oficina-mail.artisys.dev/welcome');
+  const payload=JSON.parse(options.body);
+  deliveries.push(payload);
+  const authorized=await handleRequest(request('/v1/license-welcome/relay-authorize',{method:'POST',body:options.body}),e);
+  assert.equal(authorized.status,200);
+  assert.equal((await authorized.json()).authorized,true);
+  return {ok:true,json:async()=>({accepted:true})};
+ };
+ const {cookie}=await login(handleRequest,e),headers=cookieHeaders(cookie);
+ const grant=async product=>{
+  const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,
+   body:JSON.stringify({email:'cliente@example.com',product})}),e);
+  assert.equal(response.status,201);return response.json();
+ };
+ const pdv=await grant('PDV');
+ const oficina=await grant('OFICINA');
+ const loja=await grant('LOJA_ROUPAS');
+ assert.equal(loja.product,'LOJA_ROUPAS');
+ assert.equal(loja.delivery.status,'sent');
+ assert.equal(deliveries.length,1);
+ assert.equal(deliveries[0].code,loja.code);
+ assert.equal(e.ACCOUNT_STORE.licenses.length,3);
+ assert.equal(e.ACCOUNT_STORE.licenses.filter(x=>x.status==='ACTIVE').length,3);
+ assert.equal((await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+ email:loja.email,product:'PDV',installationId:'loja-pc-01',code:loja.code})}),e)).status,400);
+ const activated=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+ email:loja.email,product:'LOJA_ROUPAS',installationId:'loja-pc-01',code:loja.code})}),e);
+ assert.equal(activated.status,200);
+ const status=await handleRequest(request('/v1/license/status?installationId=loja-pc-01&product=LOJA_ROUPAS'),e);
+ assert.equal((await status.json()).active,true);
+ assert.equal((await handleRequest(request('/v1/license/status?installationId=loja-pc-01&product=OFICINA'),e)).status,200);
+ const replay=await handleRequest(request('/v1/license-welcome/relay-authorize',{method:'POST',body:JSON.stringify(deliveries[0])}),e);
+ assert.equal(replay.status,403,'welcome token is single-use');
+ assert.equal(pdv.product,'PDV');assert.equal(oficina.product,'OFICINA');
+});
+test('email delivery failure is visible without silently claiming license email was sent',async()=>{
+ const {handleRequest}=await loadWorker(),e=env();
+ e.MAIL_RELAY_FETCH=async()=>({ok:false,status:503,json:async()=>({error:'mail failed'})});
+ const {cookie}=await login(handleRequest,e);
+ const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),
+ body:JSON.stringify({email:'cliente@example.com',product:'LOJA_ROUPAS'})}),e);
+ assert.equal(response.status,201);const result=await response.json();
+ assert.equal(result.delivery.status,'failed');
+ assert.equal(e.ACCOUNT_STORE.licenses.length,1);
+ assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
 });

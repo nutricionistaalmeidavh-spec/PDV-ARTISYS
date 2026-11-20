@@ -41,3 +41,25 @@ test('OTP relay rejects invalid signature before making any outbound request',as
   assert.equal(response.status,400);assert.equal(called,false);
  }finally{globalThis.fetch=originalFetch;}
 });
+
+test('Loja Roupas sends transactional welcome only when center grants a one-time ticket',async()=>{
+ const originalFetch=globalThis.fetch;
+ const messages=[];
+ globalThis.fetch=async(url,opts)=>{
+  assert.match(url,/v1\/license-welcome\/relay-authorize$/);
+  assert.equal(opts.redirect,'manual');
+  return Response.json({authorized:true});
+ };
+ try{
+  const payload={email:'comprador@example.com',licenseId:'license-123456789',code:'123456',
+   codeExpiresAt:new Date(Date.now()+3600000).toISOString(),issuedAt:new Date().toISOString(),signature:'a'.repeat(64)};
+  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome',{
+   method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
+  }),{EMAIL:{send:async msg=>messages.push(msg)}});
+  assert.equal(response.status,202);
+  assert.equal(messages.length,1);
+  assert.match(messages[0].subject,/Loja Roupas/);
+  assert.match(messages[0].text,/123456/);
+  assert.equal(messages[0].to,payload.email);
+ }finally{globalThis.fetch=originalFetch;}
+});
