@@ -45,6 +45,10 @@ async function sendWelcomeAfterApproval(env,{email,licenseId,code,issuedAt,produ
   return {status:'accepted'};
  }catch{return {status:'failed',error:'email_delivery_unavailable'};}
 }
+function newEnrollmentToken(){
+ const data=new Uint8Array(32);crypto.getRandomValues(data);
+ return btoa(String.fromCharCode(...data)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
 async function runDdl(db,sqlText){for(const sql of String(sqlText||'').split(';').map(x=>x.trim()).filter(Boolean))await db.prepare(sql).run();}
 function randomSessionToken(){const bytes=new Uint8Array(32);crypto.getRandomValues(bytes);return Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');}
@@ -120,6 +124,7 @@ class D1AccountStore{
     if(!licenseColumns.has('max_devices'))await this.db.prepare('ALTER TABLE licenses ADD COLUMN max_devices INTEGER').run();
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
     if(!activationColumns.has('welcome_relayed_at'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN welcome_relayed_at TEXT').run();
+    await this.db.prepare('CREATE TABLE IF NOT EXISTS loja_storefront_proofs(token_digest TEXT PRIMARY KEY,license_id TEXT NOT NULL,installation_id TEXT NOT NULL,email_normalized TEXT NOT NULL,expires_at TEXT NOT NULL,consumed_at TEXT,created_at TEXT NOT NULL)').run();
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
@@ -275,6 +280,24 @@ class D1AccountStore{
     const result=await this.db.prepare('UPDATE activation_tokens SET welcome_relayed_at=? WHERE id=? AND welcome_relayed_at IS NULL AND used_at IS NULL AND expires_at>?').bind(at,tokenId,at).run();
     return Number(result.meta?.changes||0)===1;
   }
+  async issueStorefrontProof({licenseId,installationId,email,createdAt}){
+    const proof=newEnrollmentToken();
+    await this.db.prepare('INSERT INTO loja_storefront_proofs(token_digest,license_id,installation_id,email_normalized,expires_at,consumed_at,created_at) VALUES(?,?,?,?,?,NULL,?)')
+      .bind(await sha256Hex(proof),licenseId,installationId,email,new Date(Date.parse(createdAt)+600000).toISOString(),createdAt).run();
+    return proof;
+  }
+  async consumeStorefrontProof(proof){
+    const digest=await sha256Hex(proof),at=new Date().toISOString();
+    const row=await this.db.prepare('SELECT license_id,installation_id,email_normalized FROM loja_storefront_proofs WHERE token_digest=? AND consumed_at IS NULL AND expires_at>?')
+      .bind(digest,at).first();
+    if(!row)return null;
+    const updated=await this.db.prepare('UPDATE loja_storefront_proofs SET consumed_at=? WHERE token_digest=? AND consumed_at IS NULL AND expires_at>?').bind(at,digest,at).run();
+    if(Number(updated.meta?.changes||0)!==1)return null;
+    const license=await this.findLicenseById(row.license_id),installation=await this.findInstallation(row.installation_id);
+    if(!license||license.product!=='LOJA_ROUPAS'||license.status!=='ACTIVE'||(license.expiresAt&&license.expiresAt<=at)||
+      !installation||installation.licenseId!==license.id||installation.accountEmail!==row.email_normalized)return null;
+    return {product:'LOJA_ROUPAS',licenseId:license.id,installationId:row.installation_id,email:row.email_normalized,expiresAt:license.expiresAt||null};
+  }
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
 
@@ -314,7 +337,9 @@ async function verifyActivation(request,env){
     if(!await store.registerCRMInstallation(installation,Number(license.maxDevices||3)))return json({error:'Limite de computadores desta licenca atingido. Desative um dispositivo na Central antes de ativar outro.'},409);
   }else await store.saveInstallation(installation);
   await store.consumeActivationToken(token.id,now);
-  return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now});
+  const enrollmentProof=product==='LOJA_ROUPAS'
+    ?await store.issueStorefrontProof({licenseId:license.id,installationId,email,createdAt:now}):undefined;
+  return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now,...(enrollmentProof?{enrollmentProof}:{})});
 }
 
 async function requestPasswordRecovery(request,env){
@@ -391,6 +416,13 @@ async function authorizeLicenseWelcome(request,env){
  if(!token||token.licenseId!==licenseId||token.createdAt!==issuedAt||!license||license.id!==licenseId||
     !await store.markWelcomeRelay({tokenId:token.id,at}))return json({authorized:false},403);
  return json({authorized:true});
+}
+async function consumeStorefrontEnrollment(request,env){
+ const body=await readBody(request),proof=String(body.proof||'');
+ if(!/^[A-Za-z0-9_-]{40,80}$/.test(proof))return json({error:'unauthorized'},403);
+ const store=await readyStore(env);
+ const result=await store.consumeStorefrontProof(proof);
+ return result?json(result):json({error:'unauthorized'},403);
 }
 async function verifyPasswordRecovery(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
@@ -664,6 +696,7 @@ export async function handleRequest(request,env={}){
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/relay-authorize')return await authorizeMailRelay(request,env);
      if(request.method==='POST'&&url.pathname==='/v1/license-welcome/relay-authorize')return await authorizeLicenseWelcome(request,env);
+    if(request.method==='POST'&&url.pathname==='/v1/loja-roupas/enrollment/consume')return await consumeStorefrontEnrollment(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/request')return await requestPasswordRecovery(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/verify')return await verifyPasswordRecovery(request,env);
     if(request.method==='GET'&&url.pathname==='/v1/license/status')return await licenseStatus(url,env);

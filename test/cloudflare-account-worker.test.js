@@ -440,6 +440,28 @@ test('new password recovery code revokes older unused 48h code for same installa
  assert.equal((await verify(sent[1].code)).status,200);
 });
 
+
+MemoryStore.prototype.markWelcomeRelay=async function({tokenId,at}){
+ const token=this.tokens.find(x=>x.id===tokenId);
+ if(!token||token.welcomeRelayedAt||token.usedAt||token.expiresAt<=at)return false;
+ token.welcomeRelayedAt=at;return true;
+};
+MemoryStore.prototype.issueStorefrontProof=async function({licenseId,installationId,email,createdAt}){
+ this.storefrontProofs??=new Map();
+ const proof=(crypto.randomUUID()+'-'+crypto.randomUUID()).replace(/-/g,'_');
+ this.storefrontProofs.set(proof,{licenseId,installationId,email,expiresAt:new Date(Date.parse(createdAt)+600000).toISOString()});
+ return proof;
+};
+MemoryStore.prototype.consumeStorefrontProof=async function(proof){
+ const item=this.storefrontProofs?.get(proof);
+ if(!item||item.expiresAt<=new Date().toISOString())return null;
+ this.storefrontProofs.delete(proof);
+ const license=this.licenses.find(l=>l.id===item.licenseId),installation=this.installations.get(item.installationId);
+ if(!license||license.product!=='LOJA_ROUPAS'||license.status!=='ACTIVE'||!installation||
+   installation.licenseId!==license.id)return null;
+ return {product:'LOJA_ROUPAS',licenseId:item.licenseId,installationId:item.installationId,email:item.email,expiresAt:license.expiresAt};
+};
+
 test('Loja Roupas usa a mesma Central: código isolado e email somente após liberação manual',async()=>{
  const {handleRequest}=await loadWorker(),e=env(),outbox=[];
  e.LICENSE_MAIL_FETCH=async(url,options)=>{
