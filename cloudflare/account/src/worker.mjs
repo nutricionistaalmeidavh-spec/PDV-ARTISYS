@@ -9,18 +9,41 @@ const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
-function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR'].includes(product)?product:null;}
+function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR','LOJA_ROUPAS'].includes(product)?product:null;}
 function normalizeInstallationId(value){const id=String(value||'').trim();return /^[A-Za-z0-9._:-]{8,128}$/.test(id)?id:null;}
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
 const MAIL_RELAY_URL='https://oficina-mail.artisys.dev/send';
+const WELCOME_RELAY_URL='https://oficina-mail.artisys.dev/welcome';
 async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
   const enc=new TextEncoder();
   const key=await crypto.subtle.importKey('raw',enc.encode('oficina-mail-relay-v1:'+pepper),
     {name:'HMAC',hash:'SHA-256'},false,['sign']);
   const sig=await crypto.subtle.sign('HMAC',key,enc.encode(JSON.stringify([email,installationId,code,issuedAt])));
   return Array.from(new Uint8Array(sig),x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function welcomeSignature(pepper,{email,licenseId,code,issuedAt,product}){
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode('loja-roupas-welcome-v1:'+pepper),
+  {name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const raw=JSON.stringify([email,licenseId,code,issuedAt,product]);
+ const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode(raw)));
+ return Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function sendWelcomeAfterApproval(env,{email,licenseId,code,issuedAt,product}){
+ if(product!=='LOJA_ROUPAS')return {status:'not_applicable'};
+ const pepper=String(env.ACTIVATION_PEPPER||'').trim();
+ if(!pepper)return {status:'failed',error:'activation_unavailable'};
+ const ticket={email,licenseId,code,issuedAt,product};
+ ticket.signature=await welcomeSignature(pepper,ticket);
+ try{
+  const response=await (env.LICENSE_MAIL_FETCH||fetch)(WELCOME_RELAY_URL,{
+   method:'POST',redirect:'manual',headers:{'content-type':'application/json'},
+   body:JSON.stringify(ticket),signal:AbortSignal.timeout(8000)
+  });
+  if(!response.ok||(await response.json())?.accepted!==true)throw Error('delivery_rejected');
+  return {status:'accepted'};
+ }catch{return {status:'failed',error:'email_delivery_unavailable'};}
 }
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
 async function runDdl(db,sqlText){for(const sql of String(sqlText||'').split(';').map(x=>x.trim()).filter(Boolean))await db.prepare(sql).run();}
@@ -96,6 +119,7 @@ class D1AccountStore{
     if(!licenseColumns.has('product'))await this.db.prepare("ALTER TABLE licenses ADD COLUMN product TEXT NOT NULL DEFAULT 'PDV'").run();
     if(!licenseColumns.has('max_devices'))await this.db.prepare('ALTER TABLE licenses ADD COLUMN max_devices INTEGER').run();
     const activationColumns=new Set(((await this.db.prepare('PRAGMA table_info(activation_tokens)').all()).results||[]).map(row=>row.name));
+    if(!activationColumns.has('welcome_relayed_at'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN welcome_relayed_at TEXT').run();
     if(!activationColumns.has('attempts'))await this.db.prepare('ALTER TABLE activation_tokens ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0').run();
     const recoveryColumns=new Set(((await this.db.prepare('PRAGMA table_info(password_recovery_tokens)').all()).results||[]).map(row=>row.name));
     if(!recoveryColumns.has('installation_id'))await this.db.prepare('ALTER TABLE password_recovery_tokens ADD COLUMN installation_id TEXT').run();
@@ -125,11 +149,11 @@ class D1AccountStore{
   async saveActivationToken(token){await this.db.prepare(`INSERT INTO activation_tokens(id,account_id,license_id,installation_id,token_digest,attempts,expires_at,used_at,created_at)
     VALUES(?,?,?,?,?,0,?,NULL,?)`).bind(token.id,token.accountId,token.licenseId,token.installationId,token.tokenDigest,token.expiresAt,token.createdAt).run();}
   async findActivationToken({email,digest,now,product='PDV'}){
-    const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
+    const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,t.created_at,a.email_normalized AS email
       FROM activation_tokens t JOIN accounts a ON a.id=t.account_id JOIN licenses l ON l.id=t.license_id
       WHERE a.email_normalized=? AND l.product=? AND t.token_digest=? AND t.used_at IS NULL AND t.expires_at>? AND t.attempts<?
       ORDER BY t.created_at DESC LIMIT 1`).bind(email,product,digest,now,ACTIVATION_MAX_ATTEMPTS).first();
-    return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at}:null;
+    return row?{id:row.id,accountId:row.account_id,licenseId:row.license_id,installationId:row.installation_id,email:row.email,tokenDigest:row.token_digest,attempts:Number(row.attempts||0),expiresAt:row.expires_at,usedAt:row.used_at,createdAt:row.created_at}:null;
   }
   async findActivationCandidate({email,now,product='PDV'}){
     const row=await this.db.prepare(`SELECT t.id,t.account_id,t.license_id,t.installation_id,t.token_digest,t.attempts,t.expires_at,t.used_at,a.email_normalized AS email
@@ -247,6 +271,10 @@ class D1AccountStore{
       FROM installations i JOIN accounts a ON a.id=i.account_id JOIN licenses l ON l.id=i.license_id WHERE i.installation_id=? LIMIT 1`).bind(id).first();
     return row?{installationId:row.installation_id,licenseId:row.license_id,activatedAt:row.activated_at,accountEmail:row.account_email,product:row.product||'PDV',status:row.status,expiresAt:row.expires_at||null}:null;
   }
+  async markWelcomeRelay({tokenId,at}){
+    const result=await this.db.prepare('UPDATE activation_tokens SET welcome_relayed_at=? WHERE id=? AND welcome_relayed_at IS NULL AND used_at IS NULL AND expires_at>?').bind(at,tokenId,at).run();
+    return Number(result.meta?.changes||0)===1;
+  }
   async logEmail(record){await this.db.prepare(`INSERT INTO email_delivery_log(id,account_id,email_normalized,template,status,error,created_at) VALUES(?,?,?,?,?,?,?)`).bind(record.id,record.accountId||null,record.email,record.template,record.status,record.error||null,record.createdAt).run();}
 }
 
@@ -347,6 +375,23 @@ async function authorizeMailRelay(request,env){
   return json({authorized:true});
 }
 
+async function authorizeLicenseWelcome(request,env){
+ const body=await readBody(request),email=normalizeEmail(body.email),product=normalizeProduct(body.product);
+ const code=String(body.code||''),licenseId=String(body.licenseId||''),issuedAt=String(body.issuedAt||'');
+ const signature=String(body.signature||''),at=new Date().toISOString();
+ if(!email||product!=='LOJA_ROUPAS'||!/^\d{6}$/.test(code)||!/^license-[a-zA-Z0-9-]{4,90}$/.test(licenseId)||
+    !/^[a-f0-9]{64}$/i.test(signature)||!Number.isFinite(Date.parse(issuedAt))||
+    Math.abs(Date.now()-Date.parse(issuedAt))>65000)return json({authorized:false},403);
+ const pepper=String(env.ACTIVATION_PEPPER||'').trim();
+ if(!pepper)return json({authorized:false},503);
+ if(!await secureEqual(signature,await welcomeSignature(pepper,{email,licenseId,code,issuedAt,product})))return json({authorized:false},403);
+ const store=await readyStore(env);
+ const token=await store.findActivationToken({email,digest:await digestToken({pepper,email,code}),now:at,product});
+ const license=await store.findActiveLicense(email,product);
+ if(!token||token.licenseId!==licenseId||token.createdAt!==issuedAt||!license||license.id!==licenseId||
+    !await store.markWelcomeRelay({tokenId:token.id,at}))return json({authorized:false},403);
+ return json({authorized:true});
+}
 async function verifyPasswordRecovery(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);const code=String(body.code||'').trim();
   if(!email||!installationId||!/^[0-9]{6}$/.test(code))return json({error:'Codigo de recuperacao invalido ou expirado.'},400);
@@ -472,7 +517,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
-      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option></select></div>
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
       <div class="field"><label for="expires">Validade da licença <span class="hint">(vazio = vitalícia)</span></label><input id="expires" type="date"></div>
        <div class="field" id="crm-device-field" hidden><label for="maxDevices">Computadores por loja (CRM)</label><input id="maxDevices" type="number" min="1" max="20" value="3"></div>
@@ -481,7 +526,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
     <div id="released" class="result">
       <div class="hint">Código de ativação</div>
       <div id="released-code" class="code"></div>
-      <div class="manual">Você envia o código ao cliente.</div>
+      <div class="manual" id="delivery-info">Você envia o código ao cliente.</div>
       <div id="released-expiry" class="hint"></div>
       <p><button type="button" class="secondary" onclick="copyCode()">Copiar código</button></p>
     </div>
@@ -511,12 +556,12 @@ async function load(){try{const j=await api('/v1/admin/licenses');document.query
     if(license.product==='WPPPROSPECTOR')for(const id of license.device_ids||[]){const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Desativar PC: '+id.slice(0,12);remove.title=id;remove.addEventListener('click',()=>removeDevice(license.id,id));actions.append(remove);}
   });
 }catch(e){alert(e.message)}}
-async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt,...(product==='WPPPROSPECTOR'?{maxDevices:Number(document.querySelector('#maxDevices').value)}:{})})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
+async function release(){try{const product=document.querySelector('#product').value,email=document.querySelector('#email').value,expiresAt=document.querySelector('#expires').value||null;const j=await api('/v1/admin/licenses',{method:'POST',body:JSON.stringify({email,product,expiresAt,...(product==='WPPPROSPECTOR'?{maxDevices:Number(document.querySelector('#maxDevices').value)}:{})})});document.querySelector('#released-code').textContent=j.code;document.querySelector('#released-expiry').textContent='Código válido até '+j.codeExpiresAt;document.querySelector('#delivery-info').textContent=product==='LOJA_ROUPAS'?(j.delivery?.status==='accepted'?'E-mail de boas-vindas aceito pelo serviço.':'Envio não confirmado: copie o código para o cliente.'):'Você envia o código ao cliente.';document.querySelector('#released').style.display='block';await load()}catch(e){alert(e.message)}}
 async function reactivate(id){
   try{
     const j=await api('/v1/admin/licenses/'+encodeURIComponent(id)+'/activation-code',{method:'POST'});
     document.querySelector('#released-code').textContent=j.code;
-    document.querySelector('#released-expiry').textContent='Código de reativação válido até '+j.codeExpiresAt;
+    document.querySelector('#released-expiry').textContent='Código de reativação válido até '+j.codeExpiresAt;document.querySelector('#delivery-info').textContent=j.product==='LOJA_ROUPAS'?(j.delivery?.status==='accepted'?'Novo código encaminhado por e-mail.':'Envio não confirmado: entregue o código manualmente.'):'Você envia o código ao cliente.';
     document.querySelector('#released').style.display='block';
     document.querySelector('#released').scrollIntoView({behavior:'smooth',block:'nearest'});
     await load();
@@ -554,7 +599,9 @@ async function adminRoute(request,env,url){
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
-    const provisioned=await store.provisionLicense({email,product,expiresAt,maxDevices,codeDigest,codeExpiresAt,createdAt});return json({...provisioned,email,product,code,codeExpiresAt,expiresAt,maxDevices},201);
+    const provisioned=await store.provisionLicense({email,product,expiresAt,maxDevices,codeDigest,codeExpiresAt,createdAt});
+     const delivery=await sendWelcomeAfterApproval(env,{email,licenseId:provisioned.licenseId,code,issuedAt:createdAt,product});
+     return json({...provisioned,email,product,code,codeExpiresAt,expiresAt,maxDevices,delivery},201);
   }
 
   if(request.method==='POST'&&url.pathname.startsWith('/v1/admin/licenses/')&&url.pathname.endsWith('/activation-code')){
@@ -567,7 +614,8 @@ async function adminRoute(request,env,url){
     const code=randomCode(),codeExpiresAt=new Date(Date.parse(now)+ACTIVATION_TOKEN_TTL_MS).toISOString();
     const rotated=await store.rotateActivationTokenForLicense({licenseId:id,codeDigest:await digestToken({pepper,email:license.email,code}),codeExpiresAt,createdAt:now});
     if(!rotated)return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
-    return json({...rotated,code,codeExpiresAt},201);
+    const delivery=await sendWelcomeAfterApproval(env,{email:license.email,licenseId:id,code,issuedAt:now,product:license.product});
+     return json({...rotated,product:license.product,code,codeExpiresAt,delivery},201);
   }
   if(request.method==='DELETE'&&/^\/v1\/admin\/licenses\/[^/]+\/installations\/[^/]+$/.test(url.pathname)){
     const parts=url.pathname.split('/'),id=decodeURIComponent(parts[4]),installationId=normalizeInstallationId(decodeURIComponent(parts[6]));
@@ -615,6 +663,7 @@ export async function handleRequest(request,env={}){
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/relay-authorize')return await authorizeMailRelay(request,env);
+     if(request.method==='POST'&&url.pathname==='/v1/license-welcome/relay-authorize')return await authorizeLicenseWelcome(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/request')return await requestPasswordRecovery(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/password-recovery/verify')return await verifyPasswordRecovery(request,env);
     if(request.method==='GET'&&url.pathname==='/v1/license/status')return await licenseStatus(url,env);
