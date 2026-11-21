@@ -378,7 +378,7 @@ async function requestPasswordRecovery(request,env){
     return json({accepted:true},202);
   const pepper=recoveryPepper(env);
   if(!pepper)return json({error:'Recuperacao temporariamente indisponivel.'},503);
-  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.now()+OFICINA_RECOVERY_TTL_MS).toISOString();
+  const code=randomCode(),createdAt=now,expiresAt=new Date(Date.parse(createdAt)+OFICINA_RECOVERY_TTL_MS).toISOString();
   const codeDigest=await digestToken({pepper,email,code});
   const saved=await store.createRecoveryForInstallation({installationId,email,codeDigest,createdAt,expiresAt});
   if(!saved)return json({accepted:true},202);
