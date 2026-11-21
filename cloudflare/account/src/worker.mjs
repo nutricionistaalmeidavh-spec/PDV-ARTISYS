@@ -1,4 +1,4 @@
-import {handleNexusTrial,signNexusEntitlement} from './nexus-trial.mjs';
+import {handleNexusTrial,signNexusEntitlement,logNexusLicenseEvent,nexusLicenseDashboard,nexusLicenseHistory,resendNexusWelcome} from './nexus-trial.mjs';
 const ACTIVATION_TOKEN_TTL_MS=48*60*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
 const OFICINA_RECOVERY_TTL_MS=48*60*60*1000;
@@ -621,6 +621,26 @@ async function adminRoute(request,env,url){
   if(!url.pathname.startsWith('/v1/admin/'))return null;
   if(!(await adminSessionAuthorized(request,env)))return json({error:'Nao autorizado.'},401);
   const store=await readyStore(env);
+  if(request.method==='GET'&&url.pathname==='/v1/admin/nexus/overview')return json({summary:await nexusLicenseDashboard(env)});
+  const nexusEvents=url.pathname.match(/^\/v1\/admin\/nexus\/licenses\/([^/]+)\/events$/);
+  if(request.method==='GET'&&nexusEvents){
+    const id=decodeURIComponent(nexusEvents[1]);
+    if(!/^[A-Za-z0-9_-]{3,128}$/.test(id))return json({error:'Licenca invalida.'},400);
+    const record=await store.findLicenseById(id);
+    if(!record||record.product!=='PDV_NEXUS_2')return json({error:'Licenca Nexus nao encontrada.'},404);
+    return json({events:await nexusLicenseHistory(env,id)});
+  }
+  const nexusResend=url.pathname.match(/^\/v1\/admin\/nexus\/licenses\/([^/]+)\/resend-welcome$/);
+  if(request.method==='POST'&&nexusResend){
+    const id=decodeURIComponent(nexusResend[1]);
+    if(!/^[A-Za-z0-9_-]{3,128}$/.test(id))return json({error:'Licenca invalida.'},400);
+    const record=await store.findLicenseById(id);
+    if(!record||record.product!=='PDV_NEXUS_2')return json({error:'Licenca Nexus nao encontrada.'},404);
+    const delivery=await resendNexusWelcome(env,id);
+    if(delivery.status==='rate_limited')return json({error:'Aguarde 5 minutos antes de reenviar este e-mail.'},429);
+    if(delivery.status==='unavailable')return json({error:'Licenca ativa nao elegivel para reenvio.'},409);
+    return json({delivery});
+  }
   if(request.method==='GET'&&url.pathname==='/v1/admin/licenses')return json({licenses:await store.listLicenses()});
   if(request.method==='POST'&&url.pathname==='/v1/admin/licenses'){
     const body=await readBody(request),email=normalizeEmail(body.email),product=normalizeProduct(body.product);if(!email||!product)return json({error:'E-mail ou produto invalido.'},400);
@@ -631,6 +651,7 @@ async function adminRoute(request,env,url){
     let expiresAt=null;if(body.expiresAt){const d=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(d.getTime()))return json({error:'Validade invalida.'},400);expiresAt=d.toISOString();}
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
     const provisioned=await store.provisionLicense({email,product,expiresAt,maxDevices,codeDigest,codeExpiresAt,createdAt});
+    if(product==='PDV_NEXUS_2')await logNexusLicenseEvent(env,provisioned.licenseId,'COMMERCIAL_ISSUED','admin',{expiresAt});
      const delivery=product==='LOJA_ROUPAS'
        ?await deliverLojaWelcome({email,licenseId:provisioned.licenseId,code,codeExpiresAt,issuedAt:createdAt},env)
        :undefined;
@@ -646,6 +667,7 @@ async function adminRoute(request,env,url){
     const pepper=String(env.ACTIVATION_PEPPER||'').trim();if(!pepper)return json({error:'ACTIVATION_PEPPER ausente.'},503);
     const code=randomCode(),codeExpiresAt=new Date(Date.parse(now)+ACTIVATION_TOKEN_TTL_MS).toISOString();
     const rotated=await store.rotateActivationTokenForLicense({licenseId:id,codeDigest:await digestToken({pepper,email:license.email,code}),codeExpiresAt,createdAt:now});
+    if(rotated&&license.product==='PDV_NEXUS_2')await logNexusLicenseEvent(env,id,'ACTIVATION_CODE_REISSUED','admin',{codeExpiresAt});
     if(!rotated)return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
     const delivery=license.product==='LOJA_ROUPAS'
        ?await deliverLojaWelcome({email:license.email,licenseId:id,code,codeExpiresAt,issuedAt:now},env)
@@ -671,6 +693,7 @@ async function adminRoute(request,env,url){
         expiresAt=date.toISOString();
       }
       if(typeof store.convertNexusTrial!=='function'||!await store.convertNexusTrial(id,expiresAt))return json({error:'Licenca de avaliacao Nexus nao encontrada.'},409);
+      await logNexusLicenseEvent(env,id,'TRIAL_CONVERTED','admin',{expiresAt});
       return json({updated:true,id,kind:'COMMERCIAL',expiresAt});
     }
     if(Object.hasOwn(body,'maxDevices')){
@@ -680,7 +703,10 @@ async function adminRoute(request,env,url){
     }
     const status=String(body.status||'').toUpperCase();
     if(!['ACTIVE','SUSPENDED','CANCELLED','EXPIRED'].includes(status))return json({error:'Status invalido.'},400);
-    await store.setLicenseStatus(id,status);return json({updated:true,id,status});
+    const existingLicense=await store.findLicenseById(id);
+    await store.setLicenseStatus(id,status);
+    if(existingLicense?.product==='PDV_NEXUS_2')await logNexusLicenseEvent(env,id,'LICENSE_STATUS_CHANGED','admin',{status,previousStatus:existingLicense.status});
+    return json({updated:true,id,status});
   }
   if(request.method==='POST'&&url.pathname==='/v1/admin/recovery'){
     const body=await readBody(request),email=normalizeEmail(body.email),installationId=normalizeInstallationId(body.installationId);if(!email||!installationId)return json({error:'E-mail ou instalacao invalidos.'},400);
