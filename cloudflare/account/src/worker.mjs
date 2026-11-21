@@ -535,6 +535,13 @@ button{cursor:pointer;font-weight:700;background:#18181b;color:#fff;border-color
 .code{font-size:34px;letter-spacing:7px;font-weight:850;margin:8px 0}.manual{font-weight:700;margin:4px 0}
 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:700px}td,th{padding:10px;border-bottom:1px solid #ececf0;text-align:left;white-space:nowrap}
 th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.muted{color:#71717a}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 9px;font-size:12px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:12px}
+.kpi{border:1px solid #e4e4e7;border-radius:12px;padding:14px;background:#fafafa}
+.kpi strong{display:block;font-size:25px;line-height:1.3;font-variant-numeric:tabular-nums}
+.kpi span{display:block;font-size:12px;color:#62626d;margin-top:5px}
+#nexus-history-dialog{width:min(680px,calc(100vw - 30px));max-height:80vh;overflow:auto;border:1px solid #e4e4e7;border-radius:16px;padding:24px;color:#18181b;background:white}
+#nexus-history-dialog::backdrop{background:#11182799}
+.event{border-bottom:1px solid #eee;padding:11px 0}.event strong{display:block}.event small{color:#71717a}
 @media(max-width:640px){.wrap{padding:18px 12px}.card{padding:16px}.field{min-width:100%}.code{font-size:30px}.top{align-items:center}.top h1{font-size:25px}}
 </style>
 </head>
@@ -542,6 +549,11 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
 <div class="wrap">
   <div class="top"><div><h1>Central de Licenças ArtiSys</h1><p class="sub">Libere o acesso do cliente manualmente. A Central gera o código e você envia o código ao cliente.</p></div><button type="button" class="secondary" onclick="logout()">Sair</button></div>
 
+  <div class="card" aria-labelledby="nexus-overview-title">
+    <h2 id="nexus-overview-title">Painel comercial · PDV Nexus 2.0</h2>
+    <p class="hint">Avaliações de 72 horas, conversões e entregas de boas-vindas. Dados agregados somente do Nexus.</p>
+    <div id="nexus-kpis" class="kpi-grid" aria-live="polite">Carregando indicadores…</div>
+  </div>
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
@@ -561,9 +573,16 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   </div>
 
   <div class="card">
-    <h2>Licenças</h2><div class="row"><label class="field">Filtrar por produto<select id="filter-product"><option value="all">Todos os produtos</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">CRM Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></label><label class="field">Modalidade<select id="filter-kind"><option value="all">Todas</option><option value="TRIAL">Avaliação</option><option value="COMMERCIAL">Comercial</option></select></label><label class="field">Origem<select id="filter-source"><option value="all">Todas</option><option value="AUTO_SIGNUP">Automática</option><option value="MANUAL">Manual</option><option value="ADMIN_CONVERSION">Conversão administrativa</option></select></label></div><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
+    <h2>Licenças</h2><div class="row"><label class="field">Filtrar por produto<select id="filter-product"><option value="all">Todos os produtos</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">CRM Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></label><label class="field">Modalidade<select id="filter-kind"><option value="all">Todas</option><option value="TRIAL">Avaliação</option><option value="COMMERCIAL">Comercial</option></select></label><label class="field">Origem<select id="filter-source"><option value="all">Todas</option><option value="AUTO_SIGNUP">Automática</option><option value="MANUAL">Manual</option><option value="ADMIN_CONVERSION">Conversão administrativa</option></select></label><label class="field">Buscar e-mail<input id="filter-email" type="search" placeholder="cliente@empresa.com" autocomplete="off" maxlength="254"></label></div><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
     <div id="list" class="muted">Carregando...</div>
   </div>
+  <dialog id="nexus-history-dialog" aria-labelledby="nexus-history-title">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h2 id="nexus-history-title">Histórico da licença</h2>
+      <button type="button" class="secondary" onclick="document.querySelector('#nexus-history-dialog').close()">Fechar</button>
+    </div>
+    <div id="nexus-history-events">Carregando…</div>
+  </dialog>
 </div>
 <script>
 async function api(p,o={}){
