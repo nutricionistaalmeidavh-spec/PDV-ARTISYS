@@ -141,7 +141,7 @@ export async function handleNexusTrial(req,env,url,readyStore){
       signingKey(env); // fail closed before provisioning if commercial signing is unavailable
       const already=await store.status(installationId);
       if(already)return js({error:'Avaliacao ja utilizada'},409);
-      const expiresAt=later(TRIAL_MS),licenseId=uuid('license'),now=timestamp();
+      const now=timestamp(),expiresAt=new Date(Date.parse(now)+TRIAL_MS).toISOString(),licenseId=uuid('license');
       const record=await store.activate({email,installationId,digest:await codeDigest(pepper,email,body.code),now,expiresAt,licenseId});
       if(!record)return js({error:'Codigo invalido, expirado ou avaliacao ja utilizada'},409);
       const entitlement=await signNexusEntitlement(env,{licenseId,email,installationId,product:PRODUCT,kind:'TRIAL',issuedAt:now,expiresAt});
