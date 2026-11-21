@@ -593,10 +593,53 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');const visible=j.licenses.filter(x=>(document.querySelector('#filter-product').value==='all'||x.product===document.querySelector('#filter-product').value)&&(document.querySelector('#filter-kind').value==='all'||x.kind===document.querySelector('#filter-kind').value)&&(document.querySelector('#filter-source').value==='all'||x.source===document.querySelector('#filter-source').value));document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Tipo</th><th>Origem</th><th>Boas-vindas</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+visible.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.kind||'COMMERCIAL')+'</td><td>'+esc(x.source||'MANUAL')+'</td><td>'+esc(x.welcome_status||'-')+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function loadNexusOverview(){
+ const target=document.querySelector('#nexus-kpis');if(!target)return;
+ try{
+  const j=await api('/v1/admin/nexus/overview');const s=j.summary||{};
+  const cards=[
+   ['Avaliações iniciadas',s.totalTrials||0],['Avaliações ativas',s.activeTrials||0],
+   ['Vencem em 24h',s.expiring24h||0],['Testes expirados',s.expiredTrials||0],
+   ['Convertidas',s.converted||0],['Taxa de conversão',String(s.conversionRatePct||0)+'%'],
+   ['Falhas de boas-vindas',s.failedWelcomeEmails||0],['Novos testes (7 dias)',s.trialStartsLast7Days||0]
+  ];
+  target.innerHTML=cards.map(x=>'<div class="kpi"><strong>'+esc(x[1])+'</strong><span>'+esc(x[0])+'</span></div>').join('');
+ }catch(e){target.textContent='Indicadores indisponíveis: '+e.message}
+}
+async function showNexusHistory(id){
+ const dialog=document.querySelector('#nexus-history-dialog'),content=document.querySelector('#nexus-history-events');
+ content.textContent='Carregando histórico…';dialog.showModal();
+ try{
+  const j=await api('/v1/admin/nexus/licenses/'+encodeURIComponent(id)+'/events');
+  const names={TRIAL_ACTIVATED:'Avaliação iniciada',TRIAL_CONVERTED:'Convertida em comercial',WELCOME_RESEND:'Boas-vindas reenviadas',
+   LICENSE_STATUS_CHANGED:'Status alterado',COMMERCIAL_ISSUED:'Licença comercial emitida',ACTIVATION_CODE_REISSUED:'Código reemitido'};
+  content.innerHTML=j.events.length?j.events.map(x=>'<div class="event"><strong>'+esc(names[x.eventType]||x.eventType)+'</strong><small>'+
+   esc(new Date(x.createdAt).toLocaleString('pt-BR'))+' · '+esc(x.actor)+'</small>'+
+   (x.details&&Object.keys(x.details).length?'<p class="hint">'+esc(Object.entries(x.details).map(([k,v])=>k+': '+v).join(' · '))+'</p>':'')+
+   '</div>').join(''):'<p class="hint">Nenhuma ocorrência registrada.</p>';
+ }catch(e){content.textContent='Falha ao consultar histórico: '+e.message}
+}
+async function resendNexusWelcome(id){
+ if(!confirm('Reenviar agora o e-mail de boas-vindas desta licença Nexus?'))return;
+ try{
+  const j=await api('/v1/admin/nexus/licenses/'+encodeURIComponent(id)+'/resend-welcome',{method:'POST',body:'{}'});
+  alert(j.delivery.status==='sent'?'E-mail enviado.':'Envio falhou. Verifique a configuração de e-mail e tente novamente depois.');
+  await load();
+ }catch(e){alert(e.message)}
+}
+async function load(){try{void loadNexusOverview();const j=await api('/v1/admin/licenses');const visible=j.licenses.filter(x=>(document.querySelector('#filter-product').value==='all'||x.product===document.querySelector('#filter-product').value)&&(document.querySelector('#filter-kind').value==='all'||x.kind===document.querySelector('#filter-kind').value)&&(document.querySelector('#filter-source').value==='all'||x.source===document.querySelector('#filter-source').value)&&(String(x.email||'').toLowerCase().includes(document.querySelector('#filter-email').value.trim().toLowerCase())));document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Tipo</th><th>Origem</th><th>Boas-vindas</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+visible.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.kind||'COMMERCIAL')+'</td><td>'+esc(x.source||'MANUAL')+'</td><td>'+esc(x.welcome_status||'-')+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
-    const license=visible[i-1];if(!license||license.status!=='ACTIVE')return;
+    const license=visible[i-1];if(!license)return;
     const actions=row.querySelector('.actions');if(!actions)return;
+    if(license.product==='PDV_NEXUS_2'){
+      const history=document.createElement('button');history.type='button';history.className='secondary';history.textContent='Histórico';
+      history.addEventListener('click',()=>showNexusHistory(license.id));actions.prepend(history);
+      if(license.status==='ACTIVE'&&(!license.expires_at||license.expires_at>new Date().toISOString())){
+        const resend=document.createElement('button');resend.type='button';resend.className='secondary';resend.textContent='Reenviar boas-vindas';
+        resend.addEventListener('click',()=>resendNexusWelcome(license.id));actions.append(resend);
+      }
+    }
+    if(license.status!=='ACTIVE')return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
     if(license.product==='PDV_NEXUS_2'&&license.kind==='TRIAL'){const convert=document.createElement('button');convert.type='button';convert.className='secondary';convert.textContent='Converter em comercial';convert.addEventListener('click',()=>convertTrial(license.id));actions.prepend(convert);}
@@ -625,6 +668,8 @@ async function recovery(installationId,email){try{const j=await api('/v1/admin/r
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
 async function logout(){try{await fetch('/v1/admin/session',{method:'DELETE',credentials:'same-origin'});}finally{location.reload();}}
 document.querySelectorAll('#filter-product,#filter-kind,#filter-source').forEach(el=>el.addEventListener('change',load));
+let filterTimer;
+document.querySelector('#filter-email').addEventListener('input',()=>{clearTimeout(filterTimer);filterTimer=setTimeout(load,250)});
 load();
 </script>
 </body>
