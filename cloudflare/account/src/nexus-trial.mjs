@@ -33,6 +33,30 @@ export class D1NexusTrialStore {
     await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_requests (email TEXT PRIMARY KEY,installation_id TEXT NOT NULL UNIQUE,code_digest TEXT NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,last_sent_at TEXT,attempts INTEGER NOT NULL DEFAULT 0,day_count INTEGER NOT NULL DEFAULT 1,consumed_at TEXT,license_id TEXT,welcome_status TEXT)").run();
     await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_mail_tickets (ticket_digest TEXT PRIMARY KEY,created_at TEXT NOT NULL)").run();
     await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_rate_limits (subject TEXT NOT NULL,bucket TEXT NOT NULL,hits INTEGER NOT NULL,PRIMARY KEY(subject,bucket))").run();
+    await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_license_events (id TEXT PRIMARY KEY,license_id TEXT NOT NULL,event_type TEXT NOT NULL,actor TEXT NOT NULL,details_json TEXT NOT NULL,created_at TEXT NOT NULL)").run();
+    await this.db.prepare("CREATE INDEX IF NOT EXISTS idx_nexus_events_license ON nexus_license_events(license_id,created_at DESC)").run();
+    const columns=new Set(((await this.db.prepare('PRAGMA table_info(nexus_trial_requests)').all()).results||[]).map(x=>x.name));
+    if(!columns.has('welcome_last_attempt_at'))await this.db.prepare('ALTER TABLE nexus_trial_requests ADD COLUMN welcome_last_attempt_at TEXT').run();
+  }
+  async logEvent(licenseId,eventType,actor='system',details={}){
+    if(!/^license-[a-zA-Z0-9-]{4,100}$/.test(licenseId))throw Error('ID de licença Nexus inválido');
+    await this.db.prepare('INSERT INTO nexus_license_events(id,license_id,event_type,actor,details_json,created_at) VALUES(?,?,?,?,?,?)')
+      .bind(uuid('event'),licenseId,eventType,actor,JSON.stringify(details),timestamp()).run();
+  }
+  async listEvents(licenseId){
+    const rows=(await this.db.prepare('SELECT event_type AS eventType,actor,details_json AS detailsJson,created_at AS createdAt FROM nexus_license_events WHERE license_id=? ORDER BY created_at DESC LIMIT 100').bind(licenseId).all()).results||[];
+    return rows.map(x=>({eventType:x.eventType,actor:x.actor,details:(()=>{try{return JSON.parse(x.detailsJson||'{}')}catch{return {}}})(),createdAt:x.createdAt}));
+  }
+  async listDashboardRows(){
+    return (await this.db.prepare("SELECT l.id,l.product,l.status,l.created_at,l.expires_at,l.metadata_json,t.welcome_status FROM licenses l LEFT JOIN nexus_trial_requests t ON t.license_id=l.id WHERE l.product='PDV_NEXUS_2'").all()).results||[];
+  }
+  async findWelcome(licenseId){
+    return this.db.prepare("SELECT t.email AS email,t.installation_id AS installationId,t.welcome_last_attempt_at AS lastAttempt,l.expires_at AS expiresAt,l.status AS status FROM nexus_trial_requests t JOIN licenses l ON l.id=t.license_id WHERE t.license_id=? AND l.product='PDV_NEXUS_2'").bind(licenseId).first();
+  }
+  async reserveWelcomeResend(licenseId,now){
+    const threshold=new Date(Date.parse(now)-5*60*1000).toISOString();
+    const r=await this.db.prepare("UPDATE nexus_trial_requests SET welcome_status='pending',welcome_last_attempt_at=? WHERE license_id=? AND (welcome_last_attempt_at IS NULL OR welcome_last_attempt_at<?)").bind(now,licenseId,threshold).run();
+    return Number(r.meta?.changes||0)===1;
   }
   async takeRateLimit(subject,bucket){
     const result=await this.db.prepare("INSERT INTO nexus_trial_rate_limits(subject,bucket,hits) VALUES(?,?,1) ON CONFLICT(subject,bucket) DO UPDATE SET hits=hits+1 WHERE hits<12").bind(subject,bucket).run();
@@ -93,6 +117,7 @@ export class D1NexusTrialStore {
       this.db.prepare("INSERT INTO installations(installation_id,account_id,license_id,activated_at,last_seen_at) SELECT ?,l.account_id,l.id,?,? FROM licenses l WHERE l.id=?").bind(installationId,now,now,licenseId)
     ]);
     const result=await this.db.prepare('SELECT l.id,l.expires_at AS expiresAt FROM licenses l JOIN nexus_trial_requests t ON t.license_id=l.id WHERE t.email=? AND t.installation_id=? AND l.id=?').bind(email,installationId,licenseId).first();
+    if(result)await this.logEvent(licenseId,'TRIAL_ACTIVATED','automatic',{expiresAt,source:'AUTO_SIGNUP'});
     return result||null;
   }
   async status(installationId){
@@ -170,4 +195,33 @@ export async function handleNexusTrial(req,env,url,readyStore){
     }
     return js({error:'Rota desconhecida'},404);
   }catch(e){return js({error:e.message==='NEXUS_LICENSE_SIGNING_JWK ausente'?'Assinatura comercial indisponivel':'Falha ao processar licenciamento Nexus'},e.message==='NEXUS_LICENSE_SIGNING_JWK ausente'?503:500)}
+}
+
+export async function logNexusLicenseEvent(env,licenseId,eventType,actor='admin',details={}){
+  const store=trialStore(env);await store.ensure();
+  if(typeof store.logEvent==='function')await store.logEvent(licenseId,eventType,actor,details);
+}
+export async function nexusLicenseDashboard(env){
+  const {summarizeNexusLicenses}=await import('./nexus-dashboard.mjs');
+  const store=trialStore(env);await store.ensure();
+  if(typeof store.listDashboardRows!=='function')return summarizeNexusLicenses([]);
+  return summarizeNexusLicenses(await store.listDashboardRows());
+}
+export async function nexusLicenseHistory(env,licenseId){
+  const store=trialStore(env);await store.ensure();
+  if(typeof store.listEvents!=='function')return [];
+  return store.listEvents(licenseId);
+}
+export async function resendNexusWelcome(env,licenseId){
+  const pepper=String(env.NEXUS_TRIAL_PEPPER||'');
+  if(pepper.length<20)throw Error('Licenciamento Nexus não configurado');
+  const store=trialStore(env);await store.ensure();
+  const record=await store.findWelcome(licenseId);
+  if(!record||record.status!=='ACTIVE'||(record.expiresAt&&record.expiresAt<=timestamp()))
+    return {status:'unavailable'};
+  if(!await store.reserveWelcomeResend(licenseId,timestamp()))return {status:'rate_limited'};
+  const status=await sendMail(env,pepper,{purpose:'welcome',email:record.email,installationId:record.installationId,licenseId,expiresAt:record.expiresAt||null});
+  await store.delivery(record.email,record.installationId,'welcome',status);
+  await logNexusLicenseEvent(env,licenseId,'WELCOME_RESEND','admin',{status});
+  return {status};
 }
