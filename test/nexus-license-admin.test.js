@@ -20,6 +20,12 @@ test('Nexus trial filters preserve compilable inline Central admin JS',async()=>
  assert.match(html,/filter-kind/);
  assert.match(html,/filter-source/);
  assert.match(html,/Converter em comercial/);
+ assert.match(html,/nexus-kpis/);
+ assert.match(html,/filter-email/);
+ assert.match(html,/nexus-history-dialog/);
+ assert.match(html,/Reenviar boas-vindas/);
+ assert.match(html,/loadNexusOverview/);
+ assert.match(html,/showNexusHistory/);
  assert.match(html,/visible\.map\(x=>'<tr><td>'\+esc/);
  const script=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
  assert.ok(script,'inline admin script missing');
