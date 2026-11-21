@@ -32,6 +32,11 @@ export class D1NexusTrialStore {
   async ensure(){
     await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_requests (email TEXT PRIMARY KEY,installation_id TEXT NOT NULL UNIQUE,code_digest TEXT NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,last_sent_at TEXT,attempts INTEGER NOT NULL DEFAULT 0,day_count INTEGER NOT NULL DEFAULT 1,consumed_at TEXT,license_id TEXT,welcome_status TEXT)").run();
     await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_mail_tickets (ticket_digest TEXT PRIMARY KEY,created_at TEXT NOT NULL)").run();
+    await this.db.prepare("CREATE TABLE IF NOT EXISTS nexus_trial_rate_limits (subject TEXT NOT NULL,bucket TEXT NOT NULL,hits INTEGER NOT NULL,PRIMARY KEY(subject,bucket))").run();
+  }
+  async takeRateLimit(subject,bucket){
+    const result=await this.db.prepare("INSERT INTO nexus_trial_rate_limits(subject,bucket,hits) VALUES(?,?,1) ON CONFLICT(subject,bucket) DO UPDATE SET hits=hits+1 WHERE hits<12").bind(subject,bucket).run();
+    return Number(result.meta?.changes||0)===1;
   }
   async get(email,installationId){
     return this.db.prepare('SELECT * FROM nexus_trial_requests WHERE email=? OR installation_id=? LIMIT 1').bind(email,installationId).first();
@@ -121,6 +126,12 @@ export async function handleNexusTrial(req,env,url,readyStore){
       if(!email||!installationId)return js({error:'E-mail ou instalacao invalidos'},400);
       const existing=await readyStore(env);
       if(await existing.findActiveLicense(email,PRODUCT))return js({accepted:true},202);
+      const ip=req.headers.get('cf-connecting-ip');
+      if(ip&&typeof store.takeRateLimit==='function'){
+        const subject=await sha(pepper+':ip:'+ip);
+        const bucket=new Date().toISOString().slice(0,13);
+        if(!await store.takeRateLimit(subject,bucket))return js({accepted:true},202);
+      }
       const now=timestamp(),code=String(crypto.getRandomValues(new Uint32Array(1))[0]%1000000).padStart(6,'0');
       const saved=await store.saveChallenge({email,installationId,digest:await codeDigest(pepper,email,code),now,expiresAt:later(OTP_MS)});
       if(!saved)return js({accepted:true},202);
@@ -142,9 +153,10 @@ export async function handleNexusTrial(req,env,url,readyStore){
       const already=await store.status(installationId);
       if(already)return js({error:'Avaliacao ja utilizada'},409);
       const now=timestamp(),expiresAt=new Date(Date.parse(now)+TRIAL_MS).toISOString(),licenseId=uuid('license');
+      // Sign before DB mutation to avoid issuing an unusable trial on invalid key configuration.
+      const entitlement=await signNexusEntitlement(env,{licenseId,email,installationId,product:PRODUCT,kind:'TRIAL',issuedAt:now,expiresAt});
       const record=await store.activate({email,installationId,digest:await codeDigest(pepper,email,body.code),now,expiresAt,licenseId});
       if(!record)return js({error:'Codigo invalido, expirado ou avaliacao ja utilizada'},409);
-      const entitlement=await signNexusEntitlement(env,{licenseId,email,installationId,product:PRODUCT,kind:'TRIAL',issuedAt:now,expiresAt});
       const delivery=await sendMail(env,pepper,{purpose:'welcome',email,installationId,licenseId,expiresAt});
       await store.delivery(email,installationId,'welcome',delivery);
       return js({entitlement,delivery:{status:delivery},expiresAt},201);
