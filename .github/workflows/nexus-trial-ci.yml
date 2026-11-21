@@ -7,6 +7,8 @@ on:
       - 'cloudflare/oficina-password-mailer/**'
       - 'test/nexus-trial-worker.test.js'
       - 'test/nexus-license-admin.test.js'
+      - 'test/nexus-license-p3.test.js'
+      - 'test/nexus-license-p3-api.test.js'
       - 'test/cloudflare-account-worker.test.js'
       - 'test/oficina-mail-relay-worker.test.js'
       - '.github/workflows/nexus-trial-ci.yml'
@@ -17,6 +19,8 @@ on:
       - 'cloudflare/oficina-password-mailer/**'
       - 'test/nexus-trial-worker.test.js'
       - 'test/nexus-license-admin.test.js'
+      - 'test/nexus-license-p3.test.js'
+      - 'test/nexus-license-p3-api.test.js'
       - 'test/cloudflare-account-worker.test.js'
       - 'test/oficina-mail-relay-worker.test.js'
       - '.github/workflows/nexus-trial-ci.yml'
@@ -35,6 +39,7 @@ jobs:
         run: |
           node --check cloudflare/account/src/worker.mjs
           node --check cloudflare/account/src/nexus-trial.mjs
+          node --check cloudflare/account/src/nexus-dashboard.mjs
           node --check cloudflare/oficina-password-mailer/worker.mjs
       - name: Nexus trial, legacy licensing, and mail regressions
-        run: node --test test/nexus-trial-worker.test.js test/nexus-license-admin.test.js test/cloudflare-account-worker.test.js test/oficina-mail-relay-worker.test.js
+        run: node --test test/nexus-trial-worker.test.js test/nexus-license-p3.test.js test/nexus-license-p3-api.test.js test/nexus-license-admin.test.js test/cloudflare-account-worker.test.js test/oficina-mail-relay-worker.test.js
