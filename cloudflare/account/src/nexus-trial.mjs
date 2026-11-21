@@ -48,11 +48,12 @@ export class D1NexusTrialStore {
       if(row.last_sent_at&&Date.parse(now)-Date.parse(row.last_sent_at)<RESEND_MS)return false;
       const sameDay=row.created_at.slice(0,10)===now.slice(0,10);
       if(sameDay&&row.day_count>=6)return false;
-      const r=await this.db.prepare('UPDATE nexus_trial_requests SET code_digest=?,created_at=?,expires_at=?,last_sent_at=NULL,attempts=0,day_count=? WHERE email=? AND installation_id=? AND consumed_at IS NULL').bind(digest,now,expiresAt,sameDay?row.day_count+1:1,email,installationId).run();
+      const cutoff=new Date(Date.parse(now)-RESEND_MS).toISOString();
+      const r=await this.db.prepare("UPDATE nexus_trial_requests SET code_digest=?,created_at=?,expires_at=?,last_sent_at=?,attempts=0,day_count=? WHERE email=? AND installation_id=? AND consumed_at IS NULL AND (last_sent_at IS NULL OR last_sent_at<=?)").bind(digest,now,expiresAt,now,sameDay?row.day_count+1:1,email,installationId,cutoff).run();
       return Number(r.meta?.changes||0)===1;
     }
     try{
-      await this.db.prepare('INSERT INTO nexus_trial_requests(email,installation_id,code_digest,created_at,expires_at,day_count) VALUES(?,?,?,?,?,1)').bind(email,installationId,digest,now,expiresAt).run();
+      await this.db.prepare('INSERT INTO nexus_trial_requests(email,installation_id,code_digest,created_at,expires_at,last_sent_at,day_count) VALUES(?,?,?,?,?,?,1)').bind(email,installationId,digest,now,expiresAt,now).run();
       return true;
     }catch{return false}
   }
