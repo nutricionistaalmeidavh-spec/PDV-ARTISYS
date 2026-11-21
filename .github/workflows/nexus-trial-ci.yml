@@ -1,0 +1,38 @@
+name: Nexus commercial trial — isolated tests (no deploy)
+on:
+  push:
+    branches: [main, 'feat/**']
+    paths:
+      - 'cloudflare/account/src/**'
+      - 'cloudflare/oficina-password-mailer/**'
+      - 'test/nexus-trial-worker.test.js'
+      - 'test/cloudflare-account-worker.test.js'
+      - 'test/oficina-mail-relay-worker.test.js'
+      - '.github/workflows/nexus-trial-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cloudflare/account/src/**'
+      - 'cloudflare/oficina-password-mailer/**'
+      - 'test/nexus-trial-worker.test.js'
+      - 'test/cloudflare-account-worker.test.js'
+      - 'test/oficina-mail-relay-worker.test.js'
+      - '.github/workflows/nexus-trial-ci.yml'
+permissions:
+  contents: read
+jobs:
+  nexus-license:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static syntax
+        run: |
+          node --check cloudflare/account/src/worker.mjs
+          node --check cloudflare/account/src/nexus-trial.mjs
+          node --check cloudflare/oficina-password-mailer/worker.mjs
+      - name: Nexus trial, legacy licensing, and mail regressions
+        run: node --test test/nexus-trial-worker.test.js test/cloudflare-account-worker.test.js test/oficina-mail-relay-worker.test.js
