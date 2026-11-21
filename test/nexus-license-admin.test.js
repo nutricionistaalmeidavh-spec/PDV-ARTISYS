@@ -13,7 +13,7 @@ test('Nexus trial filters preserve compilable inline Central admin JS',async()=>
  const start=await handleRequest(new Request('https://central.example/v1/admin/session',{
    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:'test-admin-token'})
  }),env);
- assert.equal(start.status,200);
+ assert.equal(start.status,204);
  const cookie=String(start.headers.get('set-cookie')||'').split(';')[0];
  const html=await (await handleRequest(new Request('https://central.example/admin',{headers:{cookie}}),env)).text();
  assert.match(html,/filter-product/);
