@@ -557,7 +557,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   </div>
 
   <div class="card">
-    <h2>Licenças</h2><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
+    <h2>Licenças</h2><div class="row"><label class="field">Filtrar por produto<select id="filter-product"><option value="all">Todos os produtos</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">CRM Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></label><label class="field">Modalidade<select id="filter-kind"><option value="all">Todas</option><option value="TRIAL">Avaliação</option><option value="COMMERCIAL">Comercial</option></select></label><label class="field">Origem<select id="filter-source"><option value="all">Todas</option><option value="AUTO_SIGNUP">Automática</option><option value="MANUAL">Manual</option><option value="ADMIN_CONVERSION">Conversão administrativa</option></select></label></div><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
     <div id="list" class="muted">Carregando...</div>
   </div>
 </div>
@@ -570,9 +570,9 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Tipo</th><th>Origem</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.kind||'COMMERCIAL')+'</td><td>'+esc(x.source||'MANUAL')+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function load(){try{const j=await api('/v1/admin/licenses');const visible=j.licenses.filter(x=>(document.querySelector('#filter-product').value==='all'||x.product===document.querySelector('#filter-product').value)&&(document.querySelector('#filter-kind').value==='all'||x.kind===document.querySelector('#filter-kind').value)&&(document.querySelector('#filter-source').value==='all'||x.source===document.querySelector('#filter-source').value));document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Tipo</th><th>Origem</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+visible.map(x=>'<tr><td>+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.kind||'COMMERCIAL')+'</td><td>'+esc(x.source||'MANUAL')+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
-    const license=j.licenses[i-1];if(!license||license.status!=='ACTIVE')return;
+    const license=visible[i-1];if(!license||license.status!=='ACTIVE')return;
     const actions=row.querySelector('.actions');if(!actions)return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
@@ -601,6 +601,7 @@ async function copyCode(){const code=document.querySelector('#released-code').te
 async function recovery(installationId,email){try{const j=await api('/v1/admin/recovery',{method:'POST',body:JSON.stringify({installationId,email})});alert('Código de recuperação: '+j.code+' (15 min). Você envia esse código ao cliente.')}catch(e){alert(e.message)}}
 async function status(id,status){try{await api('/v1/admin/licenses/'+decodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});await load()}catch(e){alert(e.message)}}
 async function logout(){try{await fetch('/v1/admin/session',{method:'DELETE',credentials:'same-origin'});}finally{location.reload();}}
+document.querySelectorAll('#filter-product,#filter-kind,#filter-source').forEach(el=>el.addEventListener('change',load));
 load();
 </script>
 </body>
