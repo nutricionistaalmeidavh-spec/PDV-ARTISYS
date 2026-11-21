@@ -184,7 +184,7 @@ class D1AccountStore{
     (SELECT GROUP_CONCAT(installation_id,'|') FROM installations i WHERE i.license_id=l.id) AS device_ids,
     (SELECT installation_id FROM installations i WHERE i.license_id=l.id ORDER BY activated_at ASC LIMIT 1) AS installation_id
     FROM licenses l JOIN accounts a ON a.id=l.account_id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];
-    return rows.map(row=>({...row,kind:(()=>{try{return JSON.parse(row.metadata_json||'{}').kind||'COMMERCIAL'}catch{return 'COMMERCIAL'}})(),source:(()=>{try{return JSON.parse(row.metadata_json||'{}').source||'MANUAL'}catch{return 'MANUAL'}})(),device_ids:row.device_ids?row.device_ids.split('|'):[]}));}
+    return rows.map(row=>({...row,kind:(()=>{try{return JSON.parse(row.metadata_json||'{}').kind||'COMMERCIAL'}catch{return 'COMMERCIAL'}})(),source:(()=>{try{const source=JSON.parse(row.metadata_json||'{}').source||'MANUAL';return source==='admin-panel'?'MANUAL':source}catch{return 'MANUAL'}})(),device_ids:row.device_ids?row.device_ids.split('|'):[]}));}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
   async convertNexusTrial(id,expiresAt){
     const row=await this.db.prepare('SELECT product,metadata_json FROM licenses WHERE id=?').bind(id).first();
