@@ -1,3 +1,4 @@
+import {handleNexusTrial,signNexusEntitlement} from './nexus-trial.mjs';
 const ACTIVATION_TOKEN_TTL_MS=48*60*60*1000;
 const RECOVERY_TTL_MS=15*60*1000;
 const OFICINA_RECOVERY_TTL_MS=48*60*60*1000;
@@ -9,7 +10,7 @@ const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
-function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR','LOJA_ROUPAS'].includes(product)?product:null;}
+function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR','LOJA_ROUPAS','PDV_NEXUS_2'].includes(product)?product:null;}
 function normalizeInstallationId(value){const id=String(value||'').trim();return /^[A-Za-z0-9._:-]{8,128}$/.test(id)?id:null;}
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
@@ -178,13 +179,20 @@ class D1AccountStore{
     ]);
     return {accountId:license.accountId,licenseId,email:license.email,product:license.product};
   }
-  async listLicenses(){const rows=(await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.product,l.status,l.created_at,l.expires_at,l.max_devices,
+  async listLicenses(){const rows=(await this.db.prepare(`SELECT l.id,a.email_normalized AS email,l.product,l.status,l.created_at,l.expires_at,l.max_devices,l.metadata_json,
     (SELECT COUNT(*) FROM installations i WHERE i.license_id=l.id) AS device_count,
     (SELECT GROUP_CONCAT(installation_id,'|') FROM installations i WHERE i.license_id=l.id) AS device_ids,
     (SELECT installation_id FROM installations i WHERE i.license_id=l.id ORDER BY activated_at ASC LIMIT 1) AS installation_id
     FROM licenses l JOIN accounts a ON a.id=l.account_id ORDER BY l.created_at DESC LIMIT 200`).all()).results||[];
-    return rows.map(row=>({...row,device_ids:row.device_ids?row.device_ids.split('|'):[]}));}
+    return rows.map(row=>({...row,kind:(()=>{try{return JSON.parse(row.metadata_json||'{}').kind||'COMMERCIAL'}catch{return 'COMMERCIAL'}})(),source:(()=>{try{return JSON.parse(row.metadata_json||'{}').source||'MANUAL'}catch{return 'MANUAL'}})(),device_ids:row.device_ids?row.device_ids.split('|'):[]}));}
   async setLicenseStatus(id,status){await this.db.prepare('UPDATE licenses SET status=? WHERE id=?').bind(status,id).run();}
+  async convertNexusTrial(id,expiresAt){
+    const row=await this.db.prepare('SELECT product,metadata_json FROM licenses WHERE id=?').bind(id).first();
+    let metadata={};try{metadata=JSON.parse(row?.metadata_json||'{}')}catch{}
+    if(row?.product!=='PDV_NEXUS_2'||metadata.kind!=='TRIAL')return false;
+    const r=await this.db.prepare("UPDATE licenses SET status='ACTIVE',expires_at=?,metadata_json=? WHERE id=? AND product='PDV_NEXUS_2'").bind(expiresAt,JSON.stringify({...metadata,kind:'COMMERCIAL',source:'ADMIN_CONVERSION'}),id).run();
+    return Number(r.meta?.changes||0)===1;
+  }
   async createAdminSession({tokenDigest,createdAt,expiresAt}){await this.db.prepare('INSERT INTO admin_sessions(token_digest,created_at,expires_at,revoked_at) VALUES(?,?,?,NULL)').bind(tokenDigest,createdAt,expiresAt).run();}
   async findAdminSession({digest,now}){const row=await this.db.prepare('SELECT token_digest,expires_at FROM admin_sessions WHERE token_digest=? AND revoked_at IS NULL AND expires_at>? LIMIT 1').bind(digest,now).first();return row?{tokenDigest:row.token_digest,expiresAt:row.expires_at}:null;}
   async deleteAdminSession(digest){await this.db.prepare('DELETE FROM admin_sessions WHERE token_digest=?').bind(digest).run();}
@@ -346,7 +354,8 @@ async function verifyActivation(request,env){
     if(!await store.registerCRMInstallation(installation,Number(license.maxDevices||3)))return json({error:'Limite de computadores desta licenca atingido. Desative um dispositivo na Central antes de ativar outro.'},409);
   }else await store.saveInstallation(installation);
   await store.consumeActivationToken(token.id,now);
-  return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now});
+  const entitlement=product==='PDV_NEXUS_2'?await signNexusEntitlement(env,{licenseId:license.id,email,installationId,product,issuedAt:now,expiresAt:license.expiresAt||null}):undefined;
+  return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now,...(entitlement?{entitlement}:{})});
 }
 
 async function requestPasswordRecovery(request,env){
@@ -532,7 +541,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
-      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></div>
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
       <div class="field"><label for="expires">Validade da licença <span class="hint">(vazio = vitalícia)</span></label><input id="expires" type="date"></div>
        <div class="field" id="crm-device-field" hidden><label for="maxDevices">Computadores por loja (CRM)</label><input id="maxDevices" type="number" min="1" max="20" value="3"></div>
@@ -561,12 +570,13 @@ async function api(p,o={}){
   return j;
 }
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
+async function load(){try{const j=await api('/v1/admin/licenses');document.querySelector('#list').innerHTML='<div class="table-wrap"><table><tr><th>Produto</th><th>E-mail</th><th>Tipo</th><th>Origem</th><th>Status</th><th>Validade</th><th>Dispositivos</th><th>Instalação</th><th>Ações</th></tr>'+j.licenses.map(x=>'<tr><td>'+esc(x.product||'PDV')+'</td><td>'+esc(x.email)+'</td><td>'+esc(x.kind||'COMMERCIAL')+'</td><td>'+esc(x.source||'MANUAL')+'</td><td>'+esc(x.status)+'</td><td>'+esc(x.expires_at||'Vitalícia')+'</td><td>'+esc(x.product==='WPPPROSPECTOR'?(String(x.device_count||0)+' / '+String(x.max_devices||3)):'-')+'</td><td>'+esc(x.installation_id||'-')+'</td><td><div class="actions">'+(x.installation_id?'<button onclick="recovery(decodeURIComponent(\\''+encodeURIComponent(x.installation_id)+'\\'),decodeURIComponent(\\''+encodeURIComponent(x.email)+'\\'))">Recuperação</button>':'')+'<button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'SUSPENDED\\')">Suspender</button><button onclick="status(\\''+encodeURIComponent(x.id)+'\\',\\'CANCELLED\\')">Cancelar</button></div></td></tr>').join('')+'</table></div>';
   document.querySelectorAll('#list table tr').forEach((row,i)=>{
     const license=j.licenses[i-1];if(!license||license.status!=='ACTIVE')return;
     const actions=row.querySelector('.actions');if(!actions)return;
     const button=document.createElement('button');button.type='button';button.textContent='Reativar instalação';
     button.addEventListener('click',()=>reactivate(license.id));actions.prepend(button);
+    if(license.product==='PDV_NEXUS_2'&&license.kind==='TRIAL'){const convert=document.createElement('button');convert.type='button';convert.className='secondary';convert.textContent='Converter em comercial';convert.addEventListener('click',()=>convertTrial(license.id));actions.prepend(convert);}
     if(license.product==='WPPPROSPECTOR'){const limit=document.createElement('button');limit.type='button';limit.className='secondary';limit.textContent='Alterar limite';limit.addEventListener('click',()=>changeDeviceLimit(license.id,license.max_devices||3));actions.append(limit);}
     if(license.product==='WPPPROSPECTOR')for(const id of license.device_ids||[]){const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Desativar PC: '+id.slice(0,12);remove.title=id;remove.addEventListener('click',()=>removeDevice(license.id,id));actions.append(remove);}
   });
@@ -582,6 +592,7 @@ async function reactivate(id){
     await load();
   }catch(e){alert(e.message)}
 }
+async function convertTrial(id){const input=prompt('Validade da licença comercial (AAAA-MM-DD). Deixe vazio para vitalícia.','');if(input===null)return;if(input&&!/^\d{4}-\d{2}-\d{2}$/.test(input)){alert('Data inválida');return;}try{await api('/v1/admin/licenses/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({convertToCommercial:true,expiresAt:input||null})});await load()}catch(e){alert(e.message)}}
 async function changeDeviceLimit(licenseId,current){const raw=prompt('Quantos computadores esta licença CRM permite? (1 a 20)',String(current));if(raw===null)return;const maxDevices=Number(raw);if(!Number.isInteger(maxDevices)||maxDevices<1||maxDevices>20){alert('Informe um número inteiro entre 1 e 20.');return;}try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId),{method:'PATCH',body:JSON.stringify({maxDevices})});await load()}catch(e){alert(e.message)}}
 async function removeDevice(licenseId,installationId){if(!confirm('Desativar este computador da licença CRM? Ele perderá o acesso quando consultar novamente a Central.'))return;try{await api('/v1/admin/licenses/'+encodeURIComponent(licenseId)+'/installations/'+encodeURIComponent(installationId),{method:'DELETE'});await load()}catch(e){alert(e.message)}}
 function toggleCRMDevices(){document.querySelector('#crm-device-field').hidden=document.querySelector('#product').value!=='WPPPROSPECTOR'}
@@ -648,6 +659,15 @@ async function adminRoute(request,env,url){
     const id=decodeURIComponent(url.pathname.slice('/v1/admin/licenses/'.length));
     if(!id||id.includes('/')||id.length>128)return json({error:'Licenca invalida.'},400);
     const body=await readBody(request);
+    if(body.convertToCommercial===true){
+      let expiresAt=null;
+      if(body.expiresAt!==null&&body.expiresAt!==undefined&&body.expiresAt!==''){
+        const date=new Date(body.expiresAt+'T23:59:59.999Z');if(Number.isNaN(date.getTime())||date.getTime()<=Date.now())return json({error:'Validade invalida.'},400);
+        expiresAt=date.toISOString();
+      }
+      if(typeof store.convertNexusTrial!=='function'||!await store.convertNexusTrial(id,expiresAt))return json({error:'Licenca de avaliacao Nexus nao encontrada.'},409);
+      return json({updated:true,id,kind:'COMMERCIAL',expiresAt});
+    }
     if(Object.hasOwn(body,'maxDevices')){
       if(!Number.isInteger(body.maxDevices)||body.maxDevices<1||body.maxDevices>20)return json({error:'Limite de dispositivos invalido (1 a 20).'},400);
       if(!await store.setCRMDeviceLimit(id,body.maxDevices))return json({error:'Nao e possivel diminuir o limite abaixo dos dispositivos ativos, ou esta licenca nao e do CRM.'},409);
@@ -678,6 +698,7 @@ async function licenseStatus(url,env){
 export async function handleRequest(request,env={}){
   const url=new URL(request.url);try{
     const adminResponse=await adminRoute(request,env,url);if(adminResponse)return adminResponse;
+    const nexus=await handleNexusTrial(request,env,url,readyStore);if(nexus)return nexus;
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
