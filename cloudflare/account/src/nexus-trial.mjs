@@ -90,7 +90,7 @@ export class D1NexusTrialStore {
     return result||null;
   }
   async status(installationId){
-    return this.db.prepare("SELECT a.email_normalized AS email,l.id AS licenseId,l.product,l.status,l.expires_at AS expiresAt,l.created_at AS createdAt,i.installation_id AS installationId FROM installations i JOIN licenses l ON l.id=i.license_id JOIN accounts a ON a.id=l.account_id WHERE i.installation_id=? AND l.product=? LIMIT 1").bind(installationId,PRODUCT).first();
+    return this.db.prepare("SELECT a.email_normalized AS email,l.id AS licenseId,l.product,l.status,l.expires_at AS expiresAt,l.created_at AS createdAt,l.metadata_json,i.installation_id AS installationId FROM installations i JOIN licenses l ON l.id=i.license_id JOIN accounts a ON a.id=l.account_id WHERE i.installation_id=? AND l.product=? LIMIT 1").bind(installationId,PRODUCT).first();
   }
 }
 function trialStore(env){return env.NEXUS_TRIAL_STORE||new D1NexusTrialStore(env.DB||env.artisys)}
@@ -104,7 +104,7 @@ async function sendMail(env,pepper,p){
   }catch{return 'failed'}
 }
 async function bodyOf(req){const raw=await req.text();if(raw.length>4096)throw Error('Corpo grande');return JSON.parse(raw)}
-const responsePayload=record=>({licenseId:record.licenseId,email:record.email,installationId:record.installationId,product:PRODUCT,issuedAt:timestamp(),expiresAt:record.expiresAt});
+const responsePayload=record=>({licenseId:record.licenseId,email:record.email,installationId:record.installationId,product:PRODUCT,kind:(()=>{try{return JSON.parse(record.metadata_json||'{}').kind||'COMMERCIAL'}catch{return 'COMMERCIAL'}})(),issuedAt:timestamp(),expiresAt:record.expiresAt});
 export async function handleNexusTrial(req,env,url,readyStore){
   if(!url.pathname.startsWith('/v1/nexus/'))return null;
   try{
@@ -144,7 +144,7 @@ export async function handleNexusTrial(req,env,url,readyStore){
       const expiresAt=later(TRIAL_MS),licenseId=uuid('license'),now=timestamp();
       const record=await store.activate({email,installationId,digest:await codeDigest(pepper,email,body.code),now,expiresAt,licenseId});
       if(!record)return js({error:'Codigo invalido, expirado ou avaliacao ja utilizada'},409);
-      const entitlement=await signNexusEntitlement(env,{licenseId,email,installationId,product:PRODUCT,issuedAt:now,expiresAt});
+      const entitlement=await signNexusEntitlement(env,{licenseId,email,installationId,product:PRODUCT,kind:'TRIAL',issuedAt:now,expiresAt});
       const delivery=await sendMail(env,pepper,{purpose:'welcome',email,installationId,licenseId,expiresAt});
       await store.delivery(email,installationId,'welcome',delivery);
       return js({entitlement,delivery:{status:delivery},expiresAt},201);
