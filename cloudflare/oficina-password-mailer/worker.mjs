@@ -9,6 +9,38 @@ export default {async fetch(request,env){
   const url=new URL(request.url);
   if(url.pathname==='/health'&&request.method==='GET')
     return json({ok:true,service:'oficina-password-mailer',emailReady:Boolean(env.EMAIL?.send)});
+  if(url.pathname==='/nexus'){
+    if(request.method!=='POST'||!String(request.headers.get('content-type')||'').startsWith('application/json'))return json({error:'Invalid request'},405);
+    let p;try{const raw=await request.text();if(raw.length>4096)throw Error('large');p=JSON.parse(raw);}
+    catch{return json({error:'Invalid payload'},400);}
+    const {email,installationId,purpose,code,licenseId,expiresAt,issuedAt,signature}=p||{};
+    if(!['verify','welcome'].includes(purpose)||typeof email!=='string'||email.length>254||
+       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||typeof installationId!=='string'||
+       !/^[a-zA-Z0-9._:-]{8,128}$/.test(installationId)||!Number.isFinite(Date.parse(issuedAt))||
+       Math.abs(Date.now()-Date.parse(issuedAt))>65000||
+       typeof signature!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(signature)||
+       (purpose==='verify'&&!/^\d{6}$/.test(String(code||'')))||
+       (purpose==='welcome'&&(typeof licenseId!=='string'||typeof expiresAt!=='string')))
+       return json({error:'Invalid ticket'},400);
+    if(!env.EMAIL?.send)return json({error:'Email unavailable'},503);
+    try{
+      const authorized=await fetch('https://pdv-artisys.sistema-artisys.workers.dev/v1/nexus/trial/relay-authorize',{
+        method:'POST',redirect:'manual',headers:{'content-type':'application/json'},
+        body:JSON.stringify(p),signal:AbortSignal.timeout(6500)
+      });
+      if(!authorized.ok||(await authorized.json())?.authorized!==true)return json({error:'Not authorized'},403);
+      const subject=purpose==='verify'?'PDV Nexus 2.0 | Confirme seu e-mail':'Bem-vindo ao PDV Nexus 2.0 | Avaliação liberada';
+      const body=purpose==='verify'?
+        'Olá!\n\nSeu código de confirmação para iniciar a avaliação do PDV Nexus 2.0 é: '+code+
+        '\n\nEle expira em 15 minutos. Se você não solicitou o cadastro, ignore esta mensagem.\n\nEquipe ArtiSys':
+        'Olá!\n\nSeu acesso ao PDV Nexus 2.0 foi liberado por 3 dias (72 horas).\n'+
+        'E-mail vinculado: '+email+'\nValidade: '+expiresAt+
+        '\n\nEntre no aplicativo com a conta local do estabelecimento. Durante a avaliação, suas vendas ficam armazenadas localmente. '+
+        'Quando a avaliação vencer, seus dados e backups serão preservados.\n\nPrecisa de suporte? Responda a este e-mail.\n\nEquipe ArtiSys';
+      await env.EMAIL.send({from:FROM,to:email,subject,text:body});
+      return json({accepted:true},202);
+    }catch{return json({error:'Delivery unavailable'},503)}
+  }
   if(url.pathname==='/welcome'){
     if(request.method!=='POST')return json({error:'Method not allowed'},405);
     if(!String(request.headers.get('content-type')||'').startsWith('application/json'))
