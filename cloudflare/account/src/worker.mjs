@@ -354,7 +354,7 @@ async function verifyActivation(request,env){
     if(!await store.registerCRMInstallation(installation,Number(license.maxDevices||3)))return json({error:'Limite de computadores desta licenca atingido. Desative um dispositivo na Central antes de ativar outro.'},409);
   }else await store.saveInstallation(installation);
   await store.consumeActivationToken(token.id,now);
-  const entitlement=product==='PDV_NEXUS_2'?await signNexusEntitlement(env,{licenseId:license.id,email,installationId,product,issuedAt:now,expiresAt:license.expiresAt||null}):undefined;
+  const entitlement=product==='PDV_NEXUS_2'?await signNexusEntitlement(env,{licenseId:license.id,email,installationId,product,kind:'COMMERCIAL',issuedAt:now,expiresAt:license.expiresAt||null}):undefined;
   return json({licenseId:license.id,accountEmail:email,product,expiresAt:license.expiresAt||null,activatedAt:now,...(entitlement?{entitlement}:{})});
 }
 
