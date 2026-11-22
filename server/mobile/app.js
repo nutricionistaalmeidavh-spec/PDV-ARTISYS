@@ -126,5 +126,30 @@
   document.getElementById('refresh')?.addEventListener('click',()=>refresh());
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&context)void refresh({quiet:true});});
   setInterval(()=>{if(document.visibilityState==='visible'&&context)void refresh({quiet:true});},15000);
-  refresh().catch(()=>{});
+  async function consumePairing(){
+    const hash=new URLSearchParams(window.location.hash.slice(1));
+    const token=hash.get('pair');
+    if(!token)return refresh().catch(()=>{});
+    // Remove the secret fragment from browser history before any network request.
+    window.history.replaceState(null,'',window.location.pathname+window.location.search);
+    login();
+    const submit=document.querySelector('#login button[type="submit"]');
+    if(submit){submit.disabled=true;submit.textContent='Conectando por QR…';}
+    try{
+      const response=await fetch('/api/v1/mobile/pair/redeem',{
+        method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token})
+      });
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error||'O QR expirou ou ja foi utilizado.');
+      credential={id:result.id,key:result.key};
+      localStorage.setItem('artisys.deviceId',credential.id);
+      localStorage.setItem('artisys.deviceKey',credential.key);
+      await refresh();
+      notify('Celular conectado ao PDV com sucesso.');
+    }catch(error){
+      login();const status=document.getElementById('login-error');
+      if(status){status.textContent=error.message+' Solicite um novo QR no computador.';status.classList.remove('hidden');}
+    }
+  }
+  void consumePairing();
 })();
