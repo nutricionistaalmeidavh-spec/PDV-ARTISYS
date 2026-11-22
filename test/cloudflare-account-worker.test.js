@@ -521,3 +521,83 @@ test('Almoxarifado is independently licensed on the existing ArtiSys central',as
  const panel=await handleRequest(request('/admin',{headers}),e);
  assert.match(await panel.text(),/value="ALMOXARIFADO"/);
 });
+
+
+test('Almoxarifado issues a signed transactional welcome with activation code without affecting other products',async()=>{
+ const {handleRequest}=await loadWorker(),e=env(),deliveries=[];
+ e.MAIL_RELAY_FETCH=async(url,options)=>{
+  assert.equal(url,'https://oficina-mail.artisys.dev/welcome');
+  const payload=JSON.parse(options.body);deliveries.push(payload);
+  const accepted=await handleRequest(request('/v1/license-welcome/relay-authorize',{method:'POST',body:options.body}),e);
+  assert.equal(accepted.status,200);
+  assert.deepEqual(await accepted.json(),{authorized:true,product:'ALMOXARIFADO'});
+  return {ok:true,json:async()=>({accepted:true})};
+ };
+ const {cookie}=await login(handleRequest,e);
+ const headers=cookieHeaders(cookie);
+ const issue=async product=>{
+  const response=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,body:JSON.stringify({email:'almox-client@example.com',product})}),e);
+  assert.equal(response.status,201);
+  return response.json();
+ };
+ const old=await issue('OFICINA');
+ assert.equal(old.delivery,undefined);
+ const almox=await issue('ALMOXARIFADO');
+ assert.equal(almox.product,'ALMOXARIFADO');
+ assert.equal(almox.delivery.status,'sent');
+ assert.equal(deliveries.length,1);
+ assert.equal(deliveries[0].code,almox.code);
+ assert.equal(deliveries[0].product,'ALMOXARIFADO');
+ const replay=await handleRequest(request('/v1/license-welcome/relay-authorize',{method:'POST',body:JSON.stringify(deliveries[0])}),e);
+ assert.equal(replay.status,403);
+ assert.equal(e.ACCOUNT_STORE.licenses.length,2);
+ const reissue=await handleRequest(request('/v1/admin/licenses/'+encodeURIComponent(almox.licenseId)+'/activation-code',{
+  method:'POST',headers,body:'{}'
+ }),e);
+ assert.equal(reissue.status,201);
+ assert.equal((await reissue.json()).delivery.status,'sent');
+ assert.equal(deliveries.length,2);
+ assert.equal((await handleRequest(request('/v1/admin/licenses',{headers}),e)).status,200);
+});
+
+test('Almoxarifado welcome cannot re-label signed product or send code for Oficina',async()=>{
+ const {handleRequest}=await loadWorker(),e=env();
+ let captured;
+ e.MAIL_RELAY_FETCH=async(_url,options)=>{captured=JSON.parse(options.body);return {ok:true,json:async()=>({accepted:true})};};
+ const {cookie}=await login(handleRequest,e);
+ const issued=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers:cookieHeaders(cookie),
+  body:JSON.stringify({email:'user@example.com',product:'ALMOXARIFADO'})}),e);
+ assert.equal(issued.status,201);
+ captured.product='LOJA_ROUPAS';
+ assert.equal((await handleRequest(request('/v1/license-welcome/relay-authorize',{
+  method:'POST',body:JSON.stringify(captured)
+ }),e)).status,403);
+});
+
+test('public release asset links only redirect to confirmed official commercial EXE and PDF',async()=>{
+ const {handleRequest}=await loadWorker();
+ const api='https://api.github.com/repos/nutricionistaalmeidavh-spec/Almoxarifado/releases/latest';
+ const prefix='https://github.com/nutricionistaalmeidavh-spec/Almoxarifado/releases/download/v1.0.2/';
+ const release={
+  tag_name:'v1.0.2',draft:false,prerelease:false,
+  assets:[
+   {name:'ArtiSys-Almoxarifado-Setup-1.0.2.exe',browser_download_url:prefix+'ArtiSys-Almoxarifado-Setup-1.0.2.exe'},
+   {name:'ArtiSys-Almoxarifado-Setup-1.0.2-Commercial.exe',browser_download_url:prefix+'ArtiSys-Almoxarifado-Setup-1.0.2-Commercial.exe'},
+   {name:'Manual-ArtiSys-Almoxarifado.pdf',browser_download_url:prefix+'Manual-ArtiSys-Almoxarifado.pdf'}
+  ]
+ };
+ const env={ALMOX_RELEASE_FETCH:async(url)=>{assert.equal(url,api);return Response.json(release);}};
+ for(const [path,asset] of [
+  ['/download/almoxarifado','ArtiSys-Almoxarifado-Setup-1.0.2-Commercial.exe'],
+  ['/manual/almoxarifado.pdf','Manual-ArtiSys-Almoxarifado.pdf']
+ ]){
+  const response=await handleRequest(request(path),env);
+  assert.equal(response.status,302);
+  assert.equal(response.headers.get('location'),prefix+asset);
+ }
+ const missing={...release,assets:release.assets.filter(x=>!x.name.includes('Commercial'))};
+ const rejected=await handleRequest(request('/download/almoxarifado'),{
+  ALMOX_RELEASE_FETCH:async()=>Response.json(missing)
+ });
+ assert.equal(rejected.status,503,'never redirect client to the unlicensed installer');
+});
