@@ -1,0 +1,29 @@
+name: Central licensing - Almoxarifado isolated regression
+on:
+  push:
+    branches: [main, 'feat/**']
+    paths:
+      - 'cloudflare/account/src/worker.mjs'
+      - 'test/cloudflare-account-worker.test.js'
+      - '.github/workflows/almoxarifado-license-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cloudflare/account/src/worker.mjs'
+      - 'test/cloudflare-account-worker.test.js'
+      - '.github/workflows/almoxarifado-license-ci.yml'
+permissions:
+  contents: read
+jobs:
+  licensing-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Worker syntax
+        run: node --check cloudflare/account/src/worker.mjs
+      - name: Full central licensing regression
+        run: node --test test/cloudflare-account-worker.test.js
