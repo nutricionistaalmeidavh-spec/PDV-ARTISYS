@@ -86,7 +86,7 @@ function createVerticalRouter({runtime,installationToken='',requireTerminalAuth=
       if(request.method==='GET'&&pizzaProfile){moduleRule('FOOD',actor);requireCapability(actor,'products.manage');const value=runtime.pizzeria.getProfile(decodeURIComponent(pizzaProfile[1]));if(!value)throw new VerticalHttpError(404,'Perfil de pizzaria nao encontrado.');json(response,200,value);return true;}
 
       const configuredSale=pathname.match(/^\/api\/v1\/vertical\/sales\/([^/]+)\/configured-item$/);
-      if(request.method==='POST'&&configuredSale){requireCapability(actor,'sales.create');const data=await body(request);const priced=runtime.configuredItemPricing?.price?runtime.configuredItemPricing.price(data):data;json(response,200,runtime.sales.addItem(decodeURIComponent(configuredSale[1]),{...priced,forceSeparateLine:true}));return true;}
+      if(request.method==='POST'&&configuredSale){requireCapability(actor,'sales.create');const data=await body(request);const priced=runtime.configuredItemPricing?.price?runtime.configuredItemPricing.price(data):data;json(response,200,runtime.sales.addItem(decodeURIComponent(configuredSale[1]),{...priced,mergeSameConfiguration:true}));return true;}
 
       const settlement=pathname.match(/^\/api\/v1\/vertical\/restaurant\/sessions\/([^/]+)\/settlements$/);
       if(request.method==='POST'&&settlement){moduleRule('FOOD',actor);requireCapabilities(actor,'restaurant.orders.create','sales.create');const data=await body(request);const terminalId=data.terminalId||p.terminalId;if(!terminalId)throw new VerticalHttpError(400,'Terminal obrigatorio.');json(response,201,runtime.restaurantSettlement.createItemSettlement(decodeURIComponent(settlement[1]),{...data,terminalId},actor));return true;}

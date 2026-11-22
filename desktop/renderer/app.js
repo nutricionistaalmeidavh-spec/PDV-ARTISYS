@@ -411,7 +411,7 @@
     const documentLabel=sourceDocument?`${escapeHtml(sourceDocument.orderNumber||sourceDocument.id||'Pedido')} · preço do pedido`:null;
     const priceDetails = changed ? `<small><s>${ui.formatCents(item.catalogUnitPriceCents)}</s> → ${ui.formatCents(item.unitPriceCents)}${item.priceOverrideReason ? ` · ${escapeHtml(item.priceOverrideReason)}` : ''}${documentLabel?` · ${documentLabel}`:''}</small>` : `<small>${ui.formatCents(item.unitPriceCents)}${weightLabel?` · ${weightLabel}`:''}${documentLabel?` · ${documentLabel}`:''}</small>`;
     const priceButton = !sourceDocument&&window.PdvAccessPolicy?.hasCapability(state.user,'sales.discount') ? `<button type="button" class="secondary-button cart-price-edit" data-price-item="${item.id}">Alterar preço</button>` : '';
-    const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:configured?`<div class="qty-control"><button type="button" data-configured-qty-minus="${item.id}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-configured-qty-plus="${item.id}">＋</button></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}">−</button><span>${quantityLabel(item.quantity)}</span><button type="button" data-qty-plus="${item.productId}">＋</button></div>`;
+    const quantityControl=sourceDocument?`<div class="qty-control"><span>${quantityLabel(item.quantity)} · pedido</span></div>`:weight?`<div class="qty-control"><span>${weightLabel}</span></div>`:configured?`<div class="qty-control"><button type="button" data-configured-qty-minus="${item.id}" aria-label="Diminuir quantidade">−</button><input data-configured-qty-input="${item.id}" aria-label="Quantidade de ${escapeHtml(item.productName)}" type="number" inputmode="numeric" min="0.001" step="0.001" value="${item.quantity}"><button type="button" data-configured-qty-plus="${item.id}" aria-label="Aumentar quantidade">＋</button></div>`:`<div class="qty-control"><button type="button" data-qty-minus="${item.productId}" aria-label="Diminuir quantidade">−</button><input data-qty-input="${item.productId}" aria-label="Quantidade de ${escapeHtml(item.productName)}" type="number" inputmode="numeric" min="0.001" step="0.001" value="${item.quantity}"><button type="button" data-qty-plus="${item.productId}" aria-label="Aumentar quantidade">＋</button></div>`;
     const remove=sourceDocument?'':weight?`<button type="button" class="cart-remove-button" data-remove-weighted="${item.id}" aria-label="Remover pesagem">×</button>`:configured?`<button type="button" class="cart-remove-button" data-remove-configured="${item.id}" aria-label="Remover esta configuração">×</button>`:`<button type="button" class="cart-remove-button" data-remove="${item.productId}">×</button>`;
     return `<div class="cart-line ${state.selectedProductId === item.productId ? 'selected' : ''}" data-select-product="${item.productId}"><div><strong>${escapeHtml(item.productName)}</strong>${configurationSummary?`<small>${escapeHtml(configurationSummary)}</small>`:''}${priceDetails}${priceButton}</div>${quantityControl}<div class="line-total">${ui.formatCents(item.totalCents)} ${remove}</div></div>`;
   }
@@ -428,6 +428,8 @@
     content.querySelectorAll('[data-qty-plus]').forEach((button) => button.addEventListener('click', () => changeQuantity(button.dataset.qtyPlus, 1)));
     content.querySelectorAll('[data-configured-qty-minus]').forEach(button=>button.addEventListener('click',()=>changeConfiguredQuantity(button.dataset.configuredQtyMinus,-1)));
     content.querySelectorAll('[data-configured-qty-plus]').forEach(button=>button.addEventListener('click',()=>changeConfiguredQuantity(button.dataset.configuredQtyPlus,1)));
+    content.querySelectorAll('[data-configured-qty-input]').forEach(input=>input.addEventListener('change',()=>setConfiguredQuantity(input.dataset.configuredQtyInput,Number(input.value))));
+    content.querySelectorAll('[data-qty-input]').forEach(input=>input.addEventListener('change',()=>setSaleQuantity(input.dataset.qtyInput,Number(input.value))));
     content.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => removeProduct(button.dataset.remove)));
     content.querySelectorAll('[data-remove-weighted]').forEach((button) => button.addEventListener('click', () => removeWeightedItem(button.dataset.removeWeighted)));
     content.querySelectorAll('[data-remove-configured]').forEach(button=>button.addEventListener('click',()=>removeConfiguredItem(button.dataset.removeConfigured)));
@@ -631,12 +633,16 @@
     }catch(error){showToast(error.message,'error');}
   }
 
+  async function setConfiguredQuantity(itemId,next){
+    if(!state.sale||!Number.isFinite(next)||next<=0)return showToast('Informe uma quantidade maior que zero.','error');
+    try{state.sale=await api.updateConfiguredSaleItemQuantity(state.sale.id,itemId,Number(next.toFixed(3)));renderCheckout();}
+    catch(error){showToast(error.message,'error');}
+  }
   async function changeConfiguredQuantity(itemId,delta){
     const item=state.sale?.items.find(row=>row.id===itemId);if(!item)return;
     const next=Number((item.quantity+delta).toFixed(3));
     if(next<=0)return removeConfiguredItem(itemId);
-    try{state.sale=await api.updateConfiguredSaleItemQuantity(state.sale.id,itemId,next);renderCheckout();}
-    catch(error){showToast(error.message,'error');}
+    return setConfiguredQuantity(itemId,next);
   }
 
   async function removeConfiguredItem(itemId){
@@ -654,10 +660,16 @@
     } });
   }
 
+  async function setSaleQuantity(productId,next){
+    if(!state.sale||!Number.isFinite(next)||next<=0)return showToast('Informe uma quantidade maior que zero.','error');
+    try{state.sale=await api.updateSaleItem(state.sale.id,productId,Number(next.toFixed(3)));renderCheckout();}
+    catch(error){showToast(error.message,'error');}
+  }
   async function changeQuantity(productId, delta) {
-    const item = state.sale?.items.find((entry) => entry.productId === productId); if (!item) return;
-    const next = Number((item.quantity + delta).toFixed(3)); if (next <= 0) return removeProduct(productId);
-    try { state.sale = await api.updateSaleItem(state.sale.id, productId, next); renderCheckout(); } catch (error) { showToast(error.message, 'error'); }
+    const item=state.sale?.items.find(entry=>entry.productId===productId);if(!item)return;
+    const next=Number((item.quantity+delta).toFixed(3));
+    if(next<=0)return removeProduct(productId);
+    return setSaleQuantity(productId,next);
   }
 
   async function removeWeightedItem(itemId) {

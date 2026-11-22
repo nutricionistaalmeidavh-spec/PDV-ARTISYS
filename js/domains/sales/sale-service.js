@@ -161,7 +161,14 @@ function createSaleService({
       const configured=Boolean(input.configurationSnapshot)||input.unitPriceCents!==undefined||input.forceSeparateLine===true;
       const unitPrice=input.unitPriceCents===undefined?product.sale_price_cents:assertCents(Number(input.unitPriceCents),'unitPriceCents');
       if(unitPrice<0)throw new Error('Preco do item nao pode ser negativo.');
-      const existing = configured?null:db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND product_id=? AND configuration_json IS NULL').get(saleId, product.id); const timestamp = now();
+      const snapshot=input.configurationSnapshot?JSON.stringify(input.configurationSnapshot):null;
+      const matchingConfigured=configured&&input.mergeSameConfiguration===true&&snapshot&&!String(input.note||'').trim()
+        ?db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND product_id=? AND configuration_json IS NOT NULL').all(saleId,product.id)
+          .find(row=>row.configuration_json===snapshot&&Number(row.unit_price_cents)===unitPrice
+            &&row.price_override_reason==null&&row.catalog_unit_price_cents==null)
+        :null;
+      const existing=matchingConfigured||(configured?null:db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND product_id=? AND configuration_json IS NULL').get(saleId,product.id));
+      const timestamp=now();
       if (existing) { const next = roundQuantity(existing.quantity + quantity); db.prepare('UPDATE sale_items SET quantity=?,total_cents=?,allocated_discount_cents=0,net_total_cents=NULL,updated_at=? WHERE id=?').run(next, Math.round(existing.unit_price_cents * next), timestamp, existing.id); }
       else { db.prepare(`INSERT INTO sale_items (id,sale_id,product_id,product_name,sku,quantity,unit_price_cents,total_cents,allocated_discount_cents,net_total_cents,created_at,updated_at,configuration_json) VALUES (?,?,?,?,?,?,?,?,0,NULL,?,?,?)`).run(idFactory('item'), saleId, product.id, product.name, product.sku, quantity, unitPrice, Math.round(unitPrice * quantity), timestamp, timestamp,input.configurationSnapshot?JSON.stringify(input.configurationSnapshot):null); }
       recalculate(saleId); return getSale(saleId);

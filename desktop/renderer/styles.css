@@ -224,9 +224,10 @@ body.theme-home .window-controls button:hover { background: rgba(255,255,255,.12
 .cart-line:last-child { border-bottom: 0; }
 .cart-line strong, .cart-line small { display: block; }
 .cart-line small { color: var(--muted); }
-.qty-control { display: grid; grid-template-columns: 44px 34px 44px; align-items: center; border: 1px solid #dce4ee; border-radius: 8px; overflow: hidden; }
+.qty-control { display: grid; grid-template-columns: 44px minmax(48px,56px) 44px; align-items: center; border: 1px solid #dce4ee; border-radius: 8px; overflow: hidden; }
 .qty-control button { height: 44px; border: 0; background: #f8fafc; }
 .qty-control span { text-align: center; }
+.qty-control input[type="number"]{width:100%;min-width:0;height:44px;min-height:44px;box-sizing:border-box;border:0;border-inline:1px solid #dce4ee;text-align:center;font-weight:750;font-size:15px;background:#fff;color:#172033;appearance:textfield;-moz-appearance:textfield}.qty-control input::-webkit-outer-spin-button,.qty-control input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.qty-control button:focus-visible,.qty-control input:focus-visible{outline:3px solid #2478f2;outline-offset:-3px}
 .line-total { min-width: 74px; text-align: right; font-weight: 750; }
 .totals { padding: 13px 16px; display: grid; gap: 10px; }
 .total-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #5d6c87; }

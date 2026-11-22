@@ -2,6 +2,7 @@
 const {statusForError}=require('./http-error-status');
 
 const fs=require('node:fs');
+const {createMobilePairing}=require('./mobile-pairing');
 const path=require('node:path');
 
 class RestaurantHttpError extends Error{constructor(statusCode,message){super(message);this.statusCode=statusCode;}}
@@ -12,6 +13,7 @@ function filters(url,names){const result={};for(const name of names){const value
 
 function createRestaurantRouter({runtime,installationToken='',requireTerminalAuth=false,sessionStore=null,mobileDir=path.join(__dirname,'mobile')}={}){
   if(!runtime)throw new TypeError('runtime is required.');
+  const mobilePairing=createMobilePairing();
 
   function desktopPrincipal(request){
     let terminalId=null;
@@ -111,6 +113,14 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
   async function mobileRoute(request,response,url,pathname){
     if(!pathname.startsWith('/api/v1/mobile/'))return false;
     if(request.method==='GET'&&pathname==='/api/v1/mobile/health'){json(response,200,{ok:true,localOnly:true});return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/mobile/pair/redeem'){
+      const data=await body(request,4096);
+      const enrollment=mobilePairing.redeem(data.token);
+      if(!enrollment)throw new RestaurantHttpError(410,'QR de conexao expirado ou utilizado. Gere um novo no PDV.');
+      const valid=runtime.mobileDevices.authenticate(enrollment.id,enrollment.key);
+      if(!valid.ok)throw new RestaurantHttpError(410,'Dispositivo bloqueado ou chave alterada.');
+      json(response,200,enrollment);return true;
+    }
     const principal=mobilePrincipal(request);
     requireRestaurantEnabled();
     if(request.method==='GET'&&pathname==='/api/v1/mobile/context'){
@@ -156,15 +166,19 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
         runtime.authorization.require({principal:principal.principal,capability});
       }
     };
-    if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.getConfig());return true;}
-    if(request.method==='PUT'&&pathname==='/api/v1/restaurant/public-ordering/config'){json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
-    if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/menu'){json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
+    const requireLoggedCapability=capability=>{
+      if(principal.kind!=='human')throw new RestaurantHttpError(401,'Faça login para administrar o restaurante.');
+      requireHumanCapability(capability);
+    };
+    if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/config'){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.access');json(response,200,runtime.publicOrdering.getConfig());return true;}
+    if(request.method==='PUT'&&pathname==='/api/v1/restaurant/public-ordering/config'){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.tables.manage');json(response,200,runtime.publicOrdering.updateConfig(await body(request),actor));return true;}
+    if(request.method==='GET'&&pathname==='/api/v1/restaurant/public-ordering/menu'){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.access');json(response,200,runtime.publicOrdering.listMenu({includeHidden:true}));return true;}
     const publicMenuProduct=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/menu\/([^/]+)$/);
-    if(request.method==='PATCH'&&publicMenuProduct){json(response,200,runtime.publicOrdering.updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
+    if(request.method==='PATCH'&&publicMenuProduct){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.tables.manage');json(response,200,runtime.publicOrdering.updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
     const publicTableQr=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr$/);
-    if(request.method==='GET'&&publicTableQr){json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQr[1]),actor));return true;}
+    if(request.method==='GET'&&publicTableQr){requireLoggedCapability('restaurant.access');requireLoggedCapability('restaurant.orders.view');json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQr[1]),actor));return true;}
     const publicTableQrRotate=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
-    if(request.method==='POST'&&publicTableQrRotate){json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQrRotate[1]),actor,{rotate:true,input:await body(request)}));return true;}
+    if(request.method==='POST'&&publicTableQrRotate){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.tables.manage');json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQrRotate[1]),actor,{rotate:true,input:await body(request)}));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){requireHumanCapability('restaurant.orders.view');json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
     if(request.method==='POST'&&pathname==='/api/v1/restaurant/tables'){requireHumanCapability('restaurant.tables.manage');json(response,201,runtime.restaurant.upsertTable(await body(request),actor));return true;}
     const tableOpen=pathname.match(/^\/api\/v1\/restaurant\/tables\/([^/]+)\/open$/);
@@ -173,11 +187,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='POST'&&tableService){const data=await body(request);json(response,201,runtime.restaurant.requestService(decodeURIComponent(tableService[1]),data.requestType,{actor,mutationId:String(request.headers['x-mutation-id']||'')||null}));return true;}
     const sessionGet=pathname.match(/^\/api\/v1\/restaurant\/sessions\/([^/]+)$/);
     if(request.method==='GET'&&sessionGet){requireHumanCapability('restaurant.orders.view');const session=runtime.restaurant.getSession(decodeURIComponent(sessionGet[1]));if(!session)throw new RestaurantHttpError(404,'Comanda nao encontrada.');json(response,200,session);return true;}
-    // Only authenticated humans can mutate an existing command.
-    const requireLoggedCapability=capability=>{
-      if(principal.kind!=='human')throw new RestaurantHttpError(401,'Faça login para alterar comandas.');
-      requireHumanCapability(capability);
-    };
+    // Existing comanda mutations always require an authenticated human.
     const editItem=pathname.match(/^\/api\/v1\/restaurant\/order-items\/([^/]+)$/);
     if(request.method==='PATCH'&&editItem){
       requireLoggedCapability('restaurant.orders.edit');
@@ -231,12 +241,23 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/kitchen/tickets'){json(response,200,runtime.kitchen.listTickets(filters(url,['status','stationId','limit'])));return true;}
     const kitchenUpdate=pathname.match(/^\/api\/v1\/restaurant\/kitchen\/tickets\/([^/]+)$/);
     if(request.method==='PATCH'&&kitchenUpdate){const data=await body(request);json(response,200,runtime.kitchen.updateTicketStatus(decodeURIComponent(kitchenUpdate[1]),data.status,actor));return true;}
-    if(request.method==='GET'&&pathname==='/api/v1/restaurant/devices'){json(response,200,runtime.mobileDevices.listDevices(filters(url,['deviceType','status'])));return true;}
-    if(request.method==='POST'&&pathname==='/api/v1/restaurant/devices'){json(response,201,runtime.mobileDevices.createDevice(await body(request),actor));return true;}
+    if(request.method==='GET'&&pathname==='/api/v1/restaurant/devices'){requireLoggedCapability('devices.view');json(response,200,runtime.mobileDevices.listDevices(filters(url,['deviceType','status'])));return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/restaurant/devices'){requireLoggedCapability('devices.pair');json(response,201,runtime.mobileDevices.createDevice(await body(request),actor));return true;}
+    if(request.method==='POST'&&pathname==='/api/v1/restaurant/devices/pairing-qr'){
+      requireLoggedCapability('devices.pair');
+      const data=await body(request,4096);
+      const auth=runtime.mobileDevices.authenticate(String(data.deviceId||''),String(data.credential||''));
+      if(!auth.ok)throw new RestaurantHttpError(403,'Credencial do dispositivo nao autorizada.');
+      const issued=mobilePairing.issue({deviceId:auth.device.id,credential:data.credential});
+      const host=String(data.host||String(request.headers.host||'127.0.0.1').split(':')[0]);
+      const port=Number(data.port||String(request.headers.host||'').split(':')[1]||4174);
+      const lan=runtime.mobileAccess.getLanAccess({host,port,protocol:data.protocol||'http:',path:'/mobile#pair='+issued.token});
+      json(response,201,{deviceId:auth.device.id,url:lan.url,qrSvg:lan.qrSvg,expiresAt:issued.expiresAt,warning:lan.warning});return true;
+    }
     const deviceStatus=pathname.match(/^\/api\/v1\/restaurant\/devices\/([^/]+)\/status$/);
-    if(request.method==='PATCH'&&deviceStatus){const data=await body(request);json(response,200,runtime.mobileDevices.setStatus(decodeURIComponent(deviceStatus[1]),data.status,actor));return true;}
+    if(request.method==='PATCH'&&deviceStatus){requireLoggedCapability('devices.block');const data=await body(request);const id=decodeURIComponent(deviceStatus[1]);const result=runtime.mobileDevices.setStatus(id,data.status,actor);if(result.status==='BLOCKED')mobilePairing.invalidateDevice(id);json(response,200,result);return true;}
     const deviceRotate=pathname.match(/^\/api\/v1\/restaurant\/devices\/([^/]+)\/rotate$/);
-    if(request.method==='POST'&&deviceRotate){json(response,200,runtime.mobileDevices.rotateCredential(decodeURIComponent(deviceRotate[1]),actor));return true;}
+    if(request.method==='POST'&&deviceRotate){requireLoggedCapability('devices.rotate_credential');const id=decodeURIComponent(deviceRotate[1]);const result=runtime.mobileDevices.rotateCredential(id,actor);mobilePairing.invalidateDevice(id);json(response,200,result);return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/reports/summary'){json(response,200,runtime.restaurantReports.summary(filters(url,['from','to'])));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/reports/orders.csv'){json(response,200,{csv:runtime.restaurantReports.exportOrdersCsv(filters(url,['from','to']))});return true;}
     throw new RestaurantHttpError(404,'Rota de restaurante nao encontrada.');
