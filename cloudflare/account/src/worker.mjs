@@ -10,7 +10,7 @@ const ADMIN_SESSION_COOKIE='__Host-artisys_admin_session';
 
 function json(payload,status=200){return new Response(JSON.stringify(payload),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});}
 function normalizeEmail(value){const email=String(value||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null;}
-function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR','LOJA_ROUPAS','PDV_NEXUS_2'].includes(product)?product:null;}
+function normalizeProduct(value){const product=String(value||'PDV').trim().toUpperCase();return ['PDV','OFICINA','WPPPROSPECTOR','LOJA_ROUPAS','PDV_NEXUS_2','ALMOXARIFADO'].includes(product)?product:null;}
 function normalizeInstallationId(value){const id=String(value||'').trim();return /^[A-Za-z0-9._:-]{8,128}$/.test(id)?id:null;}
 function newId(prefix){return `${prefix}-${crypto.randomUUID()}`;}
 function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(bytes);return String(bytes[0]%1000000).padStart(6,'0');}
@@ -557,7 +557,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   <div class="card">
     <h2>Liberar novo acesso</h2>
     <div class="row">
-      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option></select></div>
+      <div class="field"><label for="product">Produto</label><select id="product"><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="ALMOXARIFADO">ArtiSys Almoxarifado</option><option value="WPPPROSPECTOR">ArtiSys CRM WhatsApp Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option></select></div>
       <div class="field"><label for="email">E-mail do cliente</label><input id="email" type="email" autocomplete="email" placeholder="cliente@empresa.com"></div>
       <div class="field"><label for="expires">Validade da licença <span class="hint">(vazio = vitalícia)</span></label><input id="expires" type="date"></div>
        <div class="field" id="crm-device-field" hidden><label for="maxDevices">Computadores por loja (CRM)</label><input id="maxDevices" type="number" min="1" max="20" value="3"></div>
@@ -573,7 +573,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#71717a}.m
   </div>
 
   <div class="card">
-    <h2>Licenças</h2><div class="row"><label class="field">Filtrar por produto<select id="filter-product"><option value="all">Todos os produtos</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="WPPPROSPECTOR">CRM Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></label><label class="field">Modalidade<select id="filter-kind"><option value="all">Todas</option><option value="TRIAL">Avaliação</option><option value="COMMERCIAL">Comercial</option></select></label><label class="field">Origem<select id="filter-source"><option value="all">Todas</option><option value="AUTO_SIGNUP">Automática</option><option value="MANUAL">Manual</option><option value="ADMIN_CONVERSION">Conversão administrativa</option></select></label><label class="field">Buscar e-mail<input id="filter-email" type="search" placeholder="cliente@empresa.com" autocomplete="off" maxlength="254"></label></div><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
+    <h2>Licenças</h2><div class="row"><label class="field">Filtrar por produto<select id="filter-product"><option value="all">Todos os produtos</option><option value="PDV_NEXUS_2">PDV Nexus 2.0</option><option value="PDV">PDV ArtiSys</option><option value="OFICINA">ArtiSys Oficina</option><option value="ALMOXARIFADO">ArtiSys Almoxarifado</option><option value="WPPPROSPECTOR">CRM Prospector</option><option value="LOJA_ROUPAS">Loja Roupas</option></select></label><label class="field">Modalidade<select id="filter-kind"><option value="all">Todas</option><option value="TRIAL">Avaliação</option><option value="COMMERCIAL">Comercial</option></select></label><label class="field">Origem<select id="filter-source"><option value="all">Todas</option><option value="AUTO_SIGNUP">Automática</option><option value="MANUAL">Manual</option><option value="ADMIN_CONVERSION">Conversão administrativa</option></select></label><label class="field">Buscar e-mail<input id="filter-email" type="search" placeholder="cliente@empresa.com" autocomplete="off" maxlength="254"></label></div><p class='hint'>Se o cliente formatou ou reinstalou o computador, use Reativar instalação na licença ativa. O novo código não cancela a licença; os dados locais exigem backup.</p>
     <div id="list" class="muted">Carregando...</div>
   </div>
   <dialog id="nexus-history-dialog" aria-labelledby="nexus-history-title">
