@@ -162,7 +162,7 @@ function createSaleService({
       const unitPrice=input.unitPriceCents===undefined?product.sale_price_cents:assertCents(Number(input.unitPriceCents),'unitPriceCents');
       if(unitPrice<0)throw new Error('Preco do item nao pode ser negativo.');
       const snapshot=input.configurationSnapshot?JSON.stringify(input.configurationSnapshot):null;
-      const matchingConfigured=configured&&input.mergeSameConfiguration===true&&snapshot
+      const matchingConfigured=configured&&input.mergeSameConfiguration===true&&snapshot&&!String(input.note||'').trim()
         ?db.prepare('SELECT * FROM sale_items WHERE sale_id=? AND product_id=? AND configuration_json IS NOT NULL').all(saleId,product.id)
           .find(row=>row.configuration_json===snapshot&&Number(row.unit_price_cents)===unitPrice
             &&row.price_override_reason==null&&row.catalog_unit_price_cents==null)
