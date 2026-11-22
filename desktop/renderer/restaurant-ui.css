@@ -70,3 +70,6 @@
 [data-draft-items]{margin-top:10px}
 [data-draft-line] .restaurant-actions{align-items:center;flex-wrap:nowrap}
 @media(max-width:1050px){.restaurant-form-row{grid-template-columns:1fr}}
+
+/* P1/P2: independent QR action on each table, and mobile enrollment without exposing credentials. */
+.restaurant-table-shell{min-width:0;display:flex;flex-direction:column;gap:6px}.restaurant-table-shell>.restaurant-table{display:block;width:100%;flex:1;min-height:154px}.restaurant-table-qr{width:100%;min-height:44px;text-align:center}.restaurant-credentials-advanced{margin-top:10px}.restaurant-credentials-advanced summary{cursor:pointer;font-weight:700}.restaurant-pairing{margin-top:12px;padding:12px;border:1px solid #d0dced;border-radius:12px;background:#fff}.restaurant-pairing-preview{display:grid;place-items:center;max-width:100%;padding:10px}.restaurant-pairing-preview svg{display:block;width:min(260px,100%);height:auto;max-height:280px}.restaurant-pairing p{font-size:13px;color:#37445b}.restaurant-pairing small{display:block;color:#59667c}.restaurant-credentials-advanced code{overflow-wrap:anywhere}
