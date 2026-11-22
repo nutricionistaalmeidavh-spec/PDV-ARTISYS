@@ -80,3 +80,44 @@ test('P1/P2: controles de quantidade, QR operacional e mobile one-time ligados a
   assert.match(menu,/openTableQr/);
   assert.match(mobile,/api\/v1\/mobile\/pair\/redeem/);
 });
+
+test('P2 HTTP: QR faz pareamento real de garcom na LAN, sem credencial no codigo e sem reutilizacao',async()=>{
+  const rt=createPdvRuntime({dbPath:':memory:'});
+  const server=createLocalServer({runtime:rt,host:'127.0.0.1',port:0,token:'local-qr-token',requireTerminalAuth:false});
+  try{
+    rt.catalog.createUser({id:'admin',username:'pair-admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-forte-123'},admin);
+    rt.catalog.createUser({id:'cash',username:'pair-cash',name:'Caixa',profileId:'profile-cashier',password:'senha-caixa-forte-123'},admin);
+    rt.modules.setEnabled('FOOD',true,admin);
+    const address=await server.start(),base='http://127.0.0.1:'+address.port;
+    const owner=await login(base,'pair-admin','senha-admin-forte-123');
+    const cash=await login(base,'pair-cash','senha-caixa-forte-123');
+    let response=await call(base,owner,'/api/v1/restaurant/devices',{method:'POST',body:{name:'iPhone QA',deviceType:'WAITER'}});
+    assert.equal(response.status,201);
+    const device=await response.json();
+    const path='/api/v1/restaurant/devices/pairing-qr';
+    const input={deviceId:device.id,credential:device.credential,host:'127.0.0.1',port:address.port};
+    response=await call(base,cash,path,{method:'POST',body:input});
+    assert.equal(response.status,403);
+    response=await call(base,owner,path,{method:'POST',body:input});
+    assert.equal(response.status,201);
+    const qr=await response.json();
+    assert.match(qr.url,/\/mobile#pair=/);
+    assert.equal(qr.url.includes(device.credential),false);
+    assert.equal(qr.qrSvg.includes(device.credential),false);
+    const token=new URL(qr.url).hash.replace(/^#pair=/,'');
+    response=await fetch(base+'/api/v1/mobile/pair/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token})});
+    assert.equal(response.status,200);
+    assert.deepEqual(await response.json(),{id:device.id,key:device.credential});
+    response=await fetch(base+'/api/v1/mobile/context',{headers:{'x-device-id':device.id,'x-device-key':device.credential}});
+    assert.equal(response.status,200);
+    response=await fetch(base+'/api/v1/mobile/pair/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token})});
+    assert.equal(response.status,410);
+    const next=await call(base,owner,path,{method:'POST',body:input});
+    assert.equal(next.status,201);
+    const oldToken=new URL((await next.json()).url).hash.slice(6);
+    response=await call(base,owner,'/api/v1/restaurant/devices/'+device.id+'/rotate',{method:'POST',body:{}});
+    assert.equal(response.status,200);
+    response=await fetch(base+'/api/v1/mobile/pair/redeem',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:oldToken})});
+    assert.equal(response.status,410);
+  }finally{await server.stop();rt.close();}
+});
