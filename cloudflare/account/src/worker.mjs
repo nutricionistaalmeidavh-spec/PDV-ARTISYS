@@ -813,7 +813,7 @@ async function almoxarifadoPublishedAsset(env,{manual=false}={}){
     });
     if(!response.ok)return json({error:'Download comercial ainda indisponível.'},503);
     const release=await response.json();
-    if(release.draft||release.prerelease||!/^v?\\d+\\.\\d+\\.\\d+$/.test(String(release.tag_name||'')))
+    if(release.draft||release.prerelease||!/^v?\d+\.\d+\.\d+$/.test(String(release.tag_name||'')))
       return json({error:'Release comercial ainda indisponível.'},503);
     const version=release.tag_name.replace(/^v/,'');
     const expectedName=manual?'Manual-ArtiSys-Almoxarifado.pdf':
