@@ -15,7 +15,7 @@ async function login(base,username,password){
   assert.equal(res.status,200);return(await res.json()).sessionToken;
 }
 async function call(base,token,url,{method='GET',body}={}){
-  return fetch(base+url,{method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+  return fetch(base+url,{method,headers:{...install,authorization:'Bearer '+token,...(body?{'content-type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
 }
 test('P0: QR por mesa preserva token, identifica mesa e nega alterações a caixa/sem login',async()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-qr-p0-'));
