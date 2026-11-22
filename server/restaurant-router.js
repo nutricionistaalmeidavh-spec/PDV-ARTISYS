@@ -176,7 +176,7 @@ function createRestaurantRouter({runtime,installationToken='',requireTerminalAut
     const publicMenuProduct=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/menu\/([^/]+)$/);
     if(request.method==='PATCH'&&publicMenuProduct){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.tables.manage');json(response,200,runtime.publicOrdering.updateMenuProduct(decodeURIComponent(publicMenuProduct[1]),await body(request),actor));return true;}
     const publicTableQr=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr$/);
-    if(request.method==='GET'&&publicTableQr){requireLoggedCapability('restaurant.tables.manage');json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQr[1]),actor));return true;}
+    if(request.method==='GET'&&publicTableQr){requireLoggedCapability('restaurant.access');requireLoggedCapability('restaurant.orders.view');json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQr[1]),actor));return true;}
     const publicTableQrRotate=pathname.match(/^\/api\/v1\/restaurant\/public-ordering\/tables\/([^/]+)\/qr\/rotate$/);
     if(request.method==='POST'&&publicTableQrRotate){requireLoggedCapability('settings.view');requireLoggedCapability('restaurant.tables.manage');json(response,200,publicTableAccess(request,url,decodeURIComponent(publicTableQrRotate[1]),actor,{rotate:true,input:await body(request)}));return true;}
     if(request.method==='GET'&&pathname==='/api/v1/restaurant/tables'){requireHumanCapability('restaurant.orders.view');json(response,200,runtime.restaurant.listTables({includeInactive:url.searchParams.get('includeInactive')==='true'}));return true;}
