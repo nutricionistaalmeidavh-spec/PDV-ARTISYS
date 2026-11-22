@@ -113,11 +113,11 @@ test('P1/P2: controles de quantidade, QR operacional e mobile one-time ligados a
   assert.match(app,/data-configured-qty-input/);
   assert.match(app,/updateConfiguredSaleItemQuantity/);
   assert.match(restaurant,/data-open-table-qr/);
-  assert.match(restaurant,/PdvRestaurantPublicOrderingUi\\?\\.openTableQr\\?\\.\\(table\\.id,table\\.label\\)/,'botao QR chama API publica operacional e nao mount de configuracao');
-  assert.doesNotMatch(restaurant,/\\.mount\\?\\.openTableQr/,'nao pode encadear metodo no mount da configuracao');
+  assert.ok(restaurant.includes('PdvRestaurantPublicOrderingUi?.openTableQr?.(table.id,table.label)'), 'botao QR chama modulo publico operacional');
+  assert.ok(!restaurant.includes('.mount?.openTableQr'), 'nao encadear QR no mount de configuracoes');
   assert.match(restaurant,/settings:select/,'atalho usa evento semantico de categoria');
-  assert.doesNotMatch(restaurant,/PdvSettingsHub\\?\\.mount\\?\\.selectCategory/,'mount nao tem metodo selectCategory');
-  assert.match(read('desktop/renderer/settings-hub-ui.js'),/lifecycle\\.on\\('settings:select'/,'hub deve reagir ao atalho legado');
+  assert.ok(!restaurant.includes('PdvSettingsHub?.mount?.selectCategory'), 'mount nao tem selectCategory');
+  assert.ok(read('desktop/renderer/settings-hub-ui.js').includes("lifecycle.on('settings:select'"), 'atalho usa evento do hub');
   assert.match(menu,/openTableQr/);
   assert.match(mobile,/api\/v1\/mobile\/pair\/redeem/);
 });
