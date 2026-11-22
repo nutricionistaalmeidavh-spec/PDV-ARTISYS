@@ -502,7 +502,7 @@ test('Almoxarifado is independently licensed on the existing ArtiSys central',as
  };
  const oficina=await issue('OFICINA');
  const almox=await issue('ALMOXARIFADO');
- assert.match(almox.code,/^\\d{6}$/);
+ assert.match(almox.code,/^\d{6}$/);
  assert.equal(e.ACCOUNT_STORE.licenses.length,2);
  assert.notEqual(oficina.licenseId,almox.licenseId);
  const invalid=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
