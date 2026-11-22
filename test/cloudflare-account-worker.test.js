@@ -490,3 +490,34 @@ test('email delivery failure is visible without silently claiming license email 
  assert.equal(e.ACCOUNT_STORE.licenses.length,1);
  assert.equal(e.ACCOUNT_STORE.licenses[0].status,'ACTIVE');
 });
+
+
+test('Almoxarifado is independently licensed on the existing ArtiSys central',async()=>{
+ const {handleRequest}=await loadWorker(),e=env();
+ const {cookie}=await login(handleRequest,e),headers=cookieHeaders(cookie);
+ const issue=async product=>{
+  const resp=await handleRequest(request('/v1/admin/licenses',{method:'POST',headers,
+   body:JSON.stringify({email:'same@example.com',product})}),e);
+  assert.equal(resp.status,201);return resp.json();
+ };
+ const oficina=await issue('OFICINA');
+ const almox=await issue('ALMOXARIFADO');
+ assert.match(almox.code,/^\\d{6}$/);
+ assert.equal(e.ACCOUNT_STORE.licenses.length,2);
+ assert.notEqual(oficina.licenseId,almox.licenseId);
+ const invalid=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+  email:almox.email,code:almox.code,product:'OFICINA',installationId:'almox-pc-1234'
+ })}),e);
+ assert.equal(invalid.status,400);
+ const verified=await handleRequest(request('/v1/activation/verify',{method:'POST',body:JSON.stringify({
+  email:almox.email,code:almox.code,product:'ALMOXARIFADO',installationId:'almox-pc-1234'
+ })}),e);
+ assert.equal(verified.status,200);
+ assert.equal((await verified.json()).product,'ALMOXARIFADO');
+ const status=await handleRequest(request('/v1/license/status?product=ALMOXARIFADO&installationId=almox-pc-1234'),e);
+ assert.deepEqual(await status.json(),{active:true,product:'ALMOXARIFADO',expiresAt:null});
+ const wrong=await handleRequest(request('/v1/license/status?product=OFICINA&installationId=almox-pc-1234'),e);
+ assert.equal((await wrong.json()).active,false);
+ const panel=await handleRequest(request('/admin',{headers}),e);
+ assert.match(await panel.text(),/value="ALMOXARIFADO"/);
+});
