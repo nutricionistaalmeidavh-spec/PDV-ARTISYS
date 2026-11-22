@@ -117,6 +117,13 @@
       "timeoutMs": 10000
     },
     {
+      "action": "waitFor",
+      "name": "aguardar-produto-scaneado",
+      "selector": ".sale-cart-region .cart-line[data-select-product='qa-barcode-product']",
+      "state": "visible",
+      "timeoutMs": 12000
+    },
+    {
       "action": "expectVisible",
       "selector": ".sale-cart-region .cart-line[data-select-product='qa-barcode-product']",
       "name": "produto-scaneado-no-carrinho",
