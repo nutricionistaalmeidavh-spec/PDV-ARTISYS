@@ -115,9 +115,10 @@ test('P1/P2: controles de quantidade, QR operacional e mobile one-time ligados a
   assert.match(restaurant,/data-open-table-qr/);
   assert.ok(restaurant.includes('PdvRestaurantPublicOrderingUi?.openTableQr?.(table.id,table.label)'), 'botao QR chama modulo publico operacional');
   assert.ok(!restaurant.includes('.mount?.openTableQr'), 'nao encadear QR no mount de configuracoes');
-  assert.match(restaurant,/settings:select/,'atalho usa evento semantico de categoria');
+  assert.ok(restaurant.includes('PdvSettingsHub?.mount?.()'),'atalho prepara SettingsHub canonico');
+  assert.ok(restaurant.includes('[data-settings-category="food-menu"]'),'atalho usa botao canonico da categoria');
   assert.ok(!restaurant.includes('PdvSettingsHub?.mount?.selectCategory'), 'mount nao tem selectCategory');
-  assert.ok(read('desktop/renderer/settings-hub-ui.js').includes("lifecycle.on('settings:select'"), 'atalho usa evento do hub');
+  assert.doesNotMatch(read('desktop/renderer/settings-hub-ui.js'),/settings:select|MutationObserver/,'hub permanece sem canal privado nem observer');
   assert.match(menu,/openTableQr/);
   assert.match(mobile,/api\/v1\/mobile\/pair\/redeem/);
 });
