@@ -17,6 +17,7 @@ function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(byte
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
 const MAIL_RELAY_URL='https://oficina-mail.artisys.dev/send';
 const WELCOME_RELAY_URL='https://oficina-mail.artisys.dev/welcome';
+const WELCOME_ALMOX_RELAY_URL='https://oficina-mail.artisys.dev/welcome-almoxarifado';
 async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
   const enc=new TextEncoder();
   const key=await crypto.subtle.importKey('raw',enc.encode('oficina-mail-relay-v1:'+pepper),
@@ -294,7 +295,7 @@ async function deliverCommercialWelcome({email,licenseId,code,codeExpiresAt,issu
   payload.signature=await signWelcome(pepper,{...payload,product});
   try{
     const sender=env.MAIL_RELAY_FETCH||fetch;
-    const response=await sender(WELCOME_RELAY_URL,{
+    const response=await sender(product==='ALMOXARIFADO'?WELCOME_ALMOX_RELAY_URL:WELCOME_RELAY_URL,{
       method:'POST',redirect:'manual',
       headers:{'content-type':'application/json'},
       body:JSON.stringify(payload),
