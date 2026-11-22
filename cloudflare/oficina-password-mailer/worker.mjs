@@ -41,7 +41,7 @@ export default {async fetch(request,env){
       return json({accepted:true},202);
     }catch{return json({error:'Delivery unavailable'},503)}
   }
-  if(url.pathname==='/welcome'){
+  if(url.pathname==='/welcome'||url.pathname==='/welcome-almoxarifado'){
     if(request.method!=='POST')return json({error:'Method not allowed'},405);
     if(!String(request.headers.get('content-type')||'').startsWith('application/json'))
       return json({error:'Invalid content type'},415);
@@ -51,6 +51,7 @@ export default {async fetch(request,env){
     // Sem campo 'product' mantém a compatibilidade dos tickets existentes da Loja Roupas.
     const product=payload?.product==null?'LOJA_ROUPAS':String(payload.product);
     if(product!=='LOJA_ROUPAS'&&product!=='ALMOXARIFADO')return json({error:'Unsupported product'},400);
+    if((product==='ALMOXARIFADO')!==(url.pathname==='/welcome-almoxarifado'))return json({error:'Incorrect welcome route for product'},400);
     if(typeof email!=='string'||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
        typeof licenseId!=='string'||!/^[A-Za-z0-9_-]{3,128}$/.test(licenseId)||
        !/^[0-9]{6}$/.test(String(code||''))||!/^[a-f0-9]{64}$/i.test(String(signature||''))||
