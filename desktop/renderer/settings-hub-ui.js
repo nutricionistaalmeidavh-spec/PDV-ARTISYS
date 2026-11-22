@@ -159,6 +159,12 @@
   const schedule=()=>{if(scheduled)return;scheduled=true;queueMicrotask(()=>mount());};
   const onRouteUpdate=({route})=>{if(route==='settings')schedule();};
   lifecycle.on('route:updated',onRouteUpdate);
+  lifecycle.on('settings:select',({category}={})=>{
+    if(!categories.some(([id])=>id===category))return;
+    active=category;
+    schedule();
+    if(category==='food-menu')queueMicrotask(()=>void window.PdvRestaurantPublicOrderingUi?.mount?.());
+  });
   function selectCategory(category){
     if(!categories.some(([id])=>id===category))return;
     active=category;
