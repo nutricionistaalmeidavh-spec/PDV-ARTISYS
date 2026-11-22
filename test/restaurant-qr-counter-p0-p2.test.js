@@ -37,6 +37,9 @@ test('P0: QR por mesa preserva token, identifica mesa e nega alterações a caix
     assert.equal(q1.url,again.url,'Ver QR nao altera o token');
     const q2=await(await call(base,owner,url('qr-mesa-02'))).json();
     assert.notEqual(q1.url,q2.url,'Cada mesa recebe seu token');
+    const cashRead=await call(base,cash,url('qr-mesa-01'));
+    assert.equal(cashRead.status,200,'Caixa pode visualizar QR sem permissao administrativa');
+    assert.equal((await cashRead.json()).url,q1.url,'consulta do Caixa reutiliza token existente');
     assert.equal((await call(base,cash,'/api/v1/restaurant/public-ordering/config',{method:'PUT',body:{autoOpenTable:false}})).status,403);
     assert.equal((await call(base,cash,url('qr-mesa-01')+'/rotate',{method:'POST',body:{}})).status,403);
     const anonymous=await fetch(base+'/api/v1/restaurant/public-ordering/config',{method:'PUT',headers:install,body:'{"autoOpenTable":false}'});
