@@ -56,6 +56,39 @@ test('P0: QR por mesa preserva token, identifica mesa e nega alterações a caix
   }finally{await server.stop();rt.close();fs.rmSync(dir,{recursive:true,force:true});}
 });
 
+test('P0 E2E: QR da mesa abre comanda pelo primeiro pedido e sobrevive reinicio local',async()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'artisys-qr-persist-'));
+  const dbPath=path.join(dir,'pdv.sqlite');
+  let runtime=createPdvRuntime({dbPath});
+  try{
+    runtime.catalog.createUser({id:'admin',username:'qr-persist-admin',name:'Admin',profileId:'profile-administrator',password:'senha-admin-forte-123'},admin);
+    runtime.modules.setEnabled('FOOD',true,admin);
+    runtime.catalog.upsertProduct({id:'suco-qr',name:'Suco pelo QR',salePriceCents:1300,menuEnabled:true,active:true,trackStock:false,usageType:'DIRECT'},admin);
+    runtime.kitchen.configureProductRoute('suco-qr',{mode:'DIRECT'},admin);
+    runtime.restaurant.upsertTable({id:'mesa-reinicia',label:'Mesa Reinicio',seats:4},admin);
+    const token=runtime.publicOrdering.issueTableAccess('mesa-reinicia',admin).token;
+    assert.equal(runtime.publicOrdering.publicContext(token).table.label,'Mesa Reinicio');
+    const initial=runtime.restaurant.currentSession('mesa-reinicia');
+    assert.equal(initial,null);
+    const server=createLocalServer({runtime,host:'127.0.0.1',port:0,token:'local-qr-token',requireTerminalAuth:false});
+    try{
+      const address=await server.start(),base='http://127.0.0.1:'+address.port;
+      const context=await fetch(base+'/api/v1/public/menu/'+token);
+      assert.equal(context.status,200);
+      const placed=await fetch(base+'/api/v1/public/menu/'+token+'/orders',{method:'POST',headers:{'content-type':'application/json','x-mutation-id':'qr-persist-order-01'},body:JSON.stringify({items:[{productId:'suco-qr',quantity:2}]})});
+      assert.equal(placed.status,201);
+      const order=await placed.json();
+      assert.equal(order.order.totalCents,2600);
+      assert.equal(runtime.restaurant.currentSession('mesa-reinicia').totalCents,2600);
+      assert.equal(runtime.restaurant.currentSession('mesa-reinicia').orders.length,1);
+    }finally{await server.stop();}
+    runtime.close();runtime=null;
+    runtime=createPdvRuntime({dbPath});
+    assert.equal(runtime.publicOrdering.issueTableAccess('mesa-reinicia',admin).token,token,'o QR deve ser preservado apos reinicio');
+    assert.equal(runtime.publicOrdering.publicContext(token).session.totalCents,2600);
+  }finally{runtime?.close();fs.rmSync(dir,{recursive:true,force:true});}
+});
+
 test('P2: pareamento QR nao carrega credencial permanente no link e so pode ser resgatado uma vez',()=>{
   let now=1000;const pairing=createMobilePairing({now:()=>now,ttlMs:120000});
   const issued=pairing.issue({deviceId:'phone-1',credential:'secret-device-key'});
