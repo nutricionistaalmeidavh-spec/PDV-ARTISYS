@@ -165,5 +165,6 @@
     schedule();
     if(category==='food-menu')queueMicrotask(()=>void window.PdvRestaurantPublicOrderingUi?.mount?.());
   }
-  window.PdvSettingsHub=Object.freeze({mount,selectCategory});
+  mount.selectCategory=selectCategory;
+  window.PdvSettingsHub=Object.freeze({mount});
 })();
