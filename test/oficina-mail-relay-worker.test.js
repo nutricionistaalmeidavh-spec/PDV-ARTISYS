@@ -76,7 +76,7 @@ test('Almoxarifado welcome includes commercial direct installer, PDF manual, cod
  try{
   const payload={email:'client@example.com',licenseId:'license-123456789',product:'ALMOXARIFADO',code:'123456',
     codeExpiresAt:new Date(Date.now()+3600000).toISOString(),issuedAt:new Date().toISOString(),signature:'a'.repeat(64)};
-  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome',{
+  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome-almoxarifado',{
    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
   }),{EMAIL:{send:async msg=>sent.push(msg)}});
   assert.equal(response.status,202);
@@ -97,7 +97,7 @@ test('Almoxarifado email is not sent unless the Central authorizes the product',
  try{
   const payload={email:'client@example.com',licenseId:'license-123456789',product:'ALMOXARIFADO',code:'123456',
     codeExpiresAt:new Date(Date.now()+3600000).toISOString(),issuedAt:new Date().toISOString(),signature:'a'.repeat(64)};
-  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome',{
+  const response=await worker.fetch(new Request('https://oficina-mail.artisys.dev/welcome-almoxarifado',{
    method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)
   }),{EMAIL:{send:async()=>sent++}});
   assert.equal(response.status,403);
