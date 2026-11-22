@@ -149,3 +149,37 @@ O pedido `POST /v1/password-recovery/request` valida e-mail, instalação e lice
 **Antes da release:** o envio SMTP real precisa de um segredo configurado; o conector Hostinger Mail disponível dentro do ChatGPT não revela a senha da caixa ao Worker. Sem `SMTP_PASSWORD`, o Worker retorna 503 em vez de fingir que enviou um código. A recuperação assistida pelo administrador da Central continua separada.
 
 As verificações de GitHub Actions não dependem de Cloudflare Workers previews. Os previews não substituem teste de recebimento real de e-mail com a credencial do Worker.
+
+## Boas-vindas do Almoxarifado
+
+Ao liberar **ArtiSys Almoxarifado** (`ALMOXARIFADO`) pelo painel, a Central
+mantém o código de seis dígitos e solicita ao relay de e-mail transacional o
+envio para o endereço licenciado. O e-mail contém:
+
+- o código de ativação e a data de expiração (48 horas, uso único);
+- o download oficial **da edição comercial Windows**, sem apontar para o instalador livre;
+- o link do **manual do usuário em PDF**;
+- os primeiros passos para ativação e criação de senha local.
+
+Os links públicos estáveis são:
+
+- `GET /download/almoxarifado`: redireciona ao arquivo
+  `ArtiSys-Almoxarifado-Setup-<versão>-Commercial.exe` da release pública mais recente;
+- `GET /manual/almoxarifado.pdf`: redireciona ao
+  `Manual-ArtiSys-Almoxarifado.pdf` da mesma release.
+
+Caso o artefato ainda não esteja publicado, as rotas retornam HTTP 503 sem
+trocar silenciosamente para a edição livre. Nunca enviar o artefato interno de
+QA do GitHub Actions como se fosse download público.
+
+O ticket de autorização de e-mail do Almoxarifado é **assinado e limitado ao
+produto**, e a Central verifica o código não utilizado, a licença ativa, o
+e-mail e a expiração antes de permitir o envio uma única vez. O fluxo anterior
+da Loja Roupas conserva sua assinatura/compatibilidade original. A resposta
+administrativa mostra `delivery.status = 'sent' | 'failed'`: falha de envio
+não deve ser comunicada como sucesso ao cliente. A ação **Reativar instalação**
+emite novo código e reenvia as instruções, sem cancelar a licença original.
+
+A infraestrutura de e-mail e a Central pertencem somente à distribuição
+comercial opcional. O core livre do Almoxarifado segue R$ 0 / self-hosted
+e não depende de e-mail, Worker ou nuvem para funcionar.

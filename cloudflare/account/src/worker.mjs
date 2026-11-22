@@ -17,6 +17,7 @@ function randomCode(){const bytes=new Uint32Array(1);crypto.getRandomValues(byte
 async function digestToken({pepper,email,code}){const data=new TextEncoder().encode(`${pepper}:${email}:${code}`);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');}
 const MAIL_RELAY_URL='https://oficina-mail.artisys.dev/send';
 const WELCOME_RELAY_URL='https://oficina-mail.artisys.dev/welcome';
+const WELCOME_ALMOX_RELAY_URL='https://oficina-mail.artisys.dev/welcome-almoxarifado';
 async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
   const enc=new TextEncoder();
   const key=await crypto.subtle.importKey('raw',enc.encode('oficina-mail-relay-v1:'+pepper),
@@ -24,11 +25,15 @@ async function signMailRelay(pepper,{email,installationId,code,issuedAt}){
   const sig=await crypto.subtle.sign('HMAC',key,enc.encode(JSON.stringify([email,installationId,code,issuedAt])));
   return Array.from(new Uint8Array(sig),x=>x.toString(16).padStart(2,'0')).join('');
 }
-async function signWelcome(pepper,{email,licenseId,code,codeExpiresAt,issuedAt}){
+async function signWelcome(pepper,{email,licenseId,code,codeExpiresAt,issuedAt,product='LOJA_ROUPAS'}){
   const enc=new TextEncoder();
-  const key=await crypto.subtle.importKey('raw',enc.encode('loja-roupas-welcome-v1:'+pepper),
+  // Preserva o ticket assinado das mensagens Loja Roupas que já foram emitidas.
+  const almox=product==='ALMOXARIFADO';
+  const key=await crypto.subtle.importKey('raw',enc.encode((almox?'almoxarifado-welcome-v1:':'loja-roupas-welcome-v1:')+pepper),
     {name:'HMAC',hash:'SHA-256'},false,['sign']);
-  const sig=await crypto.subtle.sign('HMAC',key,enc.encode(JSON.stringify([email,licenseId,code,codeExpiresAt,issuedAt])));
+  const signedFields=almox?[email,licenseId,code,codeExpiresAt,issuedAt,product]:
+    [email,licenseId,code,codeExpiresAt,issuedAt];
+  const sig=await crypto.subtle.sign('HMAC',key,enc.encode(JSON.stringify(signedFields)));
   return Array.from(new Uint8Array(sig),x=>x.toString(16).padStart(2,'0')).join('');
 }
 async function readBody(request){const text=await request.text();if(text.length>32768)throw Object.assign(new Error('Corpo da requisicao excede o limite permitido.'),{statusCode:413});if(!text)return{};try{return JSON.parse(text);}catch{throw Object.assign(new Error('JSON invalido.'),{statusCode:400});}}
@@ -281,14 +286,16 @@ async function readyStore(env){const store=resolveStore(env);if(typeof store.ens
 function activeInstallation(record,now){if(!record)return false;if(record.status&&record.status!=='ACTIVE')return false;if(record.expiresAt&&record.expiresAt<=now)return false;return true;}
 function recoveryPepper(env){return String(env.RECOVERY_PEPPER||env.ACTIVATION_PEPPER||'').trim();}
 
-async function deliverLojaWelcome({email,licenseId,code,codeExpiresAt,issuedAt},env){
+async function deliverCommercialWelcome({email,licenseId,code,codeExpiresAt,issuedAt,product},env){
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();
   if(!pepper)return {status:'failed',reason:'activation_pepper_missing'};
-  const payload={email,licenseId,code,codeExpiresAt,issuedAt};
-  payload.signature=await signWelcome(pepper,payload);
+  if(product!=='ALMOXARIFADO'&&product!=='LOJA_ROUPAS')
+    return {status:'failed',reason:'product_not_supported'};
+  const payload={email,licenseId,code,codeExpiresAt,issuedAt,...(product==='ALMOXARIFADO'?{product}:{})};
+  payload.signature=await signWelcome(pepper,{...payload,product});
   try{
     const sender=env.MAIL_RELAY_FETCH||fetch;
-    const response=await sender(WELCOME_RELAY_URL,{
+    const response=await sender(product==='ALMOXARIFADO'?WELCOME_ALMOX_RELAY_URL:WELCOME_RELAY_URL,{
       method:'POST',redirect:'manual',
       headers:{'content-type':'application/json'},
       body:JSON.stringify(payload),
@@ -307,25 +314,27 @@ async function authorizeWelcomeRelay(request,env){
   const email=normalizeEmail(body.email),licenseId=String(body.licenseId||''),
     code=String(body.code||''),codeExpiresAt=String(body.codeExpiresAt||''),
     issuedAt=String(body.issuedAt||''),signature=String(body.signature||'');
+  const product=body.product==null?'LOJA_ROUPAS':String(body.product||'');
+  if(!['LOJA_ROUPAS','ALMOXARIFADO'].includes(product))return json({authorized:false},403);
   const age=Date.now()-Date.parse(issuedAt);
   if(!email||!/^[A-Za-z0-9_-]{3,128}$/.test(licenseId)||!/^[0-9]{6}$/.test(code)||
     !/^[a-f0-9]{64}$/i.test(signature)||!Number.isFinite(age)||Math.abs(age)>65000||
     !Number.isFinite(Date.parse(codeExpiresAt)))return json({authorized:false},403);
   const pepper=String(env.ACTIVATION_PEPPER||'').trim();
   if(!pepper)return json({authorized:false},503);
-  const expected=await signWelcome(pepper,{email,licenseId,code,codeExpiresAt,issuedAt});
+  const expected=await signWelcome(pepper,{email,licenseId,code,codeExpiresAt,issuedAt,product});
   if(!await secureEqual(expected,signature))return json({authorized:false},403);
   const store=await readyStore(env),at=new Date().toISOString();
   const digest=await digestToken({pepper,email,code});
   const [token,license]=await Promise.all([
-    store.findActivationToken({email,digest,now:at,product:'LOJA_ROUPAS'}),
+    store.findActivationToken({email,digest,now:at,product}),
     store.findLicenseById(licenseId)
   ]);
   if(!token||token.licenseId!==licenseId||token.expiresAt!==codeExpiresAt||
-     !license||license.product!=='LOJA_ROUPAS'||license.status!=='ACTIVE'||license.email!==email||
+     !license||license.product!==product||license.status!=='ACTIVE'||license.email!==email||
      (license.expiresAt&&license.expiresAt<=at))return json({authorized:false},403);
   if(!await store.authorizeWelcomeRelay({tokenId:token.id,at}))return json({authorized:false},403);
-  return json({authorized:true});
+  return json({authorized:true,product});
 }
 async function requestActivation(request,env){
   const body=await readBody(request);const email=normalizeEmail(body.email);const installationId=normalizeInstallationId(body.installationId);
@@ -716,8 +725,8 @@ async function adminRoute(request,env,url){
     const code=randomCode(),createdAt=new Date().toISOString(),codeExpiresAt=new Date(Date.parse(createdAt)+ACTIVATION_TOKEN_TTL_MS).toISOString(),codeDigest=await digestToken({pepper,email,code});
     const provisioned=await store.provisionLicense({email,product,expiresAt,maxDevices,codeDigest,codeExpiresAt,createdAt});
     if(product==='PDV_NEXUS_2')await logNexusLicenseEvent(env,provisioned.licenseId,'COMMERCIAL_ISSUED','admin',{expiresAt});
-     const delivery=product==='LOJA_ROUPAS'
-       ?await deliverLojaWelcome({email,licenseId:provisioned.licenseId,code,codeExpiresAt,issuedAt:createdAt},env)
+     const delivery=['LOJA_ROUPAS','ALMOXARIFADO'].includes(product)
+       ?await deliverCommercialWelcome({email,licenseId:provisioned.licenseId,code,codeExpiresAt,issuedAt:createdAt,product},env)
        :undefined;
      return json({...provisioned,email,product,code,codeExpiresAt,expiresAt,maxDevices,...(delivery?{delivery}:{})},201);
   }
@@ -733,8 +742,8 @@ async function adminRoute(request,env,url){
     const rotated=await store.rotateActivationTokenForLicense({licenseId:id,codeDigest:await digestToken({pepper,email:license.email,code}),codeExpiresAt,createdAt:now});
     if(rotated&&license.product==='PDV_NEXUS_2')await logNexusLicenseEvent(env,id,'ACTIVATION_CODE_REISSUED','admin',{codeExpiresAt});
     if(!rotated)return json({error:'Licenca ativa nao encontrada para reativacao.'},409);
-    const delivery=license.product==='LOJA_ROUPAS'
-       ?await deliverLojaWelcome({email:license.email,licenseId:id,code,codeExpiresAt,issuedAt:now},env)
+    const delivery=['LOJA_ROUPAS','ALMOXARIFADO'].includes(license.product)
+       ?await deliverCommercialWelcome({email:license.email,licenseId:id,code,codeExpiresAt,issuedAt:now,product:license.product},env)
        :undefined;
      return json({...rotated,code,codeExpiresAt,...(delivery?{delivery}:{})},201);
   }
@@ -790,10 +799,42 @@ async function licenseStatus(url,env){
   return json({active,product,expiresAt:active?record.expiresAt||null:null});
 }
 
+
+// Endpoints públicos estáveis: redirecionam apenas para os artefatos comerciais
+// publicados na release oficial. Não substituem por edição livre se ausentes.
+const ALMOX_LATEST_RELEASE='https://api.github.com/repos/nutricionistaalmeidavh-spec/Almoxarifado/releases/latest';
+const ALMOX_RELEASE_PREFIX='https://github.com/nutricionistaalmeidavh-spec/Almoxarifado/releases/download/';
+async function almoxarifadoPublishedAsset(env,{manual=false}={}){
+  try{
+    const sender=env.ALMOX_RELEASE_FETCH||fetch;
+    const response=await sender(ALMOX_LATEST_RELEASE,{
+      headers:{accept:'application/vnd.github+json','user-agent':'ArtiSys-License-Center'},
+      redirect:'manual',signal:AbortSignal.timeout(6500),
+      cf:{cacheTtl:300,cacheEverything:true}
+    });
+    if(!response.ok)return json({error:'Download comercial ainda indisponível.'},503);
+    const release=await response.json();
+    if(release.draft||release.prerelease||!/^v?\d+\.\d+\.\d+$/.test(String(release.tag_name||'')))
+      return json({error:'Release comercial ainda indisponível.'},503);
+    const version=release.tag_name.replace(/^v/,'');
+    const expectedName=manual?'Manual-ArtiSys-Almoxarifado.pdf':
+      'ArtiSys-Almoxarifado-Setup-'+version+'-Commercial.exe';
+    const asset=Array.isArray(release.assets)?release.assets.find(item=>item.name===expectedName):null;
+    const download=String(asset?.browser_download_url||'');
+    const expectedUrl=ALMOX_RELEASE_PREFIX+encodeURIComponent(release.tag_name)+'/'+expectedName;
+    if(download!==expectedUrl)return json({error:'Artefato comercial não publicado.'},503);
+    return new Response(null,{status:302,headers:{
+      location:download,'cache-control':'public, max-age=300','x-content-type-options':'nosniff'
+    }});
+  }catch{return json({error:'Não foi possível consultar a distribuição oficial.'},503);}
+}
+
 export async function handleRequest(request,env={}){
   const url=new URL(request.url);try{
     const adminResponse=await adminRoute(request,env,url);if(adminResponse)return adminResponse;
     const nexus=await handleNexusTrial(request,env,url,readyStore);if(nexus)return nexus;
+    if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/download/almoxarifado')return await almoxarifadoPublishedAsset(env);
+    if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/manual/almoxarifado.pdf')return await almoxarifadoPublishedAsset(env,{manual:true});
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);
