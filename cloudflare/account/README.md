@@ -6,12 +6,10 @@ Este serviço é separado do core local do PDV. O PDV continua local/self-hosted
 
 ## Produtos na mesma Central
 
-A Central agora permite selecionar **PDV ArtiSys** (`PDV`) ou **ArtiSys Oficina**
-(`OFICINA`) e **ArtiSys CRM WhatsApp Prospector** (`WPPPROSPECTOR`) no mesmo painel. Licenças antigas são migradas com produto padrão
+A Central permite selecionar **PDV ArtiSys** (`PDV`), **ArtiSys Oficina** (`OFICINA`), **ArtiSys Almoxarifado** (`ALMOXARIFADO`) e **ArtiSys CRM WhatsApp Prospector** (`WPPPROSPECTOR`) no mesmo painel. Licenças antigas são migradas com produto padrão
 `PDV`. O mesmo e-mail pode ter uma licença ativa por produto; códigos, suspensão,
 reativação e expiração são independentes. Para compatibilidade, APIs legadas sem
-campo `product` continuam usando `PDV`. O Oficina envia `product: 'OFICINA'` na
-ativação e `product=OFICINA` na consulta; nunca compartilhar ativação entre os produtos.
+campo `product` continuam usando `PDV`. O Oficina envia `product: 'OFICINA'` e o Almoxarifado envia `product: 'ALMOXARIFADO'` na ativação, com o mesmo escopo na consulta; nunca compartilhar ativação entre produtos.
 
 **Operação:** aplicar a migração aditiva e validar com dados anonimizados do D1
 antes do deploy da Central. O Worker `pdv-artisys` pertence à conta
