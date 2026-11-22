@@ -526,7 +526,7 @@ test('Almoxarifado is independently licensed on the existing ArtiSys central',as
 test('Almoxarifado issues a signed transactional welcome with activation code without affecting other products',async()=>{
  const {handleRequest}=await loadWorker(),e=env(),deliveries=[];
  e.MAIL_RELAY_FETCH=async(url,options)=>{
-  assert.equal(url,'https://oficina-mail.artisys.dev/welcome');
+  assert.equal(url,'https://oficina-mail.artisys.dev/welcome-almoxarifado');
   const payload=JSON.parse(options.body);deliveries.push(payload);
   const accepted=await handleRequest(request('/v1/license-welcome/relay-authorize',{method:'POST',body:options.body}),e);
   assert.equal(accepted.status,200);
