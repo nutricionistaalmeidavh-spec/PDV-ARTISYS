@@ -48,6 +48,9 @@ export default {async fetch(request,env){
     let payload;try{const raw=await request.text();if(raw.length>4096)throw Error('large');payload=JSON.parse(raw);}
     catch{return json({error:'Invalid request'},400);}
     const {email,licenseId,code,codeExpiresAt,issuedAt,signature}=payload||{};
+    // Sem campo 'product' mantém a compatibilidade dos tickets existentes da Loja Roupas.
+    const product=payload?.product==null?'LOJA_ROUPAS':String(payload.product);
+    if(product!=='LOJA_ROUPAS'&&product!=='ALMOXARIFADO')return json({error:'Unsupported product'},400);
     if(typeof email!=='string'||email.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||
        typeof licenseId!=='string'||!/^[A-Za-z0-9_-]{3,128}$/.test(licenseId)||
        !/^[0-9]{6}$/.test(String(code||''))||!/^[a-f0-9]{64}$/i.test(String(signature||''))||
@@ -59,9 +62,30 @@ export default {async fetch(request,env){
       const check=await fetch(WELCOME_AUTH_URL,{method:'POST',redirect:'manual',
         headers:{'content-type':'application/json'},body:JSON.stringify(payload),
         signal:AbortSignal.timeout(6500)});
-      if(!check.ok||(await check.json())?.authorized!==true)return json({error:'Authorization rejected'},403);
-      const subject='Loja Roupas ArtiSys | Seu acesso foi liberado';
-      const text='Olá!\n\nSua licença do Loja Roupas foi liberada pela ArtiSys.\n\nE-mail vinculado: '+email+
+      if(!check.ok)return json({error:'Authorization rejected'},403);
+      const authorization=await check.json();
+      if(authorization?.authorized!==true||(product==='ALMOXARIFADO'&&authorization.product!=='ALMOXARIFADO')||
+         (authorization.product&&authorization.product!==product))
+        return json({error:'Authorization rejected'},403);
+      const subject=product==='ALMOXARIFADO'
+        ?'ArtiSys Almoxarifado | Instalação, licença e manual'
+        :'Loja Roupas ArtiSys | Seu acesso foi liberado';
+      const text=product==='ALMOXARIFADO'?
+        'Olá!\\n\\nObrigado por adquirir o ArtiSys Almoxarifado. Seu acesso comercial está liberado.\\n\\n'+
+        'E-mail vinculado: '+email+
+        '\\nCódigo de ativação: '+code+
+        '\\nCódigo válido até: '+codeExpiresAt+
+        '\\n\\nDOWNLOAD DIRETO - Instalador Windows 64 bits:\\nhttps://pdv-artisys.sistema-artisys.workers.dev/download/almoxarifado'+
+        '\\n\\nMANUAL DE INSTRUÇÕES (PDF):\\nhttps://pdv-artisys.sistema-artisys.workers.dev/manual/almoxarifado.pdf'+
+        '\\n\\nPrimeiros passos:\\n1. Baixe e instale no computador principal (Windows 10/11 x64).'+
+        '\\n2. Abra ArtiSys Almoxarifado e informe este e-mail e o código acima.'+
+        '\\n3. Crie a senha do administrador local (mínimo de 10 caracteres).'+
+        '\\n4. Cadastre os materiais e os depósitos, seguindo o manual.'+
+        '\\n5. Acesse pelo celular/tablet na mesma rede com o computador principal ligado.'+
+        '\\n\\nO código é de uso único e expira em 48 horas. A validade da licença é independente da validade do código.'+
+        '\\nGuarde este e-mail. Não compartilhe o código de ativação. Os dados do estoque permanecem no computador principal.'+
+        '\\n\\nSuporte: responda a este e-mail.\\n\\nEquipe ArtiSys'
+        :'Olá!\\n\\nSua licença do Loja Roupas foi liberada pela ArtiSys.\\n\\nE-mail vinculado: '+email+
         '\nCódigo de ativação: '+code+'\nCódigo válido até: '+codeExpiresAt+
         '\n\nComo começar:\n1. Quando receber o instalador homologado da ArtiSys, instale no computador principal.\n2. Na edição comercial, informe seu e-mail e o código acima.\n3. Cadastre a loja e siga o tour de primeiro acesso.\n4. A vitrine online é opcional e depende da publicação dos produtos.\n\nA versão livre local não exige Cloudflare nem assinatura.\n\nO código é de uso único. Não o compartilhe.\nSe precisar de ajuda, responda a este e-mail.\n\nEquipe ArtiSys';
       await env.EMAIL.send({from:FROM,to:email,subject,text});
