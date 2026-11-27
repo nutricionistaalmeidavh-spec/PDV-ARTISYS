@@ -92,7 +92,6 @@ export default {async fetch(request,env){
         '\nCódigo válido até: '+codeExpiresAt+
         '\n\nDOWNLOAD DIRETO - Instalador Windows 64 bits:\nhttps://pdv-artisys.sistema-artisys.workers.dev/download/loja-roupas'+
         '\n\nMANUAL DE INSTALAÇÃO E USO (PDF):\nhttps://pdv-artisys.sistema-artisys.workers.dev/manual/loja-roupas.pdf'+
-        '\n\nTERMOS DE USO E POLÍTICA DE PRIVACIDADE:\nhttps://github.com/nutricionistaalmeidavh-spec/loja-roupas/tree/main/docs/comercial'+
         '\n\nPrimeiros passos:\n1. Baixe e instale no computador principal da loja (Windows 10/11 64 bits).'+
         '\n2. Abra "Loja de Roupas Comercial" e informe este e-mail e o código acima (precisa de internet só nesta etapa).'+
         '\n3. Cadastre o nome da loja, o usuário e a senha do administrador.'+
