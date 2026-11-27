@@ -601,3 +601,29 @@ test('public release asset links only redirect to confirmed official commercial 
  });
  assert.equal(rejected.status,503,'never redirect client to the unlicensed installer');
 });
+
+test('Loja Roupas download e manual apontam só para a release comercial mais nova',async()=>{
+ const {handleRequest}=await loadWorker();
+ const base='https://github.com/nutricionistaalmeidavh-spec/loja-roupas/releases/download/';
+ const mk=(tag,names,extra={})=>({tag_name:tag,draft:false,prerelease:false,...extra,
+  assets:names.map(name=>({name,browser_download_url:base+tag+'/'+name}))});
+ const all=['Loja-de-Roupas-Comercial-Setup-x64.exe','SHA256SUMS','Manual-Loja-de-Roupas.pdf'];
+ const releases=[
+  mk('loja-fisica-v0.2.9',['Loja-de-Roupas-Fisica-Setup-x64.exe','SHA256SUMS'],{prerelease:true}),
+  mk('v0.2.2',['Loja-de-Roupas-Setup-x64.exe','SHA256SUMS']),
+  mk('loja-comercial-v1.0.0',all),
+  mk('loja-comercial-v1.2.0',all,{draft:true}),
+  mk('loja-comercial-v1.0.10',all)
+ ];
+ const api='https://api.github.com/repos/nutricionistaalmeidavh-spec/loja-roupas/releases?per_page=40';
+ const e={LOJA_RELEASE_FETCH:async url=>{assert.equal(url,api);return Response.json(releases);}};
+ for(const [path,name] of [['/download/loja-roupas','Loja-de-Roupas-Comercial-Setup-x64.exe'],['/manual/loja-roupas.pdf','Manual-Loja-de-Roupas.pdf']]){
+  const response=await handleRequest(request(path),e);
+  assert.equal(response.status,302);
+  assert.equal(response.headers.get('location'),base+'loja-comercial-v1.0.10/'+name);
+ }
+ const onlyFree=await handleRequest(request('/download/loja-roupas'),{LOJA_RELEASE_FETCH:async()=>Response.json(releases.slice(0,2))});
+ assert.equal(onlyFree.status,503,'nunca redireciona para o instalador livre');
+ const noManual=await handleRequest(request('/manual/loja-roupas.pdf'),{LOJA_RELEASE_FETCH:async()=>Response.json([mk('loja-comercial-v1.0.0',all.slice(0,2))])});
+ assert.equal(noManual.status,503);
+});

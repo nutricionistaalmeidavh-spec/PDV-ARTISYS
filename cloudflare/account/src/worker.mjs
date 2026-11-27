@@ -829,12 +829,47 @@ async function almoxarifadoPublishedAsset(env,{manual=false}={}){
   }catch{return json({error:'Não foi possível consultar a distribuição oficial.'},503);}
 }
 
+// Loja de Roupas: o repositório também publica a edição livre (loja-fisica-v*)
+// e a completa (v*). Só a release loja-comercial-v* mais nova é entregue ao comprador.
+const LOJA_RELEASES='https://api.github.com/repos/nutricionistaalmeidavh-spec/loja-roupas/releases?per_page=40';
+const LOJA_RELEASE_PREFIX='https://github.com/nutricionistaalmeidavh-spec/loja-roupas/releases/download/';
+const LOJA_ASSETS={installer:'Loja-de-Roupas-Comercial-Setup-x64.exe',manual:'Manual-Loja-de-Roupas.pdf'};
+function lojaVersion(tag){const m=/^loja-comercial-v(\d+)\.(\d+)\.(\d+)$/.exec(String(tag||''));return m?m.slice(1).map(Number):null;}
+async function lojaRoupasPublishedAsset(env,kind){
+  try{
+    const sender=env.LOJA_RELEASE_FETCH||fetch;
+    const response=await sender(LOJA_RELEASES,{
+      headers:{accept:'application/vnd.github+json','user-agent':'ArtiSys-License-Center'},
+      redirect:'manual',signal:AbortSignal.timeout(6500),
+      cf:{cacheTtl:300,cacheEverything:true}
+    });
+    if(!response.ok)return json({error:'Download comercial ainda indisponível.'},503);
+    const releases=await response.json();
+    const commercial=(Array.isArray(releases)?releases:[])
+      .filter(r=>r&&!r.draft&&lojaVersion(r.tag_name))
+      .sort((a,b)=>{const x=lojaVersion(a.tag_name),y=lojaVersion(b.tag_name);
+        for(let i=0;i<3;i++)if(x[i]!==y[i])return y[i]-x[i];return 0;});
+    const release=commercial[0];
+    if(!release)return json({error:'Release comercial ainda indisponível.'},503);
+    const name=LOJA_ASSETS[kind];
+    const asset=Array.isArray(release.assets)?release.assets.find(item=>item.name===name):null;
+    const download=String(asset?.browser_download_url||'');
+    const expectedUrl=LOJA_RELEASE_PREFIX+encodeURIComponent(release.tag_name)+'/'+name;
+    if(download!==expectedUrl)return json({error:'Artefato comercial não publicado.'},503);
+    return new Response(null,{status:302,headers:{
+      location:download,'cache-control':'public, max-age=300','x-content-type-options':'nosniff'
+    }});
+  }catch{return json({error:'Não foi possível consultar a distribuição oficial.'},503);}
+}
+
 export async function handleRequest(request,env={}){
   const url=new URL(request.url);try{
     const adminResponse=await adminRoute(request,env,url);if(adminResponse)return adminResponse;
     const nexus=await handleNexusTrial(request,env,url,readyStore);if(nexus)return nexus;
     if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/download/almoxarifado')return await almoxarifadoPublishedAsset(env);
     if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/manual/almoxarifado.pdf')return await almoxarifadoPublishedAsset(env,{manual:true});
+    if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/download/loja-roupas')return await lojaRoupasPublishedAsset(env,'installer');
+    if((request.method==='GET'||request.method==='HEAD')&&url.pathname==='/manual/loja-roupas.pdf')return await lojaRoupasPublishedAsset(env,'manual');
     if(request.method==='GET'&&url.pathname==='/health')return json({ok:true,service:'artisys-account'});
     if(request.method==='POST'&&url.pathname==='/v1/activation/request')return await requestActivation(request,env);
     if(request.method==='POST'&&url.pathname==='/v1/activation/verify')return await verifyActivation(request,env);

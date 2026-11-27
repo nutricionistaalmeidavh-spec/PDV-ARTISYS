@@ -70,7 +70,7 @@ export default {async fetch(request,env){
         return json({error:'Authorization rejected'},403);
       const subject=product==='ALMOXARIFADO'
         ?'ArtiSys Almoxarifado | Instalação, licença e manual'
-        :'Loja Roupas ArtiSys | Seu acesso foi liberado';
+        :'Loja Roupas ArtiSys | Instalação, licença e manual';
       const text=product==='ALMOXARIFADO'?
         'Olá!\n\nObrigado por adquirir o ArtiSys Almoxarifado. Seu acesso comercial está liberado.\n\n'+
         'E-mail vinculado: '+email+
@@ -86,9 +86,22 @@ export default {async fetch(request,env){
         '\n\nO código é de uso único e expira em 48 horas. A validade da licença é independente da validade do código.'+
         '\nGuarde este e-mail. Não compartilhe o código de ativação. Os dados do estoque permanecem no computador principal.'+
         '\n\nSuporte: responda a este e-mail.\n\nEquipe ArtiSys'
-        :'Olá!\\n\\nSua licença do Loja Roupas foi liberada pela ArtiSys.\\n\\nE-mail vinculado: '+email+
-        '\nCódigo de ativação: '+code+'\nCódigo válido até: '+codeExpiresAt+
-        '\n\nComo começar:\n1. Quando receber o instalador homologado da ArtiSys, instale no computador principal.\n2. Na edição comercial, informe seu e-mail e o código acima.\n3. Cadastre a loja e siga o tour de primeiro acesso.\n4. A vitrine online é opcional e depende da publicação dos produtos.\n\nA versão livre local não exige Cloudflare nem assinatura.\n\nO código é de uso único. Não o compartilhe.\nSe precisar de ajuda, responda a este e-mail.\n\nEquipe ArtiSys';
+        :'Olá!\n\nObrigado por adquirir a Loja de Roupas ArtiSys. Seu acesso comercial está liberado.\n\n'+
+        'E-mail vinculado: '+email+
+        '\nCódigo de ativação: '+code+
+        '\nCódigo válido até: '+codeExpiresAt+
+        '\n\nDOWNLOAD DIRETO - Instalador Windows 64 bits:\nhttps://pdv-artisys.sistema-artisys.workers.dev/download/loja-roupas'+
+        '\n\nMANUAL DE INSTALAÇÃO E USO (PDF):\nhttps://pdv-artisys.sistema-artisys.workers.dev/manual/loja-roupas.pdf'+
+        '\n\nTERMOS DE USO E POLÍTICA DE PRIVACIDADE:\nhttps://github.com/nutricionistaalmeidavh-spec/loja-roupas/tree/main/docs/comercial'+
+        '\n\nPrimeiros passos:\n1. Baixe e instale no computador principal da loja (Windows 10/11 64 bits).'+
+        '\n2. Abra "Loja de Roupas Comercial" e informe este e-mail e o código acima (precisa de internet só nesta etapa).'+
+        '\n3. Cadastre o nome da loja, o usuário e a senha do administrador.'+
+        '\n4. Siga o tour de primeiro acesso e o manual para cadastrar produtos e abrir o caixa.'+
+        '\n5. Outros computadores da loja se conectam ao principal pela rede local, sem nova ativação.'+
+        '\n\nImportante: o sistema não emite nota fiscal (NFC-e/NF-e); o comprovante é não fiscal.'+
+        '\nO código é de uso único e expira em 48 horas. A validade da licença é independente da validade do código.'+
+        '\nGuarde este e-mail e não compartilhe o código. Os dados da loja ficam no computador principal.'+
+        '\n\nSuporte: responda a este e-mail.\n\nEquipe ArtiSys';
       await env.EMAIL.send({from:FROM,to:email,subject,text});
       return json({accepted:true},202);
     }catch{return json({error:'Email delivery failed'},503);}
