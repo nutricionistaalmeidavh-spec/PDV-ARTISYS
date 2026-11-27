@@ -1,0 +1,41 @@
+name: Deploy e-mail de boas-vindas (oficina-password-mailer)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloudflare/oficina-password-mailer/**'
+      - '.github/workflows/deploy-oficina-mailer.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-oficina-mailer
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_MAILER_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_MAILER_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Testes do e-mail
+        run: |
+          node --check cloudflare/oficina-password-mailer/worker.mjs
+          node --test test/oficina-mail-relay-worker.test.js
+      - name: Conferir credenciais da conta do artisys.dev
+        id: creds
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Segredos CLOUDFLARE_MAILER_API_TOKEN e CLOUDFLARE_MAILER_ACCOUNT_ID ausentes; deploy do e-mail pulado."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publicar Worker
+        if: steps.creds.outputs.ok == 'true'
+        run: npx --yes wrangler@4 deploy -c cloudflare/oficina-password-mailer/wrangler.jsonc
