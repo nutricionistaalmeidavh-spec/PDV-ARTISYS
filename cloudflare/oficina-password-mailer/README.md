@@ -11,3 +11,12 @@ Serviço separado da Central de Licenças e sem credenciais compartilhadas entre
 - O domínio `artisys.dev` precisa continuar autorizado para envio pelo serviço existente.
 
 Não exponha o e-mail do cliente nem o código nos logs.
+
+## Deploy automático
+
+O workflow `.github/workflows/deploy-oficina-mailer.yml` publica este Worker a cada merge na `main` que mexa nesta pasta (ou manualmente em Actions > Run workflow). Ele precisa de dois segredos do repositório, da conta Cloudflare dona do `artisys.dev`:
+
+- `CLOUDFLARE_MAILER_API_TOKEN`: token de API com permissão **Account > Workers Scripts > Edit**.
+- `CLOUDFLARE_MAILER_ACCOUNT_ID`: ID dessa conta.
+
+Sem os segredos, o workflow só roda os testes e avisa que pulou o deploy. Os segredos já gravados no Worker (como a chave do relay) são mantidos pelo `wrangler deploy`.
