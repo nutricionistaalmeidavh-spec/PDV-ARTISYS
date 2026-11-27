@@ -61,6 +61,10 @@ test('Loja Roupas sends transactional welcome only when center grants a one-time
   assert.match(messages[0].subject,/Loja Roupas/);
   assert.match(messages[0].text,/123456/);
   assert.equal(messages[0].to,payload.email);
+  assert.match(messages[0].text,/https:\/\/pdv-artisys\.sistema-artisys\.workers\.dev\/download\/loja-roupas/);
+  assert.match(messages[0].text,/https:\/\/pdv-artisys\.sistema-artisys\.workers\.dev\/manual\/loja-roupas\.pdf/);
+  assert.match(messages[0].text,/não emite nota fiscal/);
+  assert.doesNotMatch(messages[0].text,/\\n/,'sem \\n literal no texto do e-mail');
  }finally{globalThis.fetch=originalFetch;}
 });
 

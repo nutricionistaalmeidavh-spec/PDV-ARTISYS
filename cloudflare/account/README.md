@@ -183,3 +183,16 @@ emite novo código e reenvia as instruções, sem cancelar a licença original.
 A infraestrutura de e-mail e a Central pertencem somente à distribuição
 comercial opcional. O core livre do Almoxarifado segue R$ 0 / self-hosted
 e não depende de e-mail, Worker ou nuvem para funcionar.
+
+## Boas-vindas da Loja de Roupas
+
+Ao liberar **Loja Roupas** (`LOJA_ROUPAS`) no painel, a Central gera o código de seis dígitos e pede ao relay `oficina-mail.artisys.dev/welcome` o envio para o e-mail licenciado, com:
+
+- código de ativação e validade (48 horas, uso único);
+- download direto da **edição comercial** Windows: `GET /download/loja-roupas`;
+- manual em PDF: `GET /manual/loja-roupas.pdf`;
+- link dos termos de uso e da política de privacidade.
+
+As duas rotas consultam as releases do repositório `loja-roupas` e redirecionam somente para a release `loja-comercial-vX.Y.Z` mais nova (não rascunho) que tenha `Loja-de-Roupas-Comercial-Setup-x64.exe` e `Manual-Loja-de-Roupas.pdf`. As releases `loja-fisica-v*` e `v*` (edições livres) nunca são usadas; sem release comercial a rota responde 503.
+
+O texto do e-mail fica no Worker `oficina-password-mailer`, que é implantado separadamente na conta dona de `artisys.dev` (`wrangler deploy -c cloudflare/oficina-password-mailer/wrangler.jsonc`).
